@@ -27,7 +27,10 @@ import pytest
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.telemetry.client import TelemetryClientRegistry
-from nexus.telemetry.collector import TelemetryCollector
+from nexus.telemetry.events.workflow_execution import (
+    WorkflowExecutionCompletedEvent,
+    WorkflowExecutionStartEvent,
+)
 from nexus.telemetry.handlers.node_execution import NodeExecutedTelemetryHandler
 from nexus.workflows.audit.node_execution import NodeExecutedEvent
 from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
@@ -87,7 +90,7 @@ async def _run_baseline(iterations: int) -> list[float]:
     return latencies
 
 
-async def _run_with_telemetry(collector: TelemetryCollector, iterations: int) -> list[float]:
+async def _run_with_telemetry(registry: TelemetryClientRegistry, iterations: int) -> list[float]:
     """Run workflow activities with telemetry event emission."""
     latencies: list[float] = []
     for _ in range(iterations):
@@ -95,7 +98,12 @@ async def _run_with_telemetry(collector: TelemetryCollector, iterations: int) ->
 
         start = time.perf_counter()
 
-        collector.capture_workflow_start(execution_id=str(wf_id))
+        registry.send_event(
+            WorkflowExecutionStartEvent(
+                workflow_execution_id=str(wf_id),
+                entitlement_id=registry.entitlement_id,
+            )
+        )
         await _run_workflow_activities()
 
         for i in range(_ACTIVITIES_PER_WORKFLOW):
@@ -108,12 +116,15 @@ async def _run_with_telemetry(collector: TelemetryCollector, iterations: int) ->
                     duration_ms=10,
                 )
             )
-        collector.capture_workflow_completed(
-            execution_id=str(wf_id),
-            status=WorkflowTerminalStatus.COMPLETED,
-            duration_ms=50,
-            node_count=_ACTIVITIES_PER_WORKFLOW,
-            error_count=0,
+        registry.send_event(
+            WorkflowExecutionCompletedEvent(
+                workflow_execution_id=str(wf_id),
+                status=WorkflowTerminalStatus.COMPLETED,
+                duration_ms=50,
+                node_count=_ACTIVITIES_PER_WORKFLOW,
+                error_count=0,
+                entitlement_id=registry.entitlement_id,
+            )
         )
 
         latencies.append((time.perf_counter() - start) * 1000)
@@ -143,18 +154,17 @@ class TestTelemetryOverhead:
         client.max_retries = 0
         for consumer in client.consumers:
             consumer.retries = 0
-        collector = TelemetryCollector(registry=registry)
 
         AuditEventDispatcher.register({NodeExecutedEvent: NodeExecutedTelemetryHandler()})
 
         try:
             # Warmup
             await _run_baseline(5)
-            await _run_with_telemetry(collector, 5)
+            await _run_with_telemetry(registry, 5)
 
             # Measure
             baseline = await _run_baseline(_ITERATIONS)
-            with_telemetry = await _run_with_telemetry(collector, _ITERATIONS)
+            with_telemetry = await _run_with_telemetry(registry, _ITERATIONS)
 
             mean_baseline = statistics.mean(baseline)
             mean_telemetry = statistics.mean(with_telemetry)

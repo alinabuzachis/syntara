@@ -10,7 +10,6 @@ from nexus.telemetry.events.node_execution import (
 )
 from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
-    WorkflowExecutionEventBuilder,
     WorkflowExecutionStartEvent,
 )
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
@@ -282,50 +281,6 @@ class TestNodeExecutionEvent:
         )
         props = event.to_segment_event()["properties"]
         assert props["entitlement_id"] == "ent-activity-789"
-
-
-# =============================================================================
-# WorkflowExecutionEventBuilder Tests (T022-TEST, T024-TEST)
-# =============================================================================
-
-
-class TestWorkflowExecutionEventBuilder:
-    """Tests for WorkflowExecutionEventBuilder."""
-
-    def test_build_start_event(self):
-        builder = WorkflowExecutionEventBuilder()
-        event = builder.build_start_event(
-            execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            entitlement_id="",
-        )
-        assert isinstance(event, WorkflowExecutionStartEvent)
-        assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
-        assert event.trigger_type is None
-
-    def test_build_start_event_with_trigger_activity_type(self):
-        builder = WorkflowExecutionEventBuilder()
-        event = builder.build_start_event(
-            execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            entitlement_id="",
-            trigger_activity_type=ActivityName.MANUAL_TRIGGER,
-        )
-        assert isinstance(event, WorkflowExecutionStartEvent)
-        assert event.trigger_type == ActivityName.MANUAL_TRIGGER
-
-    def test_build_completed_event_success(self):
-        builder = WorkflowExecutionEventBuilder()
-        event = builder.build_completed_event(
-            execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            status="completed",
-            duration_ms=12500,
-            node_count=8,
-            error_count=0,
-            entitlement_id="",
-        )
-        assert isinstance(event, WorkflowExecutionCompletedEvent)
-        assert event.status == "completed"
-        assert event.duration_ms == 12500
-        assert event.error_type is None
 
 
 # =============================================================================

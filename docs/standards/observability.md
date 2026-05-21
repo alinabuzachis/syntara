@@ -559,7 +559,6 @@ When adding a new component:
 | `src/nexus/audit/discovery.py` | Auto-discovery of handler classes |
 | `src/nexus/telemetry/handlers/` | Telemetry handlers (side-effect-only) |
 | `src/nexus/telemetry/events/` | Telemetry event models (Segment payloads) |
-| `src/nexus/telemetry/collector.py` | `TelemetryCollector` (legacy, being migrated) |
 | `tests/unit/metrics/` | Metrics test suite |
 | `tests/unit/telemetry/` | Telemetry test suite |
 

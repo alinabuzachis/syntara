@@ -1,8 +1,7 @@
 """Telemetry handler for WorkflowCompletedEvent.
 
 Emits a Segment ``workflow_execution_completed`` event when a workflow
-execution reaches a terminal state, reusing the audit dispatcher
-instead of direct TelemetryCollector calls.
+execution reaches a terminal state.
 
 Requirement: AAP-74303
 """

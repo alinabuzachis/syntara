@@ -1,17 +1,11 @@
-"""Workflow execution telemetry event models and builders.
+"""Workflow execution telemetry event models.
 
-Defines SQLModel models for workflow execution start and completion events,
-plus builder classes for constructing events from workflow execution context.
+Defines SQLModel models for workflow execution start and completion events.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from sqlmodel import Field
-
-if TYPE_CHECKING:
-    from uuid import UUID
 
 from nexus.telemetry.events.base import BaseTelemetryEvent
 from nexus.workflows.workflow_engine.models.workflow_definition import (  # noqa: TC001
@@ -55,74 +49,3 @@ class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
         default=None,
         description="Name of the exception that caused the error, null otherwise",
     )
-
-
-class WorkflowExecutionEventBuilder:
-    """Builder for constructing workflow execution telemetry events.
-
-    Constructs both start and completion events from workflow execution context.
-    """
-
-    def build_start_event(
-        self,
-        execution_id: str,
-        entitlement_id: str,
-        request_id: UUID | None = None,
-        trigger_activity_type: ActivityName | None = None,
-    ) -> WorkflowExecutionStartEvent:
-        """Build a workflow execution start event.
-
-        Args:
-            execution_id: Unique workflow execution identifier (UUID v4).
-            entitlement_id: Installation entitlement identifier.
-            request_id: Optional X-Request-Id from the originating HTTP request.
-            trigger_activity_type: Type of trigger that started the workflow.
-
-        Returns:
-            WorkflowExecutionStartEvent instance.
-
-        """
-        return WorkflowExecutionStartEvent(
-            workflow_execution_id=execution_id,
-            entitlement_id=entitlement_id,
-            request_id=request_id,
-            trigger_type=trigger_activity_type,
-        )
-
-    def build_completed_event(
-        self,
-        execution_id: str,
-        status: WorkflowTerminalStatus,
-        duration_ms: int,
-        node_count: int,
-        error_count: int,
-        entitlement_id: str,
-        error_type: str | None = None,
-        request_id: UUID | None = None,
-    ) -> WorkflowExecutionCompletedEvent:
-        """Build a workflow execution completed event.
-
-        Args:
-            execution_id: Unique workflow execution identifier (UUID v4).
-            status: Final execution status.
-            duration_ms: Duration in milliseconds.
-            node_count: Total number of nodes executed.
-            error_count: Number of nodes that failed.
-            entitlement_id: Installation entitlement identifier.
-            error_type: Name of the exception that caused the error.
-            request_id: Optional X-Request-Id from the originating HTTP request.
-
-        Returns:
-            WorkflowExecutionCompletedEvent instance.
-
-        """
-        return WorkflowExecutionCompletedEvent(
-            workflow_execution_id=execution_id,
-            status=status,
-            duration_ms=duration_ms,
-            node_count=node_count,
-            error_count=error_count,
-            error_type=error_type,
-            entitlement_id=entitlement_id,
-            request_id=request_id,
-        )

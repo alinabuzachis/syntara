@@ -1,14 +1,9 @@
-"""Unit tests for WorkflowErrorEvent model and builder."""
-
-from uuid import uuid4
+"""Unit tests for WorkflowErrorEvent model."""
 
 import pytest
 from pydantic import ValidationError
 
-from nexus.telemetry.events.workflow_error import (
-    WorkflowErrorEvent,
-    WorkflowErrorEventBuilder,
-)
+from nexus.telemetry.events.workflow_error import WorkflowErrorEvent
 from tests.unit.telemetry.conftest import VALID_WORKFLOW_EXECUTION_ID
 
 
@@ -186,81 +181,3 @@ class TestWorkflowErrorEvent:
         )
         props = event.to_segment_event()["properties"]
         assert props["entitlement_id"] == "ent-test-789"
-
-
-class TestWorkflowErrorEventBuilder:
-    """Tests for WorkflowErrorEventBuilder."""
-
-    def test_build_activity_timeout_event(self):
-        builder = WorkflowErrorEventBuilder()
-        event = builder.build_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            timed_out_component="activity",
-            configured_timeout_seconds=30.0,
-            elapsed_time_ms=30500,
-            entitlement_id="ent-123",
-            activity_id="script-1",
-        )
-        assert isinstance(event, WorkflowErrorEvent)
-        assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
-        assert event.timed_out_component == "activity"
-        assert event.configured_timeout_seconds == 30.0
-        assert event.elapsed_time_ms == 30500
-        assert event.activity_id == "script-1"
-        assert event.retry_count == 0
-
-    def test_build_event_with_retry_count(self):
-        builder = WorkflowErrorEventBuilder()
-        event = builder.build_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            timed_out_component="activity",
-            configured_timeout_seconds=30.0,
-            elapsed_time_ms=90500,
-            entitlement_id="ent-123",
-            activity_id="script-1",
-            retry_count=3,
-        )
-        assert event.retry_count == 3
-
-    def test_build_workflow_timeout_event(self):
-        builder = WorkflowErrorEventBuilder()
-        event = builder.build_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            timed_out_component="workflow",
-            configured_timeout_seconds=3600.0,
-            elapsed_time_ms=3600000,
-            entitlement_id="ent-456",
-        )
-        assert isinstance(event, WorkflowErrorEvent)
-        assert event.timed_out_component == "workflow"
-        assert event.activity_id is None
-
-    def test_build_event_with_error_type(self):
-        builder = WorkflowErrorEventBuilder()
-        event = builder.build_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            timed_out_component="activity",
-            configured_timeout_seconds=30.0,
-            elapsed_time_ms=0,
-            entitlement_id="ent-123",
-            activity_id="script-1",
-            retry_count=2,
-            error_type="ConnectionError",
-            retry_reason="Connection timeout",
-        )
-        assert event.error_type == "ConnectionError"
-        assert event.retry_reason == "Connection timeout"
-        assert event.retry_count == 2
-
-    def test_build_event_with_request_id(self):
-        builder = WorkflowErrorEventBuilder()
-        request_id = uuid4()
-        event = builder.build_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            timed_out_component="activity",
-            configured_timeout_seconds=30.0,
-            elapsed_time_ms=30000,
-            entitlement_id="ent-123",
-            request_id=request_id,
-        )
-        assert event.request_id == request_id

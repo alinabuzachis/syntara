@@ -1,14 +1,11 @@
-"""Unit tests for ToolExecutionEvent model and builder."""
+"""Unit tests for ToolExecutionEvent model."""
 
 from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
 
-from nexus.telemetry.events.tool_execution import (
-    ToolExecutionEvent,
-    ToolExecutionEventBuilder,
-)
+from nexus.telemetry.events.tool_execution import ToolExecutionEvent
 from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 
 VALID_WORKFLOW_EXECUTION_ID = UUID("550e8400-e29b-41d4-a716-446655440000")
@@ -92,33 +89,3 @@ class TestToolExecutionEvent:
         )
         with pytest.raises(ValidationError):
             event.namespaced_name = "changed"
-
-
-class TestToolExecutionEventBuilder:
-    """Tests for ToolExecutionEventBuilder."""
-
-    def test_build_event(self):
-        builder = ToolExecutionEventBuilder()
-        event = builder.build_event(
-            namespaced_name="mcp::get_greeting",
-            status=ToolExecutionStatus.SUCCESS,
-            duration_ms=142,
-            entitlement_id="ent-123",
-        )
-        assert isinstance(event, ToolExecutionEvent)
-        assert event.namespaced_name == "mcp::get_greeting"
-        assert event.status == ToolExecutionStatus.SUCCESS
-        assert event.duration_ms == 142
-        assert event.workflow_execution_id is None
-
-    def test_build_event_with_workflow_execution_id(self):
-        builder = ToolExecutionEventBuilder()
-        event = builder.build_event(
-            namespaced_name="mcp::get_greeting",
-            status=ToolExecutionStatus.TIMEOUT,
-            duration_ms=30000,
-            entitlement_id="ent-123",
-            execution_id=VALID_WORKFLOW_EXECUTION_ID,
-        )
-        assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
-        assert event.status == ToolExecutionStatus.TIMEOUT

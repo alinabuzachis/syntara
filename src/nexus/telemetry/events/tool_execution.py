@@ -26,39 +26,6 @@ class ToolExecutionEvent(BaseTelemetryEvent):
     )
 
 
-class ToolExecutionEventBuilder:
-    """Builder for constructing tool execution telemetry events."""
-
-    def build_event(
-        self,
-        namespaced_name: str,
-        status: ToolExecutionStatus,
-        duration_ms: int,
-        entitlement_id: str,
-        execution_id: UUID | None = None,
-    ) -> ToolExecutionEvent:
-        """Build a tool execution telemetry event.
-
-        Args:
-            namespaced_name: Tool namespaced name.
-            status: Execution status.
-            duration_ms: Execution duration in milliseconds.
-            entitlement_id: Installation entitlement identifier.
-            execution_id: Optional parent workflow execution ID.
-
-        Returns:
-            ToolExecutionEvent instance.
-
-        """
-        return ToolExecutionEvent(
-            namespaced_name=namespaced_name,
-            status=status,
-            duration_ms=duration_ms,
-            workflow_execution_id=execution_id,
-            entitlement_id=entitlement_id,
-        )
-
-
 @dataclass
 class ToolExecutedEvent:
     """Domain event fired when a tool execution reaches a terminal state."""

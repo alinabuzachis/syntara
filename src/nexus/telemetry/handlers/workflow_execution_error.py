@@ -12,7 +12,7 @@ import structlog
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.telemetry.client import get_telemetry_registry
-from nexus.telemetry.collector import TelemetryCollector
+from nexus.telemetry.events.workflow_error import WorkflowErrorEvent
 from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
 
 if TYPE_CHECKING:
@@ -31,17 +31,19 @@ class WorkflowExecutionErrorTelemetryHandler(AuditEventHandler[WorkflowExecution
             if not registry.is_initialized():
                 return None
 
-            collector = TelemetryCollector(registry=registry)
-            collector.capture_workflow_error(
-                workflow_execution_id=str(event.execution_id),
-                timed_out_component=event.timed_out_component,
-                configured_timeout_seconds=event.configured_timeout_seconds,
-                elapsed_time_ms=event.elapsed_time_ms,
-                activity_id=event.activity_id,
-                request_id=event.request_id,
-                retry_count=event.retry_count,
-                error_type=event.error_type,
-                retry_reason=event.retry_reason,
+            registry.send_event(
+                WorkflowErrorEvent(
+                    workflow_execution_id=str(event.execution_id),
+                    timed_out_component=event.timed_out_component,
+                    configured_timeout_seconds=event.configured_timeout_seconds,
+                    elapsed_time_ms=event.elapsed_time_ms,
+                    activity_id=event.activity_id,
+                    entitlement_id=registry.entitlement_id,
+                    request_id=event.request_id,
+                    retry_count=event.retry_count,
+                    error_type=event.error_type,
+                    retry_reason=event.retry_reason,
+                )
             )
             logger.debug(
                 "Emitted workflow_error telemetry",

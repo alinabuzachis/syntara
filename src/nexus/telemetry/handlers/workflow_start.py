@@ -1,8 +1,7 @@
 """Telemetry handler for WorkflowStartEvent.
 
 Emits a Segment ``workflow_execution_start`` event when a workflow
-execution begins, reusing the audit dispatcher instead of direct
-TelemetryCollector calls.
+execution begins.
 
 Requirement: AAP-74302
 """

@@ -1,6 +1,6 @@
 """Integration tests for end-to-end workflow telemetry capture.
 
-Validates that the telemetry interceptors, collector, and client registry
+Validates that the telemetry client registry and handlers
 work together to capture and emit workflow and activity telemetry events.
 """
 
@@ -10,7 +10,10 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from nexus.telemetry.client import TelemetryClientRegistry
-from nexus.telemetry.collector import TelemetryCollector
+from nexus.telemetry.events.workflow_execution import (
+    WorkflowExecutionCompletedEvent,
+    WorkflowExecutionStartEvent,
+)
 from nexus.telemetry.handlers.node_execution import NodeExecutedTelemetryHandler
 from nexus.workflows.audit.node_execution import NodeExecutedEvent
 from nexus.workflows.workflow_engine.models.workflow_definition import (
@@ -31,22 +34,24 @@ class TestEndToEndWorkflowTelemetry:
         registry._entitlement_id = "test-install-001"
         registry._anonymous_id = "anon-test-id"
 
-        collector = TelemetryCollector(registry=registry)
-
         execution_id = "test-correlation-id"
 
-        # Capture start event
-        collector.capture_workflow_start(
-            execution_id=execution_id,
+        registry.send_event(
+            WorkflowExecutionStartEvent(
+                workflow_execution_id=execution_id,
+                entitlement_id=registry.entitlement_id,
+            )
         )
 
-        # Capture completed event
-        collector.capture_workflow_completed(
-            execution_id=execution_id,
-            status=WorkflowTerminalStatus.COMPLETED,
-            duration_ms=1500,
-            node_count=3,
-            error_count=0,
+        registry.send_event(
+            WorkflowExecutionCompletedEvent(
+                workflow_execution_id=execution_id,
+                status=WorkflowTerminalStatus.COMPLETED,
+                duration_ms=1500,
+                node_count=3,
+                error_count=0,
+                entitlement_id=registry.entitlement_id,
+            )
         )
 
         # Verify two track calls were made (start + completed)
@@ -112,10 +117,11 @@ class TestEntitlementIdPropagation:
 
         assert registry.entitlement_id == "prod-install-xyz"
 
-        collector = TelemetryCollector(registry=registry)
-
-        collector.capture_workflow_start(
-            execution_id="test-id",
+        registry.send_event(
+            WorkflowExecutionStartEvent(
+                workflow_execution_id="test-id",
+                entitlement_id=registry.entitlement_id,
+            )
         )
 
         call = mock_client.track.call_args
