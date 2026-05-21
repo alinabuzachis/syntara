@@ -168,6 +168,7 @@ class TestEnableUser:
         event = mock_dispatcher.dispatch.call_args[0][0]
         assert event.target_username == mock_user.username
         assert event.actor_username == "ao-admin"
+        assert event.sessions_revoked == 2
 
     @pytest.mark.asyncio
     async def test_enables_disabled_idp_user(self) -> None:
@@ -292,6 +293,7 @@ class TestResetPassword:
         event = mock_dispatcher.dispatch.call_args[0][0]
         assert event.target_username == mock_user.username
         assert event.actor_username == "ao-admin"
+        assert event.sessions_revoked == 3
 
     @pytest.mark.asyncio
     async def test_exits_with_error_for_unknown_user(self) -> None:

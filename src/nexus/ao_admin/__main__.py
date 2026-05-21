@@ -2,7 +2,6 @@
 
 Usage::
 
-    ao-admin enable-user
     ao-admin enable-user --username alice --yes
 
     ao-admin reset-password --username alice
@@ -22,6 +21,7 @@ from typing import TYPE_CHECKING, Annotated
 import typer
 
 if TYPE_CHECKING:
+    from nexus.auth.audit.account_management import AccountEnableEvent, PasswordResetEvent
     from nexus.core.models.user import User
 
 app = typer.Typer(
@@ -31,7 +31,6 @@ app = typer.Typer(
     add_completion=False,
 )
 
-_DEFAULT_ENABLE_USERNAME = "admin"
 _MIN_PASSWORD_LENGTH = 14
 _MIN_CHARACTER_CLASSES = 3
 
@@ -137,7 +136,7 @@ async def _lookup_local_user(username: str) -> User:
 
 async def _revoke_sessions_and_dispatch(
     user: User,
-    audit_event: object,
+    audit_event: AccountEnableEvent | PasswordResetEvent,
 ) -> None:
     """Revoke all sessions, increment token version, and dispatch an audit event."""
     from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
@@ -147,9 +146,11 @@ async def _revoke_sessions_and_dispatch(
     async with AsyncSessionLocal() as session:
         session.add(user)
         store = create_session_store(session)
-        await store.revoke_all_for_user(user.id)
+        revoked_count = await store.revoke_all_for_user(user.id)
         await store.increment_token_version(user.id)
         await session.commit()
+
+    audit_event.sessions_revoked = revoked_count
 
     try:
         AuditEventDispatcher.dispatch(audit_event)
@@ -238,8 +239,12 @@ async def _reset_password_async(username: str, new_password: str, actor: str) ->
 def enable_user(
     username: Annotated[
         str,
-        typer.Option("--username", "-u", help="Username of the account to re-enable"),
-    ] = _DEFAULT_ENABLE_USERNAME,
+        typer.Option(
+            "--username",
+            "-u",
+            help="Username of the account to re-enable (e.g. 'admin' for the built-in admin account)",
+        ),
+    ],
     yes: Annotated[  # noqa: FBT002
         bool,
         typer.Option("--yes", "-y", help="Skip confirmation prompt"),
