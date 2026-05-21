@@ -118,7 +118,7 @@ const identityProvidersFetchClient = createFetchClient<IdentityProvidersAPI.path
 identityProvidersFetchClient.use(authMiddleware)
 export const identityProvidersClient = createClient(identityProvidersFetchClient)
 
-const authFetchClient = createFetchClient<AuthAPI.paths>({ baseUrl: '/api/v1' })
+export const authFetchClient = createFetchClient<AuthAPI.paths>({ baseUrl: '/api/v1' })
 authFetchClient.use(authMiddleware)
 export const authClient = createClient(authFetchClient)
 

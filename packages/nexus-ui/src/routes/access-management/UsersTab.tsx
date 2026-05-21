@@ -1,5 +1,5 @@
 import type { User } from '@ansible/nexus-contracts'
-import { Button, Content, ContentVariants, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import { Button, Content, ContentVariants, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -20,16 +20,18 @@ import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagina
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useTableSort } from '../../hooks/useTableSort'
-import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+import type { FilterFieldDefinition } from '../../types/filters'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
 
 import { getUserDetailPath } from './accessManagementPaths'
+import { AUTH_SOURCE_LOCAL } from './adminConstants'
 import { BuiltInAdminCard } from './BuiltInAdminCard'
 import { DisabledBadge } from './DisabledBadge'
 import { useAdminToggle } from './useAdminToggle'
+import { getAuthSourceFilterDefinition } from './userFilters'
 
 const SORT_FIELDS = ['username', 'full_name', 'email', 'last_login'] as const
 
@@ -58,6 +60,7 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
     defaultOperator: FilterOperatorEnum.CONTAINS,
     placeholder: 'Filter by email',
   },
+  getAuthSourceFilterDefinition(),
 ]
 
 function getRowActions(user: User, onDelete: (user: User) => void): IAction[] {
@@ -190,6 +193,7 @@ export function UsersTab() {
                 <Th sort={getSortParams(0)}>Username</Th>
                 <Th sort={getSortParams(1)}>Name</Th>
                 <Th sort={getSortParams(2)}>Email</Th>
+                <Th>Authentication</Th>
                 <Th sort={getSortParams(3)}>Last Login</Th>
                 <Th screenReaderText="Actions" />
               </Tr>
@@ -208,6 +212,17 @@ export function UsersTab() {
                   </Td>
                   <Td dataLabel="Email">
                     <Truncate content={user.email ?? ''} />
+                  </Td>
+                  <Td dataLabel="Authentication">
+                    <Flex gap={{ default: 'gapXs' }} flexWrap={{ default: 'wrap' }}>
+                      {(user.auth_sources ?? [AUTH_SOURCE_LOCAL]).map((source) => (
+                        <FlexItem key={source}>
+                          <Label isCompact color={source === AUTH_SOURCE_LOCAL ? 'grey' : 'blue'}>
+                            {source}
+                          </Label>
+                        </FlexItem>
+                      ))}
+                    </Flex>
                   </Td>
                   <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
                   <Td isActionCell>

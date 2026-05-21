@@ -1268,6 +1268,11 @@ export const handlers = [
       resources = resources.filter((u) => u.full_name.toLowerCase().includes(searchTerm))
     }
 
+    const authSource = url.searchParams.get('auth_source')
+    if (authSource) {
+      resources = resources.filter((u) => (u.auth_sources ?? []).includes(authSource))
+    }
+
     if (sort) {
       const isDesc = sort.startsWith('-')
       const field = isDesc ? sort.slice(1) : sort
@@ -1338,6 +1343,8 @@ export const handlers = [
       email: body.email ?? '',
       full_name: body.full_name ?? '',
       is_enabled: body.is_enabled ?? true,
+      auth_type: 'local',
+      auth_sources: ['Local'],
       last_login: null,
       created_at: now,
       updated_at: now,

@@ -429,6 +429,12 @@ export interface components {
       is_builtin?: boolean
       /** @default local */
       auth_type?: components['schemas']['AuthType']
+      /**
+       * Auth Sources
+       * @description Identity provider names for this user
+       * @default []
+       */
+      auth_sources?: string[]
       /** Last Login */
       last_login?: string | null
       /**
@@ -717,6 +723,12 @@ export interface components {
       is_builtin?: boolean
       /** @default local */
       auth_type?: components['schemas']['AuthType']
+      /**
+       * Auth Sources
+       * @description Identity provider names for this user
+       * @default []
+       */
+      auth_sources?: string[]
       /** Last Login */
       last_login?: string | null
       /**
@@ -1217,6 +1229,7 @@ export interface operations {
         include_total?: components['parameters']['includeTotalParam']
         username?: string | null
         full_name?: string | null
+        auth_source?: string | null
       }
       header?: never
       path?: never

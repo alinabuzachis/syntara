@@ -6,6 +6,9 @@ type AuthType = UsersAPI.components['schemas']['AuthType']
 export const AUTH_TYPE_LOCAL = 'local' as const satisfies AuthType
 export const AUTH_TYPE_FEDERATED = 'federated' as const satisfies AuthType
 
+/** Auth source value for locally authenticated users (from the backend auth_sources array). */
+export const AUTH_SOURCE_LOCAL = 'Local'
+
 /** Name of the built-in administrators group as defined by the backend. */
 export const BUILTIN_ADMINS_GROUP_NAME = 'admins'
 

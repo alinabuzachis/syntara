@@ -2,7 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
-import { createFilterChangeHandler, getUsernameFilterDefinition } from './userFilters'
+import { createFilterChangeHandler, getAuthSourceFilterDefinition, getUsernameFilterDefinition } from './userFilters'
+
+vi.mock('../../client', () => ({
+  authFetchClient: {
+    GET: vi.fn(),
+  },
+}))
+
+// Import after mock so vi.mocked() works
+const { authFetchClient } = await import('../../client')
 
 describe('userFilters', () => {
   describe('getUsernameFilterDefinition', () => {
@@ -24,6 +33,48 @@ describe('userFilters', () => {
       const b = getUsernameFilterDefinition()
       expect(a).not.toBe(b)
       expect(a).toEqual(b)
+    })
+  })
+
+  describe('getAuthSourceFilterDefinition', () => {
+    it('returns provider options on successful fetch', async () => {
+      vi.mocked(authFetchClient.GET).mockResolvedValueOnce({
+        data: {
+          providers: [
+            { name: 'AAP', id: '1', enabled: true },
+            { name: 'Azure AD', id: '2', enabled: true },
+          ],
+        },
+      } as never)
+
+      const definition = getAuthSourceFilterDefinition()
+      const options = await definition.asyncOptions!('')
+
+      expect(options).toEqual([
+        { value: 'Local', label: 'Local' },
+        { value: 'AAP', label: 'AAP' },
+        { value: 'Azure AD', label: 'Azure AD' },
+      ])
+    })
+
+    it('returns only static options when fetch fails', async () => {
+      vi.mocked(authFetchClient.GET).mockRejectedValueOnce(new Error('Network error'))
+
+      const definition = getAuthSourceFilterDefinition()
+      const options = await definition.asyncOptions!('')
+
+      expect(options).toEqual([{ value: 'Local', label: 'Local' }])
+    })
+
+    it('returns only static options when providers list is empty', async () => {
+      vi.mocked(authFetchClient.GET).mockResolvedValueOnce({
+        data: { providers: [] },
+      } as never)
+
+      const definition = getAuthSourceFilterDefinition()
+      const options = await definition.asyncOptions!('')
+
+      expect(options).toEqual([{ value: 'Local', label: 'Local' }])
     })
   })
 

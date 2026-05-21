@@ -16,6 +16,9 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  authFetchClient: {
+    GET: vi.fn().mockResolvedValue({ data: { providers: [] } }),
+  },
   authMiddleware: { onRequest: vi.fn() },
 }))
 
@@ -75,6 +78,8 @@ describe('UsersTab Component', () => {
       full_name: 'Admin User',
       is_enabled: true,
       is_builtin: true,
+      auth_type: 'local' as const,
+      auth_sources: ['Local'],
       last_login: '2024-03-15T10:30:00Z',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-02T00:00:00Z',
@@ -85,6 +90,8 @@ describe('UsersTab Component', () => {
       email: 'jdoe@nexus.local',
       full_name: 'John Doe',
       is_enabled: true,
+      auth_type: 'federated' as const,
+      auth_sources: ['AAP', 'Azure AD'],
       last_login: '2024-03-14T08:00:00Z',
       created_at: '2024-02-01T00:00:00Z',
       updated_at: '2024-02-02T00:00:00Z',
@@ -95,6 +102,8 @@ describe('UsersTab Component', () => {
       email: 'viewer@nexus.local',
       full_name: 'View Only',
       is_enabled: false,
+      auth_type: 'local' as const,
+      auth_sources: ['Local'],
       last_login: null,
       created_at: '2024-03-01T00:00:00Z',
       updated_at: '2024-03-02T00:00:00Z',
@@ -281,6 +290,103 @@ describe('UsersTab Component', () => {
       const rows = within(table).getAllByRole('row')
       const viewer1Row = rows[3]
       expect(within(viewer1Row).getByText('-')).toBeInTheDocument()
+    })
+  })
+
+  describe('Authentication Column', () => {
+    it('renders Authentication column header', () => {
+      render(<UsersTab />, { wrapper })
+
+      expect(screen.getByRole('columnheader', { name: 'Authentication' })).toBeInTheDocument()
+    })
+
+    it('renders Local label for local auth users', () => {
+      render(<UsersTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Users' })
+      const rows = within(table).getAllByRole('row')
+      // rows[1] is admin (local)
+      expect(within(rows[1]).getByText('Local')).toBeInTheDocument()
+    })
+
+    it('renders multiple auth source labels for federated users', () => {
+      render(<UsersTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Users' })
+      const rows = within(table).getAllByRole('row')
+      // rows[2] is jdoe (federated with AAP and Azure AD)
+      expect(within(rows[2]).getByText('AAP')).toBeInTheDocument()
+      expect(within(rows[2]).getByText('Azure AD')).toBeInTheDocument()
+    })
+
+    it('renders both local and federated auth source labels across rows', () => {
+      render(<UsersTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Users' })
+      const rows = within(table).getAllByRole('row')
+
+      // Admin (local) has exactly one label: Local
+      expect(within(rows[1]).getByText('Local')).toBeInTheDocument()
+
+      // jdoe (federated) has two labels: AAP and Azure AD
+      expect(within(rows[2]).getByText('AAP')).toBeInTheDocument()
+      expect(within(rows[2]).getByText('Azure AD')).toBeInTheDocument()
+      expect(within(rows[2]).queryByText('Local')).not.toBeInTheDocument()
+
+      // viewer1 (local) also has Local
+      expect(within(rows[3]).getByText('Local')).toBeInTheDocument()
+    })
+
+    it('falls back to Local label when auth_sources is undefined', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((...args: unknown[]) => {
+        const endpoint = args[1] as string
+        if (endpoint === '/groups') {
+          return {
+            data: mockGroupsData,
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (endpoint === '/groups/{group_id}/members') {
+          return {
+            data: { resources: [] },
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: vi.fn(),
+          } as never
+        }
+        return {
+          data: {
+            resources: [
+              {
+                id: 'u-no-sources',
+                username: 'nosources',
+                email: 'no@nexus.local',
+                full_name: 'No Sources',
+                is_enabled: true,
+                last_login: null,
+                created_at: '2024-01-01T00:00:00Z',
+                updated_at: '2024-01-01T00:00:00Z',
+              },
+            ],
+          },
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: vi.fn(),
+        } as never
+      })
+
+      render(<UsersTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Users' })
+      expect(within(table).getByText('Local')).toBeInTheDocument()
     })
   })
 

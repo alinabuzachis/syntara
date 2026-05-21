@@ -145,22 +145,24 @@ function UserDetailsTab({
             <LabelGroup>
               {isLocal && <Label isCompact>Local</Label>}
               {!isLocal &&
-                [...uniqueProviders.entries()].map(([id, name]) => (
-                  <Label
-                    key={id}
-                    isCompact
-                    onClick={() =>
-                      navigate(
-                        AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
-                          ':providerId',
-                          id
-                        ).replace('/:tab?', '')
-                      )
-                    }
-                  >
-                    {name}
-                  </Label>
-                ))}
+                [...uniqueProviders.entries()]
+                  .sort(([, a], [, b]) => a.localeCompare(b))
+                  .map(([id, name]) => (
+                    <Label
+                      key={id}
+                      isCompact
+                      onClick={() =>
+                        navigate(
+                          AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+                            ':providerId',
+                            id
+                          ).replace('/:tab?', '')
+                        )
+                      }
+                    >
+                      {name}
+                    </Label>
+                  ))}
             </LabelGroup>
           )}
         </DescriptionListDescription>
