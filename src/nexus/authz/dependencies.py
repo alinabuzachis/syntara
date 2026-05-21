@@ -126,43 +126,78 @@ class PermissionChecker:
             return ""
         return await self._resolve_project_name(db, proj_id)
 
-    async def _resolve_resource_project(self, request: Request, db: AsyncSession) -> tuple[str, str]:
-        """Resolve resource_id and resource_project from the request context.
+    async def _resolve_resource_labels(self, db: AsyncSession, resource_id: str) -> dict[str, str]:
+        """Look up resource labels by ID."""
+        if not self.resource_model or not resource_id:
+            return {}
+        model = self.resource_model
+        try:
+            rid = UUID(str(resource_id))
+        except ValueError:
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "uuid_parsing",
+                        "loc": ("path", self.resource_id_param or "id"),
+                        "msg": f"Invalid UUID format: {resource_id}",
+                        "input": resource_id,
+                    }
+                ]
+            ) from None
+        res = await db.exec(
+            select(model.labels).where(model.id == rid)  # type: ignore[attr-defined]
+        )
+        return res.first() or {}
+
+    async def _resolve_project_from_path(self, request: Request, db: AsyncSession) -> str:
+        """Resolve project name from the project_param path parameter."""
+        if not self.project_param:
+            return ""
+        project_id = request.path_params.get(self.project_param, "")
+        if not project_id:
+            return ""
+        resource_project = await self._resolve_project_name(db, project_id)
+        if not resource_project:
+            from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
+
+            msg = f"Project {project_id} not found"
+            raise ProjectNotFoundError(msg)
+        return resource_project
+
+    async def _resolve_resource_project(self, request: Request, db: AsyncSession) -> tuple[str, str, dict[str, str]]:
+        """Resolve resource_id, resource_project, and resource_labels from the request context.
 
         Returns:
-            Tuple of (resource_id, resource_project).
+            Tuple of (resource_id, resource_project, resource_labels).
 
         """
-        # Extract resource_id: use resource_id_param if specified, else default to "id" or "workflow_id"
         if self.resource_id_param:
             resource_id = request.path_params.get(self.resource_id_param, "")
         else:
             resource_id = request.path_params.get("id", request.path_params.get("workflow_id", ""))
 
         resource_project = ""
+        resource_labels: dict[str, str] = {}
 
-        # Option 1: project_id in path params
         if self.project_param:
-            project_id = request.path_params.get(self.project_param, "")
-            if project_id:
-                resource_project = await self._resolve_project_name(db, project_id)
-                if not resource_project:
-                    from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
+            resource_project = await self._resolve_project_from_path(request, db)
+            if resource_project and self.resource_type == "project":
+                # Project endpoints (e.g. PUT /projects/{project_id}) don't set
+                # resource_id_param, so resource_id would be empty. Use project_id
+                # from the path as the resource ID for OPA scope matching.
+                resource_id_from_project_path = request.path_params.get(self.project_param, "")
+                resource_id = resource_id_from_project_path
 
-                    msg = f"Project {project_id} not found"
-                    raise ProjectNotFoundError(msg)
-                if self.resource_type == "project":
-                    resource_id = str(project_id)
-
-        # Option 2: look up project from the resource itself
         if not resource_project and self.resource_model and self.resource_id_param and resource_id:
             resource_project = await self._resolve_project_from_resource(db, resource_id)
 
-        # Option 3: extract project_id from request body
+        if self.resource_model and resource_id:
+            resource_labels = await self._resolve_resource_labels(db, resource_id)
+
         if not resource_project and self.body_project_field:
             resource_project = await self._resolve_project_from_body(request, db)
 
-        return str(resource_id) if resource_id else "", resource_project
+        return str(resource_id) if resource_id else "", resource_project, resource_labels
 
     async def _resolve_project_from_body(self, request: Request, db: AsyncSession) -> str:
         """Extract and resolve project from the request body.
@@ -212,7 +247,7 @@ class PermissionChecker:
 
         """
         opa_client = get_opa_client(request)
-        resource_id, resource_project = await self._resolve_resource_project(request, db)
+        resource_id, resource_project, resource_labels = await self._resolve_resource_project(request, db)
 
         authz_request = AuthzRequest(
             user_id=current_user.id,
@@ -220,6 +255,7 @@ class PermissionChecker:
             resource_type=self.resource_type,
             resource_id=resource_id,
             resource_project=resource_project,
+            resource_labels=resource_labels,
             user_labels=current_user.labels,
             user_metadata=current_user.authz_metadata,
         )

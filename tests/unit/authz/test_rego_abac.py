@@ -286,6 +286,108 @@ class TestGroupLabelConditions:
         assert result["allow"] is False
 
 
+class TestResourceLabelsNotCondition:
+    """Deny credential:read when env label is NOT production (resource_labels_not condition)."""
+
+    _ALLOW_CRED = allow_policy("allow-cred-read", ["credential:read"])
+    _DENY_NOT_PROD = deny_policy(
+        "deny-not-prod",
+        ["credential:read"],
+        conditions={"resource_labels_not": {"env": "production"}},
+    )
+
+    def test_deny_fires_when_label_key_missing(self, opa_evaluate):
+        """THE BUG: resource has no labels at all — deny must fire."""
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                resource_labels={},
+                effective_policies=[self._ALLOW_CRED, self._DENY_NOT_PROD],
+            )
+        )
+        assert result["allow"] is False
+        assert result["deny"] is True
+
+    def test_deny_fires_when_label_value_differs(self, opa_evaluate):
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                resource_labels={"env": "staging"},
+                effective_policies=[self._ALLOW_CRED, self._DENY_NOT_PROD],
+            )
+        )
+        assert result["allow"] is False
+        assert result["deny"] is True
+
+    def test_allow_when_label_matches_excluded_value(self, opa_evaluate):
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                resource_labels={"env": "production"},
+                effective_policies=[self._ALLOW_CRED, self._DENY_NOT_PROD],
+            )
+        )
+        assert result["allow"] is True
+        assert result["deny"] is False
+
+    def test_deny_fires_when_all_keys_differ_or_missing(self, opa_evaluate):
+        """Multi-key: env=staging (differs) and tier missing — deny fires for both."""
+        deny_multi = deny_policy(
+            "deny-not-prod-gold",
+            ["credential:read"],
+            conditions={"resource_labels_not": {"env": "production", "tier": "gold"}},
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                resource_labels={"env": "staging"},
+                effective_policies=[self._ALLOW_CRED, deny_multi],
+            )
+        )
+        assert result["allow"] is False
+        assert result["deny"] is True
+
+    def test_allow_when_one_key_matches_excluded_value(self, opa_evaluate):
+        """Multi-key AND semantics: env=production matches, so deny does not fire."""
+        deny_multi = deny_policy(
+            "deny-not-prod-gold",
+            ["credential:read"],
+            conditions={"resource_labels_not": {"env": "production", "tier": "gold"}},
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                resource_labels={"env": "production"},
+                effective_policies=[self._ALLOW_CRED, deny_multi],
+            )
+        )
+        assert result["allow"] is True
+        assert result["deny"] is False
+
+    def test_allow_when_all_keys_match_excluded_values(self, opa_evaluate):
+        """All labels match the excluded values — deny does not fire."""
+        deny_multi = deny_policy(
+            "deny-not-prod-gold",
+            ["credential:read"],
+            conditions={"resource_labels_not": {"env": "production", "tier": "gold"}},
+        )
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="credential",
+                resource_labels={"env": "production", "tier": "gold"},
+                effective_policies=[self._ALLOW_CRED, deny_multi],
+            )
+        )
+        assert result["allow"] is True
+        assert result["deny"] is False
+
+
 class TestResourceLabelsNotViaDeny:
     """Allow workflow:delete via admin role + deny when status=archived."""
 

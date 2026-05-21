@@ -93,7 +93,7 @@ _resource_labels_not_match(policy) if {
 _resource_labels_not_match(policy) if {
     policy.conditions.resource_labels_not
     every key, val in policy.conditions.resource_labels_not {
-        input.resource.labels[key] != val
+        not input.resource.labels[key] == val
     }
 }
 
