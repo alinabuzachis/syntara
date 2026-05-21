@@ -1,5 +1,5 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { Checkbox, Content, Stack, StackItem } from '@patternfly/react-core'
+import { Checkbox, Content, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import { useEffect, useRef, useState, type Dispatch } from 'react'
 
 import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
@@ -197,7 +197,7 @@ export function BuilderDialogs({
         aria-describedby="delete-workflow-modal-body"
         destructiveAcknowledgement={{
           checkboxId: `delete-workflow-ack-${workflowId ?? ''}`,
-          label: 'I understand this workflow will be permanently deleted.',
+          label: 'I understand this workflow and any dependent workflows will be affected by this deletion.',
         }}
       >
         <Stack hasGutter>
@@ -205,6 +205,14 @@ export function BuilderDialogs({
             <Content component="p">
               The workflow <strong>{workflowName}</strong> will be deleted. This cannot be undone.
             </Content>
+          </StackItem>
+          <StackItem>
+            <List>
+              <ListItem>This workflow will stop running immediately.</ListItem>
+              <ListItem>
+                Any other workflows that use this one as a step will also become invalid and stop running.
+              </ListItem>
+            </List>
           </StackItem>
         </Stack>
       </ConfirmationDialog>

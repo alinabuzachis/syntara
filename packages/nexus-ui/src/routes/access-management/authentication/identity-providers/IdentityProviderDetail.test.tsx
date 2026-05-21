@@ -474,7 +474,20 @@ describe('IdentityProviderDetail', () => {
     expect(screen.getByText('Client ID')).toBeInTheDocument()
   })
 
-  it('calls patchProvider to toggle enabled state', async () => {
+  it('opens disable dialog when toggling an enabled provider', async () => {
+    const user = userEvent.setup()
+    vi.mocked(identityProvidersClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    const toggle = screen.getByRole('switch', { name: /enabled/i })
+    await user.click(toggle)
+
+    expect(screen.getByText('Disable identity provider?')).toBeInTheDocument()
+  })
+
+  it('calls patchProvider to disable after confirming dialog', async () => {
     const user = userEvent.setup()
     const mockPatch = vi.fn()
     vi.mocked(identityProvidersClient.useMutation).mockImplementation(((method: string) => {
@@ -485,9 +498,9 @@ describe('IdentityProviderDetail', () => {
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    // The Switch has a checkbox input
     const toggle = screen.getByRole('switch', { name: /enabled/i })
     await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Disable' }))
 
     expect(mockPatch).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -501,7 +514,7 @@ describe('IdentityProviderDetail', () => {
     )
   })
 
-  it('shows success alert when toggle succeeds', async () => {
+  it('shows success alert when disable succeeds', async () => {
     const user = userEvent.setup()
     const mockRefetch = vi.fn()
     const mockPatch = vi.fn((_params: unknown, callbacks: MutationCallbacks) => {
@@ -517,12 +530,12 @@ describe('IdentityProviderDetail', () => {
 
     const toggle = screen.getByRole('switch', { name: /enabled/i })
     await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Disable' }))
 
-    // The success callback should trigger refetch
     expect(mockRefetch).toHaveBeenCalled()
   })
 
-  it('shows error alert when toggle fails', async () => {
+  it('shows error alert when disable fails', async () => {
     const user = userEvent.setup()
     const mockPatch = vi.fn((_params: unknown, callbacks: MutationCallbacks) => {
       callbacks.onError?.(new Error('Toggle failed'))
@@ -537,8 +550,8 @@ describe('IdentityProviderDetail', () => {
 
     const toggle = screen.getByRole('switch', { name: /enabled/i })
     await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Disable' }))
 
-    // The error alert should appear with an appropriate message
     await waitFor(() => {
       expect(screen.getByText(/failed to disable identity provider/i)).toBeInTheDocument()
     })

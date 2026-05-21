@@ -428,7 +428,31 @@ describe('IdentityProvidersTab', () => {
   })
 
   describe('toggle enable/disable', () => {
-    it('calls patch mutation to disable an enabled provider', async () => {
+    it('opens disable confirmation dialog when toggling an enabled provider', async () => {
+      const user = userEvent.setup()
+
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+        data: { resources: [mockProvider], total: 1 },
+        isLoading: false,
+        isError: false,
+        error: null,
+        isPending: false,
+        refetch: vi.fn(),
+      } as never)
+      vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
+        mutate: vi.fn(),
+      } as never)
+
+      render(<IdentityProvidersTab />, { wrapper })
+
+      const toggle = screen.getByRole('switch', { name: /Toggle Azure AD/i })
+      await user.click(toggle)
+
+      expect(screen.getByText('Disable identity provider?')).toBeInTheDocument()
+      expect(screen.getByText(/You are about to disable the identity provider/)).toBeInTheDocument()
+    })
+
+    it('calls patch mutation to disable after confirming dialog', async () => {
       const mockPatchMutate = vi.fn()
       const user = userEvent.setup()
 
@@ -451,6 +475,8 @@ describe('IdentityProvidersTab', () => {
 
       const toggle = screen.getByRole('switch', { name: /Toggle Azure AD/i })
       await user.click(toggle)
+
+      await user.click(screen.getByRole('button', { name: 'Disable' }))
 
       expect(mockPatchMutate).toHaveBeenCalledWith(
         { params: { path: { provider_id: 'provider-1' } }, body: { enabled: false } },
@@ -530,7 +556,7 @@ describe('IdentityProvidersTab', () => {
       expect(screen.getByText('Identity provider enabled')).toBeInTheDocument()
     })
 
-    it('shows success alert after disabling a provider', async () => {
+    it('shows success alert after confirming disable dialog', async () => {
       const mockPatchMutate = vi.fn()
       const mockRefetch = vi.fn().mockResolvedValue({})
       const user = userEvent.setup()
@@ -554,8 +580,8 @@ describe('IdentityProvidersTab', () => {
 
       const toggle = screen.getByRole('switch', { name: /Toggle Azure AD/i })
       await user.click(toggle)
+      await user.click(screen.getByRole('button', { name: 'Disable' }))
 
-      // Simulate onSuccess callback
       act(() => {
         getMutationCallbacks(mockPatchMutate).onSuccess?.()
       })
@@ -563,7 +589,7 @@ describe('IdentityProvidersTab', () => {
       expect(screen.getByText('Identity provider disabled')).toBeInTheDocument()
     })
 
-    it('shows error alert when toggle fails', async () => {
+    it('shows error alert when disable fails after confirming dialog', async () => {
       const mockPatchMutate = vi.fn()
       const user = userEvent.setup()
 
@@ -586,13 +612,41 @@ describe('IdentityProvidersTab', () => {
 
       const toggle = screen.getByRole('switch', { name: /Toggle Azure AD/i })
       await user.click(toggle)
+      await user.click(screen.getByRole('button', { name: 'Disable' }))
 
-      // Simulate onError callback
       act(() => {
         getMutationCallbacks(mockPatchMutate).onError?.(new Error('Server error'))
       })
 
       expect(screen.getByText('Failed to disable identity provider')).toBeInTheDocument()
+    })
+
+    it('does not call patch when cancel is clicked in disable dialog', async () => {
+      const mockPatchMutate = vi.fn()
+      const user = userEvent.setup()
+
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+        data: { resources: [mockProvider], total: 1 },
+        isLoading: false,
+        isError: false,
+        error: null,
+        isPending: false,
+        refetch: vi.fn(),
+      } as never)
+      vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
+        if (_method === 'patch' && path === '/identity_providers/{provider_id}') {
+          return { mutate: mockPatchMutate }
+        }
+        return { mutate: vi.fn() }
+      }) as never)
+
+      render(<IdentityProvidersTab />, { wrapper })
+
+      const toggle = screen.getByRole('switch', { name: /Toggle Azure AD/i })
+      await user.click(toggle)
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(mockPatchMutate).not.toHaveBeenCalled()
     })
 
     it('does not call patch when provider has no id', async () => {

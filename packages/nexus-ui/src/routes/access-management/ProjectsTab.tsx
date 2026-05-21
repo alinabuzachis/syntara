@@ -1,4 +1,15 @@
-import { Button, Content, ContentVariants, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import {
+  Button,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  List,
+  ListItem,
+  Stack,
+  StackItem,
+  Truncate,
+} from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -140,10 +151,20 @@ function DeleteProjectDialog({
       titleIconVariant="warning"
       destructiveAcknowledgement={{
         checkboxId: 'delete-project-ack',
-        label: 'I understand this project will be permanently deleted.',
+        label: 'I understand this project, its workflows, and role assignments will be permanently deleted or removed.',
       }}
     >
-      The project <strong>{project?.name}</strong> will be deleted. This cannot be undone.
+      <Stack hasGutter>
+        <StackItem>
+          The project <strong>{project?.name}</strong> will be deleted. This cannot be undone.
+        </StackItem>
+        <StackItem>
+          <List>
+            <ListItem>All workflows in this project will be permanently deleted.</ListItem>
+            <ListItem>All project role assignments will be removed.</ListItem>
+          </List>
+        </StackItem>
+      </Stack>
     </ConfirmationDialog>
   )
 }

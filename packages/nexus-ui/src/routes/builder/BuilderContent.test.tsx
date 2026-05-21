@@ -1206,7 +1206,11 @@ describe('BuilderContent', () => {
       await user.click(await screen.findByText('Delete workflow'))
 
       await screen.findByText('Delete workflow?')
-      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
+      await user.click(
+        screen.getByRole('checkbox', {
+          name: /I understand this workflow and any dependent workflows will be affected/,
+        })
+      )
       await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {
@@ -1236,7 +1240,11 @@ describe('BuilderContent', () => {
       await user.click(await screen.findByText('Delete workflow'))
 
       await screen.findByText('Delete workflow?')
-      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
+      await user.click(
+        screen.getByRole('checkbox', {
+          name: /I understand this workflow and any dependent workflows will be affected/,
+        })
+      )
       await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {
@@ -2410,7 +2418,11 @@ describe('BuilderContent', () => {
       await screen.findByText('Delete workflow?')
 
       // Acknowledge and confirm delete
-      await user.click(screen.getByRole('checkbox', { name: /I understand this workflow will be permanently deleted/ }))
+      await user.click(
+        screen.getByRole('checkbox', {
+          name: /I understand this workflow and any dependent workflows will be affected/,
+        })
+      )
       await user.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {

@@ -29,13 +29,13 @@ import { ScrollableTableContainer } from '../../../components/table/ScrollableTa
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useTableSort } from '../../../hooks/useTableSort'
-import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
+import { DisableIdentityProviderDialog } from './DisableIdentityProviderDialog'
 import { IdentityProviderDeleteDialog } from './identity-providers/IdentityProviderDeleteDialog'
 import { getProviderNameFilterDefinition, getProviderStatusFilterDefinition } from './identityProviderFilters'
+import { useIdentityProviderToggle } from './useIdentityProviderToggle'
 
 const SORT_FIELDS = ['name', 'issuer_url', 'client_id', 'enabled'] as const
 
@@ -142,9 +142,11 @@ export function IdentityProvidersTab() {
 
   const providers = query.data?.resources ?? []
 
-  const { showAlert } = useAlerts()
   const { mutate: deleteProvider } = identityProvidersClient.useMutation('delete', '/identity_providers/{provider_id}')
-  const { mutate: patchProvider } = identityProvidersClient.useMutation('patch', '/identity_providers/{provider_id}')
+
+  const { disableDialog, isDisabling, handleToggleEnabled, handleConfirmDisable } = useIdentityProviderToggle(() =>
+    detachPromise(query.refetch())
+  )
 
   const handleDelete = useDeleteAction({
     deleteFn: deleteProvider,
@@ -156,32 +158,6 @@ export function IdentityProvidersTab() {
     },
     onSettled: () => dispatch({ type: 'CLOSE_DELETE_DIALOG' }),
   })
-
-  function handleToggleEnabled(provider: IdentityProvider) {
-    if (!provider.id) return
-    const newEnabled = !provider.enabled
-    patchProvider(
-      { params: { path: { provider_id: provider.id } }, body: { enabled: newEnabled } },
-      {
-        onSuccess: () => {
-          showAlert({
-            title: `Identity provider ${newEnabled ? 'enabled' : 'disabled'}`,
-            variant: 'success',
-            autoDismiss: true,
-          })
-          detachPromise(query.refetch())
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: `Failed to ${newEnabled ? 'enable' : 'disable'} identity provider`,
-            description: getErrorMessage(error),
-            variant: 'danger',
-            autoDismiss: true,
-          })
-        },
-      }
-    )
-  }
 
   const queryState = useQueryState(query, {
     title: 'Error loading identity providers',
@@ -289,6 +265,12 @@ export function IdentityProvidersTab() {
         providerName={providerToDelete?.name ?? ''}
         onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
         onConfirm={() => handleDelete(providerToDelete)}
+      />
+      <DisableIdentityProviderDialog
+        provider={disableDialog.item}
+        isLoading={isDisabling}
+        onConfirm={handleConfirmDisable}
+        onClose={disableDialog.close}
       />
     </NxPanelContentStack>
   )

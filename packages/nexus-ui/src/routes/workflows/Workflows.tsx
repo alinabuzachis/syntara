@@ -482,7 +482,7 @@ export default function Workflows() {
         confirmLoading={isDeleting}
         destructiveAcknowledgement={{
           checkboxId: 'delete-workflow-ack',
-          label: 'I understand this workflow will be permanently deleted.',
+          label: 'I understand this workflow and any dependent workflows will be affected by this deletion.',
         }}
       >
         <Stack hasGutter>

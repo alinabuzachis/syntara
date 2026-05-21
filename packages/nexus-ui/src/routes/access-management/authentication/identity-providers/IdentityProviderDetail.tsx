@@ -40,11 +40,12 @@ import { useQueryState } from '../../../../components/states/useQueryState'
 import { UrlTabs } from '../../../../components/UrlTabs'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../../hooks/useUrlTab'
-import { useAlerts } from '../../../../providers/alerts'
-import { getErrorMessage, getErrorStatus } from '../../../../utils/apiErrors'
+import { getErrorStatus } from '../../../../utils/apiErrors'
 import { formatDateTime } from '../../../../utils/dateUtils'
 import { detachPromise } from '../../../../utils/detachPromise'
 import { isValidUUID } from '../../../../utils/generateUUID'
+import { DisableIdentityProviderDialog } from '../DisableIdentityProviderDialog'
+import { useIdentityProviderToggle } from '../useIdentityProviderToggle'
 
 import { GroupMappingTab } from './GroupMappingTab'
 import { type GroupMappingConfig } from './groupMappingUtils'
@@ -244,8 +245,6 @@ export function IdentityProviderDetail() {
     { enabled: isValidId, retry: false }
   )
 
-  const { showAlert } = useAlerts()
-  const { mutate: patchProvider } = identityProvidersClient.useMutation('patch', '/identity_providers/{provider_id}')
   const { mutate: deleteProviderMut } = identityProvidersClient.useMutation(
     'delete',
     '/identity_providers/{provider_id}'
@@ -257,6 +256,13 @@ export function IdentityProviderDetail() {
 
   const providerData = providerQuery.data
   const refetchProvider = providerQuery.refetch
+
+  const {
+    disableDialog,
+    isDisabling,
+    handleToggleEnabled: handleToggle,
+    handleConfirmDisable,
+  } = useIdentityProviderToggle(() => detachPromise(refetchProvider()))
   const queryState = useQueryState(providerQuery, {
     title: 'Error loading identity provider',
     onRetry: () => detachPromise(refetchProvider()),
@@ -270,32 +276,6 @@ export function IdentityProviderDetail() {
     onSuccess: navigateBack,
     onSettled: () => setDeleteDialogOpen(false),
   })
-
-  function handleToggleEnabled() {
-    if (!providerData?.id) return
-    const newEnabled = !providerData.enabled
-    patchProvider(
-      { params: { path: { provider_id: providerData.id } }, body: { enabled: newEnabled } },
-      {
-        onSuccess: () => {
-          showAlert({
-            title: `Identity provider ${newEnabled ? 'enabled' : 'disabled'}`,
-            variant: 'success',
-            autoDismiss: true,
-          })
-          detachPromise(refetchProvider())
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: `Failed to ${newEnabled ? 'enable' : 'disable'} identity provider`,
-            description: getErrorMessage(error),
-            variant: 'danger',
-            autoDismiss: true,
-          })
-        },
-      }
-    )
-  }
 
   const kebabActions: IAction[] = [
     {
@@ -375,7 +355,9 @@ export function IdentityProviderDetail() {
               id="provider-detail-toggle"
               label="Enabled"
               isChecked={providerData.enabled}
-              onChange={handleToggleEnabled}
+              onChange={() => {
+                if (providerData) handleToggle(providerData)
+              }}
             />
             <Button variant="primary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
               Edit provider
@@ -404,6 +386,12 @@ export function IdentityProviderDetail() {
         providerName={providerData.name ?? ''}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={() => handleDelete(providerData)}
+      />
+      <DisableIdentityProviderDialog
+        provider={disableDialog.item}
+        isLoading={isDisabling}
+        onConfirm={handleConfirmDisable}
+        onClose={disableDialog.close}
       />
     </NxPage>
   )

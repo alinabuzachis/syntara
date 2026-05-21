@@ -319,7 +319,9 @@ describe('ProjectsTab', () => {
       expect(within(dialog).getByText('Alpha')).toBeInTheDocument()
       expect(within(dialog).getByText(/will be deleted/)).toBeInTheDocument()
       expect(
-        within(dialog).getByRole('checkbox', { name: 'I understand this project will be permanently deleted.' })
+        within(dialog).getByRole('checkbox', {
+          name: 'I understand this project, its workflows, and role assignments will be permanently deleted or removed.',
+        })
       ).toBeInTheDocument()
     })
   })

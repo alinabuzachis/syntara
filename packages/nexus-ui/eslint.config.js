@@ -160,7 +160,7 @@ export default tseslint.config(
       'max-depth': ['error', 4],
       'max-params': ['error', 5],
       // Limit nested functions/callbacks (e.g. hooks → timeout → setState updater). Complements max-depth
-      // and aligns with Sonar-style "deeply nested functions" maintainability rules. Tests disable this.
+      // and aligns with Sonar-style “deeply nested functions” maintainability rules. Tests disable this.
       'max-nested-callbacks': ['error', 4],
       'import-x/order': [
         'error',
@@ -180,7 +180,7 @@ export default tseslint.config(
       'nexus/prefer-pf-list-components': 'error',
       'nexus/prefer-pf-text-components': 'error',
       'nexus/use-design-tokens-not-hardcoded': 'error',
-      'nexus/prefer-confirmation-dialog': 'warn',
+      'nexus/prefer-confirmation-dialog': 'error',
       // Catch unnecessary useEffect patterns. Aligns with https://react.dev/learn/you-might-not-need-an-effect
       'reactYouMightNotNeedAnEffect/no-derived-state': 'warn',
       'reactYouMightNotNeedAnEffect/no-chain-state-updates': 'warn',
@@ -325,5 +325,5 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   ...storybook.configs['flat/recommended'],
-  eslintConfigPrettier,
+  eslintConfigPrettier
 )

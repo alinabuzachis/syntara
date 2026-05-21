@@ -77,6 +77,20 @@ export const builderInteractivePages: PageEntry[] = [
       })
     },
   },
+  {
+    section: 'workflows',
+    name: 'builder-edit-delete-dialog',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /kebab|actions/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: 'Delete workflow' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------

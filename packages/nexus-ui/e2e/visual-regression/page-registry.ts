@@ -326,6 +326,21 @@ export const pages: PageEntry[] = [
   },
   {
     section: 'access-management/projects',
+    name: 'projects-delete-dialog',
+    path: AppRoute.AccessManagement.Projects,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: 'Delete' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/projects',
     name: 'project-detail',
     path: AppRoute.AccessManagement.ProjectDetail.replace(':projectId', MOCK_PROJECT_ID),
     waitFor: async (page) => {
@@ -427,6 +442,34 @@ export const pages: PageEntry[] = [
     path: AppRoute.SystemAdministration.Authentication.Root,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-disable-dialog',
+    path: AppRoute.SystemAdministration.Authentication.Root,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('switch', { checked: true }).first().click({ force: true })
+      await expect(page.getByRole('dialog')).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-delete-dialog',
+    path: AppRoute.SystemAdministration.Authentication.Root,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: 'Delete' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
     },
   },
   {
