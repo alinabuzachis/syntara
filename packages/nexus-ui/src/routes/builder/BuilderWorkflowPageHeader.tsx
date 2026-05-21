@@ -27,6 +27,8 @@ type BuilderToolbarContentProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
+  isDirty: boolean
+  lastSavedAt?: string | null
   isKebabOpen: boolean
   publishedVersion: number | null
   handleToggleDetails: () => void
@@ -57,6 +59,8 @@ function BuilderToolbarContent({
   isNew,
   workflow,
   isPending,
+  isDirty,
+  lastSavedAt,
   isKebabOpen,
   publishedVersion,
   handleToggleDetails,
@@ -89,6 +93,8 @@ function BuilderToolbarContent({
       isNew={isNew}
       workflow={workflow}
       isPending={isPending}
+      isDirty={isDirty}
+      lastSavedAt={lastSavedAt}
       isKebabOpen={isKebabOpen}
       publishedVersion={publishedVersion}
       dispatch={dispatch}
@@ -117,6 +123,8 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
+  isDirty: boolean
+  lastSavedAt?: string | null
   isKebabOpen: boolean
   publishedVersion: number | null
   currentVersion: number | undefined
@@ -151,6 +159,8 @@ export function BuilderWorkflowPageHeader({
   isNew,
   workflow,
   isPending,
+  isDirty,
+  lastSavedAt,
   isKebabOpen,
   publishedVersion,
   currentVersion,
@@ -238,6 +248,8 @@ export function BuilderWorkflowPageHeader({
             isNew={isNew}
             workflow={workflow}
             isPending={isPending}
+            isDirty={isDirty}
+            lastSavedAt={lastSavedAt}
             isKebabOpen={isKebabOpen}
             publishedVersion={publishedVersion}
             handleToggleDetails={handleToggleDetails}

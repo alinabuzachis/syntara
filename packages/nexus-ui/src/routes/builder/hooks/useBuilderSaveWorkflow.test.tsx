@@ -114,7 +114,7 @@ describe('useBuilderSaveWorkflow', () => {
       labels: {},
     })
     expect(markClean).toHaveBeenCalled()
-    expect(showSuccess).toHaveBeenCalledWith({ title: 'Workflow updated', description: 'test-wf has been saved.' })
+    expect(showSuccess).not.toHaveBeenCalled()
     expect(invalidateQueries).toHaveBeenCalled()
   })
 

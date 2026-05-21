@@ -853,6 +853,10 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
       const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
       await user.click(saveButton)
@@ -904,6 +908,10 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
+      })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
       })
 
       const user = userEvent.setup()
@@ -1708,6 +1716,10 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
       const user = userEvent.setup()
       const saveButton = screen.getByRole('button', { name: /save/i })
       await user.click(saveButton)
@@ -1944,6 +1956,10 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
       const user = userEvent.setup()
       await user.click(screen.getByRole('button', { name: /save/i }))
 
@@ -2137,6 +2153,10 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
+      })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
       })
 
       const user = userEvent.setup()

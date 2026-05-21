@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
+import { BuilderWorkflowPageHeader, type BuilderWorkflowPageHeaderProps } from './BuilderWorkflowPageHeader'
 
 const mockWorkflowStoreState = vi.hoisted(() => ({
   isDirty: false,
@@ -48,16 +48,18 @@ vi.mock('./EditWorkflowDetailsPopover', () => ({
 }))
 
 describe('BuilderWorkflowPageHeader', () => {
-  const baseProps = {
+  const baseProps: BuilderWorkflowPageHeaderProps = {
     workflowName: 'wf',
     workflowDescription: '',
-    workflowTags: [] as string[],
+    workflowTags: [],
     isNew: true,
-    workflow: undefined as { id: string } | undefined,
+    workflow: undefined,
     isPending: false,
+    isDirty: true,
+    lastSavedAt: '2026-01-15T14:30:00Z',
     isKebabOpen: false,
-    publishedVersion: null as number | null,
-    currentVersion: undefined as number | undefined,
+    publishedVersion: null,
+    currentVersion: undefined,
     isPublishing: false,
     isAddNodePanelOpen: false,
     hasNoWorkflowNodes: false,

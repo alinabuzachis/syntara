@@ -8,6 +8,7 @@ import {
   Icon,
   MenuToggle,
   type MenuToggleElement,
+  Tooltip,
 } from '@patternfly/react-core'
 import {
   RhUiPlayIcon,
@@ -23,6 +24,8 @@ import {
   RhUiMinusCircleFillIcon,
 } from '@patternfly/react-icons'
 import { useCallback, useState, type Dispatch, type Ref } from 'react'
+
+import { formatDateTime } from '../../utils/dateUtils'
 
 import type { BuilderAction } from './builderReducer'
 import { useWorkflowImportExport } from './useWorkflowImportExport'
@@ -170,10 +173,45 @@ function WorkflowKebabMenu({
   )
 }
 
+type SaveWorkflowButtonProps = Readonly<{
+  isPending: boolean
+  isDirty: boolean
+  isNew: boolean
+  lastSavedAt?: string | null
+  onSave: () => void
+}>
+
+function SaveWorkflowButton({ isPending, isDirty, isNew, lastSavedAt, onSave }: SaveWorkflowButtonProps) {
+  return (
+    <Tooltip
+      content={lastSavedAt ? `Last saved ${formatDateTime(lastSavedAt)}` : 'Save workflow'}
+      position="bottom"
+      enableFlip={false}
+    >
+      <Button
+        variant="plain"
+        onClick={onSave}
+        isLoading={isPending}
+        isAriaDisabled={isPending || (!isDirty && !isNew)}
+        icon={
+          <Icon isInline>
+            <RhUiSaveFillIcon />
+          </Icon>
+        }
+        iconPosition="start"
+      >
+        {isPending ? 'Saving...' : 'Save'}
+      </Button>
+    </Tooltip>
+  )
+}
+
 type BuilderEditorToolbarProps = Readonly<{
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
+  isDirty: boolean
+  lastSavedAt?: string | null
   isKebabOpen: boolean
   publishedVersion: number | null
   /** True while the Add step side panel is open (including forced-open trigger selection). */
@@ -197,6 +235,8 @@ export function BuilderEditorToolbar({
   isNew,
   workflow,
   isPending,
+  isDirty,
+  lastSavedAt,
   isKebabOpen,
   publishedVersion,
   isAddNodePanelOpen,
@@ -299,20 +339,13 @@ export function BuilderEditorToolbar({
 
       {(!hasNoWorkflowNodes || (!isNew && workflow?.id)) && <Divider orientation={{ default: 'vertical' }} />}
 
-      <Button
-        variant="plain"
-        onClick={() => handleSaveWorkflow()}
-        isLoading={isPending}
-        isAriaDisabled={isPending}
-        icon={
-          <Icon isInline>
-            <RhUiSaveFillIcon />
-          </Icon>
-        }
-        iconPosition="start"
-      >
-        {isPending ? 'Saving...' : 'Save'}
-      </Button>
+      <SaveWorkflowButton
+        isPending={isPending}
+        isDirty={isDirty}
+        isNew={isNew}
+        lastSavedAt={lastSavedAt}
+        onSave={handleSaveWorkflow}
+      />
 
       {!isNew && workflow?.id && (
         <>

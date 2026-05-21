@@ -10,6 +10,8 @@ describe('BuilderEditorToolbar', () => {
     isNew: false,
     workflow: { id: 'wf-1' },
     isPending: false,
+    isDirty: true,
+    lastSavedAt: '2026-01-15T14:30:00Z',
     isKebabOpen: false,
     publishedVersion: null as number | null,
     isAddNodePanelOpen: false,
@@ -174,10 +176,54 @@ describe('BuilderEditorToolbar', () => {
   })
 
   it('Save button is always clickable for new workflows (validation happens on save, not before)', () => {
-    render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} />)
+    render(<BuilderEditorToolbar {...defaultProps} isNew={true} isDirty={false} workflow={undefined} />)
 
     const saveButton = screen.getByRole('button', { name: /^Save$/i })
     expect(saveButton).not.toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('disables Save button when there are no unsaved changes', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isDirty={false} />)
+
+    const saveButton = screen.getByRole('button', { name: /^Save$/i })
+    expect(saveButton).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('enables Save button when there are unsaved changes', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isDirty={true} />)
+
+    const saveButton = screen.getByRole('button', { name: /^Save$/i })
+    expect(saveButton).not.toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows last saved time in tooltip when hovering Save button', async () => {
+    const user = userEvent.setup()
+    render(<BuilderEditorToolbar {...defaultProps} isDirty={false} lastSavedAt="2026-01-15T14:30:00Z" />)
+
+    const saveButton = screen.getByRole('button', { name: /^Save$/i })
+    await user.hover(saveButton)
+
+    expect(await screen.findByText(/Last saved/)).toBeInTheDocument()
+  })
+
+  it('shows last saved time in tooltip even when there are unsaved changes', async () => {
+    const user = userEvent.setup()
+    render(<BuilderEditorToolbar {...defaultProps} isDirty={true} lastSavedAt="2026-01-15T14:30:00Z" />)
+
+    const saveButton = screen.getByRole('button', { name: /^Save$/i })
+    await user.hover(saveButton)
+
+    expect(await screen.findByText(/Last saved/)).toBeInTheDocument()
+  })
+
+  it('shows "Save workflow" tooltip when workflow has never been saved', async () => {
+    const user = userEvent.setup()
+    render(<BuilderEditorToolbar {...defaultProps} isDirty={true} lastSavedAt={undefined} />)
+
+    const saveButton = screen.getByRole('button', { name: /^Save$/i })
+    await user.hover(saveButton)
+
+    expect(await screen.findByText('Save workflow')).toBeInTheDocument()
   })
 
   it('renders Publish button for existing workflows', () => {

@@ -164,10 +164,10 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
         workflow_definition: workflowDef as PatchWorkflowBody['workflow_definition'],
       }
 
-      const action = isNew ? 'created' : 'updated'
-
       const onSaveSuccess = async (workflowIdToNavigate?: string) => {
-        showSuccess({ title: `Workflow ${action}`, description: `${nameToSave} has been saved.` })
+        if (isNew) {
+          showSuccess({ title: 'Workflow created', description: `${nameToSave} has been saved.` })
+        }
         markClean()
         await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
 

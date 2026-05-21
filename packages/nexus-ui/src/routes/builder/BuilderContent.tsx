@@ -71,6 +71,7 @@ export function BuilderContent(props: BuilderContentProps) {
     loadWorkflowWithEdges,
     currentWorkflow,
     setEdges: setStoredEdges,
+    isDirty,
     markClean,
     markDirty,
     duplicateActivity,
@@ -311,6 +312,8 @@ export function BuilderContent(props: BuilderContentProps) {
                 isNew={isNew}
                 workflow={workflow?.id ? { id: workflow.id } : undefined}
                 isPending={isPending}
+                isDirty={isDirty}
+                lastSavedAt={workflow?.updated_at}
                 isKebabOpen={isKebabOpen}
                 publishedVersion={workflow?.published_version ?? null}
                 currentVersion={currentVersion}
