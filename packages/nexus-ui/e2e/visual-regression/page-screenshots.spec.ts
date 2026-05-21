@@ -16,10 +16,10 @@ import { expect, test } from '@playwright/test'
 import { appBaseUrl, toAppUrl } from '../fixtures'
 import { isSkipWebServerForPlaywrightTests } from '../playwrightWebServerEnv'
 
-import { pages } from './page-registry'
+import { loginPages, pages } from './page-registry'
 
 const SCREENSHOT_OPTIONS = {
-  maxDiffPixelRatio: 0.01,
+  maxDiffPixelRatio: 0.005,
   animations: 'disabled' as const,
   fullPage: true,
 }
@@ -66,6 +66,35 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
       await page.waitForLoadState('networkidle')
 
       // Screenshot with section-based directory organization
+      const options = entry.maxDiffPixelRatio
+        ? { ...SCREENSHOT_OPTIONS, maxDiffPixelRatio: entry.maxDiffPixelRatio }
+        : SCREENSHOT_OPTIONS
+      await expect(page).toHaveScreenshot([entry.section, `${entry.name}.png`], options)
+    })
+  }
+})
+
+test.describe('Login page screenshots', { tag: '@local-only' }, () => {
+  test.skip(
+    isSkipWebServerForPlaywrightTests(),
+    'Login page baselines require mock API seed data; skipped in real-backend E2E runs'
+  )
+
+  for (const entry of loginPages) {
+    test(`${entry.section}/${entry.name}`, async ({ page }) => {
+      // Block token refresh so the app shows the login page instead of auto-authenticating
+      await page.route('**/api/v1/auth/refresh', (route) =>
+        route.fulfill({ status: 401, contentType: 'application/json', body: '{"detail":"Unauthorized"}' })
+      )
+
+      await page.goto(toAppUrl(entry.path))
+      await entry.waitFor(page)
+
+      if (entry.setup) {
+        await entry.setup(page)
+      }
+
+      await page.waitForLoadState('networkidle')
       await expect(page).toHaveScreenshot([entry.section, `${entry.name}.png`], SCREENSHOT_OPTIONS)
     })
   }

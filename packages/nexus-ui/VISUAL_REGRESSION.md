@@ -107,6 +107,7 @@ A single page can have multiple registry entries for different visual states:
 - **Kebab menu actions** -- use `setup` to open a row's kebab and trigger a dialog
 - **Detail pages** -- use mock API IDs for `:id` parameters in the path
 - **Form pages** -- navigate directly to the create/edit route
+- **Dropdown states** -- use `setup` to open a dropdown and capture its expanded state
 
 See existing entries in `page-registry.ts` for examples.
 

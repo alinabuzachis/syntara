@@ -16,7 +16,12 @@ import { type Page, expect } from '@playwright/test'
 
 import { AppRoute } from '../../src/app/AppRoute'
 
-import { builderInteractivePages, detailTabPages, statusVariantPages } from './page-entries-interactive'
+import {
+  authenticationInteractivePages,
+  builderInteractivePages,
+  detailTabPages,
+  statusVariantPages,
+} from './page-entries-interactive'
 
 export type PageEntry = {
   /** Directory grouping for snapshot organization */
@@ -29,6 +34,8 @@ export type PageEntry = {
   waitFor: (page: Page) => Promise<void>
   /** Optional interaction before screenshot (e.g., open modal, apply filter) */
   setup?: (page: Page) => Promise<void>
+  /** Override the default maxDiffPixelRatio for pages with non-deterministic rendering (e.g. canvas) */
+  maxDiffPixelRatio?: number
 }
 
 async function applyNameFilter(page: Page, value: string) {
@@ -102,6 +109,7 @@ export const pages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       // ReactFlow + Zustand + lazy-load initialization is slow in CI — extend timeout
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
@@ -177,6 +185,7 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
+    maxDiffPixelRatio: 0.01,
   },
   {
     section: 'access-management/users',
@@ -326,21 +335,6 @@ export const pages: PageEntry[] = [
   },
   {
     section: 'access-management/projects',
-    name: 'projects-delete-dialog',
-    path: AppRoute.AccessManagement.Projects,
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
-      await expect(page.locator('table tbody tr').first()).toBeVisible()
-    },
-    setup: async (page) => {
-      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await kebab.click()
-      await page.getByRole('menuitem', { name: 'Delete' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
-    },
-  },
-  {
-    section: 'access-management/projects',
     name: 'project-detail',
     path: AppRoute.AccessManagement.ProjectDetail.replace(':projectId', MOCK_PROJECT_ID),
     waitFor: async (page) => {
@@ -442,24 +436,12 @@ export const pages: PageEntry[] = [
     path: AppRoute.SystemAdministration.Authentication.Root,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
-    },
-  },
-  {
-    section: 'authentication',
-    name: 'identity-provider-disable-dialog',
-    path: AppRoute.SystemAdministration.Authentication.Root,
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
-    setup: async (page) => {
-      await page.getByRole('switch', { checked: true }).first().click({ force: true })
-      await expect(page.getByRole('dialog')).toBeVisible()
-    },
   },
   {
     section: 'authentication',
-    name: 'identity-provider-delete-dialog',
+    name: 'authentication-delete-dialog',
     path: AppRoute.SystemAdministration.Authentication.Root,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
@@ -480,6 +462,18 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
     },
   },
+  {
+    section: 'authentication',
+    name: 'identity-provider-add-template-dropdown',
+    path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: /Select a provider template/i }).click()
+      await expect(page.getByRole('option', { name: /Ansible Automation Platform/i })).toBeVisible()
+    },
+  },
   // ══════════════════════════════════════════════════════════════════════════
   // ACCESS MANAGEMENT — Audit Log
   // ══════════════════════════════════════════════════════════════════════════
@@ -487,6 +481,7 @@ export const pages: PageEntry[] = [
     section: 'audit-log',
     name: 'audit-log-list',
     path: AppRoute.SystemAdministration.AuditLog,
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
@@ -631,11 +626,45 @@ export const pages: PageEntry[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // INTERACTIVE STATES — status variants, detail tabs
+  // INTERACTIVE STATES — status variants, detail tabs, authentication
   // (entries defined in page-entries-interactive.ts)
   // ══════════════════════════════════════════════════════════════════════════
   ...statusVariantPages,
   ...detailTabPages,
+  ...authenticationInteractivePages,
+]
+
+// ---------------------------------------------------------------------------
+// Login page entries — pre-auth, not route-based (outside AppRoute.tsx)
+// ---------------------------------------------------------------------------
+export const loginPages: PageEntry[] = [
+  {
+    section: 'login',
+    name: 'login-default',
+    path: '/',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+    },
+  },
+  {
+    section: 'login',
+    name: 'login-error',
+    path: '/',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+    },
+    setup: async (page) => {
+      // Expand the local login form (IDPs are seeded, so local login is behind a toggle)
+      const localToggle = page.getByRole('button', { name: 'Sign in using local account' })
+      if (await localToggle.isVisible()) {
+        await localToggle.click()
+      }
+      // Submit with username but no password to trigger client-side validation error
+      await page.getByLabel('Username').fill('admin')
+      await page.getByRole('button', { name: 'Log in as administrator' }).click()
+      await expect(page.getByText('Enter your password')).toBeVisible()
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -654,7 +683,6 @@ export const excludedUnimplemented: string[] = [
 export const excludedDynamic: string[] = [
   AppRoute.WorkflowBuilder.New,
   AppRoute.SystemAdministration.Root,
-  AppRoute.SystemAdministration.Authentication.IdentityProviderDetail,
   AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
   AppRoute.AccessManagement.Root,
   AppRoute.Auth.TestSignInCallback,

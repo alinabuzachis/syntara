@@ -39,7 +39,9 @@ for (const match of appRouteSource.matchAll(routePathRegex)) {
 // ---------------------------------------------------------------------------
 // 2. Import the page registry to get resolved paths (handles AppRoute imports)
 // ---------------------------------------------------------------------------
-const { pages, allExcludedRoutes } = await import(resolve(pkgRoot, 'e2e/visual-regression/page-registry.ts'))
+const { pages, loginPages, allExcludedRoutes } = await import(
+  resolve(pkgRoot, 'e2e/visual-regression/page-registry.ts')
+)
 
 const coveredConcretePaths = new Set<string>(pages.map((p: { path: string }) => p.path))
 const excludedRoutes = new Set<string>(allExcludedRoutes as string[])
@@ -100,10 +102,20 @@ for (const concretePath of coveredConcretePaths) {
 // ---------------------------------------------------------------------------
 const snapshotDir = resolve(pkgRoot, 'e2e/visual-regression/page-screenshots.spec.ts-snapshots')
 
-const registryEntries: Array<{ section: string; name: string }> = pages.map((p: { section: string; name: string }) => ({
+const loginPageEntries: Array<{ section: string; name: string }> = (
+  loginPages as Array<{ section: string; name: string }>
+).map((p) => ({
   section: p.section,
   name: p.name,
 }))
+
+const registryEntries: Array<{ section: string; name: string }> = [
+  ...pages.map((p: { section: string; name: string }) => ({
+    section: p.section,
+    name: p.name,
+  })),
+  ...loginPageEntries,
+]
 
 const missingBaselines: { entry: string; expectedPath: string }[] = []
 
@@ -203,7 +215,9 @@ if (hasErrors) {
 } else {
   console.log('All routes covered, all baselines present, no orphans, no stale paths.')
   console.log(`  Routes in AppRoute.tsx: ${allAppRoutes.size} (${excludedRoutes.size} excluded)`)
-  console.log(`  Pages in registry: ${registryEntries.length}`)
+  console.log(
+    `  Pages in registry: ${registryEntries.length} (${loginPageEntries.length} login + ${registryEntries.length - loginPageEntries.length} routes)`
+  )
   console.log(`  Baseline PNGs: ${allBaselinePngs.length}`)
   process.exit(0)
 }

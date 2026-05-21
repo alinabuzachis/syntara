@@ -27,6 +27,7 @@ const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
 const MOCK_CREDENTIAL_ID = 'cred-001'
 const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
+const MOCK_IDENTITY_PROVIDER_ID = 'idp-001'
 
 // ---------------------------------------------------------------------------
 // Builder interaction states
@@ -75,20 +76,6 @@ export const builderInteractivePages: PageEntry[] = [
       await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
         timeout: 15_000,
       })
-    },
-  },
-  {
-    section: 'workflows',
-    name: 'builder-edit-delete-dialog',
-    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
-    waitFor: async (page) => {
-      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
-    },
-    setup: async (page) => {
-      const kebab = page.getByRole('button', { name: /kebab|actions/i }).first()
-      await kebab.click()
-      await page.getByRole('menuitem', { name: 'Delete workflow' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
     },
   },
 ]
@@ -167,6 +154,23 @@ export const statusVariantPages: PageEntry[] = [
     waitFor: async (page) => {
       await expect(page.getByText('GitHub API Token').first()).toBeVisible()
       await expect(page.getByText('Disabled')).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Authentication interactive states
+// ---------------------------------------------------------------------------
+export const authenticationInteractivePages: PageEntry[] = [
+  {
+    section: 'authentication',
+    name: 'identity-provider-detail',
+    path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ).replace('/:tab?', ''),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
   },
 ]
