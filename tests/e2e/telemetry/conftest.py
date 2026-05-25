@@ -43,7 +43,7 @@ def segment_server_url() -> str:
         else:
             pytest.fail(
                 f"Mock Segment server not available at {url}: {exc}\n"
-                "Start it with: uv run python tests/e2e/telemetry/mock_segment_server.py",
+                "Start it with: podman run -p 9999:9999 quay.io/ansible/dummy-segment:latest",
             )
     return url
 

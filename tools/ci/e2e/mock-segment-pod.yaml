@@ -8,11 +8,7 @@ metadata:
 spec:
   containers:
     - name: mock-segment
-      image: ${AO_IMAGE}
-      command: ["/opt/app-root/src/.venv/bin/python", "/scripts/mock_segment_server.py"]
-      env:
-        - name: SEGMENT_SERVER_HOST
-          value: "0.0.0.0"
+      image: quay.io/ansible/dummy-segment@sha256:9f8a58b56f3dc1d0fa363bd67a85e68a710819760bc56a38017c1e772c3f6a2e
       ports:
         - containerPort: 9999
       readinessProbe:
@@ -21,10 +17,3 @@ spec:
           port: 9999
         initialDelaySeconds: 3
         periodSeconds: 2
-      volumeMounts:
-        - name: script
-          mountPath: /scripts
-  volumes:
-    - name: script
-      configMap:
-        name: mock-segment-server

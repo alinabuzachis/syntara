@@ -3,6 +3,9 @@
 Mimics the Segment Batch API (POST /v1/batch) and provides test-only
 endpoints for inspecting and managing captured events.
 
+To remove once https://github.com/syntara-orchestration/syntara/pull/1087 is
+merged.
+
 Run standalone:
     uv run python tests/e2e/telemetry/mock_segment_server.py
 """

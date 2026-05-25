@@ -270,15 +270,9 @@ services:
 
   # Mock Segment server for telemetry e2e tests (only started by test-e2e-telemetry)
   mock-segment:
-    build:
-      context: .
-      dockerfile: containers/nexus/Containerfile
-    image: ${APP_IMAGE:-localhost/nexus:latest}
-    command: [sh, -c, 'SEGMENT_SERVER_HOST=0.0.0.0 uv run python tests/e2e/telemetry/mock_segment_server.py']
+    image: ${MOCK_SEGMENT_IMAGE:-quay.io/ansible/dummy-segment@sha256:9f8a58b56f3dc1d0fa363bd67a85e68a710819760bc56a38017c1e772c3f6a2e}
     ports:
       - ${SEGMENT_SERVER_PORT:-9999}:9999
-    volumes:
-      - ./tests/e2e/telemetry:/opt/app-root/src/tests/e2e/telemetry:ro,z
     healthcheck:
       test: [CMD-SHELL, 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:9999/health\")"']
       interval: 3s

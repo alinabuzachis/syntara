@@ -115,22 +115,14 @@ jobs:
       - name: Deploy test helpers in cluster
         working-directory: aap-dev/src/nexus
         run: |
-          # --- Mock Segment server (reuses the Nexus API image) ---
-          export AO_IMAGE=$(kubectl get deployment myaap-ao-api \
-            -o jsonpath='{.spec.template.spec.containers[?(@.name=="ao-api")].image}')
-          echo "Nexus image: ${AO_IMAGE}"
-
-          kubectl create configmap mock-segment-server \
-            --from-file=mock_segment_server.py=tests/e2e/telemetry/mock_segment_server.py
-
           # --- MCP server (build inside Kind node so it's available to K8s) ---
           export MCP_IMAGE="localhost/nexus-mcp:e2e"
           KIND_NODE="27-control-plane"
           podman build -t "${MCP_IMAGE}" -f containers/mcp/Containerfile .
           podman save "${MCP_IMAGE}" | podman exec -i "${KIND_NODE}" ctr --namespace=k8s.io images import -
 
-          envsubst < tools/ci/e2e/mock-segment-pod.yaml | kubectl apply -f -
-          envsubst < tools/ci/e2e/mock-segment-svc.yaml | kubectl apply -f -
+          kubectl apply -f tools/ci/e2e/mock-segment-pod.yaml
+          kubectl apply -f tools/ci/e2e/mock-segment-svc.yaml
           envsubst < tools/ci/e2e/mcp-server-pod.yaml | kubectl apply -f -
           envsubst < tools/ci/e2e/mcp-server-svc.yaml | kubectl apply -f -
 
