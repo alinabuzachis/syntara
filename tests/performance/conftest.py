@@ -24,7 +24,8 @@ import logging
 import os
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -32,8 +33,7 @@ import pytest
 import structlog
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from concurrent.futures import Future
+    from collections.abc import Callable, Iterator
 
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.api.internal_metrics import InternalMetricsApi
@@ -261,6 +261,25 @@ def make_request(
         return elapsed_ms, False
 
 
+def poll_until[T](
+    probe: Callable[[], T],
+    ready: Callable[[T], bool],
+    *,
+    timeout: float = METRICS_POLL_TIMEOUT,
+    interval: float = METRICS_POLL_INTERVAL,
+) -> T:
+    """Call *probe* repeatedly until *ready(result)* is true or *timeout* elapses.
+
+    Returns the last result from *probe*, even when *ready* was never satisfied.
+    """
+    deadline = time.monotonic() + timeout
+    result = probe()
+    while not ready(result) and time.monotonic() < deadline:
+        time.sleep(interval)
+        result = probe()
+    return result
+
+
 def poll_for_component_kpis(
     internal_metrics: InternalMetricsApi,
     component: str,
@@ -273,18 +292,13 @@ def poll_for_component_kpis(
     Returns the parsed KPI dict (may be empty if the server never
     populates the component's metrics within the timeout window).
     """
-    deadline = time.monotonic() + timeout
-    kpis: dict[str, Any] = {}
 
-    while time.monotonic() < deadline:
+    def _probe() -> dict[str, Any]:
         r = internal_metrics.get_component_kpis(component=component)
         r.assert_successful()
-        kpis = r.parsed.to_dict() if r.parsed is not None else {}
-        if kpis.get("metrics"):
-            return kpis
-        time.sleep(interval)
+        return r.parsed.to_dict() if r.parsed is not None else {}
 
-    return kpis
+    return poll_until(_probe, lambda kpis: bool(kpis.get("metrics")), timeout=timeout, interval=interval)
 
 
 def poll_for_metric_records(
@@ -296,18 +310,13 @@ def poll_for_metric_records(
     interval: float = METRICS_POLL_INTERVAL,
 ) -> dict[str, Any]:
     """Poll metric records until at least one appears or timeout is reached."""
-    deadline = time.monotonic() + timeout
-    records: dict[str, Any] = {}
 
-    while time.monotonic() < deadline:
+    def _probe() -> dict[str, Any]:
         r = internal_metrics.get_records(metric_type=metric_type, limit=limit)
         r.assert_successful()
-        records = r.parsed.to_dict() if r.parsed is not None else {}
-        if records.get("total", 0) > 0:
-            return records
-        time.sleep(interval)
+        return r.parsed.to_dict() if r.parsed is not None else {}
 
-    return records
+    return poll_until(_probe, lambda rec: rec.get("total", 0) > 0, timeout=timeout, interval=interval)
 
 
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
@@ -346,25 +355,23 @@ def poll_until_resources_terminal(
 
     """
     api = getattr(nexus_api, resource_type)
-    deadline = time.monotonic() + timeout
-    status_counts: dict[str, int] = {}
 
-    while time.monotonic() < deadline:
-        status_counts = {}
+    def _probe() -> dict[str, int]:
+        counts: dict[str, int] = {}
         for rid in resource_ids:
             try:
                 r = api.get(**{id_param: rid})
                 if r.is_success and r.parsed:
                     status = str(r.parsed.status)
-                    status_counts[status] = status_counts.get(status, 0) + 1
+                    counts[status] = counts.get(status, 0) + 1
             except Exception as exc:
                 log_request_failure(exc, context="poll_for_resource_status")
-        terminal = sum(v for k, v in status_counts.items() if k in TERMINAL_STATUSES)
-        if terminal >= len(resource_ids):
-            break
-        time.sleep(interval)
+        return counts
 
-    return status_counts
+    def _all_terminal(counts: dict[str, int]) -> bool:
+        return sum(v for k, v in counts.items() if k in TERMINAL_STATUSES) >= len(resource_ids)
+
+    return poll_until(_probe, _all_terminal, timeout=timeout, interval=interval)
 
 
 def create_perf_test_workflow(
@@ -450,6 +457,42 @@ def check_health(
         return elapsed_ms, False
 
 
+def submit_at_steady_rate[T](
+    executor: ThreadPoolExecutor,
+    tasks: Iterator[Callable[[], T]],
+    *,
+    target_rps: float,
+    duration: float,
+) -> list[Future[T]]:
+    """Submit callables from *tasks* into *executor* at *target_rps* for *duration* seconds.
+
+    Only the scheduling happens on the calling thread; actual execution is
+    concurrent in the pool.  Returns the list of submitted futures for the
+    caller to drain however it needs.
+    """
+    interval = 1.0 / target_rps
+    futures: list[Future[T]] = []
+    start = time.monotonic()
+    end = start + duration
+    next_send = start
+
+    while True:
+        now = time.monotonic()
+        if now >= end:
+            break
+        if now >= next_send:
+            try:
+                task = next(tasks)
+            except StopIteration:
+                break
+            futures.append(executor.submit(task))
+            next_send += interval
+        else:
+            time.sleep(min(next_send - now, 0.001))
+
+    return futures
+
+
 def run_load_window(
     executor: ThreadPoolExecutor,
     nexus_api: NexusApiRegistry,
@@ -458,36 +501,23 @@ def run_load_window(
 ) -> tuple[int, int, float]:
     """Send requests at a steady rate for *duration* seconds.
 
-    Spreads requests evenly across the window by submitting one request
-    per ``1/target_rps`` interval (fire-and-forget into the pool).
-    Completed responses are counted at the end of the window.
-
-    Args:
-        executor: Thread pool executor for concurrent request submission.
-        nexus_api: Authenticated API client registry.
-        target_rps: Desired requests per second to sustain.
-        duration: How long (in seconds) to maintain the load.
+    Thin wrapper around :func:`submit_at_steady_rate` that fires
+    :func:`make_request` calls and tallies successes/errors.
 
     Returns:
         Tuple of (completed, errors, actual_rps).
 
     """
-    interval = 1.0 / target_rps
-    futures: list[Future[tuple[float, bool]]] = []
-    window_start = time.monotonic()
-    window_end = window_start + duration
+    from functools import partial
+    from itertools import repeat
 
-    next_send = window_start
-    while True:
-        now = time.monotonic()
-        if now >= window_end:
-            break
-        if now >= next_send:
-            futures.append(executor.submit(make_request, nexus_api))
-            next_send += interval
-        else:
-            sleep_for = min(next_send - now, 0.001)
-            time.sleep(sleep_for)
+    window_start = time.monotonic()
+    futures = submit_at_steady_rate(
+        executor,
+        repeat(partial(make_request, nexus_api)),
+        target_rps=target_rps,
+        duration=duration,
+    )
 
     completed = 0
     errors = 0
@@ -709,7 +739,7 @@ def extract_routing_decisions(
     return decisions
 
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def find_llm_credential_id(nexus_api: NexusApiRegistry) -> str | None:
@@ -736,7 +766,7 @@ def find_llm_credential_id(nexus_api: NexusApiRegistry) -> str | None:
             if cred_id is not None:
                 return str(cred_id)
     except Exception:
-        _logger.warning("Failed to discover LLM credential", exc_info=True)
+        logger.warning("Failed to discover LLM credential", exc_info=True)
     return None
 
 
@@ -754,7 +784,7 @@ def _find_llm_credential_type_id(nexus_api: NexusApiRegistry) -> str | None:
                 if ct_id is not None:
                     return str(ct_id)
     except Exception:
-        _logger.warning("Failed to list credential types", exc_info=True)
+        logger.warning("Failed to list credential types", exc_info=True)
     return None
 
 
@@ -900,21 +930,23 @@ def poll_for_invocation_terminal_status(
 
     Returns the parsed invocation dict (may still be non-terminal on timeout).
     """
-    deadline = time.monotonic() + timeout
-    parsed: dict[str, Any] = {}
 
-    while time.monotonic() < deadline:
+    def _probe() -> dict[str, Any]:
         try:
             r = nexus_api.invocation.get(invocation_id=invocation_id)
             if r.is_success and r.parsed:
-                parsed = r.parsed.to_dict()
-                if str(parsed.get("status", "")) in terminal_statuses:
-                    return parsed
+                result: dict[str, Any] = r.parsed.to_dict()
+                return result
         except Exception as exc:
             log_request_failure(exc, context="poll_for_invocation_terminal_status")
-        time.sleep(interval)
+        return {}
 
-    return parsed
+    return poll_until(
+        _probe,
+        lambda p: str(p.get("status", "")) in terminal_statuses,
+        timeout=timeout,
+        interval=interval,
+    )
 
 
 def wait_for_invocations(
@@ -933,6 +965,163 @@ def wait_for_invocations(
     """
     for inv_id in invocation_ids:
         poll_for_invocation_terminal_status(nexus_api, inv_id, timeout=timeout)
+
+
+# ---------------------------------------------------------------------------
+# Batch submit-and-wait helper
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SubmissionResult:
+    """Aggregated result of submitting (and optionally waiting for) invocations."""
+
+    client_times: list[float]
+    invocation_ids: list[str]
+    successes: int
+    failures: int
+
+
+def _accumulate_result(
+    result: tuple[float, bool, str | None],
+    acc: SubmissionResult,
+) -> None:
+    """Append a single ``submit_invocation`` result to an accumulator."""
+    elapsed_ms, ok, inv_id = result
+    acc.client_times.append(elapsed_ms)
+    if ok:
+        acc.successes += 1
+        if inv_id:
+            acc.invocation_ids.append(inv_id)
+    else:
+        acc.failures += 1
+
+
+def _submit_sequential(
+    nexus_api: NexusApiRegistry,
+    prompts: list[str],
+    model: str | None,
+    credential_id: str | None,
+    acc: SubmissionResult,
+) -> None:
+    for prompt in prompts:
+        result = submit_invocation(
+            nexus_api,
+            prompt,
+            model=model,
+            credential_id=credential_id,
+        )
+        _accumulate_result(result, acc)
+
+
+def _submit_concurrent(
+    nexus_api: NexusApiRegistry,
+    prompts: list[str],
+    model: str | None,
+    credential_id: str | None,
+    max_workers: int,
+    acc: SubmissionResult,
+) -> None:
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(
+                submit_invocation,
+                nexus_api,
+                p,
+                model=model,
+                credential_id=credential_id,
+            )
+            for p in prompts
+        ]
+        for fut in as_completed(futures):
+            _accumulate_result(fut.result(), acc)
+
+
+def _submit_batched(
+    nexus_api: NexusApiRegistry,
+    prompts: list[str],
+    model: str | None,
+    credential_id: str | None,
+    max_workers: int,
+    batch_size: int,
+    acc: SubmissionResult,
+) -> None:
+    for batch_start in range(0, len(prompts), batch_size):
+        batch = prompts[batch_start : batch_start + batch_size]
+        _submit_concurrent(nexus_api, batch, model, credential_id, max_workers, acc)
+
+
+def _wait_concurrent(
+    nexus_api: NexusApiRegistry,
+    invocation_ids: list[str],
+    max_workers: int,
+    timeout: float,
+) -> None:
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futs = [
+            executor.submit(
+                poll_for_invocation_terminal_status,
+                nexus_api,
+                inv_id,
+                timeout=timeout,
+            )
+            for inv_id in invocation_ids
+        ]
+        for fut in as_completed(futs):
+            fut.result()
+
+
+def submit_and_collect(
+    nexus_api: NexusApiRegistry,
+    prompts: list[str],
+    *,
+    max_workers: int = 1,
+    batch_size: int | None = None,
+    credential_id: str | None = None,
+    model: str | None = None,
+    wait_for_completion: bool = False,
+    completion_timeout: float = DEFAULT_INVOCATION_TIMEOUT,
+) -> SubmissionResult:
+    """Submit invocations and optionally wait for them to complete.
+
+    Encapsulates the submit → collect IDs → poll-to-terminal pattern
+    used across all performance suites.
+
+    Args:
+        nexus_api: Authenticated API client registry.
+        prompts: Prompts to submit (one invocation per prompt).
+        max_workers: Concurrency level.  ``1`` submits sequentially;
+            ``>1`` submits in parallel using a thread pool.
+        batch_size: When set, submits in batches of this size with
+            *max_workers* threads per batch.  When ``None``, all
+            prompts are submitted in a single pool.
+        credential_id: Optional LLM Provider credential ID.
+        model: Optional model override.
+        wait_for_completion: If ``True``, polls every collected
+            invocation to terminal status before returning.  Defaults
+            to ``False`` (fire-and-forget) since most tests only need
+            routing-phase metrics.  Enable for tests that assert on
+            completion-dependent metrics (e.g. token counts, LLM
+            duration, success rate).
+        completion_timeout: Per-invocation timeout when waiting.
+
+    """
+    acc = SubmissionResult(client_times=[], invocation_ids=[], successes=0, failures=0)
+
+    if max_workers <= 1:
+        _submit_sequential(nexus_api, prompts, model, credential_id, acc)
+    elif batch_size is not None:
+        _submit_batched(nexus_api, prompts, model, credential_id, max_workers, batch_size, acc)
+    else:
+        _submit_concurrent(nexus_api, prompts, model, credential_id, max_workers, acc)
+
+    if wait_for_completion and acc.invocation_ids:
+        if max_workers <= 1:
+            wait_for_invocations(nexus_api, acc.invocation_ids, timeout=completion_timeout)
+        else:
+            _wait_concurrent(nexus_api, acc.invocation_ids, max_workers, completion_timeout)
+
+    return acc
 
 
 # ---------------------------------------------------------------------------

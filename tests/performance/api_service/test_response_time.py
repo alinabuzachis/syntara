@@ -16,18 +16,23 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from itertools import repeat
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+import structlog
 
 from tests.performance.conftest import (
     compute_percentile,
     poll_for_component_kpis,
+    submit_at_steady_rate,
 )
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+
+logger = structlog.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 
@@ -54,36 +59,49 @@ class TestSustainedGetResponseTime:
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
 
+    @staticmethod
+    def _timed_list_workflows(nexus_api: NexusApiRegistry) -> tuple[float, bool]:
+        """List workflows and return (elapsed_ms, success)."""
+        start = time.monotonic()
+        try:
+            r = nexus_api.workflows.list()
+            elapsed_ms = (time.monotonic() - start) * 1000
+            return elapsed_ms, r.is_success
+        except Exception:
+            elapsed_ms = (time.monotonic() - start) * 1000
+            return elapsed_ms, False
+
     def test_sustained_get_p95_under_target(
         self,
         nexus_api: NexusApiRegistry,
     ) -> None:
         """GET /api/v1/workflows at sustained rate; p95 must be < 200ms."""
+        from functools import partial
+
         response_times: list[float] = []
         errors = 0
 
-        interval = 1.0 / TARGET_RPS
-        end_time = time.monotonic() + SUSTAINED_DURATION_SECONDS
+        with ThreadPoolExecutor(max_workers=TARGET_RPS) as executor:
+            futures = submit_at_steady_rate(
+                executor,
+                repeat(partial(self._timed_list_workflows, nexus_api)),
+                target_rps=TARGET_RPS,
+                duration=SUSTAINED_DURATION_SECONDS,
+            )
 
-        while time.monotonic() < end_time:
-            batch_start = time.monotonic()
-
-            start = time.monotonic()
-            try:
-                r = nexus_api.workflows.list()
-                elapsed_ms = (time.monotonic() - start) * 1000
-                response_times.append(elapsed_ms)
-                if not r.is_success:
+            for i, future in enumerate(futures):
+                try:
+                    elapsed_ms, success = future.result(timeout=30)
+                    response_times.append(elapsed_ms)
+                    if not success:
+                        errors += 1
+                except Exception as exc:
                     errors += 1
-            except Exception:
-                elapsed_ms = (time.monotonic() - start) * 1000
-                response_times.append(elapsed_ms)
-                errors += 1
-
-            elapsed = time.monotonic() - batch_start
-            sleep_for = interval - elapsed
-            if sleep_for > 0:
-                time.sleep(sleep_for)
+                    logger.warning(
+                        "sustained_get_future_error",
+                        invocation_index=i,
+                        error_type=type(exc).__name__,
+                    )
 
         assert len(response_times) > 0, "No requests completed during the test"
 

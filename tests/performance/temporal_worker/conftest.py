@@ -16,12 +16,11 @@ Run with:
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from tests.performance.conftest import SIMPLE_WORKFLOW_DEFINITION
+from tests.performance.conftest import SIMPLE_WORKFLOW_DEFINITION, poll_until
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -73,23 +72,20 @@ def poll_until_activities_stabilize(
             for stabilization (avoids returning too early).
 
     """
-    deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
-    prev_count = -1
-    stable_metrics: dict[str, Any] = {}
+    prev_count: list[int] = [-1]
 
-    while time.monotonic() < deadline:
-        time.sleep(POLL_INTERVAL_SECONDS)
-        metrics = get_temporal_worker_kpis(nexus_api)
-        duration_stats = metrics.get("activity_duration_ms", {})
-        current_count = duration_stats.get("count", 0)
+    def _ready(metrics: dict[str, Any]) -> bool:
+        current: int = metrics.get("activity_duration_ms", {}).get("count", 0)
+        stable = current >= min_expected and current == prev_count[0]
+        prev_count[0] = current
+        return stable
 
-        if current_count >= min_expected and current_count == prev_count:
-            return metrics
-
-        prev_count = current_count
-        stable_metrics = metrics
-
-    return stable_metrics
+    return poll_until(
+        lambda: get_temporal_worker_kpis(nexus_api),
+        _ready,
+        timeout=POLL_TIMEOUT_SECONDS,
+        interval=POLL_INTERVAL_SECONDS,
+    )
 
 
 SLOW_WORKFLOW_DEFINITION: dict[str, Any] = {

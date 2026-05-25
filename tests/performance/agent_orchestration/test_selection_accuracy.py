@@ -21,7 +21,7 @@ from tests.performance.conftest import (
     extract_routing_decisions,
     poll_for_component_kpis,
     poll_for_metric_records,
-    submit_invocation,
+    submit_and_collect,
 )
 
 if TYPE_CHECKING:
@@ -58,19 +58,16 @@ class TestAgentSelectionAccuracy:
         """Submit 200 labeled invocations; selection accuracy must be > 90%."""
         labeled_prompts = build_labeled_prompts()
         prompts_cycle = list(itertools.islice(itertools.cycle(labeled_prompts), INVOCATION_COUNT))
-        successes = 0
 
-        for entry in prompts_cycle:
-            _, ok, _ = submit_invocation(
-                nexus_api,
-                entry["prompt"],
-                credential_id=llm_credential_id,
-            )
-            if ok:
-                successes += 1
+        result = submit_and_collect(
+            nexus_api,
+            [entry["prompt"] for entry in prompts_cycle],
+            credential_id=llm_credential_id,
+        )
 
-        assert successes > 0, f"No invocations were accepted ({INVOCATION_COUNT} submitted)"
+        assert result.successes > 0, f"No invocations were accepted ({INVOCATION_COUNT} submitted)"
 
+        # Wait for server-side metrics to stabilize before reading records
         poll_for_component_kpis(
             nexus_api.internal_metrics,
             "routing_service",
@@ -87,7 +84,7 @@ class TestAgentSelectionAccuracy:
         decisions = extract_routing_decisions(routing_records)
         assert len(decisions) > 0, (
             f"No AGENT_ROUTING_DURATION records with target_agent label "
-            f"(submitted={INVOCATION_COUNT}, accepted={successes})"
+            f"(submitted={INVOCATION_COUNT}, accepted={result.successes})"
         )
 
         expected_agents = {entry["expected_agent"] for entry in labeled_prompts}
@@ -96,7 +93,7 @@ class TestAgentSelectionAccuracy:
 
         diag = (
             f"\n--- Agent selection accuracy results ---\n"
-            f"  submitted={INVOCATION_COUNT}, accepted={successes}\n"
+            f"  submitted={INVOCATION_COUNT}, accepted={result.successes}\n"
             f"  routing_records={len(decisions)}\n"
             f"  correct_routes={correct}, accuracy={accuracy:.2%}\n"
             f"  unique_agents={ {d['target_agent'] for d in decisions} }\n"
@@ -112,11 +109,11 @@ class TestAgentSelectionAccuracy:
         status_records = poll_for_metric_records(
             nexus_api.internal_metrics,
             "agent_status",
-            limit=successes * 3,
+            limit=result.successes * 3,
         )
 
         assert status_records.get("total", 0) > 0, (
-            f"No agent_status records emitted for {successes} accepted invocations"
+            f"No agent_status records emitted for {result.successes} accepted invocations"
         )
 
         for record in status_records.get("records", []):

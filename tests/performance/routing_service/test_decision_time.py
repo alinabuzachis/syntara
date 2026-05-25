@@ -17,7 +17,6 @@ Run with:
 from __future__ import annotations
 
 import itertools
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 import pytest
@@ -26,7 +25,7 @@ from tests.performance.conftest import (
     compute_percentile,
     poll_for_component_kpis,
     poll_for_metric_records,
-    submit_invocation,
+    submit_and_collect,
 )
 from tests.performance.routing_service.conftest import (
     ALL_PROMPTS,
@@ -72,21 +71,11 @@ class TestDecisionTime:
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Submit 200 invocations; routing decision time p95 must be < 100ms."""
-        client_times: list[float] = []
-        successes = 0
-        failures = 0
-
         prompts = list(itertools.islice(itertools.cycle(ALL_PROMPTS), INVOCATION_COUNT))
 
-        for prompt in prompts:
-            elapsed_ms, ok, _ = submit_invocation(nexus_api, prompt)
-            client_times.append(elapsed_ms)
-            if ok:
-                successes += 1
-            else:
-                failures += 1
+        result = submit_and_collect(nexus_api, prompts)
 
-        assert len(client_times) > 0, "No invocations were attempted"
+        assert len(result.client_times) > 0, "No invocations were attempted"
 
         kpis = poll_for_component_kpis(
             nexus_api.internal_metrics,
@@ -96,13 +85,13 @@ class TestDecisionTime:
         server_p95 = decision_stats.get("p95", 0)
         server_count = decision_stats.get("count", 0)
 
-        client_p95 = compute_percentile(client_times, 95)
-        client_p50 = compute_percentile(client_times, 50)
+        client_p95 = compute_percentile(result.client_times, 95)
+        client_p50 = compute_percentile(result.client_times, 50)
 
         diag = (
             f"\n--- Decision time results ---\n"
             f"  total={INVOCATION_COUNT}, "
-            f"successes={successes}, failures={failures}\n"
+            f"successes={result.successes}, failures={result.failures}\n"
             f"  client: p50={client_p50:.1f}ms, p95={client_p95:.1f}ms\n"
             f"  server: count={server_count}, p95={server_p95}ms\n"
             f"  decision_time_stats={decision_stats}\n"
@@ -129,20 +118,14 @@ class TestDecisionTime:
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Submit invocations concurrently in batches; p95 must be < 100ms."""
-        client_times: list[float] = []
-        successes = 0
-
         prompts = list(itertools.islice(itertools.cycle(ALL_PROMPTS), INVOCATION_COUNT))
 
-        for batch_start in range(0, INVOCATION_COUNT, CONCURRENT_BATCH_SIZE):
-            batch = prompts[batch_start : batch_start + CONCURRENT_BATCH_SIZE]
-            with ThreadPoolExecutor(max_workers=CONCURRENT_BATCH_SIZE) as executor:
-                futures = [executor.submit(submit_invocation, nexus_api, prompt) for prompt in batch]
-                for future in as_completed(futures):
-                    elapsed_ms, ok, _ = future.result()
-                    client_times.append(elapsed_ms)
-                    if ok:
-                        successes += 1
+        result = submit_and_collect(
+            nexus_api,
+            prompts,
+            max_workers=CONCURRENT_BATCH_SIZE,
+            batch_size=CONCURRENT_BATCH_SIZE,
+        )
 
         kpis = poll_for_component_kpis(
             nexus_api.internal_metrics,
@@ -152,12 +135,12 @@ class TestDecisionTime:
         server_p95 = decision_stats.get("p95", 0)
         server_count = decision_stats.get("count", 0)
 
-        client_p95 = compute_percentile(client_times, 95)
+        client_p95 = compute_percentile(result.client_times, 95)
 
         diag = (
             f"\n--- Concurrent decision time results ---\n"
             f"  total={INVOCATION_COUNT}, "
-            f"successes={successes}, "
+            f"successes={result.successes}, "
             f"batch_size={CONCURRENT_BATCH_SIZE}\n"
             f"  client_p95={client_p95:.1f}ms\n"
             f"  server: count={server_count}, p95={server_p95}ms\n"
@@ -196,18 +179,11 @@ class TestAdvancedDecisionTime:
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Submit invocations with varied prompts; decision time p95 must be < 500ms."""
-        client_times: list[float] = []
-        successes = 0
-
         prompts = list(itertools.islice(itertools.cycle(ALL_PROMPTS), ADVANCED_INVOCATION_COUNT))
 
-        for prompt in prompts:
-            elapsed_ms, ok, _ = submit_invocation(nexus_api, prompt)
-            client_times.append(elapsed_ms)
-            if ok:
-                successes += 1
+        result = submit_and_collect(nexus_api, prompts)
 
-        assert len(client_times) > 0, "No invocations were attempted"
+        assert len(result.client_times) > 0, "No invocations were attempted"
 
         kpis = poll_for_component_kpis(
             nexus_api.internal_metrics,
@@ -217,11 +193,11 @@ class TestAdvancedDecisionTime:
         server_p95 = decision_stats.get("p95", 0)
         server_count = decision_stats.get("count", 0)
 
-        client_p95 = compute_percentile(client_times, 95)
+        client_p95 = compute_percentile(result.client_times, 95)
 
         diag = (
             f"\n--- Advanced decision time results ---\n"
-            f"  total={ADVANCED_INVOCATION_COUNT}, successes={successes}\n"
+            f"  total={ADVANCED_INVOCATION_COUNT}, successes={result.successes}\n"
             f"  client_p95={client_p95:.1f}ms\n"
             f"  server: count={server_count}, p95={server_p95}ms\n"
             f"  decision_time_stats={decision_stats}\n"

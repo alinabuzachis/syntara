@@ -12,12 +12,11 @@ Run with:
 from __future__ import annotations
 
 import itertools
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records, submit_invocation
+from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records, submit_and_collect
 from tests.performance.routing_service.conftest import (
     ALL_PROMPTS,
     ROUTING_SERVICE_COMPONENT,
@@ -76,20 +75,16 @@ class TestAgentUtilizationBalance:
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Submit diverse prompts; utilization must be tracked."""
-        successes = 0
-
         prompts = list(itertools.islice(itertools.cycle(ALL_PROMPTS), UTILIZATION_INVOCATION_COUNT))
 
-        for batch_start in range(0, UTILIZATION_INVOCATION_COUNT, CONCURRENT_BATCH_SIZE):
-            batch = prompts[batch_start : batch_start + CONCURRENT_BATCH_SIZE]
-            with ThreadPoolExecutor(max_workers=CONCURRENT_BATCH_SIZE) as executor:
-                futures = [executor.submit(submit_invocation, nexus_api, prompt) for prompt in batch]
-                for future in as_completed(futures):
-                    _, ok, _ = future.result()
-                    if ok:
-                        successes += 1
+        result = submit_and_collect(
+            nexus_api,
+            prompts,
+            max_workers=CONCURRENT_BATCH_SIZE,
+            batch_size=CONCURRENT_BATCH_SIZE,
+        )
 
-        assert successes > 0, f"No invocations were accepted ({UTILIZATION_INVOCATION_COUNT} submitted)"
+        assert result.successes > 0, f"No invocations were accepted ({UTILIZATION_INVOCATION_COUNT} submitted)"
 
         kpis = poll_for_component_kpis(
             nexus_api.internal_metrics,
@@ -107,7 +102,7 @@ class TestAgentUtilizationBalance:
         diag = (
             f"\n--- Agent utilization results ---\n"
             f"  submitted={UTILIZATION_INVOCATION_COUNT}, "
-            f"accepted={successes}\n"
+            f"accepted={result.successes}\n"
             f"  server_agent_utilization={agent_utilization}\n"
             f"  client_agent_distribution={client_distribution}\n"
             f"  routing_records={records.get('total', 0)}\n"
@@ -134,16 +129,11 @@ class TestAgentUtilizationBalance:
         nexus_api: NexusApiRegistry,
     ) -> None:
         """Submit prompts and verify agent_status records carry agent labels."""
-        successes = 0
-
         prompts = list(itertools.islice(itertools.cycle(ALL_PROMPTS), UTILIZATION_INVOCATION_COUNT))
 
-        for prompt in prompts:
-            _, ok, _ = submit_invocation(nexus_api, prompt)
-            if ok:
-                successes += 1
+        result = submit_and_collect(nexus_api, prompts)
 
-        assert successes > 0, "No invocations were accepted"
+        assert result.successes > 0, "No invocations were accepted"
 
         poll_for_component_kpis(
             nexus_api.internal_metrics,
@@ -156,7 +146,9 @@ class TestAgentUtilizationBalance:
             limit=UTILIZATION_INVOCATION_COUNT * 3,
         )
 
-        assert records.get("total", 0) > 0, f"No agent_status records emitted for {successes} accepted invocations"
+        assert records.get("total", 0) > 0, (
+            f"No agent_status records emitted for {result.successes} accepted invocations"
+        )
 
         status_distribution: dict[str, int] = {}
         for record in records.get("records", []):
@@ -172,7 +164,7 @@ class TestAgentUtilizationBalance:
 
         diag = (
             f"\n--- Agent status utilization results ---\n"
-            f"  invocations_accepted={successes}\n"
+            f"  invocations_accepted={result.successes}\n"
             f"  agent_status_records={records.get('total', 0)}\n"
             f"  status_distribution={status_distribution}\n"
             f"  server_agent_utilization={server_utilization}\n"

@@ -17,17 +17,20 @@ Run with:
 
 from __future__ import annotations
 
-import time
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
 import structlog
 
 from tests.performance.chat_window.conftest import create_chat_session_id, send_chat_message
-from tests.performance.conftest import poll_for_component_kpis
+from tests.performance.conftest import poll_for_component_kpis, submit_at_steady_rate
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from typing import Any
+
     from nexus_api_client.api import NexusApiRegistry
 
 logger = structlog.get_logger(__name__)
@@ -66,30 +69,24 @@ class TestChatSessionErrorRate:
         total_failures = 0
         response_times: list[float] = []
 
-        interval = 1.0 / SUSTAINED_RPS
-        end_time = time.monotonic() + SUSTAINED_DURATION_SECONDS
+        def _tasks() -> Iterator[Any]:
+            while True:
+                sid = create_chat_session_id()
+                yield partial(
+                    send_chat_message,
+                    nexus_api,
+                    sid,
+                    "What workflows are available?",
+                    credential_id=llm_credential_id,
+                )
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures: list[Future[tuple[float, bool, str | None]]] = []
-            next_send = time.monotonic()
-
-            while time.monotonic() < end_time:
-                now = time.monotonic()
-                if now >= next_send:
-                    session_id = create_chat_session_id()
-                    futures.append(
-                        executor.submit(
-                            send_chat_message,
-                            nexus_api,
-                            session_id,
-                            "What workflows are available?",
-                            credential_id=llm_credential_id,
-                        )
-                    )
-                    next_send += interval
-                else:
-                    sleep_for = min(next_send - now, 0.001)
-                    time.sleep(sleep_for)
+            futures = submit_at_steady_rate(
+                executor,
+                _tasks(),
+                target_rps=SUSTAINED_RPS,
+                duration=SUSTAINED_DURATION_SECONDS,
+            )
 
             for future in futures:
                 try:
@@ -129,30 +126,25 @@ class TestChatSessionErrorRate:
         llm_credential_id: str | None,
     ) -> None:
         """Server-side LLM status must confirm error rate < 1% after sustained load."""
-        interval = 1.0 / SUSTAINED_RPS
-        end_time = time.monotonic() + SUSTAINED_DURATION_SECONDS
+
+        def _tasks() -> Iterator[Any]:
+            while True:
+                sid = create_chat_session_id()
+                yield partial(
+                    send_chat_message,
+                    nexus_api,
+                    sid,
+                    "Describe the system architecture.",
+                    credential_id=llm_credential_id,
+                )
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures: list[Future[tuple[float, bool, str | None]]] = []
-            next_send = time.monotonic()
-
-            while time.monotonic() < end_time:
-                now = time.monotonic()
-                if now >= next_send:
-                    session_id = create_chat_session_id()
-                    futures.append(
-                        executor.submit(
-                            send_chat_message,
-                            nexus_api,
-                            session_id,
-                            "Describe the system architecture.",
-                            credential_id=llm_credential_id,
-                        )
-                    )
-                    next_send += interval
-                else:
-                    sleep_for = min(next_send - now, 0.001)
-                    time.sleep(sleep_for)
+            futures = submit_at_steady_rate(
+                executor,
+                _tasks(),
+                target_rps=SUSTAINED_RPS,
+                duration=SUSTAINED_DURATION_SECONDS,
+            )
 
             for future in futures:
                 try:

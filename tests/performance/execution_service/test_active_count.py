@@ -19,7 +19,7 @@ import pytest
 from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
-from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records
+from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records, poll_until
 from tests.performance.execution_service.conftest import (
     EXECUTION_WORKFLOW_DEFINITION,
     POLL_INTERVAL_SECONDS,
@@ -178,13 +178,12 @@ class TestActiveWorkflowCount:
             initial_exec_ids = self._start_executions_concurrent(nexus_api, initial_wf_ids)
             all_execution_ids.extend(initial_exec_ids)
 
-            deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
-            first_snapshot: dict[str, int] = {}
-            while time.monotonic() < deadline:
-                first_snapshot = self._count_active_executions(nexus_api, all_execution_ids)
-                if first_snapshot.get("running", 0) > 0 or any(s in first_snapshot for s in TERMINAL_STATUSES):
-                    break
-                time.sleep(POLL_INTERVAL_SECONDS)
+            first_snapshot = poll_until(
+                lambda: self._count_active_executions(nexus_api, all_execution_ids),
+                lambda s: s.get("running", 0) > 0 or any(st in s for st in TERMINAL_STATUSES),
+                timeout=POLL_TIMEOUT_SECONDS,
+                interval=POLL_INTERVAL_SECONDS,
+            )
             peak_active = first_snapshot.get("running", 0) + first_snapshot.get("pending", 0)
 
             additional_wf_ids = self._create_workflows_batch(nexus_api, "add", ADDITIONAL_WORKFLOW_COUNT)

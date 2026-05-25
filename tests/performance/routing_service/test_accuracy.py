@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records, submit_invocation
+from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records, submit_and_collect
 from tests.performance.routing_service.conftest import (
     GENERAL_PROMPTS,
     ROUTING_SERVICE_COMPONENT,
@@ -95,16 +95,12 @@ class TestRoutingAccuracy:
     ) -> None:
         """Submit labeled prompts; routing accuracy must be > 90%."""
         labeled_prompts = _build_labeled_prompts()
-        total_submitted = len(labeled_prompts)
-        successes = 0
 
-        for entry in labeled_prompts:
-            _, ok, _ = submit_invocation(nexus_api, entry["prompt"])
-            if ok:
-                successes += 1
+        result = submit_and_collect(nexus_api, [e["prompt"] for e in labeled_prompts])
 
-        assert successes > 0, f"No invocations were accepted ({total_submitted} submitted)"
+        assert result.successes > 0, f"No invocations were accepted ({len(labeled_prompts)} submitted)"
 
+        # Wait for server-side metrics to stabilize before reading records
         poll_for_component_kpis(
             nexus_api.internal_metrics,
             ROUTING_SERVICE_COMPONENT,
@@ -113,13 +109,13 @@ class TestRoutingAccuracy:
         records = poll_for_metric_records(
             nexus_api.internal_metrics,
             "agent_routing_ms",
-            limit=total_submitted + 10,
+            limit=len(labeled_prompts) + 10,
         )
 
         decisions = self._extract_routing_decisions(records)
         assert len(decisions) > 0, (
             f"No AGENT_ROUTING_DURATION records with target_agent label "
-            f"(submitted={total_submitted}, accepted={successes})"
+            f"(submitted={len(labeled_prompts)}, accepted={result.successes})"
         )
 
         correct = sum(1 for d in decisions if d["target_agent"] == "generic_agent")
@@ -127,7 +123,7 @@ class TestRoutingAccuracy:
 
         diag = (
             f"\n--- Routing accuracy results ---\n"
-            f"  submitted={total_submitted}, accepted={successes}\n"
+            f"  submitted={len(labeled_prompts)}, accepted={result.successes}\n"
             f"  routing_records={len(decisions)}\n"
             f"  correct_routes={correct}, accuracy={accuracy:.2%}\n"
             f"  unique_agents={ {d['target_agent'] for d in decisions} }\n"
@@ -143,15 +139,12 @@ class TestRoutingAccuracy:
     ) -> None:
         """Submit prompts and verify AGENT_STATUS records are emitted."""
         labeled_prompts = _build_labeled_prompts()
-        successes = 0
 
-        for entry in labeled_prompts:
-            _, ok, _ = submit_invocation(nexus_api, entry["prompt"])
-            if ok:
-                successes += 1
+        result = submit_and_collect(nexus_api, [e["prompt"] for e in labeled_prompts])
 
-        assert successes > 0, "No invocations were accepted"
+        assert result.successes > 0, "No invocations were accepted"
 
+        # Wait for server-side metrics to stabilize before reading records
         poll_for_component_kpis(
             nexus_api.internal_metrics,
             ROUTING_SERVICE_COMPONENT,
@@ -160,10 +153,12 @@ class TestRoutingAccuracy:
         records = poll_for_metric_records(
             nexus_api.internal_metrics,
             "agent_status",
-            limit=successes * 3,
+            limit=result.successes * 3,
         )
 
-        assert records.get("total", 0) > 0, f"No agent_status records emitted for {successes} accepted invocations"
+        assert records.get("total", 0) > 0, (
+            f"No agent_status records emitted for {result.successes} accepted invocations"
+        )
 
         status_labels: set[str] = set()
         for record in records.get("records", []):

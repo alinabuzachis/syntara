@@ -29,12 +29,14 @@ Run with:
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.performance.conftest import submit_invocation
+from tests.performance.conftest import (
+    poll_for_invocation_terminal_status,
+    submit_invocation,
+)
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
@@ -91,22 +93,14 @@ def llm_routed_invocation_enabled(
             "endpoint with an LLM configured."
         )
 
-    deadline = time.monotonic() + PROBE_POLL_TIMEOUT
-    status = "created"
-    error_message = ""
-
-    while time.monotonic() < deadline:
-        time.sleep(PROBE_POLL_INTERVAL)
-        try:
-            r = nexus_api.invocation.get(invocation_id=inv_id)
-            if r.is_success and r.parsed:
-                parsed = r.parsed.to_dict()
-                status = str(parsed.get("status", "unknown"))
-                error_message = str(parsed.get("error_message", "") or "")
-                if status in TERMINAL_STATUSES:
-                    break
-        except Exception:
-            pass
+    parsed = poll_for_invocation_terminal_status(
+        nexus_api,
+        inv_id,
+        timeout=PROBE_POLL_TIMEOUT,
+        interval=PROBE_POLL_INTERVAL,
+    )
+    status = str(parsed.get("status", "created"))
+    error_message = str(parsed.get("error_message", "") or "")
 
     if status == "failed" and "LLM" in error_message:
         pytest.skip(

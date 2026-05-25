@@ -17,7 +17,6 @@ Run with:
 from __future__ import annotations
 
 import itertools
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 import pytest
@@ -27,7 +26,7 @@ from tests.performance.conftest import (
     compute_percentile,
     poll_for_component_kpis,
     poll_for_metric_records,
-    submit_invocation,
+    submit_and_collect,
 )
 
 if TYPE_CHECKING:
@@ -73,9 +72,6 @@ class TestCoordinationOverhead:
         llm_credential_id: str | None,
     ) -> None:
         """Multi-agent coordination; routing overhead p95 must be < 500ms."""
-        client_times: list[float] = []
-        successes = 0
-
         prompts = list(
             itertools.islice(
                 itertools.cycle(ALL_ORCHESTRATION_PROMPTS),
@@ -83,17 +79,13 @@ class TestCoordinationOverhead:
             )
         )
 
-        for prompt in prompts:
-            elapsed_ms, ok, _ = submit_invocation(
-                nexus_api,
-                prompt,
-                credential_id=llm_credential_id,
-            )
-            client_times.append(elapsed_ms)
-            if ok:
-                successes += 1
+        result = submit_and_collect(
+            nexus_api,
+            prompts,
+            credential_id=llm_credential_id,
+        )
 
-        assert successes > 0, f"No invocations were accepted ({COORDINATION_INVOCATION_COUNT} submitted)"
+        assert result.successes > 0, f"No invocations were accepted ({COORDINATION_INVOCATION_COUNT} submitted)"
 
         kpis = poll_for_component_kpis(
             nexus_api.internal_metrics,
@@ -117,7 +109,7 @@ class TestCoordinationOverhead:
         diag = (
             f"\n--- Coordination overhead results ---\n"
             f"  submitted={COORDINATION_INVOCATION_COUNT}, "
-            f"accepted={successes}\n"
+            f"accepted={result.successes}\n"
             f"  server_decision_time: count={server_count}, "
             f"p95={server_p95}ms\n"
             f"  raw_routing_records={len(routing_values)}, "
@@ -183,10 +175,6 @@ class TestCoordinationUnderConcurrency:
         llm_credential_id: str | None,
     ) -> None:
         """Concurrent invocations; no deadlocks or coordination timeouts."""
-        client_times: list[float] = []
-        successes = 0
-        failures = 0
-
         prompts = list(
             itertools.islice(
                 itertools.cycle(ALL_ORCHESTRATION_PROMPTS),
@@ -194,32 +182,20 @@ class TestCoordinationUnderConcurrency:
             )
         )
 
-        for batch_start in range(0, PARALLEL_INVOCATION_COUNT, CONCURRENT_BATCH_SIZE):
-            batch = prompts[batch_start : batch_start + CONCURRENT_BATCH_SIZE]
-            with ThreadPoolExecutor(max_workers=CONCURRENT_BATCH_SIZE) as executor:
-                futures = [
-                    executor.submit(
-                        submit_invocation,
-                        nexus_api,
-                        prompt,
-                        credential_id=llm_credential_id,
-                    )
-                    for prompt in batch
-                ]
-                for future in as_completed(futures):
-                    elapsed_ms, ok, _ = future.result()
-                    client_times.append(elapsed_ms)
-                    if ok:
-                        successes += 1
-                    else:
-                        failures += 1
+        result = submit_and_collect(
+            nexus_api,
+            prompts,
+            max_workers=CONCURRENT_BATCH_SIZE,
+            batch_size=CONCURRENT_BATCH_SIZE,
+            credential_id=llm_credential_id,
+        )
 
-        total = successes + failures
+        total = result.successes + result.failures
         assert total > 0, "No invocations were attempted"
 
-        error_rate = failures / total
-        client_p95 = compute_percentile(client_times, 95) if client_times else 0
-        client_p50 = compute_percentile(client_times, 50) if client_times else 0
+        error_rate = result.failures / total
+        client_p95 = compute_percentile(result.client_times, 95) if result.client_times else 0
+        client_p50 = compute_percentile(result.client_times, 50) if result.client_times else 0
 
         kpis = poll_for_component_kpis(
             nexus_api.internal_metrics,
@@ -233,7 +209,7 @@ class TestCoordinationUnderConcurrency:
         diag = (
             f"\n--- Parallel coordination results ---\n"
             f"  submitted={PARALLEL_INVOCATION_COUNT}, "
-            f"accepted={successes}, failed={failures}\n"
+            f"accepted={result.successes}, failed={result.failures}\n"
             f"  error_rate={error_rate:.2%}\n"
             f"  client: p50={client_p50:.1f}ms, p95={client_p95:.1f}ms\n"
             f"  server_decision_time: count={server_count}, "
@@ -247,7 +223,7 @@ class TestCoordinationUnderConcurrency:
             f"resource contention{diag}"
         )
 
-        assert successes > 0, f"No invocations succeeded under concurrent load{diag}"
+        assert result.successes > 0, f"No invocations succeeded under concurrent load{diag}"
 
         if server_count > 0:
             assert server_p95 < TARGET_COORDINATION_OVERHEAD_P95_MS, (
@@ -266,7 +242,9 @@ class TestCoordinationUnderConcurrency:
         )
 
         total_records = records.get("total", 0)
-        assert total_records > 0, f"No agent_routing_ms records emitted under concurrent load (accepted={successes})"
+        assert total_records > 0, (
+            f"No agent_routing_ms records emitted under concurrent load (accepted={result.successes})"
+        )
 
         routing_values: list[float] = [
             r.get("value", 0) for r in records.get("records", []) if isinstance(r.get("value"), (int, float))
