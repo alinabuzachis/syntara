@@ -9,7 +9,7 @@ Tests validation of OpenAPI schema compliance including:
 Task T029 from AAP-64408 acceptance criteria.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -82,9 +82,11 @@ class TestDecideApprovalContract:
         mock_client.send_approval_signal.assert_called_once_with(
             execution_id=approvals[0].execution_id,
             approval_node_id=approvals[0].approval_node_id,
-            status="approved",
+            decision="approved",
             approval_id=approvals[0].id,
-            notes="This change looks good to deploy to production.",
+            approver=ANY,
+            timestamp=ANY,
+            comments="This change looks good to deploy to production.",
         )
 
     @pytest.mark.asyncio
@@ -128,9 +130,11 @@ class TestDecideApprovalContract:
         mock_client.send_approval_signal.assert_called_once_with(
             execution_id=approvals[0].execution_id,
             approval_node_id=approvals[0].approval_node_id,
-            status="rejected",
+            decision="rejected",
             approval_id=approvals[0].id,
-            notes="This change needs more testing before deployment.",
+            approver=ANY,
+            timestamp=ANY,
+            comments="This change needs more testing before deployment.",
         )
 
     @pytest.mark.asyncio
@@ -165,9 +169,11 @@ class TestDecideApprovalContract:
             mock_client.send_approval_signal.assert_called_once_with(
                 execution_id=approvals[0].execution_id,
                 approval_node_id=approvals[0].approval_node_id,
-                status="approved",
+                decision="approved",
                 approval_id=approvals[0].id,
-                notes=None,
+                approver=ANY,
+                timestamp=ANY,
+                comments=None,
             )
 
         assert response.status_code == 200
@@ -189,9 +195,11 @@ class TestDecideApprovalContract:
             mock_client_2.send_approval_signal.assert_called_once_with(
                 execution_id=approvals[1].execution_id,
                 approval_node_id=approvals[1].approval_node_id,
-                status="rejected",
+                decision="rejected",
                 approval_id=approvals[1].id,
-                notes=None,
+                approver=ANY,
+                timestamp=ANY,
+                comments=None,
             )
 
         assert response.status_code == 200
@@ -424,9 +432,11 @@ class TestDecideApprovalContract:
             mock_client.send_approval_signal.assert_called_once_with(
                 execution_id=approvals[0].execution_id,
                 approval_node_id=approvals[0].approval_node_id,
-                status="approved",
+                decision="approved",
                 approval_id=approvals[0].id,
-                notes=normal_notes,
+                approver=ANY,
+                timestamp=ANY,
+                comments=normal_notes,
             )
 
         assert response.status_code == 200
@@ -451,9 +461,11 @@ class TestDecideApprovalContract:
             mock_client.send_approval_signal.assert_called_once_with(
                 execution_id=long_approvals[0].execution_id,
                 approval_node_id=long_approvals[0].approval_node_id,
-                status="approved",
+                decision="approved",
                 approval_id=long_approvals[0].id,
-                notes=acceptable_long_notes,
+                approver=ANY,
+                timestamp=ANY,
+                comments=acceptable_long_notes,
             )
 
         assert response.status_code == 200

@@ -327,9 +327,11 @@ class ApprovalService(BaseService):
                 await client.send_approval_signal(
                     execution_id=approval.execution_id,
                     approval_node_id=approval.approval_node_id,
-                    status=request.status,
+                    decision=request.status,
                     approval_id=approval_id,
-                    notes=request.notes,
+                    approver=self.user.username,
+                    timestamp=(approval.decided_at or datetime.now(UTC)).isoformat(),
+                    comments=request.notes,
                 )
         except Exception as e:
             logger.exception(
@@ -449,9 +451,11 @@ class ApprovalService(BaseService):
                 await workflow_client.send_approval_signal(
                     execution_id=approval.execution_id,
                     approval_node_id=approval.approval_node_id,
-                    status=decision.status,
+                    decision=decision.status,
                     approval_id=approval_id,
-                    notes=decision.notes,
+                    approver=self.user.username,
+                    timestamp=(approval.decided_at or datetime.now(UTC)).isoformat(),
+                    comments=decision.notes,
                 )
             except Exception as e:
                 logger.exception(

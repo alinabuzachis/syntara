@@ -325,7 +325,7 @@ class TestDispatchApprovalNode:
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"id": "apr-1", "status": "approved"}})
+        mock_activity = AsyncMock(return_value={"output": {"id": "apr-1", "decision": "approved"}})
 
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             await wf._dispatch_node_to_executor(node, {"name": "Review Deployment"}, graph, timeout_seconds=300)
@@ -348,7 +348,7 @@ class TestDispatchApprovalNode:
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"status": "approved", "approval_id": "apr-1"}})
+        mock_activity = AsyncMock(return_value={"output": {"decision": "approved", "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
@@ -362,7 +362,7 @@ class TestDispatchApprovalNode:
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"status": "rejected", "approval_id": "apr-1"}})
+        mock_activity = AsyncMock(return_value={"output": {"decision": "rejected", "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
@@ -376,7 +376,7 @@ class TestDispatchApprovalNode:
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"status": "cancelled"}})
+        mock_activity = AsyncMock(return_value={"output": {"decision": "cancelled"}})
 
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
@@ -391,7 +391,7 @@ class TestDispatchApprovalNode:
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"status": approval_status, "approval_id": "apr-1"}})
+        mock_activity = AsyncMock(return_value={"output": {"decision": approval_status, "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
@@ -406,9 +406,113 @@ class TestDispatchApprovalNode:
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
-        mock_activity = AsyncMock(return_value={"output": {"status": "pending", "approval_id": "apr-1"}})
+        mock_activity = AsyncMock(return_value={"output": {"decision": "pending", "approval_id": "apr-1"}})
 
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
 
         assert result["control"]["next_port"] == "rejected"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_transforms_output_to_match_result_schema(self) -> None:
+        """Verify signal payload is fully transformed to match approval resultSchema."""
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+        node = graph.get_node("approval")
+
+        mock_activity = AsyncMock(
+            return_value={
+                "output": {
+                    "decision": "approved",
+                    "approver": "jsmith",
+                    "timestamp": "2026-05-20T10:00:00+00:00",
+                    "comments": "LGTM",
+                }
+            }
+        )
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
+            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+
+        output = result["output"]
+        assert output["status"] == "completed"
+        assert output["decision"] == "approved"
+        assert output["approver"] == "jsmith"
+        assert output["timestamp"] == "2026-05-20T10:00:00+00:00"
+        assert output["comments"] == "LGTM"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_transforms_output_without_notes(self) -> None:
+        """Verify comments key is absent (not None) when notes not provided."""
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+        node = graph.get_node("approval")
+
+        mock_activity = AsyncMock(
+            return_value={
+                "output": {
+                    "decision": "rejected",
+                    "approver": "jsmith",
+                    "timestamp": "2026-05-20T10:00:00+00:00",
+                }
+            }
+        )
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
+            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+
+        output = result["output"]
+        assert output["status"] == "completed"
+        assert output["decision"] == "rejected"
+        assert output["approver"] == "jsmith"
+        assert output["timestamp"] == "2026-05-20T10:00:00+00:00"
+        assert "comments" not in output
+
+    @pytest.mark.asyncio
+    async def test_dispatch_truncates_oversized_comments(self) -> None:
+        """Verify comments longer than 2000 chars are truncated at the boundary."""
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+        node = graph.get_node("approval")
+
+        oversized_notes = "x" * 3000
+        mock_activity = AsyncMock(
+            return_value={
+                "output": {
+                    "decision": "approved",
+                    "approver": "jsmith",
+                    "timestamp": "2026-05-20T10:00:00+00:00",
+                    "comments": oversized_notes,
+                }
+            }
+        )
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
+            result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+
+        assert len(result["output"]["comments"]) == 2000
+
+    @pytest.mark.asyncio
+    async def test_dispatch_logs_approval_decision(self) -> None:
+        """Verify approval decisions are logged for audit trail."""
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+        node = graph.get_node("approval")
+
+        mock_activity = AsyncMock(
+            return_value={
+                "output": {"decision": "approved", "approver": "jsmith", "timestamp": "2026-05-20T10:00:00+00:00"}
+            }
+        )
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+            mock_wf.logger = MagicMock()
+            mock_wf.execute_activity = mock_activity
+            await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
+
+        mock_wf.logger.info.assert_called_once_with(
+            "Approval node %s decision: %s by %s",
+            "approval",
+            "approved",
+            "jsmith",
+        )

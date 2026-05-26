@@ -5,7 +5,7 @@ following the project's test patterns and using injected factory fixtures.
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -391,9 +391,11 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
             mock_client.send_approval_signal.assert_called_once_with(
                 execution_id=approval.execution_id,
                 approval_node_id=approval.approval_node_id,
-                status="approved",
+                decision="approved",
                 approval_id=approval.id,
-                notes="Looks good to proceed!",
+                approver=test_user.username,
+                timestamp=ANY,
+                comments="Looks good to proceed!",
             )
 
     @pytest.mark.asyncio
@@ -435,9 +437,11 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
             mock_client.send_approval_signal.assert_called_once_with(
                 execution_id=approval.execution_id,
                 approval_node_id=approval.approval_node_id,
-                status="rejected",
+                decision="rejected",
                 approval_id=approval.id,
-                notes="Insufficient justification",
+                approver=test_user.username,
+                timestamp=ANY,
+                comments="Insufficient justification",
             )
 
     @pytest.mark.asyncio
@@ -604,14 +608,14 @@ class TestApprovalServiceBatchDecide(TestApprovalServiceBase):
             assert len(calls) == 2
 
             # First call should be for the approved decision
-            assert calls[0][1]["status"] == BatchApprovalDecisionStatus.APPROVED
+            assert calls[0][1]["decision"] == BatchApprovalDecisionStatus.APPROVED
             assert calls[0][1]["approval_id"] == approvals[0].id
-            assert calls[0][1]["notes"] == "Looks good"
+            assert calls[0][1]["comments"] == "Looks good"
 
             # Second call should be for the rejected decision
-            assert calls[1][1]["status"] == BatchApprovalDecisionStatus.REJECTED
+            assert calls[1][1]["decision"] == BatchApprovalDecisionStatus.REJECTED
             assert calls[1][1]["approval_id"] == approvals[1].id
-            assert calls[1][1]["notes"] == "Needs changes"
+            assert calls[1][1]["comments"] == "Needs changes"
 
     @pytest.mark.asyncio
     async def test_batch_decide_mixed_success_and_failure(

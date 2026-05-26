@@ -21,8 +21,10 @@ class TestWorkflowApiClient:
         """Test successful approval signal sending."""
         execution_id = uuid4()
         approval_node_id = "approval-node-1"
-        status = "approved"
+        decision = "approved"
         approval_id = uuid4()
+        approver = "jsmith"
+        timestamp = "2026-05-20T10:00:00+00:00"
         notes = "Approved by test"
 
         with (
@@ -39,9 +41,11 @@ class TestWorkflowApiClient:
                     await client.send_approval_signal(
                         execution_id=execution_id,
                         approval_node_id=approval_node_id,
-                        status=status,
+                        decision=decision,
                         approval_id=approval_id,
-                        notes=notes,
+                        approver=approver,
+                        timestamp=timestamp,
+                        comments=notes,
                     )
 
                 # Verify the signal URL was generated correctly
@@ -59,9 +63,10 @@ class TestWorkflowApiClient:
                 request_json = json.loads(request.content)
                 expected_payload = {
                     "signal_data": {
-                        "status": status,
-                        "approval_id": str(approval_id),
-                        "notes": notes,
+                        "decision": decision,
+                        "approver": approver,
+                        "timestamp": timestamp,
+                        "comments": notes,
                     }
                 }
                 assert request_json == expected_payload
@@ -71,7 +76,7 @@ class TestWorkflowApiClient:
         """Test successful approval signal sending after retries."""
         execution_id = uuid4()
         approval_node_id = "approval-node-1"
-        status = "rejected"
+        decision = "rejected"
         approval_id = uuid4()
 
         with (
@@ -94,8 +99,10 @@ class TestWorkflowApiClient:
                         await client.send_approval_signal(
                             execution_id=execution_id,
                             approval_node_id=approval_node_id,
-                            status=status,
+                            decision=decision,
                             approval_id=approval_id,
+                            approver="jsmith",
+                            timestamp="2026-05-20T10:00:00+00:00",
                         )
 
                 # Should have made 2 requests (1 failure + 1 success)
@@ -109,7 +116,7 @@ class TestWorkflowApiClient:
         """Test approval signal failure after exhausting retries."""
         execution_id = uuid4()
         approval_node_id = "approval-node-1"
-        status = "approved"
+        decision = "approved"
         approval_id = uuid4()
 
         with (
@@ -129,8 +136,10 @@ class TestWorkflowApiClient:
                             await client.send_approval_signal(
                                 execution_id=execution_id,
                                 approval_node_id=approval_node_id,
-                                status=status,
+                                decision=decision,
                                 approval_id=approval_id,
+                                approver="jsmith",
+                                timestamp="2026-05-20T10:00:00+00:00",
                             )
 
                 # Should have made max_retries + 1 requests (3 in fast settings)
@@ -145,7 +154,7 @@ class TestWorkflowApiClient:
         """Test approval signal failure with max_retries=0."""
         execution_id = uuid4()
         approval_node_id = "approval-node-1"
-        status = "approved"
+        decision = "approved"
         approval_id = uuid4()
 
         with (
@@ -166,8 +175,10 @@ class TestWorkflowApiClient:
                             await client.send_approval_signal(
                                 execution_id=execution_id,
                                 approval_node_id=approval_node_id,
-                                status=status,
+                                decision=decision,
                                 approval_id=approval_id,
+                                approver="jsmith",
+                                timestamp="2026-05-20T10:00:00+00:00",
                             )
 
                     # Should have made only 1 request (no retries)
@@ -181,7 +192,7 @@ class TestWorkflowApiClient:
         """Test approval signal failure with non-retryable error."""
         execution_id = uuid4()
         approval_node_id = "approval-node-1"
-        status = "rejected"
+        decision = "rejected"
         approval_id = uuid4()
 
         with (
@@ -202,8 +213,10 @@ class TestWorkflowApiClient:
                             await client.send_approval_signal(
                                 execution_id=execution_id,
                                 approval_node_id=approval_node_id,
-                                status=status,
+                                decision=decision,
                                 approval_id=approval_id,
+                                approver="jsmith",
+                                timestamp="2026-05-20T10:00:00+00:00",
                             )
 
                 # Should have made only 1 request (no retries for client errors)

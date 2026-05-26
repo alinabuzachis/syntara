@@ -90,9 +90,11 @@ class WorkflowApiClient:
         self,
         execution_id: UUID,
         approval_node_id: str,
-        status: str,
+        decision: str,
         approval_id: UUID,
-        notes: str | None = None,
+        approver: str,
+        timestamp: str,
+        comments: str | None = None,
     ) -> None:
         """Send approval decision signal to workflow engine.
 
@@ -100,12 +102,17 @@ class WorkflowApiClient:
         using the existing activity signal endpoint. It includes retry logic
         with exponential backoff for reliability.
 
+        Field names in the payload match the approval resultSchema so the
+        workflow engine can use them directly without remapping.
+
         Args:
             execution_id: Workflow execution ID
             approval_node_id: ID of the approval activity in workflow
-            status: Decision status ('approved' or 'rejected')
+            decision: Decision outcome ('approved' or 'rejected')
             approval_id: ID of the approval request
-            notes: Optional decision notes
+            approver: Username of the user who made the decision
+            timestamp: ISO 8601 timestamp of when the decision was made
+            comments: Optional notes provided by the approver
 
         Raises:
             httpx.RequestError: If signal delivery fails after all retries
@@ -120,12 +127,13 @@ class WorkflowApiClient:
         # Generate the signal URL using workflow utils
         signal_url = generate_activity_signal_url(execution_id, approval_node_id)
 
-        # Build signal payload according to activity signal schema
+        # Build signal payload with fields matching the approval resultSchema
         signal_payload = {
             "signal_data": {
-                "status": status,
-                "approval_id": str(approval_id),
-                "notes": notes,
+                "decision": decision,
+                "approver": approver,
+                "timestamp": timestamp,
+                "comments": comments,
             }
         }
 
@@ -133,7 +141,7 @@ class WorkflowApiClient:
             "Sending approval signal to workflow",
             execution_id=execution_id,
             approval_node_id=approval_node_id,
-            status=status,
+            decision=decision,
             approval_id=approval_id,
             signal_url=signal_url,
         )
@@ -159,7 +167,7 @@ class WorkflowApiClient:
                     "Approval signal sent successfully",
                     execution_id=execution_id,
                     approval_node_id=approval_node_id,
-                    status=status,
+                    decision=decision,
                     approval_id=approval_id,
                     attempt=attempt,
                     response_status=response.status_code,
@@ -178,7 +186,7 @@ class WorkflowApiClient:
                         "Approval signal failed - non-retryable error or max attempts reached",
                         execution_id=execution_id,
                         approval_node_id=approval_node_id,
-                        status=status,
+                        decision=decision,
                         approval_id=approval_id,
                         attempt=attempt,
                     )
@@ -191,7 +199,7 @@ class WorkflowApiClient:
                     "Approval signal failed - retrying with backoff",
                     execution_id=execution_id,
                     approval_node_id=approval_node_id,
-                    status=status,
+                    decision=decision,
                     approval_id=approval_id,
                     attempt=attempt,
                     max_retries=self.max_retries,

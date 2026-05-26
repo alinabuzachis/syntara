@@ -52,6 +52,7 @@ DEFAULT_AGENTIC_TIMEOUT_SECONDS = 300
 
 # Marker value for pre-resolved node inputs in test executions
 PRE_RESOLVED_MARKER = "__pre_resolved"
+_APPROVAL_COMMENTS_MAX_LENGTH = 2000  # matches ApprovalDecisionRequest.notes max_length
 
 
 def _parse_items(items: Any) -> Any:  # noqa: ANN401
@@ -1263,6 +1264,59 @@ class NexusWorkflow:
         finally:
             self._scrub_activity_credentials(resolved_config)
 
+    async def _execute_approval_node(
+        self,
+        node: ActivityNode,
+        graph: WorkflowGraph,
+        resolved_config: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Execute an approval node and build the resultSchema output from the signal payload.
+
+        Suspends via Temporal async completion until an external decision is received.
+        Signal payload fields already match resultSchema names; this method picks
+        them explicitly and adds status: "completed".
+        """
+        node_id = node.id
+        approval_args = self._prepare_approval_args(node, graph, resolved_config)
+        result = cast(
+            "dict[str, Any]",
+            await workflow.execute_activity(
+                ActivityName.APPROVAL,
+                args=approval_args,
+                activity_id=node_id,
+                # TODO(AAP-71386): Derive timeout from approver_timeout config  # noqa: TD003
+                start_to_close_timeout=timedelta(hours=24),
+            ),
+        )
+        raw = result.get("output", {})
+        # Pick fields explicitly to match resultSchema; don't pass signal data through blindly.
+        decision = raw.get("decision") if isinstance(raw, dict) else None
+        output: dict[str, Any] = {
+            "status": "completed",
+            "decision": decision,
+            "approver": raw.get("approver") if isinstance(raw, dict) else None,
+            "timestamp": raw.get("timestamp") if isinstance(raw, dict) else None,
+        }
+        if isinstance(raw, dict) and raw.get("comments") is not None:
+            output["comments"] = raw["comments"][:_APPROVAL_COMMENTS_MAX_LENGTH]
+        result["output"] = output
+        if decision in ("approved", "rejected"):
+            workflow.logger.info(
+                "Approval node %s decision: %s by %s",
+                node_id,
+                decision,
+                output.get("approver"),
+            )
+            result["control"] = {"next_port": decision}
+        else:
+            result["control"] = {"next_port": "rejected"}
+            workflow.logger.warning(
+                "Approval node %s received unexpected decision %s, routing to rejected",
+                node_id,
+                decision,
+            )
+        return result
+
     async def _dispatch_node_to_executor(
         self,
         node: ActivityNode,
@@ -1287,29 +1341,7 @@ class NexusWorkflow:
                 extra_args=extra_args,
             )
         if node_type == NodeType.APPROVAL:
-            approval_args = self._prepare_approval_args(node, graph, resolved_config)
-            result = cast(
-                "dict[str, Any]",
-                await workflow.execute_activity(
-                    ActivityName.APPROVAL,
-                    args=approval_args,
-                    activity_id=node_id,
-                    # TODO(AAP-71386): Derive timeout from approver_timeout config  # noqa: TD003
-                    start_to_close_timeout=timedelta(hours=24),
-                ),
-            )
-            output = result.get("output", {})
-            approval_status = output.get("status") if isinstance(output, dict) else None
-            if approval_status in ("approved", "rejected"):
-                result["control"] = {"next_port": approval_status}
-            else:
-                result["control"] = {"next_port": "rejected"}
-                workflow.logger.warning(
-                    "Approval node %s received unexpected status %s, routing to rejected",
-                    node_id,
-                    approval_status,
-                )
-            return result
+            return await self._execute_approval_node(node, graph, resolved_config)
         if node_type == NodeType.CONVERGE:
             return await self._execute_converge_node(
                 node_id, resolved_config, node.outputs, graph, timeout_seconds=timeout_seconds
