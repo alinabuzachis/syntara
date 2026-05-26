@@ -10,9 +10,11 @@ from typing import Annotated, ClassVar, Literal
 from uuid import UUID
 
 import jmespath
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, HttpUrl, ValidationError, field_validator, model_validator
+from pydantic_core.core_schema import ValidationInfo, ValidatorFunctionWrapHandler
 from sqlmodel import SQLModel
 
+from nexus.core.config.base import get_settings
 from nexus.core.lib.consumer_configuration import BaseConsumerConfiguration
 
 
@@ -71,6 +73,40 @@ def _validate_idp_type(v: str | None) -> str | None:
     return v
 
 
+def _allow_http() -> bool:
+    """Return whether HTTP URLs are allowed based on OIDC network policy."""
+    # False (production): only https:// URLs accepted
+    # True (dev/internal): http:// also accepted
+    return get_settings().oidc_allow_private_networks
+
+
+def _validate_url_format(url: str | None, handler: ValidatorFunctionWrapHandler, field_name: str | None) -> str | None:
+    """Enforce URL format, HTTPS scheme (unless dev mode) and strip trailing slash."""
+    if url is None:
+        return None
+    try:
+        parsed: HttpUrl = handler(url)
+    except ValidationError as err:
+        msg = f"{field_name} must be a valid URL"
+        raise ValueError(msg) from err
+    if field_name != "redirect_uri" and not _allow_http() and parsed.scheme == "http":
+        msg = f"{field_name} must use HTTPS"
+        raise ValueError(msg)
+    return str(parsed).rstrip("/")
+
+
+_OIDC_DEFAULT_SCOPES = "openid profile email"
+_OIDC_AUTO_DISCOVERY_DESC = "Use OIDC auto-discovery via .well-known endpoint"
+_OIDC_ISSUER_URL_DESC = "OIDC issuer URL (e.g. https://accounts.google.com)"
+_OIDC_CLIENT_ID_DESC = "OAuth 2.0 client ID"
+_OIDC_REDIRECT_URI_DESC = "OAuth 2.0 redirect URI"
+_OIDC_SCOPES_DESC = "Space-separated list of OAuth 2.0 scopes"
+_OIDC_AUTHORIZATION_ENDPOINT_DESC = "Authorization endpoint URL"
+_OIDC_TOKEN_ENDPOINT_DESC = "Token endpoint URL"  # noqa: S105
+_OIDC_JWKS_URI_DESC = "JWKS URI for token verification"
+_OIDC_USERINFO_ENDPOINT_DESC = "Userinfo endpoint URL (optional)"
+
+
 class OIDCConfiguration(BaseConsumerConfiguration):
     """Configuration for OIDC (OpenID Connect) providers."""
 
@@ -81,24 +117,24 @@ class OIDCConfiguration(BaseConsumerConfiguration):
         description=f"Identity provider type hint. Known values: {', '.join(v.value for v in OIDCIdpType)}",
     )
 
-    auto_discovery: bool = Field(default=True, description="Use OIDC auto-discovery via .well-known endpoint")
+    auto_discovery: bool = Field(default=True, description=_OIDC_AUTO_DISCOVERY_DESC)
 
-    issuer_url: str = Field(description="OIDC issuer URL (e.g. https://accounts.google.com)")
+    issuer_url: HttpUrl = Field(description=_OIDC_ISSUER_URL_DESC)
 
-    client_id: str = Field(description="OAuth 2.0 client ID")
+    client_id: str = Field(description=_OIDC_CLIENT_ID_DESC)
 
     client_secret: str | None = Field(default=None, description="OAuth 2.0 client secret")
 
-    redirect_uri: str = Field(description="OAuth 2.0 redirect URI")
+    redirect_uri: HttpUrl = Field(description=_OIDC_REDIRECT_URI_DESC)
 
-    scopes: str = Field(default="openid profile email", description="Space-separated list of OAuth 2.0 scopes")
+    scopes: str = Field(default=_OIDC_DEFAULT_SCOPES, description=_OIDC_SCOPES_DESC)
 
     # Manual endpoint fields (used when auto_discovery is disabled)
-    authorization_endpoint: str | None = Field(default=None, description="Authorization endpoint URL")
-    token_endpoint: str | None = Field(default=None, description="Token endpoint URL")
-    jwks_uri: str | None = Field(default=None, description="JWKS URI for token verification")
-    userinfo_endpoint: str | None = Field(default=None, description="Userinfo endpoint URL (optional)")
-    end_session_endpoint: str | None = Field(
+    authorization_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_AUTHORIZATION_ENDPOINT_DESC)
+    token_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_TOKEN_ENDPOINT_DESC)
+    jwks_uri: HttpUrl | None = Field(default=None, description=_OIDC_JWKS_URI_DESC)
+    userinfo_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_USERINFO_ENDPOINT_DESC)
+    end_session_endpoint: HttpUrl | None = Field(
         default=None, description="OIDC end session endpoint URL for RP-initiated logout"
     )
 
@@ -132,6 +168,23 @@ class OIDCConfiguration(BaseConsumerConfiguration):
         description="Disable TLS certificate verification for requests to this identity provider (insecure)",
     )
 
+    @field_validator(
+        "issuer_url",
+        "redirect_uri",
+        "authorization_endpoint",
+        "token_endpoint",
+        "jwks_uri",
+        "userinfo_endpoint",
+        "end_session_endpoint",
+        mode="wrap",
+    )
+    @classmethod
+    def validate_oidc_configuration_url(
+        cls, v: str | None, handler: ValidatorFunctionWrapHandler, info: ValidationInfo
+    ) -> str | None:
+        """Enforce URL format, HTTPS scheme (unless dev mode) and strip trailing slash."""
+        return _validate_url_format(v, handler, info.field_name)
+
     @field_validator("idp_type")
     @classmethod
     def validate_idp_type(cls, v: str | None) -> str | None:
@@ -152,6 +205,21 @@ class OIDCConfiguration(BaseConsumerConfiguration):
             raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def validate_manual_endpoint_fields(self) -> "OIDCConfiguration":
+        """Validate manual endpoints are present when auto_discovery is disabled."""
+        if not self.auto_discovery:
+            required = {
+                "token_endpoint": self.token_endpoint,
+                "authorization_endpoint": self.authorization_endpoint,
+                "jwks_uri": self.jwks_uri,
+            }
+            for name, value in required.items():
+                if not value:
+                    msg = f"{name} is required when auto_discovery is disabled"
+                    raise ValueError(msg)
+        return self
+
     @classmethod
     def sensitive_fields(cls) -> frozenset[str]:
         """Declare client_secret as a sensitive field for SecretService encryption."""
@@ -165,21 +233,21 @@ class OIDCConfigurationResponse(SQLModel):
 
     idp_type: str | None = Field(default=None, description="Identity provider type hint")
 
-    auto_discovery: bool = Field(default=True, description="Use OIDC auto-discovery via .well-known endpoint")
+    auto_discovery: bool = Field(default=True, description=_OIDC_AUTO_DISCOVERY_DESC)
 
-    issuer_url: str = Field(description="OIDC issuer URL (e.g. https://accounts.google.com)")
+    issuer_url: HttpUrl = Field(description=_OIDC_ISSUER_URL_DESC)
 
-    client_id: str = Field(description="OAuth 2.0 client ID")
+    client_id: str = Field(description=_OIDC_CLIENT_ID_DESC)
 
-    redirect_uri: str = Field(description="OAuth 2.0 redirect URI")
+    redirect_uri: HttpUrl = Field(description=_OIDC_REDIRECT_URI_DESC)
 
-    scopes: str = Field(default="openid profile email", description="Space-separated list of OAuth 2.0 scopes")
+    scopes: str = Field(default=_OIDC_DEFAULT_SCOPES, description=_OIDC_SCOPES_DESC)
 
-    authorization_endpoint: str | None = Field(default=None, description="Authorization endpoint URL")
-    token_endpoint: str | None = Field(default=None, description="Token endpoint URL")
-    jwks_uri: str | None = Field(default=None, description="JWKS URI for token verification")
-    userinfo_endpoint: str | None = Field(default=None, description="Userinfo endpoint URL (optional)")
-    end_session_endpoint: str | None = Field(
+    authorization_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_AUTHORIZATION_ENDPOINT_DESC)
+    token_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_TOKEN_ENDPOINT_DESC)
+    jwks_uri: HttpUrl | None = Field(default=None, description=_OIDC_JWKS_URI_DESC)
+    userinfo_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_USERINFO_ENDPOINT_DESC)
+    end_session_endpoint: HttpUrl | None = Field(
         default=None, description="OIDC end session endpoint URL for RP-initiated logout"
     )
 
@@ -229,23 +297,23 @@ class OIDCConfigurationPatch(BaseConsumerConfiguration):
         description=f"Identity provider type hint. Known values: {', '.join(v.value for v in OIDCIdpType)}",
     )
 
-    auto_discovery: bool = Field(default=True, description="Use OIDC auto-discovery via .well-known endpoint")
+    auto_discovery: bool = Field(default=True, description=_OIDC_AUTO_DISCOVERY_DESC)
 
-    issuer_url: str = Field(description="OIDC issuer URL (e.g. https://accounts.google.com)")
+    issuer_url: HttpUrl = Field(description=_OIDC_ISSUER_URL_DESC)
 
-    client_id: str = Field(description="OAuth 2.0 client ID")
+    client_id: str = Field(description=_OIDC_CLIENT_ID_DESC)
 
     client_secret: str | None = Field(default=None, description="OAuth 2.0 client secret (omit to keep existing)")
 
-    redirect_uri: str = Field(description="OAuth 2.0 redirect URI")
+    redirect_uri: HttpUrl = Field(description=_OIDC_REDIRECT_URI_DESC)
 
-    scopes: str = Field(default="openid profile email", description="Space-separated list of OAuth 2.0 scopes")
+    scopes: str = Field(default=_OIDC_DEFAULT_SCOPES, description=_OIDC_SCOPES_DESC)
 
-    authorization_endpoint: str | None = Field(default=None, description="Authorization endpoint URL")
-    token_endpoint: str | None = Field(default=None, description="Token endpoint URL")
-    jwks_uri: str | None = Field(default=None, description="JWKS URI for token verification")
-    userinfo_endpoint: str | None = Field(default=None, description="Userinfo endpoint URL (optional)")
-    end_session_endpoint: str | None = Field(
+    authorization_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_AUTHORIZATION_ENDPOINT_DESC)
+    token_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_TOKEN_ENDPOINT_DESC)
+    jwks_uri: HttpUrl | None = Field(default=None, description=_OIDC_JWKS_URI_DESC)
+    userinfo_endpoint: HttpUrl | None = Field(default=None, description=_OIDC_USERINFO_ENDPOINT_DESC)
+    end_session_endpoint: HttpUrl | None = Field(
         default=None, description="OIDC end session endpoint URL for RP-initiated logout (omit to keep existing)"
     )
 
@@ -279,6 +347,23 @@ class OIDCConfigurationPatch(BaseConsumerConfiguration):
         default=None,
         description="Disable TLS certificate verification for this identity provider (omit to keep existing)",
     )
+
+    @field_validator(
+        "issuer_url",
+        "redirect_uri",
+        "authorization_endpoint",
+        "token_endpoint",
+        "jwks_uri",
+        "userinfo_endpoint",
+        "end_session_endpoint",
+        mode="wrap",
+    )
+    @classmethod
+    def validate_oidc_configuration_url(
+        cls, v: str | None, handler: ValidatorFunctionWrapHandler, info: ValidationInfo
+    ) -> str | None:
+        """Enforce URL format, HTTPS scheme (unless dev mode) and strip trailing slash."""
+        return _validate_url_format(v, handler, info.field_name)
 
     @field_validator("idp_type")
     @classmethod

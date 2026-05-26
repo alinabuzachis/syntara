@@ -129,7 +129,7 @@ class TestCreateIdentitySessionSurvival:
 
         # Now call the function — it will hit IntegrityError on create, then look up the winner.
         result_user, result_identity = await _create_identity_with_race_handling(
-            test_db_session, identity_service, seed_user, seed_idp.id, issuer, sub
+            test_db_session, identity_service, seed_user, seed_idp.id, str(issuer), sub
         )
 
         assert result_identity.subject == sub

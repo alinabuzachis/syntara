@@ -404,7 +404,7 @@ class TestGetOidcEndpoints:
         result = await _get_oidc_endpoints(mock_svc, config)
 
         mock_svc.fetch_discovery_config.assert_called_once_with(
-            config.issuer_url, disable_tls_verify=config.disable_tls_verify
+            str(config.issuer_url), disable_tls_verify=config.disable_tls_verify
         )
         assert result["issuer"] == "https://idp.example.com"
         assert result["authorization_endpoint"] == "https://idp.example.com/oauth/authorize"
@@ -428,20 +428,6 @@ class TestGetOidcEndpoints:
         assert result["token_endpoint"] == "https://manual.example.com/token"
         assert result["jwks_uri"] == "https://manual.example.com/jwks"
         assert result["userinfo_endpoint"] == "https://manual.example.com/userinfo"
-
-    @pytest.mark.asyncio
-    async def test_raises_error_when_manual_endpoints_missing(self) -> None:
-        """Should raise OIDCError when manual mode but required fields missing."""
-        config = _make_oidc_config(
-            auto_discovery=False,
-            authorization_endpoint=None,  # Missing required field
-            token_endpoint="https://manual.example.com/token",
-            jwks_uri="https://manual.example.com/jwks",
-        )
-        mock_svc = _make_oidc_service_mock()
-
-        with pytest.raises(OIDCError, match="Manual OIDC configuration requires"):
-            await _get_oidc_endpoints(mock_svc, config)
 
 
 # =============================================================================

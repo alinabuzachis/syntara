@@ -449,7 +449,7 @@ async def _resolve_end_session_endpoint(config: OIDCConfiguration) -> str | None
     is enabled, fetches the OIDC discovery document to find it.
     """
     if config.end_session_endpoint:
-        return config.end_session_endpoint
+        return str(config.end_session_endpoint)
 
     if not config.auto_discovery:
         return None
@@ -457,7 +457,7 @@ async def _resolve_end_session_endpoint(config: OIDCConfiguration) -> str | None
     try:
         oidc_service = OIDCService()
         discovery = await oidc_service.fetch_discovery_config(
-            config.issuer_url, disable_tls_verify=config.disable_tls_verify
+            str(config.issuer_url), disable_tls_verify=config.disable_tls_verify
         )
         return discovery.get("end_session_endpoint")
     except OIDCError:
@@ -893,7 +893,7 @@ async def _build_oidc_authorize_redirect(
         session_jti=link_session_jti,
     )
 
-    redirect_uri = config.redirect_uri
+    redirect_uri = str(config.redirect_uri)
 
     auth_url = oidc_service.build_authorization_url(
         authorization_endpoint=discovery["authorization_endpoint"],
@@ -917,7 +917,7 @@ async def _get_oidc_endpoints(
     """Get OIDC endpoints via auto-discovery or from manual configuration."""
     if config.auto_discovery:
         return await oidc_service.fetch_discovery_config(
-            config.issuer_url, disable_tls_verify=config.disable_tls_verify
+            str(config.issuer_url), disable_tls_verify=config.disable_tls_verify
         )
 
     # Manual endpoints — validate required fields are present
@@ -926,12 +926,12 @@ async def _get_oidc_endpoints(
         raise OIDCError(msg)
 
     return {
-        "authorization_endpoint": config.authorization_endpoint,
-        "token_endpoint": config.token_endpoint,
-        "jwks_uri": config.jwks_uri,
-        "issuer": config.issuer_url,
-        "userinfo_endpoint": config.userinfo_endpoint or "",
-        "end_session_endpoint": config.end_session_endpoint or "",
+        "authorization_endpoint": str(config.authorization_endpoint),
+        "token_endpoint": str(config.token_endpoint),
+        "jwks_uri": str(config.jwks_uri),
+        "issuer": str(config.issuer_url),
+        "userinfo_endpoint": str(config.userinfo_endpoint) if config.userinfo_endpoint else "",
+        "end_session_endpoint": str(config.end_session_endpoint) if config.end_session_endpoint else "",
     }
 
 
@@ -1181,7 +1181,7 @@ async def _resolve_oidc_user(
     # Cache provider attributes before any DB rollback can expire the ORM object
     provider_name = provider.name
     provider_id = provider.id
-    issuer = provider.configuration.issuer_url
+    issuer = str(provider.configuration.issuer_url)
     identity_service = UserIdentityService(db)
 
     for attempt in range(2):
@@ -1698,7 +1698,7 @@ async def _process_oidc_callback(
         msg = _OIDC_ERR_TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else _OIDC_ERR_DISCOVERY_FAILED
         raise _OIDCCallbackError(msg, origin=origin) from e
 
-    redirect_uri = config.redirect_uri
+    redirect_uri = str(config.redirect_uri)
 
     try:
         user_claims, raw_merged_claims, id_token_raw = await _exchange_and_validate_tokens(
@@ -1862,7 +1862,7 @@ async def _handle_link_flow(
         msg = "Identity provider did not return a subject identifier"
         raise OIDCError(msg)
 
-    issuer = provider.configuration.issuer_url
+    issuer = str(provider.configuration.issuer_url)
     identity_service = UserIdentityService(db)
     was_local = user.auth_type == AuthType.LOCAL
 

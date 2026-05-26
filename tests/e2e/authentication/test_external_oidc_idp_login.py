@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
 
 pytest.importorskip("external_services")
 
@@ -139,3 +140,35 @@ class TestKeycloakOIDCAuthentication:
             assert auth_client.token is not None
         finally:
             destroy_keycloak_oidc_identity_provider(nexus_api, provider_id)
+
+    def test_keycloak_oidc_idp_manual_config_missing_endpoints(
+        self,
+        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        nexus_admin_user: UserInfo,
+        nexus_api_admin_group_id: UUID,
+        keycloak_service: HttpApiService,
+    ) -> None:
+        """Verify external keycloak OIDC IdP manual configuration fails with missing token endpoint."""
+        """Logged in as built-in admin user"""
+        assert nexus_admin_user.username == "admin"
+
+        """Create an IdP with Keycloak OIDC."""
+        idp_create_resp = nexus_api.identity_providers.create(
+            body=IdentityProviderCreate(
+                name=f"e2e-oidc-provider-{uuid4().hex[:8]}",
+                configuration=keycloak_oidc_config(
+                    keycloak_url=keycloak_service.url,
+                    nexus_base_url=nexus_base_url,
+                    admins_group_id=nexus_api_admin_group_id,
+                    auto_discovery=False,
+                    pass_token_endpoint=False,
+                ),
+            )
+        )
+        assert idp_create_resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+        assert idp_create_resp.parsed is not None
+        assert (
+            idp_create_resp.parsed.detail
+            == "Validation failed: root: token_endpoint is required when auto_discovery is disabled"
+        )

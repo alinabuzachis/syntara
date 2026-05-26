@@ -150,7 +150,7 @@ class DiscriminatedJSONB(TypeDecorator):  # type: ignore[type-arg]
             return None
 
         if hasattr(value, "model_dump"):
-            return value.model_dump()
+            return value.model_dump(mode="json")
         if isinstance(value, dict):
             return value
 

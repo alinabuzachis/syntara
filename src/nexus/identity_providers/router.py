@@ -71,7 +71,7 @@ async def test_identity_provider(
 ) -> OIDCTestResult:
     """Test identity provider connection without saving. Requires authentication."""
     return await test_oidc_connection(
-        provider_create.configuration.issuer_url,
+        str(provider_create.configuration.issuer_url),
         disable_tls_verify=provider_create.configuration.disable_tls_verify,
     )
 

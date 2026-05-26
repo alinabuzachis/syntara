@@ -23209,6 +23209,9 @@ components:
           description: Use OIDC auto-discovery via .well-known endpoint
         issuer_url:
           type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
           title: Issuer Url
           description: OIDC issuer URL (e.g. https://accounts.google.com)
         client_id:
@@ -23223,6 +23226,9 @@ components:
           description: OAuth 2.0 client secret
         redirect_uri:
           type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
           title: Redirect Uri
           description: OAuth 2.0 redirect URI
         scopes:
@@ -23233,30 +23239,45 @@ components:
         authorization_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Authorization Endpoint
           description: Authorization endpoint URL
         token_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Token Endpoint
           description: Token endpoint URL
         jwks_uri:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Jwks Uri
           description: JWKS URI for token verification
         userinfo_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
         end_session_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: End Session Endpoint
           description: OIDC end session endpoint URL for RP-initiated logout
@@ -23322,6 +23343,9 @@ components:
           description: Use OIDC auto-discovery via .well-known endpoint
         issuer_url:
           type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
           title: Issuer Url
           description: OIDC issuer URL (e.g. https://accounts.google.com)
         client_id:
@@ -23330,6 +23354,9 @@ components:
           description: OAuth 2.0 client ID
         redirect_uri:
           type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
           title: Redirect Uri
           description: OAuth 2.0 redirect URI
         scopes:
@@ -23340,30 +23367,45 @@ components:
         authorization_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Authorization Endpoint
           description: Authorization endpoint URL
         token_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Token Endpoint
           description: Token endpoint URL
         jwks_uri:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Jwks Uri
           description: JWKS URI for token verification
         userinfo_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
         end_session_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: End Session Endpoint
           description: OIDC end session endpoint URL for RP-initiated logout
@@ -23429,6 +23471,9 @@ components:
           description: Use OIDC auto-discovery via .well-known endpoint
         issuer_url:
           type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
           title: Issuer Url
           description: OIDC issuer URL (e.g. https://accounts.google.com)
         client_id:
@@ -23443,6 +23488,9 @@ components:
           description: OAuth 2.0 client secret (omit to keep existing)
         redirect_uri:
           type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
           title: Redirect Uri
           description: OAuth 2.0 redirect URI
         scopes:
@@ -23453,30 +23501,45 @@ components:
         authorization_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Authorization Endpoint
           description: Authorization endpoint URL
         token_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Token Endpoint
           description: Token endpoint URL
         jwks_uri:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Jwks Uri
           description: JWKS URI for token verification
         userinfo_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: Userinfo Endpoint
           description: Userinfo endpoint URL (optional)
         end_session_endpoint:
           anyOf:
             - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
             - type: 'null'
           title: End Session Endpoint
           description: OIDC end session endpoint URL for RP-initiated logout (omit to keep existing)

@@ -865,6 +865,9 @@ class TestMaybeRpLogout:
             redirect_uri="https://app.example.com/callback",
             enable_rp_initiated_logout=True,
             auto_discovery=False,
+            authorization_endpoint="https://idp.example.com/auth",
+            token_endpoint="https://idp.example.com/token",  # noqa: S106
+            jwks_uri="https://idp.example.com/jwks",
             end_session_endpoint=None,
         )
         provider = IdentityProvider(
@@ -910,6 +913,9 @@ class TestMaybeRpLogout:
             redirect_uri="https://app.example.com/callback",
             enable_rp_initiated_logout=True,
             auto_discovery=False,
+            authorization_endpoint="https://idp.example.com/auth",
+            token_endpoint="https://idp.example.com/token",  # noqa: S106
+            jwks_uri="https://idp.example.com/jwks",
             end_session_endpoint="https://idp.example.com/logout",
         )
         provider = IdentityProvider(
@@ -1753,6 +1759,9 @@ class TestResolveEndSessionEndpoint:
             client_secret="s",  # noqa: S106
             redirect_uri="http://localhost/callback",
             auto_discovery=False,
+            authorization_endpoint="https://idp.example.com/auth",
+            token_endpoint="https://idp.example.com/token",  # noqa: S106
+            jwks_uri="https://idp.example.com/jwks",
             end_session_endpoint=None,
         )
 
@@ -1832,6 +1841,9 @@ class TestMaybeRpLogoutEdgeCases:
             redirect_uri="https://app.example.com/callback",
             enable_rp_initiated_logout=True,
             auto_discovery=False,
+            authorization_endpoint="https://idp.example.com/auth",
+            token_endpoint="https://idp.example.com/token",  # noqa: S106
+            jwks_uri="https://idp.example.com/jwks",
             end_session_endpoint="https://idp.example.com/logout",
         )
         provider = IdentityProvider(
