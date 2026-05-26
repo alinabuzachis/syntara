@@ -20,7 +20,7 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { UrlTabs } from '../../../components/UrlTabs'
+import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
@@ -135,10 +135,10 @@ export function ProjectDetail() {
     <NxPage>
       <NxPageHeader title={projectData.name} breadcrumbs={projectCrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
-        <UrlTabs basePath={basePath} defaultTab="details" validTabs={PROJECT_TABS} aria-label="Project details">
+        <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={PROJECT_TABS} aria-label="Project details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
           <Tab eventKey="role-assignments" title={<TabTitleText>Assignments</TabTitleText>} />
-        </UrlTabs>
+        </NxUrlTabs>
       </StackItem>
       <NxPageBody>
         <NxPanel isFullHeight>

@@ -2,7 +2,7 @@ import { Tabs, type TabsProps } from '@patternfly/react-core'
 import { useEffect } from 'react'
 import { useLocation } from 'wouter'
 
-import { useUrlTab } from '../hooks/useUrlTab'
+import { useUrlTab } from '../../hooks/useUrlTab'
 
 type UrlTabsProps = Omit<TabsProps, 'activeKey' | 'onSelect' | 'ref'> & {
   /** Base path used to derive the active tab from the URL (e.g. `/system-administration/settings`). */
@@ -17,10 +17,14 @@ type UrlTabsProps = Omit<TabsProps, 'activeKey' | 'onSelect' | 'ref'> & {
   validTabs?: string[]
 }
 
-export function UrlTabs({ basePath, defaultTab = 'details', validTabs, children, ...tabsProps }: UrlTabsProps) {
+export function NxUrlTabs({ basePath, defaultTab = 'details', validTabs, children, ...tabsProps }: UrlTabsProps) {
+  // eslint-disable-next-line reactYouMightNotNeedAnEffect/no-event-handler -- basePath/defaultTab are URL segments, not handler props; goToTab is the intended navigation wrapper for this hook
   const [activeTab, goToTab] = useUrlTab(basePath, defaultTab)
   const [, setLocation] = useLocation()
 
+  /* eslint-disable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent */
+  // validTabs arrives asynchronously (from an API); redirect when the URL tab is absent from the
+  // list is an async-prop side-effect, not a user event — useEffect is correct here.
   useEffect(() => {
     if (!validTabs || validTabs.length === 0) return
     if (!validTabs.includes(activeTab)) {
@@ -28,6 +32,7 @@ export function UrlTabs({ basePath, defaultTab = 'details', validTabs, children,
       setLocation(`${basePath}/${target}`, { replace: true })
     }
   }, [validTabs, activeTab, defaultTab, basePath, setLocation])
+  /* eslint-enable reactYouMightNotNeedAnEffect/no-event-handler, reactYouMightNotNeedAnEffect/no-pass-data-to-parent */
 
   useEffect(() => {
     const blurStaleTab = () => {

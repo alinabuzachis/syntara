@@ -37,7 +37,7 @@ import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
-import { UrlTabs } from '../../../../components/UrlTabs'
+import { NxUrlTabs } from '../../../../components/tabs/NxUrlTabs'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../../hooks/useUrlTab'
 import { getErrorStatus } from '../../../../utils/apiErrors'
@@ -209,7 +209,7 @@ function IdentityProviderDetailTabStrip({
 }>) {
   return (
     <StackItem style={{ flexShrink: 0 }}>
-      <UrlTabs
+      <NxUrlTabs
         basePath={basePath}
         defaultTab="details"
         validTabs={['details', 'group-mapping']}
@@ -220,7 +220,7 @@ function IdentityProviderDetailTabStrip({
           eventKey="group-mapping"
           title={<TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>}
         />
-      </UrlTabs>
+      </NxUrlTabs>
     </StackItem>
   )
 }

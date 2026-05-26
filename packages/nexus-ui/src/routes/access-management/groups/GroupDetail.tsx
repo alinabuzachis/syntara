@@ -24,7 +24,7 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { UrlTabs } from '../../../components/UrlTabs'
+import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -81,7 +81,7 @@ function GroupTabBar({
     [isAuthenticated]
   )
   return (
-    <UrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Group details">
+    <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Group details">
       <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
       {!isAuthenticated && (
         <Tab
@@ -101,7 +101,7 @@ function GroupTabBar({
           </TabTitleText>
         }
       />
-    </UrlTabs>
+    </NxUrlTabs>
   )
 }
 

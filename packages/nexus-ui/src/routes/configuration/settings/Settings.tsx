@@ -10,7 +10,7 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { UrlTabs } from '../../../components/UrlTabs'
+import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
@@ -207,7 +207,7 @@ export default function Settings() {
         <NxPanel isFullHeight>
           <Stack hasGutter style={{ flex: 1, minHeight: 0, height: '100%' }}>
             <StackItem>
-              <UrlTabs
+              <NxUrlTabs
                 basePath={basePath}
                 defaultTab={defaultCategory}
                 validTabs={validTabs}
@@ -216,7 +216,7 @@ export default function Settings() {
                 {categories.map((cat) => (
                   <Tab key={cat.slug} eventKey={cat.slug} title={cat.name} />
                 ))}
-              </UrlTabs>
+              </NxUrlTabs>
             </StackItem>
             <NxPageBody style={{ overflow: 'auto', padding: 'var(--pf-t--global--spacer--md)' }}>
               {categories[activeIndex] && (

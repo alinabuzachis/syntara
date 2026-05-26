@@ -192,12 +192,18 @@ There are different kinds of page headers:
 
 ### Tabs
 
-When a page uses tabs, the tabs must live inside the `CompassPanel`, not outside it.
+When a page uses tabs, the tabs must live inside `NxPanel`, not outside it.
 
 - Tab labels should be clear, professional, and action-oriented
-- Use sentence case for tab labels
+- Use sentence case for tab labels (e.g. "Activity log", not "Activity Log")
 - Avoid colloquial language, slang, or informal phrasing
 - Avoid punctuation in tab labels (no question marks, exclamation points)
+
+For live examples and story-driven documentation, use the Storybook MCP:
+
+```
+list-all-documentation → find "NxUrlTabs" → get-documentation("NxUrlTabs")
+```
 
 ---
 

@@ -5,7 +5,7 @@ import { AppRoute } from '../../app/AppRoute'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
-import { UrlTabs } from '../../components/UrlTabs'
+import { NxUrlTabs } from '../../components/tabs/NxUrlTabs'
 import { useUrlTab } from '../../hooks/useUrlTab'
 import { detachPromise } from '../../utils/detachPromise'
 
@@ -41,7 +41,7 @@ export function CanITab() {
         </Content>
       </StackItem>
       <StackItem style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
-        <UrlTabs
+        <NxUrlTabs
           basePath={AppRoute.AccessManagement.CanI}
           defaultTab="check"
           validTabs={validModes}
@@ -66,7 +66,7 @@ export function CanITab() {
             title={<TabTitleText>My Permissions</TabTitleText>}
             aria-label="View all permissions for a user"
           />
-        </UrlTabs>
+        </NxUrlTabs>
       </StackItem>
 
       <NxPageBody style={mode !== 'my-permissions' ? { overflow: 'auto' } : undefined}>

@@ -15,7 +15,7 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { ErrorState } from '../../../components/states/ErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { UrlTabs } from '../../../components/UrlTabs'
+import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
@@ -230,7 +230,12 @@ export default function CredentialDetail() {
 
       <NxPageBody>
         <NxPanel isFullHeight>
-          <UrlTabs basePath={credentialBasePath} defaultTab="details" validTabs={['details', 'workflows']}>
+          <NxUrlTabs
+            basePath={credentialBasePath}
+            defaultTab="details"
+            validTabs={['details', 'workflows']}
+            aria-label="Credential details"
+          >
             <Tab eventKey="details" title="Details">
               <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
                 <StackItem>
@@ -300,7 +305,7 @@ export default function CredentialDetail() {
             >
               <CredentialWorkflowsTab credentialId={credential.id} />
             </Tab>
-          </UrlTabs>
+          </NxUrlTabs>
         </NxPanel>
       </NxPageBody>
 
