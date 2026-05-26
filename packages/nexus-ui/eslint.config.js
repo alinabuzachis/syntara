@@ -67,6 +67,30 @@ export default tseslint.config(
           message:
             'Pass an object { title, onRetry } to useQueryState instead of a plain string. The object form enables retry buttons in error states.',
         },
+        {
+          selector:
+            'MemberExpression[object.name="formState"][property.name="isSubmitting"]',
+          message:
+            'Do not use formState.isSubmitting -- it only covers the synchronous handleSubmit wrapper. Use isPending from the mutation hook (e.g. useMutation) to track the actual async mutation lifecycle.',
+        },
+        {
+          selector:
+            'JSXOpeningElement[name.name="span"] JSXAttribute[name.name="aria-label"]',
+          message:
+            'Do not use aria-label on <span> — assistive technologies ignore it on non-interactive elements. The inner text content is sufficient. Use aria-label only on interactive elements, widgets, landmarks, images, or iframes.',
+        },
+      ],
+      'no-restricted-imports': [
+        'warn',
+        {
+          patterns: [
+            {
+              group: ['@patternfly/react-icons'],
+              importNamePattern: '^(?!RhUi)',
+              message: 'Use RhUi* icons from @patternfly/react-icons (e.g. RhUiAddIcon, RhUiTrashIcon, RhUiEditIcon). Non-RhUi icons are being phased out.',
+            },
+          ],
+        },
       ],
       'no-restricted-globals': [
         'error',
@@ -173,6 +197,8 @@ export default tseslint.config(
       'import-x/no-duplicates': 'error',
       'import-x/no-cycle': ['error', { maxDepth: 2 }],
       'import-x/no-self-import': 'error',
+      // Do not include file extensions in imports — TypeScript resolves them automatically.
+      'import-x/extensions': ['warn', 'never'],
       '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
       // -- nexus custom rules (PR checklist + UX design system enforcement) --
       // no-switch-is-reversed, require-alert-object-param, and require-query-state-object
@@ -279,6 +305,34 @@ export default tseslint.config(
             'assertUrlParamIsNull',
             'assertSearchParamsWasCalled',
           ],
+        },
+      ],
+      // Catches duplicate test names in the same describe block -- silently skipped or overwritten.
+      'vitest/no-identical-title': 'error',
+    },
+  },
+  {
+    files: ['e2e/**/*.spec.ts'],
+    rules: {
+      // In flat config, array-valued rules replace (not merge with) earlier blocks.
+      // This intentionally overrides the general no-restricted-syntax -- E2E files
+      // don't use React hooks, formState, or JSX aria-label patterns from above.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.property.name="dispatchEvent"]',
+          message:
+            'Do not use dispatchEvent() in E2E tests. Use Playwright .click() which simulates real user interaction (scroll, hover, click center). dispatchEvent fires a synthetic event that can mask interaction bugs.',
+        },
+      ],
+      // Targets Playwright locator.first() -- .first() is not a standard JS/Array
+      // method, so false positives on non-Playwright code are rare in E2E specs.
+      'no-restricted-properties': [
+        'warn',
+        {
+          property: 'first',
+          message:
+            'Avoid .first() — the locator should be specific enough to match exactly one element. If there are duplicates, scope with a parent locator. If .first() is genuinely needed, add an eslint-disable-next-line with a reason.',
         },
       ],
     },

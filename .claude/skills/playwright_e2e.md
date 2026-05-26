@@ -692,6 +692,71 @@ npx playwright show-trace test-results/*/trace.zip
 
 ---
 
+## Common E2E Anti-Patterns
+
+### Use `.click()`, Never `dispatchEvent`
+
+**Enforced by ESLint:** `no-restricted-syntax` (error) in `e2e/**/*.spec.ts`. See `eslint.config.js`.
+
+Playwright's `.click()` simulates a real user interaction (scrolls into view, hovers, clicks center). `dispatchEvent` fires a synthetic event that bypasses all of that and can mask real interaction bugs (element obscured, not scrolled into view, etc.).
+
+```typescript
+// ❌ BAD — synthetic event, bypasses real interaction
+await app.locator('#submit').dispatchEvent('click')
+
+// ✅ GOOD — real user interaction
+await app.getByRole('button', { name: 'Submit' }).click()
+```
+
+### Register Route Handlers Before Navigation
+
+When using `page.route()` to mock API responses, register handlers **before** the action that triggers navigation. If the click triggers navigation immediately, route handlers set up after the click may not be in place in time.
+
+```typescript
+// ❌ BAD — route handlers may miss the request
+await app.getByRole('button', { name: 'Login' }).click()
+await app.route('**/auth/login', handler)
+
+// ✅ GOOD — handlers ready before navigation
+await app.route('**/auth/login', handler)
+await app.route('**/auth/providers', handler)
+await app.getByRole('button', { name: 'Login' }).click()
+```
+
+### No Try-Catch to Silently Skip Assertions
+
+When test data is mocked deterministically, assertions should fail naturally. Wrapping assertions in try-catch and silently continuing hides bugs in mock setup.
+
+```typescript
+// ❌ BAD — silently skips if mock data is wrong
+try {
+  await expect(toggle).toBeEnabled()
+} catch {
+  test.skip(true, 'Toggle not enabled')
+}
+
+// ✅ GOOD — fails clearly if mock data is wrong
+await expect(toggle).toBeEnabled()
+```
+
+### Extract Shared Mock Fixtures
+
+When mock data objects are copy-pasted between test files, extract to a shared fixture file. This prevents drift when the data shape changes.
+
+```typescript
+// ❌ BAD — same mockUsers object in login.spec.ts and admin.spec.ts
+const mockUsers = [{ id: '1', username: 'admin', ... }]
+
+// ✅ GOOD — shared fixture
+// e2e/fixtures/mock-users.ts
+export const mockAdminUser = { id: '1', username: 'admin', ... }
+
+// e2e/login.spec.ts
+import { mockAdminUser } from './fixtures/mock-users'
+```
+
+---
+
 ## Constraints
 
 **NEVER:**
@@ -702,8 +767,16 @@ npx playwright show-trace test-results/*/trace.zip
 - ❌ Hardcode resource names (use `buildUniqueName()`)
 - ❌ Hardcode expected counts or assume a clean database (filter to find your data)
 - ❌ Assert on rows being visible without filtering first (other data may push them off-page)
+- ❌ Use `test.skip()` for missing seed data -- tests must create their own resources
+- ❌ Depend on pre-existing data from the mock API or any external source
 - ❌ Share state between tests
-- ❌ Use `page.waitForTimeout()` — rely on auto-waiting and web-first assertions
+- ❌ Use `page.waitForTimeout()` -- rely on auto-waiting and web-first assertions
+- ❌ Use `dispatchEvent` for clicks -- use Playwright's `.click()` which simulates real user interaction (scroll, hover, click center)
+- ❌ Use `{ timeout: 5000 }` on assertions -- 5000ms is the default Playwright timeout, restating it is redundant
+- ❌ Use `.first()` when only one element should match -- make the locator specific enough to match exactly one element
+- ❌ Use try-catch to silently skip assertions -- when mock data is deterministic, let assertions fail naturally to surface mock setup bugs
+- ❌ Use raw CSS selectors (`.pf-v6-c-button`) -- use `getByRole`, `getByLabel`, or `getByText`
+- ❌ Include `.ts` extension in imports -- follow the codebase convention of extensionless imports
 - ❌ Assert on CSS classes or internal state
 - ❌ Access React internals via `page.evaluate()`
 - ❌ Leave test data in database when testing against real backend
@@ -713,11 +786,15 @@ npx playwright show-trace test-results/*/trace.zip
 - ✅ Import `{ test, expect, toAppUrl }` from `'./fixtures'`
 - ✅ Use `{ app }` fixture
 - ✅ Use `buildUniqueName(prefix)` for all test data
-- ✅ Each test creates its own resources
+- ✅ Each test creates ALL resources it needs (fully self-contained)
+- ✅ Each test deletes ALL resources it created in a `try-finally` block
 - ✅ Filter by unique name before asserting on created data (never assume visibility on first page)
-- ✅ Use try-finally for cleanup when creating resources
 - ✅ Use semantic locators (`getByRole`, `getByLabel`)
+- ✅ Prefer `getByRole` over `getByText` -- PF alerts render titles as h4 (`getByRole('heading', { name: '...' })`)
 - ✅ Use web-first assertions (`expect(locator).toBeVisible()`)
+- ✅ Register `page.route()` handlers **before** any click that triggers navigation
+- ✅ Use camelCase for variable names (`enabledToggle`, not `enabled_toggle`)
+- ✅ Extract shared mock data to `e2e/fixtures/` -- do not copy-paste between test files
 - ✅ Use existing helpers before writing new ones
 - ✅ Follow AAA pattern (Arrange, Act, Assert)
 - ✅ Match existing test style and conventions

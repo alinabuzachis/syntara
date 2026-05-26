@@ -226,8 +226,8 @@ npm run test:ui
 cd packages/nexus-ui
 npm run test:coverage
 
-# Check coverage meets 80% threshold on changed files
-npm run test:coverage:check
+# Coverage threshold is enforced by CI (per-file 80% minimum)
+npm run test:coverage
 
 # End-to-end tests
 npm run e2e            # Run headless

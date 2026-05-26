@@ -38,10 +38,10 @@ backend repo               @ansible/nexus-contracts    factory is updated       
 
 ### Test locations
 
-| Layer            | File                                                        | What it tests                                                                  | When it passes |
-| ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------- |
-| Unit (fast TDD)  | `src/routes/builder/utils/__tests__/toV2Definition.test.ts` | Each factory produces v2 node shapes                                           | After Step 3a  |
-| E2E (acceptance) | `e2e/v2-workflow-migration.spec.ts`                         | Full stack: UI builds workflow, save payload is v2, reload preserves all nodes | After Step 3b  |
+| Layer            | File                               | What it tests                                                                  | When it passes |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------------------ | -------------- |
+| Unit (fast TDD)  | _(to be created during migration)_ | Each factory produces v2 node shapes                                           | After Step 3a  |
+| E2E (acceptance) | _(to be created during migration)_ | Full stack: UI builds workflow, save payload is v2, reload preserves all nodes | After Step 3b  |
 
 ---
 

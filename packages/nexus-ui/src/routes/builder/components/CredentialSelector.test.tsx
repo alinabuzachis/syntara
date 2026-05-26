@@ -506,7 +506,7 @@ describe('CredentialSelector', () => {
       expect(onChange).toHaveBeenCalledWith('new-cred-id')
     })
 
-    it('passes projectId as defaultProjectId to the create modal', async () => {
+    it('passes a different projectId as defaultProjectId to the create modal', async () => {
       const user = userEvent.setup()
       mockUseQueryLegacy()
       renderSelector({ allowCreate: true, projectId: 'proj-456' })

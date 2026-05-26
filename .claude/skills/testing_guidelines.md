@@ -28,7 +28,7 @@ Coverage is enforced on changed files in PRs via `scripts/check-pr-coverage.js`.
 ```bash
 cd packages/nexus-ui
 npm run test:coverage        # Generate coverage report
-npm run test:coverage:check  # Check coverage for changed files (fails if below 80%)
+npm run test:coverage        # Check coverage (see CI for per-file threshold enforcement)
 ```
 
 CI automatically runs this check and **blocks PRs** where any changed source file falls below 80% on any of the four metrics (lines, statements, functions, branches). All new and modified source files must meet the threshold to merge.
@@ -183,6 +183,18 @@ await user.type(input, 'new value')
 await user.click(button)
 ```
 
+**Exception -- `fireEvent.submit`:** `userEvent` has no `.submit()` method. `fireEvent.submit(form)` is acceptable for programmatic form submission, but prefer clicking the submit button to simulate real user behavior:
+
+```typescript
+// ✅ ACCEPTABLE — when no submit button exists
+fireEvent.submit(screen.getByRole('form'))
+
+// ✅ PREFERRED — simulates real user behavior
+await user.click(screen.getByRole('button', { name: 'Save' }))
+```
+
+**Never regress from `userEvent` to `fireEvent`:** When modifying an existing test file, do not replace `userEvent` calls with `fireEvent`. If a PR introduces `fireEvent` where `userEvent` previously existed, that is a regression.
+
 ### 2. Use Accessible Queries — Never `getByTestId` or `querySelector` as First Choice
 
 Follow Testing Library query priority:
@@ -207,7 +219,24 @@ screen.getByRole('status') // or screen.getByText(/loading/i)
 screen.getByRole('alert') // for error states
 ```
 
-Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. New test code should follow the recommended patterns.
+Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. **New test code must produce zero warnings** -- these rules will be promoted to `error` once existing violations are cleaned up. See [coding_standards.md section 8 -- Zero New Warnings Policy](coding_standards.md).
+
+**Scope assertions with `within()`:** When asserting on elements inside a specific container (dialog footer, form group, select dropdown), use `within()` to scope queries. This prevents false positives from matching elements elsewhere on the page.
+
+```typescript
+// ❌ BAD: Could match buttons from any part of the page
+const buttons = screen.getAllByRole('button')
+
+// ✅ GOOD: Scoped to the dialog footer
+const footer = within(dialog).getByRole('contentinfo')
+const buttons = within(footer).getAllByRole('button')
+expect(buttons[0]).toHaveTextContent('Save')
+expect(buttons[1]).toHaveTextContent('Cancel')
+
+// ✅ GOOD: Scoped to a specific select
+const projectSelect = screen.getByLabelText('Credential project')
+expect(within(projectSelect).getByRole('option', { name: 'Project Alpha' })).toBeInTheDocument()
+```
 
 ### 3. Every New Component Must Have a `vitest-axe` Test
 
@@ -227,7 +256,18 @@ it('has no accessibility violations', async () => {
 
 - Every new component should include at least one `toHaveNoViolations()` test
 - Test multiple states (default, with actions, error states) for thorough coverage
-- axe tests are async — always `await axe(container)`
+- For expandable components (tables, panels), test the **expanded state** separately
+- axe tests are async -- always `await axe(container)`
+
+```typescript
+// ✅ Test both default and expanded states
+it('has no accessibility violations when rows are expanded', async () => {
+  const user = userEvent.setup()
+  const { container } = render(<MyTable />, { wrapper })
+  await user.click(screen.getByRole('button', { name: /expand all/i }))
+  expect(await axe(container)).toHaveNoViolations()
+})
+```
 
 **Important**: vitest-axe requires `jsdom` as the test environment (not happy-dom).
 
@@ -269,6 +309,85 @@ This ensures the 80% coverage threshold is met on the hook file independently, a
 
 The ESLint plugin `eslint-plugin-react-you-might-not-need-an-effect` (configured at `warn` level) catches most unnecessary `useEffect` patterns automatically. See [coding_standards.md §23](coding_standards.md) for details.
 
+### 6. Isolate the Field Under Test in Validation Tests
+
+When testing that a specific field shows a required validation error, fill in all *other* required fields first. Otherwise the assertion may pass today but break if field validation order changes.
+
+```typescript
+// ❌ BAD — only fills name, leaves other fields empty; assertion depends on validation order
+await user.type(screen.getByLabelText('Name'), 'Test')
+await user.click(screen.getByRole('button', { name: 'Create' }))
+await screen.findByText('Project is required')
+
+// ✅ GOOD — fills all required fields except the one under test
+await user.type(screen.getByLabelText('Name'), 'Test')
+await user.selectOptions(screen.getByLabelText('Type'), 'type-1')
+// intentionally skip project
+await user.click(screen.getByRole('button', { name: 'Create' }))
+await screen.findByText('Project is required')
+```
+
+### 7. Assert Element Absence Explicitly
+
+When verifying that a UI element is hidden in a certain state, assert its absence explicitly with `queryByRole` / `queryByText`. Do not assume its absence is implied by other assertions.
+
+```typescript
+// ❌ BAD — only asserts the empty state is visible, doesn't verify the header button is gone
+expect(screen.getByText('No credentials')).toBeInTheDocument()
+
+// ✅ GOOD — explicitly asserts the create button is absent in empty state
+expect(screen.getByText('No credentials')).toBeInTheDocument()
+expect(screen.queryByRole('button', { name: 'Create credential' })).not.toBeInTheDocument()
+```
+
+### 8. Typed Mock Functions
+
+Use generic type parameters on `vi.fn()` instead of double-casting (`vi.fn() as unknown as Type`). This keeps type safety without losing readability.
+
+```typescript
+// ❌ BAD — double cast, loses type safety
+const setError = vi.fn() as unknown as UseFormSetError<FormData>
+
+// ✅ GOOD — typed mock function
+const setError = vi.fn<UseFormSetError<FormData>>()
+```
+
+### 9. Test Names Must Be Accurate, Unique, and Current
+
+- **No duplicate test names** within the same describe block -- `vitest` may silently skip or overwrite one. **Enforced by ESLint:** `vitest/no-identical-title` (error).
+- **No misleading names** -- if a test is called "verifies icon rotation" but only checks the icon renders, rename it to match what it actually asserts
+- **Update names when behavior changes** -- when the implementation changes (e.g., from inference-based to backend-driven status), update test names to reflect the new behavior source
+
+### 10. Extract Shared Test Data
+
+When the same test data object appears in 3+ test cases within a describe block, extract it to a shared function or constant at the top of the block. This prevents copy-paste drift and reduces maintenance burden.
+
+```typescript
+// ❌ BAD — same object duplicated in 5 tests
+it('test A', () => { const workflow = { name: 'test', input_schema: {...} } })
+it('test B', () => { const workflow = { name: 'test', input_schema: {...} } })
+
+// ✅ GOOD — shared builder at describe scope
+function buildTestWorkflow(overrides = {}) {
+  return { name: 'test', input_schema: { type: 'object' }, ...overrides }
+}
+it('test A', () => { const workflow = buildTestWorkflow() })
+it('test B', () => { const workflow = buildTestWorkflow({ name: 'custom' }) })
+```
+
+### 11. Negative Assertions Must Be Meaningful
+
+Do not assert that something is absent when the test setup never could have created it. Such assertions pass vacuously and provide no regression safety.
+
+```typescript
+// ❌ BAD — test data has no globe icon, so this always passes regardless of the fix
+expect(screen.queryByTestId('globe-icon')).not.toBeInTheDocument()
+
+// ✅ GOOD — test data explicitly creates the condition, then asserts the fix works
+render(<ProviderIcon idpType="custom" />)
+expect(screen.queryByTestId('globe-icon')).not.toBeInTheDocument()
+```
+
 ---
 
 ## Quick Reference
@@ -284,7 +403,7 @@ The ESLint plugin `eslint-plugin-react-you-might-not-need-an-effect` (configured
 
 ### Level 1: Lint-Time (eslint-plugin-testing-library)
 
-`eslint-plugin-testing-library` is configured for all test files and enforces Testing Library best practices. Prefer accessible queries in priority order (see Rule #2 above). Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. New test code should follow the recommended patterns.
+`eslint-plugin-testing-library` is configured for all test files and enforces Testing Library best practices. Prefer accessible queries in priority order (see Rule #2 above). Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. **New test code must produce zero warnings** -- these rules will be promoted to `error` once existing violations are cleaned up.
 
 ### Level 2: Unit Tests (vitest-axe)
 

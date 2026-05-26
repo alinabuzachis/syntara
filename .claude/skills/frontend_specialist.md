@@ -48,7 +48,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 - Follow AAA pattern (Arrange-Act-Assert) for every test
 - Test user behavior, not implementation details
-- Use Testing Library queries in priority order: `getByRole` > `getByLabelText` > `getByText` > `getByTestId`
+- Use Testing Library queries in priority order: `getByRole` > `getByLabelText` > `getByPlaceholderText` > `getByText` > `getByTestId` (last resort)
 - Always use `userEvent.setup()` — never `fireEvent`
 - Every new component must have a `vitest-axe` `toHaveNoViolations()` test
 - 80% coverage threshold on all new/modified files
@@ -69,22 +69,29 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 ### Forms
 
-- [ ] Forms use Zod + react-hook-form with `zodResolver` — no manual `useState` per field AKA controlled inputs
+- [ ] Forms use Zod + react-hook-form with `zodResolver` -- no manual `useState` per field AKA controlled inputs
 - [ ] Edit modals reset form via `useEffect` keyed on `[isOpen, item]`
+- [ ] Loading states use `isPending` from mutation hooks -- not `formState.isSubmitting`
 
 ### Testing
 
-- [ ] New components have `vitest-axe` tests with `toHaveNoViolations()`
-- [ ] Tests use `userEvent.setup()` — no `fireEvent`
-- [ ] Tests use accessible queries — no `getByTestId`/`querySelector` when role/label queries work
+- [ ] New components have `vitest-axe` tests with `toHaveNoViolations()` -- including expanded/interactive states
+- [ ] Tests use `userEvent.setup()` -- no `fireEvent` (exception: `fireEvent.submit` when no submit button exists)
+- [ ] Tests use accessible queries -- `getByRole` > `getByLabelText` > `getByText`; `getByTestId` only as last resort; never `querySelector`
+- [ ] Tests use `within()` to scope assertions to specific containers (dialog footer, select, form group)
+- [ ] Test names accurately describe what is asserted -- no misleading or duplicate names
 
 ### Code Organization
 
-- [ ] No duplicated dialogs/logic — use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`
-- [ ] List views use `useCursorPagination` — no manual cursor state
-- [ ] File/function within ESLint size limits — extraction preferred over suppression
-- [ ] Enum constants from `@ansible/nexus-contracts` — no string literals for discriminators
-- [ ] PF6 design tokens for spacing/colors — no hardcoded `px` values
+- [ ] No duplicated dialogs/logic -- use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`
+- [ ] List views use `useCursorPagination` -- no manual cursor state
+- [ ] File/function within ESLint size limits -- extraction preferred over suppression
+- [ ] Enum constants from `@ansible/nexus-contracts` -- no string literals for discriminators
+- [ ] PF6 design tokens for spacing/colors -- no hardcoded `px` values (including in CSS modules)
+- [ ] CSS module classes over inline style objects -- more DOM-efficient and cacheable
+- [ ] `RhUi*` icons for all action buttons -- not PatternFly icons like `PlusCircleIcon`
+- [ ] `eslint-disable` comments include a reason -- no unexplained suppressions
+- [ ] Hooks called unconditionally but used conditionally -- extract to wrapper component (see coding_standards.md §29)
 
 ### PR Completeness
 
@@ -111,6 +118,6 @@ Code must meet these standards before delivery:
 
 1. Zero TypeScript errors
 2. All tests pass, new tests written for new features
-3. No ESLint warnings or errors
+3. No new ESLint warnings or errors -- rules at `warn` level will become `error`; treat them as errors now
 4. Prettier formatting applied
 5. WCAG 2.1 AA accessibility standards met

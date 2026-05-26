@@ -82,7 +82,7 @@ Check whether the changes follow:
 
 ### 3a. Recurring Issues Checklist (MANDATORY)
 
-**Run through every item in CLAUDE.md's "Common PR Mistakes — Quick Checklist" (items 1–22).** That checklist is the single source of truth. Below are review-specific verification tips:
+**Run through every item in CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-32).** That checklist is the single source of truth. Below are review-specific verification tips:
 
 | Search for...                                           | Flags violation of checklist item...                                         |
 | ------------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -109,35 +109,45 @@ Check whether the changes follow:
 | Derived data without `useMemo` in custom hooks          | #21 — wrap computed maps/arrays in `useMemo`                                 |
 | New `use*.ts` hook without `use*.test.ts(x)`            | #22 — every new hook needs a dedicated test file                             |
 | `useEffect` + `setState` for derived/computed values    | #23 — compute during render or use `useMemo`                                 |
-| `useEffect` + `setValue` watching form fields           | #24 — move cascading resets to field's `onChange` handler                    |
+| `useEffect` + `setValue` watching form fields           | #24 -- move cascading resets to field's `onChange` handler                   |
+| Inline style objects (`style={{ ... }}`)                | #28 -- refactor to CSS module classes                                        |
+| `let` counter inside `.map()`                           | #29 -- pre-compute indices immutably                                         |
+| `aria-label` on `<span>` / `<div>`                      | #30 -- only use on interactive elements, widgets, landmarks, images          |
+| `eslint-disable` without a reason comment               | #31 -- every suppression must document why                                   |
+| Hook called unconditionally but used conditionally      | #32 -- extract to a conditionally-rendered wrapper component                 |
+| `formState.isSubmitting` for loading state              | #26 -- use `isPending` from mutation hooks                                   |
+| `PlusCircleIcon` or non-`RhUi*` icons                   | #27 -- use `RhUiAddIcon`, `RhUiDuplicate`, etc.                              |
+| Hardcoded colors in CSS modules                         | #15 -- ESLint can't catch these; review CSS module files manually            |
 
 **Also check these review-specific items:**
 
-| Check                                    | How to verify                                                                                      |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| **UI PRs include screenshots**           | PRs changing visible UI must include screenshots or recordings of key states                       |
-| **New API endpoints have mock handlers** | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged          |
-| **Error handling consistency**           | Verify `useQueryState` / `useMutationErrorHandler` — no ad-hoc try/catch with custom error display |
+| Check                                    | How to verify                                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **UI PRs include screenshots**           | PRs changing visible UI must include screenshots or recordings of key states                             |
+| **New API endpoints have mock handlers** | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged                |
+| **Error handling consistency**           | Verify `useQueryState` / `useMutationErrorHandler` -- no ad-hoc try/catch with custom error display      |
+| **userEvent regressions**                | Check if PR replaces existing `userEvent` calls with `fireEvent` -- that is a regression                 |
+| **Unreachable dead code in tests**       | Look for nested `it()` blocks inside other `it()` blocks (after `return` statements)                     |
+| **Stale JSDoc/comments after renames**   | When components are renamed, check JSDoc references, `describe` block names, and CSS comments            |
+| **Query invalidation completeness**      | After mutations, verify ALL related queries are invalidated (not just the primary entity)                |
+| **Zero new ESLint warnings**             | New code must not introduce warnings, even for rules currently set to `warn` -- they will become `error` |
 
-### HTML → PF6 Component Mapping
+### HTML -> PF6 Component Mapping
 
-| Native HTML              | PF6 Replacement                                                          | Notes                                                              |
-| ------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `<button>`               | `Button` (`variant="plain"` for icon-only buttons with `icon` prop)      | Always use PF6 Button for click actions                            |
-| `<a>`                    | `Button variant="link"` or PatternFly `Nav` / wouter `Link`              | Use `Button variant="link"` for actions styled as links            |
-| `<p>`                    | `Content component={ContentVariants.p}`                                  | Block text content                                                 |
-| `<h1>`–`<h6>`            | `Title headingLevel="h1"` or `Content component={ContentVariants.h1}`    | Use `Title` for page/section headings                              |
-| `<ul>` / `<ol>`          | `List` / `List component={ListComponent.ol}`                             | Structured lists                                                   |
-| `<li>`                   | `ListItem`                                                               | List items inside `List`                                           |
-| `<hr>`                   | `Divider`                                                                | Horizontal dividers                                                |
-| `<small>`                | `Content component={ContentVariants.small}`                              | Small text                                                         |
-| `<blockquote>`           | `Content component={ContentVariants.blockquote}`                         | Block quotes                                                       |
-| `<pre>`                  | `Content component={ContentVariants.pre}` or `CodeBlock`                 | Preformatted text                                                  |
-| `<dl>` / `<dt>` / `<dd>` | `DescriptionList` / `DescriptionListTerm` / `DescriptionListDescription` | Definition lists                                                   |
-| `<span>`                 | **Keep as `<span>`**                                                     | `ContentVariants.span` does NOT exist in PF6 — use native `<span>` |
-| `<code>`                 | **Keep as `<code>`**                                                     | No PF6 inline code equivalent                                      |
-| `<div>`                  | **Keep as `<div>`** (or use `Flex`, `Stack`, `Card` if semantic)         | Generic containers are fine as native HTML                         |
-| `<strong>` / `<em>`      | **Keep as native**                                                       | Inline emphasis — no PF6 wrapper needed                            |
+**Use the PatternFly MCP** (`searchPatternFlyDocs` / `usePatternFlyDocs`) to find the correct PF6 equivalent for any native HTML element. The MCP returns up-to-date documentation, props, and usage examples.
+
+Quick reference for the most common replacements:
+
+| Native HTML       | PF6 Replacement                                                       |
+| ----------------- | --------------------------------------------------------------------- |
+| `<button>`        | `Button` (`variant="plain"` for icon-only with `icon` prop)           |
+| `<p>` / `<small>` | `Content component={ContentVariants.p}` / `ContentVariants.small`     |
+| `<ul>` / `<li>`   | `List` / `ListItem`                                                   |
+| `<h1>`-`<h6>`     | `Title headingLevel="h1"` or `Content component={ContentVariants.h1}` |
+
+**Keep as native HTML** (no PF equivalent): `<span>`, `<code>`, `<div>` (layout containers), `<strong>`, `<em>`.
+
+For anything not listed above, query the PatternFly MCP before using raw HTML.
 
 ---
 

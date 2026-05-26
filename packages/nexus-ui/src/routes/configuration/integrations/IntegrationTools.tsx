@@ -30,7 +30,7 @@ import { ScrollableTableContainer } from '../../../components/table/ScrollableTa
 import { useCursorPagination, useCursorReset, type UseCursorPaginationResult } from '../../../hooks/useCursorPagination'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
-import { useAlerts } from '../../../providers/alerts/index.ts'
+import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'

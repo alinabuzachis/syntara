@@ -38,10 +38,9 @@ CI automatically checks coverage for changed source files using `scripts/check-p
 ```bash
 # Run locally to check your changes
 npm run test:coverage           # Generate coverage report
-npm run test:coverage:check     # Check coverage for changed files
 ```
 
-The check will **fail the PR** if any changed source file has less than 80% **lines** coverage. The other metrics are still reported in the coverage output for visibility.
+Coverage threshold is enforced by CI (per-file 80% minimum). The check will **fail the PR** if any changed source file has less than 80% **lines** coverage. The other metrics are still reported in the coverage output for visibility.
 
 ## Test File Naming
 

@@ -105,6 +105,22 @@ const { register, handleSubmit } = useForm<FormData>({
 })
 ```
 
+### Loading state: Use `isPending` from mutations, not `formState.isSubmitting`
+
+**Enforced by ESLint:** `no-restricted-syntax` (error). See `eslint.config.js`.
+
+`formState.isSubmitting` only covers the synchronous `handleSubmit` wrapper. It does not reflect the actual async mutation state. Use `isPending` from the mutation hook for real loading indicators.
+
+```typescript
+// ❌ BAD — isSubmitting resolves before the mutation completes
+const { formState: { isSubmitting } } = useForm()
+<Button isLoading={isSubmitting}>Save</Button>
+
+// ✅ GOOD — isPending tracks the actual mutation lifecycle
+const { mutate, isPending } = credentialsClient.useMutation('post', '/credentials')
+<Button isLoading={isPending}>Save</Button>
+```
+
 ### Step form (with Zod)
 
 1. Create a schema file next to your form: `myNodeFormSchema.ts` — define shape and validation with `z.object()` (use `.superRefine()` for conditional rules, or `z.discriminatedUnion()` for executor-type-style forms). Export the schema and `type MyFormData = z.infer<typeof myNodeFormSchema>`. Import `z` from `'zod'`.
@@ -148,12 +164,22 @@ const { handleToggle, handleDelete } = useCredentialActions(credential)
 
 ### Pattern Recognition Checklist
 
-| Pattern Detected                      | Action Required                                 |
-| ------------------------------------- | ----------------------------------------------- |
-| **Repeated JSX structure** (2+ times) | → Create a **Component**                        |
-| **Repeated logic/state** (2+ times)   | → Create a **Hook**                             |
-| **Repeated utility functions**        | → Create a **shared utility**                   |
-| **Similar components with variants**  | → Extend existing component with props/variants |
+| Pattern Detected                           | Action Required                                 |
+| ------------------------------------------ | ----------------------------------------------- |
+| **Repeated JSX structure** (2+ times)      | -> Create a **Component**                       |
+| **Repeated logic/state** (2+ times)        | -> Create a **Hook**                            |
+| **Repeated utility functions**             | -> Create a **shared utility**                  |
+| **Similar components with variants**       | -> Extend existing component with props/variants |
+| **Repeated boolean expressions** (2+ files) | -> Extract to a shared predicate function       |
+
+```typescript
+// ❌ BAD — same expression duplicated in BuilderWorkflowPageHeader.tsx and ExecutionDetail.tsx
+const isCancellable = status === 'pending' || status === 'running'
+
+// ✅ GOOD — shared utility, single source of truth
+import { isExecutionCancellable } from '../utils/executionHelpers'
+const isCancellable = isExecutionCancellable(status)
+```
 
 ### Code Review: Spotting Abstraction Opportunities
 
@@ -324,7 +350,9 @@ Before writing any new UI code, follow this checklist:
    - Build accessible components following PatternFly patterns and design system
    - Include comprehensive tests (see existing `.test.tsx` files)
    - Place in `packages/nexus-ui/src/components/` for app-specific components
-   - **Use PF6 design tokens instead of hardcoded pixel values** for spacing, sizing, colors, and icons. Use `var(--pf-t--global--spacer--*)` for margins/padding, `var(--pf-t--global--icon--size--*)` for icon dimensions, `var(--pf-t--global--color--*)` for colors, and content-aware units (`ch`, `rem`) for input widths. Hardcoded `px` values are acceptable only for layout constraints (table column widths, fixed panel heights) where no semantic token applies.
+   - **Use PF6 design tokens instead of hardcoded pixel values** for spacing, sizing, colors, and icons. Use `var(--pf-t--global--spacer--*)` for margins/padding, `var(--pf-t--global--icon--size--*)` for icon dimensions, `var(--pf-t--global--color--*)` for colors, and content-aware units (`ch`, `rem`) for input widths. Hardcoded `px` values are acceptable only for layout constraints (table column widths, fixed panel heights) where no semantic token applies. **CSS modules must also use PF tokens** -- ESLint only catches hardcoded values in JSX, so CSS modules need manual review. Use semantic tokens like `var(--pf-t--global--text--color--subtle)` rather than lower-level tokens like `var(--pf-t--global--color--200)`.
+   - **Use `RhUi*` icons** (e.g., `RhUiAddIcon`, `RhUiTrashIcon`, `RhUiEditIcon`) for all action buttons, not legacy PatternFly icons like `PlusCircleIcon`, `CopyIcon`, or `TrashIcon`. The `RhUi*` icon set is the project standard. **Enforced by ESLint:** `no-restricted-imports` (warn) flags any non-`RhUi` import from `@patternfly/react-icons`. Existing legacy icons are being phased out.
+   - **Add `shouldFocusToggleOnSelect` to PF Select components** for accessibility. The select should receive focus when a selection is made. This is not a PF default but is needed for proper keyboard navigation.
 
 4. **Custom Hooks**
    - Extract reusable logic into custom hooks
@@ -361,7 +389,17 @@ Result: Use PatternFly Modal component or extend existing app component
 
 ### Code Readability Enforcement (ESLint)
 
-ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `error` — CI will block violations. **New code must respect these limits.**
+ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `error` -- CI will block violations. **New code must respect these limits.**
+
+### Zero New Warnings Policy
+
+**CRITICAL: New code must not introduce new ESLint warnings.** Many rules are currently set to `warn` (not `error`) only because pre-existing violations need gradual cleanup. The team is actively working to convert these warnings to errors. Treat every `warn`-level rule as if it were already `error` when writing new code.
+
+- **New files**: Zero warnings. Follow the rule as documented.
+- **Modified files**: Do not increase the warning count. When practical, fix nearby warnings as part of the change.
+- **Never suppress without a reason**: If you must add `eslint-disable`, document why (see [coding_standards.md section 28](#28-eslint-disable-comments-must-include-a-reason)).
+
+Rules currently at `warn` that must still be followed in new code include: `testing-library/prefer-user-event`, `testing-library/no-node-access`, `testing-library/no-container`, `react-you-might-not-need-an-effect/*`, and custom `nexus/*` rules. These will be promoted to `error` once existing violations are resolved.
 
 These thresholds are based on industry standards (Code Complete, SonarQube, BiomeJS):
 
@@ -707,6 +745,22 @@ Use the correct mutation error hook by context:
 
 Never use ad-hoc manual error parsing. Use `getErrorMessage()` and `isConflictError()` from `apiErrors.ts` for error inspection.
 
+### Query Invalidation After Mutations
+
+After a state transition (cancel, delete, update), invalidate **all** related queries, not just the primary one. Stale child queries cause UI inconsistencies.
+
+```typescript
+// ❌ BAD — activity list still shows "running" after cancellation
+queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}'] })
+
+// ✅ GOOD — invalidate the execution AND its activities
+Promise.all([
+  queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}'] }),
+  queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}/activities'] }),
+  queryClient.invalidateQueries({ queryKey: ['get', '/executions'] }),
+])
+```
+
 ### Retry Support
 
 For retryable errors, pass an `onRetry` callback:
@@ -985,11 +1039,13 @@ The same rules apply to `showWarning` and `showInfo`.
 
 ## 20. No Raw HTML Elements for Text Content — Use PatternFly Components
 
-Never use raw `<span>`, `<p>`, or `<div>` for text content when a PatternFly component exists. Use PF `Content`, `HelperText`, `Label`, or `Title` instead — they pick up design tokens for font size, color, and spacing automatically.
+Never use raw `<span>`, `<p>`, or `<div>` for text content when a PatternFly component exists. Use PF `Content`, `HelperText`, `Label`, or `Title` instead -- they pick up design tokens for font size, color, and spacing automatically.
 
 For UI lists, use PF `List` and `ListItem` instead of raw `<ul>`, `<ol>`, or `<li>`. ESLint enforces this via `nexus/prefer-pf-text-components` (text elements) and `nexus/prefer-pf-list-components` (list elements) in `packages/nexus-ui/eslint.config.js`.
 
-See [`.claude/skills/patternfly-ux-design-system.md`](patternfly-ux-design-system.md) — section 13 "No Raw HTML for Text Content" for the full component mapping table and code examples.
+**PF Content automatic margin:** PF6 `<Content>` adds automatic margin when rendered as `<p>`, `<small>`, or other block elements. When Content is inside a Flex row, popover header, or other tight layout context, reset it with `margin: 0` via a CSS module class. This is a [documented PF6 behavior](https://www.patternfly.org/components/content), not a bug. Prefer a CSS module class over inline `style={{ margin: 0 }}`.
+
+See [`.claude/skills/patternfly-ux-design-system.md`](patternfly-ux-design-system.md) -- section 13 "No Raw HTML for Text Content" for the full component mapping table and code examples.
 
 ---
 
@@ -1152,4 +1208,149 @@ useEffect(() => { setIsChecked(checked) }, [checked])
 
 // ✅ GOOD — use prop directly, let parent control state
 <Switch isChecked={checked} onChange={(_e, v) => handleChange?.(v)} />
+```
+
+---
+
+## 25. Prefer CSS Modules Over Inline Style Objects
+
+Inline style objects (`style={{ margin: 0, color: '...' }}`) create a new object reference on every render and cannot be cached by the browser. Use CSS module classes instead.
+
+```typescript
+// ❌ BAD — new object every render, not cacheable
+const userStyle = { margin: 0, color: 'var(--pf-t--global--color--brand--default)' } as const
+<Content style={userStyle}>{user}</Content>
+
+// ✅ GOOD — CSS module class, cacheable, no render overhead
+import styles from './UserTimestamp.module.css'
+<Content className={styles.user}>{user}</Content>
+```
+
+```css
+/* UserTimestamp.module.css */
+.user {
+  margin: 0;
+  color: var(--pf-t--global--color--brand--default);
+}
+```
+
+**When inline styles are acceptable:**
+
+- One-off dynamic values computed at runtime (e.g., `style={{ width: `${percent}%` }}`)
+- Styles that genuinely depend on props and have no fixed set of variants
+
+---
+
+## 26. No Mutable Counters Inside `.map()`
+
+Do not use `let` counters incremented inside `.map()` or `.forEach()`. Mutable variables inside render paths break React's expectations about pure rendering and make the code harder to reason about.
+
+```typescript
+// ❌ BAD — mutable counter inside .map()
+let rowIndex = 0
+return groups.map(([id, { credentials }]) => {
+  return credentials.map((cred) => {
+    const currentIndex = rowIndex++
+    return <Row key={cred.id} rowIndex={currentIndex} />
+  })
+})
+
+// ✅ GOOD — pre-compute a flat list, derive index immutably
+const allCredentials = [...groupedCredentials.values()].flatMap(({ credentials }) => credentials)
+return groups.map(([id, { credentials }]) => {
+  return credentials.map((cred) => {
+    const rowIndex = allCredentials.indexOf(cred)
+    return <Row key={cred.id} rowIndex={rowIndex} />
+  })
+})
+```
+
+---
+
+## 27. `aria-label` Only on Interactive Elements
+
+**Enforced by ESLint:** `no-restricted-syntax` (error for `<span>`). See `eslint.config.js`.
+
+Do not add `aria-label` to non-interactive elements like `<span>` or `<div>`. Assistive technologies only announce `aria-label` on interactive elements, widgets, landmarks, images, and iframes. On a `<span>`, it is ignored by most screen readers.
+
+```typescript
+// ❌ BAD — aria-label on a non-interactive span
+<span aria-label="Status indicator">{statusText}</span>
+
+// ✅ GOOD — inner text content is sufficient for screen readers
+<span>{statusText}</span>
+
+// ✅ GOOD — aria-label on an interactive element
+<Button aria-label="Close dialog" variant="plain" icon={<TimesIcon />} />
+```
+
+**Reference:** [MDN aria-label](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-label) -- "in practice, it is supported only on interactive elements, widgets, landmarks, images, and iframes."
+
+---
+
+## 28. `eslint-disable` Comments Must Include a Reason
+
+Every `eslint-disable-next-line` or `eslint-disable` comment must include a reason explaining **why** the rule is being suppressed. Fix the underlying issue rather than suppressing when possible. Suppressions without reasons are not allowed.
+
+```typescript
+// ❌ BAD — no explanation
+// eslint-disable-next-line testing-library/no-node-access
+const wrapper = container.querySelector('.pf-v6-c-file-upload')
+
+// ✅ GOOD — documented reason
+// eslint-disable-next-line testing-library/no-node-access -- PF FileUpload renders no accessible role on the wrapper div
+const wrapper = container.querySelector('.pf-v6-c-file-upload')
+
+// ✅ BEST — fix the a11y problem instead of suppressing
+const wrapper = screen.getByRole('group', { name: 'File upload' })
+```
+
+---
+
+## 29. Conditional Hook Execution via Wrapper Component
+
+When a hook is called unconditionally but its data is only needed for one mode (e.g., create vs. edit), extract a small wrapper component that calls the hook and is only rendered when needed. This avoids unnecessary API calls and follows React's rules of hooks.
+
+```typescript
+// ❌ BAD — fetches all groups even in edit mode where groups are not shown
+function UserFormFields({ isEdit, control }: Props) {
+  const { groups, isLoading } = useAllGroups()
+  return (
+    <>
+      {/* ...other fields... */}
+      {!isEdit && <GroupMultiSelect groups={groups} isLoading={isLoading} />}
+    </>
+  )
+}
+
+// ✅ GOOD — hook only called when the component renders
+function GroupField({ control }: Readonly<{ control: Control<UserFormData> }>) {
+  const { groups, isLoading } = useAllGroups()
+  const groupOptions = useMemo(() => groups.map((g) => ({ name: g.name })), [groups])
+  return (
+    <Controller
+      name="group_names"
+      control={control}
+      render={({ field }) => (
+        <FormGroup label="Groups" fieldId="user-groups-select">
+          <GroupMultiSelect
+            selected={field.value ?? []}
+            onChange={field.onChange}
+            isLoading={isLoading}
+            groupOptions={groupOptions}
+          />
+        </FormGroup>
+      )}
+    />
+  )
+}
+
+function UserFormFields({ isEdit, control }: Props) {
+  return (
+    <>
+      {/* ...other fields... */}
+      {!isEdit && <GroupField control={control} />}
+    </>
+  )
+}
 ```
