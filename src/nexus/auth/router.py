@@ -1098,16 +1098,16 @@ async def _create_identity_with_race_handling(
 
     """
     try:
-        identity = await identity_service.create_identity(
-            user_id=user.id,
-            identity_provider_id=provider_id,
-            issuer=issuer,
-            subject=sub,
-        )
-        identity.last_used_at = datetime.now(UTC)
-        db.add(identity)
+        async with db.begin_nested():
+            identity = await identity_service.create_identity(
+                user_id=user.id,
+                identity_provider_id=provider_id,
+                issuer=issuer,
+                subject=sub,
+            )
+            identity.last_used_at = datetime.now(UTC)
+            db.add(identity)
     except IntegrityError as e:
-        await db.rollback()
         existing = await identity_service.find_by_issuer_and_subject(issuer, sub)
         if existing:
             # Re-load user from fresh session state after rollback
@@ -1118,6 +1118,38 @@ async def _create_identity_with_race_handling(
     # Refresh user to ensure it's attached to the current session state
     await db.refresh(user)
     return (user, identity)
+
+
+async def _try_resolve_linked_identity(
+    db: AsyncSession,
+    identity_service: UserIdentityService,
+    issuer: str,
+    sub: str,
+) -> tuple[User, UserIdentity] | None:
+    """Look up an existing identity link and return the linked user if valid.
+
+    Returns None if no usable link exists (identity missing, or linked user deleted).
+    """
+    identity = await identity_service.find_by_issuer_and_subject(issuer, sub)
+    if not identity:
+        return None
+
+    linked_user = await _find_non_deleted_user(db, identity.user_id)
+    if linked_user:
+        if not linked_user.is_enabled:
+            logger.warning("OIDC login blocked: user account is deactivated", user_id=str(identity.user_id))
+            raise OIDCError(_OIDC_ERR_AUTH_FAILED)
+        identity.last_used_at = datetime.now(UTC)
+        db.add(identity)
+        return (linked_user, identity)
+
+    logger.warning(
+        "Removing stale identity for deleted user",
+        identity_id=str(identity.id),
+        deleted_user_id=str(identity.user_id),
+    )
+    await identity_service.delete_identity(identity.id, force=True)
+    return None
 
 
 async def _resolve_oidc_user(
@@ -1152,54 +1184,48 @@ async def _resolve_oidc_user(
     issuer = provider.configuration.issuer_url
     identity_service = UserIdentityService(db)
 
-    # Step 1: Look up by (issuer, sub)
-    identity = await identity_service.find_by_issuer_and_subject(issuer, sub)
-    if identity:
-        linked_user = await _find_non_deleted_user(db, identity.user_id)
-        if linked_user:
-            if not linked_user.is_enabled:
-                logger.warning("OIDC login blocked: user account is deactivated", user_id=str(identity.user_id))
-                raise OIDCError(_OIDC_ERR_AUTH_FAILED)
-            identity.last_used_at = datetime.now(UTC)
-            db.add(identity)
-            return (linked_user, identity)
-        # Linked user was deleted — remove stale identity and allow re-linking
-        logger.warning(
-            "Removing stale identity for deleted user",
-            identity_id=str(identity.id),
-            deleted_user_id=str(identity.user_id),
-        )
-        await identity_service.delete_identity(identity.id, force=True)
-
-    # Step 2: Check if a user with the same email already exists.
-    # Block login and direct the user to self-service identity linking.
-    if email:
-        existing_user = await _find_user_by_email(db, email)
-        if existing_user:
-            logger.warning(
-                "Login blocked: email already associated with another account",
-                existing_user_id=str(existing_user.id),
-                provider=provider_name,
-            )
-            msg = (
-                "This email is already associated with an existing account. "
-                "Please sign in with your original authentication method and "
-                "link this identity provider via the Identities tab on your user profile page."
-            )
-            raise OIDCError(msg)
-
-    # Step 3: No identity or email match — create new user.
-    # Retry once on OIDCError to handle concurrent-creation races.
     for attempt in range(2):
+        # Step 1: Look up by (issuer, sub)
+        resolved = await _try_resolve_linked_identity(db, identity_service, issuer, sub)
+        if resolved:
+            return resolved
+
+        # Step 2: Check if a user with the same email already exists.
+        # Block login and direct the user to self-service identity linking.
+        if email:
+            existing_user = await _find_user_by_email(db, email)
+            if existing_user:
+                if attempt == 0:
+                    # On first attempt, the email match may be the winner from
+                    # a concurrent race — retry to pick up their identity link.
+                    logger.info("Retrying user resolution after email collision", sub=sub)
+                    continue
+                logger.warning(
+                    "Login blocked: email already associated with another account",
+                    existing_user_id=str(existing_user.id),
+                    provider=provider_name,
+                )
+                msg = (
+                    "This email is already associated with an existing account. "
+                    "Please sign in with your original authentication method and "
+                    "link this identity provider via the Identities tab on your user profile page."
+                )
+                raise OIDCError(msg)
+
+        # Step 3: No identity or email match — create new user.
         try:
             user = await _auto_create_user(db, user_claims, provider_name, email=email)
-            break
         except OIDCError:
             if attempt == 1:
                 raise
             logger.info("Retrying user resolution after concurrent creation", sub=sub)
+            continue
 
-    return await _create_identity_with_race_handling(db, identity_service, user, provider_id, issuer, sub)
+        return await _create_identity_with_race_handling(db, identity_service, user, provider_id, issuer, sub)
+
+    # Should not be reached — the loop either returns or raises
+    msg = "Unable to sign in. Contact your administrator."
+    raise OIDCError(msg)
 
 
 async def _is_username_taken(db: AsyncSession, value: str) -> bool:
@@ -1251,11 +1277,11 @@ async def _auto_create_user(
         auth_type=AuthType.FEDERATED,
         is_enabled=True,
     )
-    db.add(user)
     try:
-        await db.flush()
+        async with db.begin_nested():
+            db.add(user)
+            await db.flush()
     except IntegrityError as e:
-        await db.rollback()
         constraint = getattr(e.orig, "constraint_name", None) if e.orig else None
         logger.warning(
             "OIDC auto-create user failed due to integrity constraint",

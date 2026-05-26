@@ -35,6 +35,12 @@ from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
 
 
+def _add_begin_nested(db: AsyncMock) -> None:
+    """Configure begin_nested() to return an async context manager on a mock session."""
+    mock_nested = AsyncMock()
+    db.begin_nested = MagicMock(return_value=mock_nested)
+
+
 def _make_request(*, cookie_value: str | None = None) -> MagicMock:
     """Build a mock Request with optional refresh-token cookie."""
     request = MagicMock()
@@ -836,6 +842,7 @@ class TestOidcCallback:
         user_claims = _make_user_claims()
 
         db = AsyncMock()
+        _add_begin_nested(db)
         provider_result = MagicMock()
         provider_result.one_or_none.return_value = provider
         identity_result = MagicMock()
@@ -1233,6 +1240,7 @@ class TestResolveOidcUser:
         mock_svc.create_identity = AsyncMock()
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # Username check (not taken)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -1255,6 +1263,7 @@ class TestResolveOidcUser:
         mock_svc.create_identity = AsyncMock()
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # Username check (not taken)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -1282,6 +1291,7 @@ class TestResolveOidcUser:
         mock_svc.create_identity = AsyncMock()
 
         db = AsyncMock()
+        _add_begin_nested(db)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
@@ -1368,6 +1378,7 @@ class TestResolveOidcUser:
         mock_svc.create_identity = AsyncMock()
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # First exec: look up linked user (returns None — soft-deleted)
         # Second exec: email check (no existing user with this email)
         # Third exec: username check (not taken) in _auto_create_user
@@ -1397,6 +1408,7 @@ class TestResolveOidcUser:
         mock_svc.create_identity = AsyncMock()
 
         db = AsyncMock()
+        _add_begin_nested(db)
         not_taken = MagicMock()
         not_taken.one_or_none.return_value = None
         db.exec.return_value = not_taken
@@ -1425,6 +1437,7 @@ class TestAutoCreateUser:
         user_claims = _make_user_claims(email=email, preferred_username="alice", name="Alice Smith")
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # Username collision check (no collision)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -1452,6 +1465,7 @@ class TestAutoCreateUser:
         }
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # Username collision check (no collision)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -1494,6 +1508,7 @@ class TestAutoCreateUser:
         existing_user = _make_user(username="eve", email="other@example.com")
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # First check: "eve" is taken. Second check: "eve-<suffix>" is not taken.
         taken_result = MagicMock()
         taken_result.one_or_none.return_value = existing_user
@@ -1522,6 +1537,7 @@ class TestAutoCreateUser:
         }
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # Pre-checks pass (no collision found)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -1532,7 +1548,7 @@ class TestAutoCreateUser:
         with pytest.raises(OIDCError, match="Unable to create account"):
             await _auto_create_user(db, user_claims, "Azure", email=email)
 
-        db.rollback.assert_called_once()
+        db.begin_nested.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handles_concurrent_email_collision_on_flush(self) -> None:
@@ -1546,6 +1562,7 @@ class TestAutoCreateUser:
         }
 
         db = AsyncMock()
+        _add_begin_nested(db)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
@@ -1566,6 +1583,7 @@ class TestAutoCreateUser:
         }
 
         db = AsyncMock()
+        _add_begin_nested(db)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
@@ -1585,6 +1603,7 @@ class TestAutoCreateUser:
         }
 
         db = AsyncMock()
+        _add_begin_nested(db)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
@@ -1606,6 +1625,7 @@ class TestAutoCreateUser:
         }
 
         db = AsyncMock()
+        _add_begin_nested(db)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
         db.exec.return_value = mock_result
@@ -1897,6 +1917,7 @@ class TestAutoCreateUserFromResolveFlow:
         user_claims = _make_user_claims(email="user@example.com", preferred_username="newuser")
 
         db = AsyncMock()
+        _add_begin_nested(db)
         # Username check (not taken)
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -1927,6 +1948,7 @@ class TestCreateIdentityWithRaceHandling:
         identity_service.create_identity = AsyncMock()
 
         db = AsyncMock()
+        _add_begin_nested(db)
 
         result_user, result_identity = await _create_identity_with_race_handling(
             db, identity_service, user, provider.id, "https://idp.example.com", "sub-123"
@@ -1958,7 +1980,8 @@ class TestCreateIdentityWithRaceHandling:
         identity_service.find_by_issuer_and_subject = AsyncMock(return_value=mock_identity)
 
         db = AsyncMock()
-        # After rollback, _load_active_user query
+        _add_begin_nested(db)
+        # After savepoint rollback, _load_active_user query
         user_result = MagicMock()
         user_result.one_or_none.return_value = winner_user
         db.exec.return_value = user_result
@@ -1967,7 +1990,7 @@ class TestCreateIdentityWithRaceHandling:
             db, identity_service, user, provider.id, "https://idp.example.com", "sub-123"
         )
 
-        db.rollback.assert_called_once()
+        db.begin_nested.assert_called_once()
         identity_service.find_by_issuer_and_subject.assert_called_once_with("https://idp.example.com", "sub-123")
         assert result_user == winner_user
         assert result_identity == mock_identity
@@ -1985,6 +2008,7 @@ class TestCreateIdentityWithRaceHandling:
         identity_service.find_by_issuer_and_subject = AsyncMock(return_value=None)
 
         db = AsyncMock()
+        _add_begin_nested(db)
 
         with pytest.raises(OIDCError, match="Unable to sign in"):
             await _create_identity_with_race_handling(
@@ -2157,6 +2181,7 @@ class TestResolveOidcUserRetryExhausted:
         mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
 
         db = AsyncMock()
+        _add_begin_nested(db)
         not_taken = MagicMock()
         not_taken.one_or_none.return_value = None
         db.exec.return_value = not_taken
