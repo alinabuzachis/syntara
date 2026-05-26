@@ -7,7 +7,7 @@ inherited automatically.  This file adds e2e-specific fixtures.
 
 import os
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, cast
@@ -25,6 +25,8 @@ from nexus_api_client.models.sub_resource_role_assignment_create import SubResou
 from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
+from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_read import WorkflowRead
 from nexus_api_client.types import Response
 
 
@@ -316,3 +318,24 @@ def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
     curr_user_resp = nexus_api.authentication.get_current_user()
     assert curr_user_resp.parsed is not None
     return cast("UserInfo", curr_user_resp.parsed)
+
+
+@pytest.fixture
+def workflow_factory(nexus_api: NexusApiRegistry) -> Generator[Callable[[WorkflowCreate], WorkflowRead], None, None]:
+    """Factory that creates workflows with automatic cleanup."""
+    created_workflow_ids: list[UUID] = []
+
+    def _create(workflow_data: WorkflowCreate) -> WorkflowRead:
+        response = nexus_api.workflows.create(body=workflow_data)
+        assert response.status_code == HTTPStatus.CREATED
+        assert response.parsed is not None
+        created_workflow_ids.append(response.parsed.id)
+        return cast("WorkflowRead", response.parsed)
+
+    yield _create
+
+    for workflow_id in created_workflow_ids:
+        try:
+            nexus_api.workflows.delete(workflow_id=workflow_id)
+        except Exception:
+            pass  # Best effort cleanup
