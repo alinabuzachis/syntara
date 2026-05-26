@@ -13,10 +13,12 @@ from nexus.auth.dependencies import get_refresh_token
 from nexus.auth.exceptions import (
     AuthenticationRequiredError,
     InvalidTokenError,
+    OIDCCallbackError,
+    OIDCErrorCode,
     RefreshTokenRevokedError,
     SessionStoreUnavailableError,
 )
-from nexus.auth.router import _OIDCCallbackError, login, logout, oidc_authorize, oidc_callback, refresh_token
+from nexus.auth.router import login, logout, oidc_authorize, oidc_callback, refresh_token
 from nexus.auth.schemas import LoginRequest
 from nexus.auth.services.oidc_service import OIDCError
 from nexus.auth.services.token_service import TokenPayload
@@ -852,8 +854,8 @@ class TestMaybeRpLogout:
 
     @pytest.mark.asyncio
     async def test_returns_auth_error_when_endpoint_unresolvable(self) -> None:
-        """Should return dict with auth_error when end_session_endpoint can't be resolved."""
-        from nexus.auth.router import _maybe_rp_logout, _oidc_err_idp_logout_failed
+        """Should return dict with auth_error error code when end_session_endpoint can't be resolved."""
+        from nexus.auth.router import _maybe_rp_logout
         from nexus.identity_providers.models.identity_provider import IdentityProvider
         from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
 
@@ -896,7 +898,7 @@ class TestMaybeRpLogout:
 
         result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
 
-        assert result == {"auth_error": _oidc_err_idp_logout_failed("Test IdP")}
+        assert result == {"auth_error": "idp_logout_failed"}
 
     @pytest.mark.asyncio
     async def test_returns_redirect_url_when_endpoint_available(self) -> None:
@@ -1162,7 +1164,7 @@ class TestResolveAndLoginUserRollback:
             redirect_uri="http://localhost:8000/callback",
         )
 
-        with pytest.raises(_OIDCCallbackError):
+        with pytest.raises(OIDCCallbackError):
             await _resolve_and_login_user(db, {"email": "t@t.com", "sub": "sub-1"}, {}, provider, None)
 
         db.rollback.assert_called_once()
@@ -1369,15 +1371,17 @@ class TestOIDCAuditEvents:
 
     @pytest.mark.asyncio
     async def test_authorize_callback_error_emits_event_with_error_type(self) -> None:
-        """oidc_authorize with _OIDCCallbackError emits audit event with error_type and provider_id."""
+        """oidc_authorize with OIDCCallbackError emits audit event with error_type and provider_id."""
         from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
         from nexus.audit.models.structured_data import AuditContextData
 
         provider_id = uuid4()
 
-        # Mock the underlying function to raise _OIDCCallbackError
+        # Mock the underlying function to raise OIDCCallbackError
         with patch("nexus.auth.router._build_oidc_authorize_redirect") as mock_build:
-            mock_build.side_effect = _OIDCCallbackError("Invalid state", origin="http://localhost:3000")
+            mock_build.side_effect = OIDCCallbackError(
+                "Invalid state", error_code=OIDCErrorCode.AUTH_FAILED, origin="http://localhost:3000"
+            )
 
             # Mock request and db
             request = MagicMock()
@@ -1402,7 +1406,7 @@ class TestOIDCAuditEvents:
             assert oidc_event.event_severity == EventSeverity.ERROR
             assert oidc_event.event_status == EventStatus.ERROR
             assert isinstance(oidc_event.structured_data, AuditContextData)
-            assert oidc_event.structured_data.error_type == "_OIDCCallbackError"
+            assert oidc_event.structured_data.error_type == "OIDCCallbackError"
             assert oidc_event.structured_data.provider_id == str(provider_id)  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
@@ -1445,13 +1449,15 @@ class TestOIDCAuditEvents:
 
     @pytest.mark.asyncio
     async def test_callback_error_emits_event_with_none_provider_id(self) -> None:
-        """oidc_callback with _OIDCCallbackError emits audit event with provider_id=None."""
+        """oidc_callback with OIDCCallbackError emits audit event with provider_id=None."""
         from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
         from nexus.audit.models.structured_data import AuditContextData
 
-        # Mock the underlying function to raise _OIDCCallbackError
+        # Mock the underlying function to raise OIDCCallbackError
         with patch("nexus.auth.router._process_oidc_callback") as mock_process:
-            mock_process.side_effect = _OIDCCallbackError("Invalid code", origin="http://localhost:3000")
+            mock_process.side_effect = OIDCCallbackError(
+                "Invalid code", error_code=OIDCErrorCode.AUTH_FAILED, origin="http://localhost:3000"
+            )
 
             # Mock request and db
             request = MagicMock()
@@ -1478,7 +1484,7 @@ class TestOIDCAuditEvents:
             assert oidc_event.event_severity == EventSeverity.ERROR
             assert oidc_event.event_status == EventStatus.ERROR
             assert isinstance(oidc_event.structured_data, AuditContextData)
-            assert oidc_event.structured_data.error_type == "_OIDCCallbackError"
+            assert oidc_event.structured_data.error_type == "OIDCCallbackError"
             # Critical: callback errors have provider_id=None
             assert oidc_event.structured_data.provider_id is None  # type: ignore[attr-defined]
 
@@ -1950,3 +1956,358 @@ class TestMaybeRpLogoutEdgeCases:
         result = await _maybe_rp_logout(db, session_info, "https://app.example.com")
 
         assert result is None
+
+
+# =============================================================================
+# _build_callback_error_redirect helper
+# =============================================================================
+
+
+class TestBuildCallbackErrorRedirect:
+    """Tests for _build_callback_error_redirect helper."""
+
+    def test_redirect_to_uses_link_error_param(self) -> None:
+        """Should redirect to redirect_to URL with link_error param when redirect_to is set."""
+        from nexus.auth.router import _build_callback_error_redirect
+
+        err = OIDCCallbackError(
+            "Link failed",
+            error_code=OIDCErrorCode.LINK_FAILED,
+            origin="http://localhost:3000",
+            redirect_to="/settings/identities",
+        )
+
+        with patch("nexus.auth.router.get_settings") as mock_settings:
+            mock_settings.return_value.cors_allow_origins = ["http://localhost:3000"]
+            mock_settings.return_value.jwt_issuer = "http://localhost:8000"
+            response = _build_callback_error_redirect(err)
+
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "link_error=link_failed" in location
+
+    def test_no_redirect_to_uses_auth_error_param(self) -> None:
+        """Should redirect to base URL with auth_error param when no redirect_to."""
+        from nexus.auth.router import _build_callback_error_redirect
+
+        err = OIDCCallbackError(
+            "Auth failed",
+            error_code=OIDCErrorCode.AUTH_FAILED,
+            origin="http://localhost:3000",
+        )
+
+        with patch("nexus.auth.router.get_settings") as mock_settings:
+            mock_settings.return_value.cors_allow_origins = ["http://localhost:3000"]
+            mock_settings.return_value.jwt_issuer = "http://localhost:8000"
+            response = _build_callback_error_redirect(err)
+
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "auth_error=auth_failed" in location
+
+
+# =============================================================================
+# _build_authorize_error_redirect helper
+# =============================================================================
+
+
+class TestBuildAuthorizeErrorRedirect:
+    """Tests for _build_authorize_error_redirect helper."""
+
+    def test_link_flow_redirects_with_link_error(self) -> None:
+        """Should redirect to redirect_to with link_error for link flow errors."""
+        from nexus.auth.router import _build_authorize_error_redirect
+
+        with patch("nexus.auth.router.get_settings") as mock_settings:
+            mock_settings.return_value.cors_allow_origins = ["http://localhost:3000"]
+            mock_settings.return_value.jwt_issuer = "http://localhost:8000"
+            response = _build_authorize_error_redirect(
+                origin="http://localhost:3000",
+                redirect_to="/settings/identities",
+                flow="link",
+                error_code="auth_failed",
+            )
+
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "link_error=auth_failed" in location
+
+    def test_non_link_flow_redirects_with_auth_error(self) -> None:
+        """Should redirect to base URL with auth_error for non-link flows."""
+        from nexus.auth.router import _build_authorize_error_redirect
+
+        with patch("nexus.auth.router.get_settings") as mock_settings:
+            mock_settings.return_value.cors_allow_origins = ["http://localhost:3000"]
+            mock_settings.return_value.jwt_issuer = "http://localhost:8000"
+            response = _build_authorize_error_redirect(
+                origin="http://localhost:3000",
+                redirect_to=None,
+                flow=None,
+                error_code="discovery_failed",
+            )
+
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "auth_error=discovery_failed" in location
+
+
+# =============================================================================
+# _process_oidc_callback error paths
+# =============================================================================
+
+
+class TestProcessOidcCallbackErrors:
+    """Tests for error paths in _process_oidc_callback."""
+
+    @pytest.mark.asyncio
+    async def test_raises_on_idp_error_response(self) -> None:
+        """Should raise OIDCCallbackError with auth_failed when IdP returns error."""
+        from nexus.auth.router import _process_oidc_callback
+
+        with pytest.raises(OIDCCallbackError) as exc_info:
+            await _process_oidc_callback(
+                state="test-state",
+                db=AsyncMock(),
+                code=None,
+                error="access_denied",
+                error_description="User denied access",
+            )
+
+        assert exc_info.value.error_code == "auth_failed"
+
+    @pytest.mark.asyncio
+    async def test_raises_on_missing_code(self) -> None:
+        """Should raise OIDCCallbackError with missing_code when no code is provided."""
+        from nexus.auth.router import _process_oidc_callback
+
+        with pytest.raises(OIDCCallbackError) as exc_info:
+            await _process_oidc_callback(
+                state="test-state",
+                db=AsyncMock(),
+                code=None,
+                error=None,
+                error_description=None,
+            )
+
+        assert exc_info.value.error_code == "missing_code"
+
+    @pytest.mark.asyncio
+    async def test_raises_on_invalid_state(self) -> None:
+        """Should raise OIDCCallbackError with state_expired when state is invalid."""
+        from nexus.auth.router import _process_oidc_callback
+
+        with patch("nexus.auth.router.OIDCService") as mock_oidc_cls:
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = None
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="expired-state",
+                    db=AsyncMock(),
+                    code="auth-code",
+                    error=None,
+                    error_description=None,
+                )
+
+        assert exc_info.value.error_code == "state_expired"
+
+    @pytest.mark.asyncio
+    async def test_raises_on_provider_unavailable(self) -> None:
+        """Should raise OIDCCallbackError with provider_unavailable when provider not found."""
+        from nexus.auth.router import _process_oidc_callback
+
+        with (
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+            patch("nexus.auth.router._load_enabled_provider", side_effect=OIDCError("Not found")),
+            patch("nexus.auth.router._revalidate_origin", return_value=None),
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(uuid4()),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": None,
+            }
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="valid-state",
+                    db=AsyncMock(),
+                    code="auth-code",
+                    error=None,
+                    error_description=None,
+                )
+
+        assert exc_info.value.error_code == "provider_unavailable"
+
+    @pytest.mark.asyncio
+    async def test_raises_on_discovery_failure(self) -> None:
+        """Should raise OIDCCallbackError with discovery_failed when endpoint resolution fails."""
+        from nexus.auth.router import _process_oidc_callback
+
+        provider = MagicMock()
+        provider.id = uuid4()
+        provider.name = "TestIdP"
+
+        with (
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+            patch("nexus.auth.router._load_enabled_provider", return_value=provider),
+            patch("nexus.auth.router._load_provider_config", return_value=MagicMock()),
+            patch("nexus.auth.router._get_oidc_endpoints", side_effect=OIDCError("Discovery failed")),
+            patch("nexus.auth.router._revalidate_origin", return_value=None),
+            patch("nexus.auth.router._is_ssl_verification_error", return_value=False),
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(provider.id),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": None,
+            }
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="valid-state",
+                    db=AsyncMock(),
+                    code="auth-code",
+                    error=None,
+                    error_description=None,
+                )
+
+        assert exc_info.value.error_code == "discovery_failed"
+
+    @pytest.mark.asyncio
+    async def test_raises_on_token_exchange_failure(self) -> None:
+        """Should raise OIDCCallbackError with auth_failed when token exchange fails."""
+        from nexus.auth.router import _process_oidc_callback
+
+        provider = MagicMock()
+        provider.id = uuid4()
+        provider.name = "TestIdP"
+
+        with (
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+            patch("nexus.auth.router._load_enabled_provider", return_value=provider),
+            patch("nexus.auth.router._load_provider_config", return_value=MagicMock()),
+            patch("nexus.auth.router._get_oidc_endpoints", return_value={"token_endpoint": "https://idp/token"}),
+            patch(
+                "nexus.auth.router._exchange_and_validate_tokens",
+                side_effect=OIDCError("Token exchange failed"),
+            ),
+            patch("nexus.auth.router._revalidate_origin", return_value=None),
+            patch("nexus.auth.router._is_ssl_verification_error", return_value=False),
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(provider.id),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": None,
+            }
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="valid-state",
+                    db=AsyncMock(),
+                    code="auth-code",
+                    error=None,
+                    error_description=None,
+                )
+
+        assert exc_info.value.error_code == "auth_failed"
+
+    @pytest.mark.asyncio
+    async def test_raises_tls_error_code_on_ssl_failure(self) -> None:
+        """Should raise OIDCCallbackError with tls_verify_failed on SSL verification error."""
+        from nexus.auth.router import _process_oidc_callback
+
+        provider = MagicMock()
+        provider.id = uuid4()
+        provider.name = "TestIdP"
+
+        with (
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+            patch("nexus.auth.router._load_enabled_provider", return_value=provider),
+            patch("nexus.auth.router._load_provider_config", return_value=MagicMock()),
+            patch("nexus.auth.router._get_oidc_endpoints", side_effect=OIDCError("SSL error")),
+            patch("nexus.auth.router._revalidate_origin", return_value=None),
+            patch("nexus.auth.router._is_ssl_verification_error", return_value=True),
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(provider.id),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": None,
+            }
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="valid-state",
+                    db=AsyncMock(),
+                    code="auth-code",
+                    error=None,
+                    error_description=None,
+                )
+
+        assert exc_info.value.error_code == "tls_verify_failed"
+
+
+# =============================================================================
+# _process_link_callback error paths
+# =============================================================================
+
+
+class TestProcessLinkCallback:
+    """Tests for _process_link_callback error handling."""
+
+    @pytest.mark.asyncio
+    async def test_wraps_oidc_error_with_error_code(self) -> None:
+        """Should wrap OIDCError with error_code from the original or fallback to link_failed."""
+        from nexus.auth.router import _process_link_callback
+
+        provider = MagicMock()
+        provider.name = "TestIdP"
+
+        state_data = {"user_id": str(uuid4()), "redirect_to": "/settings/identities"}
+
+        with (
+            patch(
+                "nexus.auth.router._handle_link_flow",
+                side_effect=OIDCError("Already linked", error_code=OIDCErrorCode.IDENTITY_ALREADY_LINKED),
+            ),
+            pytest.raises(OIDCCallbackError) as exc_info,
+        ):
+            await _process_link_callback(
+                db=AsyncMock(),
+                state_data=state_data,
+                user_claims={"sub": "sub-1"},
+                provider=provider,
+                origin="http://localhost:3000",
+            )
+
+        assert exc_info.value.error_code == "identity_already_linked"
+        assert exc_info.value.redirect_to == "/settings/identities"
+
+    @pytest.mark.asyncio
+    async def test_wraps_generic_exception_with_link_failed(self) -> None:
+        """Should wrap unexpected Exception with link_failed error code."""
+        from nexus.auth.router import _process_link_callback
+
+        provider = MagicMock()
+        provider.name = "TestIdP"
+
+        state_data = {"user_id": str(uuid4()), "redirect_to": "/settings/identities"}
+
+        with (
+            patch(
+                "nexus.auth.router._handle_link_flow",
+                side_effect=RuntimeError("Unexpected"),
+            ),
+            pytest.raises(OIDCCallbackError) as exc_info,
+        ):
+            await _process_link_callback(
+                db=AsyncMock(),
+                state_data=state_data,
+                user_claims={"sub": "sub-1"},
+                provider=provider,
+                origin="http://localhost:3000",
+            )
+
+        assert exc_info.value.error_code == "link_failed"
+        assert exc_info.value.redirect_to == "/settings/identities"

@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 pytestmark = [pytest.mark.e2e]
 
-_NO_GROUP_MATCH_FRAGMENT = "do not match any configured group mappings"
+_NO_GROUP_MATCH_CODE = "no_group_match"
 
 
 class TestAPI22AllowAllAuthenticatedEnabled:
@@ -107,7 +107,7 @@ class TestAPI23AllowAllAuthenticatedDisabled:
             username=username,
             password=password,
         )
-        assert _NO_GROUP_MATCH_FRAGMENT in auth_error
+        assert auth_error == _NO_GROUP_MATCH_CODE
 
 
 class TestAPI24AllowAllWithPreCreatedMappings:
@@ -193,7 +193,7 @@ class TestAPI25AllowAllToggleBehavior:
             username=username,
             password=password,
         )
-        assert _NO_GROUP_MATCH_FRAGMENT in auth_error
+        assert auth_error == _NO_GROUP_MATCH_CODE
 
         refresh_client = Client(
             base_url=f"{nexus_base_url}/api/v1",

@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from nexus.auth.exceptions import SessionStoreUnavailableError
+from nexus.auth.exceptions import OIDCCallbackError, OIDCErrorCode, SessionStoreUnavailableError
 from nexus.auth.router import (
     _auto_create_user,
     _build_callback_error_redirect,
@@ -21,7 +21,6 @@ from nexus.auth.router import (
     _handle_link_flow,
     _load_active_user,
     _load_enabled_provider,
-    _OIDCCallbackError,
     _resolve_oidc_user,
     _revalidate_origin,
     _safe_redirect_url,
@@ -460,7 +459,7 @@ class TestOidcCallback:
             )
 
         assert response.status_code == 302
-        assert "auth_error=Authentication%20failed" in response.headers["location"]
+        assert "auth_error=auth_failed" in response.headers["location"]
 
     @pytest.mark.asyncio
     async def test_handles_missing_code_parameter(self) -> None:
@@ -2098,13 +2097,12 @@ class TestOidcCallbackLinkFlow:
     @pytest.mark.asyncio
     async def test_link_flow_error_redirects_with_link_error(self) -> None:
         """Should redirect to redirect_to with link_error param on link flow failure."""
-        from nexus.auth.router import _OIDCCallbackError
-
         request = _make_request()
         db = AsyncMock()
 
-        error = _OIDCCallbackError(
+        error = OIDCCallbackError(
             "This identity is already linked",
+            error_code=OIDCErrorCode.LINK_FAILED,
             origin="https://app.example.com",
             redirect_to="https://app.example.com/settings/identities",
         )
@@ -2243,27 +2241,30 @@ class TestBuildCallbackErrorRedirect:
     """Tests for the _build_callback_error_redirect helper."""
 
     def test_auth_error_redirect(self) -> None:
-        """Should redirect with auth_error param for non-link errors."""
+        """Should redirect with auth_error error code for non-link errors."""
         mock_settings = MagicMock()
         mock_settings.jwt_issuer = "http://localhost:3000"
         mock_settings.cors_allow_origins = ["http://localhost:3000"]
 
-        error = _OIDCCallbackError("Something went wrong", origin="http://localhost:3000")
+        error = OIDCCallbackError(
+            "Something went wrong", error_code=OIDCErrorCode.AUTH_FAILED, origin="http://localhost:3000"
+        )
 
         with patch("nexus.auth.router.get_settings", return_value=mock_settings):
             response = _build_callback_error_redirect(error)
 
         assert response.status_code == 302
-        assert "auth_error=Something%20went%20wrong" in response.headers["location"]
+        assert "auth_error=auth_failed" in response.headers["location"]
 
     def test_link_error_redirect(self) -> None:
-        """Should redirect with link_error param for link flow errors."""
+        """Should redirect with link_error error code for link flow errors."""
         mock_settings = MagicMock()
         mock_settings.jwt_issuer = "http://localhost:3000"
         mock_settings.cors_allow_origins = ["http://localhost:3000"]
 
-        error = _OIDCCallbackError(
+        error = OIDCCallbackError(
             "Identity already linked",
+            error_code=OIDCErrorCode.LINK_FAILED,
             origin="http://localhost:3000",
             redirect_to="http://localhost:3000/settings",
         )
@@ -2273,7 +2274,7 @@ class TestBuildCallbackErrorRedirect:
 
         assert response.status_code == 302
         location = response.headers["location"]
-        assert "link_error=Identity%20already%20linked" in location
+        assert "link_error=link_failed" in location
         assert location.startswith("http://localhost:3000/settings")
 
 

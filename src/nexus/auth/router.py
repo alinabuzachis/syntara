@@ -45,6 +45,8 @@ from nexus.auth.dependencies import (
 from nexus.auth.exceptions import (
     AuthenticationRequiredError,
     InvalidTokenError,
+    OIDCCallbackError,
+    OIDCErrorCode,
     RefreshTokenRevokedError,
     SessionStoreUnavailableError,
 )
@@ -508,7 +510,7 @@ async def _maybe_rp_logout(
             "RP-initiated logout enabled but end_session_endpoint could not be resolved",
             provider=provider.name,
         )
-        return {"auth_error": _oidc_err_idp_logout_failed(provider.name)}
+        return {"auth_error": OIDCErrorCode.IDP_LOGOUT_FAILED}
 
     # Decrypt the ID token hint if available
     decrypted_id_token_hint = None
@@ -765,18 +767,19 @@ async def oidc_authorize(
         result = await _build_oidc_authorize_redirect(provider_id, request, db, redirect_to, flow=flow)
         AuditEventDispatcher.dispatch(OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE))
         return result
-    except (OIDCError, _OIDCCallbackError) as e:
+    except (OIDCError, OIDCCallbackError) as e:
         AuditEventDispatcher.dispatch(
             OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE, error_type=type(e).__name__)
         )
         logger.warning("OIDC authorize failed, redirecting to login", provider_id=str(provider_id), error=str(e))
-        return _build_authorize_error_redirect(origin, redirect_to, flow, str(e))
+        error_code = e.error_code if isinstance(e, OIDCCallbackError) else OIDCErrorCode.AUTH_FAILED
+        return _build_authorize_error_redirect(origin, redirect_to, flow, error_code)
     except Exception as e:
         AuditEventDispatcher.dispatch(
             OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE, error_type=type(e).__name__)
         )
         logger.exception("Unexpected error during OIDC authorize", provider_id=str(provider_id))
-        return _build_authorize_error_redirect(origin, redirect_to, flow, _OIDC_ERR_DISCOVERY_FAILED)
+        return _build_authorize_error_redirect(origin, redirect_to, flow, OIDCErrorCode.DISCOVERY_FAILED)
 
 
 async def _verify_idp_test_permission(request: Request, db: AsyncSession) -> None:
@@ -1294,22 +1297,7 @@ async def _auto_create_user(
     return user
 
 
-class _OIDCCallbackError(Exception):
-    """Internal exception for OIDC callback errors that should redirect to the login page."""
-
-    def __init__(self, message: str, origin: str | None = None, redirect_to: str | None = None) -> None:
-        super().__init__(message)
-        self.origin = origin
-        self.redirect_to = redirect_to
-
-
-# User-facing error messages for OIDC callback failures
-def _oidc_err_idp_logout_failed(provider_name: str | None = None) -> str:
-    if provider_name:
-        return f"Logged out of Nexus, but could not log out of {provider_name}."
-    return "Logged out of Nexus, but could not log out of the identity provider."
-
-
+# Log-level error messages (used in logger calls, not sent to the frontend)
 _OIDC_ERR_MISSING_CODE = "Missing authorization code"
 _OIDC_ERR_STATE_EXPIRED = "Login session expired. Please try again."
 _OIDC_ERR_PROVIDER_UNAVAILABLE = "Identity provider not available"
@@ -1377,7 +1365,7 @@ async def oidc_callback(
                     provider_id=provider.id, stage=OIDCStage.CALLBACK, user_id=user.id, username=user.username
                 )
             )
-    except _OIDCCallbackError as e:
+    except OIDCCallbackError as e:
         AuditEventDispatcher.dispatch(
             OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, error_type=type(e).__name__)
         )
@@ -1392,7 +1380,7 @@ async def oidc_callback(
             error=error,
         )
         base_url = _get_frontend_base_url(None)
-        return RedirectResponse(url=f"{base_url}?auth_error={quote(_OIDC_ERR_AUTH_FAILED)}", status_code=302)
+        return RedirectResponse(url=f"{base_url}?auth_error={quote(OIDCErrorCode.AUTH_FAILED)}", status_code=302)
 
     flow_type = state_data.get("flow_type")
 
@@ -1409,7 +1397,7 @@ async def oidc_callback(
     # Login flow: user and identity are guaranteed non-None here
     if user is None or identity is None:  # pragma: no cover - defensive guard for type narrowing
         base_url = _get_frontend_base_url(None)
-        return RedirectResponse(url=f"{base_url}?auth_error={quote(_OIDC_ERR_AUTH_FAILED)}", status_code=302)
+        return RedirectResponse(url=f"{base_url}?auth_error={quote(OIDCErrorCode.AUTH_FAILED)}", status_code=302)
 
     return await _build_login_session_redirect(
         user, provider, identity, state_data, request, db, id_token_raw, is_first_login=is_first_login
@@ -1420,7 +1408,7 @@ def _build_authorize_error_redirect(
     origin: str | None,
     redirect_to: str | None,
     flow: str | None,
-    error_msg: str,
+    error_code: str,
 ) -> RedirectResponse:
     """Build error redirect for OIDC authorize failures.
 
@@ -1430,18 +1418,18 @@ def _build_authorize_error_redirect(
     """
     if flow == "link" and redirect_to:
         safe_redirect = _safe_redirect_url(redirect_to, origin=origin)
-        return RedirectResponse(url=f"{safe_redirect}?link_error={quote(error_msg)}", status_code=302)
+        return RedirectResponse(url=f"{safe_redirect}?link_error={quote(error_code)}", status_code=302)
     base_url = _get_frontend_base_url(origin)
-    return RedirectResponse(url=f"{base_url}?auth_error={quote(error_msg)}", status_code=302)
+    return RedirectResponse(url=f"{base_url}?auth_error={quote(error_code)}", status_code=302)
 
 
-def _build_callback_error_redirect(e: "_OIDCCallbackError") -> RedirectResponse:
+def _build_callback_error_redirect(e: "OIDCCallbackError") -> RedirectResponse:
     """Build error redirect for OIDC callback failures."""
     if e.redirect_to:
         safe_redirect = _safe_redirect_url(e.redirect_to, origin=e.origin)
-        return RedirectResponse(url=f"{safe_redirect}?link_error={quote(str(e))}", status_code=302)
+        return RedirectResponse(url=f"{safe_redirect}?link_error={quote(e.error_code)}", status_code=302)
     base_url = _get_frontend_base_url(e.origin)
-    return RedirectResponse(url=f"{base_url}?auth_error={quote(str(e))}", status_code=302)
+    return RedirectResponse(url=f"{base_url}?auth_error={quote(e.error_code)}", status_code=302)
 
 
 async def _build_link_redirect(
@@ -1670,24 +1658,26 @@ async def _process_oidc_callback(
     """
     if error:
         logger.warning("OIDC provider returned error", error=error, description=error_description)
-        raise _OIDCCallbackError(_OIDC_ERR_AUTH_FAILED)
+        raise OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, error_code=OIDCErrorCode.AUTH_FAILED)
 
     if not code:
         logger.warning("OIDC callback missing authorization code")
-        raise _OIDCCallbackError(_OIDC_ERR_MISSING_CODE)
+        raise OIDCCallbackError(_OIDC_ERR_MISSING_CODE, error_code=OIDCErrorCode.MISSING_CODE)
 
     oidc_service = OIDCService()
     state_data = oidc_service.retrieve_oidc_state(state)
     if state_data is None:
         logger.warning("OIDC callback with invalid or expired state")
-        raise _OIDCCallbackError(_OIDC_ERR_STATE_EXPIRED)
+        raise OIDCCallbackError(_OIDC_ERR_STATE_EXPIRED, error_code=OIDCErrorCode.STATE_EXPIRED)
 
     origin = _revalidate_origin(state_data.get("origin"))
 
     try:
         provider = await _load_enabled_provider(db, state_data["provider_id"])
     except OIDCError as e:
-        raise _OIDCCallbackError(_OIDC_ERR_PROVIDER_UNAVAILABLE, origin=origin) from e
+        raise OIDCCallbackError(
+            _OIDC_ERR_PROVIDER_UNAVAILABLE, error_code=OIDCErrorCode.PROVIDER_UNAVAILABLE, origin=origin
+        ) from e
 
     config = await _load_provider_config(db, provider)
 
@@ -1696,7 +1686,8 @@ async def _process_oidc_callback(
     except OIDCError as e:
         logger.exception("OIDC endpoint resolution failed during callback")
         msg = _OIDC_ERR_TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else _OIDC_ERR_DISCOVERY_FAILED
-        raise _OIDCCallbackError(msg, origin=origin) from e
+        code_ = OIDCErrorCode.TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else OIDCErrorCode.DISCOVERY_FAILED
+        raise OIDCCallbackError(msg, error_code=code_, origin=origin) from e
 
     redirect_uri = str(config.redirect_uri)
 
@@ -1713,11 +1704,13 @@ async def _process_oidc_callback(
     except OIDCError as e:
         logger.warning("OIDC token exchange/validation failed", error=str(e), provider=provider.name)
         msg = _OIDC_ERR_TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else _OIDC_ERR_AUTH_FAILED
-        raise _OIDCCallbackError(msg, origin=origin) from e
+        code_ = OIDCErrorCode.TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else OIDCErrorCode.AUTH_FAILED
+        raise OIDCCallbackError(msg, error_code=code_, origin=origin) from e
     except Exception as e:
         logger.exception("Unexpected error during OIDC token exchange", provider=provider.name)
         msg = _OIDC_ERR_TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else _OIDC_ERR_AUTH_FAILED
-        raise _OIDCCallbackError(msg, origin=origin) from e
+        code_ = OIDCErrorCode.TLS_VERIFY_FAILED if _is_ssl_verification_error(e) else OIDCErrorCode.AUTH_FAILED
+        raise OIDCCallbackError(msg, error_code=code_, origin=origin) from e
 
     # Handle test-signin flow — return raw claims to frontend, no session created
     if state_data.get("flow_type") == "test_signin":
@@ -1753,10 +1746,10 @@ async def _resolve_and_login_user(
         user, identity = await _resolve_oidc_user(db, user_claims, provider)
     except OIDCError as e:
         logger.warning("OIDC user resolution failed", error=str(e), provider=provider_name)
-        raise _OIDCCallbackError(str(e), origin=origin) from e
+        raise OIDCCallbackError(str(e), error_code=OIDCErrorCode.USER_FAILED, origin=origin) from e
     except Exception as e:
         logger.exception("Unexpected error during OIDC user resolution", provider=provider_name)
-        raise _OIDCCallbackError(_OIDC_ERR_USER_FAILED, origin=origin) from e
+        raise OIDCCallbackError(_OIDC_ERR_USER_FAILED, error_code=OIDCErrorCode.USER_FAILED, origin=origin) from e
 
     # Sync IdP group memberships before committing
     if provider_config is not None:
@@ -1778,7 +1771,9 @@ async def _resolve_and_login_user(
                     provider=provider_name,
                 )
                 await db.rollback()
-                raise _OIDCCallbackError(_OIDC_ERR_NO_GROUP_MATCH, origin=origin)
+                raise OIDCCallbackError(
+                    _OIDC_ERR_NO_GROUP_MATCH, error_code=OIDCErrorCode.NO_GROUP_MATCH, origin=origin
+                )
 
     is_first_login = user.last_login is None
     return (user, identity, is_first_login)
@@ -1803,11 +1798,15 @@ async def _process_link_callback(
         return await _handle_link_flow(db, state_data, user_claims, provider)
     except OIDCError as e:
         logger.warning("OIDC link flow failed", error=str(e), provider=provider.name)
-        raise _OIDCCallbackError(str(e), origin=origin, redirect_to=link_redirect) from e
+        raise OIDCCallbackError(
+            str(e), error_code=e.error_code or OIDCErrorCode.LINK_FAILED, origin=origin, redirect_to=link_redirect
+        ) from e
     except Exception as e:
         logger.exception("Unexpected error during OIDC link flow", provider=provider.name)
-        msg = "Failed to link identity. Please try again."
-        raise _OIDCCallbackError(msg, origin=origin, redirect_to=link_redirect) from e
+        msg = "Failed to link identity"
+        raise OIDCCallbackError(
+            msg, error_code=OIDCErrorCode.LINK_FAILED, origin=origin, redirect_to=link_redirect
+        ) from e
 
 
 async def _verify_link_session(db: AsyncSession, session_jti: str | None, user_id_str: str) -> None:
@@ -1880,10 +1879,10 @@ async def _handle_link_flow(
             await identity_service.delete_identity(existing.id, force=True)
         elif linked_user.id == user_id:
             msg = "This identity is already linked to your account"
-            raise OIDCError(msg)
+            raise OIDCError(msg, error_code=OIDCErrorCode.IDENTITY_ALREADY_LINKED)
         else:
             msg = "This identity is already linked to another account"
-            raise OIDCError(msg)
+            raise OIDCError(msg, error_code=OIDCErrorCode.IDENTITY_ALREADY_LINKED)
 
     try:
         identity = await identity_service.create_identity(
@@ -1903,7 +1902,7 @@ async def _handle_link_flow(
             # Same user won the race — treat as success
             return await _load_active_user(db, user.id), None
         msg = "This identity is already linked to another account"
-        raise OIDCError(msg) from e
+        raise OIDCError(msg, error_code=OIDCErrorCode.IDENTITY_ALREADY_LINKED) from e
 
     await db.refresh(user)
     return user, identity if was_local else None

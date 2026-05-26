@@ -8,6 +8,7 @@ exception handlers.
 All exceptions use RFC 9457 Problem Details format for consistent error responses.
 """
 
+from enum import StrEnum
 from uuid import UUID
 
 from nexus.core.exception_registry import fastapi_exception
@@ -341,6 +342,40 @@ class BuiltinGroupDeleteError(UserError):
     def __init__(self, group_name: str) -> None:
         """Initialize exception."""
         super().__init__(f"The built-in '{group_name}' group cannot be deleted")
+
+
+# ============================================================================
+# OIDC callback exceptions and error codes
+# ============================================================================
+
+
+class OIDCErrorCode(StrEnum):
+    """Error codes sent to the frontend via auth_error / link_error URL params."""
+
+    MISSING_CODE = "missing_code"
+    STATE_EXPIRED = "state_expired"
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
+    DISCOVERY_FAILED = "discovery_failed"
+    AUTH_FAILED = "auth_failed"
+    USER_FAILED = "user_failed"
+    TLS_VERIFY_FAILED = "tls_verify_failed"
+    NO_GROUP_MATCH = "no_group_match"
+    IDP_LOGOUT_FAILED = "idp_logout_failed"
+    LINK_FAILED = "link_failed"
+    IDENTITY_ALREADY_LINKED = "identity_already_linked"
+
+
+class OIDCCallbackError(NexusError):
+    """Internal exception for OIDC callback errors that should redirect to the login page."""
+
+    def __init__(
+        self, message: str, *, error_code: OIDCErrorCode, origin: str | None = None, redirect_to: str | None = None
+    ) -> None:
+        """Initialize with a log message, frontend error code, and optional redirect context."""
+        super().__init__(message)
+        self.error_code = error_code
+        self.origin = origin
+        self.redirect_to = redirect_to
 
 
 class MembershipError(NexusError):

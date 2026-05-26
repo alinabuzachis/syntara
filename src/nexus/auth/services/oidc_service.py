@@ -26,7 +26,9 @@ import structlog
 from jwt import PyJWKClient
 from starlette import status
 
+from nexus.auth.exceptions import OIDCErrorCode
 from nexus.core.config.base import get_settings
+from nexus.core.exceptions import NexusError
 from nexus.core.lib.encryption import EncryptionError, SecretEncryptor, key_from_string
 from nexus.core.lib.sanitization import escape_control_chars, has_control_chars
 from nexus.identity_providers.models.identity_provider_configuration import OIDCClaimMapping
@@ -85,8 +87,13 @@ def _is_ssl_verification_error(exc: Exception) -> bool:
     return _SSL_VERIFY_FAILED_MARKER in str(exc)
 
 
-class OIDCError(Exception):
+class OIDCError(NexusError):
     """Base exception for OIDC flow errors."""
+
+    def __init__(self, message: str, *, error_code: OIDCErrorCode | None = None) -> None:
+        """Initialize with message and optional OAuth2 error code."""
+        super().__init__(message)
+        self.error_code = error_code
 
 
 class OIDCService:
