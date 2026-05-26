@@ -751,4 +751,96 @@ describe('AppLogin', () => {
       })
     })
   })
+
+  describe('auth_error URL parameter sanitization', () => {
+    function setAuthErrorParam(value: string) {
+      window.history.pushState({}, '', `/?auth_error=${encodeURIComponent(value)}`)
+    }
+
+    afterEach(() => {
+      // Restore clean URL
+      window.history.pushState({}, '', '/')
+    })
+
+    it('displays known error code as its mapped message', async () => {
+      setAuthErrorParam('state_expired')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Login session expired. Please try again.')).toBeInTheDocument()
+      })
+    })
+
+    it('displays generic fallback for unknown error codes', async () => {
+      setAuthErrorParam('some_unknown_value')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Authentication failed. Please try again.')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('some_unknown_value')).not.toBeInTheDocument()
+    })
+
+    it('displays generic fallback for attacker-crafted strings', async () => {
+      setAuthErrorParam('<script>alert(1)</script>')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Authentication failed. Please try again.')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('<script>alert(1)</script>')).not.toBeInTheDocument()
+    })
+
+    describe('with identity providers', () => {
+      beforeEach(() => {
+        mockProviders = [{ id: 'okta-1', name: 'Okta', provider_type: 'oidc' }]
+      })
+
+      it('shows logout failure Alert title for idp_logout_failed code', async () => {
+        setAuthErrorParam('idp_logout_failed')
+
+        renderWithAlerts(
+          <AppLogin>
+            <div>Content</div>
+          </AppLogin>
+        )
+
+        await waitFor(() => {
+          expect(screen.getByText('Identity provider sign-out failed')).toBeInTheDocument()
+        })
+        expect(
+          screen.getByText('Logged out successfully, but could not log out of the identity provider.')
+        ).toBeInTheDocument()
+      })
+
+      it('shows Authentication failed Alert title for non-logout error codes', async () => {
+        setAuthErrorParam('auth_failed')
+
+        renderWithAlerts(
+          <AppLogin>
+            <div>Content</div>
+          </AppLogin>
+        )
+
+        await waitFor(() => {
+          expect(screen.getByText('Authentication failed')).toBeInTheDocument()
+        })
+      })
+    })
+  })
 })

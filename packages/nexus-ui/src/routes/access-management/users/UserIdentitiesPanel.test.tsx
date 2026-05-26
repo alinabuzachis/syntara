@@ -705,6 +705,25 @@ describe('UserIdentitiesPanel', () => {
       // Restore the original URL
       window.history.pushState({}, '', originalSearch || '/')
     })
+
+    it('displays generic fallback for unknown link_error values', async () => {
+      const replaceStateSpy = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {})
+
+      window.history.pushState({}, '', '/?link_error=Attacker+crafted+message')
+
+      setupMocks(mockIdentities)
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      // The sanitized fallback should render, not the raw URL param
+      await waitFor(() => {
+        expect(screen.getByText('Failed to link identity. Please try again.')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Attacker crafted message')).not.toBeInTheDocument()
+
+      replaceStateSpy.mockRestore()
+      window.history.pushState({}, '', '/')
+    })
   })
 
   // ---- Detach flow edge cases ---------------------------------------------

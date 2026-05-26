@@ -145,14 +145,13 @@ test.describe('Duplicate Identity Error (UI-23)', () => {
     await mockAuthMe(app, federatedUserResponse)
     await mockAuthProviders(app, twoProvidersResponse)
 
-    // Simulate redirect back from IdP with link_error query parameter
-    const linkError = 'This identity is already linked to another user'
-    const url = `${ACCESS_URL}/${FEDERATED_USER_ID}/identities?link_error=${encodeURIComponent(linkError)}`
+    // Simulate redirect back from IdP with link_error error code
+    const url = `${ACCESS_URL}/${FEDERATED_USER_ID}/identities?link_error=identity_already_linked`
     await app.goto(toAppUrl(url))
 
-    // Danger alert is displayed with the error
+    // Danger alert is displayed with the sanitized error message
     await expect(app.getByText('Failed to link identity')).toBeVisible({ timeout: 15_000 })
-    await expect(app.getByText(linkError)).toBeVisible()
+    await expect(app.getByText('This identity is already linked to another user.')).toBeVisible()
 
     // Identities remain unchanged — only the original identity is linked
     await expect(app.getByRole('row').filter({ hasText: 'Corporate SSO' })).toBeVisible()

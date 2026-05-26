@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LoadingState } from '../components/states/LoadingState'
 import { AuthError, useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
 
+import { resolveAuthError } from './authErrorMessages'
 import { IdentityProviderButtons } from './IdentityProviderButtons'
 import { useAuthProviders } from './useAuthProviders'
 
@@ -115,19 +116,21 @@ function AppLoginForm() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [initialAuthError] = useState(() => {
-    const authError = new URLSearchParams(globalThis.location.search).get('auth_error')
-    if (authError) {
+    const raw = new URLSearchParams(globalThis.location.search).get('auth_error')
+    if (raw) {
       // Clean up the URL so the error doesn't persist on refresh.
       // replaceState is a browser API (not React state), so calling it
       // in the initializer is safe and avoids an extra render cycle.
       globalThis.history.replaceState({}, '', globalThis.location.pathname)
+      return resolveAuthError(raw)
     }
-    return authError
+    return null
   })
-  const [loginError, setLoginError] = useState<string | null>(initialAuthError)
+  const [loginError, setLoginError] = useState<string | null>(initialAuthError?.message ?? null)
   const [loginErrorField, setLoginErrorField] = useState<LoginErrorField | null>(
     initialAuthError ? LoginErrorField.Credentials : null
   )
+  const [isLogoutError, setIsLogoutError] = useState(initialAuthError?.isLogoutFailure ?? false)
   const [showLocalLogin, setShowLocalLogin] = useState(false)
   const bootstrapAttempted = useRef(false)
 
@@ -187,6 +190,7 @@ function AppLoginForm() {
         setPassword('')
         setLoginError(mapLoginError(err))
         setLoginErrorField(LoginErrorField.Credentials)
+        setIsLogoutError(false)
       })
     },
     [username, password, login]
@@ -242,9 +246,7 @@ function AppLoginForm() {
       {loginError && loginErrorField === LoginErrorField.Credentials && (
         <Alert
           variant="danger"
-          title={
-            loginError.toLowerCase().includes('log out') ? 'Identity provider sign-out failed' : 'Authentication failed'
-          }
+          title={isLogoutError ? 'Identity provider sign-out failed' : 'Authentication failed'}
           isInline
           style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
         >

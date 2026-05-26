@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
+import { resolveLinkError } from '../../../app/authErrorMessages'
 import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import { useAuthProviders } from '../../../app/useAuthProviders'
 import { OIDC_AUTHORIZE_PATH, usersClient } from '../../../client'
@@ -67,7 +68,7 @@ function useLinkError(showAlert: (config: AlertConfig) => void) {
       const url = new URL(window.location.href)
       url.searchParams.delete('link_error')
       window.history.replaceState({}, '', url.toString())
-      showAlert({ title: 'Failed to link identity', description: error, variant: 'danger' })
+      showAlert({ title: 'Failed to link identity', description: resolveLinkError(error), variant: 'danger' })
     }
   }, [showAlert])
 }
