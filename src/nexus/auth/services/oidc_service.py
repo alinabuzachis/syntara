@@ -362,8 +362,7 @@ class OIDCService:
                 )
 
             if response.status_code not in (status.HTTP_200_OK, status.HTTP_201_CREATED):
-                error_body = response.text
-                logger.warning("Token exchange failed", status=response.status_code, body=error_body[:500])
+                logger.warning("Token exchange failed", status=response.status_code)
                 msg = f"Token exchange failed with HTTP {response.status_code}"
                 raise OIDCError(msg)
 
