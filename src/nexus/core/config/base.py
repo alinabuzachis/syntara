@@ -19,6 +19,7 @@ import tempfile
 import warnings
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 from typing import Self
 from uuid import UUID
 
@@ -223,6 +224,50 @@ class CacheSettings(BaseSettings):
 # Database Configuration
 # =============================================================================
 
+_VALID_SSL_MODES = frozenset({"disable", "allow", "prefer", "require", "verify-ca", "verify-full"})
+_SSL_MODES_REQUIRING_CERTS = frozenset({"require", "verify-ca", "verify-full"})
+
+
+def _validate_ssl_mode_value(v: str) -> str:
+    lowered = v.lower()
+    if lowered not in _VALID_SSL_MODES:
+        msg = f"Invalid SSL mode '{v}'. Must be one of: {', '.join(sorted(_VALID_SSL_MODES))}"
+        raise ValueError(msg)
+    return lowered
+
+
+def _validate_ssl_fields(
+    ssl_mode: str,
+    ssl_root_cert: str | None,
+    ssl_cert: str | None,
+    ssl_key: str | None,
+) -> None:
+    """Shared validation for SSL field combinations.
+
+    Raises :class:`ValueError` for invalid combinations; emits a
+    :class:`UserWarning` for risky-but-legal ones.
+    """
+    if ssl_key is not None and ssl_cert is None:
+        msg = "SSL client key (ssl_key) requires a client certificate (ssl_cert)"
+        raise ValueError(msg)
+
+    if (ssl_cert is not None or ssl_key is not None) and ssl_mode not in _SSL_MODES_REQUIRING_CERTS:
+        msg = (
+            f"Client certificates are only supported with SSL modes "
+            f"{', '.join(sorted(_SSL_MODES_REQUIRING_CERTS))}; "
+            f"current mode is '{ssl_mode}'"
+        )
+        raise ValueError(msg)
+
+    for path, label in [(ssl_root_cert, "CA certificate"), (ssl_cert, "client certificate"), (ssl_key, "client key")]:
+        if path is not None and not Path(path).is_file():
+            msg = f"SSL {label} file not found: {path}"
+            raise ValueError(msg)
+
+    if ssl_mode in ("verify-ca", "verify-full") and ssl_root_cert is None:
+        msg = f"SSL mode '{ssl_mode}' requires ssl_root_cert (path to CA certificate)"
+        raise ValueError(msg)
+
 
 class DatabaseSettings(BaseSettings):
     """Database connection configuration settings.
@@ -282,16 +327,48 @@ class DatabaseSettings(BaseSettings):
         gt=0,
     )
 
+    db_ssl_mode: str = Field(
+        default="prefer",
+        description="PostgreSQL SSL mode (disable, allow, prefer, require, verify-ca, verify-full)",
+    )
+
+    db_ssl_root_cert: str | None = Field(
+        default=None,
+        description="Path to CA certificate file for server verification",
+    )
+
+    db_ssl_cert: str | None = Field(
+        default=None,
+        description="Path to client certificate file (for mutual TLS)",
+    )
+
+    db_ssl_key: str | None = Field(
+        default=None,
+        description="Path to client private key file (for mutual TLS)",
+    )
+
+    @field_validator("db_ssl_mode")
+    @classmethod
+    def _validate_ssl_mode(cls, v: str) -> str:
+        return _validate_ssl_mode_value(v)
+
+    @model_validator(mode="after")
+    def _validate_ssl_fields(self) -> Self:
+        _validate_ssl_fields(self.db_ssl_mode, self.db_ssl_root_cert, self.db_ssl_cert, self.db_ssl_key)
+        return self
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> URL:
         """Get the database URL.
 
-        If APP_DATABASE_URL env var is set, use it directly.
-        Otherwise, compute from individual APP_DB_* components.
+        If ``APP_DATABASE_URL`` is set, it is used verbatim and all
+        ``APP_DB_*`` / ``APP_DB_SSL_*`` fields are ignored — the caller
+        owns all driver and connection semantics.  Otherwise the URL is
+        built from the individual component fields.
 
-        Returns a SQLAlchemy URL object which redacts credentials in
-        __repr__/__str__, preventing accidental exposure in logs.
+        TLS is **not** configured via the URL; it is passed separately
+        through ``connect_args`` (see :mod:`nexus.core.database.ssl`).
         """
         override = os.environ.get("APP_DATABASE_URL")
         if override:
@@ -372,16 +449,46 @@ class AuditDatabaseSettings(BaseSettings):
         gt=0,
     )
 
+    audit_db_ssl_mode: str = Field(
+        default="prefer",
+        description="PostgreSQL SSL mode (disable, allow, prefer, require, verify-ca, verify-full)",
+    )
+
+    audit_db_ssl_root_cert: str | None = Field(
+        default=None,
+        description="Path to CA certificate file for server verification",
+    )
+
+    audit_db_ssl_cert: str | None = Field(
+        default=None,
+        description="Path to client certificate file (for mutual TLS)",
+    )
+
+    audit_db_ssl_key: str | None = Field(
+        default=None,
+        description="Path to client private key file (for mutual TLS)",
+    )
+
+    @field_validator("audit_db_ssl_mode")
+    @classmethod
+    def _validate_audit_ssl_mode(cls, v: str) -> str:
+        return _validate_ssl_mode_value(v)
+
+    @model_validator(mode="after")
+    def _validate_audit_ssl_fields(self) -> Self:
+        _validate_ssl_fields(
+            self.audit_db_ssl_mode, self.audit_db_ssl_root_cert, self.audit_db_ssl_cert, self.audit_db_ssl_key
+        )
+        return self
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def audit_database_url(self) -> URL:
         """Get the audit database URL.
 
-        If APP_AUDIT_DATABASE_URL env var is set, use it directly.
-        Otherwise, compute from individual APP_AUDIT_DB_* components.
-
-        Returns a SQLAlchemy URL object which redacts credentials in
-        __repr__/__str__, preventing accidental exposure in logs.
+        If ``APP_AUDIT_DATABASE_URL`` is set, it is used verbatim and
+        all ``APP_AUDIT_DB_*`` / ``APP_AUDIT_DB_SSL_*`` fields are
+        ignored.  See :attr:`DatabaseSettings.database_url` for details.
         """
         override = os.environ.get("APP_AUDIT_DATABASE_URL")
         if override:

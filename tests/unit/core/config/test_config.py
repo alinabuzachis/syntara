@@ -2,6 +2,7 @@
 
 import os
 import warnings
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -95,7 +96,7 @@ class TestDatabaseSettings:
 
     def test_database_url_override(self) -> None:
         """Test that APP_DATABASE_URL overrides component-based URL."""
-        override_url = "postgresql+asyncpg://prod:s3cret@db.example.com:5432/proddb?sslmode=require"
+        override_url = "postgresql+asyncpg://prod:s3cret@db.example.com:5432/proddb"
         os.environ["APP_DATABASE_URL"] = override_url
         try:
             settings = Settings()
@@ -104,7 +105,6 @@ class TestDatabaseSettings:
             assert url.username == "prod"
             assert url.host == "db.example.com"
             assert url.database == "proddb"
-            assert url.query == {"sslmode": "require"}
         finally:
             os.environ.pop("APP_DATABASE_URL", None)
 
@@ -149,6 +149,208 @@ class TestDatabaseSettings:
                 Settings()
         finally:
             os.environ.pop("APP_DB_POOL_TIMEOUT_SECONDS", None)
+
+
+# =============================================================================
+# DatabaseSettings SSL Tests
+# =============================================================================
+
+
+class TestDatabaseSSLSettings:
+    """Tests for DatabaseSettings SSL configuration."""
+
+    def test_ssl_defaults(self) -> None:
+        settings = Settings()
+        assert settings.db_ssl_mode == "prefer"
+        assert settings.db_ssl_root_cert is None
+        assert settings.db_ssl_cert is None
+        assert settings.db_ssl_key is None
+
+    def test_ssl_mode_from_env(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        monkeypatch.setenv("APP_DB_SSL_MODE", "verify-full")
+        monkeypatch.setenv("APP_DB_SSL_ROOT_CERT", str(cert_file))
+        settings = Settings()
+        assert settings.db_ssl_mode == "verify-full"
+
+    def test_ssl_mode_case_insensitive(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        monkeypatch.setenv("APP_DB_SSL_MODE", "VERIFY-FULL")
+        monkeypatch.setenv("APP_DB_SSL_ROOT_CERT", str(cert_file))
+        settings = Settings()
+        assert settings.db_ssl_mode == "verify-full"
+
+    @pytest.mark.parametrize("mode", ["disable", "allow", "prefer", "require"])
+    def test_ssl_mode_valid_values(self, monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
+        monkeypatch.setenv("APP_DB_SSL_MODE", mode)
+        settings = Settings()
+        assert settings.db_ssl_mode == mode
+
+    @pytest.mark.parametrize("mode", ["verify-ca", "verify-full"])
+    def test_ssl_mode_verify_with_root_cert(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        monkeypatch.setenv("APP_DB_SSL_MODE", mode)
+        monkeypatch.setenv("APP_DB_SSL_ROOT_CERT", str(cert_file))
+        settings = Settings()
+        assert settings.db_ssl_mode == mode
+
+    def test_ssl_mode_invalid_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("APP_DB_SSL_MODE", "invalid")
+        with pytest.raises(ValidationError, match="Invalid SSL mode"):
+            Settings()
+
+    def test_ssl_root_cert_from_env(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        monkeypatch.setenv("APP_DB_SSL_ROOT_CERT", str(cert_file))
+        monkeypatch.setenv("APP_DB_SSL_MODE", "verify-full")
+        settings = Settings()
+        assert settings.db_ssl_root_cert == str(cert_file)
+
+    def test_ssl_client_cert_and_key_from_env(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "client.pem"
+        key_file = tmp_path / "client.key"
+        cert_file.write_text("fake cert")
+        key_file.write_text("fake key")
+        monkeypatch.setenv("APP_DB_SSL_CERT", str(cert_file))
+        monkeypatch.setenv("APP_DB_SSL_KEY", str(key_file))
+        monkeypatch.setenv("APP_DB_SSL_MODE", "require")
+        settings = Settings()
+        assert settings.db_ssl_cert == str(cert_file)
+        assert settings.db_ssl_key == str(key_file)
+
+    def test_ssl_cert_path_validation_nonexistent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("APP_DB_SSL_ROOT_CERT", "/nonexistent/ca.pem")
+        monkeypatch.setenv("APP_DB_SSL_MODE", "verify-full")
+        with pytest.raises(ValidationError, match=r"SSL .* file not found"):
+            Settings()
+
+    def test_database_url_override_takes_precedence(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        override_url = "postgresql+asyncpg://u:p@h:5432/d"
+        monkeypatch.setenv("APP_DATABASE_URL", override_url)
+        monkeypatch.setenv("APP_DB_SSL_MODE", "verify-full")
+        monkeypatch.setenv("APP_DB_SSL_ROOT_CERT", str(cert_file))
+        settings = Settings()
+        url = settings.database_url
+        assert url.host == "h"
+        assert url.database == "d"
+
+    def test_ssl_key_without_cert_rejected(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        key_file = tmp_path / "client.key"
+        key_file.write_text("fake key")
+        monkeypatch.setenv("APP_DB_SSL_KEY", str(key_file))
+        monkeypatch.setenv("APP_DB_SSL_MODE", "require")
+        with pytest.raises(ValidationError, match="requires a client certificate"):
+            Settings()
+
+    def test_ssl_client_certs_with_disable_rejected(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "client.pem"
+        key_file = tmp_path / "client.key"
+        cert_file.write_text("fake cert")
+        key_file.write_text("fake key")
+        monkeypatch.setenv("APP_DB_SSL_MODE", "disable")
+        monkeypatch.setenv("APP_DB_SSL_CERT", str(cert_file))
+        monkeypatch.setenv("APP_DB_SSL_KEY", str(key_file))
+        with pytest.raises(ValidationError, match="only supported with"):
+            Settings()
+
+    def test_ssl_client_certs_with_prefer_rejected(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "client.pem"
+        key_file = tmp_path / "client.key"
+        cert_file.write_text("fake cert")
+        key_file.write_text("fake key")
+        monkeypatch.setenv("APP_DB_SSL_MODE", "prefer")
+        monkeypatch.setenv("APP_DB_SSL_CERT", str(cert_file))
+        monkeypatch.setenv("APP_DB_SSL_KEY", str(key_file))
+        with pytest.raises(ValidationError, match="only supported with"):
+            Settings()
+
+    def test_ssl_verify_full_without_root_cert_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("APP_DB_SSL_MODE", "verify-full")
+        with pytest.raises(ValidationError, match="requires ssl_root_cert"):
+            Settings()
+
+
+# =============================================================================
+# AuditDatabaseSettings SSL Tests
+# =============================================================================
+
+
+class TestAuditDatabaseSSLSettings:
+    """Tests for AuditDatabaseSettings SSL configuration."""
+
+    def test_audit_ssl_defaults(self) -> None:
+        settings = Settings()
+        assert settings.audit_db_ssl_mode == "prefer"
+        assert settings.audit_db_ssl_root_cert is None
+        assert settings.audit_db_ssl_cert is None
+        assert settings.audit_db_ssl_key is None
+
+    def test_audit_ssl_mode_from_env(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_MODE", "verify-full")
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_ROOT_CERT", str(cert_file))
+        settings = Settings()
+        assert settings.audit_db_ssl_mode == "verify-full"
+
+    def test_audit_ssl_mode_invalid_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_MODE", "invalid")
+        with pytest.raises(ValidationError, match="Invalid SSL mode"):
+            Settings()
+
+    def test_audit_ssl_root_cert_from_env(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_ROOT_CERT", str(cert_file))
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_MODE", "verify-full")
+        settings = Settings()
+        assert settings.audit_db_ssl_root_cert == str(cert_file)
+
+    def test_audit_database_url_override_takes_precedence(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        cert_file = tmp_path / "ca.pem"
+        cert_file.write_text("fake cert")
+        override_url = "postgresql+asyncpg://u:p@h:5432/d"
+        monkeypatch.setenv("APP_AUDIT_DATABASE_URL", override_url)
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_MODE", "verify-full")
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_ROOT_CERT", str(cert_file))
+        settings = Settings()
+        url = settings.audit_database_url
+        assert url.host == "h"
+        assert url.database == "d"
+
+    def test_audit_ssl_key_without_cert_rejected(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        key_file = tmp_path / "client.key"
+        key_file.write_text("fake key")
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_KEY", str(key_file))
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_MODE", "require")
+        with pytest.raises(ValidationError, match="requires a client certificate"):
+            Settings()
+
+    def test_audit_ssl_client_certs_with_disable_rejected(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        cert_file = tmp_path / "client.pem"
+        key_file = tmp_path / "client.key"
+        cert_file.write_text("fake cert")
+        key_file.write_text("fake key")
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_MODE", "disable")
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_CERT", str(cert_file))
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_KEY", str(key_file))
+        with pytest.raises(ValidationError, match="only supported with"):
+            Settings()
+
+    def test_audit_ssl_verify_full_without_root_cert_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("APP_AUDIT_DB_SSL_MODE", "verify-full")
+        with pytest.raises(ValidationError, match="requires ssl_root_cert"):
+            Settings()
 
 
 # =============================================================================

@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.core.config.base import get_settings
+from nexus.core.database.ssl import build_ssl_connect_args
 from nexus.core.logging.logging import configure_structlog
 
 # Ensure model is registered with SQLModel metadata
@@ -119,10 +120,18 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in async mode."""
+    settings = get_settings()
+    ssl_connect_args = build_ssl_connect_args(
+        ssl_mode=settings.audit_db_ssl_mode,
+        ssl_root_cert=settings.audit_db_ssl_root_cert,
+        ssl_cert=settings.audit_db_ssl_cert,
+        ssl_key=settings.audit_db_ssl_key,
+    )
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=ssl_connect_args,
     )
 
     async with connectable.connect() as connection:

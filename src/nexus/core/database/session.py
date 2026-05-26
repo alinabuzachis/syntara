@@ -9,8 +9,16 @@ from sqlalchemy.orm import Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.config.base import get_settings
+from nexus.core.database.ssl import build_ssl_connect_args
 
 settings = get_settings()
+
+_ssl_connect_args = build_ssl_connect_args(
+    ssl_mode=settings.db_ssl_mode,
+    ssl_root_cert=settings.db_ssl_root_cert,
+    ssl_cert=settings.db_ssl_cert,
+    ssl_key=settings.db_ssl_key,
+)
 
 # Create async engine with connection pooling
 engine = create_async_engine(
@@ -21,6 +29,7 @@ engine = create_async_engine(
     pool_timeout=settings.db_pool_timeout_seconds,  # Timeout waiting for an available connection
     pool_pre_ping=True,  # Verify connections before using them
     pool_recycle=3600,  # Recycle connections after 1 hour
+    connect_args=_ssl_connect_args,
 )
 
 # Create async session factory
