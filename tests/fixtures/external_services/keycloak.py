@@ -129,12 +129,14 @@ def _create_realm_user(base_url: str) -> None:
         resp.raise_for_status()
 
 
-def _get_realm_user_id(base_url: str) -> str:
+def _get_realm_user_id(base_url: str, username: str | None = None) -> str:
+    """Return Keycloak user id for ``username``, or the fixture admin user when omitted."""
+    lookup_username = username if username is not None else _KEYCLOAK_NEXUS_ADMIN_USERNAME
     token = _get_admin_token(base_url)
     headers = {"Authorization": f"Bearer {token}"}
     resp = httpx.get(
         f"{base_url}/admin/realms/{_REALM}/users",
-        params={"username": _KEYCLOAK_NEXUS_ADMIN_USERNAME, "exact": "true"},
+        params={"username": lookup_username, "exact": "true"},
         headers=headers,
         verify=False,  # noqa: S501
         timeout=30,
@@ -142,7 +144,7 @@ def _get_realm_user_id(base_url: str) -> str:
     resp.raise_for_status()
     users = resp.json()
     if not users:
-        msg = f"User {_KEYCLOAK_NEXUS_ADMIN_USERNAME!r} not found in realm {_REALM!r}"
+        msg = f"User {lookup_username!r} not found in realm {_REALM!r}"
         raise RuntimeError(msg)
     return str(users[0]["id"])
 
@@ -385,6 +387,69 @@ def oidc_provider_factory(
             nexus_api.identity_providers.delete(provider_id=provider_id)
         except Exception:
             logger.warning("Failed to clean up OIDC provider %s", provider_id, exc_info=True)
+
+
+@pytest.fixture
+def group_mapping_provider_factory(
+    nexus_api: NexusApiRegistry,
+    keycloak_service: HttpApiService,
+    nexus_base_url: str,
+) -> Generator[Callable[..., IdentityProviderResponse], None, None]:
+    """Factory that creates group-mapping OIDC providers with automatic cleanup."""
+    created_provider_ids: list[UUID] = []
+
+    def _create(
+        *,
+        group_jmespath_expression: str | None = "groups[*]",
+        group_mapping_entries: list[OIDCGroupMappingEntry] | None = None,
+        allow_all_authenticated: bool = False,
+    ) -> IdentityProviderResponse:
+        from tests.e2e.authentication.group_mapping_helpers import create_group_mapping_provider
+        from tests.fixtures.external_services.keycloak_groups import ensure_groups_claim_mapper
+
+        ensure_groups_claim_mapper(keycloak_service.url)
+        provider = create_group_mapping_provider(
+            nexus_api,
+            keycloak_service.url,
+            nexus_base_url,
+            group_jmespath_expression=group_jmespath_expression,
+            group_mapping_entries=group_mapping_entries,
+            allow_all_authenticated=allow_all_authenticated,
+        )
+        assert isinstance(provider.id, UUID)
+        created_provider_ids.append(provider.id)
+        return provider
+
+    yield _create
+
+    for provider_id in created_provider_ids:
+        try:
+            nexus_api.identity_providers.delete(provider_id=provider_id)
+        except Exception:
+            logger.warning("Failed to clean up group-mapping OIDC provider %s", provider_id, exc_info=True)
+
+
+@pytest.fixture
+def nexus_group_factory(
+    nexus_api: NexusApiRegistry,
+) -> Generator[Callable[[str], UUID], None, None]:
+    """Factory that creates Nexus groups with automatic cleanup (group-mapping E2E tests)."""
+    from tests.e2e.authentication.group_mapping_helpers import create_nexus_group, delete_nexus_group
+
+    created_group_ids: list[UUID] = []
+
+    def _create(name: str) -> UUID:
+        group_id = create_nexus_group(nexus_api, name)
+        created_group_ids.append(group_id)
+        return group_id
+
+    yield _create
+
+    for group_id in created_group_ids:
+        try:
+            delete_nexus_group(nexus_api, group_id)
+        except Exception:
+            logger.warning("Failed to clean up Nexus group %s", group_id, exc_info=True)
 
 
 @pytest.fixture

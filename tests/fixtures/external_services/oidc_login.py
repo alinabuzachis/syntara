@@ -136,14 +136,14 @@ def create_oidc_identity_provider(
     return cast("IdentityProviderResponse", provider)
 
 
-def create_oidc_auth_client(
+def create_oidc_login_session(
     nexus_base_url: str,
     nexus_api: NexusApiRegistry,
     oidc_provider_id: UUID,
     username: str | None = None,
     password: str | None = None,
-) -> "AuthenticatedClient":
-    """Create an OIDC IdP authenticated client."""
+) -> tuple[str, dict[str, str]]:
+    """Complete OIDC login and return (access_token, refresh_token cookies)."""
     auth_resp = nexus_api.authentication.oidc_authorize(provider_id=oidc_provider_id)
 
     if auth_resp.status_code not in (HTTPStatus.FOUND, HTTPStatus.TEMPORARY_REDIRECT):
@@ -166,15 +166,23 @@ def create_oidc_auth_client(
         msg = "Unable to login with OIDC authorization."
         raise RuntimeError(msg)
 
-    set_cookie = oidc_callback_resp.headers["set-cookie"]
+    location = oidc_callback_resp.headers.get("location", "")
+    set_cookie = oidc_callback_resp.headers.get("set-cookie")
+    if not set_cookie:
+        if "auth_error" in location:
+            callback_parsed = urlparse(location)
+            auth_errors = parse_qs(callback_parsed.query).get("auth_error", [])
+            auth_detail = auth_errors[0] if auth_errors else location
+            msg = f"OIDC login denied: {auth_detail}"
+            raise RuntimeError(msg)
+        msg = f"OIDC callback missing session cookie; location={location!r}"
+        raise RuntimeError(msg)
     cookie_match = re.search(r"ao_refresh_token=([^;]+)", set_cookie)
     if cookie_match is None:
         msg = "Unable to find refresh token in response cookies."
         raise RuntimeError(msg)
-    refresh_token = cookie_match.group(1)
-    refresh_token_client = Client(
-        base_url=f"{nexus_base_url}/api/v1", cookies={"ao_refresh_token": refresh_token}, verify_ssl=False
-    )
+    refresh_cookies = {"ao_refresh_token": cookie_match.group(1)}
+    refresh_token_client = Client(base_url=f"{nexus_base_url}/api/v1", cookies=refresh_cookies, verify_ssl=False)
     refresh_resp = refresh_sync(client=refresh_token_client)
     if refresh_resp.status_code != HTTPStatus.OK:
         msg = "Unable to login with OIDC authorization."
@@ -184,5 +192,65 @@ def create_oidc_auth_client(
     if not isinstance(parsed, AccessTokenResponse):
         msg = "Unable to login with OIDC authorization."
         raise RuntimeError(msg)  # noqa: TRY004
-    access_token = parsed.access_token
+    return parsed.access_token, refresh_cookies
+
+
+def create_oidc_auth_client(
+    nexus_base_url: str,
+    nexus_api: NexusApiRegistry,
+    oidc_provider_id: UUID,
+    username: str | None = None,
+    password: str | None = None,
+) -> "AuthenticatedClient":
+    """Create an OIDC IdP authenticated client."""
+    access_token, _refresh_cookies = create_oidc_login_session(
+        nexus_base_url=nexus_base_url,
+        nexus_api=nexus_api,
+        oidc_provider_id=oidc_provider_id,
+        username=username,
+        password=password,
+    )
     return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=access_token, verify_ssl=False)
+
+
+def assert_oidc_login_denied(
+    nexus_base_url: str,
+    nexus_api: NexusApiRegistry,
+    oidc_provider_id: UUID,
+    *,
+    username: str,
+    password: str,
+) -> str:
+    """Complete OIDC login expecting group-mapping denial (auth_error redirect).
+
+    Returns the decoded auth_error query parameter from the callback redirect.
+    """
+    auth_resp = nexus_api.authentication.oidc_authorize(provider_id=oidc_provider_id)
+    if auth_resp.status_code not in (HTTPStatus.FOUND, HTTPStatus.TEMPORARY_REDIRECT):
+        msg = f"Expected OIDC authorize redirect, got {auth_resp.status_code}"
+        raise AssertionError(msg)
+
+    oidc_auth_url = auth_resp.headers["location"]
+    client = httpx.Client(verify=False, follow_redirects=True)  # noqa: S501
+    idp_resp = _idp_form_user_login(client=client, login_url=oidc_auth_url, username=username, password=password)
+    idp_parsed = urlparse(idp_resp.headers["Location"])
+    query_params = parse_qs(idp_parsed.query)
+
+    oidc_callback_resp = nexus_api.authentication.oidc_callback(
+        state=query_params["state"][0], code=query_params["code"][0]
+    )
+    if oidc_callback_resp.status_code != HTTPStatus.FOUND:
+        msg = f"Expected callback redirect, got {oidc_callback_resp.status_code}"
+        raise AssertionError(msg)
+
+    location = oidc_callback_resp.headers.get("location", "")
+    if "auth_error" not in location:
+        msg = f"Expected auth_error in callback redirect, got location={location!r}"
+        raise AssertionError(msg)
+
+    callback_parsed = urlparse(location)
+    auth_errors = parse_qs(callback_parsed.query).get("auth_error", [])
+    if not auth_errors:
+        msg = f"Missing auth_error query param in redirect: {location!r}"
+        raise AssertionError(msg)
+    return auth_errors[0]
