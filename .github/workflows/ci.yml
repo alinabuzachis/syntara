@@ -88,11 +88,7 @@ jobs:
         run: make install
 
       - name: Install OPA CLI
-        run: |
-          OPA_VERSION="v1.4.2"
-          curl -fsSL "https://github.com/open-policy-agent/opa/releases/download/${OPA_VERSION}/opa_linux_amd64_static" -o /usr/local/bin/opa
-          chmod +x /usr/local/bin/opa
-          opa version
+        run: make install-opa
 
       - name: Generate secrets
         run: make secrets-generate

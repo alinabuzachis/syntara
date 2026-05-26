@@ -38,8 +38,10 @@ COMPOSE_FINAL_CMD := $(COMPOSE_CMD) $(COMPOSE_ARGS)
 
 # UV environment setup
 # ========================================================
+OPA_VERSION := v1.4.2
+
 .PHONY: install
-install: _deps-install-dev _deps-install-pre-commit ## Complete setup from scratch
+install: _deps-install-dev _deps-install-pre-commit _install-opa ## Complete setup from scratch
 	@echo ""
 	@echo "🎉 Nexus setup complete!"
 	@echo ""
@@ -67,6 +69,28 @@ _deps-install-pre-commit:
 	@echo "✅ Pre-commit hooks installed successfully"
 	@echo "  To bypass hooks: git commit --no-verify"
 	@echo "  To update hooks: make update-hooks"
+
+.PHONY: install-opa
+install-opa: _install-opa ## Install OPA CLI binary into .venv/bin
+
+_install-opa:
+	@if [ -x .venv/bin/opa ] && .venv/bin/opa version 2>/dev/null | grep -q "$(patsubst v%,%,$(OPA_VERSION))"; then \
+		echo "✅ OPA $(OPA_VERSION) already installed"; \
+	else \
+		echo "📦 Installing OPA $(OPA_VERSION)..."; \
+		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+		ARCH=$$(uname -m); \
+		case "$${OS}_$${ARCH}" in \
+			darwin_arm64)  BINARY="opa_darwin_arm64_static" ;; \
+			darwin_x86_64) BINARY="opa_darwin_amd64" ;; \
+			linux_x86_64)  BINARY="opa_linux_amd64_static" ;; \
+			linux_aarch64) BINARY="opa_linux_arm64_static" ;; \
+			*) echo "❌ Unsupported platform: $${OS}/$${ARCH}"; exit 1 ;; \
+		esac; \
+		curl -fsSL "https://github.com/open-policy-agent/opa/releases/download/$(OPA_VERSION)/$${BINARY}" -o .venv/bin/opa; \
+		chmod +x .venv/bin/opa; \
+		echo "✅ OPA $(OPA_VERSION) installed to .venv/bin/opa"; \
+	fi
 
 _check-uv:
 	@if ! command -v uv >/dev/null 2>&1; then \
