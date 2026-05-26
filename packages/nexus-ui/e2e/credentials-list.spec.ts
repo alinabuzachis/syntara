@@ -20,6 +20,31 @@ import {
   goToCredentialsList,
 } from './helpers/credentials'
 import { buildUniqueName } from './helpers/workflows'
+import { createCredentialSeed, deleteCredentialViaApi, type SeededCredential } from './seeds/resources'
+import { getAuthToken } from './utils/api'
+
+const seededCredentials: SeededCredential[] = []
+
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  const token = await getAuthToken(page)
+  if (token) {
+    const prefix = buildUniqueName('e2e-credlist')
+    for (let i = 1; i <= 3; i++) {
+      const cred = await createCredentialSeed(page, { name: `${prefix}-cred-${i}`, token })
+      if (cred) seededCredentials.push(cred)
+    }
+  }
+  await page.close()
+})
+
+test.afterAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  for (const cred of seededCredentials) {
+    await deleteCredentialViaApi(page, cred.id)
+  }
+  await page.close()
+})
 
 // ---------------------------------------------------------------------------
 // Test 2: Credentials List Page — Empty State

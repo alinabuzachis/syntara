@@ -28,6 +28,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
+      await row.waitFor({ state: 'visible', timeout: 10_000 })
       await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')

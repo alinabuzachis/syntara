@@ -1,7 +1,51 @@
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
+import {
+  createRoleAssignmentViaApi,
+  createUserViaApi,
+  deleteRoleAssignmentViaApi,
+  deleteUserViaApi,
+  type SeededRoleAssignment,
+  type SeededUser,
+} from './seeds/iam'
+import { ensureProject, getAuthToken } from './utils/api'
 
 test.describe('destructive modal UX compliance (AAP-72897)', () => {
+  let seededUser: SeededUser | null = null
+  let seededAssignment: SeededRoleAssignment | null = null
+
+  test.beforeAll(async ({ browser }) => {
+    const page = await browser.newPage()
+    const token = await getAuthToken(page)
+    if (token) {
+      const prefix = buildUniqueName('e2e-dm')
+      seededUser = await createUserViaApi(page, { username: `${prefix}-user`, token })
+
+      if (seededUser) {
+        const project = await ensureProject(page)
+        if (project) {
+          seededAssignment = await createRoleAssignmentViaApi(page, project.id, {
+            userId: seededUser.id,
+            roleName: 'admin',
+            token,
+          })
+        }
+      }
+    }
+    await page.close()
+  })
+
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage()
+    if (seededAssignment) {
+      await deleteRoleAssignmentViaApi(page, seededAssignment.projectId, seededAssignment.id)
+    }
+    if (seededUser) {
+      await deleteUserViaApi(page, seededUser.id)
+    }
+    await page.close()
+  })
+
   test('disconnect integration modal matches UX spec', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-disconnect-modal')
     await app.goto(toAppUrl('/configuration/integrations'))

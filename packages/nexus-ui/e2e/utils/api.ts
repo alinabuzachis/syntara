@@ -17,11 +17,10 @@ function apiUrl(path: string): string {
 /** Authenticate via the API and return an access token */
 export async function getAuthToken(app: Page): Promise<string | null> {
   const password = process.env.NEXUS_E2E_PASSWORD
-  if (!password) return null
 
   try {
     const resp = await app.request.post(apiUrl('/auth/login'), {
-      data: { username: 'admin', password },
+      data: { username: 'admin', password: password ?? 'mock' },
     })
     if (!resp.ok()) return null
     const body = (await resp.json()) as { access_token?: string }
@@ -56,12 +55,9 @@ export async function apiRequest(
 
 /**
  * Ensure a project exists and return its ID.
- * Tries API first; falls back gracefully when RBAC blocks creation (CI).
+ * Lists projects first; creates one if missing. Returns null if API is unavailable.
  */
 export async function ensureProject(app: Page, name = 'default'): Promise<{ id: string; name: string } | null> {
-  const password = process.env.NEXUS_E2E_PASSWORD
-  if (!password) return null
-
   try {
     const token = await getAuthToken(app)
     if (!token) return null
@@ -158,4 +154,3 @@ export async function listCredentialsByName(app: Page, name: string): Promise<Ar
     return []
   }
 }
-

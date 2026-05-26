@@ -23,8 +23,31 @@
  * - Roles tab skips when no seed data is available (empty state has no Create button)
  */
 import { test, expect, toAppUrl } from './fixtures'
+import { buildUniqueName } from './helpers/workflows'
+import { createRoleViaApi, deleteRoleViaApi, type SeededRole } from './seeds/iam'
+import { getAuthToken } from './utils/api'
 
 const ACCESS_URL = '/system-administration/access-management'
+
+let seededRole: SeededRole | null = null
+
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  const token = await getAuthToken(page)
+  if (token) {
+    const prefix = buildUniqueName('e2e-amb')
+    seededRole = await createRoleViaApi(page, { name: `${prefix}-role`, token })
+  }
+  await page.close()
+})
+
+test.afterAll(async ({ browser }) => {
+  if (seededRole) {
+    const page = await browser.newPage()
+    await deleteRoleViaApi(page, seededRole.id)
+    await page.close()
+  }
+})
 
 type ModalTabCase = {
   /** Regex matched against the tab's accessible name to click it. */

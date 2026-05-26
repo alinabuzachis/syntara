@@ -1,4 +1,37 @@
 import { test, expect, toAppUrl } from './fixtures'
+import { buildUniqueName } from './helpers/workflows'
+import { createWorkflowViaApi, deleteWorkflowViaApi, type SeededWorkflow } from './seeds/resources'
+import { ensureProject, getAuthToken } from './utils/api'
+
+const seededWorkflows: SeededWorkflow[] = []
+
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  const token = await getAuthToken(page)
+  if (token) {
+    const prefix = buildUniqueName('e2e-wffilt')
+    const project = await ensureProject(page)
+    const projectId = project?.id
+
+    for (let i = 1; i <= 22; i++) {
+      const wf = await createWorkflowViaApi(page, {
+        name: `${prefix}-workflow-${i}`,
+        projectId,
+        token,
+      })
+      if (wf) seededWorkflows.push(wf)
+    }
+  }
+  await page.close()
+})
+
+test.afterAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  for (const wf of seededWorkflows) {
+    await deleteWorkflowViaApi(page, wf.id)
+  }
+  await page.close()
+})
 
 test.describe('Workflow Filtering', () => {
   test('full user flow: add filters → view results → clear filters', async ({ app }) => {

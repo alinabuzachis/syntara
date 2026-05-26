@@ -15,8 +15,52 @@
  * - User detail sub-tabs sync to URL
  */
 import { test, expect, toAppUrl } from './fixtures'
+import { buildUniqueName } from './helpers/workflows'
+import {
+  createPolicyViaApi,
+  createUserViaApi,
+  deletePolicyViaApi,
+  deleteUserViaApi,
+  type SeededPolicy,
+  type SeededUser,
+} from './seeds/iam'
+import { ensureProject, getAuthToken } from './utils/api'
 
 const ACCESS_URL = '/system-administration/access-management'
+
+const seededUsers: SeededUser[] = []
+const seededPolicies: SeededPolicy[] = []
+
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  const token = await getAuthToken(page)
+  if (token) {
+    const prefix = buildUniqueName('e2e-am')
+
+    for (let i = 1; i <= 2; i++) {
+      const user = await createUserViaApi(page, { username: `${prefix}-user-${i}`, token })
+      if (user) seededUsers.push(user)
+    }
+
+    const project = await ensureProject(page)
+    if (project) {
+      const policy = await createPolicyViaApi(page, project.id, { name: `${prefix}-policy`, token })
+      if (policy) seededPolicies.push(policy)
+    }
+  }
+  await page.close()
+})
+
+test.afterAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  for (const policy of seededPolicies) {
+    await deletePolicyViaApi(page, policy.projectId, policy.id)
+  }
+  for (const user of seededUsers) {
+    await deleteUserViaApi(page, user.id)
+  }
+  await page.close()
+})
 
 test.describe('Access Management — Tab Navigation', () => {
   test.beforeEach(async ({ app }) => {

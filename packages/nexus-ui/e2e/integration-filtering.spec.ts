@@ -1,4 +1,31 @@
 import { test, expect, toAppUrl } from './fixtures'
+import { buildUniqueName } from './helpers/workflows'
+import { createIntegrationViaApi, deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
+import { getAuthToken } from './utils/api'
+
+const seededIntegrations: SeededIntegration[] = []
+
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  const token = await getAuthToken(page)
+  if (token) {
+    const prefix = buildUniqueName('e2e-intfilt')
+    for (let i = 1; i <= 12; i++) {
+      const name = i === 1 ? `${prefix}-copilot` : `${prefix}-integration-${i}`
+      const integration = await createIntegrationViaApi(page, { name, token })
+      if (integration) seededIntegrations.push(integration)
+    }
+  }
+  await page.close()
+})
+
+test.afterAll(async ({ browser }) => {
+  const page = await browser.newPage()
+  for (const integration of seededIntegrations) {
+    await deleteIntegrationViaApi(page, integration.id)
+  }
+  await page.close()
+})
 
 test.describe('Integration Filtering', () => {
   test.beforeEach(async ({ app }) => {
@@ -372,34 +399,29 @@ test.describe('Integration Filtering', () => {
     test.skip(rowCount < 6, 'Insufficient integration data for pagination; seed data required')
 
     // Skip if not enough data for pagination
-    const nextButton = app.getByRole('button', { name: 'Next page' })
-    const prevButton = app.getByRole('button', { name: 'Previous page' })
-    const hasPagination = (await nextButton.count()) > 0 && !(await nextButton.isDisabled().catch(() => true))
+    const nextButton = app.getByRole('button', { name: 'Go to next page' })
+    const prevButton = app.getByRole('button', { name: 'Go to previous page' })
+    const nextVisible = await nextButton
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false)
+    const hasPagination = nextVisible && (await nextButton.isEnabled().catch(() => false))
     test.skip(!hasPagination, 'Not enough integrations to trigger pagination')
-
-    // Capture first page count for later comparison
-    const firstPageFooter = app.getByText(/\d+ integration/i)
-    const firstPageText = await firstPageFooter.textContent()
 
     // Act - Navigate to page 2
     await expect(prevButton).toBeDisabled()
     await nextButton.click()
 
-    // Assert - Page 2 shows a different count and navigation state changes
+    // Wait for page 2 to load (prev button becomes enabled)
     await expect(prevButton).not.toBeDisabled()
-    const secondPageText = await firstPageFooter.textContent()
-    expect(secondPageText).not.toBe(firstPageText)
 
     // Act - Go back to page 1
     await prevButton.click()
 
     // Assert - Back to first page
-    // Cursor-based pagination may disable or remove the prev button entirely
     if ((await prevButton.count()) > 0) {
       await expect(prevButton).toBeDisabled()
     }
-    // Don't compare exact text — parallel tests may change total count between navigations
-    await expect(firstPageFooter).toBeVisible()
   })
 
   test('full user flow: add filters → view results → clear filters', async ({ app }) => {

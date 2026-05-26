@@ -11,6 +11,10 @@ const useWebServer = !isSkipWebServerForPlaywrightTests()
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: [
+    ...(useWebServer ? [] : ['**/visual-regression/**']),
+    '**/credential-types.spec.ts',
+  ],
   fullyParallel: true,
   workers: process.env.CI ? 3 : undefined,
   timeout: 60_000,

@@ -15,7 +15,9 @@ import { buildUniqueName, selectFirstProject } from './workflows'
  */
 export async function selectCredentialType(container: Locator, typeName: string): Promise<void> {
   await container.getByRole('button', { name: 'Credential type', exact: true }).click()
-  await container.getByRole('option', { name: typeName }).click()
+  const option = container.getByRole('option', { name: typeName })
+  await option.waitFor({ state: 'visible', timeout: 10_000 })
+  await option.click()
 }
 
 /** Open the Create Credential modal and return the dialog locator. */

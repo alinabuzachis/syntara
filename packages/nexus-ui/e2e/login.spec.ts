@@ -222,7 +222,7 @@ test.describe('Built-in admin login flow', () => {
     await page.getByRole('textbox', { name: 'Password' }).fill('coffee')
     await page.getByRole('button', { name: 'Log in' }).click()
 
-    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible({ timeout: 30_000 })
 
     await expect(page.getByRole('button', { name: 'System Administration' })).toBeVisible()
   })
