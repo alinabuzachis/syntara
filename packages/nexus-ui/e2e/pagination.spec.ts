@@ -11,118 +11,81 @@ import type { Page } from '@playwright/test'
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName } from './helpers/workflows'
 import {
+  createUserViaApi,
+  deleteGroupViaApi,
+  deleteUserViaApi,
+  ensureGroupExists,
+  type SeededGroup,
+  type SeededUser,
+} from './seeds/iam'
+import {
   createCredentialSeed,
+  createIdentityProviderViaApi,
   createIntegrationViaApi,
   createWorkflowViaApi,
   deleteCredentialViaApi,
+  deleteIdentityProviderViaApi,
   deleteIntegrationViaApi,
   deleteWorkflowViaApi,
   type SeededCredential,
+  type SeededIdentityProvider,
   type SeededIntegration,
   type SeededWorkflow,
 } from './seeds/resources'
 import { ensureProject, getAuthToken } from './utils/api'
 
-const mockApiBase = `http://localhost:${process.env.NEXUS_E2E_API_PORT ?? '3300'}`
-
 const seededWorkflows: SeededWorkflow[] = []
 const seededCredentials: SeededCredential[] = []
 const seededIntegrations: SeededIntegration[] = []
-const seededUserIds: string[] = []
-const seededGroupIds: string[] = []
-const seededIdPIds: string[] = []
+const seededUsers: SeededUser[] = []
+const seededGroups: SeededGroup[] = []
+const seededIdPs: SeededIdentityProvider[] = []
 
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage()
   const token = await getAuthToken(page)
   const prefix = buildUniqueName('e2e-pag')
 
-  if (token) {
-    const project = await ensureProject(page)
-    const projectId = project?.id
-
-    const workflowPromises = Array.from({ length: 22 }, (_, i) =>
-      createWorkflowViaApi(page, { name: `${prefix}-workflow-${i + 1}`, projectId, token })
-    )
-    for (const p of workflowPromises) {
-      const wf = await p
-      if (wf) seededWorkflows.push(wf)
-    }
-
-    for (let i = 1; i <= 2; i++) {
-      const cred = await createCredentialSeed(page, { name: `${prefix}-cred-${i}`, projectId, token })
-      if (cred) seededCredentials.push(cred)
-    }
-
-    for (let i = 1; i <= 2; i++) {
-      const integration = await createIntegrationViaApi(page, { name: `${prefix}-integ-${i}`, token })
-      if (integration) seededIntegrations.push(integration)
-    }
+  if (!token) {
+    await page.close()
+    return
   }
 
-  // Seed users, groups, and identity providers directly to the mock API.
-  // The mock API doesn't require auth and the default per-page is 20,
-  // so we need >20 total items (existing + seeded) for pagination to render.
-  if (!token) {
-    for (let i = 1; i <= 16; i++) {
-      try {
-        const resp = await page.request.post(`${mockApiBase}/api/v1/users`, {
-          data: {
-            username: `${prefix}-user-${i}`,
-            email: `${prefix}-user-${i}@e2e.test`,
-            full_name: `E2E Pagination User ${i}`,
-            password: 'e2e-test-password',
-          },
-        })
-        if (resp.ok()) {
-          const user = (await resp.json()) as { id: string }
-          seededUserIds.push(user.id)
-        }
-      } catch {
-        // best-effort
-      }
-    }
+  const project = await ensureProject(page)
+  const projectId = project?.id
 
-    for (let i = 1; i <= 15; i++) {
-      try {
-        const resp = await page.request.post(`${mockApiBase}/api/v1/groups`, {
-          data: {
-            name: `${prefix}-group-${i}`,
-            description: `E2E pagination seed group ${i}`,
-          },
-        })
-        if (resp.ok()) {
-          const group = (await resp.json()) as { id: string }
-          seededGroupIds.push(group.id)
-        }
-      } catch {
-        // best-effort
-      }
-    }
+  const workflowResults = await Promise.allSettled(
+    Array.from({ length: 22 }, (_, i) =>
+      createWorkflowViaApi(page, { name: `${prefix}-workflow-${i + 1}`, projectId, token })
+    )
+  )
+  for (const result of workflowResults) {
+    if (result.status === 'fulfilled' && result.value) seededWorkflows.push(result.value)
+  }
 
-    for (let i = 1; i <= 21; i++) {
-      try {
-        const resp = await page.request.post(`${mockApiBase}/api/v1/identity_providers`, {
-          data: {
-            name: `${prefix}-idp-${i}`,
-            description: `E2E pagination seed IdP ${i}`,
-            enabled: true,
-            configuration: {
-              provider_type: 'oidc',
-              issuer_url: `https://${prefix}-idp-${i}.example.com`,
-              client_id: 'e2e-client-id',
-              client_secret: 'e2e-client-secret',
-            },
-          },
-        })
-        if (resp.ok()) {
-          const idp = (await resp.json()) as { id: string }
-          seededIdPIds.push(idp.id)
-        }
-      } catch {
-        // best-effort
-      }
-    }
+  for (let i = 1; i <= 2; i++) {
+    const cred = await createCredentialSeed(page, { name: `${prefix}-cred-${i}`, projectId, token })
+    if (cred) seededCredentials.push(cred)
+  }
+
+  for (let i = 1; i <= 2; i++) {
+    const integration = await createIntegrationViaApi(page, { name: `${prefix}-integ-${i}`, token })
+    if (integration) seededIntegrations.push(integration)
+  }
+
+  for (let i = 1; i <= 16; i++) {
+    const user = await createUserViaApi(page, { username: `${prefix}-user-${i}`, token })
+    if (user) seededUsers.push(user)
+  }
+
+  for (let i = 1; i <= 15; i++) {
+    const group = await ensureGroupExists(page, `${prefix}-group-${i}`)
+    if (group) seededGroups.push(group)
+  }
+
+  for (let i = 1; i <= 21; i++) {
+    const idp = await createIdentityProviderViaApi(page, { name: `${prefix}-idp-${i}`, token })
+    if (idp) seededIdPs.push(idp)
   }
 
   await page.close()
@@ -140,28 +103,14 @@ test.afterAll(async ({ browser }) => {
   for (const integration of seededIntegrations) {
     await deleteIntegrationViaApi(page, integration.id)
   }
-
-  // Clean up mock API seeded data
-  for (const id of seededUserIds) {
-    try {
-      await page.request.delete(`${mockApiBase}/api/v1/users/${id}`)
-    } catch {
-      // best-effort
-    }
+  for (const user of seededUsers) {
+    await deleteUserViaApi(page, user.id)
   }
-  for (const id of seededGroupIds) {
-    try {
-      await page.request.delete(`${mockApiBase}/api/v1/groups/${id}`)
-    } catch {
-      // best-effort
-    }
+  for (const group of seededGroups) {
+    if (group.createdByUs) await deleteGroupViaApi(page, group.id)
   }
-  for (const id of seededIdPIds) {
-    try {
-      await page.request.delete(`${mockApiBase}/api/v1/identity_providers/${id}`)
-    } catch {
-      // best-effort
-    }
+  for (const idp of seededIdPs) {
+    await deleteIdentityProviderViaApi(page, idp.id)
   }
 
   await page.close()

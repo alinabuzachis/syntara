@@ -13,6 +13,7 @@ import { buildUniqueName } from './helpers/workflows'
 import {
   createRoleViaApi,
   createUserViaApi,
+  deleteGroupViaApi,
   deleteRoleViaApi,
   deleteUserViaApi,
   ensureGroupExists,
@@ -56,7 +57,6 @@ test.afterAll(async ({ browser }) => {
     await deleteUserViaApi(page, user.id)
   }
   if (seededGroup?.createdByUs) {
-    const { deleteGroupViaApi } = await import('./seeds/iam')
     await deleteGroupViaApi(page, seededGroup.id)
   }
   await page.close()

@@ -2,7 +2,7 @@
  * Resource seed helpers for E2E tests running against a real backend.
  *
  * Creates integrations, workflows, credentials, and identity providers via API.
- * No-ops when NEXUS_E2E_PASSWORD is not set (mock API already has data).
+ * Falls back to mock credentials (password: "mock") when NEXUS_E2E_PASSWORD is not set.
  *
  * Each spec file should use a unique prefix (via buildUniqueName) to avoid
  * conflicts with parallel Playwright workers.

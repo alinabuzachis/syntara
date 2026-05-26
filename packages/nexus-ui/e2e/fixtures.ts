@@ -27,7 +27,7 @@ async function loginAs(page: Page, username: string): Promise<void> {
 
     await page.getByLabel('Username').fill(username)
     await page.getByRole('textbox', { name: 'Password' }).fill(e2ePassword)
-    await page.getByRole('button', { name: /Log in/ }).click()
+    await page.getByRole('button', { name: /^Log in( as administrator)?$/ }).click()
     await expect(mainNav).toBeVisible()
   }
 }
