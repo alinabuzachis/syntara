@@ -9,6 +9,7 @@ export function PlaceholderNode() {
   // Must have actual dimensions for React Flow to measure it, but make it invisible
   return (
     <div
+      data-testid="placeholder-node"
       style={{
         width: '10px',
         height: '10px',

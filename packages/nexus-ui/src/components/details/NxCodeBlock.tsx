@@ -131,6 +131,7 @@ export function NxCodeBlock(props: {
   return (
     <>
       <div
+        data-testid="code-block-wrapper"
         style={{
           maxHeight: props.fillHeight ? 'none' : '24rem',
           height: props.fillHeight ? '100%' : undefined,

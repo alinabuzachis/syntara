@@ -91,7 +91,11 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
               </Split>
             </StackItem>
             <StackItem>
-              {nodeType.description && <Content component={ContentVariants.small}>{nodeType.description}</Content>}
+              {nodeType.description && (
+                <Content data-testid="node-type-description" component={ContentVariants.small}>
+                  {nodeType.description}
+                </Content>
+              )}
             </StackItem>
           </Stack>
         </NxPanel>

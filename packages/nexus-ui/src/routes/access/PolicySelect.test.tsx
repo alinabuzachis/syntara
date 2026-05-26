@@ -121,10 +121,7 @@ describe('PolicySelect', () => {
 
       await user.click(getInput())
 
-      // PF6 Select with hasCheckbox: click the span.pf-v6-c-menu__item-text inside the menuitem
-      const menuitem = screen.getByRole('menuitem', { name: /workflow-admin/i })
-      const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
-      await user.click(itemText)
+      await user.click(screen.getByRole('checkbox', { name: /workflow-admin/i }))
 
       expect(onChange).toHaveBeenCalledWith(['workflow-admin'])
     })
@@ -135,9 +132,7 @@ describe('PolicySelect', () => {
 
       await user.click(getInput())
 
-      const menuitem = screen.getByRole('menuitem', { name: /workflow-admin/i })
-      const itemText = menuitem.querySelector('.pf-v6-c-menu__item-text') ?? menuitem
-      await user.click(itemText)
+      await user.click(screen.getByRole('checkbox', { name: /workflow-admin/i }))
 
       expect(onChange).toHaveBeenCalledWith(['project-viewer'])
     })

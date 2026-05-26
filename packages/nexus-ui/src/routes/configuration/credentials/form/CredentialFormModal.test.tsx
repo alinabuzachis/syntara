@@ -261,9 +261,9 @@ describe('CredentialFormModal', () => {
   })
 
   it('does not render when isOpen is false', () => {
-    const { container } = render(<CredentialFormModal isOpen={false} onClose={vi.fn()} />, { wrapper })
+    render(<CredentialFormModal isOpen={false} onClose={vi.fn()} />, { wrapper })
 
-    expect(container.querySelector('.pf-v6-c-modal-box')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('calls patch mutation in edit mode', async () => {

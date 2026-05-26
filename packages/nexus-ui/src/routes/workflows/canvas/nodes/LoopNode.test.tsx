@@ -135,9 +135,9 @@ describe('LoopNodeComponent', () => {
 
   describe('Node Structure', () => {
     it('renders with correct structure', () => {
-      const { container } = render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+      render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
 
-      expect(container.querySelector('.pf-v6-c-panel')).toBeInTheDocument()
+      expect(screen.getByText('Process Items')).toBeInTheDocument()
     })
   })
 })

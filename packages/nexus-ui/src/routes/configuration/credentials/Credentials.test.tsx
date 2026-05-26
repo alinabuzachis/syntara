@@ -243,9 +243,8 @@ describe('Credentials', () => {
   })
 
   it('renders kebab actions column for each row', () => {
-    const { container } = render(<Credentials />, { wrapper })
-    const actionCells = container.querySelectorAll('td.pf-v6-c-table__action')
-    expect(actionCells.length).toBe(3)
+    render(<Credentials />, { wrapper })
+    expect(screen.getAllByRole('button', { name: 'Kebab toggle' })).toHaveLength(3)
   })
 
   it('shows disable confirmation dialog when toggling enabled credential', async () => {
@@ -461,12 +460,10 @@ describe('Credentials', () => {
     })
 
     const user = userEvent.setup()
-    const { container } = render(<Credentials />, { wrapper })
+    render(<Credentials />, { wrapper })
 
-    const actionCells = container.querySelectorAll('td.pf-v6-c-table__action')
-    const firstKebab = actionCells[0]?.querySelector('button')
-    expect(firstKebab).toBeTruthy()
-    await user.click(firstKebab!)
+    const [firstKebab] = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(firstKebab)
 
     const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
     await user.click(deleteItem)
@@ -490,12 +487,10 @@ describe('Credentials', () => {
     )
 
     const user = userEvent.setup()
-    const { container } = render(<Credentials />, { wrapper })
+    render(<Credentials />, { wrapper })
 
-    const actionCells = container.querySelectorAll('td.pf-v6-c-table__action')
-    const firstKebab = actionCells[0]?.querySelector('button')
-    expect(firstKebab).toBeTruthy()
-    await user.click(firstKebab!)
+    const [firstKebab] = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(firstKebab)
 
     const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
     await user.click(deleteItem)
@@ -509,12 +504,10 @@ describe('Credentials', () => {
 
   it('opens edit modal via kebab menu', async () => {
     const user = userEvent.setup()
-    const { container } = render(<Credentials />, { wrapper })
+    render(<Credentials />, { wrapper })
 
-    const actionCells = container.querySelectorAll('td.pf-v6-c-table__action')
-    const firstKebab = actionCells[0]?.querySelector('button')
-    expect(firstKebab).toBeTruthy()
-    await user.click(firstKebab!)
+    const [firstKebab] = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    await user.click(firstKebab)
 
     const editItem = await screen.findByRole('menuitem', { name: /Edit credential/ })
     await user.click(editItem)

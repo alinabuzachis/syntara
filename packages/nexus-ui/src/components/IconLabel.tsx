@@ -11,6 +11,7 @@ import type { ReactElement } from 'react'
 export function IconLabel(props: { icon?: ReactElement; children: React.ReactNode; color?: string }) {
   return (
     <Flex
+      data-testid="icon-label"
       alignItems={{ default: 'alignItemsCenter' }}
       gap={{ default: 'gapSm' }}
       style={props.color ? { color: props.color } : undefined}

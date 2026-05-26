@@ -356,7 +356,7 @@ describe('UserIdentitiesPanel', () => {
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
       // Click the expand toggle button
-      const expandButton = screen.getAllByRole('button').find((btn) => btn.closest('td.pf-v6-c-table__toggle'))
+      const expandButton = screen.getAllByRole('button').find((btn) => btn.hasAttribute('aria-expanded'))
       expect(expandButton).toBeDefined()
       await user.click(expandButton!)
 
@@ -371,7 +371,7 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const expandButton = screen.getAllByRole('button').find((btn) => btn.closest('td.pf-v6-c-table__toggle'))
+      const expandButton = screen.getAllByRole('button').find((btn) => btn.hasAttribute('aria-expanded'))
       expect(expandButton).toBeDefined()
 
       // Expand

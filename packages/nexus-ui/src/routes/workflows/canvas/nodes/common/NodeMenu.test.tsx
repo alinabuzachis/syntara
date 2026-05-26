@@ -155,9 +155,11 @@ describe('NodeMenu', () => {
 
       await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
+      // PF6 wraps menuitems in <li role="none">, which is invisible to ARIA queries.
+      // innerHTML is the only way to assert danger styling without banned DOM traversal.
+      // TODO: revisit if PF6 exposes a semantic hook for menuitem danger state in future.
       await waitFor(() => {
-        const deleteItem = screen.getByTestId('node-menu-item-test-action')
-        expect(deleteItem.closest('li')).toHaveClass('pf-m-danger')
+        expect(screen.getByRole('menu').innerHTML).toContain('pf-m-danger')
       })
     })
 

@@ -48,12 +48,10 @@ describe('BuilderEditorToolbar', () => {
   })
 
   it('hides Add Step button when workflow has no triggers or steps yet', () => {
-    const { container } = render(
-      <BuilderEditorToolbar {...defaultProps} isNew hasNoWorkflowNodes isAddNodePanelOpen workflow={undefined} />
-    )
+    render(<BuilderEditorToolbar {...defaultProps} isNew hasNoWorkflowNodes isAddNodePanelOpen workflow={undefined} />)
 
     expect(screen.queryByRole('button', { name: /Add Step/i })).not.toBeInTheDocument()
-    expect(container.querySelectorAll('.pf-v6-c-divider')).toHaveLength(1)
+    expect(screen.getAllByRole('separator')).toHaveLength(1)
   })
 
   it('opens add node panel when Add Step is clicked', async () => {

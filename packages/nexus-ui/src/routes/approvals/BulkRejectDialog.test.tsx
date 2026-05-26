@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -130,15 +130,9 @@ describe('BulkRejectDialog', () => {
   it('has warning icon in header', () => {
     render(<BulkRejectDialog {...defaultProps} />)
 
-    // PatternFly Modal with titleIconVariant="warning" renders an ExclamationTriangleIcon
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toBeInTheDocument()
-
-    // The warning icon is rendered as part of the modal header with specific PatternFly classes
-    const header = dialog.querySelector('.pf-v6-c-modal-box__header')
-    expect(header).toBeInTheDocument()
-    const icon = header?.querySelector('.pf-v6-c-modal-box__title-icon')
-    expect(icon).toBeInTheDocument()
+    // PF6 titleIconVariant="warning" injects screen-reader text
+    expect(within(dialog).getByText('Warning alert:')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

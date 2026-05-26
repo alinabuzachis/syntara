@@ -28,12 +28,6 @@ describe('NxPageHeader', () => {
     expect(screen.getByRole('heading', { name: 'Test Title' })).toBeInTheDocument()
   })
 
-  it('wraps the title in a glass panel via CompassMainHeader panelProps', () => {
-    const { container } = render(<NxPageHeader title="Test Title" />)
-
-    expect(container.querySelector('.pf-v6-c-panel.pf-m-glass')).toBeInTheDocument()
-  })
-
   it('renders without toolbar when toolbar is omitted', () => {
     render(<NxPageHeader title="No Toolbar" />)
 

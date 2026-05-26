@@ -14,9 +14,11 @@ describe('prepareRootNode', () => {
 
     const result = prepareRootNode(expression)
 
+    // Destructured to avoid testing-library/no-node-access false-positive on `.children`
+    const { children: resultChildren } = result
     expect(result.type).toBe('group')
-    expect(result.children).toHaveLength(1)
-    expect(result.children[0]).toBe(condition)
+    expect(resultChildren).toHaveLength(1)
+    expect(resultChildren[0]).toBe(condition)
     expect(result.operator).toBe('AND')
   })
 
@@ -34,10 +36,12 @@ describe('prepareRootNode', () => {
   it('creates a default group when root is null', () => {
     const result = prepareRootNode({ root: null })
 
+    // Destructured to avoid testing-library/no-node-access false-positive on `.children`
+    const { children: resultChildren } = result
     expect(result.type).toBe('group')
     expect(result.operator).toBe('AND')
-    expect(result.children).toHaveLength(1)
-    expect(result.children[0].type).toBe('condition')
+    expect(resultChildren).toHaveLength(1)
+    expect(resultChildren[0].type).toBe('condition')
   })
 })
 

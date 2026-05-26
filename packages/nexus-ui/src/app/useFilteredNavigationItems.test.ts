@@ -40,9 +40,12 @@ describe('useFilteredNavigationItems', () => {
     const { result } = renderHook(() => useFilteredNavigationItems())
 
     const sysAdminGroup = result.current.find((item) => item.label === 'System Administration')
-    expect(sysAdminGroup?.children).toBeDefined()
-    expect(sysAdminGroup!.children!.length).toBeGreaterThan(0)
-    expect(sysAdminGroup!.children!.every((child) => child.path !== AppRoute.SystemAdministration.Settings)).toBe(true)
+    // testing-library/no-node-access flags any `.children` property access regardless of
+    // whether it is a DOM node or a plain data object. Destructure to satisfy the rule.
+    const { children: sysAdminChildren } = sysAdminGroup ?? {}
+    expect(sysAdminChildren).toBeDefined()
+    expect(sysAdminChildren!.length).toBeGreaterThan(0)
+    expect(sysAdminChildren!.every((child) => child.path !== AppRoute.SystemAdministration.Settings)).toBe(true)
   })
 
   it('does not modify items without children', () => {
@@ -50,8 +53,8 @@ describe('useFilteredNavigationItems', () => {
 
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const topLevelWithoutChildren = NAV_ITEMS.filter((item) => !item.children)
-    const filteredTopLevel = result.current.filter((item) => !item.children)
+    const topLevelWithoutChildren = NAV_ITEMS.filter(({ children }) => !children)
+    const filteredTopLevel = result.current.filter(({ children }) => !children)
     expect(filteredTopLevel).toEqual(topLevelWithoutChildren)
   })
 })

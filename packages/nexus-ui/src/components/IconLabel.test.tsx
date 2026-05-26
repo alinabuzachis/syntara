@@ -25,21 +25,21 @@ describe('IconLabel', () => {
   })
 
   it('applies custom color style', () => {
-    const { container } = render(<IconLabel color="red">Colored text</IconLabel>)
+    render(<IconLabel color="red">Colored text</IconLabel>)
 
-    const flexContainer = container.querySelector('.pf-v6-l-flex')
+    const flexContainer = screen.getByTestId('icon-label')
     expect(flexContainer).toHaveStyle({ color: 'rgb(255, 0, 0)' })
   })
 
   it('does not apply color style when not provided', () => {
-    const { container } = render(<IconLabel>No color</IconLabel>)
+    render(<IconLabel>No color</IconLabel>)
 
-    const flexContainer = container.querySelector('.pf-v6-l-flex')
+    const flexContainer = screen.getByTestId('icon-label')
     expect(flexContainer).not.toHaveAttribute('style')
   })
 
   it('renders with icon and custom color', () => {
-    const { container } = render(
+    render(
       <IconLabel icon={<RhUiCheckCircleIcon data-testid="icon" />} color="green">
         Success message
       </IconLabel>
@@ -48,7 +48,7 @@ describe('IconLabel', () => {
     expect(screen.getByTestId('icon')).toBeInTheDocument()
     expect(screen.getByText('Success message')).toBeInTheDocument()
 
-    const flexContainer = container.querySelector('.pf-v6-l-flex')
+    const flexContainer = screen.getByTestId('icon-label')
     expect(flexContainer).toHaveStyle({ color: 'rgb(0, 128, 0)' })
   })
 

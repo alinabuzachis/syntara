@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -217,9 +217,8 @@ describe('BuilderDialogs', () => {
 
     // Close via the modal's X button
     const dialog = screen.getByRole('dialog')
-    const closeBtn = dialog.querySelector('button[aria-label="Close"]')
-    expect(closeBtn).not.toBeNull()
-    await user.click(closeBtn!)
+    const closeBtn = within(dialog).getByRole('button', { name: 'Close' })
+    await user.click(closeBtn)
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
   })

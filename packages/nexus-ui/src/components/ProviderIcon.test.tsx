@@ -17,7 +17,7 @@ describe('ProviderIcon', () => {
 
   it('renders no icon for custom idpType', () => {
     const { container } = render(<ProviderIcon name="Unknown" idpType="custom" />)
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders globe icon for unknown provider', () => {

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -214,11 +214,9 @@ describe('ProjectPolicySelect', () => {
     const user = userEvent.setup()
     renderSelect(['read-policy', 'write-policy'])
 
-    // Find the label for read-policy and click its close button
-    const readLabel = screen.getByText('read-policy').closest('.pf-v6-c-label')
-    expect(readLabel).toBeTruthy()
-    const closeButton = within(readLabel as HTMLElement).getByRole('button')
-    await user.click(closeButton)
+    // PF6 Label renders close buttons with aria-label="Close"; first one is for read-policy
+    const [readPolicyClose] = screen.getAllByRole('button', { name: /close/i })
+    await user.click(readPolicyClose)
 
     expect(mockOnChange).toHaveBeenCalledWith(['write-policy'])
   })
@@ -254,10 +252,7 @@ describe('ProjectPolicySelect', () => {
   it('applies danger status to the toggle when hasError is true', () => {
     renderSelect([], true)
 
-    const toggleButton = screen.getByRole('button', { name: 'Menu toggle' })
-    // The danger status class is applied to the parent menu-toggle wrapper
-    const menuToggle = toggleButton.closest('.pf-v6-c-menu-toggle')
-    expect(menuToggle).toHaveClass('pf-m-danger')
+    expect(screen.getByTestId('policy-select-toggle')).toHaveClass('pf-m-danger')
   })
 
   it('marks selected options as checked in the dropdown', async () => {

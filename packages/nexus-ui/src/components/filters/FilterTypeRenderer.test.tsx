@@ -210,7 +210,7 @@ describe('FilterTypeRenderer', () => {
       const { container } = render(<FilterTypeRenderer {...defaultProps} field={field} />)
 
       // Should render nothing (null)
-      expect(container.firstChild).toBeNull()
+      expect(container).toBeEmptyDOMElement()
     })
 
     it('returns null for SELECT type (handled by TextFilter)', () => {
@@ -223,7 +223,7 @@ describe('FilterTypeRenderer', () => {
 
       const { container } = render(<FilterTypeRenderer {...defaultProps} field={field} />)
 
-      expect(container.firstChild).toBeNull()
+      expect(container).toBeEmptyDOMElement()
     })
 
     it('renders MultiSelectFilter for MULTISELECT type', () => {

@@ -41,9 +41,7 @@ describe('useUndoRedoKeyboard', () => {
   })
 
   afterEach(() => {
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur()
-    }
+    document.body.focus()
   })
 
   // --- Undo shortcuts ---

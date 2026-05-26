@@ -20,10 +20,8 @@ const mockProvider = {
 
 describe('DisableIdentityProviderDialog', () => {
   it('returns null when provider is null', () => {
-    const { container } = render(
-      <DisableIdentityProviderDialog provider={null} onConfirm={vi.fn()} onClose={vi.fn()} />
-    )
-    expect(container.firstChild).toBeNull()
+    render(<DisableIdentityProviderDialog provider={null} onConfirm={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('renders dialog with provider name', () => {

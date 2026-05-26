@@ -150,9 +150,9 @@ describe('TaskReversedNodeComponent', () => {
 
   describe('Node Structure', () => {
     it('renders with correct structure', () => {
-      const { container } = render(<TaskReversedNodeComponent {...createNodeProps(baseTaskNode)} />)
+      render(<TaskReversedNodeComponent {...createNodeProps(baseTaskNode)} />)
 
-      expect(container.querySelector('.pf-v6-c-panel')).toBeInTheDocument()
+      expect(screen.getByText('Loop Back Task')).toBeInTheDocument()
     })
   })
 

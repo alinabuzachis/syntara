@@ -138,7 +138,7 @@ describe('AAPWorkflowTemplatePromptFields', () => {
   })
 
   it('renders all prompt-on-launch fields when enabled', () => {
-    const { container } = render(
+    render(
       <TestWrapper>
         <AAPWorkflowTemplatePromptFields
           templateDetail={mockTemplateDetail}
@@ -153,9 +153,11 @@ describe('AAPWorkflowTemplatePromptFields', () => {
       </TestWrapper>
     )
 
-    // Verify multiple fields are rendered (not checking exact count due to component variations)
-    const formGroups = container.querySelectorAll('.pf-v6-c-form__group')
-    expect(formGroups.length).toBeGreaterThanOrEqual(5)
+    expect(screen.getByText('Inventory')).toBeInTheDocument()
+    expect(screen.getByText('Job tags')).toBeInTheDocument()
+    expect(screen.getByText('Limit')).toBeInTheDocument()
+    expect(screen.getByText('Labels')).toBeInTheDocument()
+    expect(screen.getByText('Skip tags')).toBeInTheDocument()
   })
 
   it('shows default inventory name in placeholder', () => {

@@ -46,9 +46,9 @@ describe('MultiSelectFilter', () => {
   })
 
   it('hides badge when nothing is selected', () => {
-    const { container } = render(<MultiSelectFilter {...defaultProps} />)
+    render(<MultiSelectFilter {...defaultProps} />)
 
-    expect(container.querySelector('.pf-v6-c-badge')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('filter-badge')).not.toBeInTheDocument()
   })
 
   it('opens dropdown showing checkbox options with aria-label', async () => {

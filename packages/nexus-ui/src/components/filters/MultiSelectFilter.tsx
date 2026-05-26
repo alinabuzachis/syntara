@@ -24,7 +24,11 @@ function MultiSelectFilterMenuToggle({
       onClick={onToggle}
       isExpanded={isOpen}
       {...(selectedCount > 0 && {
-        badge: <Badge isRead>{selectedCount}</Badge>,
+        badge: (
+          <Badge data-testid="filter-badge" isRead>
+            {selectedCount}
+          </Badge>
+        ),
       })}
     >
       {toggleLabel}

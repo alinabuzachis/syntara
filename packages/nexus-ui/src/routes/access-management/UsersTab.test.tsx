@@ -622,10 +622,8 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      // PF Pagination renders item range and total
-      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
-      expect(paginationNav).toBeInTheDocument()
-      expect(paginationNav.parentElement).toHaveTextContent(/of 25/)
+      expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /of 25/i })).toBeInTheDocument()
     })
 
     it('displays singular "user" when only one result', () => {
@@ -640,10 +638,8 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      // PF Pagination renders item range and total
-      const paginationNav = screen.getByRole('navigation', { name: /pagination/i })
-      expect(paginationNav).toBeInTheDocument()
-      expect(paginationNav.parentElement).toHaveTextContent(/of 1\b/)
+      expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /\bof 1\b/i })).toBeInTheDocument()
     })
   })
 

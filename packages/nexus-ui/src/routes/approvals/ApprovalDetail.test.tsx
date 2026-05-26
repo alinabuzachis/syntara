@@ -118,16 +118,11 @@ describe('ApprovalDetail Component', () => {
   it('displays approval JSON data', () => {
     mockApprovalQuery(mockApproval)
 
-    const { container } = render(<ApprovalDetail />)
+    render(<ApprovalDetail />)
 
-    // CodeBlock should render the approval data as JSON
-    // Check that the JSON stringified content contains the approval data
-
-    const codeBlock = container.querySelector('code')
-    expect(codeBlock).toBeInTheDocument()
-    expect(codeBlock?.textContent).toContain('550e8400-e29b-41d4-a716-446655440001')
-    expect(codeBlock?.textContent).toContain('pending')
-    expect(codeBlock?.textContent).toContain('Test Approval')
+    expect(screen.getByText(/550e8400-e29b-41d4-a716-446655440001/)).toBeInTheDocument()
+    expect(screen.getByText(/"status"/)).toBeInTheDocument()
+    expect(screen.getByText(/"Test Approval"/)).toBeInTheDocument()
   })
 
   it('shows loading state', () => {

@@ -87,9 +87,9 @@ describe('ApprovalNodeComponent', () => {
 
   describe('Node Structure', () => {
     it('renders with correct structure', () => {
-      const { container } = render(<ApprovalNodeComponent {...createNodeProps(baseApprovalNode)} />)
+      render(<ApprovalNodeComponent {...createNodeProps(baseApprovalNode)} />)
 
-      expect(container.querySelector('.pf-v6-c-panel')).toBeInTheDocument()
+      expect(screen.getByText('Approval')).toBeInTheDocument()
     })
   })
 })

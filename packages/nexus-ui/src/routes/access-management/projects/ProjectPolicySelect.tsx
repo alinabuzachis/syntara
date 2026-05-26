@@ -93,6 +93,7 @@ export function ProjectPolicySelect({ projectId, selected, onChange, hasError }:
   const toggle = (toggleRef: Ref<HTMLButtonElement>) => (
     <MenuToggle
       ref={toggleRef}
+      data-testid="policy-select-toggle"
       variant="typeahead"
       onClick={() => setIsOpen(!isOpen)}
       isExpanded={isOpen}

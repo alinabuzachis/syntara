@@ -212,7 +212,7 @@ describe('BuilderFlow execution view', () => {
       ])
     )
 
-    const { container } = render(
+    render(
       <ExecutionViewContext.Provider value={true}>
         <BuilderFlow workflowId="workflow-1" panelOpen={false} executionStatus="running" />
       </ExecutionViewContext.Provider>
@@ -240,7 +240,7 @@ describe('BuilderFlow execution view', () => {
       edges.some((edge) => (edge.data as { executionStatus?: string } | undefined)?.executionStatus === 'passed')
     ).toBe(true)
 
-    expect(container.querySelector('.pf-v6-c-spinner')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
   it('keeps edit interactions enabled outside execution view', () => {

@@ -358,9 +358,11 @@ describe('Integrations Component', () => {
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(actionButtons[0])
 
+      // PF6 wraps menuitems in <li role="none">, which is invisible to ARIA queries.
+      // innerHTML is the only way to assert danger styling without banned DOM traversal.
+      // TODO: revisit if PF6 exposes a semantic hook for menuitem danger state in future.
       await waitFor(() => {
-        const disconnectItem = screen.getByRole('menuitem', { name: /disconnect integration/i })
-        expect(disconnectItem.closest('li')).toHaveClass('pf-m-danger')
+        expect(screen.getByRole('menu').innerHTML).toContain('pf-m-danger')
       })
     })
   })

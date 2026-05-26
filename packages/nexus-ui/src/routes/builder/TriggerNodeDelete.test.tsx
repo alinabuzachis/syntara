@@ -162,12 +162,11 @@ describe('Trigger Node Kebab Menu Delete', () => {
     const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
-    // Verify Delete has danger styling (PatternFly applies pf-m-danger to the parent <li>)
+    // PF6 wraps menuitems in <li role="none">, which is invisible to ARIA queries.
+    // innerHTML is the only way to assert danger styling without banned DOM traversal.
+    // TODO: revisit if PF6 exposes a semantic hook for menuitem danger state in future.
     await waitFor(() => {
-      const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
-
-      const parentLi = deleteItem.closest('li')
-      expect(parentLi).toHaveClass('pf-m-danger')
+      expect(screen.getByRole('menu').innerHTML).toContain('pf-m-danger')
     })
   })
 

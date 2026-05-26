@@ -179,7 +179,7 @@ describe('ProjectDetail', () => {
 
     const { container } = render(<ProjectDetail />, { wrapper })
 
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders "-" for labels when project has no labels', () => {
@@ -318,7 +318,7 @@ describe('ProjectDetail', () => {
     const { container } = render(<ProjectDetail />, { wrapper })
 
     // With no projectId, data is undefined and no error → returns null
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders "-" for labels when labels is undefined', () => {

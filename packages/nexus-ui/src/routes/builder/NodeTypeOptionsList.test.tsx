@@ -47,11 +47,11 @@ describe('NodeTypeOptionsList', () => {
   it('does not render description element when description is not provided', () => {
     const onSelect = vi.fn()
     const nodeTypesWithoutDesc: NodeTypeOption[] = [{ id: 'test', label: 'Test Node', icon: vi.fn() }]
-    const { container } = render(<NodeTypeOptionsList nodeTypes={nodeTypesWithoutDesc} onSelect={onSelect} />)
+    render(<NodeTypeOptionsList nodeTypes={nodeTypesWithoutDesc} onSelect={onSelect} />)
 
     expect(screen.getByText('Test Node')).toBeInTheDocument()
 
-    expect(container.querySelector('small')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('node-type-description')).not.toBeInTheDocument()
   })
 
   it('calls onSelect with correct nodeId when clicked', async () => {

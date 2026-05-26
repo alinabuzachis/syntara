@@ -153,9 +153,8 @@ describe('NodeRawDataView Component', () => {
       data: {} as unknown as NodeType['data'],
     }
 
-    const { container } = render(<NodeRawDataView node={node} />)
+    render(<NodeRawDataView node={node} />)
 
-    const descriptionList = container.querySelector('.pf-v6-c-description-list')
-    expect(descriptionList).toBeInTheDocument()
+    expect(screen.getByText('Step Type')).toBeInTheDocument()
   })
 })
