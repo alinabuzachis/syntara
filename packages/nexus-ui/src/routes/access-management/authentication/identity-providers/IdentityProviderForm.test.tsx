@@ -587,6 +587,32 @@ describe('IdentityProviderForm', () => {
       expect(screen.queryByText('Single logout supported')).not.toBeInTheDocument()
     })
 
+    it('excludes client_secret from test connection payload', async () => {
+      const mockTest = vi.fn()
+      setupMocks()
+
+      vi.mocked(identityProvidersClient.useMutation).mockImplementation(((method: string, path: string) => {
+        if (method === 'post' && path === '/identity_providers/test') {
+          return { mutate: mockTest, isPending: false }
+        }
+        return { mutate: vi.fn(), isPending: false }
+      }) as never)
+
+      const user = userEvent.setup()
+      render(<IdentityProviderForm mode="add" />, { wrapper })
+
+      await user.type(screen.getByLabelText(/Issuer URL/), 'https://issuer.example.com')
+      await user.type(screen.getByLabelText(/Client secret/), 'super-secret-value')
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(mockTest).toHaveBeenCalled()
+      })
+
+      const callArgs = mockTest.mock.calls[0] as [{ body: { configuration: Record<string, unknown> } }]
+      expect(callArgs[0].body.configuration.client_secret).toBeUndefined()
+    })
+
     it('handles test connection failure', async () => {
       const mockTest = vi.fn()
       setupMocks()

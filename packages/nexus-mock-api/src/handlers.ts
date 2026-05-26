@@ -1110,12 +1110,13 @@ export const handlers = [
     }
 
     const now = new Date().toISOString()
+    const { client_secret: _stripped, ...safeConfig } = (body.configuration ?? {}) as Record<string, unknown>
     const provider: IdentityProvider = {
       id: uuidv4(),
       name: body.name,
       description: body.description,
       enabled: body.enabled ?? true,
-      configuration: body.configuration,
+      configuration: safeConfig as IdentityProvider['configuration'],
       created_at: now,
       updated_at: now,
     }
@@ -1184,12 +1185,17 @@ export const handlers = [
     }
 
     const index = identityProviders.indexOf(provider)
+    let patchedConfig = body.configuration
+    if (patchedConfig) {
+      const { client_secret: _stripped, ...safeConfig } = patchedConfig as Record<string, unknown>
+      patchedConfig = safeConfig as typeof body.configuration
+    }
     const updated: IdentityProvider = {
       ...provider,
       ...(body.name !== undefined && { name: body.name }),
       ...(body.description !== undefined && { description: body.description }),
       ...(body.enabled !== undefined && { enabled: body.enabled }),
-      ...(body.configuration !== undefined && { configuration: body.configuration }),
+      ...(patchedConfig !== undefined && { configuration: patchedConfig }),
       updated_at: new Date().toISOString(),
     }
     identityProviders[index] = updated

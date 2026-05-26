@@ -360,11 +360,11 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     if (!isValid) return
 
     const formData = getValues()
-    const payload = toCreatePayload(formData)
-    // The /test endpoint reuses IdentityProviderCreate which requires `name`,
-    // but the test only checks connectivity. Use a placeholder if empty.
-    if (!payload.name) {
-      payload.name = 'connection-test'
+    const fullPayload = toCreatePayload(formData)
+    const payload = {
+      ...fullPayload,
+      name: fullPayload.name || 'connection-test',
+      configuration: { ...fullPayload.configuration, client_secret: undefined },
     }
     testConnection(
       { body: payload },
