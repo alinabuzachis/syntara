@@ -14,6 +14,7 @@ from sqlalchemy import delete as sa_delete
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.lib.sanitization import escape_control_chars
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups, user_idp_groups
 from nexus.identity_providers.models.identity_provider_configuration import (
@@ -44,7 +45,7 @@ def extract_idp_group_values(
 
     if not isinstance(raw_groups, list):
         raw_groups = [raw_groups] if raw_groups else []
-    return {str(g) for g in raw_groups if g is not None}
+    return {escape_control_chars(str(g)) for g in raw_groups if g is not None}
 
 
 def match_group_entries(

@@ -698,6 +698,46 @@ Different identity providers use different claim names for the same user informa
 
 When `groups` is set in the claim mapping, the groups claim is included in the extracted user claims. This is separate from `group_jmespath_expression` — `claim_mapping.groups` tells the backend *which claim name* contains groups, while `group_jmespath_expression` controls *how to extract values* from the raw token claims.
 
+### OIDC Claim Sanitization
+
+OIDC tokens from external identity providers may contain ASCII control characters (0x00–0x1F, 0x7F) in claim values — either through misconfiguration, encoding bugs, or malicious injection. Nexus applies a **tiered sanitization strategy** based on the sensitivity of each claim:
+
+#### Strategy by claim type
+
+| Claim type | Claims | Strategy | Rationale |
+|---|---|---|---|
+| **Identity** | `sub`, `email` | **Reject** — deny the login | These claims are used as identity keys (`user_identities` table is keyed on `(issuer, sub)`). Silently modifying them could collapse two distinct identities into one, causing an authorization bypass or account takeover. Rejection is the safest and most transparent response. |
+| **Display** | `name`, `preferred_username` | **Escape** — replace control chars with visible escape sequences (e.g., `\n`, `\x00`) | These claims are used for display and auto-provisioning. Escaping preserves the original information in logs and stored values for diagnostics, without silently discarding characters. |
+| **Group** | Group values extracted via JMESPath | **Escape** — same as display claims | Group values are matched against configured mapping entries for authorization. Stripping characters could silently alter group names, causing authorization bypass (a group name that should not match now matches after stripping) or silent denial (a legitimate group stops matching). Escaping preserves the original value for accurate matching and log transparency. |
+
+#### Why not strip?
+
+Stripping control characters silently discards information, which creates several risks:
+
+- **Identity collision**: Two distinct `sub` values (e.g., `user\x00admin` and `useradmin`) collapse into the same value after stripping, potentially granting one user access to another's account.
+- **Authorization bypass**: A group name containing control characters could match a different mapping entry after stripping, granting unintended group membership.
+- **Lost diagnostics**: When investigating authentication issues, stripped values make it impossible to determine what the IdP actually sent.
+
+#### Why not reject everything?
+
+Rejecting all claims with control characters would be the strictest approach, but display claims (`name`, `preferred_username`) are not security-sensitive — they don't drive identity resolution or authorization decisions. Rejecting on these would unnecessarily block legitimate users whose IdP happens to include a stray control character in a display name. Escaping gives operators visibility into the issue without disrupting access.
+
+#### Logging
+
+All sanitization actions are logged at WARNING level with structured context:
+
+- **Rejection** (identity claims): `"Rejected OIDC token: control characters in identity claim"` with `claim` and `escaped_value` fields. The escaped value shows the original content with control characters rendered as visible escape sequences for investigation.
+- **Escaping** (display/group claims): `"Escaped control characters in OIDC claim"` with `claim` and `escaped_value` fields.
+
+#### Implementation
+
+Sanitization is applied in two places:
+
+1. **`OIDCService.extract_user_claims()`** — processes `sub`, `email`, `name`, and `preferred_username` from the ID token / userinfo response. Identity claims trigger rejection; display claims are escaped.
+2. **`extract_idp_group_values()`** — processes group values extracted by JMESPath from the raw merged claims. Control characters are escaped before group matching.
+
+The sanitization utilities (`has_control_chars`, `escape_control_chars`) are in `nexus.core.lib.sanitization`.
+
 ### Test Sign-In Flow
 
 Admins can test an OIDC provider's sign-in flow without creating a session. This is useful for verifying claim mapping and group mapping configurations against real IdP token claims.

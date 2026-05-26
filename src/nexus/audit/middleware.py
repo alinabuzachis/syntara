@@ -37,6 +37,7 @@ from nexus.audit.emitter import (
 from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.audit.utils import escalate_actor_type_from_jwt
 from nexus.core.auth.jwt_utils import extract_actor_claims
+from nexus.core.lib.sanitization import strip_control_chars
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -63,7 +64,6 @@ class ContextIds(NamedTuple):
 _SOURCE_COMPONENT = "nexus.audit.middleware"
 _MAX_PATH_LENGTH = 2048
 _REQUEST_ID_HEADER: bytes = b"x-request-id"
-_CONTROL_CHAR_TABLE = str.maketrans("", "", "".join(chr(c) for c in (*range(0x20), 0x7F)))
 
 
 class AuditMiddleware:
@@ -113,22 +113,6 @@ class AuditMiddleware:
         ]
 
     @staticmethod
-    def _strip_control_chars(value: str) -> str:
-        """Remove ASCII control characters from a string.
-
-        Prevents log injection via newlines, carriage returns, or null bytes
-        embedded in request fields.
-
-        Args:
-            value: The string to sanitize.
-
-        Returns:
-            The string with control characters removed.
-
-        """
-        return value.translate(_CONTROL_CHAR_TABLE)
-
-    @staticmethod
     def _normalize_path(path: str) -> str:
         """Normalize and sanitize a URL path for safe logging.
 
@@ -151,7 +135,7 @@ class AuditMiddleware:
         if not normalized.startswith("/"):
             normalized = "/" + normalized
         # Strip control characters
-        normalized = normalized.translate(_CONTROL_CHAR_TABLE)
+        normalized = strip_control_chars(normalized)
         # Truncate to max length
         return normalized[:_MAX_PATH_LENGTH]
 
@@ -423,7 +407,7 @@ class AuditMiddleware:
 
         """
         try:
-            method = self._strip_control_chars(scope.get("method", "UNKNOWN"))
+            method = strip_control_chars(scope.get("method", "UNKNOWN"))
 
             # Extract user information for logging
             _actor_context = actor_context_var.get()

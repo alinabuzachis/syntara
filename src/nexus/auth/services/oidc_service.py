@@ -28,6 +28,7 @@ from starlette import status
 
 from nexus.core.config.base import get_settings
 from nexus.core.lib.encryption import EncryptionError, SecretEncryptor, key_from_string
+from nexus.core.lib.sanitization import escape_control_chars, has_control_chars
 from nexus.identity_providers.models.identity_provider_configuration import OIDCClaimMapping
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -537,6 +538,27 @@ class OIDCService:
         }
         if claim_mapping.groups:
             result["groups"] = id_token_claims.get(claim_mapping.groups)
+
+        identity_claims = {"sub", "email"}
+        for key, value in result.items():
+            if not isinstance(value, str) or not has_control_chars(value):
+                continue
+            if key in identity_claims:
+                logger.warning(
+                    "Rejected OIDC token: control characters in identity claim",
+                    claim=key,
+                    escaped_value=escape_control_chars(value),
+                )
+                msg = "Authentication failed. Please try again."
+                raise OIDCError(msg)
+            escaped = escape_control_chars(value)
+            logger.warning(
+                "Escaped control characters in OIDC claim",
+                claim=key,
+                escaped_value=escaped,
+            )
+            result[key] = escaped
+
         return result
 
     def build_authorization_url(

@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from nexus.auth.services.idp_group_sync import match_group_entries, sync_idp_groups
+from nexus.auth.services.idp_group_sync import extract_idp_group_values, match_group_entries, sync_idp_groups
 from nexus.core.models import User, UserIdentity
 from nexus.identity_providers.models.identity_provider_configuration import (
     OIDCConfiguration,
@@ -113,6 +113,22 @@ def _make_mock_db(
 
     db.execute = AsyncMock(side_effect=_execute_side_effect)
     return db
+
+
+class TestExtractIdpGroupValues:
+    """Tests for the extract_idp_group_values function."""
+
+    def test_escapes_control_chars_in_group_values(self) -> None:
+        user_id = uuid4()
+        claims = {"groups": ["admin", "dev\nops", "test\r\ngroup"]}
+        result = extract_idp_group_values("groups", claims, user_id)
+        assert result == {"admin", "dev\\nops", "test\\r\\ngroup"}
+
+    def test_clean_group_values_unchanged(self) -> None:
+        user_id = uuid4()
+        claims = {"groups": ["admin", "developers", "ops"]}
+        result = extract_idp_group_values("groups", claims, user_id)
+        assert result == {"admin", "developers", "ops"}
 
 
 class TestSyncIdpGroups:
