@@ -134,6 +134,9 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("group", "update", roles=("admin",)),
     PolicyInfo("group", "delete", roles=("admin",)),
     PolicyInfo("group", "manage-members", roles=("admin",)),
+    # user / group directory (lightweight lookup)
+    PolicyInfo("user-directory", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("group-directory", "read", roles=("admin", "auditor", "user")),
     # user identities (federated identity links)
     PolicyInfo("user_identity", "read", scope="self", roles=("admin", "authenticated")),
     PolicyInfo("user_identity", "read", roles=("admin",)),

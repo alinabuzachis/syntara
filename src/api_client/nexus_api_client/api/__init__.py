@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .executions import ExecutionsApi
     from .files import FilesApi
     from .groups import GroupsApi
+    from .groups_directory import GroupsDirectoryApi
     from .identity_providers import IdentityProvidersApi
     from .internal_metrics import InternalMetricsApi
     from .invocation import InvocationApi
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from .tool_manager import ToolManagerApi
     from .tool_metrics import ToolMetricsApi
     from .users import UsersApi
+    from .users_directory import UsersDirectoryApi
     from .webhooks import WebhooksApi
     from .workflows import WorkflowsApi
 
@@ -152,6 +154,18 @@ class NexusApiRegistry:
         from .users import UsersApi
 
         return UsersApi(client=self._client)
+
+    @cached_property
+    def users_directory(self) -> UsersDirectoryApi:
+        from .users_directory import UsersDirectoryApi
+
+        return UsersDirectoryApi(client=self._client)
+
+    @cached_property
+    def groups_directory(self) -> GroupsDirectoryApi:
+        from .groups_directory import GroupsDirectoryApi
+
+        return GroupsDirectoryApi(client=self._client)
 
     @cached_property
     def groups(self) -> GroupsApi:

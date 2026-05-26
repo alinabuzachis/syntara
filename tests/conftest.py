@@ -1125,6 +1125,10 @@ def sync_test_client(
     test database as HTTP requests by overriding both get_db and the execution
     streaming service to point at the per-test database engine.
 
+    The session-scoped ``session_app`` fixture owns application lifespan.  This
+    client must not enter its context manager, which would re-run startup and
+    shutdown against the shared application for every WebSocket test.
+
     Yields:
         TestClient for synchronous API testing
 
@@ -1163,9 +1167,12 @@ def sync_test_client(
             patch("nexus.api.main.audit_engine", test_db_engine),
             patch("nexus.api.main.AuditSessionLocal", session_factory),
             patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
-            TestClient(app) as client,
         ):
-            yield client
+            client = TestClient(app)
+            try:
+                yield client
+            finally:
+                client.close()
     finally:
         if previous_get_db is not None:
             app.dependency_overrides[get_db] = previous_get_db
