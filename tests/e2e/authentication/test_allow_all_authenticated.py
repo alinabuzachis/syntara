@@ -117,7 +117,7 @@ class TestAPI24AllowAllWithPreCreatedMappings:
         self,
         nexus_api: NexusApiRegistry,
         nexus_base_url: str,
-        keycloak_service: HttpApiService,
+        keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
         nexus_group_factory: Callable[[str], UUID],
@@ -125,7 +125,7 @@ class TestAPI24AllowAllWithPreCreatedMappings:
         """API-24: Mapped group and builtin ``users`` both assigned via IdP membership."""
         username, password = keycloak_user_factory()
         claim_value = "platform-admins"
-        add_keycloak_user_to_group(keycloak_service.url, username, claim_value)
+        add_keycloak_user_to_group(keycloak_service_with_group_mapping.url, username, claim_value)
 
         admins_group_id = nexus_group_factory(f"e2e-admins-map-{uuid4().hex[:8]}")
         provider = group_mapping_provider_factory(

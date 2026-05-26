@@ -93,6 +93,7 @@ if _EXTERNAL_SERVICES_AVAILABLE:
         *pytest_plugins,
         "tests.fixtures.external_services.base",
         "tests.fixtures.external_services.keycloak",
+        "tests.fixtures.external_services.keycloak_groups",
         "tests.fixtures.external_services.openldap",
         "tests.fixtures.external_services.logstash",
     ]

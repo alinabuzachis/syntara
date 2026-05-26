@@ -1,6 +1,8 @@
-"""Shared helpers for IdP group mapping E2E tests (API-22, API-23, API-24, API-25).
+"""Shared helpers for ANSTRAT-1844 IdP group mapping E2E tests.
 
-Not a test module - no pytest markers.
+Covers API-8, API-10-15, API-22, API-23, API-24, API-25, and API-45.
+
+Not a test module - no pytest markers. Consumed by group-mapping e2e tests.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
     from nexus_api_client.models.oidc_group_mapping_entry import OIDCGroupMappingEntry
     from nexus_api_client.models.user_group_read import UserGroupRead
+    from nexus_api_client.models.user_info import UserInfo
 
 
 def keycloak_oidc_config_for_mapping(
@@ -124,6 +127,12 @@ def idp_membership_group_names(
         if any(s.type_ == "idp" and s.provider_id == provider_id for s in sources):
             names.add(group.name)
     return names
+
+
+def assert_admin_in_admins_group(nexus_api: NexusApiRegistry, admin_user: UserInfo) -> None:
+    """API-45: built-in admin should belong to the admins group."""
+    names = user_group_names(nexus_api, UUID(admin_user.id))
+    assert "admins" in names
 
 
 def oidc_configuration_patch_from_response(

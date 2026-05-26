@@ -9,7 +9,7 @@ Tests complete MCP provider workflow including:
 
 import os
 import time
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
@@ -17,15 +17,12 @@ from nexus_api_client.models import MCPConfiguration, ToolProviderCreate
 from nexus_api_client.models.provider_status import ProviderStatus
 from nexus_api_client.models.tool_status import ToolStatus
 
+from tests.e2e.conftest import unique_name
+
 pytestmark = pytest.mark.e2e
 
 MCP_PORT = os.environ.get("MCP_PORT", "8765")
 MCP_PROVIDER_URL = os.environ.get("MCP_BASE_URL", f"http://mcp-server:{MCP_PORT}/mcp")
-
-
-def _unique_name(base: str) -> str:
-    """Generate a unique provider name to avoid conflicts across test runs."""
-    return f"{base}-{uuid4().hex[:8]}"
 
 
 def _wait_for_provider_status(
@@ -119,7 +116,7 @@ class TestMCPProviderIntegration:
         """Test MCP provider creation with unreachable server."""
         create_resp = nexus_api.tool_manager.register_tool_provider(
             body=ToolProviderCreate(
-                name=_unique_name("test-mcp-unreachable"),
+                name=unique_name("test-mcp-unreachable"),
                 description="Test MCP provider with unreachable server",
                 configuration=MCPConfiguration(base_url="http://localhost:9999/nonexistent", api_key="test-key"),
             ),
@@ -162,7 +159,7 @@ class TestMCPProviderIntegration:
 
             create_resp = nexus_api.tool_manager.register_tool_provider(
                 body=ToolProviderCreate(
-                    name=_unique_name("test-mcp-unauthorised"),
+                    name=unique_name("test-mcp-unauthorised"),
                     description="Test MCP provider with unauthorised user",
                     configuration=MCPConfiguration(base_url=provider_url, api_key=None),
                 ),
@@ -197,7 +194,7 @@ class TestMCPProviderIntegration:
 
             create_resp = nexus_api.tool_manager.register_tool_provider(
                 body=ToolProviderCreate(
-                    name=_unique_name("test-mcp-forbidden"),
+                    name=unique_name("test-mcp-forbidden"),
                     description="Test MCP provider with forbidden user",
                     configuration=MCPConfiguration(base_url=provider_url),
                 ),

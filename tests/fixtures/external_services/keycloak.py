@@ -392,7 +392,7 @@ def oidc_provider_factory(
 @pytest.fixture
 def group_mapping_provider_factory(
     nexus_api: NexusApiRegistry,
-    keycloak_service: HttpApiService,
+    keycloak_service_with_group_mapping: HttpApiService,
     nexus_base_url: str,
 ) -> Generator[Callable[..., IdentityProviderResponse], None, None]:
     """Factory that creates group-mapping OIDC providers with automatic cleanup."""
@@ -405,12 +405,10 @@ def group_mapping_provider_factory(
         allow_all_authenticated: bool = False,
     ) -> IdentityProviderResponse:
         from tests.e2e.authentication.group_mapping_helpers import create_group_mapping_provider
-        from tests.fixtures.external_services.keycloak_groups import ensure_groups_claim_mapper
 
-        ensure_groups_claim_mapper(keycloak_service.url)
         provider = create_group_mapping_provider(
             nexus_api,
-            keycloak_service.url,
+            keycloak_service_with_group_mapping.url,
             nexus_base_url,
             group_jmespath_expression=group_jmespath_expression,
             group_mapping_entries=group_mapping_entries,

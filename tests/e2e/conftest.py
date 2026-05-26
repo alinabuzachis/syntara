@@ -11,7 +11,7 @@ from collections.abc import Generator
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -26,6 +26,11 @@ from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.types import Response
+
+
+def unique_name(base: str) -> str:
+    """Generate a unique resource name to avoid conflicts across E2E test runs."""
+    return f"{base}-{uuid4().hex[:8]}"
 
 
 def _admin_password() -> str:
