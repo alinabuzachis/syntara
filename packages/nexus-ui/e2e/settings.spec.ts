@@ -600,4 +600,55 @@ test.describe('Settings', () => {
       await resetAllToDefaults(app)
     }
   })
+
+  test('modify local login for non-builtin users setting, save, and verify persistence', async ({ app }) => {
+    const authTab = app.getByRole('tab', { name: /Authentication/i })
+    const hasAuthTab = await authTab
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+    test.skip(!hasAuthTab, 'Authentication tab not available')
+
+    await authTab.click()
+
+    const localLoginFormGroup = app.locator('[id="authentication.local_login_enabled"]').locator('..')
+    const localLoginToggle = localLoginFormGroup.getByRole('switch')
+    await expect(localLoginToggle).toBeVisible()
+    await expect(localLoginToggle).toBeEnabled()
+    const wasChecked = await localLoginToggle.isChecked()
+
+    try {
+      // Toggle switch to disable local login for non-builtin users
+      // PF6 Switch visually hides the <input role="switch"> — force bypasses the visibility check
+      await localLoginToggle.click({ force: true })
+      if (wasChecked) {
+        await expect(localLoginToggle).not.toBeChecked()
+      } else {
+        await expect(localLoginToggle).toBeChecked()
+      }
+
+      // Save
+      const saveButton = app.getByRole('button', { name: 'Save changes' })
+      await expect(saveButton).toBeEnabled()
+      await saveButton.click()
+      await expect(saveButton).toBeDisabled({ timeout: 5000 })
+
+      // Reload and verify value persisted
+      await app.goto(toAppUrl('/system-administration/settings'))
+      await authTab.click()
+      const reloadedToggle = app.locator('[id="authentication.local_login_enabled"]')
+        .locator('..')
+        .getByRole('switch')
+      if (wasChecked) {
+        await expect(reloadedToggle).not.toBeChecked()
+      } else {
+        await expect(reloadedToggle).toBeChecked()
+      }
+    } finally {
+      // Cleanup: reset to defaults
+      await app.goto(toAppUrl('/system-administration/settings'))
+      await authTab.click()
+      await resetAllToDefaults(app)
+    }
+  })
 })
