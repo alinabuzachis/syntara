@@ -1,0 +1,14 @@
+/* Compact time fields: PF spacer--4xl (5rem) fits two digits + number spinners; no dedicated width token. */
+.triggerTimeNumeric,
+.triggerTimePeriod {
+  min-width: var(--pf-t--global--spacer--4xl);
+}
+
+.triggerTimeNumeric {
+  text-align: center;
+}
+
+.timeSeparator {
+  color: var(--pf-t--global--color--text--secondary);
+  margin: 0;
+}

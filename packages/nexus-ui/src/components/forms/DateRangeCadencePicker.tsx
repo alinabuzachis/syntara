@@ -18,6 +18,8 @@ import { type Dispatch, useEffect, useReducer, useRef } from 'react'
 
 import { parseRepeatingInterval as parseRepeatingIntervalUtil } from '../../utils/triggerFormatting'
 
+import styles from './DateRangeCadencePicker.module.css'
+
 export type DateRangeCadencePickerProps = {
   /** The current ISO 8601 repeating interval string (e.g., "R/2024-01-01T10:00:00Z/P1D" or "R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59Z") */
   value?: string
@@ -379,10 +381,11 @@ function TriggerTimeField({
   return (
     <StackItem>
       <FormGroup label="Trigger time" fieldId="trigger-time" isRequired={required}>
-        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapXs' }}>
-          <FlexItem>
+        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapXs' }} flexWrap={{ default: 'nowrap' }}>
+          <FlexItem flex={{ default: 'flexNone' }}>
             <TextInput
               type="number"
+              className={styles.triggerTimeNumeric}
               value={String(triggerHour)}
               onChange={(_event, value) => {
                 const val = Number.parseInt(value) || 1
@@ -390,22 +393,19 @@ function TriggerTimeField({
               }}
               min={1}
               max={12}
-              style={{ width: '5ch', textAlign: 'center' }}
               aria-label="Hour"
               aria-required={required || undefined}
             />
           </FlexItem>
-          <FlexItem>
-            <Content
-              component={ContentVariants.small}
-              style={{ color: 'var(--pf-t--global--color--text--secondary)', margin: 0 }}
-            >
+          <FlexItem flex={{ default: 'flexNone' }}>
+            <Content component={ContentVariants.small} className={styles.timeSeparator}>
               :
             </Content>
           </FlexItem>
-          <FlexItem>
+          <FlexItem flex={{ default: 'flexNone' }}>
             <TextInput
               type="number"
+              className={styles.triggerTimeNumeric}
               value={String(triggerMinute).padStart(2, '0')}
               onChange={(_event, value) => {
                 const val = Number.parseInt(value) || 0
@@ -413,16 +413,15 @@ function TriggerTimeField({
               }}
               min={0}
               max={59}
-              style={{ width: '5ch', textAlign: 'center' }}
               aria-label="Minute"
             />
           </FlexItem>
-          <FlexItem>
+          <FlexItem flex={{ default: 'flexNone' }}>
             <FormSelect
+              className={styles.triggerTimePeriod}
               value={triggerPeriod}
               onChange={(_event, value) => dispatch({ type: 'SET_TRIGGER_PERIOD', payload: value as 'AM' | 'PM' })}
               aria-label="Period"
-              style={{ width: '6ch' }}
             >
               <FormSelectOption value="AM" label="AM" />
               <FormSelectOption value="PM" label="PM" />

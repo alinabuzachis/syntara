@@ -78,6 +78,24 @@ export const builderInteractivePages: PageEntry[] = [
       })
     },
   },
+  {
+    section: 'workflows',
+    name: 'builder-new-scheduled-trigger-form',
+    path: AppRoute.WorkflowBuilder.New,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
+        timeout: 30_000,
+      })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Schedule trigger' }).click()
+      const scheduleType = page.getByLabel('Schedule type')
+      await expect(scheduleType).toBeVisible()
+      await scheduleType.selectOption('interval')
+      await expect(page.getByLabel('Start date')).toBeVisible()
+      await expect(page.getByLabel('Hour')).toBeVisible()
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
