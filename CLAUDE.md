@@ -36,6 +36,16 @@ When the Storybook MCP is available in the session, use its tools for all compon
 6. If `get-documentation` doesn't show the variant you need, call `get-documentation-for-story` for that specific story.
 7. **Before implementing any confirmation dialog**, call `get-documentation` with id `"components-dialogs-nxconfirmationdialog"` — the `NxConfirmationDialog` stories are the primary source of truth for tier selection, prop usage, title format, body copy, checkbox labels, and button labels.
 
+### Shell Command Rules
+
+**Never use bare `cd pkg && command`** — shell state does not persist between Bash calls and this pattern fails under `eval`. Use a subshell or `--prefix` instead:
+
+```bash
+(cd packages/nexus-ui && npx eslint 'src/**/*.ts')  # subshell
+npm --prefix packages/nexus-ui run lint              # npm script
+npx --prefix packages/nexus-ui vitest run path/to/test.test.ts
+```
+
 ### Accessibility review (always)
 
 Treat accessibility as part of every UI change, not an optional follow-up:
@@ -118,10 +128,9 @@ npm run e2e:ui              # Run e2e playwright tests in the playwright UI
 npm run e2e:visual-regression        # Page screenshot visual regression (mock API + UI via Playwright webServer)
 npm run e2e:visual-regression:update # Same, with --update-snapshots (see packages/nexus-ui/VISUAL_REGRESSION.md)
 
-# Run a specific test or coverage (from packages/nexus-ui)
-cd packages/nexus-ui
-npm run vitest -- path/to/specific/test.test.ts
-npm run test:coverage       # Run tests with coverage report
+# Run a specific test or coverage
+(cd packages/nexus-ui && npm run vitest -- path/to/specific/test.test.ts)
+npm --prefix packages/nexus-ui run test:coverage
 
 # Build
 npm run build              # Build UI package
