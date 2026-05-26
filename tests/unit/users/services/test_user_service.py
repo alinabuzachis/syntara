@@ -8,6 +8,7 @@ Tests cover:
 - auth_sources population and auth_source filtering
 """
 
+import warnings
 from uuid import uuid4
 
 import pytest
@@ -453,6 +454,7 @@ async def test_to_read_sets_auth_type_local(test_db_session: AsyncSession, test_
 
     assert isinstance(result, UserRead)
     assert result.auth_type == "local"
+    assert isinstance(result.auth_type, AuthType)
     assert result.auth_sources == ["Local"]
     assert result.username == "withpass"
 
@@ -478,7 +480,28 @@ async def test_to_read_sets_auth_type_federated(test_db_session: AsyncSession, t
 
     assert isinstance(result, UserRead)
     assert result.auth_type == "federated"
+    assert isinstance(result.auth_type, AuthType)
     assert result.auth_sources == []
+
+
+@pytest.mark.asyncio
+async def test_to_read_serialization_no_enum_warning(test_db_session: AsyncSession, test_user: User) -> None:
+    """Ensure serializing UserRead does not emit PydanticSerializationUnexpectedValue for auth_type."""
+    service = UsersService(test_db_session, test_user)
+
+    user = await service.create_user(
+        username="sercheck",
+        email="sercheck@example.com",
+        full_name="Serialization Check",
+        password=TEST_PASSWORD,
+    )
+
+    result = await service.to_read(user)
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error", message="Expected `enum`")
+        result.model_dump()
+        result.model_dump(mode="json")
 
 
 @pytest.mark.asyncio

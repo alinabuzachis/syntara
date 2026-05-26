@@ -490,7 +490,6 @@ class GroupsService(BaseService):
         resources = []
         for u in users:
             read = GroupMemberRead.model_validate(u)
-            read.auth_type = u.auth_type
             if u.auth_type == AuthType.LOCAL:
                 read.auth_sources = ["Local"]
             read.membership_sources = sources.get(u.id, [MembershipSource(type="manual")])

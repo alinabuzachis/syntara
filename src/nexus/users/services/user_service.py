@@ -44,7 +44,6 @@ class UserConvertResourceMixin(ConvertResourceMixin):
     def convert_resource(self, resource: User) -> UserRead:  # type: ignore[override]
         """Convert User to UserRead format."""
         read = UserRead.model_validate(resource)
-        read.auth_type = resource.auth_type
         if resource.auth_type == AuthType.LOCAL:
             read.auth_sources = ["Local"]
         return read
