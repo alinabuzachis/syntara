@@ -106,12 +106,6 @@ def built_in_admin_login(base_url: str) -> Response[Any]:
 
 
 @pytest.fixture(scope="session")
-def nexus_base_url() -> str:
-    """Return the Nexus API base URL from the environment."""
-    return os.environ.get("APP_BASE_URL", "http://localhost:8000")
-
-
-@pytest.fixture(scope="session")
 def auth_headers(nexus_base_url: str) -> dict[str, str]:
     """Return Bearer auth headers for raw httpx calls."""
     token = _generate_e2e_token(nexus_base_url)

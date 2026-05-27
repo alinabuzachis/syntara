@@ -111,7 +111,7 @@ def api_get(
     headers = {**auth_headers}
     if request_id:
         headers["X-Request-Id"] = request_id
-    return httpx.get(f"{nexus_base_url}{path}", headers=headers, timeout=timeout)
+    return httpx.get(f"{nexus_base_url}{path}", headers=headers, timeout=timeout, verify=False)  # noqa: S501
 
 
 def set_mock_behavior(segment_server_url: str, mode: str) -> None:

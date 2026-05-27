@@ -41,7 +41,7 @@ def main(
         None,
         "--base-url",
         envvar="AO_URL",
-        help="AAP Orchestrator API base URL.",
+        help="AAP Orchestrator base URL (e.g. http://localhost:8000).",
     ),
     token: str | None = typer.Option(
         None,
@@ -53,7 +53,7 @@ def main(
     """AAP Orchestrator API command-line client."""
     with phase("startup.main_callback"):
         ctx.ensure_object(dict)
-        resolved_url = base_url or "http://localhost:8000/api/v1"
+        resolved_url = (base_url or "http://localhost:8000").rstrip("/")
         ctx.obj["base_url"] = resolved_url
         note("base_url", resolved_url)
         if token is None:

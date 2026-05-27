@@ -2,7 +2,7 @@
 
 Tokens are stored per-instance under ``~/.aap/orchestrator/``.  Each instance
 (base URL) gets its own JSON file, keyed by a URL-safe slug derived from the
-URL so that ``http://localhost:8000/api/v1`` and ``https://prod.example.com/api/v1``
+URL so that ``http://localhost:8000`` and ``https://prod.example.com``
 never collide.
 """
 

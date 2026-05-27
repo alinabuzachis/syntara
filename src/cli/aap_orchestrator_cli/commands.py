@@ -248,12 +248,13 @@ def _create_client(base_url: str, token: str | None, *, needs_auth: bool) -> obj
     with phase("request.create_client.import_client_module"):
         client_mod = importlib.import_module("nexus_api_client.client")
     with phase("request.create_client.instantiate"):
+        api_url = f"{base_url}/api/v1"
         if needs_auth:
             if not token:
                 typer.echo("Error: --token or AO_TOKEN required", err=True)
                 raise typer.Exit(1)
-            return client_mod.AuthenticatedClient(base_url=base_url, token=token, verify_ssl=False)
-        return client_mod.Client(base_url=base_url, verify_ssl=False)
+            return client_mod.AuthenticatedClient(base_url=api_url, token=token, verify_ssl=False)
+        return client_mod.Client(base_url=api_url, verify_ssl=False)
 
 
 def _build_body_data(

@@ -74,6 +74,9 @@ def _poll_audit_events(
         time.sleep(_AUDIT_POLL_INTERVAL)
         elapsed += _AUDIT_POLL_INTERVAL
         resp = api.audit_events.list(event_action=event_action, sort="-created_at", limit=5)
+        if resp.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
+            detail = resp.content.decode() if resp.content else "no detail returned"
+            pytest.fail(f"Audit database unavailable (503): {detail}")
         if resp.status_code == HTTPStatus.OK and resp.parsed is not None:
             events: list[Any] = resp.parsed.resources
             if events:

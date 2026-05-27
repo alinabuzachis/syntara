@@ -227,7 +227,7 @@ def _generate_live_token(base_url: str) -> str:
 @pytest.fixture(scope="session")
 def nexus_base_url() -> str:
     """Return the Nexus API base URL from the environment."""
-    return os.environ.get("APP_BASE_URL", "http://localhost:8000")
+    return os.environ.get("APP_BASE_URL", "http://localhost:8000").rstrip("/")
 
 
 @pytest.fixture(scope="session")

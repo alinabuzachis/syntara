@@ -29,14 +29,14 @@ Tokens are stored per-instance, so you can work with multiple servers without co
 ### Environment variables
 
 ```bash
-export AO_URL=http://localhost:8000/api/v1
+export AO_URL=http://localhost:8000
 export AO_TOKEN=<your-jwt-token>
 ```
 
 ### CLI flags
 
 ```bash
-ao --base-url http://localhost:8000/api/v1 --token <token> users list
+ao --base-url http://localhost:8000 --token <token> users list
 ```
 
 ### Resolution order
@@ -47,7 +47,7 @@ The CLI resolves the token in this order (first match wins):
 2. `AO_TOKEN` environment variable
 3. Cached token from `~/.aap/orchestrator/` (saved by `login`)
 
-If neither is set, `--base-url` defaults to `http://localhost:8000/api/v1`.
+If neither is set, `--base-url` defaults to `http://localhost:8000`.
 
 ### Extracting the token (scripting)
 
@@ -232,7 +232,7 @@ src/
 Set `AO_BENCHMARK=1` to print a timing breakdown to `stderr` for one CLI invocation:
 
 ```bash
-AO_BENCHMARK=1 ao --base-url http://localhost:8000/api/v1 groups list --limit 1
+AO_BENCHMARK=1 ao --base-url http://localhost:8000 groups list --limit 1
 ```
 
 The summary includes startup phases such as spec loading and dynamic command construction, plus request phases such as client creation, model import, endpoint import, API call, and response formatting.

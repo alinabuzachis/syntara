@@ -6,6 +6,8 @@ isolated from the main application database.
 
 from collections.abc import AsyncGenerator
 
+from fastapi import HTTPException, status
+from sqlalchemy.exc import DatabaseError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -48,11 +50,20 @@ async def get_audit_db() -> AsyncGenerator[AsyncSession, None]:
     Yields:
         AsyncSession: Audit database session with automatic cleanup.
 
+    Raises:
+        HTTPException: 503 if the audit database is unreachable.
+
     """
     async with AuditSessionLocal() as session:
         try:
             yield session
             await session.commit()
+        except DatabaseError as exc:
+            await session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Audit database is temporarily unavailable. Please retry later.",
+            ) from exc
         except Exception:
             await session.rollback()
             raise

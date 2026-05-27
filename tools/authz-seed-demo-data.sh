@@ -19,7 +19,7 @@ set -euo pipefail
 
 # -- Configuration --
 CLI="uv run python tools/authz_cli.py"  # kept for --clean only (DB-direct ops)
-AO="uv run ao --base-url ${AO_URL:-http://localhost:8000/api/v1}"
+AO="uv run ao --base-url ${AO_URL:-http://localhost:8000}"
 ADMIN_PASSWORD_PATH="${APP_ADMIN_PASSWORD_PATH:-.secrets/admin-password}"
 ADMIN_PASSWORD=$(cat "$ADMIN_PASSWORD_PATH" 2>/dev/null || echo "admin1234")
 
