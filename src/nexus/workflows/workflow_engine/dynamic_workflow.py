@@ -140,6 +140,7 @@ class NexusWorkflow:
         self.loop_iteration_results: dict[str, dict[str, list[Any]]] = {}
         self._timeout_tasks: dict[str, asyncio.Task[Any]] = {}
         self._timed_out_converge_nodes: set[str] = set()
+        self._detached_nodes: set[str] = set()
         self.pre_resolved_outputs: dict[str, dict[str, Any]] = pre_resolved_outputs or {}
         self.stop_after_nodes: set[str] = set(stop_after_nodes) if stop_after_nodes else set()
 
@@ -200,6 +201,8 @@ class NexusWorkflow:
         while pending_tasks or self._timed_out_converge_nodes:
             # Cancel pending tasks for nodes that were skipped (by timeout or "any" converge)
             self._cancel_skipped_pending_tasks(pending_tasks)
+            # Remove in-flight tasks detached by a converge fail (don't cancel, just unblock the loop)
+            self._remove_detached_tasks(pending_tasks)
 
             # Schedule any converge nodes whose timeout handlers fired
             for node_id in list(self._timed_out_converge_nodes):
@@ -281,6 +284,17 @@ class NexusWorkflow:
             pending_tasks[nid].cancel()
             del pending_tasks[nid]
             workflow.logger.info(f"Cancelled pending task for skipped node {nid}")
+
+    def _remove_detached_tasks(self, pending_tasks: dict[str, asyncio.Task[Any]]) -> None:
+        """Remove detached in-flight tasks from the main loop without cancelling them.
+
+        When a converge node fails on timeout, in-flight predecessors should keep
+        running in Temporal but no longer block the workflow from completing.
+        """
+        detached = [nid for nid in pending_tasks if nid in self._detached_nodes]
+        for nid in detached:
+            del pending_tasks[nid]
+            workflow.logger.info(f"Detached in-flight node {nid} from main loop (converge failed)")
 
     def _cleanup_timeout_tasks(self) -> None:
         """Cancel any remaining converge timeout background tasks."""
@@ -504,12 +518,18 @@ class NexusWorkflow:
                     self.failed_nodes[node_id] = error_msg
                     self.resolver.set_namespace(node_id, {"status": "failed", "error": error_msg})
                     self._mark_downstream_as_skipped(node_id, graph)
+                    for pred_id in graph.get_predecessors(node_id):
+                        if pred_id in pending_tasks and not self.resolver.has_namespace(pred_id):
+                            self._detached_nodes.add(pred_id)
         except Exception as exc:  # noqa: BLE001
             error_msg = f"Converge timeout handler error for {node_id}: {exc}"
             workflow.logger.error(error_msg)
             self.failed_nodes[node_id] = error_msg
             self.resolver.set_namespace(node_id, {"status": "failed", "error": error_msg})
             self._mark_downstream_as_skipped(node_id, graph)
+            for pred_id in graph.get_predecessors(node_id):
+                if pred_id in pending_tasks and not self.resolver.has_namespace(pred_id):
+                    self._detached_nodes.add(pred_id)
 
     def _skip_incomplete_predecessors(
         self,
@@ -742,8 +762,10 @@ class NexusWorkflow:
         for node in all_nodes:
             node_id = node.id
 
-            # Skip if already executed or marked
+            # Skip if already executed, marked, or detached (still running in Temporal)
             if self.resolver.has_namespace(node_id) or node_id in self.skipped_nodes:
+                continue
+            if node_id in self._detached_nodes:
                 continue
 
             # If workflow is done and node didn't execute, it's unreachable

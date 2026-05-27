@@ -49,6 +49,7 @@ def _make_workflow(
     wf.loop_iteration_results = {}
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
+    wf._detached_nodes = set()
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
     return wf
@@ -327,6 +328,24 @@ class TestFanInConverge:
         assert "converge_node" not in wf._timed_out_converge_nodes
         assert "node_c" in wf.skipped_nodes
 
+    def test_converge_timeout_handler_exception_detaches_in_flight(self) -> None:
+        """If the timeout handler raises with in-flight predecessors, they should be detached."""
+        wf = _make_workflow()
+        graph = _build_fanin_graph()
+        pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
+
+        with patch.object(wf, "_skip_incomplete_predecessors", side_effect=RuntimeError("graph error")):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=0.001, pending_tasks=pending)
+                )
+            finally:
+                loop.close()
+
+        assert "converge_node" in wf.failed_nodes
+        assert "node_b" in wf._detached_nodes
+
     def test_on_timeout_fail_marks_node_failed(self) -> None:
         """on_timeout='fail' (default) marks the converge as failed and skips downstream."""
         wf = _make_workflow()
@@ -417,6 +436,60 @@ class TestFanInConverge:
         # Converge should be marked as failed
         assert "converge_node" in wf.failed_nodes
         # In-flight predecessor (node_b) should NOT be skipped
+        assert "node_b" not in wf.skipped_nodes
+
+    def test_on_timeout_fail_detaches_in_flight_predecessors(self) -> None:
+        """on_timeout='fail' detaches in-flight predecessors so the main loop can exit."""
+        wf = _make_workflow()
+        graph = _build_fanin_graph()
+        wf.resolver.set_namespace("node_a", {"result": "a_done"})
+        pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+            mock_wf.logger = MagicMock()
+            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(
+                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
+                )
+            finally:
+                loop.close()
+
+        assert "converge_node" in wf.failed_nodes
+        assert "node_b" not in wf.skipped_nodes
+        assert "node_b" in wf._detached_nodes
+        assert "node_c" in wf.skipped_nodes
+
+    def test_remove_detached_tasks_drops_from_pending(self) -> None:
+        """_remove_detached_tasks removes detached nodes from pending_tasks without cancelling."""
+        wf = _make_workflow()
+        mock_task = MagicMock()
+        pending: dict[str, asyncio.Task[Any]] = {"node_a": mock_task, "node_b": MagicMock()}
+        wf._detached_nodes = {"node_a"}
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+            mock_wf.logger = MagicMock()
+            wf._remove_detached_tasks(pending)
+
+        assert "node_a" not in pending
+        assert "node_b" in pending
+        mock_task.cancel.assert_not_called()
+
+    def test_mark_remaining_unreachable_skips_detached_nodes(self) -> None:
+        """_mark_remaining_unreachable_nodes must not mark detached nodes as skipped."""
+        wf = _make_workflow()
+        graph = _build_fanin_graph()
+        wf.resolver.set_namespace("trigger", {"done": True})
+        wf.resolver.set_namespace("node_a", {"done": True})
+        wf.resolver.set_namespace("converge_node", {"status": "failed"})
+        wf._detached_nodes = {"node_b"}
+        wf.skipped_nodes.add("node_c")
+
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+            mock_wf.logger = MagicMock()
+            wf._mark_remaining_unreachable_nodes(graph)
+
         assert "node_b" not in wf.skipped_nodes
 
     def test_converge_not_rescheduled_after_already_executed(self) -> None:
