@@ -29,6 +29,12 @@ class AccessTokenResponse(BaseModel):
     expires_in: int = Field(description="Access token lifetime in seconds")
 
 
+class CsrfTokenResponse(BaseModel):
+    """CSRF form token response."""
+
+    csrf_token: str = Field(description="CSRF form token for use in X-CSRF-Token header")
+
+
 class UserInfo(BaseModel):
     """Current user information derived from access token claims."""
 

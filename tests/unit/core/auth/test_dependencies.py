@@ -1,4 +1,4 @@
-"""Unit tests for auth dependencies (get_current_user, get_token_payload)."""
+"""Unit tests for auth dependencies (get_current_user, get_token_payload, get_refresh_token)."""
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,12 +7,14 @@ from uuid import uuid4
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 
+from nexus.auth.cookies import CSRF_COOKIE_NAME
 from nexus.auth.dependencies import (
     _user_from_payload,
     get_current_user,
+    get_refresh_token,
     get_token_payload,
 )
-from nexus.auth.exceptions import AuthenticationRequiredError, InvalidTokenError
+from nexus.auth.exceptions import AuthenticationRequiredError, CSRFErrorCode, CSRFValidationError, InvalidTokenError
 from nexus.auth.services.token_service import TokenPayload
 
 
@@ -153,3 +155,112 @@ class TestGetTokenPayload:
             result = await get_token_payload(request, credentials=credentials)
 
         assert result is payload
+
+
+# =============================================================================
+# get_refresh_token (CSRF validation)
+# =============================================================================
+
+
+def _mock_csrf_settings() -> MagicMock:
+    """Return mock settings with secret_encryption_key for CSRF derivation."""
+    settings = MagicMock()
+    settings.secret_encryption_key.get_secret_value.return_value = "test-csrf-server-secret"
+    return settings
+
+
+class TestGetRefreshTokenCSRF:
+    """Tests for CSRF validation in the get_refresh_token dependency."""
+
+    @pytest.mark.asyncio
+    async def test_raises_csrf_error_when_csrf_cookie_missing(self) -> None:
+        """Should raise CSRFValidationError when CSRF cookie is absent."""
+        request = MagicMock()
+        request.cookies = {"ao_refresh_token": "some-jwt"}
+        request.headers = MagicMock()
+        request.headers.get = MagicMock(return_value=None)
+
+        with pytest.raises(CSRFValidationError, match="CSRF cookie missing") as exc_info:
+            await get_refresh_token(request)
+        assert exc_info.value.error_code == CSRFErrorCode.COOKIE_MISSING
+
+    @pytest.mark.asyncio
+    async def test_raises_csrf_error_when_csrf_header_missing(self) -> None:
+        """Should raise CSRFValidationError when X-CSRF-Token header is absent."""
+        request = MagicMock()
+        request.cookies = {
+            "ao_refresh_token": "some-jwt",
+            CSRF_COOKIE_NAME: "some-seed",
+        }
+        request.headers = MagicMock()
+        request.headers.get = MagicMock(return_value=None)
+
+        with (
+            patch("nexus.auth.csrf.get_settings", return_value=_mock_csrf_settings()),
+            pytest.raises(CSRFValidationError, match="CSRF token header missing") as exc_info,
+        ):
+            await get_refresh_token(request)
+        assert exc_info.value.error_code == CSRFErrorCode.HEADER_MISSING
+
+    @pytest.mark.asyncio
+    async def test_raises_csrf_error_on_token_mismatch(self) -> None:
+        """Should raise CSRFValidationError when header token doesn't match derived token."""
+        request = MagicMock()
+        request.cookies = {
+            "ao_refresh_token": "some-jwt",
+            CSRF_COOKIE_NAME: "the-seed",
+        }
+        request.headers = MagicMock()
+        request.headers.get = MagicMock(return_value="wrong-token")
+
+        with (
+            patch("nexus.auth.csrf.get_settings", return_value=_mock_csrf_settings()),
+            pytest.raises(CSRFValidationError, match="CSRF token mismatch") as exc_info,
+        ):
+            await get_refresh_token(request)
+        assert exc_info.value.error_code == CSRFErrorCode.TOKEN_MISMATCH
+
+    @pytest.mark.asyncio
+    async def test_passes_csrf_and_returns_payload(self) -> None:
+        """Should pass CSRF validation and return the decoded payload."""
+        from nexus.auth.csrf import derive_csrf_form_token
+
+        seed = "good-seed"
+        settings = _mock_csrf_settings()
+        with patch("nexus.auth.csrf.get_settings", return_value=settings):
+            valid_token = derive_csrf_form_token(seed)
+
+        payload = MagicMock()
+        mock_token_service = MagicMock()
+        mock_token_service.decode_token.return_value = payload
+
+        request = MagicMock()
+        request.cookies = {
+            "ao_refresh_token": "the-refresh-jwt",
+            CSRF_COOKIE_NAME: seed,
+        }
+        request.headers = MagicMock()
+        request.headers.get = MagicMock(return_value=valid_token)
+
+        with (
+            patch("nexus.auth.csrf.get_settings", return_value=settings),
+            patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.services.global_revocation.is_token_globally_revoked", return_value=None),
+        ):
+            result = await get_refresh_token(request)
+
+        assert result is payload
+
+    @pytest.mark.asyncio
+    async def test_raises_auth_error_when_refresh_cookie_missing_after_csrf_passes(self) -> None:
+        """Should raise AuthenticationRequiredError when CSRF passes but refresh cookie is absent."""
+        request = MagicMock()
+        request.cookies = {CSRF_COOKIE_NAME: "seed"}
+        request.headers = MagicMock()
+        request.headers.get = MagicMock(return_value="token")
+
+        with (
+            patch("nexus.auth.csrf.validate_csrf"),
+            pytest.raises(AuthenticationRequiredError),
+        ):
+            await get_refresh_token(request)

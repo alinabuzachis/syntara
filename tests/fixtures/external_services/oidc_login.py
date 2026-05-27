@@ -10,8 +10,10 @@ import httpx
 from bs4 import BeautifulSoup
 from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
+from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
 from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
 from nexus_api_client.models.oidc_configuration import OIDCConfiguration
@@ -181,9 +183,23 @@ def create_oidc_login_session(
     if cookie_match is None:
         msg = "Unable to find refresh token in response cookies."
         raise RuntimeError(msg)
-    refresh_cookies = {"ao_refresh_token": cookie_match.group(1)}
-    refresh_token_client = Client(base_url=f"{nexus_base_url}/api/v1", cookies=refresh_cookies, verify_ssl=False)
-    refresh_resp = refresh_sync(client=refresh_token_client)
+    csrf_match = re.search(r"ao_csrf_token=([^;]+)", set_cookie)
+    if csrf_match is None:
+        msg = "Unable to find CSRF token in response cookies."
+        raise RuntimeError(msg)
+
+    cookies = {
+        "ao_refresh_token": cookie_match.group(1),
+        "ao_csrf_token": csrf_match.group(1),
+    }
+    csrf_client = Client(base_url=f"{nexus_base_url}/api/v1", cookies=cookies, verify_ssl=False)
+    csrf_resp = csrf_token_sync(client=csrf_client)
+    if csrf_resp.status_code != HTTPStatus.OK or not isinstance(csrf_resp.parsed, CsrfTokenResponse):
+        msg = "Unable to obtain CSRF form token."
+        raise RuntimeError(msg)
+
+    refresh_client = csrf_client.with_headers({"X-CSRF-Token": csrf_resp.parsed.csrf_token})
+    refresh_resp = refresh_sync(client=refresh_client)
     if refresh_resp.status_code != HTTPStatus.OK:
         msg = "Unable to login with OIDC authorization."
         raise RuntimeError(msg)
@@ -192,7 +208,7 @@ def create_oidc_login_session(
     if not isinstance(parsed, AccessTokenResponse):
         msg = "Unable to login with OIDC authorization."
         raise RuntimeError(msg)  # noqa: TRY004
-    return parsed.access_token, refresh_cookies
+    return parsed.access_token, cookies
 
 
 def create_oidc_auth_client(

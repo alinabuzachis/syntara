@@ -87,6 +87,7 @@ __all__ = (
     "CredentialTypeReadInputs",
     "CredentialTypeReadLabels",
     "CredentialWorkflowRef",
+    "CsrfTokenResponse",
     "CurrentActivity",
     "DeleteResponse",
     "ErrorData",

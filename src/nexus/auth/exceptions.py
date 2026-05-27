@@ -19,6 +19,42 @@ class AuthError(NexusError):
     """Base exception for all authentication errors."""
 
 
+class CSRFErrorCode(StrEnum):
+    """Machine-readable CSRF error codes sent in the RFC 9457 ``code`` field."""
+
+    COOKIE_MISSING = "CSRF_COOKIE_MISSING"
+    HEADER_MISSING = "CSRF_HEADER_MISSING"
+    TOKEN_MISMATCH = "CSRF_TOKEN_MISMATCH"  # noqa: S105
+
+
+@fastapi_exception(handler="nexus.auth.error_handlers.csrf_validation_error_handler")
+class CSRFValidationError(AuthError):
+    """Raised when CSRF token validation fails (403 Forbidden).
+
+    This exception is raised when:
+    - The CSRF cookie is missing from the request
+    - The X-CSRF-Token header is missing from the request
+    - The header value does not match the HMAC derivation of the cookie seed
+    """
+
+    def __init__(
+        self,
+        message: str = "CSRF validation failed",
+        *,
+        error_code: CSRFErrorCode = CSRFErrorCode.TOKEN_MISMATCH,
+    ) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Human-readable error message for server-side logging
+            error_code: Machine-readable error code for the frontend
+
+        """
+        self.message = message
+        self.error_code = error_code
+        super().__init__(message)
+
+
 @fastapi_exception(handler="nexus.auth.error_handlers.session_store_unavailable_handler")
 class SessionStoreUnavailableError(AuthError):
     """Raised when the session store is unreachable (503 Service Unavailable)."""

@@ -59,6 +59,37 @@ When `enable_rp_initiated_logout` is set to `true` on an OIDC provider's configu
 
 **Configuration:** Set `enable_rp_initiated_logout: true` and optionally `end_session_endpoint` in the provider's OIDC configuration. If `end_session_endpoint` is not set, it is discovered automatically via the OIDC well-known endpoint.
 
+## CSRF Protection
+
+Cookie-authenticated endpoints (`POST /auth/refresh`, `POST /auth/logout`) are protected against Cross-Site Request Forgery using the **Synchronizer Token** pattern with HMAC derivation.
+
+### How it works
+
+1. **Login / OIDC callback** — the server generates a cryptographically random seed, stores it in the `ao_csrf_token` `HttpOnly` cookie, and derives a form token via `HMAC-SHA256(server_secret, seed)`.
+2. **SPA obtains the form token** — after login or OIDC redirect, the SPA calls `POST /api/v1/auth/csrf-token`. The server reads the seed from the cookie, recomputes the HMAC, and returns the form token in the response body. The SPA stores it in memory.
+3. **Subsequent requests** — the SPA sends the form token in the `X-CSRF-Token` header on state-changing requests (refresh, logout).
+4. **Validation** — the server reads the seed from the `ao_csrf_token` cookie, recomputes the expected form token, and compares it to the header value using `hmac.compare_digest` (timing-safe).
+
+### Why HMAC derivation?
+
+The cookie seed alone is insufficient to forge the form token — the server-side `APP_SECRET_ENCRYPTION_KEY` is required as the HMAC key. Even if an attacker can read the cookie (e.g., via a subdomain XSS), they cannot produce a valid form token without the server secret.
+
+### Cookie details
+
+| Property | Value |
+|---|---|
+| Name | `ao_csrf_token` |
+| Path | `/api/v1/auth` |
+| HttpOnly | `true` |
+| Secure | Derived from `APP_SERVER_SCHEME` (same as refresh cookie) |
+| SameSite | `Lax` |
+| Max-Age | Same as the refresh token cookie (`APP_JWT_REFRESH_TOKEN_LIFETIME_HOURS × 3600`) |
+| Domain | `APP_COOKIE_DOMAIN` |
+
+### Bearer token exemption
+
+Requests authenticated via `Authorization: Bearer <token>` (i.e., non-cookie auth) are exempt from CSRF validation. CSRF attacks exploit the browser's automatic cookie attachment — bearer tokens are not sent automatically, so they are not vulnerable.
+
 ### Current User (`GET /api/v1/auth/me`)
 
 Returns the authenticated user's information from the access token claims (no database round-trip). Includes `id`, `username`, `email`, `role`, `groups`, and `rp_logout_enabled` (whether the user's current session supports RP-initiated logout).

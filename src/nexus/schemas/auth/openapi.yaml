@@ -68,6 +68,43 @@ paths:
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
+  /auth/csrf-token:
+    post:
+      summary: Get CSRF form token
+      description: |
+        Return the CSRF form token derived from the session's CSRF seed cookie.
+
+        The SPA calls this once after login or OIDC redirect to obtain the
+        form token, which it then sends in the `X-CSRF-Token` header on
+        subsequent state-changing requests (refresh, logout).
+      operationId: get_csrf_token
+      tags:
+        - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+      responses:
+        '200':
+          description: CSRF form token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          description: CSRF cookie missing — not authenticated via cookie flow
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
   /auth/refresh:
     post:
       summary: Refresh access token
@@ -407,6 +444,18 @@ components:
           type: integer
           title: Expires In
           description: Access token lifetime in seconds
+
+    CsrfTokenResponse:
+      type: object
+      title: CsrfTokenResponse
+      description: CSRF form token response.
+      required:
+        - csrf_token
+      properties:
+        csrf_token:
+          type: string
+          title: Csrf Token
+          description: CSRF form token for use in X-CSRF-Token header
 
     UserInfo:
       type: object

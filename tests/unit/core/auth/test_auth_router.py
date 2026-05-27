@@ -12,14 +12,23 @@ from nexus.audit.events.function_execution import FunctionExecutionEvent, Functi
 from nexus.auth.dependencies import get_refresh_token
 from nexus.auth.exceptions import (
     AuthenticationRequiredError,
+    CSRFErrorCode,
+    CSRFValidationError,
     InvalidTokenError,
     OIDCCallbackError,
     OIDCErrorCode,
     RefreshTokenRevokedError,
     SessionStoreUnavailableError,
 )
-from nexus.auth.router import login, logout, oidc_authorize, oidc_callback, refresh_token
-from nexus.auth.schemas import LoginRequest
+from nexus.auth.router import (
+    get_csrf_token,
+    login,
+    logout,
+    oidc_authorize,
+    oidc_callback,
+    refresh_token,
+)
+from nexus.auth.schemas import CsrfTokenResponse, LoginRequest
 from nexus.auth.services.oidc_service import OIDCError
 from nexus.auth.services.token_service import TokenPayload
 from nexus.auth.session.session_store import SessionInfo
@@ -134,7 +143,7 @@ class TestLoginEndpoint:
 
     @pytest.mark.asyncio
     async def test_login_success(self) -> None:
-        """Login with valid credentials returns access token and sets cookie."""
+        """Login with valid credentials returns access token and sets cookies."""
         user = _make_user()
         request = _make_request()
         response = _make_response()
@@ -161,6 +170,7 @@ class TestLoginEndpoint:
             patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
+            patch("nexus.auth.router.set_csrf_cookie") as mock_set_csrf,
             patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings()),
         ):
             result = await login(body, request, response, db)
@@ -168,6 +178,7 @@ class TestLoginEndpoint:
         assert result.access_token == "access-token-123"  # noqa: S105
         assert result.expires_in == 900
         mock_set_cookie.assert_called_once()
+        mock_set_csrf.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_login_normalizes_username_to_lowercase(self) -> None:
@@ -424,7 +435,7 @@ class TestGetRefreshTokenDependency:
         """Should raise AuthenticationRequiredError when cookie is missing."""
         request = _make_request(cookie_value=None)
 
-        with pytest.raises(AuthenticationRequiredError):
+        with patch("nexus.auth.csrf.validate_csrf"), pytest.raises(AuthenticationRequiredError):
             await get_refresh_token(request)
 
     @pytest.mark.asyncio
@@ -437,6 +448,7 @@ class TestGetRefreshTokenDependency:
         mock_token_service.decode_token.return_value = payload
 
         with (
+            patch("nexus.auth.csrf.validate_csrf"),
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.services.global_revocation.is_token_globally_revoked", return_value=None),
         ):
@@ -454,6 +466,7 @@ class TestGetRefreshTokenDependency:
         mock_token_service.decode_token.side_effect = InvalidTokenError
 
         with (
+            patch("nexus.auth.csrf.validate_csrf"),
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             pytest.raises(InvalidTokenError),
         ):
@@ -468,6 +481,7 @@ class TestGetRefreshTokenDependency:
         mock_token_service.decode_token.side_effect = RuntimeError("unexpected")
 
         with (
+            patch("nexus.auth.csrf.validate_csrf"),
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             pytest.raises(AuthenticationRequiredError),
         ):
@@ -485,6 +499,7 @@ class TestGetRefreshTokenDependency:
         mock_token_service.decode_token.return_value = payload
 
         with (
+            patch("nexus.auth.csrf.validate_csrf"),
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             patch(
                 "nexus.auth.services.global_revocation.is_token_globally_revoked",
@@ -493,6 +508,36 @@ class TestGetRefreshTokenDependency:
             pytest.raises(TokenGloballyRevokedError),
         ):
             await get_refresh_token(request)
+
+
+# =============================================================================
+# CSRF token endpoint
+# =============================================================================
+
+
+class TestGetCsrfTokenEndpoint:
+    """Tests for the POST /auth/csrf-token endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_returns_csrf_form_token(self) -> None:
+        """Should derive and return the CSRF form token from the cookie seed."""
+        request = _make_request()
+        request.cookies = {"ao_csrf_token": "the-seed"}
+
+        with patch("nexus.auth.router.derive_csrf_form_token", return_value="derived-token"):
+            result = await get_csrf_token(request)
+
+        assert result == CsrfTokenResponse(csrf_token="derived-token")  # noqa: S106
+
+    @pytest.mark.asyncio
+    async def test_raises_when_cookie_missing(self) -> None:
+        """Should raise CSRFValidationError when the CSRF cookie is absent."""
+        request = _make_request()
+        request.cookies = {}
+
+        with pytest.raises(CSRFValidationError, match="CSRF cookie missing") as exc_info:
+            await get_csrf_token(request)
+        assert exc_info.value.error_code == CSRFErrorCode.COOKIE_MISSING
 
 
 # =============================================================================
@@ -681,8 +726,8 @@ class TestLogoutEndpoint:
         mock_clear.assert_called_once_with(response)
 
     @pytest.mark.asyncio
-    async def test_success_revokes_session_and_clears_cookie(self) -> None:
-        """Successful logout revokes session in session store and clears cookie."""
+    async def test_success_revokes_session_and_clears_cookies(self) -> None:
+        """Successful logout revokes session in session store and clears refresh + CSRF cookies."""
         request = _make_request()
         response = _make_response()
         db = AsyncMock()
@@ -696,12 +741,14 @@ class TestLogoutEndpoint:
         with (
             patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
             patch("nexus.auth.router.clear_refresh_cookie") as mock_clear,
+            patch("nexus.auth.router.clear_csrf_cookie") as mock_clear_csrf,
         ):
             result = await logout(payload, request, response, db)
 
         assert result == {"detail": "Successfully logged out"}
         mock_store.revoke.assert_called_once_with("jti-123")
         mock_clear.assert_called_once_with(response)
+        mock_clear_csrf.assert_called_once_with(response)
 
     @pytest.mark.asyncio
     async def test_raises_503_when_session_store_unavailable(self) -> None:
@@ -1242,7 +1289,11 @@ class TestLoginAuditEvents:
         request = _make_request()
         response = _make_response()
 
-        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+            patch("nexus.auth.router.set_csrf_cookie"),
+            patch("nexus.auth.router.generate_csrf_seed", return_value="seed"),
+        ):
             await login(
                 body=LoginRequest(username="testuser", password="password123"),  # noqa: S106
                 request=request,
@@ -1519,6 +1570,8 @@ class TestOIDCAuditEvents:
             patch("nexus.auth.router.create_session_store", mock_session_store),
             patch("nexus.auth.router.get_settings", return_value=mock_settings),
             patch("nexus.auth.router.set_refresh_cookie"),
+            patch("nexus.auth.router.set_csrf_cookie"),
+            patch("nexus.auth.router.generate_csrf_seed", return_value="seed"),
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
         ):
             mock_process.return_value = (user, provider, state_data, identity, {}, "id-token-raw", False)

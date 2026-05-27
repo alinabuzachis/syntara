@@ -33,9 +33,17 @@ from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCStage
 from nexus.auth.audit.session_lifecycle import SessionAction, SessionLifecycleEvent
 from nexus.auth.audit.user_login import AMR, UserLoginEvent
 from nexus.auth.cookies import (
+    clear_csrf_cookie,
     clear_refresh_cookie,
     get_refresh_token_from_cookie,
+    set_csrf_cookie,
     set_refresh_cookie,
+)
+from nexus.auth.csrf import (
+    CSRF_COOKIE_NAME,
+    ERR_COOKIE_MISSING,
+    derive_csrf_form_token,
+    generate_csrf_seed,
 )
 from nexus.auth.dependencies import (
     _get_token_service,
@@ -44,6 +52,8 @@ from nexus.auth.dependencies import (
 )
 from nexus.auth.exceptions import (
     AuthenticationRequiredError,
+    CSRFErrorCode,
+    CSRFValidationError,
     InvalidTokenError,
     OIDCCallbackError,
     OIDCErrorCode,
@@ -55,6 +65,7 @@ from nexus.auth.schemas import (
     AccessTokenResponse,
     AuthProviderInfo,
     AuthProvidersResponse,
+    CsrfTokenResponse,
     LoginRequest,
     UserInfo,
 )
@@ -270,15 +281,41 @@ async def login(
     )
     logger.info("User logged in", user_id=str(user.id), username=user.username, amr=[AMR.PASSWORD], idp="local")
 
-    # Set refresh cookie
+    # Set refresh cookie and CSRF cookie
     cookie_max_age = settings.jwt_refresh_token_lifetime_hours * 3600
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
+    csrf_seed = generate_csrf_seed()
+    set_csrf_cookie(response, csrf_seed, max_age=cookie_max_age)
 
     AuditEventDispatcher.dispatch(LoginAttemptEvent(username=username, method=LoginMethod.PASSWORD, user_id=user.id))
     return AccessTokenResponse(
         access_token=access_token,
         expires_in=settings.jwt_access_token_lifetime_minutes * 60,
     )
+
+
+@router.post(
+    "/csrf-token",
+    operation_id="get_csrf_token",
+    summary="Get CSRF form token",
+    description="""
+    Return the CSRF form token derived from the session's CSRF seed cookie.
+
+    The SPA calls this once after login or OIDC redirect to obtain the
+    form token, which it then sends in the ``X-CSRF-Token`` header on
+    subsequent state-changing requests (refresh, logout).
+    """,
+    response_description="CSRF form token",
+    responses={
+        403: {"description": "CSRF cookie missing — not authenticated via cookie flow"},
+    },
+)
+async def get_csrf_token(request: Request) -> CsrfTokenResponse:
+    """Return the CSRF form token derived from the session's seed cookie."""
+    seed = request.cookies.get(CSRF_COOKIE_NAME)
+    if not seed:
+        raise CSRFValidationError(ERR_COOKIE_MISSING, error_code=CSRFErrorCode.COOKIE_MISSING)
+    return CsrfTokenResponse(csrf_token=derive_csrf_form_token(seed))
 
 
 @router.post(
@@ -640,8 +677,9 @@ async def logout(
         )
     )
 
-    # Clear the refresh cookie
+    # Clear the refresh and CSRF cookies
     clear_refresh_cookie(response)
+    clear_csrf_cookie(response)
 
     # Build base response; merge RP-logout fields when applicable
     result: dict[str, str] = {"detail": "Successfully logged out"}
@@ -1541,10 +1579,14 @@ async def _build_login_session_redirect(
 
     stored_origin = _revalidate_origin(state_data.get("origin"))
     redirect_to = _safe_redirect_url(state_data.get("redirect_to"), origin=stored_origin)
+
+    csrf_seed = generate_csrf_seed()
+
     response = RedirectResponse(url=redirect_to, status_code=302)
     settings = get_settings()
     cookie_max_age = settings.jwt_refresh_token_lifetime_hours * 3600
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
+    set_csrf_cookie(response, csrf_seed, max_age=cookie_max_age)
 
     AuditEventDispatcher.dispatch(
         UserLoginEvent(

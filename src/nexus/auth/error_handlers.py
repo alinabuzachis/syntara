@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         AdminModifyError,
         AuthenticationRequiredError,
         BuiltinGroupDeleteError,
+        CSRFValidationError,
         GroupNameConflictError,
         GroupNamesNotFoundError,
         GroupNotFoundError,
@@ -67,6 +68,38 @@ def session_store_unavailable_handler(
         code="SESSION_STORE_UNAVAILABLE",
         retryable=True,
         instance=safe_url,
+    )
+
+
+def csrf_validation_error_handler(
+    request: Request,
+    exc: CSRFValidationError,
+) -> JSONResponse:
+    """Handle CSRFValidationError with RFC 9457 format.
+
+    Args:
+        request: FastAPI request object
+        exc: The CSRF validation exception
+
+    Returns:
+        RFC 9457 compliant 403 error response
+
+    """
+    logger.warning(
+        "CSRF validation failed",
+        reason=exc.message,
+        path=str(request.url),
+        method=request.method,
+    )
+
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail="CSRF validation failed",
+        code=exc.error_code,
+        retryable=False,
+        instance=str(request.url),
     )
 
 

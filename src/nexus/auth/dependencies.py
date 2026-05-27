@@ -244,6 +244,10 @@ async def get_refresh_token(request: Request) -> TokenPayload:
     it as a refresh token, and checks whether it was issued before the global
     revocation timestamp.
 
+    Performs CSRF validation first (compares the ``ao_csrf_token`` cookie
+    seed against the ``X-CSRF-Token`` header via HMAC), then extracts the
+    raw JWT from the ``ao_refresh_token`` HttpOnly cookie.
+
     Args:
         request: FastAPI request object
 
@@ -251,6 +255,8 @@ async def get_refresh_token(request: Request) -> TokenPayload:
         Decoded and validated refresh-token payload.
 
     Raises:
+        CSRFValidationError: If CSRF validation fails (missing cookie,
+            missing header, or token mismatch).
         AuthenticationRequiredError: If the refresh token cookie is missing
             or cannot be decoded.
         InvalidTokenError: If the token is structurally invalid.
@@ -258,6 +264,10 @@ async def get_refresh_token(request: Request) -> TokenPayload:
             revocation timestamp.
 
     """
+    from nexus.auth.csrf import validate_csrf  # noqa: PLC0415
+
+    validate_csrf(request)
+
     raw_token = get_refresh_token_from_cookie(request)
     if not raw_token:
         raise AuthenticationRequiredError

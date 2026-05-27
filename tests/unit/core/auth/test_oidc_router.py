@@ -572,6 +572,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(new_user, new_identity))),
             patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
+            patch("nexus.auth.router.generate_csrf_seed", return_value="test-seed"),
+            patch("nexus.auth.router.set_csrf_cookie"),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -626,6 +628,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.set_refresh_cookie"),
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(existing_user, existing_identity))),
             patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
+            patch("nexus.auth.router.generate_csrf_seed", return_value="test-seed"),
+            patch("nexus.auth.router.set_csrf_cookie"),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -761,6 +765,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.set_refresh_cookie") as mock_set_cookie,
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(test_user, test_identity))),
             patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
+            patch("nexus.auth.router.generate_csrf_seed", return_value="test-seed"),
+            patch("nexus.auth.router.set_csrf_cookie"),
         ):
             response = await oidc_callback(
                 state="valid-state",
@@ -817,6 +823,8 @@ class TestOidcCallback:
             patch("nexus.auth.router.set_refresh_cookie"),
             patch("nexus.auth.router._resolve_oidc_user", AsyncMock(return_value=(test_user, test_identity))),
             patch("nexus.auth.router.sync_idp_groups", AsyncMock()),
+            patch("nexus.auth.router.generate_csrf_seed", return_value="test-seed"),
+            patch("nexus.auth.router.set_csrf_cookie"),
         ):
             await oidc_callback(
                 state="valid-state",

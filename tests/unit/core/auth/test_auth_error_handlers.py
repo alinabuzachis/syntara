@@ -8,6 +8,7 @@ from nexus.auth.error_handlers import (
     admin_disable_no_other_admins_handler,
     admin_modify_handler,
     builtin_group_delete_handler,
+    csrf_validation_error_handler,
     group_name_conflict_handler,
     group_not_found_handler,
     identity_on_builtin_user_handler,
@@ -26,6 +27,8 @@ from nexus.auth.exceptions import (
     AdminDisableNoOtherAdminsError,
     AdminModifyError,
     BuiltinGroupDeleteError,
+    CSRFErrorCode,
+    CSRFValidationError,
     GroupNameConflictError,
     GroupNotFoundError,
     IdentityOnBuiltinUserError,
@@ -50,6 +53,22 @@ def _make_request() -> MagicMock:
 
 class TestExceptions:
     """Tests for auth exception classes."""
+
+    def test_csrf_validation_error_default_message(self) -> None:
+        exc = CSRFValidationError()
+        assert exc.message == "CSRF validation failed"
+
+    def test_csrf_validation_error_custom_message(self) -> None:
+        exc = CSRFValidationError("CSRF cookie missing")
+        assert exc.message == "CSRF cookie missing"
+
+    def test_csrf_validation_error_default_error_code(self) -> None:
+        exc = CSRFValidationError()
+        assert exc.error_code == CSRFErrorCode.TOKEN_MISMATCH
+
+    def test_csrf_validation_error_custom_error_code(self) -> None:
+        exc = CSRFValidationError("msg", error_code=CSRFErrorCode.COOKIE_MISSING)
+        assert exc.error_code == CSRFErrorCode.COOKIE_MISSING
 
     def test_user_identity_not_found_error(self) -> None:
         identity_id = uuid4()
@@ -79,6 +98,13 @@ class TestExceptions:
 
 class TestErrorHandlers:
     """Tests for auth error handler functions."""
+
+    def test_csrf_validation_error_handler_returns_403(self) -> None:
+        exc = CSRFValidationError("CSRF token mismatch", error_code=CSRFErrorCode.TOKEN_MISMATCH)
+        response = csrf_validation_error_handler(_make_request(), exc)
+        assert response.status_code == 403
+        assert b"CSRF_TOKEN_MISMATCH" in response.body
+        assert b"CSRF validation failed" in response.body
 
     def test_user_identity_not_found_handler_returns_404(self) -> None:
         identity_id = uuid4()

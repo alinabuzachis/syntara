@@ -32,6 +32,14 @@ class AuthenticationApi:
         endpoint_module = self._load_endpoint_module("login")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def get_csrf_token(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_csrf_token")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_csrf_token(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_csrf_token")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def refresh_token(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("refresh_token")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
