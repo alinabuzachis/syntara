@@ -60,20 +60,33 @@ def _admin_password() -> str:
 
 
 _TOKEN_REFRESH_INTERVAL = 300  # Re-authenticate after 5 minutes (token lifetime is 15 min)
-_last_token_time: float = 0.0
 
 
-def _refresh_token_if_needed(client: AuthenticatedClient, base_url: str) -> None:
-    """Re-authenticate the client if the access token is close to expiring."""
-    global _last_token_time  # noqa: PLW0603
-    now = time.monotonic()
-    if now - _last_token_time > _TOKEN_REFRESH_INTERVAL:
-        client.token = _generate_e2e_token(base_url)
-        client._headers[client.auth_header_name] = f"{client.prefix} {client.token}"
-        # Force httpx clients to be reconstructed with the new token
-        client._client = None
-        client._async_client = None
-        _last_token_time = now
+class _AutoRefreshAuth(httpx.Auth):
+    """httpx Auth that proactively and reactively refreshes expired JWT tokens.
+
+    Proactive: re-authenticates when the token age exceeds _TOKEN_REFRESH_INTERVAL.
+    Reactive: retries once with a fresh token on any 401 response.
+    """
+
+    def __init__(self, base_url: str, initial_token: str) -> None:
+        self._base_url = base_url
+        self.token = initial_token
+        self._last_refresh = time.monotonic()
+
+    def _refresh(self) -> None:
+        self.token = _generate_e2e_token(self._base_url)
+        self._last_refresh = time.monotonic()
+
+    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+        if time.monotonic() - self._last_refresh > _TOKEN_REFRESH_INTERVAL:
+            self._refresh()
+        request.headers["Authorization"] = f"Bearer {self.token}"
+        response = yield request
+        if response.status_code == 401:
+            self._refresh()
+            request.headers["Authorization"] = f"Bearer {self.token}"
+            yield request
 
 
 MCP_PROVIDER_NAME = "mcp"
@@ -127,15 +140,14 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
             returncode=1,
         )
 
-    global _last_token_time  # noqa: PLW0603
     access_token = _generate_e2e_token(base_url)
-    _last_token_time = time.monotonic()
 
     return AuthenticatedClient(
         base_url=f"{base_url}/api/v1",
         token=access_token,
         verify_ssl=False,
         timeout=httpx.Timeout(60.0),
+        httpx_args={"auth": _AutoRefreshAuth(base_url, access_token)},
     )
 
 
@@ -146,14 +158,13 @@ def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
 
 
 @pytest.fixture(autouse=True)
-def reset_async_client(nexus_client: AuthenticatedClient, nexus_base_url: str) -> Generator[None, None, None]:
-    """Reset the cached async httpx client and refresh token if needed.
+def reset_async_client(nexus_client: AuthenticatedClient) -> Generator[None, None, None]:
+    """Reset the cached async httpx client between tests.
 
     nexus_client is session-scoped but async tests run with function-scoped event loops.
     Without this, the AsyncClient created in one test's loop becomes stale for the next.
-    Also re-authenticates when the access token is close to expiring (10 min threshold).
+    Token refresh is handled transparently by _AutoRefreshAuth on every request.
     """
-    _refresh_token_if_needed(nexus_client, nexus_base_url)
     yield
     nexus_client._async_client = None
 
