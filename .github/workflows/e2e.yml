@@ -57,6 +57,7 @@ jobs:
           quay-aap-token: ${{ secrets.QUAY_AAP_TOKEN }}
 
       - name: Export KUBECONFIG
+        if: always()
         run: echo "KUBECONFIG=${{ github.workspace }}/aap-dev/.tmp/27.kubeconfig" >> "$GITHUB_ENV"
 
       - name: Set up Python
@@ -210,11 +211,42 @@ jobs:
           AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
           AZURE_AD_USER_PASSWORD: ${{ secrets.AZURE_AD_USER_PASSWORD }}
 
-      - name: Show service logs on failure
+      - name: Save service logs on failure
         if: failure()
         run: |
-          echo "=== logs ==="
-          kubectl get pods -o name |grep 'myaap-ao-api\|myaap-ao-worker\|mock-segment\|mcp-server' | xargs -n1 kubectl logs
+          KUBECONFIG="${{ github.workspace }}/aap-dev/.tmp/27.kubeconfig"
+          export KUBECONFIG
+          if [ ! -f "$KUBECONFIG" ]; then
+            echo "::warning::KUBECONFIG not found at $KUBECONFIG — KinD cluster may not have been created"
+            exit 0
+          fi
+          mkdir -p /tmp/nexus-e2e-logs
+          echo "=== Pod status ==="
+          kubectl get pods -o wide 2>&1 | tee /tmp/nexus-e2e-logs/pod-status.txt
+          echo ""
+          echo "=== Pod events ==="
+          kubectl get events --sort-by='.lastTimestamp' 2>&1 | tee /tmp/nexus-e2e-logs/events.txt
+          echo ""
+          for pod in $(kubectl get pods -o name 2>/dev/null); do
+            pod_name="${pod#pod/}"
+            echo "=== Logs: $pod_name ==="
+            kubectl logs "$pod" --all-containers --ignore-errors 2>&1 | tee "/tmp/nexus-e2e-logs/${pod_name}.log"
+            echo ""
+            echo "=== Init container logs: $pod_name ==="
+            for init in $(kubectl get pod "$pod_name" -o jsonpath='{.spec.initContainers[*].name}' 2>/dev/null); do
+              echo "--- $init ---"
+              kubectl logs "$pod_name" -c "$init" 2>&1 | tee -a "/tmp/nexus-e2e-logs/${pod_name}-init-${init}.log"
+            done
+            echo ""
+          done
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-logs
+          path: /tmp/nexus-e2e-logs/
+          retention-days: 7
 
       - name: Cleanup
         if: always()

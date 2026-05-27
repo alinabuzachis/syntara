@@ -1,6 +1,8 @@
 """Helper functions for OIDC authentication and authorization."""
 
+import logging
 import re
+import time
 from http import HTTPStatus
 from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
@@ -17,6 +19,12 @@ from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
 from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
 from nexus_api_client.models.oidc_configuration import OIDCConfiguration
+
+logger = logging.getLogger(__name__)
+
+_OIDC_CLIENT_TIMEOUT = httpx.Timeout(60.0)
+_OIDC_LOGIN_MAX_RETRIES = 3
+_OIDC_LOGIN_RETRY_DELAY = 5.0
 
 
 def _has_forms(content: bytes) -> bool:
@@ -72,16 +80,35 @@ def _describe_direct_error(status_code: int) -> str:
 def _idp_form_user_login(
     client: httpx.Client, login_url: str, username: str | None = None, password: str | None = None
 ) -> httpx.Response:
-    try:
-        idp_resp = client.get(login_url, follow_redirects=True)
-    except (httpx.ConnectError, httpx.TimeoutException) as e:
-        msg = (
-            f"Failed to connect during login flow.\n"
-            f"URL: {login_url}\n"
-            f"Error: {type(e).__name__}: {e!s}\n"
-            f"Infrastructure issue: Network connectivity issue or nginx/Nexus infrastructure is unreachable."
-        )
-        raise RuntimeError(msg) from e
+    last_error: Exception | None = None
+    for attempt in range(1, _OIDC_LOGIN_MAX_RETRIES + 1):
+        try:
+            return _idp_form_user_login_attempt(client, login_url, username=username, password=password)
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            last_error = e
+            if attempt < _OIDC_LOGIN_MAX_RETRIES:
+                logger.warning(
+                    "OIDC login attempt %d/%d failed (%s), retrying in %.0fs",
+                    attempt,
+                    _OIDC_LOGIN_MAX_RETRIES,
+                    type(e).__name__,
+                    _OIDC_LOGIN_RETRY_DELAY,
+                )
+                time.sleep(_OIDC_LOGIN_RETRY_DELAY)
+
+    msg = (
+        f"Failed to connect during login flow after {_OIDC_LOGIN_MAX_RETRIES} attempts.\n"
+        f"URL: {login_url}\n"
+        f"Error: {type(last_error).__name__}: {last_error!s}\n"
+        f"Infrastructure issue: Network connectivity issue or nginx/Nexus infrastructure is unreachable."
+    )
+    raise RuntimeError(msg) from last_error
+
+
+def _idp_form_user_login_attempt(
+    client: httpx.Client, login_url: str, username: str | None = None, password: str | None = None
+) -> httpx.Response:
+    idp_resp = client.get(login_url, follow_redirects=True)
 
     if not httpx.codes.is_success(idp_resp.status_code):
         response_preview = idp_resp.text
@@ -156,6 +183,7 @@ def create_oidc_login_session(
     client = httpx.Client(
         verify=False,  # noqa: S501
         follow_redirects=True,
+        timeout=_OIDC_CLIENT_TIMEOUT,
     )
     idp_resp = _idp_form_user_login(client=client, login_url=oidc_auth_url, username=username, password=password)
     idp_parsed = urlparse(idp_resp.headers["Location"])
@@ -247,7 +275,7 @@ def assert_oidc_login_denied(
         raise AssertionError(msg)
 
     oidc_auth_url = auth_resp.headers["location"]
-    client = httpx.Client(verify=False, follow_redirects=True)  # noqa: S501
+    client = httpx.Client(verify=False, follow_redirects=True, timeout=_OIDC_CLIENT_TIMEOUT)  # noqa: S501
     idp_resp = _idp_form_user_login(client=client, login_url=oidc_auth_url, username=username, password=password)
     idp_parsed = urlparse(idp_resp.headers["Location"])
     query_params = parse_qs(idp_parsed.query)
