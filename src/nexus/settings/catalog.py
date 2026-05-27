@@ -644,6 +644,22 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         group=WorkflowEngineGroup.EXECUTION,
         validation_schema={"min": 1000},
     ),
+    SettingDefinition(
+        key="workflow_engine.max_wait_duration_seconds",
+        name="Max wait duration (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=2592000,
+        description=(
+            "Maximum total duration allowed for wait nodes in workflows. "
+            "If a wait node's configured duration exceeds this limit, "
+            "the activity fails with a ConfigError. Admins can adjust "
+            "this value based on organizational requirements."
+        ),
+        helper_text="Minimum 1 second. Default: 2,592,000 (30 days).",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
     # Authentication — Local login
     SettingDefinition(
         key="authentication.local_login_enabled",

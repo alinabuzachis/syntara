@@ -17,9 +17,11 @@ from temporalio.exceptions import ActivityError, ApplicationError
 with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
+    from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
     from nexus.workflows.workflow_engine.constants import DEFAULT_AAP_TIMEOUT_SECONDS
     from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
+    from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
@@ -917,6 +919,59 @@ class NexusWorkflow:
             ),
         )
 
+    async def _execute_wait_node(
+        self,
+        node_id: str,
+        resolved_config: dict[str, Any],
+        outputs: dict[str, str] | None,
+    ) -> dict[str, Any]:
+        """Execute a wait node using async completion + durable timer pattern.
+
+        1. Start the wait activity (validates config, raises async completion)
+        2. Sleep via workflow.sleep() (durable timer, no worker resources)
+        3. Complete the async activity via local activity
+        """
+        try:
+            total_seconds = compute_wait_seconds(resolved_config)
+        except (TypeError, ValueError) as e:
+            return {
+                "output": {
+                    "status": "failed",
+                    "error": {"type": "ConfigError", "message": f"Invalid wait config: {e}"},
+                }
+            }
+
+        if total_seconds <= 0:
+            return {
+                "output": {
+                    "status": "failed",
+                    "error": {"type": "ConfigError", "message": "Total wait duration must be greater than zero"},
+                }
+            }
+
+        # Step 1: Start wait activity (validates config + global max, calls raise_complete_async)
+        wait_handle = workflow.start_activity(
+            ActivityName.WAIT,
+            args=[resolved_config, outputs],
+            activity_id=node_id,
+            start_to_close_timeout=timedelta(seconds=total_seconds + DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        )
+
+        # Step 2: Durable sleep — survives restarts, no worker resources consumed
+        workflow.logger.info(f"Wait node {node_id}: sleeping for {total_seconds}s")
+        await workflow.sleep(timedelta(seconds=total_seconds))
+
+        # Step 3: Complete the async wait activity via local activity
+        await workflow.execute_local_activity(
+            complete_wait,
+            args=[workflow.info().workflow_id, workflow.info().run_id, node_id],
+            start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        )
+
+        # Await the handle to get the activity result
+        result = await wait_handle
+        return result if isinstance(result, dict) else {"output": {"status": "completed"}}
+
     def _get_previous_step_context(
         self,
         node_id: str,
@@ -1364,6 +1419,8 @@ class NexusWorkflow:
             )
         if node_type == NodeType.APPROVAL:
             return await self._execute_approval_node(node, graph, resolved_config)
+        if node_type == NodeType.WAIT:
+            return await self._execute_wait_node(node_id, resolved_config, node.outputs)
         if node_type == NodeType.CONVERGE:
             return await self._execute_converge_node(
                 node_id, resolved_config, node.outputs, graph, timeout_seconds=timeout_seconds

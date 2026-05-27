@@ -507,7 +507,9 @@ class ActivitySyncService:
 
         activity_def = metadata.activity_definitions_map.get(event.activity_id, {})
         activity_type = activity_def.get("type")
-        new_status = ActivityStatus.WAITING if activity_type == NodeType.APPROVAL else ActivityStatus.RUNNING
+        new_status = (
+            ActivityStatus.WAITING if activity_type in (NodeType.APPROVAL, NodeType.WAIT) else ActivityStatus.RUNNING
+        )
 
         update["status"] = new_status
         update["started_at"] = datetime.now(UTC)
@@ -721,7 +723,9 @@ class ActivitySyncService:
                 activity_def = metadata.activity_definitions_map.get(activity_id, {})
                 activity_type = activity_def.get("type")
                 update["status"] = (
-                    ActivityStatus.WAITING if activity_type == NodeType.APPROVAL else ActivityStatus.RUNNING
+                    ActivityStatus.WAITING
+                    if activity_type in (NodeType.APPROVAL, NodeType.WAIT)
+                    else ActivityStatus.RUNNING
                 )
             update["started_at"] = ensure_timezone_aware(event.event_time)
             update["retry_count"] = attempt - 1
@@ -1620,6 +1624,7 @@ class ActivitySyncService:
                         NodeType.CONVERGE,
                         NodeType.LOOP,
                         NodeType.SWITCH,
+                        NodeType.WAIT,
                         # V2 executor nodes
                         NodeType.AAP_JOB_TEMPLATE,
                         NodeType.AAP_WORKFLOW_JOB_TEMPLATE,

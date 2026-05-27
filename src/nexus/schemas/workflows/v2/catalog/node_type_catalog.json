@@ -142,6 +142,17 @@
       "schema_ref": "../control-nodes/converge.schema.json",
       "deprecated": false,
       "since": "2.0.0"
+    },
+    {
+      "type": "wait",
+      "name": "Wait",
+      "description": "Pause workflow execution for a specified duration before continuing",
+      "labels": {
+        "category": "control"
+      },
+      "schema_ref": "../control-nodes/wait.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
     }
   ]
 }

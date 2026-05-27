@@ -1,0 +1,201 @@
+"""Integration test for wait node workflow dispatch and orchestration.
+
+Tests the workflow-level handling of wait nodes using Temporal's time-skipping
+test environment. Uses a test-friendly wait activity that returns normally
+(instead of raise_complete_async) because the time-skipping test server does
+not reliably support async activity completion RPCs.
+
+The async completion pattern (raise_complete_async → external complete) is
+validated in unit tests: test_wait_activity.py.
+"""
+
+import asyncio
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
+import yaml
+from temporalio import activity
+from temporalio.testing import WorkflowEnvironment
+from temporalio.worker import Worker
+
+import nexus.settings.cache.settings_cache as _settings_mod
+from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
+from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
+from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.services.activity_sync_registry import (
+    get_activity_sync_service,
+    set_activity_sync_service,
+)
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
+from tests.conftest import FakeSettingsCache
+
+
+@activity.defn(name=ActivityName.WAIT)
+async def _test_wait_activity(
+    input_config: dict[str, Any],
+    output_config: dict[str, str] | None,
+) -> dict[str, Any]:
+    """Test-friendly wait activity that returns normally.
+
+    Validates config the same way the real activity does, but returns a result
+    instead of calling raise_complete_async(). This avoids the async activity
+    completion RPC which is not supported in the time-skipping test environment.
+    """
+    from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
+
+    total_seconds = compute_wait_seconds(input_config)
+    if total_seconds <= 0:
+        return {"output": {"status": "failed", "error": "Total wait duration must be greater than zero"}}
+
+    return {"output": {"status": "completed", "total_seconds": total_seconds}}
+
+
+def _create_wait_workflow_yaml(wait_seconds: int = 5) -> dict[str, Any]:
+    """Create a minimal workflow definition with a wait node."""
+    workflow_yaml = f"""
+schema_version: "2.0.0"
+name: wait-integration-test
+description: Integration test for wait node
+triggers:
+- id: trigger_manual
+  type: manual_trigger
+nodes:
+- id: wait_node
+  type: wait
+  config:
+    days: 0
+    hours: 0
+    minutes: 0
+    seconds: {wait_seconds}
+edges:
+- from: trigger_manual
+  to: wait_node
+"""
+    result: dict[str, Any] = yaml.safe_load(workflow_yaml)
+    return result
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+class TestWaitNodeIntegration:
+    """End-to-end integration tests for wait node workflow dispatch."""
+
+    async def test_wait_node_completes_after_timer(self, temporal_env: WorkflowEnvironment) -> None:
+        """Workflow dispatches to wait node, sleeps, then completes."""
+        task_queue = "wait-integration-queue"
+
+        mock_sync_service = MagicMock()
+        mock_sync_service.temporal_client = temporal_env.client
+        original_service = get_activity_sync_service()
+        set_activity_sync_service(mock_sync_service)
+
+        original_settings = _settings_mod._runtime_settings
+        _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
+
+        try:
+            async with Worker(
+                temporal_env.client,
+                task_queue=task_queue,
+                workflows=[NexusWorkflow],
+                activities=[manual_trigger, _test_wait_activity, complete_wait],
+            ):
+                execution_service = TemporalExecutionService(
+                    temporal_client=temporal_env.client,
+                    task_queue=task_queue,
+                )
+
+                workflow_def = _create_wait_workflow_yaml(wait_seconds=2)
+
+                result = await execution_service.start_workflow(
+                    workflow_def=workflow_def,
+                    workflow_name="wait-integration-test",
+                )
+
+                workflow_result = await asyncio.wait_for(
+                    execution_service.get_workflow_result(result.temporal_workflow_id),
+                    timeout=30,
+                )
+
+                assert workflow_result.status == "completed"
+        finally:
+            set_activity_sync_service(original_service)
+            _settings_mod._runtime_settings = original_settings
+
+    async def test_wait_node_invalid_config_fails(self, temporal_env: WorkflowEnvironment) -> None:
+        """Wait node with zero duration completes workflow (node fails gracefully)."""
+        task_queue = "wait-invalid-queue"
+
+        original_settings = _settings_mod._runtime_settings
+        _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
+
+        try:
+            async with Worker(
+                temporal_env.client,
+                task_queue=task_queue,
+                workflows=[NexusWorkflow],
+                activities=[manual_trigger, _test_wait_activity, complete_wait],
+            ):
+                execution_service = TemporalExecutionService(
+                    temporal_client=temporal_env.client,
+                    task_queue=task_queue,
+                )
+
+                workflow_def = _create_wait_workflow_yaml(wait_seconds=0)
+
+                result = await execution_service.start_workflow(
+                    workflow_def=workflow_def,
+                    workflow_name="wait-invalid-test",
+                )
+
+                workflow_result = await asyncio.wait_for(
+                    execution_service.get_workflow_result(result.temporal_workflow_id),
+                    timeout=30,
+                )
+
+                assert workflow_result.status == "completed"
+                assert "wait_node" in workflow_result.completed_activities
+        finally:
+            _settings_mod._runtime_settings = original_settings
+
+    async def test_wait_node_short_duration(self, temporal_env: WorkflowEnvironment) -> None:
+        """Wait node with 1 second duration completes quickly with time skipping."""
+        task_queue = "wait-short-queue"
+
+        mock_sync_service = MagicMock()
+        mock_sync_service.temporal_client = temporal_env.client
+        original_service = get_activity_sync_service()
+        set_activity_sync_service(mock_sync_service)
+
+        original_settings = _settings_mod._runtime_settings
+        _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
+
+        try:
+            async with Worker(
+                temporal_env.client,
+                task_queue=task_queue,
+                workflows=[NexusWorkflow],
+                activities=[manual_trigger, _test_wait_activity, complete_wait],
+            ):
+                execution_service = TemporalExecutionService(
+                    temporal_client=temporal_env.client,
+                    task_queue=task_queue,
+                )
+
+                workflow_def = _create_wait_workflow_yaml(wait_seconds=1)
+
+                result = await execution_service.start_workflow(
+                    workflow_def=workflow_def,
+                    workflow_name="wait-short-test",
+                )
+
+                workflow_result = await asyncio.wait_for(
+                    execution_service.get_workflow_result(result.temporal_workflow_id),
+                    timeout=30,
+                )
+
+                assert workflow_result.status == "completed"
+        finally:
+            set_activity_sync_service(original_service)
+            _settings_mod._runtime_settings = original_settings
