@@ -58,6 +58,11 @@ const authMiddleware: Middleware = {
       return response
     }
 
+    // Prevent infinite retry loops: if this is already a retried request, return the 401 directly
+    if (request.headers.get('X-Auth-Retry') === '1') {
+      return response
+    }
+
     // Attempt one refresh
     const store = useAuthStore.getState()
     try {
@@ -78,6 +83,7 @@ const authMiddleware: Middleware = {
       headers: new Headers(request.headers),
     })
     retryRequest.headers.set('Authorization', `Bearer ${accessToken}`)
+    retryRequest.headers.set('X-Auth-Retry', '1')
     // eslint-disable-next-line no-restricted-globals -- auth middleware retry with refreshed token
     return fetch(retryRequest)
   },

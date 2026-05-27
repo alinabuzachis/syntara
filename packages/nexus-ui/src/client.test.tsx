@@ -190,6 +190,47 @@ describe('authMiddleware', () => {
       expect(result).toBe(response)
     })
 
+    it('does not retry again when retried request also returns 401', async () => {
+      const retry401Response = new Response('Unauthorized', { status: 401 })
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(retry401Response)
+
+      mockGetState
+        .mockReturnValueOnce({
+          refresh: mockRefresh,
+        })
+        .mockReturnValueOnce({
+          accessToken: 'refreshed-token',
+        })
+      mockRefresh.mockResolvedValueOnce(undefined)
+
+      const request = new Request('https://example.com/api')
+      const response = new Response('Unauthorized', { status: 401 })
+
+      const result = await authMiddleware.onResponse!({ request, response } as Parameters<
+        NonNullable<typeof authMiddleware.onResponse>
+      >[0])
+
+      expect(mockRefresh).toHaveBeenCalledOnce()
+      expect(result).toBe(retry401Response)
+
+      const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0][0] as Request
+      expect(fetchCall.headers.get('X-Auth-Retry')).toBe('1')
+    })
+
+    it('skips refresh when request has X-Auth-Retry header', async () => {
+      const request = new Request('https://example.com/api', {
+        headers: { 'X-Auth-Retry': '1' },
+      })
+      const response = new Response('Unauthorized', { status: 401 })
+
+      const result = await authMiddleware.onResponse!({ request, response } as Parameters<
+        NonNullable<typeof authMiddleware.onResponse>
+      >[0])
+
+      expect(result).toBe(response)
+      expect(mockRefresh).not.toHaveBeenCalled()
+    })
+
     it('returns original response when refresh succeeds but no token', async () => {
       mockGetState
         .mockReturnValueOnce({
