@@ -448,7 +448,16 @@ class TestOidcCallback:
         mock_settings.jwt_issuer = "http://localhost:3000"
         mock_settings.cors_allow_origins = ["http://localhost:3000"]
 
-        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+        with (
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(uuid4()),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": "http://localhost:3000",
+            }
             response = await oidc_callback(
                 state="some-state",
                 request=request,
@@ -471,7 +480,16 @@ class TestOidcCallback:
         mock_settings.jwt_issuer = "http://localhost:3000"
         mock_settings.cors_allow_origins = ["http://localhost:3000"]
 
-        with patch("nexus.auth.router.get_settings", return_value=mock_settings):
+        with (
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(uuid4()),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": "http://localhost:3000",
+            }
             response = await oidc_callback(
                 state="some-state",
                 request=request,

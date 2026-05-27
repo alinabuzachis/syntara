@@ -1656,14 +1656,6 @@ async def _process_oidc_callback(
         user is None for test_signin flow. identity is None for link/test_signin flows.
 
     """
-    if error:
-        logger.warning("OIDC provider returned error", error=error, description=error_description)
-        raise OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, error_code=OIDCErrorCode.AUTH_FAILED)
-
-    if not code:
-        logger.warning("OIDC callback missing authorization code")
-        raise OIDCCallbackError(_OIDC_ERR_MISSING_CODE, error_code=OIDCErrorCode.MISSING_CODE)
-
     oidc_service = OIDCService()
     state_data = oidc_service.retrieve_oidc_state(state)
     if state_data is None:
@@ -1671,6 +1663,14 @@ async def _process_oidc_callback(
         raise OIDCCallbackError(_OIDC_ERR_STATE_EXPIRED, error_code=OIDCErrorCode.STATE_EXPIRED)
 
     origin = _revalidate_origin(state_data.get("origin"))
+
+    if error:
+        logger.warning("OIDC provider returned error", error=error, description=error_description)
+        raise OIDCCallbackError(_OIDC_ERR_AUTH_FAILED, error_code=OIDCErrorCode.AUTH_FAILED, origin=origin)
+
+    if not code:
+        logger.warning("OIDC callback missing authorization code")
+        raise OIDCCallbackError(_OIDC_ERR_MISSING_CODE, error_code=OIDCErrorCode.MISSING_CODE, origin=origin)
 
     try:
         provider = await _load_enabled_provider(db, state_data["provider_id"])

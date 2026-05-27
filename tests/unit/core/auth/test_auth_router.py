@@ -2061,35 +2061,59 @@ class TestProcessOidcCallbackErrors:
 
     @pytest.mark.asyncio
     async def test_raises_on_idp_error_response(self) -> None:
-        """Should raise OIDCCallbackError with auth_failed when IdP returns error."""
+        """Should raise OIDCCallbackError with auth_failed and origin when IdP returns error."""
         from nexus.auth.router import _process_oidc_callback
 
-        with pytest.raises(OIDCCallbackError) as exc_info:
-            await _process_oidc_callback(
-                state="test-state",
-                db=AsyncMock(),
-                code=None,
-                error="access_denied",
-                error_description="User denied access",
-            )
+        with (
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+            patch("nexus.auth.router._revalidate_origin", return_value="http://localhost:3000"),
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(uuid4()),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": "http://localhost:3000",
+            }
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="test-state",
+                    db=AsyncMock(),
+                    code=None,
+                    error="access_denied",
+                    error_description="User denied access",
+                )
 
         assert exc_info.value.error_code == "auth_failed"
+        assert exc_info.value.origin == "http://localhost:3000"
 
     @pytest.mark.asyncio
     async def test_raises_on_missing_code(self) -> None:
-        """Should raise OIDCCallbackError with missing_code when no code is provided."""
+        """Should raise OIDCCallbackError with missing_code and origin when no code is provided."""
         from nexus.auth.router import _process_oidc_callback
 
-        with pytest.raises(OIDCCallbackError) as exc_info:
-            await _process_oidc_callback(
-                state="test-state",
-                db=AsyncMock(),
-                code=None,
-                error=None,
-                error_description=None,
-            )
+        with (
+            patch("nexus.auth.router.OIDCService") as mock_oidc_cls,
+            patch("nexus.auth.router._revalidate_origin", return_value="http://localhost:3000"),
+        ):
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = {
+                "provider_id": str(uuid4()),
+                "nonce": "n",
+                "code_verifier": "cv",
+                "origin": "http://localhost:3000",
+            }
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="test-state",
+                    db=AsyncMock(),
+                    code=None,
+                    error=None,
+                    error_description=None,
+                )
 
         assert exc_info.value.error_code == "missing_code"
+        assert exc_info.value.origin == "http://localhost:3000"
 
     @pytest.mark.asyncio
     async def test_raises_on_invalid_state(self) -> None:
@@ -2109,6 +2133,26 @@ class TestProcessOidcCallbackErrors:
                 )
 
         assert exc_info.value.error_code == "state_expired"
+
+    @pytest.mark.asyncio
+    async def test_raises_state_expired_when_idp_error_and_state_invalid(self) -> None:
+        """When IdP returns error but state is also invalid, state_expired takes precedence."""
+        from nexus.auth.router import _process_oidc_callback
+
+        with patch("nexus.auth.router.OIDCService") as mock_oidc_cls:
+            mock_oidc_cls.return_value.retrieve_oidc_state.return_value = None
+
+            with pytest.raises(OIDCCallbackError) as exc_info:
+                await _process_oidc_callback(
+                    state="expired-state",
+                    db=AsyncMock(),
+                    code=None,
+                    error="access_denied",
+                    error_description="User denied access",
+                )
+
+        assert exc_info.value.error_code == "state_expired"
+        assert exc_info.value.origin is None
 
     @pytest.mark.asyncio
     async def test_raises_on_provider_unavailable(self) -> None:
