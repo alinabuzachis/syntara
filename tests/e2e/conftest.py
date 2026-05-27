@@ -6,6 +6,7 @@ inherited automatically.  This file adds e2e-specific fixtures.
 """
 
 import os
+import secrets
 import time
 from collections.abc import Callable, Generator
 from http import HTTPStatus
@@ -33,6 +34,15 @@ from nexus_api_client.types import Response
 def unique_name(base: str) -> str:
     """Generate a unique resource name to avoid conflicts across E2E test runs."""
     return f"{base}-{uuid4().hex[:8]}"
+
+
+def generate_test_password() -> str:
+    """Return a random password that always satisfies the server's complexity rules.
+
+    Uses a fixed prefix that covers uppercase, lowercase, digit, and special char,
+    then appends random hex so each call produces a unique value.
+    """
+    return f"Test@Pass1{secrets.token_hex(8)}"
 
 
 def _admin_password() -> str:

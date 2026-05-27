@@ -13,7 +13,6 @@ import pytest
 
 pytest.importorskip("external_services")
 
-import secrets
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -26,6 +25,8 @@ from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_identity_attach import UserIdentityAttach
 from nexus_api_client.models.user_update import UserUpdate
+
+from tests.e2e.conftest import generate_test_password
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -99,7 +100,7 @@ class TestLocalUserConversion:
     ) -> None:
         """Test that non-builtin local user converts to federated when linking identity."""
         local_username = f"local-user-{uuid4().hex[:8]}"
-        local_password = secrets.token_urlsafe(16)
+        local_password = generate_test_password()
 
         local_user_resp = nexus_api.users.create(
             body=UserCreate(
@@ -201,7 +202,7 @@ class TestLocalUserConversion:
         assert federated_user_resp.parsed is not None
         assert federated_user_resp.parsed.auth_type == AuthType.FEDERATED
 
-        new_password = secrets.token_urlsafe(16)
+        new_password = generate_test_password()
         update_resp = nexus_api.users.update(user_id=federated_user_id, body=UserUpdate(password=new_password))
         assert update_resp.status_code == HTTPStatus.CONFLICT
 

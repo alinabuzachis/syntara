@@ -14,7 +14,6 @@ import pytest
 
 pytest.importorskip("external_services")
 
-import secrets
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -25,6 +24,8 @@ from nexus_api_client.models.auth_type import AuthType
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_identity_attach import UserIdentityAttach
+
+from tests.e2e.conftest import generate_test_password
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -124,7 +125,7 @@ class TestAdminAttachIdentity:
         assert isinstance(provider.id, UUID)
 
         local_username = f"local-user-{uuid4().hex[:8]}"
-        local_password = secrets.token_urlsafe(16)
+        local_password = generate_test_password()
 
         local_user_resp = nexus_api.users.create(
             body=UserCreate(
