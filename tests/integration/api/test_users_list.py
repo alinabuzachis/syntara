@@ -174,6 +174,27 @@ class TestUsersListContract:
         assert data["total"] >= 7  # 6 from fixture + test_user
 
     @pytest.mark.asyncio
+    async def test_list_users_filter_by_password_hash_starts_with_rejected(self, admin_client: AsyncClient) -> None:
+        """Test that filtering by password_hash[starts_with] is rejected (AAP-71239)."""
+        response = await admin_client.get(USERS_URL, params={"password_hash[starts_with]": "$argon2"})
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_list_users_filter_by_password_hash_eq_rejected(self, admin_client: AsyncClient) -> None:
+        """Test that filtering by password_hash equality is rejected."""
+        response = await admin_client.get(USERS_URL, params={"password_hash": "$argon2id$v=19"})
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_list_users_filter_by_password_hash_contains_rejected(self, admin_client: AsyncClient) -> None:
+        """Test that filtering by password_hash[contains] is rejected."""
+        response = await admin_client.get(USERS_URL, params={"password_hash[contains]": "argon"})
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
     async def test_list_users_unauthenticated(self, base_client: AsyncClient) -> None:
         """Test listing users requires authentication."""
         response = await base_client.get(USERS_URL)
