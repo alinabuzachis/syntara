@@ -1,6 +1,8 @@
 import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import jmespath from 'jmespath'
 
+import { generateUUID } from '../../../../utils/generateUUID'
+
 const PROVIDER_TYPE_OIDC = 'oidc' as const
 
 export type OIDCConfigurationResponse = IdentityProvidersAPI.components['schemas']['OIDCConfigurationResponse']
@@ -19,7 +21,7 @@ export type NexusGroup = {
 }
 
 export function nextKey(): string {
-  return `entry-${crypto.randomUUID()}`
+  return `entry-${generateUUID()}`
 }
 
 export function searchGroups(claims: Record<string, unknown>, expression: string): string[] {

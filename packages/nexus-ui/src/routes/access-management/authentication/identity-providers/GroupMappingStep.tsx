@@ -26,7 +26,7 @@ import {
   headerRowStyle,
   mappingRowStyle,
 } from './groupMappingStyles'
-import { processDiscoveredGroups } from './groupMappingUtils'
+import { nextKey, processDiscoveredGroups } from './groupMappingUtils'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 import { useTestSignIn } from './useTestSignIn'
 
@@ -127,7 +127,7 @@ export function GroupMappingStep({ control, setValue, providerId }: Readonly<Gro
     (claims: Record<string, unknown>) => {
       const expression = groupMapping?.jmespathExpression ?? 'groups[*]'
       const currentEntries = (groupMapping?.entries ?? []).map((e) => ({
-        key: `entry-${crypto.randomUUID()}`,
+        key: nextKey(),
         ...e,
       }))
       const result = processDiscoveredGroups(claims, expression, currentEntries, nexusGroups)

@@ -1,6 +1,8 @@
-import { v4 as generateUUID } from 'uuid'
+import { v4 } from 'uuid'
 
-export { generateUUID }
+export function generateUUID(): string {
+  return v4()
+}
 
 export const generateActivityId = (prefix = 'activity') => `${prefix}_${generateUUID().replace(/-/g, '_')}`
 

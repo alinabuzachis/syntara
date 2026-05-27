@@ -2,6 +2,7 @@ import { Button, Flex, FlexItem, TextInput, Title } from '@patternfly/react-core
 import { TrashIcon } from '@patternfly/react-icons'
 import { useCallback } from 'react'
 
+import { generateUUID } from '../../../../utils/generateUUID'
 import { EXPRESSION_FIELD_PLACEHOLDER } from '../utils/dragTypes'
 
 import { ExpressionFormField } from './ExpressionFormField'
@@ -19,7 +20,7 @@ type InputMappingFieldsProps = {
 
 function InputMappingFields({ mappings, onChange }: Readonly<InputMappingFieldsProps>) {
   const handleAdd = useCallback(() => {
-    onChange([...mappings, { id: crypto.randomUUID(), key: '', value: '' }])
+    onChange([...mappings, { id: generateUUID(), key: '', value: '' }])
   }, [mappings, onChange])
 
   const handleRemove = useCallback(

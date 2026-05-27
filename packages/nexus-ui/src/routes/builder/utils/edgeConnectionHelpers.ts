@@ -2,6 +2,7 @@ import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import type { ReactFlowInstance, Node } from '@xyflow/react'
 
 import { FlowNodeType } from '../../../constants'
+import { generateUUID } from '../../../utils/generateUUID'
 import type { FlowPosition } from '../types'
 
 import { EdgeFactory } from './EdgeFactory'
@@ -207,9 +208,6 @@ export function applyEdgeConnection(
   onComplete?: () => void
 ): void {
   // SECURITY: Prevent DoS - reject if too many concurrent connections
-  // Check BEFORE adding because crypto.randomUUID() guarantees unique IDs, so each
-  // call increments the Set by 1. With unique IDs, add-then-check provides no benefit.
-  // Checking first prevents the Set from ever exceeding the limit, even momentarily.
   if (activeConnections.size >= MAX_CONCURRENT_CONNECTIONS) {
     // eslint-disable-next-line no-console
     console.warn(
@@ -220,21 +218,8 @@ export function applyEdgeConnection(
     return
   }
 
-  // Create unique connection ID to prevent race conditions
-  // Use crypto.randomUUID() for guaranteed uniqueness in secure contexts (HTTPS)
-  // SECURITY: Fallback to crypto.getRandomValues for non-secure contexts (HTTP development)
-  // SECURITY: Ensure cleanup on all exit paths (success line 267, timer-limit line 276, timeout line 287)
-  let uniqueId: string
-  try {
-    uniqueId = crypto.randomUUID()
-  } catch {
-    // Fallback for non-secure contexts (HTTP) or when crypto.randomUUID is unavailable
-    // 128 bits of CSPRNG entropy — not UUID v4 formatted, but sufficient for Set-based dedup
-    const randomBytes = new Uint8Array(16)
-    crypto.getRandomValues(randomBytes)
-    uniqueId = Array.from(randomBytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  }
-  const connectionId = `${params.sourceId}-${targetId}-${uniqueId}`
+  // SECURITY: Ensure cleanup on all exit paths (success, timer-limit, timeout)
+  const connectionId = `${params.sourceId}-${targetId}-${generateUUID()}`
   activeConnections.add(connectionId)
 
   let attempts = 0

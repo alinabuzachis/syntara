@@ -3,10 +3,11 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
-import { type MockInstance, afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { usersClient } from '../../../../client'
+import * as generateUUIDModule from '../../../../utils/generateUUID'
 import { useAllGroups } from '../../../access/useAllGroups'
 
 import { GroupMappingStep } from './GroupMappingStep'
@@ -196,20 +197,17 @@ describe('GroupMappingStep', () => {
   })
 
   describe('Discover groups', () => {
-    const TEST_NONCE = 'test-nonce-uuid'
+    const TEST_NONCE = 'test-uuid'
     let originalOpen: typeof globalThis.open
-    let randomUUIDSpy: MockInstance
 
     beforeEach(() => {
       originalOpen = globalThis.open
-      randomUUIDSpy = vi
-        .spyOn(crypto, 'randomUUID')
-        .mockReturnValue(TEST_NONCE as `${string}-${string}-${string}-${string}-${string}`)
+      vi.spyOn(generateUUIDModule, 'generateUUID').mockReturnValue(TEST_NONCE)
     })
 
     afterEach(() => {
       globalThis.open = originalOpen
-      randomUUIDSpy.mockRestore()
+      vi.restoreAllMocks()
     })
 
     it('opens a popup window when Discover groups is clicked', async () => {

@@ -1,7 +1,11 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { generateUUID } from '../../../../utils/generateUUID'
+
 import { useTestSignIn } from './useTestSignIn'
+
+vi.mock('../../../../utils/generateUUID', () => ({ generateUUID: vi.fn() }))
 
 const RESULT_STORAGE_KEY = 'nexus-test-signin'
 
@@ -10,9 +14,7 @@ describe('useTestSignIn', () => {
     vi.useFakeTimers()
     localStorage.clear()
     vi.spyOn(globalThis, 'open').mockReturnValue({ closed: false } as Window)
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(
-      'test-nonce-123' as `${string}-${string}-${string}-${string}-${string}`
-    )
+    vi.mocked(generateUUID).mockReturnValue('test-nonce-123')
   })
 
   afterEach(() => {

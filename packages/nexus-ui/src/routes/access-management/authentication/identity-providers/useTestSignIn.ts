@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { OIDC_AUTHORIZE_PATH } from '../../../../client'
+import { generateUUID } from '../../../../utils/generateUUID'
 
 export const NONCE_STORAGE_KEY = 'nexus-test-signin-nonce'
 export const RESULT_STORAGE_KEY = 'nexus-test-signin'
@@ -84,7 +85,7 @@ export function useTestSignIn({ providerId, onResult, onError }: UseTestSignInOp
   const openTestSignIn = useCallback(() => {
     if (!providerId) return
 
-    const nonce = crypto.randomUUID()
+    const nonce = generateUUID()
     nonceRef.current = nonce
     // Store the nonce in localStorage so the popup can read it after the OAuth
     // redirect chain (window.opener is nullified by cross-origin navigations).

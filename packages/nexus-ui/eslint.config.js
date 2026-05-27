@@ -100,6 +100,15 @@ export default tseslint.config(
             'Use a typed API client (workflowClient, credentialsClient, etc.) instead of raw fetch(). If this is a pre-auth call, add an eslint-disable-next-line with a short justification.',
         },
       ],
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'crypto',
+          property: 'randomUUID',
+          message:
+            'crypto.randomUUID is unavailable over HTTP (non-secure contexts). Use generateUUID() from src/utils/generateUUID.ts or React useId() for component keys.',
+        },
+      ],
     },
   },
   {
@@ -283,6 +292,12 @@ export default tseslint.config(
           property: 'getElementById',
           message:
             'Use a Testing Library semantic query instead (e.g. screen.getByRole(...)). document.getElementById() bypasses accessibility semantics and is as fragile as container.querySelector().',
+        },
+        {
+          object: 'crypto',
+          property: 'randomUUID',
+          message:
+            'crypto.randomUUID is unavailable over HTTP (non-secure contexts). Use generateUUID() from src/utils/generateUUID.ts or React useId() for component keys.',
         },
       ],
     },

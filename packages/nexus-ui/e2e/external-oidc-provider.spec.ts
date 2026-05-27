@@ -134,6 +134,41 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
     await expect(app.getByRole('textbox', { name: /Token endpoint/i })).toHaveAttribute('aria-invalid', 'true')
     await expect(app.getByText('Required when auto-discovery is disabled')).toBeVisible()
   })
+
+  test('Group mapping tab loads without errors after creating a provider', async ({ app }) => {
+    await app.route('**/api/v1/identity_providers**', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(KEYCLOAK_OIDC_IDP),
+        })
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          KEYCLOAK_OIDC_IDP.id === new URL(route.request().url()).pathname.split('/').pop()
+            ? KEYCLOAK_OIDC_IDP
+            : { resources: [KEYCLOAK_OIDC_IDP] }
+        ),
+      })
+    })
+
+    await app.getByRole('button', { name: /Add provider/i }).click()
+    await expect(app.getByRole('heading', { name: /Identity provider created/i })).toBeVisible()
+
+    await app.getByRole('button', { name: /Keycloak/i }).click()
+
+    await expect(app.getByRole('heading', { level: 1, name: /Keycloak/i })).toBeVisible()
+
+    const groupMappingTab = app.getByRole('tab', { name: /Group mapping/i })
+    await expect(groupMappingTab).toBeVisible()
+    await groupMappingTab.click()
+
+    await expect(app.locator('text=Something went wrong')).not.toBeVisible()
+    await expect(app.locator('text=crypto.randomUUID')).not.toBeVisible()
+  })
 })
 
 test.describe('IdP login form verification - list OIDC providers', () => {
