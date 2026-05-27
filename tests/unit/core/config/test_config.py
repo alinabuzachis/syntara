@@ -1,13 +1,20 @@
 """Unit tests for application configuration."""
 
+from __future__ import annotations
+
 import os
 import warnings
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
-from pydantic import ValidationError
+from pydantic import HttpUrl, ValidationError
 
 from nexus.core.config.base import Settings
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from contextlib import AbstractContextManager
+    from pathlib import Path
 
 
 def test_settings_requires_nexus_prefix(monkeypatch: object) -> None:
@@ -412,6 +419,84 @@ class TestServerSettings:
                 Settings()
         finally:
             os.environ.pop("APP_SERVER_PORT", None)
+
+    def test_server_public_url_default_is_none(self) -> None:
+        """Test that server_public_url defaults to None."""
+        settings = Settings()
+        assert settings.server_public_url is None
+
+    def test_jwt_issuer_uses_server_public_url(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test that jwt_issuer returns server_public_url when set."""
+        with override_settings(
+            server_public_url=HttpUrl("https://nexus.example.com:8000"),
+        ):
+            from nexus.core.config.base import get_settings
+
+            assert get_settings().jwt_issuer == "https://nexus.example.com:8000"
+
+    def test_jwt_issuer_strips_trailing_slash(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test that jwt_issuer strips trailing slash from server_public_url."""
+        with override_settings(
+            server_public_url=HttpUrl("https://nexus.example.com/"),
+        ):
+            from nexus.core.config.base import get_settings
+
+            assert get_settings().jwt_issuer == "https://nexus.example.com"
+
+    def test_jwt_issuer_falls_back_to_constructed_url(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test that jwt_issuer uses server_scheme://server_host:server_port when no public URL."""
+        with override_settings(
+            server_public_url=None,
+            server_scheme="http",
+            server_host="localhost",
+            server_port=9000,
+        ):
+            from nexus.core.config.base import get_settings
+
+            assert get_settings().jwt_issuer == "http://localhost:9000"
+
+    def test_post_logout_redirect_uri_priority(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test post_logout_redirect_uri priority: explicit > public URL > constructed."""
+        with override_settings(
+            server_public_url=HttpUrl("https://nexus.example.com"),
+            oidc_post_logout_redirect_uri="https://custom.example.com",
+        ):
+            from nexus.core.config.base import get_settings
+
+            assert get_settings().post_logout_redirect_uri == "https://custom.example.com"
+
+    def test_post_logout_redirect_uri_uses_public_url(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Test post_logout_redirect_uri uses server_public_url when explicit URI is not set."""
+        with override_settings(
+            server_public_url=HttpUrl("https://nexus.example.com"),
+        ):
+            from nexus.core.config.base import get_settings
+
+            assert get_settings().post_logout_redirect_uri == "https://nexus.example.com"
+
+    def test_server_public_url_empty_string_treated_as_none(self) -> None:
+        """Test that empty string APP_SERVER_PUBLIC_URL is treated as None."""
+        os.environ["APP_SERVER_PUBLIC_URL"] = ""
+        try:
+            settings = Settings()
+            assert settings.server_public_url is None
+        finally:
+            os.environ.pop("APP_SERVER_PUBLIC_URL", None)
 
 
 # =============================================================================

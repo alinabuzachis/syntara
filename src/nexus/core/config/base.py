@@ -570,6 +570,21 @@ class ServerSettings(BaseSettings):
         le=65535,
     )
 
+    server_public_url: HttpUrl | None = Field(
+        default=None,
+        description="Public base URL for this Nexus instance (e.g., 'https://nexus.example.com:8000'). "
+        "Used as the JWT issuer, post-logout redirect, and frontend origin fallback. "
+        "If not set, falls back to server_scheme://server_host:server_port. "
+        "Required when server_host is a bind address like 0.0.0.0.",
+    )
+
+    @field_validator("server_public_url", mode="before")
+    @classmethod
+    def _empty_string_to_none(cls, v: str | None) -> str | None:
+        if v is not None and v.strip() == "":
+            return None
+        return v
+
     server_reload: bool = Field(
         default=False,
         description="Enable hot reload (development only)",
@@ -627,11 +642,12 @@ class ServerSettings(BaseSettings):
     def post_logout_redirect_uri(self) -> str:
         """Get the post-logout redirect URI.
 
-        If oidc_post_logout_redirect_uri is set, use it directly.
-        Otherwise, compute from server_scheme, server_host, and server_port.
+        Priority: oidc_post_logout_redirect_uri > server_public_url > constructed URL.
         """
         if self.oidc_post_logout_redirect_uri:
             return self.oidc_post_logout_redirect_uri
+        if self.server_public_url:
+            return str(self.server_public_url).rstrip("/")
         return f"{self.server_scheme}://{self.server_host}:{self.server_port}"
 
     @model_validator(mode="after")
@@ -1586,12 +1602,13 @@ class Settings(
     @computed_field  # type: ignore[prop-decorator]
     @property
     def jwt_issuer(self) -> str:
-        """JWT issuer claim (iss) derived from server host and port.
+        """JWT issuer claim (iss) identifying this Nexus instance.
 
-        Returns:
-            URL identifying this Nexus instance as the token issuer.
-
+        Uses server_public_url when set, otherwise falls back to
+        server_scheme://server_host:server_port.
         """
+        if self.server_public_url:
+            return str(self.server_public_url).rstrip("/")
         return f"{self.server_scheme}://{self.server_host}:{self.server_port}"
 
 
