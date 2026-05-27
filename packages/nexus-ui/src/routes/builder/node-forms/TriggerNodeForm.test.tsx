@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { submitForm } from '../../../test/submit-form'
+
 import { renderWithHeader } from './test-utils/renderWithHeader'
 import { TriggerNodeForm } from './TriggerNodeForm'
 
@@ -57,11 +59,8 @@ vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
   ),
 }))
 
-/** Submit the trigger form via requestSubmit, mirroring NodeEditorLayout's production behavior. */
 async function submitTriggerForm() {
-  await waitFor(() => {
-    screen.getByRole<HTMLFormElement>('form').requestSubmit()
-  })
+  await submitForm()
 }
 
 describe('TriggerNodeForm Component', () => {

@@ -1,22 +1,6 @@
 import type { ComponentType } from 'react'
 
-/**
- * Node category constants
- * Use these constants instead of string literals for type safety
- */
-export const NodeCategories = {
-  TRIGGER: 'trigger',
-  ACTION: 'action',
-  LOGIC: 'logic',
-  INTEGRATION: 'integration',
-  APPROVAL: 'approval',
-  OTHER: 'other',
-} as const
-
-/**
- * Node category type derived from the constants
- */
-export type NodeCategory = (typeof NodeCategories)[keyof typeof NodeCategories]
+export type NodeCategory = 'trigger' | 'action' | 'logic' | 'integration' | 'approval' | 'other'
 
 /**
  * Metadata for a node category

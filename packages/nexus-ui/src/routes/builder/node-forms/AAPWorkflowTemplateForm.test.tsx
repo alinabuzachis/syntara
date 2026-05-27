@@ -68,6 +68,7 @@ vi.mock('../components/ExpandableCodeEditor', () => ({
 
 import { credentialsClient } from '../../../client'
 import type { AAPWorkflowTemplateDetail } from '../../../hooks/useAAPBrowser'
+import { submitForm } from '../../../test/submit-form'
 
 import { AAPWorkflowTemplateForm } from './AAPWorkflowTemplateForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
@@ -155,7 +156,7 @@ describe('AAPWorkflowTemplateForm', () => {
       isPending: false,
       isError: false,
       refetch: vi.fn(),
-    } as never)
+    })
   })
 
   it('renders form with required fields', () => {
@@ -188,9 +189,7 @@ describe('AAPWorkflowTemplateForm', () => {
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Workflow')
 
-    // Submit form programmatically (submit button is in parent NodeEditorLayout, not rendered in this test)
-    const form = screen.getByRole<HTMLFormElement>('form')
-    form.requestSubmit()
+    await submitForm()
 
     await waitFor(() => {
       expect(mockOnSubmit).not.toHaveBeenCalled()
@@ -271,9 +270,7 @@ describe('AAPWorkflowTemplateForm', () => {
     await user.click(extraVarsInput)
     await user.paste('invalid json')
 
-    // Submit form programmatically (submit button is in parent NodeEditorLayout, not rendered in this test)
-    const form = screen.getByRole<HTMLFormElement>('form')
-    form.requestSubmit()
+    await submitForm()
 
     await waitFor(() => {
       expect(mockOnSubmit).not.toHaveBeenCalled()
@@ -444,9 +441,7 @@ describe('AAPWorkflowTemplateForm', () => {
         />
       )
 
-      // Submit form programmatically (submit button is in parent NodeEditorLayout, not rendered in this test)
-      const form = screen.getByRole<HTMLFormElement>('form')
-      form.requestSubmit()
+      await submitForm()
 
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith(
