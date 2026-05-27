@@ -66,6 +66,7 @@ from nexus.authz.dependencies import get_opa_client
 from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.config.base import get_settings
+from nexus.core.constants import FieldLimits
 from nexus.core.database.session import get_db
 from nexus.core.lib.encryption import SecretEncryptor, key_from_string
 from nexus.core.models import Group, User, UserIdentity
@@ -1250,9 +1251,14 @@ async def _auto_create_user(
     email: str | None = None,
 ) -> User:
     """Auto-create a user from OIDC claims."""
-    email = email.lower() if email else None
+    email = email.strip().lower() if email else None
 
-    preferred_username = user_claims.get("preferred_username")
+    if email and len(email) > FieldLimits.NAME_MAX_LENGTH:
+        logger.warning("OIDC email exceeds maximum length", length=len(email), provider=provider_name)
+        msg = "Email address exceeds maximum length"
+        raise OIDCError(msg)
+
+    preferred_username = (user_claims.get("preferred_username") or "").strip()
     if not preferred_username:
         if email:
             preferred_username = email.split("@", maxsplit=1)[0]
@@ -1260,7 +1266,12 @@ async def _auto_create_user(
             preferred_username = user_claims.get("sub") or secrets.token_hex(8)
     preferred_username = preferred_username.lower()
 
-    full_name = user_claims.get("name") or preferred_username
+    raw_name = (user_claims.get("name") or "").strip()
+    full_name = (raw_name or preferred_username)[: FieldLimits.NAME_MAX_LENGTH]
+
+    # Truncate username to leave room for the random suffix (hyphen + 16 hex chars)
+    max_base_len = FieldLimits.NAME_MAX_LENGTH - 17
+    preferred_username = preferred_username[:max_base_len]
 
     # Resolve unique username: try preferred, then append a random suffix
     username = preferred_username

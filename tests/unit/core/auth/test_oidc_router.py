@@ -29,6 +29,7 @@ from nexus.auth.router import (
     oidc_callback,
 )
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
+from nexus.core.constants import FieldLimits
 from nexus.core.models import User, UserIdentity
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
@@ -1638,6 +1639,142 @@ class TestAutoCreateUser:
         assert result.email is None
         assert result.username == "unique-sub-id"
         assert result.full_name == "unique-sub-id"
+
+    @pytest.mark.asyncio
+    async def test_strips_whitespace_from_email(self) -> None:
+        """Should strip leading/trailing whitespace from email before storing."""
+        padded_email = "  user@example.com  "
+        user_claims = _make_user_claims(email=padded_email, preferred_username="alice", name="Alice")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email=padded_email)
+
+        assert result.email == "user@example.com"
+
+    @pytest.mark.asyncio
+    async def test_strips_whitespace_from_username(self) -> None:
+        """Should strip leading/trailing whitespace from preferred_username."""
+        user_claims = _make_user_claims(preferred_username="  alice  ", name="Alice")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email="alice@example.com")
+
+        assert result.username == "alice"
+
+    @pytest.mark.asyncio
+    async def test_strips_whitespace_from_full_name(self) -> None:
+        """Should strip leading/trailing whitespace from name claim."""
+        user_claims = _make_user_claims(name="  Bob Jones  ", preferred_username="bob")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email="bob@example.com")
+
+        assert result.full_name == "Bob Jones"
+
+    @pytest.mark.asyncio
+    async def test_truncates_long_full_name(self) -> None:
+        """Should truncate full_name to 255 characters when name claim exceeds limit."""
+        long_name = "A" * 500
+        user_claims = _make_user_claims(name=long_name, preferred_username="user")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email="user@example.com")
+
+        assert len(result.full_name) == FieldLimits.NAME_MAX_LENGTH
+
+    @pytest.mark.asyncio
+    async def test_rejects_email_exceeding_max_length(self) -> None:
+        """Should raise OIDCError when email exceeds 255 characters."""
+        long_email = "a" * 290 + "@b.com"
+        user_claims = _make_user_claims(email=long_email, preferred_username="user")
+
+        db = AsyncMock()
+
+        with pytest.raises(OIDCError, match="Email address exceeds maximum length"):
+            await _auto_create_user(db, user_claims, "Provider", email=long_email)
+
+    @pytest.mark.asyncio
+    async def test_truncates_long_username(self) -> None:
+        """Should truncate preferred_username when it exceeds the max length."""
+        long_username = "u" * 300
+        user_claims = _make_user_claims(preferred_username=long_username, name="User")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email="user@example.com")
+
+        assert len(result.username) == FieldLimits.NAME_MAX_LENGTH - 17
+
+    @pytest.mark.asyncio
+    async def test_accepts_email_at_exact_max_length(self) -> None:
+        """Should accept email that is exactly 255 characters."""
+        exact_email = "a" * (FieldLimits.NAME_MAX_LENGTH - len("@b.com")) + "@b.com"
+        assert len(exact_email) == FieldLimits.NAME_MAX_LENGTH
+        user_claims = _make_user_claims(email=exact_email, preferred_username="user", name="User")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email=exact_email)
+
+        assert result.email == exact_email
+
+    @pytest.mark.asyncio
+    async def test_whitespace_only_username_falls_back_to_email(self) -> None:
+        """Should treat whitespace-only preferred_username as empty and fall back to email prefix."""
+        user_claims = _make_user_claims(preferred_username="   ", name="User")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email="fallback@example.com")
+
+        assert result.username == "fallback"
+
+    @pytest.mark.asyncio
+    async def test_whitespace_only_name_falls_back_to_username(self) -> None:
+        """Should treat whitespace-only name claim as empty and use preferred_username for full_name."""
+        user_claims = _make_user_claims(name="   ", preferred_username="alice")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Provider", email="alice@example.com")
+
+        assert result.full_name == "alice"
 
 
 # =============================================================================
