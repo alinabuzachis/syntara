@@ -72,6 +72,12 @@ CATEGORY_CATALOG: list[CategoryDefinition] = [
         description="Authentication, identity provider, and group sync settings",
         display_order=45,
     ),
+    CategoryDefinition(
+        slug="integrations",
+        name="Integrations",
+        description="Integration health check and connection test settings",
+        display_order=50,
+    ),
 ]
 
 
@@ -709,5 +715,33 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         ),
         helper_text="Default: disabled (existing files are preserved)",
         group=DocumentConversionGroup.GENERAL,
+    ),
+    # Integrations
+    SettingDefinition(
+        key="integrations.health_check_interval_seconds",
+        name="Health check interval",
+        category=SettingCategory.INTEGRATIONS,
+        value_type=SettingValueType.INTEGER,
+        default_value=300,
+        description=(
+            "Interval in seconds between automatic integration health "
+            "checks. Each configured integration is validated on this "
+            "schedule to detect connectivity or authentication issues."
+        ),
+        helper_text="Minimum 60 seconds. Default: 300 (5 minutes).",
+        validation_schema={"min": 60},
+    ),
+    SettingDefinition(
+        key="integrations.connection_test_timeout_seconds",
+        name="Connection test timeout",
+        category=SettingCategory.INTEGRATIONS,
+        value_type=SettingValueType.INTEGER,
+        default_value=10,
+        description=(
+            "Maximum time in seconds to wait for an integration "
+            "connection test to complete before marking it as failed."
+        ),
+        helper_text="Minimum 1 second. Default: 10 seconds.",
+        validation_schema={"min": 1},
     ),
 ]

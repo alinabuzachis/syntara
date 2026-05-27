@@ -35,6 +35,7 @@ PROBLEM_TYPES = {
     "service_unavailable": "https://api.nexus.com/errors/service-unavailable",
     "resource_not_published": "https://api.nexus.com/errors/resource-not-published",
     "provider_error": "https://api.nexus.com/errors/provider-error",
+    "integration_error": "https://api.nexus.com/errors/integration-error",
     "internal_error": "https://api.nexus.com/errors/internal-error",
 }
 
