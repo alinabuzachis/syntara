@@ -7,6 +7,7 @@ import {
   AUTH_LOGIN_URL,
   AUTH_REFRESH_URL,
   AUTH_LOGOUT_URL,
+  AUTH_CSRF_TOKEN_URL,
 } from './useAuthStore'
 
 // Mock fetch globally
@@ -38,6 +39,11 @@ function mockFetchError(detail: string, status = 401) {
     json: () => Promise.resolve({ detail }),
     text: () => Promise.resolve(JSON.stringify({ detail })),
   })
+}
+
+function mockLoginSuccess(tokenOverrides?: Partial<{ access_token: string; expires_in: number }>) {
+  mockFetchSuccess(createTokenResponse(tokenOverrides))
+  mockFetchSuccess({ csrf_token: 'test-csrf-token' })
 }
 
 describe('useAuthStore', () => {
@@ -79,18 +85,19 @@ describe('useAuthStore', () => {
       expect(state.isAuthenticated).toBe(false)
       expect(state.isRefreshing).toBe(false)
       expect(state.error).toBeNull()
+      expect(state.csrfToken).toBeNull()
     })
   })
 
   describe('login', () => {
-    it('stores token on successful login', async () => {
-      const tokenData = createTokenResponse()
-      mockFetchSuccess(tokenData)
+    it('stores token and CSRF token on successful login', async () => {
+      mockLoginSuccess()
 
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       const state = useAuthStore.getState()
       expect(state.accessToken).toBe('test-access-token')
+      expect(state.csrfToken).toBe('test-csrf-token')
       expect(state.isAuthenticated).toBe(true)
       expect(state.isRefreshing).toBe(false)
       expect(state.error).toBeNull()
@@ -98,7 +105,7 @@ describe('useAuthStore', () => {
     })
 
     it('posts to the login endpoint with credentials included', async () => {
-      mockFetchSuccess(createTokenResponse())
+      mockLoginSuccess()
 
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
@@ -108,6 +115,16 @@ describe('useAuthStore', () => {
         credentials: 'include',
         body: JSON.stringify({ username: 'admin', password: 'admin' }),
       })
+    })
+
+    it('fetches CSRF token after successful login', async () => {
+      mockLoginSuccess()
+
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockFetch.mock.calls[1][0]).toBe(AUTH_CSRF_TOKEN_URL)
+      expect(mockFetch.mock.calls[1][1]).toEqual(expect.objectContaining({ method: 'POST', credentials: 'include' }))
     })
 
     it('sets error on login failure', async () => {
@@ -121,13 +138,28 @@ describe('useAuthStore', () => {
       expect(state.accessToken).toBeNull()
       expect(state.isAuthenticated).toBe(false)
       expect(state.error).toBe('Invalid credentials')
+      expect(state.csrfToken).toBeNull()
+    })
+
+    it('clears auth state when CSRF token fetch fails after login', async () => {
+      mockFetchSuccess(createTokenResponse())
+      mockFetchError('CSRF cookie missing', 403)
+
+      await expect(useAuthStore.getState().login({ username: 'admin', password: 'admin' })).rejects.toThrow(
+        'CSRF cookie missing'
+      )
+
+      const state = useAuthStore.getState()
+      expect(state.accessToken).toBeNull()
+      expect(state.isAuthenticated).toBe(false)
+      expect(state.csrfToken).toBeNull()
     })
 
     it('computes expiresAt from expires_in', async () => {
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
 
-      mockFetchSuccess(createTokenResponse({ expires_in: 600 }))
+      mockLoginSuccess({ expires_in: 600 })
 
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
@@ -138,8 +170,11 @@ describe('useAuthStore', () => {
 
   describe('refresh', () => {
     it('updates token on successful refresh', async () => {
-      const tokenData = createTokenResponse({ access_token: 'refreshed-token' })
-      mockFetchSuccess(tokenData)
+      mockLoginSuccess()
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      mockFetchSuccess(createTokenResponse({ access_token: 'refreshed-token' }))
 
       await useAuthStore.getState().refresh()
 
@@ -148,25 +183,69 @@ describe('useAuthStore', () => {
       expect(state.isAuthenticated).toBe(true)
     })
 
+    it('sends X-CSRF-Token header on refresh when token is available', async () => {
+      mockLoginSuccess()
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      mockFetchSuccess(createTokenResponse({ access_token: 'refreshed' }))
+      await useAuthStore.getState().refresh()
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        AUTH_REFRESH_URL,
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect.objectContaining returns any
+          headers: expect.objectContaining({ 'X-CSRF-Token': 'test-csrf-token' }),
+        })
+      )
+    })
+
+    it('fetches CSRF token before refresh when csrfToken is null (OIDC bootstrap)', async () => {
+      mockFetchSuccess({ csrf_token: 'bootstrap-csrf' })
+      mockFetchSuccess(createTokenResponse({ access_token: 'bootstrapped' }))
+
+      await useAuthStore.getState().refresh()
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockFetch.mock.calls[0][0]).toBe(AUTH_CSRF_TOKEN_URL)
+      expect(mockFetch.mock.calls[1][0]).toBe(AUTH_REFRESH_URL)
+      expect(useAuthStore.getState().accessToken).toBe('bootstrapped')
+      expect(useAuthStore.getState().csrfToken).toBe('bootstrap-csrf')
+    })
+
+    it('proceeds without CSRF token when CSRF fetch fails (no cookie)', async () => {
+      mockFetchError('CSRF cookie missing', 403)
+      mockFetchSuccess(createTokenResponse({ access_token: 'no-csrf-refresh' }))
+
+      await useAuthStore.getState().refresh()
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(useAuthStore.getState().accessToken).toBe('no-csrf-refresh')
+    })
+
     it('posts to the refresh endpoint', async () => {
+      mockLoginSuccess()
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
       mockFetchSuccess(createTokenResponse())
 
       await useAuthStore.getState().refresh()
 
-      expect(mockFetch).toHaveBeenCalledWith(AUTH_REFRESH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      })
+      expect(mockFetch).toHaveBeenCalledWith(
+        AUTH_REFRESH_URL,
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+        })
+      )
     })
 
     it('clears auth state on refresh failure', async () => {
-      // First login successfully
-      mockFetchSuccess(createTokenResponse())
+      mockLoginSuccess()
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
 
-      // Then refresh fails
       mockFetchError('Token expired', 401)
 
       await expect(useAuthStore.getState().refresh()).rejects.toThrow('Token expired')
@@ -178,6 +257,7 @@ describe('useAuthStore', () => {
     })
 
     it('deduplicates concurrent refresh calls', async () => {
+      mockFetchSuccess({ csrf_token: 'dedup-csrf' })
       mockFetchSuccess(createTokenResponse({ access_token: 'deduped-token' }))
 
       const p1 = useAuthStore.getState().refresh()
@@ -186,8 +266,8 @@ describe('useAuthStore', () => {
 
       await Promise.all([p1, p2, p3])
 
-      // Only one fetch call should have been made
-      expect(mockFetch).toHaveBeenCalledTimes(1)
+      // 1 CSRF fetch + 1 refresh = 2 total
+      expect(mockFetch).toHaveBeenCalledTimes(2)
       expect(useAuthStore.getState().accessToken).toBe('deduped-token')
     })
 
@@ -197,7 +277,7 @@ describe('useAuthStore', () => {
         releaseBox.fn = resolve
       })
 
-      mockFetchSuccess(createTokenResponse())
+      mockLoginSuccess()
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       mockFetch.mockImplementationOnce(() =>
@@ -226,12 +306,10 @@ describe('useAuthStore', () => {
 
   describe('logout', () => {
     it('clears auth state after logout', async () => {
-      // First login
-      mockFetchSuccess(createTokenResponse())
+      mockLoginSuccess()
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
 
-      // Then logout
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -244,11 +322,30 @@ describe('useAuthStore', () => {
       expect(state.accessToken).toBeNull()
       expect(state.isAuthenticated).toBe(false)
       expect(state.expiresAt).toBeNull()
+      expect(state.csrfToken).toBeNull()
+    })
+
+    it('sends X-CSRF-Token header on logout', async () => {
+      mockLoginSuccess()
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ detail: 'Successfully logged out' }),
+      })
+
+      await useAuthStore.getState().logout()
+
+      const logoutCall = mockFetch.mock.calls[0]
+      const logoutInit = logoutCall[1] as RequestInit
+      const headers = logoutInit.headers as Record<string, string>
+      expect(headers['X-CSRF-Token']).toBe('test-csrf-token')
     })
 
     it('posts to the logout endpoint with bearer token', async () => {
-      // First login
-      mockFetchSuccess(createTokenResponse({ access_token: 'my-token' }))
+      mockLoginSuccess({ access_token: 'my-token' })
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       mockFetch.mockResolvedValueOnce({
@@ -264,7 +361,7 @@ describe('useAuthStore', () => {
     })
 
     it('clears local state when logout request fails (network), then rejects', async () => {
-      mockFetchSuccess(createTokenResponse())
+      mockLoginSuccess()
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
@@ -273,10 +370,11 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
       expect(useAuthStore.getState().accessToken).toBeNull()
       expect(useAuthStore.getState().logoutCount).toBe(1)
+      expect(useAuthStore.getState().csrfToken).toBeNull()
     })
 
     it('clears local state when logout returns non-OK, then rejects', async () => {
-      mockFetchSuccess(createTokenResponse())
+      mockLoginSuccess()
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       mockFetch.mockResolvedValueOnce({
@@ -292,7 +390,7 @@ describe('useAuthStore', () => {
     })
 
     it('navigates to redirect_url when backend returns one (RP-initiated logout)', async () => {
-      mockFetchSuccess(createTokenResponse())
+      mockLoginSuccess()
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
 
@@ -326,7 +424,7 @@ describe('useAuthStore', () => {
     })
 
     it('does not navigate when backend returns no redirect_url', async () => {
-      mockFetchSuccess(createTokenResponse({ access_token: 'my-token' }))
+      mockLoginSuccess({ access_token: 'my-token' })
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       mockFetch.mockResolvedValueOnce({
@@ -348,7 +446,7 @@ describe('useAuthStore', () => {
 
   describe('ensureValidToken', () => {
     it('does nothing when token is still valid', async () => {
-      mockFetchSuccess(createTokenResponse({ expires_in: 3600 }))
+      mockLoginSuccess({ expires_in: 3600 })
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
       mockFetch.mockClear()
 
@@ -363,7 +461,7 @@ describe('useAuthStore', () => {
       const now = Date.now()
       vi.spyOn(Date, 'now').mockReturnValue(now)
 
-      mockFetchSuccess(createTokenResponse({ expires_in: 1 }))
+      mockLoginSuccess({ expires_in: 1 })
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       // Fast-forward past expiry
@@ -377,6 +475,7 @@ describe('useAuthStore', () => {
     })
 
     it('refreshes when not authenticated', async () => {
+      mockFetchSuccess({ csrf_token: 'bootstrap-csrf' })
       mockFetchSuccess(createTokenResponse({ access_token: 'new-token' }))
 
       await useAuthStore.getState().ensureValidToken()
@@ -387,15 +486,17 @@ describe('useAuthStore', () => {
   })
 
   describe('clearAuth', () => {
-    it('resets all auth state without calling logout endpoint', async () => {
-      mockFetchSuccess(createTokenResponse())
+    it('resets all auth state including CSRF token without calling logout endpoint', async () => {
+      mockLoginSuccess()
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      expect(useAuthStore.getState().csrfToken).toBe('test-csrf-token')
       mockFetch.mockClear()
 
       useAuthStore.getState().clearAuth()
 
       const state = useAuthStore.getState()
       expect(state.accessToken).toBeNull()
+      expect(state.csrfToken).toBeNull()
       expect(state.isAuthenticated).toBe(false)
       expect(mockFetch).not.toHaveBeenCalled()
     })

@@ -990,6 +990,11 @@ export const handlers = [
     })
   }),
 
+  // CSRF token — return a mock form token
+  http.post('/api/v1/auth/csrf-token', () => {
+    return HttpResponse.json({ csrf_token: 'mock-csrf-form-token' })
+  }),
+
   // Auth refresh — preserve username from existing token
   http.post('/api/v1/auth/refresh', ({ request }) => {
     const username = getUsernameFromRequest(request)

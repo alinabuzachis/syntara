@@ -26,6 +26,7 @@ type AuthState = {
   error: string | null
   logoutCount: number
   username: string | null
+  csrfToken: string | null
 }
 
 type LoginCredentials = {
@@ -51,6 +52,7 @@ type AuthStore = AuthState & AuthActions
 const AUTH_LOGIN_URL = '/api/v1/auth/login'
 const AUTH_REFRESH_URL = '/api/v1/auth/refresh'
 const AUTH_LOGOUT_URL = '/api/v1/auth/logout'
+const AUTH_CSRF_TOKEN_URL = '/api/v1/auth/csrf-token'
 
 /** Refresh the token 30 seconds before it actually expires */
 const EXPIRY_BUFFER_MS = 30_000
@@ -63,6 +65,7 @@ const INITIAL_STATE: AuthState = {
   error: null,
   logoutCount: 0,
   username: null,
+  csrfToken: null,
 }
 
 // ============================================================================
@@ -99,7 +102,14 @@ type LogoutResponse = {
  * `redirect_url` that the caller should navigate to via
  * `window.location.href` so the browser sends first-party IdP cookies.
  */
-async function revokeServerSession(accessToken: string | null): Promise<LogoutResponse> {
+function buildAuthHeaders(accessToken: string | null, csrfToken: string | null): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+  if (csrfToken) headers['X-CSRF-Token'] = csrfToken
+  return headers
+}
+
+async function revokeServerSession(accessToken: string | null, csrfToken: string | null): Promise<LogoutResponse> {
   try {
     const logoutUrl = new URL(AUTH_LOGOUT_URL, window.location.origin)
     logoutUrl.searchParams.set('post_logout_redirect_uri', `${window.location.origin}/`)
@@ -107,10 +117,7 @@ async function revokeServerSession(accessToken: string | null): Promise<LogoutRe
     // eslint-disable-next-line no-restricted-globals -- auth: logout before token middleware teardown
     const response = await fetch(logoutUrl.toString(), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
+      headers: buildAuthHeaders(accessToken, csrfToken),
       credentials: 'include',
     })
 
@@ -153,29 +160,44 @@ function isTokenExpired(expiresAt: number | null): boolean {
   return Date.now() >= expiresAt - EXPIRY_BUFFER_MS
 }
 
-async function postAuth(url: string, body?: object): Promise<LoginResponse> {
+async function throwResponseError(response: Response): Promise<never> {
+  const text = await response.text()
+  let detail = text
+  let code: string | undefined
+  try {
+    const parsed: Record<string, unknown> = JSON.parse(text) as Record<string, unknown>
+    const msg = parsed.detail ?? parsed.message
+    if (typeof msg === 'string') detail = msg
+    if (typeof parsed.code === 'string') code = parsed.code
+  } catch {
+    // use raw text
+  }
+  throw code ? new AuthError(detail, code) : new Error(detail)
+}
+
+async function fetchCsrfToken(): Promise<string> {
+  // eslint-disable-next-line no-restricted-globals -- auth: CSRF token fetch before client is initialized
+  const response = await fetch(AUTH_CSRF_TOKEN_URL, {
+    method: 'POST',
+    credentials: 'include',
+  })
+
+  if (!response.ok) await throwResponseError(response)
+
+  const body = (await response.json()) as { csrf_token: string }
+  return body.csrf_token
+}
+
+async function postAuth(url: string, body?: object, extraHeaders?: Record<string, string>): Promise<LoginResponse> {
   // eslint-disable-next-line no-restricted-globals -- auth: login/token exchange before client is initialized
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
     credentials: 'include', // ensure HttpOnly cookies are sent
     ...(body ? { body: JSON.stringify(body) } : {}),
   })
 
-  if (!response.ok) {
-    const text = await response.text()
-    let detail = text
-    let code: string | undefined
-    try {
-      const parsed: Record<string, unknown> = JSON.parse(text) as Record<string, unknown>
-      const msg = parsed.detail ?? parsed.message
-      if (typeof msg === 'string') detail = msg
-      if (typeof parsed.code === 'string') code = parsed.code
-    } catch {
-      // use raw text
-    }
-    throw code ? new AuthError(detail, code) : new Error(detail)
-  }
+  if (!response.ok) await throwResponseError(response)
 
   return (await response.json()) as LoginResponse
 }
@@ -219,6 +241,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const data = await postAuth(AUTH_LOGIN_URL, credentials)
       applyTokenResponse(set, data)
+      const csrfToken = await fetchCsrfToken()
+      set({ csrfToken })
     } catch (err) {
       set({
         ...INITIAL_STATE,
@@ -243,7 +267,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const inFlightRefresh: { promise: Promise<void> | null } = { promise: null }
     const currentRefresh = (async () => {
       try {
-        const data = await postAuth(AUTH_REFRESH_URL)
+        let { csrfToken } = get()
+        if (!csrfToken) {
+          try {
+            csrfToken = await fetchCsrfToken()
+            set({ csrfToken })
+          } catch {
+            // OIDC bootstrap: the CSRF cookie may not exist yet on the first
+            // page load after an IdP redirect, so this fetch can legitimately
+            // 403. Refresh proceeds without the X-CSRF-Token header — the
+            // server enforces CSRF validation and will reject the request if
+            // the token is actually required, so security is not weakened.
+          }
+        }
+        const csrfHeaders: Record<string, string> = csrfToken ? { 'X-CSRF-Token': csrfToken } : {}
+        const data = await postAuth(AUTH_REFRESH_URL, undefined, csrfHeaders)
         if (get().logoutCount !== refreshEpoch) {
           return
         }
@@ -273,7 +311,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: async () => {
-    const { accessToken, logoutCount } = get()
+    const { accessToken, csrfToken, logoutCount } = get()
     // Drop any in-flight refresh waiters — otherwise AppLogin bootstrap can await this forever and
     // never leave the loading state. Stale refresh completions are ignored via `logoutCount` / epoch.
     refreshPromise = null
@@ -283,7 +321,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // bootstrap useEffect fires a refresh() that races the logout POST —
     // the cookie is still present, so the refresh succeeds and the user
     // appears logged back in.
-    const { error, redirectUrl, authError } = await revokeServerSession(accessToken)
+    const { error, redirectUrl, authError } = await revokeServerSession(accessToken, csrfToken)
 
     // Always clear local state, even if the server call failed
     set({ ...INITIAL_STATE, logoutCount: logoutCount + 1 })
@@ -339,5 +377,5 @@ export const selectIsRefreshing = (state: AuthStore) => state.isRefreshing
 // Exported for testing
 // ============================================================================
 
-export { isTokenExpired, AUTH_LOGIN_URL, AUTH_REFRESH_URL, AUTH_LOGOUT_URL, EXPIRY_BUFFER_MS }
+export { isTokenExpired, AUTH_LOGIN_URL, AUTH_REFRESH_URL, AUTH_LOGOUT_URL, AUTH_CSRF_TOKEN_URL, EXPIRY_BUFFER_MS }
 export type { LoginCredentials, LoginResponse, AuthState, AuthStore }

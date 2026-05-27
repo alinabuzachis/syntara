@@ -23,6 +23,14 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] as const
  * bootstrap refresh (which would auto-authenticate via cookie).
  */
 async function goToLoginPage(page: import('@playwright/test').Page) {
+  await page.route('**/api/v1/auth/csrf-token', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ csrf_token: 'mock-csrf-e2e' }),
+    })
+  )
+
   await page.route('**/api/v1/auth/refresh', (route) =>
     route.fulfill({
       status: 401,

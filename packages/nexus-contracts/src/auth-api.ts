@@ -99,6 +99,30 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/auth/csrf-token': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Get CSRF form token
+     * @description Return the CSRF form token derived from the session's CSRF seed cookie.
+     *
+     *     The SPA calls this once after login or OIDC redirect to obtain the
+     *     form token, which it then sends in the `X-CSRF-Token` header on
+     *     subsequent state-changing requests (refresh, logout).
+     */
+    post: operations['get_csrf_token']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/auth/providers': {
     parameters: {
       query?: never
@@ -279,6 +303,17 @@ export interface components {
        * @description Enabled identity providers
        */
       providers?: components['schemas']['AuthProviderInfo'][]
+    }
+    /**
+     * CsrfTokenResponse
+     * @description CSRF form token response.
+     */
+    CsrfTokenResponse: {
+      /**
+       * Csrf Token
+       * @description CSRF form token for use in X-CSRF-Token header
+       */
+      csrf_token: string
     }
     /**
      * ErrorData
@@ -484,6 +519,28 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  get_csrf_token: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description CSRF form token */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CsrfTokenResponse']
+        }
+      }
+      403: components['responses']['ForbiddenError']
+      500: components['responses']['InternalServerError']
+    }
+  }
   login: {
     parameters: {
       query?: never
