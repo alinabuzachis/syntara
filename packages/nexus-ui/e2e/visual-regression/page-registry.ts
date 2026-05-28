@@ -648,6 +648,14 @@ export const loginPages: PageEntry[] = [
   },
   {
     section: 'login',
+    name: 'login-oidc-auth-error',
+    path: '/?auth_error=email_already_linked',
+    waitFor: async (page) => {
+      await expect(page.getByText('This email is already associated with an existing account.')).toBeVisible()
+    },
+  },
+  {
+    section: 'login',
     name: 'login-error',
     path: '/',
     waitFor: async (page) => {

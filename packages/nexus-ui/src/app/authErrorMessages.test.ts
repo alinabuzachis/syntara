@@ -19,6 +19,10 @@ describe('resolveAuthError', () => {
       'Access denied. Your identity provider groups do not match any configured group mappings. Contact your administrator.',
     ],
     ['idp_logout_failed', 'Logged out successfully, but could not log out of the identity provider.'],
+    [
+      'email_already_linked',
+      'This email is already associated with an existing account. Please sign in with your original authentication method and link this identity provider via the Identities tab on your user profile page.',
+    ],
   ])('maps known code "%s" to its display message', (code, expected) => {
     expect(resolveAuthError(code).message).toBe(expected)
   })

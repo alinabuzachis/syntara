@@ -17,6 +17,11 @@ const AUTH_ERROR_CODE_MESSAGES: Record<string, AuthErrorResult> = {
       'Access denied. Your identity provider groups do not match any configured group mappings. Contact your administrator.',
     isLogoutFailure: false,
   },
+  email_already_linked: {
+    message:
+      'This email is already associated with an existing account. Please sign in with your original authentication method and link this identity provider via the Identities tab on your user profile page.',
+    isLogoutFailure: false,
+  },
   idp_logout_failed: {
     message: 'Logged out successfully, but could not log out of the identity provider.',
     isLogoutFailure: true,
