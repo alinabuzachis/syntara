@@ -14,6 +14,7 @@ Run with:
 
 from __future__ import annotations
 
+import logging
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
@@ -27,12 +28,66 @@ from tests.performance.invocation_service.conftest import create_invocation
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
+logger = logging.getLogger(__name__)
+
 pytestmark = pytest.mark.performance
 
 TARGET_THROUGHPUT_PER_SECOND = 10
 SUSTAINED_DURATION_SECONDS = 60
 MAX_WORKERS = 20
 BATCH_SIZE = 10
+
+
+def _collect_completed(
+    pending: set[Future[tuple[float, bool]]],
+    timeout: float,
+) -> tuple[list[float], int, int, set[Future[tuple[float, bool]]]]:
+    """Collect results from completed futures within *timeout* seconds.
+
+    Returns:
+        Tuple of (response_times, successes, failures, done_futures).
+
+    """
+    response_times: list[float] = []
+    successes = 0
+    failures = 0
+    done: set[Future[tuple[float, bool]]] = set()
+    try:
+        for future in as_completed(pending, timeout=timeout):
+            elapsed_ms, ok = future.result()
+            response_times.append(elapsed_ms)
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+            done.add(future)
+    except TimeoutError:
+        remaining = len(pending) - len(done)
+        logger.debug("as_completed timeout: %d futures still pending", remaining)
+    return response_times, successes, failures, done
+
+
+def _drain_pending(
+    pending: set[Future[tuple[float, bool]]],
+    timeout: float = 30.0,
+) -> tuple[list[float], int, int]:
+    """Drain remaining futures with a single aggregate timeout.
+
+    Futures that are still unfinished after *timeout* are counted as failures.
+
+    Returns:
+        Tuple of (response_times, successes, failures).
+
+    """
+    if not pending:
+        return [], 0, 0
+    logger.debug("Draining %d remaining futures", len(pending))
+    response_times, successes, failures, _ = _collect_completed(pending, timeout)
+    undrained = sum(1 for f in pending if not f.done())
+    if undrained:
+        logger.warning("Drain timeout: %d futures still unfinished, counting as failures", undrained)
+        failures += undrained
+    return response_times, successes, failures
 
 
 def _run_sustained_load(
@@ -81,28 +136,19 @@ def _run_sustained_load(
                 )
                 pending.add(future)
 
-            done = set()
-            for future in as_completed(pending, timeout=5.0):
-                elapsed_ms, ok = future.result()
-                response_times.append(elapsed_ms)
-                if ok:
-                    successes += 1
-                else:
-                    failures += 1
-                done.add(future)
-
+            batch_times, batch_ok, batch_fail, done = _collect_completed(pending, timeout=5.0)
+            response_times.extend(batch_times)
+            successes += batch_ok
+            failures += batch_fail
             pending -= done
 
             if time.monotonic() >= end_time:
                 break
 
-        for future in as_completed(pending):
-            elapsed_ms, ok = future.result()
-            response_times.append(elapsed_ms)
-            if ok:
-                successes += 1
-            else:
-                failures += 1
+        drain_times, drain_ok, drain_fail = _drain_pending(pending)
+        response_times.extend(drain_times)
+        successes += drain_ok
+        failures += drain_fail
 
     actual_elapsed_seconds = time.monotonic() - wall_start
     return response_times, successes, failures, actual_elapsed_seconds
