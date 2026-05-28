@@ -20,7 +20,7 @@ from uuid import UUID
 import structlog
 from fastapi import Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -83,6 +83,7 @@ from nexus.core.lib.encryption import SecretEncryptor, key_from_string
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups
 from nexus.core.models.user import AuthType
+from nexus.core.models.user_identity import SUBJECT_MAX_LENGTH
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.services.secret_service import create_secret_service
 from nexus.identity_providers.models.identity_provider import IdentityProvider
@@ -1117,6 +1118,24 @@ async def _load_active_user(db: AsyncSession, user_id: UUID) -> User:
     return user
 
 
+def _validate_sub_claim(user_claims: dict[str, str | None]) -> str:
+    """Extract and validate the OIDC sub claim, returning it if valid."""
+    sub = user_claims.get("sub")
+    if not sub:
+        logger.warning("Missing sub claim in OIDC token")
+        msg = "Identity provider did not return a subject identifier"
+        raise OIDCError(msg)
+    if len(sub) > SUBJECT_MAX_LENGTH:
+        logger.warning(
+            "OIDC sub claim exceeds maximum length",
+            length=len(sub),
+            max_length=SUBJECT_MAX_LENGTH,
+        )
+        msg = "Identity provider returned an identifier that exceeds the maximum supported length"
+        raise OIDCError(msg)
+    return sub
+
+
 async def _find_user_by_email(db: AsyncSession, email: str) -> User | None:
     """Find a non-deleted user by email address."""
     result = await db.exec(
@@ -1158,6 +1177,9 @@ async def _create_identity_with_race_handling(
             # Re-load user from fresh session state after rollback
             user = await _load_active_user(db, existing.user_id)
             return (user, existing)
+        msg = "Unable to sign in. Contact your administrator."
+        raise OIDCError(msg) from e
+    except DataError as e:
         msg = "Unable to sign in. Contact your administrator."
         raise OIDCError(msg) from e
     # Refresh user to ensure it's attached to the current session state
@@ -1217,11 +1239,7 @@ async def _resolve_oidc_user(
         raw_email.strip().lower() if isinstance(raw_email, str) and EMAIL_PATTERN.fullmatch(raw_email.strip()) else None
     )
 
-    sub = user_claims.get("sub")
-    if not sub:
-        logger.warning("Missing sub claim in ID token")
-        msg = "Identity provider did not return a subject identifier"
-        raise OIDCError(msg)
+    sub = _validate_sub_claim(user_claims)
 
     # Cache provider attributes before any DB rollback can expire the ORM object
     provider_name = provider.name
@@ -1913,10 +1931,7 @@ async def _handle_link_flow(
         msg = "Cannot link federated identity to a built-in user account"
         raise OIDCError(msg)
 
-    sub = user_claims.get("sub")
-    if not sub:
-        msg = "Identity provider did not return a subject identifier"
-        raise OIDCError(msg)
+    sub = _validate_sub_claim(user_claims)
 
     issuer = str(provider.configuration.issuer_url)
     identity_service = UserIdentityService(db)
@@ -1960,6 +1975,10 @@ async def _handle_link_flow(
             return await _load_active_user(db, user.id), None
         msg = "This identity is already linked to another account"
         raise OIDCError(msg, error_code=OIDCErrorCode.IDENTITY_ALREADY_LINKED) from e
+    except DataError as e:
+        await db.rollback()
+        msg = "Unable to link identity. Contact your administrator."
+        raise OIDCError(msg) from e
 
     await db.refresh(user)
     return user, identity if was_local else None

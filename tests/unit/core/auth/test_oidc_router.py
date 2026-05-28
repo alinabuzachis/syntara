@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 
 from nexus.auth.exceptions import OIDCCallbackError, OIDCErrorCode, SessionStoreUnavailableError
 from nexus.auth.router import (
@@ -31,6 +31,7 @@ from nexus.auth.router import (
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
 from nexus.core.constants import FieldLimits
 from nexus.core.models import User, UserIdentity
+from nexus.core.models.user_identity import SUBJECT_MAX_LENGTH
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
 
@@ -1434,6 +1435,51 @@ class TestResolveOidcUser:
         assert user.username == "racer"
         assert identity is not None
 
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_rejects_sub_exceeding_max_length(self, mock_svc_cls: MagicMock) -> None:
+        """Should raise OIDCError when sub claim exceeds SUBJECT_MAX_LENGTH."""
+        provider = _make_provider()
+        user_claims: dict[str, str | None] = {
+            "sub": "a" * (SUBJECT_MAX_LENGTH + 1),
+            "email": "user@example.com",
+            "name": "Test User",
+            "preferred_username": "testuser",
+        }
+
+        db = AsyncMock()
+
+        with pytest.raises(OIDCError, match="exceeds the maximum supported length"):
+            await _resolve_oidc_user(db, user_claims, provider)
+
+        mock_svc_cls.return_value.create_identity.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_accepts_sub_at_exact_max_length(self, mock_svc_cls: MagicMock) -> None:
+        """Should accept sub claim that is exactly SUBJECT_MAX_LENGTH characters."""
+        provider = _make_provider()
+        user_claims: dict[str, str | None] = {
+            "sub": "a" * SUBJECT_MAX_LENGTH,
+            "email": "user@example.com",
+            "name": "Test User",
+            "preferred_username": "testuser",
+        }
+
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock()
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        _user, identity = await _resolve_oidc_user(db, user_claims, provider)
+        assert identity is not None
+        mock_svc.create_identity.assert_called_once()
+
 
 # =============================================================================
 # Auto Create User
@@ -2051,6 +2097,71 @@ class TestHandleLinkFlow:
         with pytest.raises(OIDCError, match="already linked to another account"):
             await _handle_link_flow(db, state_data, user_claims, provider)
 
+    @pytest.mark.asyncio
+    async def test_rejects_sub_exceeding_max_length_in_link_flow(self) -> None:
+        """Should raise OIDCError when sub claim exceeds SUBJECT_MAX_LENGTH during linking."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+        user_claims: dict[str, str | None] = {
+            "sub": "a" * (SUBJECT_MAX_LENGTH + 1),
+            "email": "user@example.com",
+            "name": "Test User",
+            "preferred_username": "testuser",
+        }
+        state_data = {"user_id": str(user.id)}
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="exceeds the maximum supported length"):
+            await _handle_link_flow(db, state_data, user_claims, provider)
+
+    @pytest.mark.asyncio
+    async def test_rejects_missing_sub_in_link_flow(self) -> None:
+        """Should raise OIDCError when sub claim is missing during linking."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+        user_claims: dict[str, str | None] = {
+            "sub": None,
+            "email": "user@example.com",
+            "name": "Test User",
+            "preferred_username": "testuser",
+        }
+        state_data = {"user_id": str(user.id)}
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="did not return a subject identifier"):
+            await _handle_link_flow(db, state_data, user_claims, provider)
+
+    @pytest.mark.asyncio
+    @patch("nexus.auth.router.UserIdentityService")
+    async def test_raises_oidc_error_on_data_error_in_link_flow(self, mock_svc_cls: MagicMock) -> None:
+        """Should catch DataError (e.g. truncation) during linking and raise OIDCError."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+        user_claims = _make_user_claims(email="user@example.com")
+        state_data = {"user_id": str(user.id)}
+
+        mock_svc = mock_svc_cls.return_value
+        mock_svc.find_by_issuer_and_subject = AsyncMock(return_value=None)
+        mock_svc.create_identity = AsyncMock(side_effect=DataError("truncation", params=None, orig=Exception()))
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        with pytest.raises(OIDCError, match="Unable to link identity"):
+            await _handle_link_flow(db, state_data, user_claims, provider)
+
+        db.rollback.assert_called_once()
+
 
 # =============================================================================
 # Auto Create User (from resolve flow)
@@ -2163,6 +2274,25 @@ class TestCreateIdentityWithRaceHandling:
             await _create_identity_with_race_handling(
                 db, identity_service, user, provider.id, "https://idp.example.com", "sub-123"
             )
+
+    @pytest.mark.asyncio
+    async def test_raises_oidc_error_on_data_error(self) -> None:
+        """Should catch DataError (e.g. truncation) and raise OIDCError."""
+        user = _make_user(email="user@example.com")
+        provider = _make_provider()
+
+        identity_service = AsyncMock()
+        identity_service.create_identity = AsyncMock(side_effect=DataError("truncation", params=None, orig=Exception()))
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+
+        with pytest.raises(OIDCError, match="Unable to sign in"):
+            await _create_identity_with_race_handling(
+                db, identity_service, user, provider.id, "https://idp.example.com", "sub-123"
+            )
+
+        identity_service.find_by_issuer_and_subject.assert_not_called()
 
 
 # =============================================================================
