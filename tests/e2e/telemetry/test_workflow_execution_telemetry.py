@@ -13,9 +13,9 @@ import time
 from typing import Any
 from uuid import UUID
 
-import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
@@ -114,8 +114,6 @@ def workflow_id(nexus_api: NexusApiRegistry) -> str:
 @pytest.fixture(scope="module")
 def completed_execution(
     nexus_api: NexusApiRegistry,
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
     workflow_id: str,
     segment_server_url: str,
 ) -> dict[str, Any]:
@@ -128,17 +126,11 @@ def completed_execution(
     """
     rid = new_request_id()
 
-    # Create execution via raw httpx so we can pass X-Request-Id
-    headers = {**auth_headers, "X-Request-Id": rid, "Content-Type": "application/json"}
-    r = httpx.post(
-        f"{nexus_base_url}/api/v1/executions",
-        json={"workflow_id": workflow_id},
-        headers=headers,
-        timeout=10,
-    )
-    r.raise_for_status()
-    exec_data = r.json()
-    exec_id = exec_data["id"]
+    rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
+    exec_data = rid_api.executions.create(
+        body=ExecutionCreate(workflow_id=UUID(workflow_id)),
+    ).assert_and_get()
+    exec_id = str(exec_data.id)
 
     execution = _poll_execution(nexus_api, exec_id)
     assert execution.status == "completed", f"Execution failed: {getattr(execution, 'error_details', None)}"

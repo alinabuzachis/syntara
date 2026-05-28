@@ -12,9 +12,10 @@ from collections.abc import Generator
 from typing import Any
 from uuid import UUID, uuid4
 
-import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 
@@ -55,28 +56,21 @@ WORKFLOW_DEFINITION_V2: dict[str, Any] = {
 
 @pytest.fixture(scope="module")
 def created_workflow(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
+    nexus_api: NexusApiRegistry,
     segment_server_url: str,
 ) -> dict[str, Any]:
     """Create a new workflow with X-Request-Id and capture the version event."""
     rid = new_request_id()
     workflow_name = f"e2e-version-telemetry-{uuid4().hex[:8]}"
 
-    headers = {**auth_headers, "X-Request-Id": rid, "Content-Type": "application/json"}
-    resp = httpx.post(
-        f"{nexus_base_url}/api/v1/workflows",
-        json={
-            "name": workflow_name,
-            "description": "E2E telemetry test: workflow version event",
-            "is_enabled": True,
-            "workflow_definition": WORKFLOW_DEFINITION_V1,
-        },
-        headers=headers,
-        timeout=10,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
+    data = rid_api.workflows.create(
+        body=WorkflowCreate(
+            name=workflow_name,
+            description="E2E telemetry test: workflow version event",
+            workflow_definition=WORKFLOW_DEFINITION_V1,
+        ),
+    ).assert_and_get()
 
     events = get_captured_events(
         segment_server_url,
@@ -88,15 +82,14 @@ def created_workflow(
     return {
         "events": events,
         "request_id": rid,
-        "workflow_id": data["id"],
+        "workflow_id": str(data.id),
         "workflow_name": workflow_name,
     }
 
 
 @pytest.fixture(scope="module")
 def updated_workflow(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
+    nexus_api: NexusApiRegistry,
     segment_server_url: str,
     created_workflow: dict[str, Any],
 ) -> dict[str, Any]:
@@ -104,14 +97,11 @@ def updated_workflow(
     rid = new_request_id()
     workflow_id = created_workflow["workflow_id"]
 
-    headers = {**auth_headers, "X-Request-Id": rid, "Content-Type": "application/json"}
-    resp = httpx.patch(
-        f"{nexus_base_url}/api/v1/workflows/{workflow_id}",
-        json={"workflow_definition": WORKFLOW_DEFINITION_V2},
-        headers=headers,
-        timeout=10,
-    )
-    resp.raise_for_status()
+    rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
+    rid_api.workflows.update(
+        workflow_id=UUID(workflow_id),
+        body=WorkflowUpdate(workflow_definition=WORKFLOW_DEFINITION_V2),
+    ).assert_and_get()
 
     events = get_captured_events(
         segment_server_url,
@@ -199,8 +189,7 @@ class TestNoEventOnUnchangedDefinition:
 
     def test_no_event_on_same_definition(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_api: NexusApiRegistry,
         segment_server_url: str,
         updated_workflow: dict[str, Any],
     ) -> None:
@@ -208,14 +197,11 @@ class TestNoEventOnUnchangedDefinition:
         rid = new_request_id()
         workflow_id = updated_workflow["workflow_id"]
 
-        headers = {**auth_headers, "X-Request-Id": rid, "Content-Type": "application/json"}
-        resp = httpx.patch(
-            f"{nexus_base_url}/api/v1/workflows/{workflow_id}",
-            json={"workflow_definition": WORKFLOW_DEFINITION_V2},
-            headers=headers,
-            timeout=10,
-        )
-        resp.raise_for_status()
+        rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
+        rid_api.workflows.update(
+            workflow_id=UUID(workflow_id),
+            body=WorkflowUpdate(workflow_definition=WORKFLOW_DEFINITION_V2),
+        ).assert_and_get()
 
         events = get_captured_events(
             segment_server_url,
