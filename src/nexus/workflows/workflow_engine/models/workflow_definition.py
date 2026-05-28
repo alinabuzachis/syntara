@@ -78,6 +78,7 @@ class ActivityName(StrEnum):
     # Internal
     CREDENTIAL_RESOLUTION = "resolve_workflow_credentials"
     ACTIVITY_MONITORING = "register_activity_monitoring"
+    COMPLETE_WAIT = "complete_wait"
 
 
 # Enums

@@ -966,6 +966,7 @@ class NexusWorkflow:
             complete_wait,
             args=[workflow.info().workflow_id, workflow.info().run_id, node_id],
             start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+            activity_id=f"__internal__complete_wait_{node_id}",
         )
 
         # Await the handle to get the activity result

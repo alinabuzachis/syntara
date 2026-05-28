@@ -74,7 +74,7 @@ async def wait(
     activity.raise_complete_async()
 
 
-@activity.defn(name="__internal__complete_wait")
+@activity.defn(name="complete_wait")
 async def complete_wait(
     workflow_id: str,
     run_id: str | None,
