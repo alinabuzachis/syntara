@@ -164,13 +164,13 @@ const { handleToggle, handleDelete } = useCredentialActions(credential)
 
 ### Pattern Recognition Checklist
 
-| Pattern Detected                           | Action Required                                 |
-| ------------------------------------------ | ----------------------------------------------- |
-| **Repeated JSX structure** (2+ times)      | -> Create a **Component**                       |
-| **Repeated logic/state** (2+ times)        | -> Create a **Hook**                            |
-| **Repeated utility functions**             | -> Create a **shared utility**                  |
-| **Similar components with variants**       | -> Extend existing component with props/variants |
-| **Repeated boolean expressions** (2+ files) | -> Extract to a shared predicate function       |
+| Pattern Detected                            | Action Required                                  |
+| ------------------------------------------- | ------------------------------------------------ |
+| **Repeated JSX structure** (2+ times)       | -> Create a **Component**                        |
+| **Repeated logic/state** (2+ times)         | -> Create a **Hook**                             |
+| **Repeated utility functions**              | -> Create a **shared utility**                   |
+| **Similar components with variants**        | -> Extend existing component with props/variants |
+| **Repeated boolean expressions** (2+ files) | -> Extract to a shared predicate function        |
 
 ```typescript
 // ❌ BAD — same expression duplicated in BuilderWorkflowPageHeader.tsx and ExecutionDetail.tsx

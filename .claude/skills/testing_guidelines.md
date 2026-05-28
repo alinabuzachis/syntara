@@ -311,7 +311,7 @@ The ESLint plugin `eslint-plugin-react-you-might-not-need-an-effect` (configured
 
 ### 6. Isolate the Field Under Test in Validation Tests
 
-When testing that a specific field shows a required validation error, fill in all *other* required fields first. Otherwise the assertion may pass today but break if field validation order changes.
+When testing that a specific field shows a required validation error, fill in all _other_ required fields first. Otherwise the assertion may pass today but break if field validation order changes.
 
 ```typescript
 // ❌ BAD — only fills name, leaves other fields empty; assertion depends on validation order

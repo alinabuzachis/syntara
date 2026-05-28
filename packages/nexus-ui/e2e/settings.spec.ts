@@ -636,9 +636,7 @@ test.describe('Settings', () => {
       // Reload and verify value persisted
       await app.goto(toAppUrl('/system-administration/settings'))
       await authTab.click()
-      const reloadedToggle = app.locator('[id="authentication.local_login_enabled"]')
-        .locator('..')
-        .getByRole('switch')
+      const reloadedToggle = app.locator('[id="authentication.local_login_enabled"]').locator('..').getByRole('switch')
       if (wasChecked) {
         await expect(reloadedToggle).not.toBeChecked()
       } else {
