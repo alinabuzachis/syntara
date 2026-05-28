@@ -35,7 +35,7 @@ pytestmark = pytest.mark.performance
 TARGET_THROUGHPUT_PER_SECOND = 10
 SUSTAINED_DURATION_SECONDS = 60
 MAX_WORKERS = 20
-BATCH_SIZE = 10
+BATCH_SIZE = 20
 
 
 def _collect_completed(
