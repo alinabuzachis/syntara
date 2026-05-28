@@ -22,8 +22,6 @@ Prerequisites:
     - metrics.perf_test_mode enabled on the target instance
     - Valid admin credentials (APP_ADMIN_PASSWORD_PATH or .secrets/admin-password)
     - **LLM Provider credential** created and enabled on the deployment,
-      OR ``E2E_LLM_CREDENTIAL_CONFIGURED=1`` env var set on the deployment
-      with a valid ``openrouter_api_key`` in settings.
 
 Run with:
     make test-performance

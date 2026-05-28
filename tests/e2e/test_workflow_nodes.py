@@ -7,7 +7,6 @@ Run with:
     APP_BASE_URL=http://localhost:8000 make test-e2e
 """
 
-import os
 import time
 from typing import Any
 from uuid import UUID
@@ -27,11 +26,6 @@ POLL_TIMEOUT = 20
 AGENTIC_POLL_TIMEOUT = 120
 
 _TERMINAL_STATUSES = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
-
-requires_openrouter = pytest.mark.skipif(
-    not os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"),
-    reason="E2E_LLM_CREDENTIAL_CONFIGURED not set — full stack with LLM credential required",
-)
 
 
 def _poll_execution(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> ExecutionRead:
@@ -471,9 +465,8 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
 # ---------------------------------------------------------------------------
 
 
-@requires_openrouter
 @pytest.mark.e2e
-def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str):
+def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str):
     """A script node feeds into an agentic node."""
     result = _create_and_run_workflow(
         nexus_api,
@@ -502,6 +495,8 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str):
                             "You MUST use the get_greeting tool to greet jimmy. "
                             "Do not answer without calling the tool first."
                         ),
+                        "credential_id": llm_credential_id,
+                        "model": llm_model,
                     },
                 },
             ],
@@ -519,9 +514,8 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str):
     assert activities["agent"] == "completed"
 
 
-@requires_openrouter
 @pytest.mark.e2e
-def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str):
+def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str):
     """An agentic node feeds into a script node."""
     result = _create_and_run_workflow(
         nexus_api,
@@ -541,6 +535,8 @@ def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str):
                             "You MUST use the get_greeting tool to greet jimmy. "
                             "Do not answer without calling the tool first."
                         ),
+                        "credential_id": llm_credential_id,
+                        "model": llm_model,
                     },
                 },
                 {
@@ -567,9 +563,10 @@ def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str):
     assert activities["post_process"] == "completed"
 
 
-@requires_openrouter
 @pytest.mark.e2e
-def test_loop_with_agentic_body(nexus_api: NexusApiRegistry, mcp_provider_id: str):
+def test_loop_with_agentic_body(
+    nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str
+):
     """A loop iterates with an agentic node as the loop body."""
     result = _create_and_run_workflow(
         nexus_api,
@@ -598,6 +595,8 @@ def test_loop_with_agentic_body(nexus_api: NexusApiRegistry, mcp_provider_id: st
                             "You MUST use the get_greeting tool to greet someone. "
                             "Do not answer without calling the tool first."
                         ),
+                        "credential_id": llm_credential_id,
+                        "model": llm_model,
                     },
                 },
             ],
@@ -616,9 +615,10 @@ def test_loop_with_agentic_body(nexus_api: NexusApiRegistry, mcp_provider_id: st
     assert activities["greet"] == "completed"
 
 
-@requires_openrouter
 @pytest.mark.e2e
-def test_http_request_then_agentic(nexus_api: NexusApiRegistry, worker_base_url: str, mcp_provider_id: str):
+def test_http_request_then_agentic(
+    nexus_api: NexusApiRegistry, worker_base_url: str, llm_credential_id: str, llm_model: str
+):
     """An HTTP request node feeds into an agentic node."""
     result = _create_and_run_workflow(
         nexus_api,
@@ -644,6 +644,8 @@ def test_http_request_then_agentic(nexus_api: NexusApiRegistry, worker_base_url:
                     "type": "agentic",
                     "config": {
                         "prompt": "Say 'Health check passed' in one sentence.",
+                        "credential_id": llm_credential_id,
+                        "model": llm_model,
                     },
                 },
             ],

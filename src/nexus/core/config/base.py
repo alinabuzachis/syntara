@@ -11,7 +11,7 @@ Usage:
     from nexus.core.config.base import get_settings
 
     settings = get_settings()
-    llm = get_openrouter_llm(api_key=settings.openrouter_api_key)
+    llm = get_openrouter_llm(api_key="<your-api-key>")
 """
 
 import os
@@ -43,11 +43,6 @@ class OpenRouterSettings(BaseSettings):
 
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
-
-    openrouter_api_key: SecretStr | None = Field(
-        default=None,
-        description="OpenRouter API key for LLM access",
-    )
 
     openrouter_model: str = Field(
         default="anthropic/claude-sonnet-4",

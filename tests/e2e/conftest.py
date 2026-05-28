@@ -20,6 +20,8 @@ from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
+from nexus_api_client.models.credential_create import CredentialCreate
+from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
@@ -354,3 +356,64 @@ def workflow_factory(nexus_api: NexusApiRegistry) -> Generator[Callable[[Workflo
             nexus_api.workflows.delete(workflow_id=workflow_id)
         except Exception:
             pass  # Best effort cleanup
+
+
+@pytest.fixture(scope="session")
+def llm_model() -> str:
+    """Return the LLM model to use in agentic node configs.
+
+    Reads APP_OPENROUTER_MODEL from the environment; falls back to the
+    app's default so local runs work without any extra configuration.
+    """
+    return os.environ.get("APP_OPENROUTER_MODEL", "anthropic/claude-sonnet-4")
+
+
+@pytest.fixture(scope="session")
+def llm_credential_id(nexus_api: NexusApiRegistry) -> Generator[str, None, None]:
+    """Create an LLM Provider credential for e2e tests and yield its UUID.
+
+    Reads APP_OPENROUTER_API_KEY from the environment; skips if not set.
+    The credential is deleted on teardown.
+    """
+    api_key = os.environ.get("APP_OPENROUTER_API_KEY")
+    if not api_key:
+        pytest.skip("APP_OPENROUTER_API_KEY not set — LLM credential required")
+
+    types_resp = nexus_api.credentials.list_types()
+    assert types_resp.is_success
+    assert types_resp.parsed is not None
+    llm_type_id: UUID | None = None
+    for ct in types_resp.parsed.resources:
+        if "llm" in ct.name.lower():
+            llm_type_id = UUID(str(ct.id))
+            break
+    assert llm_type_id is not None, "LLM Provider credential type not found — is the database seeded?"
+
+    projects_resp = nexus_api.projects.list()
+    assert projects_resp.is_success
+    assert projects_resp.parsed is not None
+    assert len(projects_resp.parsed.resources) > 0, "No projects available"
+    project_id = UUID(str(projects_resp.parsed.resources[0].id))
+
+    cred = nexus_api.credentials.create(
+        body=CredentialCreate(
+            name="e2e-llm-credential",
+            credential_type_id=llm_type_id,
+            project_id=project_id,
+            inputs=CredentialCreateInputs.from_dict(
+                {
+                    "provider": "openrouter",
+                    "api_key": api_key,
+                    "base_url": "https://openrouter.ai/api/v1",
+                }
+            ),
+        ),
+    ).assert_and_get()
+    cred_id = str(cred.id)
+
+    yield cred_id
+
+    try:
+        nexus_api.credentials.delete(credential_id=UUID(cred_id))
+    except Exception:
+        pass

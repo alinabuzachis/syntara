@@ -130,20 +130,6 @@ jobs:
           kubectl wait --for=condition=ready pod/mock-segment --timeout=60s
           kubectl wait --for=condition=ready pod/mcp-server --timeout=60s
 
-      - name: Inject OpenRouter API key
-        run: |
-          kubectl set env deployment/myaap-ao-api \
-            APP_OPENROUTER_API_KEY="${APP_OPENROUTER_API_KEY}" \
-            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}" \
-            E2E_LLM_CREDENTIAL_CONFIGURED=1
-          kubectl set env deployment/myaap-ao-worker \
-            APP_OPENROUTER_API_KEY="${APP_OPENROUTER_API_KEY}" \
-            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}" \
-            E2E_LLM_CREDENTIAL_CONFIGURED=1
-        env:
-          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
-
       - name: Configure worker internal API URLs
         run: |
           kubectl set env deployment/myaap-ao-worker \
@@ -200,8 +186,6 @@ jobs:
           APP_BASE_URL: http://localhost:8000
           APP_WORKER_BASE_URL: http://myaap-ao-api:8000
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
-          E2E_LLM_CREDENTIAL_CONFIGURED: 1
           SEGMENT_SERVER_URL: http://localhost:9999
           GKE_CLUSTER_ENDPOINT: ${{ secrets.GKE_CLUSTER_ENDPOINT }}
           GKE_CLUSTER_API_KEY: ${{ secrets.GKE_CLUSTER_API_KEY }}

@@ -1,7 +1,6 @@
 """E2E test: agentic workflow executes a tool and records metrics + telemetry.
 
 Requires the full Nexus stack running (API, Temporal, MCP server, OpenRouter).
-Skipped when E2E_LLM_CREDENTIAL_CONFIGURED is not set.
 
 Validates:
   - Workflow execution completes successfully
@@ -13,7 +12,6 @@ Run with:
     make test-e2e-telemetry
 """
 
-import os
 import time
 from collections.abc import Generator
 from typing import Any
@@ -30,38 +28,38 @@ WORKFLOW_NAME_PREFIX = "e2e-agentic-tool-metrics"
 POLL_INTERVAL = 5
 POLL_TIMEOUT = 120
 
-requires_openrouter = pytest.mark.skipif(
-    not os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"),
-    reason="E2E_LLM_CREDENTIAL_CONFIGURED not set — full stack with LLM credential required",
-)
+pytestmark = [pytest.mark.e2e]
 
-pytestmark = [pytest.mark.e2e, requires_openrouter]
 
-WORKFLOW_DEFINITION = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {
-            "id": "trigger_manual",
-            "type": "manual_trigger",
-            "config": {"inputs": {}},
-        }
-    ],
-    "nodes": [
-        {
-            "id": "agentic_task",
-            "name": "Agentic Task",
-            "type": "agentic",
-            "config": {
-                "prompt": (
-                    "You MUST use the get_greeting tool to greet jimmy. Do not answer without calling the tool first."
-                ),
-            },
-        }
-    ],
-    "edges": [
-        {"from": "trigger_manual", "to": "agentic_task"},
-    ],
-}
+def _workflow_definition(credential_id: str, model: str) -> dict[str, Any]:
+    return {
+        "schema_version": "2.0.0",
+        "triggers": [
+            {
+                "id": "trigger_manual",
+                "type": "manual_trigger",
+                "config": {"inputs": {}},
+            }
+        ],
+        "nodes": [
+            {
+                "id": "agentic_task",
+                "name": "Agentic Task",
+                "type": "agentic",
+                "config": {
+                    "prompt": (
+                        "You MUST use the get_greeting tool to greet jimmy. "
+                        "Do not answer without calling the tool first."
+                    ),
+                    "credential_id": credential_id,
+                    "model": model,
+                },
+            }
+        ],
+        "edges": [
+            {"from": "trigger_manual", "to": "agentic_task"},
+        ],
+    }
 
 
 def _get_metrics(
@@ -101,10 +99,13 @@ def _poll_execution(nexus_api: NexusApiRegistry, exec_id: str) -> Any:  # noqa: 
 
 
 @pytest.fixture(scope="module")
-def workflow_id(nexus_api: NexusApiRegistry, mcp_provider_id: str) -> Generator[str, None, None]:
+def workflow_id(
+    nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str
+) -> Generator[str, None, None]:
     """Create a uniquely-named test workflow, yield its ID, then delete it.
 
     Depends on mcp_provider_id to ensure the tool provider is registered first.
+    Depends on llm_credential_id for the agentic node credential; skips if unavailable.
     """
     workflow_name = f"{WORKFLOW_NAME_PREFIX}-{uuid4().hex[:8]}"
 
@@ -112,7 +113,7 @@ def workflow_id(nexus_api: NexusApiRegistry, mcp_provider_id: str) -> Generator[
         body=WorkflowCreate(
             name=workflow_name,
             description="E2E test: agentic workflow with tool metrics",
-            workflow_definition=WORKFLOW_DEFINITION,
+            workflow_definition=_workflow_definition(llm_credential_id, llm_model),
         ),
     ).assert_and_get()
     wf_id = str(data.id)

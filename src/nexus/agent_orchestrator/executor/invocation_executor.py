@@ -1,7 +1,6 @@
 """Service for executing invocations decoupled from creation."""
 
 import contextlib
-import os
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
@@ -426,16 +425,10 @@ class InvocationExecutor:
             invocation_model = ctx.model
 
             # Resolve API key via deferred credential resolution (no plaintext in DB).
-            # Falls back to settings.openrouter_api_key only when
-            # E2E_LLM_CREDENTIAL_CONFIGURED is set (e2e testing without stored credentials).
             raw_credential_id = meta.credential_id.get_secret_value() if meta and meta.credential_id else None
             credential_api_key: str | None = None
             if raw_credential_id:
                 credential_api_key = await self._resolve_llm_api_key(raw_credential_id, session)
-            elif os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"):
-                _settings = get_settings()
-                if _settings.openrouter_api_key:
-                    credential_api_key = _settings.openrouter_api_key.get_secret_value()
 
             llm = get_openrouter_llm(
                 api_key=credential_api_key,
