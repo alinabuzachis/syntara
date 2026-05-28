@@ -55,6 +55,7 @@ How the Automation Orchestrator UI is anchored, and how it relates to other Red 
   3. **Engage PatternFly.** If UX confirms the gap, UX coordinates with PatternFly on resolution — new component, variant, token, or an accepted override — often via a PatternFly GitHub issue or direct conversation.
   4. **Document and track.** If a temporary override is approved, create a Jira issue in AAP with the label `patternfly-override` to track technical debt. Link the PatternFly issue if one exists. The UXSC reviews active overrides periodically.
   5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly or the Ansible UI Framework. Overrides without a resolution path are flagged in quarterly reviews.
+- **`Nx` prefix convention** — AO opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with AO-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
 - **What this is not** — The experience is **not** built on custom libraries, like the Genie proof-of-concept tech demo. Orchestrator deliberately uses a PatternFly-first stack so it stays aligned with the rest of the Red Hat portfolio.
 
 ---
@@ -171,6 +172,17 @@ Use `NxPanelContentStack` (from `src/components/layout/NxPanelContentStack.tsx`)
 | `default` | Standard full-height panel content                                  |
 | `inset`   | List pages with horizontal inset (workflows, executions, approvals) |
 
+### Page Layout Archetypes
+
+The following four compositions are the canonical page structures. Storybook documents each as a composed story under `NxPage`.
+
+| Archetype          | Structure                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| **List page**      | `NxPageHeader` (Create CTA) → `NxPageBody` → `NxPanel isFullHeight` → `NxPanelContentStack variant="inset"` → filter bar + table |
+| **Detail page**    | `NxPageBreadcrumbs` → `NxPageHeader` → `NxPanel isFullHeight` → `NxPanelContentStack` (default) → tabs + content                 |
+| **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` with Cancel/Save toolbar → `NxPanel` → form body (max-width 600px)                          |
+| **Error in panel** | Same shell as list page → `NxPageBody isCentered` + `ErrorState` **inside** `NxPanel` (page header and shell remain visible)     |
+
 ### Page Header Structure
 
 The page header appears at the top of every page and contains the title and primary actions.
@@ -182,13 +194,28 @@ There are different kinds of page headers:
   - Right-aligned page actions
 
 - **Details page header**
-  - Left-aligned back button + left-aligned page header
-  - Optional: resource icon and type label badge alongside the resource name
-  - Right-aligned page actions ordered left to right: `Switch` toggle (if applicable), primary action button, kebab menu with remaining actions
+  - Left-aligned breadcrumbs (via `NxPageBreadcrumbs`) + page title
+  - Optional: resource type label badge alongside the resource name
+  - Right-aligned toolbar actions ordered left to right: `Switch` toggle (if applicable) → Edit button (primary) → kebab menu with remaining actions
 
 - **Form page header**
-  - Left-aligned page title
-  - Right-aligned action buttons: "Save [resource]" (primary) and "Cancel" (link variant)
+  - Left-aligned breadcrumbs (via `NxPageBreadcrumbs`) + page title
+  - Right-aligned toolbar actions: Cancel (secondary) → Save [resource] (primary, rightmost)
+
+### Breadcrumbs
+
+Use `NxPageBreadcrumbs` for detail and form page navigation.
+
+- Renders **nothing** when fewer than 2 items (single-level pages have no breadcrumb)
+- Last item is the current page (rendered as non-link text)
+- Middle segments collapse to a dropdown at ≤768px viewport width
+- Use PF6 default breadcrumb styling (dashed underline) — no CSS overrides
+
+For live examples:
+
+```
+list-all-documentation → find "NxPageBreadcrumbs" → get-documentation("NxPageBreadcrumbs")
+```
 
 ### Tabs
 
@@ -198,11 +225,21 @@ When a page uses tabs, the tabs must live inside `NxPanel`, not outside it.
 - Use sentence case for tab labels (e.g. "Activity log", not "Activity Log")
 - Avoid colloquial language, slang, or informal phrasing
 - Avoid punctuation in tab labels (no question marks, exclamation points)
+- **Tab intro paragraphs:** For complex admin sections (e.g., Access Management — Groups, Projects, Users, Assignments, Policies, Roles), add a descriptive `<Content component={ContentVariants.p}>` block above the tab content (before filters/toolbars) explaining what the section does and how it relates to RBAC. Use `marginBottom: var(--pf-t--global--spacer--md)` below the intro text. This is not a page header description — it lives inside the tab panel content.
+
+**`NxUrlTabs` API:**
+
+- `basePath` — the URL path prefix for the tabs
+- `defaultTab` — tab to show when no tab segment is in the URL (defaults to `"details"`)
+- `validTabs` — optional array for dynamic tab lists; invalid tab segments redirect to `defaultTab`
+- URL is the single source of truth for the active tab — no local active-tab state
+- Tab panel content owns its own inner padding (typically `--pf-t--global--spacer--lg`)
 
 For live examples and story-driven documentation, use the Storybook MCP:
 
 ```
-list-all-documentation → find "NxUrlTabs" → get-documentation("NxUrlTabs")
+list-all-documentation → find "NxUrlTabs" / "NxPage" / "NxPageHeader" / "NxPanel" /
+"NxPageBreadcrumbs" / "NxConfirmationDialog" / "NxDetailList" / "NxCodeBlock" → get-documentation(...)
 ```
 
 ---
@@ -244,9 +281,11 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Every table row has a kebab menu (⋮) in the rightmost column containing all available actions for that resource
   - The actions column has no column header label
   - All row actions live inside the kebab — no direct buttons or links in the actions column
-  - **Exception — inline enable/disable**: A `Switch` toggle may appear in a dedicated "State" column (not the actions column) for resources where toggling the enabled state is the most frequent action. The switch patches the resource directly with toast alerts for success/failure.
-  - Action order: non-destructive actions first (e.g., "Edit", "Duplicate", "Disable"), then a divider, then destructive actions last (e.g., "Delete", "Remove")
-  - On the **details page header**, the same actions appear in a kebab menu. Frequently used actions are promoted to direct buttons in the header based on usage patterns — these become the primary actions for that resource. The remaining actions stay in the kebab.
+  - **Exception — inline enable/disable**: A `Switch` toggle may appear in a dedicated "State" column (not the actions column) for resources where toggling the enabled state is the most frequent action (e.g., credentials, identity providers). The switch patches the resource directly. **Note:** Workflows no longer use an inline Switch — they use the Publish lifecycle with status badges (see §17).
+  - **Full labels:** Always use `"Action + resource"` format in kebab menus — e.g., "Edit credential", "Delete credential", "Duplicate workflow" (not just "Edit" or "Delete"). Each item includes an icon via the `IconLabel` pattern.
+  - Destructive items use `isDanger: true` (e.g., "Delete credential" renders in red)
+  - Action order: non-destructive actions first (e.g., "Edit credential", "Duplicate workflow", "Disable credential"), then a divider, then destructive actions last (e.g., "Delete credential", "Remove integration")
+  - On the **details page header**, the same actions appear in a kebab menu. Frequently used actions (e.g., Edit) are promoted to direct buttons in the header — primary button with icon for the most common action (e.g., `RhUiEditIcon` + "Edit credential"), remaining actions stay in the kebab.
 - **Text truncation** — All text-heavy columns (names, descriptions, emails, URLs) must use PatternFly's `<Truncate>` component. Long values show ellipsis with the full text in a tooltip on hover.
   - `ScrollableTableContainer` uses `table-layout: fixed` for equal column distribution — do not opt out with `useFixedLayout={false}`
   - Wrap cell text in `<Truncate content={value} />` for any column that may contain user-generated or variable-length content
@@ -271,10 +310,12 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Use PatternFly's [Number Input component](https://www.patternfly.org/components/number-input/#numberinput) for number input fields
   - Use PatternFly's [popover help text](https://www.patternfly.org/components/popover/design-guidelines) on form field labels
   - Use PatternFly's [`HelperText`](https://www.patternfly.org/components/forms/helper-text) / `HelperTextItem` below form inputs to provide brief, contextual guidance (e.g., accepted formats, valid ranges, constraints). The help popover icon on the field label is for longer explanatory descriptions. When both are present, inline helper text gives at-a-glance guidance while the popover provides full context. Validation errors (`validated="error"`) take priority — replace the helper text with the error message when the field is invalid.
+- **Dropdowns:** Never use native `<select>` or PatternFly's legacy `FormSelect` / `FormSelectOption`. Always use the PF6 `Select` + `MenuToggle` + `SelectList` + `SelectOption` pattern. Inside modals, use `popperProps={{ appendTo: 'inline' }}` for correct dropdown positioning. Add `shouldFocusToggleOnSelect` for keyboard accessibility after selection.
 - **Validation behavior:**
   - The primary action (Save / Create) is **always clickable** — never disable it because of missing required fields
   - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
   - Selecting/filling the required field clears the danger styling immediately
+  - **Human-readable validation copy:** Never expose raw regex patterns or API validation strings to users. Use plain-language error messages (e.g., "Project name can only contain letters, numbers, hyphens, underscores, or colons. It must start and end with a letter or number."). Provide proactive field guidance via inline hint text (using `HintOrError` or `HelperText`) that displays before the user triggers an error; the hint is replaced by the error message on validation failure. Use example-style placeholders (e.g., `'my-project-name'`) instead of generic `"Enter project name"`.
 - **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler — not in a `useEffect` watching the field value. See [coding_standards.md §23](../../.claude/skills/coding_standards.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
 
 ### Typeahead Selector Patterns
@@ -285,6 +326,7 @@ All typeahead dropdown menus should have a **max height** to prevent the dropdow
 
 The project selector is a special typeahead that supports favorites. This pattern is specific to the project selector — resource pickers (e.g., credential selectors, integration pickers) do **not** include favorites.
 
+- **Visible prefix label** — The masthead project selector includes a static `"Project:"` prefix inside the toggle using `InputGroupItem` + `Content` with PF subtle text color token (`--pf-t--global--text--color--subtle`). Global scope selectors must label what they control, not rely on placeholder alone.
 - **Favorites** — star icon to mark items as favorites; favorites appear in a grouped section at the top of the dropdown
 - **Grouped sections** — separate "Favorites" and "All" groups when favorites are active
 - **Sticky footer** — a persistent "Create [resource]" action pinned at the bottom of the dropdown, always visible regardless of scroll position
@@ -299,12 +341,36 @@ Resource pickers (credential selectors, integration pickers, etc.) use a standar
 - **Clear filter** — a clear button (×) to reset the typeahead filter
 - **Max height** — constrain the dropdown to prevent unbounded growth
 
+#### Multi-Select Typeahead with Label Chips
+
+For fields where users can select multiple items (e.g., group assignment on user creation), use `MenuToggle variant="typeahead"` + `TextInputGroup` + `LabelGroup` / `Label color="blue"` for selected items:
+
+- **Filter-as-you-type** with checkbox options
+- **Selected items as chips** — `Label` components with close (×) button for individual removal; clear-all button with `aria-label` for removing all selections
+- **Empty filter message** — `"No results match \"{filter}\""` when typeahead filter matches nothing
+- **Options with descriptions** — show supplementary text below option labels when available
+- **Create-only fields:** Some multi-select fields (e.g., group assignment) appear on the Create form only; editing is done through a dedicated panel on the detail page (e.g., `UserGroupsPanel`). This avoids overloading the edit form with group management.
+
 ### Details Component
 
-- Use `DescriptionList isCompact isHorizontal`
-- Group related fields using headers
+- Use `NxDetailList` + `NxDetail` for detail page fields (from `src/components/details/`)
+  - **Vertical** (default) for standard detail pages
+  - **`isHorizontal`** for compact contexts (e.g., canvas node detail panels)
+- `NxDetail` with empty/null/undefined children **renders nothing automatically** — optional fields can be passed unconditionally without manual null checks
+- Use `NxCodeBlock` (from `src/components/details/NxCodeBlock.tsx`) for scripts, JSON payloads, or log output
+  - Supports `enableCopy` (clipboard), `enableExpand` (full-screen modal), and `jsonObject` (auto-formatted JSON)
+  - Default max height of 24rem with scroll; use `noMaxHeight` when inside a height-constrained parent
 - Use consistent formatting for dates and durations — follow PatternFly's [Date/Time guidelines](https://www.patternfly.org/ux-writing/numerics/#date-and-time-formats)
 - Header includes title and primary actions for the specific resource (pulled from the table row actions)
+- **Title:** Pass the resource name as a plain string to `NxPageHeader` / `title` — no decorative icons in h1
+- **Informational metadata as plain text:** Attributes like credential type, authentication method, or resource category are plain text — not `Label` badges. Use `Label` only when visual distinction or status communication is needed (see §11).
+- **Created / Modified columns in tables:** Use inline `UserTimestamp` mode — `username · date` on one line. Stacked mode is for detail views only.
+
+For live examples and story-driven documentation:
+
+```
+list-all-documentation → find "NxDetailList" / "NxDetail" / "NxCodeBlock" → get-documentation(...)
+```
 
 ---
 
@@ -339,6 +405,8 @@ Each empty state scenario maps to a specific icon, optional `status` prop, and s
 - Use the `status` prop (`danger`, `warning`, `success`, `info`) for status-driven empty states — PatternFly applies the correct icon color automatically
 - For non-status empty states (no data, no results, configuration, no access), icons render in **gray by default** — do not manually set a color
 - Variant sizing: `sm` inside tables, modals, or wizards; `lg` for full-page empty states; `xl` for getting started or full-page success
+- **CTA deduplication:** When the empty state includes a primary create/configure CTA button, **hide the page-header primary button** to avoid duplicate CTAs. The empty state CTA is sufficient — the header button reappears once data exists.
+- **Tab-level empty states:** Use the shared `EmptyStateNoData` component (not ad-hoc `EmptyState`) with the correct heading level (`h2` inside tabs) and `isFullHeight` prop
 
 ---
 
@@ -408,6 +476,7 @@ Use consistent action verb pairings across the UI:
 - "Add" is paired with "Remove" — when the resources being added and removed exist in the Automation Orchestrator
 - "Add" is paired with "Disconnect" — when the resource is coming from an external source
 - "Assign" is paired with "Unassign"
+- "Configure" is used for integrations — not "Add integration". Integrations are external connections being configured, not in-platform resources being created. Use "Configure integration" for list header button, empty state CTA, and form submit button.
 
 ### Create: Full Page
 
@@ -472,6 +541,18 @@ Use when users need to inspect structured data (JSON, policy definitions, config
 | Body          | Read-only content with PatternFly's [Clipboard Copy](https://www.patternfly.org/components/clipboard-copy) when copying is useful |
 | Close button  | `variant="primary"` — the only action (no Cancel, no secondary)                                                                   |
 
+### Confirmation Dialog — Three-Tier Severity Model
+
+`NxConfirmationDialog` supports three escalation tiers. Each tier maps to a Storybook story with canonical copy examples.
+
+| Tier                            | Story                        | When                                     | Title icon | Confirm button | Checkbox |
+| ------------------------------- | ---------------------------- | ---------------------------------------- | ---------- | -------------- | -------- |
+| **Default / Disable**           | `Disable`                    | Reversible state changes                 | None       | `primary`      | No       |
+| **Danger**                      | `Danger`                     | Reversible but risky (remove / unassign) | Warning    | `danger`       | No       |
+| **Destructive Acknowledgement** | `DestructiveAcknowledgement` | Permanent delete                         | Warning    | `danger`       | Required |
+
+For canonical copy patterns per tier → see Storybook: `list-all-documentation → find "NxConfirmationDialog" → get-documentation("NxConfirmationDialog")`
+
 ### Delete: Destructive Confirmation Modal with Checkbox
 
 **Always** use `NxConfirmationDialog` from `src/components/dialogs/NxConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
@@ -521,6 +602,10 @@ Use when deleting the resource leaves other resources in a broken or invalid sta
 | Action button | `confirmVariant="danger"`, `confirmLabel="Delete"`                                                                                                                                                            |
 | Cancel button | `variant="link"` (handled by NxConfirmationDialog)                                                                                                                                                            |
 
+**When badge counts are unavailable:** Use a `Stack` layout with an introductory sentence (e.g., "This will immediately:") followed by PatternFly `List` / `ListItem` bullet points enumerating the downstream consequences. **Never use raw `<ul>`, `<ol>`, or `<li>`** — always use PF `List` / `ListItem` components (enforced by the `prefer-pf-list-components` ESLint rule).
+
+**Shared dialog components:** Extract one shared confirmation dialog component per destructive action type (e.g., `IdentityProviderDeleteDialog`, `WorkflowDeleteDialog`) and consume it from both the list and detail views — single source of truth for copy and structure.
+
 > **Note:** A resource can combine both cascade and ripple effects. For example, deleting a workflow both cascade-deletes its executions and ripple-affects parent workflows that reference it as a step. In this case, show both Body 2 sections.
 
 **Post-delete behavior:**
@@ -550,7 +635,7 @@ For title and body copy patterns → see Storybook `NxConfirmationDialog` → **
 
 ### Disable: Standard Confirmation Modal
 
-Disable is **not** a destructive action — use a standard confirmation modal (no warning icon, no danger button).
+Disable is **not** a destructive action — use a standard confirmation modal (no warning icon, no danger button). **Enable does not require a confirmation dialog** — the toggle takes effect immediately. Only **disable** requires confirmation because it has user-facing consequences (e.g., users can no longer sign in via a disabled identity provider).
 
 | Element        | Specification                                                                                       |
 | -------------- | --------------------------------------------------------------------------------------------------- |
@@ -578,6 +663,19 @@ For title and body copy patterns → see Storybook `NxConfirmationDialog` → **
   - If there is a primary action and a cancel, the cancel should be a link button (`variant="link"`)
   - This applies to all modals, including delete confirmations
 
+### Unsaved-Changes Confirmation Modal
+
+When a user attempts to navigate away from a form or builder with unsaved changes, show a confirmation modal with three actions:
+
+| Position | Button              | Variant     |
+| -------- | ------------------- | ----------- |
+| Left     | Save [resource]     | `primary`   |
+| Middle   | Exit without saving | `secondary` |
+| Right    | Cancel              | `link`      |
+
+- Use specific action labels: `"Save workflow"` instead of generic `"Save"` when the resource type matters
+- Cancel dismisses the modal and returns the user to their current context without saving or discarding
+
 ---
 
 ## 8. Buttons
@@ -596,13 +694,30 @@ For title and body copy patterns → see Storybook `NxConfirmationDialog` → **
 
 - Use PatternFly's [Dismissible Success Toast Alert component](https://www.patternfly.org/components/alert#alert-variations) for success messages after create, update, delete, and other actions
 - Toast alerts should auto-dismiss after a reasonable duration
-- Message format: `"[Resource type] [action] successfully"` (e.g., "Credential created successfully")
+- Message format: Title in sentence case, past tense — `"[Resource type] [past-tense action]"` (e.g., "Role created"). Description includes entity name — `"The role {name} has been created successfully."`
+- **Verb consistency:** Toast copy must match the triggering action's verb. If the button says "Create role", the toast says "Role created" — not "Role added". Error toast titles mirror the action verb: `"Failed to create role"`
+
+**When NOT to show a success toast:**
+
+Success toasts are **not required** when the UI already communicates the outcome through other means:
+
+| Scenario                          | Why toast is redundant                              |
+| --------------------------------- | --------------------------------------------------- |
+| Inline control state change       | `Switch` toggle updates visibly after refetch       |
+| Navigation confirms the action    | Starting a run → navigates to execution view        |
+| Dirty/saved state reflected in UI | Save button disables; tooltip shows last-saved time |
+| Bulk status change                | Table rows update visibly after refetch             |
+
+- **Error toasts are always retained** regardless — errors must always be surfaced
+- **Create actions** still show a success toast (the new resource may not be immediately visible)
+- Special-case alerts kept when they carry essential context (e.g., admin disable → sign-out warning message)
 
 ### Error Feedback
 
 - For page-level data loading errors, use `useQueryState(query, { title: '...', onRetry: ... })` — this hooks up the `ErrorState` component with a retry button automatically for retryable (5xx) errors
 - For mutation errors (create/update/delete), use `useMutationErrorHandler` — this wires up `ErrorState` and toast alerts automatically
 - For form validation errors, use inline field-level errors via PatternFly's Validated component (see Form Component section)
+- **Error state placement:** Error states render **inside `NxPanel`** using `NxPageBody isCentered` + `ErrorState` — not as a bare centered message outside the content frame. The page header and app shell remain visible so the user can navigate away.
 
 ### Loading States
 
@@ -622,6 +737,35 @@ For title and body copy patterns → see Storybook `NxConfirmationDialog` → **
 - Bulk actions are found in the kebab menu in the toolbar, to the right of the primary button
 - If applicable, delete/remove option is always last
 - Will have a bulk action confirmation modal
+
+### Exception: Header Toolbar Bulk Actions (Approvals)
+
+For high-frequency bulk decisions where speed matters (e.g., Approvals), bulk actions may use **direct header toolbar buttons** instead of the kebab menu. This is an exception to the standard kebab-based bulk action pattern.
+
+**Selection model:**
+
+- Checkbox column on **actionable rows only** (e.g., pending approvals); decided/completed rows render no checkbox
+- Checkboxes disabled when user lacks the required permission on that row's project (permission-gated via `/authz/what-can-i`)
+- **Selection persists across pagination**; **clears on filter or sort change**
+- Header "select all" selects only selectable rows on the current page
+
+**Bulk action toolbar:**
+
+- Lives in the `NxPageHeader` toolbar — always visible, not inside a kebab
+- Shows `"{n} selected"` when selection > 0
+- **Approve:** secondary button + `RhUiLikeIcon`
+- **Reject:** secondary `isDanger` button + `RhUiDislikeIcon`
+- Buttons disabled with tooltip when nothing selected: `"At least one [item] needs to be selected to take action"`
+
+**Approve vs. Reject modal differentiation:**
+
+| Modal   | Note field   | Confirm button              | Icon              |
+| ------- | ------------ | --------------------------- | ----------------- |
+| Approve | Optional     | Primary "Approve"           | —                 |
+| Reject  | **Required** | `variant="danger"` "Reject" | `RhUiDislikeIcon` |
+
+- Both modals are medium-sized with `maxLength={1000}` on the note textarea
+- Cancel closes dialog but **preserves selection**; reopening resets note fields
 
 ---
 
@@ -695,7 +839,11 @@ Use `Label` only when visual distinction is needed — for statuses, categorical
 
 ## 12. Icons
 
-All icons **must** come from the [Red Hat Design System](https://ux.redhat.com/) and the [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons) for Red Hat UI. Although AO is built on top of PatternFly, it uses the Compass and Unified Theme frameworks. All icons must adhere to the Red Hat Design System (RHDS) icon set rather than the standard PatternFly defaults.
+All icons **must** use the `RhUi` prefix — these are the new Red Hat icon standard from the [Red Hat Design System](https://ux.redhat.com/) [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons). Examples: `RhUiAddIcon`, `RhUiEditIcon`, `RhUiTrashIcon`, `RhUiHistoryIcon`, `RhUiKeyIcon`, `RhUiPublishIcon`, `RhUiDuplicateIcon`.
+
+**Do not use** legacy PatternFly icon names (e.g., `PlusCircleIcon`, `PencilAltIcon`, `TrashIcon`). These are the old standard. The `RhUi*` icons are enforced via an ESLint `no-restricted-imports` rule that blocks non-`RhUi` icon imports on action buttons.
+
+> **Exception:** PatternFly empty state icons (`PlusCircleIcon`, `SearchIcon`, `ExclamationCircleIcon`, `LockIcon`, `WrenchIcon`, `CheckCircleIcon`, `RocketIcon`) are still used in `EmptyState` components because they are part of the PF empty state pattern, not action buttons.
 
 ---
 
@@ -762,6 +910,7 @@ For panels that display structured data (input/output panels in the workflow bui
 | **JSON**   | Formatted JSON with search                      | `CodeEditor` (read-only) |
 
 - Use a shared `ViewToggle` component with `ToggleGroup` for switching between views
+- Use `isCompact` on the `ToggleGroup` in constrained panel contexts (e.g., builder data panels) to reduce vertical/horizontal footprint
 - Show the toggle **only when data exists** — hide it and show an empty state when no data is available
 - Default view may differ by context (e.g., JSON for output panels, Schema for input panels)
 - Output panels are **read-only** (no drag-and-drop); input panels may support drag-and-drop from schema fields
@@ -771,6 +920,74 @@ For panels that display structured data (input/output panels in the workflow bui
 ## 17. Workflow Builder
 
 The automation builder experience is based on [React Flow](https://reactflow.dev/) as the underlying graph/canvas foundation, with PatternFly as the visual wrapper. The canvas is built **left to right**.
+
+### Builder Toolbar Action Hierarchy
+
+Primary actions are always visible in the toolbar; secondary actions and views live in a grouped kebab menu.
+
+**Always-visible primary actions (left to right):**
+
+- Add step
+- Run (or Run dropdown for multi-trigger)
+- Save
+- Publish workflow
+
+**Kebab menu (⋮) — grouped with `DropdownGroup`:**
+
+| Group       | Items                                                                     |
+| ----------- | ------------------------------------------------------------------------- |
+| **Views**   | Run history, Workflow details                                             |
+| **Actions** | Export workflow, Import workflow, Delete workflow (`isDanger`, last item) |
+
+- Every kebab item has an icon + label (e.g., `RhUiHistoryIcon` + "Run history")
+- Delete is always the last item in the kebab and uses `isDanger`
+- Header element order: workflow name → edit-details pencil icon → project selector
+
+### Workflow Publish Lifecycle
+
+Workflows use a **Draft → Publish → Unpublish** model instead of enable/disable toggles.
+
+**Builder toolbar:**
+
+- **Save** — persists draft changes; `isAriaDisabled` when `!isDirty` for existing workflows (see Save Behavior below)
+- **Publish workflow** — primary button with `RhUiPublishIcon`; promotes the current draft to a named version
+- **Unpublish workflow** — kebab action (only when `publishedVersion != null`)
+
+**Status badges (`WorkflowPublishStatusBadge`):**
+
+| State                            | Label               | Style                              |
+| -------------------------------- | ------------------- | ---------------------------------- |
+| Never published                  | Draft               | Grey filled                        |
+| Current version = published      | Published           | Green filled (`status="success"`)  |
+| Saved changes after last publish | Unpublished changes | Yellow filled (`status="warning"`) |
+
+These badges use `Label` with no icons — text and color only.
+
+**Publish dialog (`PublishWorkflowDialog`):**
+
+- Small modal, title "Publish workflow?"
+- Body explains: overrides prior publish, triggers activate, run history retained
+- **Required** version name (defaults to current date/time via `date-fns` `PPp` format)
+- **Optional** description ("Describe what changed")
+- Primary **Publish** + link **Cancel**
+
+**Unpublish confirmation:**
+
+- `NxConfirmationDialog` with warning icon, `confirmVariant="danger"`, label "Unpublish"
+- Body explains workflow will no longer be executable until republished
+
+**Workflow list changes:**
+
+- Status column shows badges (Draft / Published / Unpublished changes) — no inline Switch toggle
+- Kebab actions: Publish workflow / Unpublish workflow (conditional on published state)
+
+### Save Behavior
+
+- **Existing workflows:** Save button is `isAriaDisabled` when `!isDirty` (no unsaved changes)
+- **New workflows:** Save stays enabled (validation runs on click)
+- **Loading:** "Saving…" + spinner via mutation `isPending`
+- **Tooltip:** Shows `"Last saved {formatted datetime}"` when previously saved; `"Save workflow"` when never saved
+- **Toast policy:** Success toast on **create** (new workflow); **no toast** on update (dirty state clearing + tooltip timestamp are sufficient)
 
 ### Step Interactions
 
@@ -792,6 +1009,17 @@ The automation builder experience is based on [React Flow](https://reactflow.dev
 - Via "Add step" action from canvas toolbar
 - Clicking `+` on the connector line after a step adds a new connected step
 - Clicking `+` on the connector line between two steps inserts a new step in between
+- **Empty workflow onboarding:** When a workflow has no triggers and no steps, the "Add step" toolbar button is shown as active and the add-step panel is forced open.
+- **Toggle-style button:** When the add-step panel is open, the toolbar button uses `isClicked` + `aria-pressed` for visible active/inactive feedback
+
+### Duplicate Workflow
+
+- Row kebab action with `RhUiDuplicateIcon` + "Duplicate workflow"
+- Positioned after Edit / View run history and before Export (non-destructive action block)
+- **No confirmation dialog** — duplication runs immediately on click
+- **Naming convention:** `{originalName} - duplicate-{base36Timestamp}`
+- **Success toast with deep link:** Toast title "Workflow duplicated"; description includes an inline link button (`variant="link" isInline`) to open the new workflow in the builder
+- Button disabled while duplicate request is in flight
 
 ### Run Workflow
 
@@ -812,6 +1040,15 @@ The automation builder experience is based on [React Flow](https://reactflow.dev
 - After clicking "Run", the execution visualizer panel opens (same as full workflow Run) showing real-time results
 - Test executions are visible in run history
 
+### Cancel Execution
+
+- `variant="danger"` button placed directly in the builder live-run header and execution detail header toolbar
+- **No confirmation dialog** — inline cancel for running executions (intentional exception to the standard confirmation pattern)
+- **Visibility:** Only shown when execution status is `pending` or `running` (`isExecutionCancellable`)
+- **Label:** Full "Cancel execution" (Action + Resource)
+- **Feedback:** Success toast "Execution cancellation requested"; error toast "Failed to cancel execution" + API message
+- **Loading state:** Button shows spinner and disables while mutation is pending
+
 ### Canvas Controls
 
 - Should be anchored to the **bottom-left corner** of the canvas view
@@ -826,6 +1063,7 @@ The automation builder experience is based on [React Flow](https://reactflow.dev
 ### Execution View Panels
 
 - The **run details panel** provides an Overview/Details toggle for inspecting execution state
+- Panels use `NxPanel isFullHeight` for proper internal scroll behavior — do not hand-roll `display: flex; flexDirection: column` inline styles when `isFullHeight` exists
 - Panels may use a `ResizableDivider` to allow users to resize panel split areas
 - The most recent run details can display inline in the editor after workflow execution
 
@@ -922,6 +1160,12 @@ Follow this hierarchy when applying styles — always start from the top:
 3. **CSS Modules** (`.module.css`) — for component-specific overrides that cannot be expressed via tokens or props. Styles must be scoped to the module; never use `:global()` selectors inside a module.
 4. **Inline `style` prop** — acceptable only for dynamic values (e.g., a width computed at runtime) that cannot be expressed as a token or class.
 
+### Semantic Tokens Only
+
+- **No hard-coded border colors** — use `--pf-t--global--border--color--default` and `--pf-t--global--border--width--divider--default` for borders and pagination footer dividers. Never use custom rgba hex overrides (e.g., `rgba(196, 181, 253, 0.2)`) on table or layout components. Semantic tokens adapt to light/dark/glass themes automatically.
+- **No breadcrumb CSS overrides** — breadcrumbs use PF6 default styling (dashed underline, default link colors). Do not override `--pf-v6-c-breadcrumb__link--*` tokens to force solid underlines or custom link colors.
+- **Compact inline form controls** — for time pickers or number inputs that need explicit widths, use PF spacer tokens (e.g., `--pf-t--global--spacer--4xl`) in CSS modules. Use `flexWrap: nowrap` + `flex={{ default: 'flexNone' }}` to prevent inline fields from collapsing.
+
 ### When a Global Style Seems Necessary
 
 If you believe a global style is the only option, follow the PatternFly gaps process (see "AO Design System" → "PatternFly gaps" above): check PatternFly docs and tokens first, raise with UX, then engage PatternFly upstream. Approved temporary exceptions must be documented with a `patternfly-override` Jira label.
@@ -975,13 +1219,26 @@ This project ships with a Chrome DevTools MCP server configured in `.mcp.json`. 
 
 ---
 
-## 21. Getting Started for Developers
+## 21. Storybook Review Workflow
+
+The project ships with Storybook for documenting and reviewing `Nx*` components. Use it alongside the dev server for UI verification.
+
+- **Start Storybook:** `npm run storybook` (port 5174)
+- **Light and dark mode:** Preview components in both themes via the Storybook toolbar (System / Light / Dark) before sign-off
+- **Composed stories over isolated demos:** Stories should reflect real app compositions (e.g., a full list page layout), not isolated prop playgrounds
+- **Autodocs:** Foundational `Nx*` components have `autodocs` enabled — browse auto-generated API docs alongside live examples
+- **Available stories:** `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `ErrorState`
+
+---
+
+## 22. Getting Started for Developers
 
 - Point to the AO UI repository for implementation references
 - Utilize the UI/UX skills defined in this document and the Cursor rules
-- Follow the accessibility guidelines in section 17
-- Follow the styling rules in section 18
-- Use Chrome DevTools MCP (section 19) to verify your implementation against the live app
+- Follow the accessibility guidelines in section 18
+- Follow the styling rules in section 19
+- Use Chrome DevTools MCP (section 20) to verify your implementation against the live app
+- Use Storybook (section 21) to review `Nx*` component documentation and test in light/dark mode
 
 ---
 
@@ -1000,9 +1257,10 @@ What are you building?
 │   └── Handle 3 empty states (no data / no results / error)
 │
 ├── Detail view
-│   ├── Use DescriptionList isCompact isHorizontal
-│   ├── Add NxPageHeader with back button + title + resource actions
-│   └── Group related fields with headers
+│   ├── Use NxDetailList + NxDetail (vertical default; isHorizontal for compact)
+│   ├── Add NxPageBreadcrumbs + NxPageHeader with title + resource actions
+│   ├── NxDetail with empty children renders nothing (no placeholder needed)
+│   └── Use NxCodeBlock for JSON/script/log display
 │
 ├── Create/Edit form
 │   ├── 5+ fields or multi-step? → Full page

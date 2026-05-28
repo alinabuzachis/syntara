@@ -1,6 +1,6 @@
 ---
 description: PatternFly UX Design System — Opinionated implementation rules for building frontend UI that adheres to PatternFly standards and the Automation Orchestrator UX team's component usage guidelines.
-globs: ["packages/nexus-ui/src/**/*.tsx", "packages/nexus-ui/src/**/*.ts"]
+globs: ['packages/nexus-ui/src/**/*.tsx', 'packages/nexus-ui/src/**/*.ts']
 alwaysApply: false
 ---
 
@@ -34,27 +34,43 @@ How the AO UI is anchored:
 - **Automation builder** — Based on [React Flow](https://reactflow.dev/) with PatternFly as visual wrapper
 - **Accessibility** — Must achieve [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance
 - **PatternFly gaps** — Check PF docs first → Raise with UX (@ansible-ux) → Engage PatternFly → Document with `patternfly-override` Jira label → Resolve upstream
+- **`Nx` prefix convention** — AO opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) in `src/components/` organized by: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. Use the `Nx*` wrapper, not the raw PF component.
 
 ## Page Layout (MANDATORY)
 
 Every page must follow this structural hierarchy:
 
-| Layer | Component | Purpose |
-|---|---|---|
-| App Shell | `Compass` | Overall application frame |
-| Navigation | `AppDockedNav` | Left sidebar with icons |
-| Page Content | `CompassContent` + `NxPage` | Main content area wrapper |
-| Page Header | `NxPageHeader` | Page title and actions |
-| Content Frame | `NxPanel` | `Panel` → `PanelMain` → `PanelMainBody` |
-| Main Content | Table / Canvas / Form | Primary page content |
-| Footer (tables) | Pagination component | Navigation between table pages |
+| Layer           | Component                   | Purpose                                 |
+| --------------- | --------------------------- | --------------------------------------- |
+| App Shell       | `Compass`                   | Overall application frame               |
+| Navigation      | `AppDockedNav`              | Left sidebar with icons                 |
+| Page Content    | `CompassContent` + `NxPage` | Main content area wrapper               |
+| Page Header     | `NxPageHeader`              | Page title and actions                  |
+| Content Frame   | `NxPanel`                   | `Panel` → `PanelMain` → `PanelMainBody` |
+| Main Content    | Table / Canvas / Form       | Primary page content                    |
+| Footer (tables) | Pagination component        | Navigation between table pages          |
+
+### Page Layout Archetypes
+
+| Archetype          | Structure                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| **List page**      | `NxPageHeader` (Create CTA) → `NxPanel isFullHeight` → `NxPanelContentStack variant="inset"` → filter + table |
+| **Detail page**    | `NxPageBreadcrumbs` → `NxPageHeader` → `NxPanel isFullHeight` → `NxPanelContentStack` (default) → tabs        |
+| **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` Cancel/Save toolbar → `NxPanel` → form body                              |
+| **Error in panel** | Same shell → `NxPageBody isCentered` + `ErrorState` inside `NxPanel`                                          |
 
 ### Page Header Types
+
 - **Main page header** — Left-aligned title, right-aligned actions
-- **Details page header** — Left-aligned back button + title, right-aligned actions
-- **Form page header** — Left-aligned title, right-aligned actions
+- **Details page header** — Left-aligned breadcrumbs (`NxPageBreadcrumbs`) + title; toolbar left→right: Switch → Edit (primary) → kebab
+- **Form page header** — Left-aligned breadcrumbs + title; toolbar: Cancel (secondary) → Save (primary, rightmost)
+
+### Breadcrumbs
+
+- Use `NxPageBreadcrumbs`; renders nothing when < 2 items; last item = current page (non-link); middle segments collapse at ≤768px. No CSS overrides.
 
 ### Structure Checklist
+
 - Use `NxPage` as outer wrapper
 - Use `NxPageHeader` for title and actions
 - Use `StackItem isFilled` + `NxPanel isFullHeight` for content
@@ -70,6 +86,12 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Click nav item (no children) → navigate to route
 - Click nav item (has children) → navigate to first enabled child route
 - Mouse leaves flyout → close after 150ms grace period
+
+## Tabs
+
+- Tab labels: sentence case, clear and professional, no punctuation
+- **`NxUrlTabs` API:** `basePath`, `defaultTab` (defaults to `"details"`), optional `validTabs`. URL is single source of truth — no local state. Tab panel content owns inner padding (`--pf-t--global--spacer--lg`).
+- **Tab intro paragraphs:** For complex admin sections (Access Management tabs), add a `Content` paragraph above tab content explaining purpose + RBAC context. Spacing: `marginBottom: var(--pf-t--global--spacer--md)`.
 
 ## Filter Bar
 
@@ -87,8 +109,9 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - ALWAYS include `<Thead>` with column headers
 - Actions column is rightmost (no column header label)
 - All row actions live inside a kebab menu (⋮) — no direct buttons in the actions column
+- **Kebab labels:** Always `"Action + resource"` format (e.g., "Edit credential", "Delete credential") with icons via `IconLabel`; destructive items use `isDanger: true`
 - Action order in kebab: non-destructive first, divider, destructive last
-- On the details page header, same actions appear in a kebab; frequently used actions promoted to direct buttons
+- On the details page header, same actions appear in a kebab; frequently used actions promoted to primary button with icon (e.g., `RhUiEditIcon` + "Edit credential")
 - Columns should be sortable if applicable
 - Clicking resource name navigates to details view
 - "Created"/"Modified" columns: username (linked) + date together
@@ -111,68 +134,94 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Use popover help text on form field labels
 - Use `HelperText` / `HelperTextItem` below inputs for brief contextual guidance (formats, ranges, constraints); popover is for longer descriptions; validation errors replace helper text when invalid
 - Use Zod + react-hook-form for validation (project standard)
+- **Dropdowns:** Never use native `<select>` or PF `FormSelect`. Use PF6 `Select` + `MenuToggle` + `SelectList` + `SelectOption`. In modals: `popperProps={{ appendTo: 'inline' }}`. Add `shouldFocusToggleOnSelect`.
+- **Human-readable validation:** Never expose regex to users. Use plain-language errors + inline hint text via `HintOrError`/`HelperText`. Use example-style placeholders (e.g., `'my-project-name'`).
+
+## Typeahead Patterns
+
+- **Project selector prefix label:** Visible `"Project:"` prefix in masthead typeahead toggle using `InputGroupItem` + `Content` with `--pf-t--global--text--color--subtle`. Don't rely on placeholder alone.
+- **Multi-select typeahead with chips:** `MenuToggle variant="typeahead"` + `LabelGroup`/`Label color="blue"` for selected items. Filter-as-you-type with checkbox options, close (×) per chip, clear-all button. Create-only fields (e.g., group assignment) appear on Create form only; editing via dedicated detail panel.
 
 ## Details Component
 
-- Use `DescriptionList isCompact isHorizontal`
-- Group related fields using headers
+- Use `NxDetailList` + `NxDetail` (vertical default; `isHorizontal` for compact contexts like canvas nodes)
+- `NxDetail` with empty/null children **renders nothing** — no manual null checks or placeholders needed
+- Use `NxCodeBlock` for JSON/scripts/logs — supports `enableCopy`, `enableExpand`, `jsonObject`
 - Consistent date/duration formatting per PatternFly Date/Time guidelines
 - Header: title + primary actions from the table row
+- **Plain text for informational metadata** — credential type, auth method, etc. are plain text, not `Label` badges. Use `Label` only for statuses or visual distinction.
+- **Created/Modified in tables:** inline `UserTimestamp` — `username · date` on one line; stacked mode for detail views only.
 
 ## Empty States
 
 Use PatternFly's Basic Empty State component. Empty states replace the main content area.
 
-| Scenario | Title | CTA | Filter? |
-|---|---|---|---|
-| No data | `"No [resources] yet"` | `"Create [resource]"` if applicable | No |
-| No filter results | `"No results found"` | `"Clear all filters"` | Yes, with active filters |
-| Service error | `"Unable to load [resources]"` | `"Retry"` | No |
+| Scenario          | Title                          | CTA                                 | Filter?                  |
+| ----------------- | ------------------------------ | ----------------------------------- | ------------------------ |
+| No data           | `"No [resources] yet"`         | `"Create [resource]"` if applicable | No                       |
+| No filter results | `"No results found"`           | `"Clear all filters"`               | Yes, with active filters |
+| Service error     | `"Unable to load [resources]"` | `"Retry"`                           | No                       |
 
 Icons per scenario: No data → `PlusCircleIcon` (gray, `lg`), No results → `SearchIcon` (gray, `sm`), Error → `ExclamationCircleIcon` (`status="danger"`, `lg`), No access → `LockIcon` (gray, `lg`), Config required → `WrenchIcon` (gray, `lg`), Success → `CheckCircleIcon` (`status="success"`, default/`xl`), Getting started → `RocketIcon` (gray, `xl`). Use `status` prop for color on status empty states; non-status icons are gray by default. Variant sizing: `sm` in tables/modals, `lg` full-page, `xl` onboarding/success.
 
+- **CTA deduplication:** When empty state has a create/configure CTA, hide the page-header primary button — it reappears once data exists.
+- **Tab-level empty states:** Use shared `EmptyStateNoData` component with correct heading level (`h2` inside tabs) and `isFullHeight`.
+
 ## CRUD Patterns
 
-Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (AO-internal resources), "Add" ↔ "Disconnect" (external resources), "Assign" ↔ "Unassign"
+Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (AO-internal resources), "Add" ↔ "Disconnect" (external resources), "Assign" ↔ "Unassign", "Configure" for integrations (not "Add integration" — integrations are external connections being configured)
 
 ### Create
+
 - **Full page:** 5+ fields, multi-step wizards
 - **Modal:** 2–4 simple fields, quick creation without leaving context
 
 ### Read/Detail
+
 - Full page for resources with rich information
 
 ### Update/Edit
+
 - **Full page:** 5+ fields, multi-step, or if create is full page
   - Pre-populate fields, track dirty state, warn on unsaved navigation, show loading while saving
 - **Modal:** 2–4 fields, or if create is a modal
 - **Inline:** Single-field edits, toggles (use PatternFly Switch Checked with Label), renames
 
+### Confirmation Dialog — Three-Tier Severity
+
+`NxConfirmationDialog` supports three tiers: **Default/Disable** (primary, no icon) → **Danger** (danger + warning icon, no checkbox) → **DestructiveAcknowledgement** (danger + warning + required checkbox). See Storybook for canonical copy per tier.
+
 ### Delete (Destructive) — Three Variants
 
-ALWAYS use `ConfirmationDialog` from `src/components/ConfirmationDialog.tsx`. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter` for delete actions.
+ALWAYS use `NxConfirmationDialog` from `src/components/dialogs/NxConfirmationDialog.tsx`. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter` for delete actions.
 
 All delete variants share: Small modal, warning icon title, `confirmVariant="danger"`, `confirmLabel="Delete"`, cancel `variant="link"`, checkbox via `destructiveAcknowledgement` (Delete button disabled until checked).
 
 **Simple Delete** — no downstream effects (role, policy, group, user, identity provider)
+
 - Body: `"The [resource] [name in bold] will be deleted. This cannot be undone."`
 - Checkbox: `"I understand this [resource] will be permanently deleted."`
 
 **Cascade Delete** — other records get permanently deleted too (workflow → executions, tool provider → tools)
+
 - Body: `"The [resource] [name in bold] will be deleted. This cannot be undone."`
 - Body 2: `"Resources that will be deleted"` as a header, then one row per resource type with its own Badge count — e.g., "Executions [12]", "Tools [3]"
 - Checkbox: `"I understand this [resource] and the resources shown above will be permanently deleted."`
 
 **Ripple Effect Delete** — other resources break/become invalid but are not deleted (credential → referencing workflows fail, project → orphaned resources, workflow → parent workflows become invalid)
+
 - Body: `"The [resource] [name in bold] will be deleted. This cannot be undone."`
 - Body 2: `"Resources that will be affected"` as a header, then one row per resource type with its own Badge count — e.g., "Workflows [2]", "Credentials [5]"
 - Checkbox: `"I understand this [resource] and the resources shown above will be affected by this deletion."`
+- When badge counts unavailable: use `Stack` + PF `List`/`ListItem` bullet consequences (never raw `<ul>`/`<li>` — enforced by `prefer-pf-list-components` ESLint rule)
+- Extract one shared dialog component per destructive action type (e.g., `IdentityProviderDeleteDialog`) — consumed from list + detail views
 
 > A resource can combine variants (e.g., workflow delete = cascade for executions + ripple for parent workflows). Show both Body 2 sections in that case.
 
 - Post-delete: stay on list (from table), navigate back (from detail), show toast alert
 
 ### Remove/Unassign/Cancel/Stop (Destructive, Reversible)
+
 - Modal variant: Small with warning icon
 - Title: `"[Remove/Unassign/Cancel/Stop] [resource type]?"`
 - Body: resource name and consequence
@@ -181,6 +230,8 @@ All delete variants share: Small modal, warning icon title, `confirmVariant="dan
 - Post-cancel/stop: stay on list (from table), stay on details (from detail), show toast alert
 
 ### Disable (Non-Destructive)
+
+- **Enable does not require confirmation** — takes effect immediately. Only **disable** requires a confirmation dialog.
 - Use standard confirmation modal (no warning icon, no danger button)
 - Modal variant: Small (PatternFly Small Variant Modal)
 - Title: `"Disable [resource type]?"`
@@ -192,16 +243,22 @@ All delete variants share: Small modal, warning icon title, `confirmVariant="dan
 ## Feedback & Notifications
 
 ### Success Feedback
+
 - Use PatternFly's Dismissible Success Toast Alert for success messages after create, update, delete actions
 - Toast alerts should auto-dismiss after a reasonable duration
-- Message format: `"[Resource type] [action] successfully"`
+- Message format: Title in sentence case, past tense — `"[Resource type] [past-tense action]"` (e.g., "Role created"). Description includes entity name.
+- **Verb consistency:** Toast copy must match the action verb (button says "Create role" → toast says "Role created", not "Role added")
+- **No toast when redundant:** Skip success toasts when UI already communicates outcome — inline Switch state change, navigation to new view, dirty state clearing. Error toasts always kept. Create actions still show toast.
 
 ### Error Feedback
+
 - Page-level loading errors: use `useQueryState(query, { title: '...', onRetry: ... })` — hooks up `ErrorState` with retry automatically
 - Mutation errors: use `useMutationErrorHandler` — wires up `ErrorState` and toast alerts automatically
 - Form validation errors: use inline field-level errors via PatternFly's Validated component
+- **Error state placement:** `ErrorState` renders inside `NxPanel` via `NxPageBody isCentered` — page header and shell remain visible.
 
 ### Loading States
+
 - Use PatternFly's Spinner component during async operations
 - Page-level: centered spinner in content area
 - Button actions: loading spinner on the button, disable during operation
@@ -211,12 +268,12 @@ All delete variants share: Small modal, warning icon title, `confirmVariant="dan
 
 Button alignment differs by context (follows PatternFly convention):
 
-| Context | Primary action position |
-|---|---|
-| Page headers | **Rightmost** |
-| Modals | **Leftmost** (Cancel link on right) |
-| Forms (full page) | **Leftmost** (Cancel link on right) |
-| Toolbars | **Leftmost** (kebab menu on far right) |
+| Context           | Primary action position                |
+| ----------------- | -------------------------------------- |
+| Page headers      | **Rightmost**                          |
+| Modals            | **Leftmost** (Cancel link on right)    |
+| Forms (full page) | **Leftmost** (Cancel link on right)    |
+| Toolbars          | **Leftmost** (kebab menu on far right) |
 
 ## Modals
 
@@ -225,6 +282,7 @@ Button alignment differs by context (follows PatternFly convention):
 - Buttons: left-aligned, primary → secondary → tertiary
 - Cancel button is `variant="link"` when paired with primary action
 - This applies to all modals, including delete confirmations
+- **Unsaved-changes modal:** Save [resource] (primary) → Exit without saving (secondary) → Cancel (link). Use specific labels like "Save workflow", not generic "Save".
 
 ## Bulk Actions
 
@@ -233,6 +291,7 @@ Button alignment differs by context (follows PatternFly convention):
 - Bulk actions in kebab menu in toolbar (right of primary button)
 - Delete/remove option is always last
 - Always include bulk action confirmation modal
+- **Exception — Header toolbar bulk actions (Approvals):** For high-frequency bulk decisions, use direct header toolbar buttons instead of kebab. Checkboxes on actionable rows only; disabled when user lacks permission. Selection persists across pagination, clears on filter/sort. Approve = optional note; Reject = required reason + `variant="danger"`.
 
 ## Statuses and Labels
 
@@ -242,7 +301,7 @@ Button alignment differs by context (follows PatternFly convention):
 
 ## Icons
 
-All icons MUST come from the Red Hat Design System (RHDS) icon set, NOT standard PatternFly defaults. The project uses Compass and Unified Theme frameworks.
+All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g., `RhUiAddIcon`, `RhUiEditIcon`, `RhUiTrashIcon`). Do NOT use legacy PF icon names (`PlusCircleIcon`, `PencilAltIcon`, etc.) — enforced via ESLint `no-restricted-imports`. Exception: PF empty state icons (`PlusCircleIcon`, `SearchIcon`, etc.) are still used in `EmptyState` components.
 
 ## Expand/Collapse Chevrons
 
@@ -261,11 +320,17 @@ All icons MUST come from the Red Hat Design System (RHDS) icon set, NOT standard
 - Single click: select/expand/collapse step
 - Double click: open panel view with Input/Output info
 - Right click: same as kebab menu
-- Add step: opens side panel, auto-adjusts canvas
+- **Toolbar hierarchy:** Primary actions visible (Add step, Run, Save, Publish); secondary in grouped kebab with `DropdownGroup` ("Views": Run history, Workflow details; "Actions": Export, Import, Delete with `isDanger`). Every kebab item has icon + label.
+- **Publish lifecycle:** Draft → Publish → Unpublish (replaces enable/disable). Status badges (no icons, text + color only): Draft (grey), Published (green `status="success"`), Unpublished changes (yellow `status="warning"`). Publish dialog requires version name. Unpublish via kebab with danger confirmation.
+- **Save behavior:** `isAriaDisabled` when `!isDirty` for existing workflows. Tooltip shows "Last saved {datetime}". No toast on update; toast on create only.
+- Add step: opens side panel, auto-adjusts canvas. **Empty workflow:** Add step button shown as active, panel forced open. Button uses `aria-pressed` toggle feedback.
+- **Duplicate workflow:** Row kebab action with `RhUiDuplicateIcon`; no confirmation dialog; success toast with inline deep-link to new workflow.
 - Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again", then `RunWorkflowModal` JSON editor for mock trigger data
 - Test step (Run step): from node kebab menu → choice dialog → mock data editor (CodeEditor with JSON); upstream nodes mocked as "skipped"; results in execution visualizer
+- **Cancel execution:** `variant="danger"` button, no confirmation dialog. Visible only when status is `pending`/`running`. Full label "Cancel execution".
 - Canvas controls: anchored to bottom-left corner
 - Canvas node cards: fixed 240px width — use `overflow-wrap: anywhere` on all dynamic text (`Title`, `Content`) to prevent overflow
+- Execution view panels: use `NxPanel isFullHeight` for proper scroll — don't hand-roll flex column inline styles
 - View-only views: Run view, Run history, Version history
 
 ## Accessibility Guidelines
@@ -273,29 +338,35 @@ All icons MUST come from the Red Hat Design System (RHDS) icon set, NOT standard
 Achieving full WCAG 2.1 AA and Section 508 compliance requires careful implementation beyond PatternFly's built-in component accessibility. Developers are responsible for contextual accessibility:
 
 ### Semantic HTML & Page Structure
+
 - Proper heading hierarchy (`<h1>`–`<h6>`) without skipping levels
 - Use semantic tags (`<main>`, `<nav>`, `<header>`, `<footer>`, `<aside>`) or ARIA landmark roles
 
 ### Keyboard Navigation & Focus Management
+
 - Every interactive element must be fully keyboard-operable
 - Never remove focus outline without providing a visible alternative (3:1 contrast ratio)
 - Manage focus programmatically on route changes and modal open/close
 - Trap focus inside modals until dismissed; return focus to trigger on close
 
 ### Dynamic Content & State Changes
+
 - Use `aria-live` (`polite` or `assertive`) for dynamic updates (job status, toasts)
 - Use `aria-expanded`, `aria-disabled`, `aria-current` for state communication
 
 ### Forms & Error Handling
+
 - Every input must have an associated `<label>` (not just placeholder text)
 - Use `aria-invalid="true"` and `aria-describedby` to link inputs to error messages
 
 ### Color, Contrast, and Iconography
+
 - Text and icons: 4.5:1 contrast for normal text, 3:1 for large text/UI components
 - Never convey information by color alone — include icons and descriptive text
 - Use `alt=""` or `aria-hidden="true"` for decorative images
 
 ### Testing
+
 - Automated: accessibility tools in unit tests and CI/CD
 - Manual: keyboard-only testing with Tab, Shift+Tab, Enter, Space, Arrow keys
 - Screen reader: verify actual user experience with assistive technology
@@ -308,12 +379,18 @@ NEVER write global CSS rules that target element types, PatternFly class names, 
 
 ```css
 /* ❌ BAD */
-.pf-v6-c-menu__item { min-height: 0; }
-p { margin-bottom: 8px; }
+.pf-v6-c-menu__item {
+  min-height: 0;
+}
+p {
+  margin-bottom: 8px;
+}
 
 /* ✅ GOOD — scoped CSS Module */
 /* MyComponent.module.css */
-.menuItem { min-height: 0; }
+.menuItem {
+  min-height: 0;
+}
 ```
 
 ### Styling Priority Order
@@ -323,6 +400,18 @@ p { margin-bottom: 8px; }
 3. **CSS Modules** (`.module.css`) — scoped overrides only; never use `:global()` inside a module
 4. **Inline `style` prop** — only for dynamic values computed at runtime
 
+### Semantic Tokens Only
+
+- **No hard-coded border colors** — use `--pf-t--global--border--color--default` and `--pf-t--global--border--width--divider--default`. Never custom rgba hex on table/layout components.
+- **No breadcrumb CSS overrides** — PF6 default dashed underline and link colors are correct.
+- **Compact inline form controls** — use PF spacer tokens (e.g., `--pf-t--global--spacer--4xl`) in CSS modules for explicit widths. Use `flexWrap: nowrap` + `flex: none` to prevent collapse.
+
 ### Exceptions
 
 If a global style seems necessary, follow the PatternFly gaps process: check PF docs/tokens → raise with UX → engage PatternFly upstream. Approved exceptions must be documented with a `patternfly-override` Jira label.
+
+## Storybook
+
+- `npm run storybook` (port 5174). Preview in light + dark mode via toolbar before sign-off.
+- Stories reflect real app compositions, not isolated prop demos.
+- `Nx*` components with `autodocs`: `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `ErrorState`.
