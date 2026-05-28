@@ -1126,7 +1126,7 @@ class NexusWorkflow:
             ),
         )
 
-    async def _execute_loop_node(  # noqa: C901
+    async def _execute_loop_node(
         self,
         node_id: str,
         node: ActivityNode,
@@ -1149,16 +1149,10 @@ class NexusWorkflow:
 
         # Get or initialize loop state
         if node_id not in self.loop_state:
-            if loop_type == LoopType.FOR_EACH:
-                # First execution - extract items from config
-                items = _parse_items(resolved_config.get("items", []))
-                self.loop_state[node_id] = ForEachLoopState(items=items)
-            elif loop_type == LoopType.DO_WHILE:
-                # First execution - store condition and max_iterations
-                self.loop_state[node_id] = DoWhileLoopState(
-                    condition=node.config.get("condition"),  # Raw template, not resolved
-                    max_iterations=resolved_config.get("max_iterations"),
-                )
+            # Use resolved_config for most fields, but keep raw condition template
+            # from node.config so it can be re-evaluated each iteration.
+            loop_init_config = {**resolved_config, "condition": node.config.get("condition")}
+            self.loop_state[node_id] = self._create_loop_state_for_type(loop_type, node, loop_init_config)
 
         # Initialize iteration results if not exists
         if node_id not in self.loop_iteration_results:
@@ -1216,6 +1210,29 @@ class NexusWorkflow:
 
         return loop_result
 
+    def _create_loop_state_for_type(
+        self,
+        loop_type: str,
+        node: ActivityNode,
+        loop_config: dict[str, Any] | None = None,
+    ) -> LoopState:
+        """Create appropriate loop state object for the given type.
+
+        All loop parameters are read from loop_config for consistency.
+        Callers are responsible for ensuring condition contains the raw
+        template (not resolved value) when re-evaluation is needed.
+        """
+        if loop_config is None:
+            loop_config = node.config
+
+        if loop_type == LoopType.FOR_EACH:
+            items = _parse_items(loop_config.get("items", []))
+            return ForEachLoopState(items=items)
+
+        condition = loop_config.get("condition")
+        max_iterations = loop_config.get("max_iterations")
+        return DoWhileLoopState(condition=condition, max_iterations=max_iterations)
+
     async def _execute_node(
         self,
         node: ActivityNode,
@@ -1234,6 +1251,13 @@ class NexusWorkflow:
         # Pre-resolved outputs: skip execution and use mocked output
         if node.id in self.pre_resolved_outputs:
             self.node_inputs[node.id] = {PRE_RESOLVED_MARKER: True}
+
+            if node.type == NodeType.LOOP and node.id not in self.loop_state:
+                loop_type = node.config.get("type", LoopType.FOR_EACH)
+                self.loop_state[node.id] = self._create_loop_state_for_type(loop_type, node)
+                if node.id not in self.loop_iteration_results:
+                    self.loop_iteration_results[node.id] = {}
+
             return self._process_node_result(node, self.pre_resolved_outputs[node.id])
 
         node_id = node.id
