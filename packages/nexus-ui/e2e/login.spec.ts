@@ -212,7 +212,21 @@ test.describe('Built-in admin login flow', () => {
       })
     )
 
-    await page.route('**/api/v1/authz/can-i', (route) =>
+    // goToLoginPage blocks /auth/refresh with 401 for bootstrap; allow refresh after login.
+    await page.route('**/api/v1/auth/refresh', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: 'mock-token-admin',
+          token_type: 'bearer',
+          expires_in: 3600,
+        }),
+      })
+    )
+
+    // Settings nav filtering uses POST /authz/can_i (underscore) per AAP-75846 — not legacy can-i.
+    await page.route('**/api/v1/authz/can_i', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -220,7 +234,7 @@ test.describe('Built-in admin login flow', () => {
           allowed: true,
           denied: false,
           matched_policy: '',
-          denial_reason: true,
+          denial_reason: '',
           denied_by: '',
         }),
       })
@@ -228,10 +242,21 @@ test.describe('Built-in admin login flow', () => {
 
     await page.getByLabel('Username').fill('admin')
     await page.getByRole('textbox', { name: 'Password' }).fill('coffee')
+
+    const settingsPermissionChecks = Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes('/api/v1/authz/can_i') && resp.request().method() === 'POST' && resp.ok()
+      ),
+      page.waitForResponse(
+        (resp) => resp.url().includes('/api/v1/authz/can_i') && resp.request().method() === 'POST' && resp.ok()
+      ),
+    ])
+
     await page.getByRole('button', { name: 'Log in' }).click()
 
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible({ timeout: 30_000 })
+    await settingsPermissionChecks
 
-    await expect(page.getByRole('button', { name: 'System Administration' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'System Administration' })).toBeVisible({ timeout: 15_000 })
   })
 })
