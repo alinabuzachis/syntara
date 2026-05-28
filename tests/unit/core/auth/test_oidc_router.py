@@ -1333,8 +1333,9 @@ class TestResolveOidcUser:
         mock_result.one_or_none.return_value = existing_user
         db.exec.return_value = mock_result
 
-        with pytest.raises(OIDCError, match="already associated with an existing account"):
+        with pytest.raises(OIDCError, match="already associated with an existing account") as exc_info:
             await _resolve_oidc_user(db, user_claims, provider)
+        assert exc_info.value.error_code == OIDCErrorCode.EMAIL_ALREADY_LINKED
 
     @pytest.mark.asyncio
     async def test_raises_when_no_sub_claim(self) -> None:

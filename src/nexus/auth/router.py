@@ -1255,7 +1255,7 @@ async def _resolve_oidc_user(
                     "Please sign in with your original authentication method and "
                     "link this identity provider via the Identities tab on your user profile page."
                 )
-                raise OIDCError(msg)
+                raise OIDCError(msg, error_code=OIDCErrorCode.EMAIL_ALREADY_LINKED)
 
         # Step 3: No identity or email match — create new user.
         try:
@@ -1802,7 +1802,8 @@ async def _resolve_and_login_user(
         user, identity = await _resolve_oidc_user(db, user_claims, provider)
     except OIDCError as e:
         logger.warning("OIDC user resolution failed", error=str(e), provider=provider_name)
-        raise OIDCCallbackError(str(e), error_code=OIDCErrorCode.USER_FAILED, origin=origin) from e
+        error_code = e.error_code or OIDCErrorCode.USER_FAILED
+        raise OIDCCallbackError(str(e), error_code=error_code, origin=origin) from e
     except Exception as e:
         logger.exception("Unexpected error during OIDC user resolution", provider=provider_name)
         raise OIDCCallbackError(_OIDC_ERR_USER_FAILED, error_code=OIDCErrorCode.USER_FAILED, origin=origin) from e

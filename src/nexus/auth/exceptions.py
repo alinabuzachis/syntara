@@ -399,6 +399,7 @@ class OIDCErrorCode(StrEnum):
     IDP_LOGOUT_FAILED = "idp_logout_failed"
     LINK_FAILED = "link_failed"
     IDENTITY_ALREADY_LINKED = "identity_already_linked"
+    EMAIL_ALREADY_LINKED = "email_already_linked"
 
 
 class OIDCCallbackError(NexusError):
