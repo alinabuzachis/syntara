@@ -369,7 +369,7 @@ def llm_model() -> str:
 
 
 @pytest.fixture(scope="session")
-def llm_credential_id(nexus_api: NexusApiRegistry) -> Generator[str, None, None]:
+def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[str, None, None]:
     """Create an LLM Provider credential for e2e tests and yield its UUID.
 
     Reads APP_OPENROUTER_API_KEY from the environment; skips if not set.
@@ -395,9 +395,10 @@ def llm_credential_id(nexus_api: NexusApiRegistry) -> Generator[str, None, None]
     assert len(projects_resp.parsed.resources) > 0, "No projects available"
     project_id = UUID(str(projects_resp.parsed.resources[0].id))
 
+    cred_name = f"e2e-llm-credential-{worker_id}"
     cred = nexus_api.credentials.create(
         body=CredentialCreate(
-            name="e2e-llm-credential",
+            name=cred_name,
             credential_type_id=llm_type_id,
             project_id=project_id,
             inputs=CredentialCreateInputs.from_dict(
