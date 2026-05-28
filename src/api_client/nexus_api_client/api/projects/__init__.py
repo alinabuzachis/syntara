@@ -191,3 +191,51 @@ class ProjectsApi:
     async def async_update_policy(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("update_project_policy")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def list_credentials(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_project_credentials")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_list_credentials(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_project_credentials")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def create_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("create_project_credential")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_create_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("create_project_credential")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def get_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_project_credential")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_project_credential")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def delete_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("delete_project_credential")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_delete_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("delete_project_credential")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def update_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_project_credential")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_update_credential(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_project_credential")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def get_credential_workflows(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_project_credential_workflows")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_credential_workflows(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_project_credential_workflows")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

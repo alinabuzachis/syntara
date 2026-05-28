@@ -1124,6 +1124,263 @@ paths:
       security:
         - bearerAuth: []
 
+  # ── Project Credentials (CRUD) ──────────────────────────────────────
+  /projects/{project_id}/credentials:
+    post:
+      summary: Create Project Credential
+      description: |-
+        Create a new credential in this project. Requires: credential:create permission.
+      operationId: create_project_credential
+      x-app-permission:
+        resource: credential
+        action: create
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCredentialCreate"
+      responses:
+        "201":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+    get:
+      summary: List Project Credentials
+      description: |-
+        List credentials belonging to this project. Requires: credential:read permission.
+      operationId: list_project_credentials
+      x-app-permission:
+        resource: credential
+        action: read
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
+        - name: credential_type_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Credential Type Id
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Enabled
+      responses:
+        "200":
+          description: Paginated list of credentials in the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/credentials/{credential_id}:
+    get:
+      summary: Get Project Credential
+      description: |-
+        Get a credential in this project. Secret fields masked as $encrypted$.
+      operationId: get_project_credential
+      x-app-permission:
+        resource: credential
+        action: read
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "#/components/parameters/credentialIdParam"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+    patch:
+      summary: Update Project Credential
+      description: |-
+        Update a credential in this project. Requires: credential:update permission.
+      operationId: update_project_credential
+      x-app-permission:
+        resource: credential
+        action: update
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "#/components/parameters/credentialIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialPatch"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Delete Project Credential
+      description: |-
+        Delete a credential in this project. Requires: credential:delete permission.
+      operationId: delete_project_credential
+      x-app-permission:
+        resource: credential
+        action: delete
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "#/components/parameters/credentialIdParam"
+      responses:
+        "204":
+          description: Successful Response
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/credentials/{credential_id}/workflows:
+    get:
+      summary: Get Project Credential Workflows
+      description: |-
+        Get workflows that reference this credential. Requires: credential:read permission.
+      operationId: get_project_credential_workflows
+      x-app-permission:
+        resource: credential
+        action: read
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "#/components/parameters/credentialIdParam"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                title: Response Get Project Credential Workflows
+                items:
+                  $ref: "#/components/schemas/CredentialWorkflowRef"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+
 components:
   parameters:
     projectIdParam:
@@ -1153,6 +1410,15 @@ components:
         format: uuid
         title: Policy Id
       description: Policy UUID
+    credentialIdParam:
+      name: credential_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        title: Credential Id
+      description: Credential UUID
 
   schemas:
     ProjectCreate:
@@ -1340,6 +1606,53 @@ components:
       $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/RoleAssignmentRead"
     RoleAssignmentListResponse:
       $ref: "../authz/role_assignment.openapi.yaml#/components/schemas/RoleAssignmentListResponse"
+
+    ProjectCredentialCreate:
+      type: object
+      title: ProjectCredentialCreate
+      description: Schema for creating a credential via a project-scoped endpoint (project_id from URL path).
+      required:
+        - name
+        - credential_type_id
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable credential name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Optional description
+        credential_type_id:
+          type: string
+          format: uuid
+          title: Credential Type Id
+          description: ID of the credential type
+        inputs:
+          type: object
+          additionalProperties: true
+          title: Inputs
+          description: Field values validated against type schema
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          title: Labels
+          description: Key-value labels
+
+    CredentialRead:
+      $ref: "../credentials/openapi.yaml#/components/schemas/CredentialRead"
+    CredentialPatch:
+      $ref: "../credentials/openapi.yaml#/components/schemas/CredentialPatch"
+    CredentialListResponse:
+      $ref: "../credentials/openapi.yaml#/components/schemas/CredentialListResponse"
+    CredentialWorkflowRef:
+      $ref: "../credentials/openapi.yaml#/components/schemas/CredentialWorkflowRef"
 
   securitySchemes:
     bearerAuth:

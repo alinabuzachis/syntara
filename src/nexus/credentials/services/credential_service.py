@@ -352,6 +352,10 @@ class CredentialService(BaseService):
             ),
         )
 
+    async def get_credential_raw(self, credential_id: UUID) -> Credential:
+        """Get the raw credential DB model without decryption or enrichment."""
+        return await self._get_or_raise(credential_id)
+
     async def get_credential(self, credential_id: UUID) -> CredentialRead:
         """Get a credential with secret fields masked, non-secret fields decrypted."""
         credential = await self._get_or_raise(credential_id)

@@ -260,6 +260,21 @@ After recovery, ensure `APP_SECRET_ENCRYPTION_KEY` matches whichever key all cre
 
 All item endpoints (by ID) include project-scoped authorization — see [Permission Checker Configuration](#permission-checker-configuration) for how the credential's project is resolved.
 
+### Project-Scoped Credential Endpoints
+
+These endpoints operate within a specific project context, using a lightweight ownership check (no decryption or enrichment) to verify the credential belongs to the project.
+
+| Method | Path | Operation | Auth |
+|--------|------|-----------|------|
+| POST | /api/v1/projects/{project_id}/credentials | Create credential in project | RBAC: `credential:create` |
+| GET | /api/v1/projects/{project_id}/credentials | List credentials in project | RBAC: `credential:read` |
+| GET | /api/v1/projects/{project_id}/credentials/{id} | Get credential (secrets masked) | RBAC: `credential:read` |
+| PATCH | /api/v1/projects/{project_id}/credentials/{id} | Update credential | RBAC: `credential:update` |
+| DELETE | /api/v1/projects/{project_id}/credentials/{id} | Delete credential | RBAC: `credential:delete` |
+| GET | /api/v1/projects/{project_id}/credentials/{id}/workflows | Get referencing workflows | RBAC: `credential:read` |
+
+The `POST` endpoint accepts a `ProjectCredentialCreate` body (no `project_id` field — it comes from the URL path). All other endpoints verify that the credential's `project_id` matches the URL before proceeding.
+
 ### Credential Type Endpoints
 
 | Method | Path | Operation | Auth |

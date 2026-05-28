@@ -118,6 +118,16 @@ class CredentialRead(NamedResource, UserOwnedResource):
     workflow_count: int = Field(default=0, description="Number of workflows referencing this credential")
 
 
+class ProjectCredentialCreate(SQLModel):
+    """Schema for creating a credential via a project-scoped endpoint (project_id from URL path)."""
+
+    name: str = Field(min_length=1, max_length=255, description="Human-readable credential name")
+    description: str | None = Field(default=None, max_length=2000, description="Optional description")
+    credential_type_id: UUID = Field(description="ID of the credential type")
+    inputs: dict[str, Any] = Field(default_factory=dict, description="Field values validated against type schema")
+    labels: dict[str, str] = Field(default_factory=dict, description="Key-value labels")
+
+
 class CredentialPatch(SQLModel):
     """Schema for partially updating a credential. $encrypted$ preserves existing values."""
 

@@ -400,6 +400,12 @@ Projects also expose filtered views of their resources:
 |----------|------------|-------------|
 | `GET /{project_id}/workflows` | `workflow:read` | List workflows in the project |
 | `GET /{project_id}/approvals` | `approval:read` | List approvals in the project |
+| `POST /{project_id}/credentials` | `credential:create` | Create a credential in the project |
+| `GET /{project_id}/credentials` | `credential:read` | List credentials in the project |
+| `GET /{project_id}/credentials/{id}` | `credential:read` | Get a credential (secrets masked) |
+| `PATCH /{project_id}/credentials/{id}` | `credential:update` | Update a credential in the project |
+| `DELETE /{project_id}/credentials/{id}` | `credential:delete` | Delete a credential from the project |
+| `GET /{project_id}/credentials/{id}/workflows` | `credential:read` | List workflows referencing a credential |
 
 ## User and Group Access Model
 

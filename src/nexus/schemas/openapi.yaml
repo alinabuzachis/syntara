@@ -12608,6 +12608,787 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
+  /projects/{project_id}/credentials:
+    post:
+      summary: Create Project Credential
+      description: 'Create a new credential in this project. Requires: credential:create permission.'
+      operationId: create_project_credential
+      x-app-permission:
+        resource: credential
+        action: create
+      tags:
+        - Projects
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCredentialCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    get:
+      summary: List Project Credentials
+      description: 'List credentials belonging to this project. Requires: credential:read permission.'
+      operationId: list_project_credentials
+      x-app-permission:
+        resource: credential
+        action: read
+      tags:
+        - Projects
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
+        - name: credential_type_id
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Credential Type Id
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Enabled
+      responses:
+        '200':
+          description: Paginated list of credentials in the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialListResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/credentials/{credential_id}:
+    get:
+      summary: Get Project Credential
+      description: Get a credential in this project. Secret fields masked as $encrypted$.
+      operationId: get_project_credential
+      x-app-permission:
+        resource: credential
+        action: read
+      tags:
+        - Projects
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Credential Id
+          description: Credential UUID
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    patch:
+      summary: Update Project Credential
+      description: 'Update a credential in this project. Requires: credential:update permission.'
+      operationId: update_project_credential
+      x-app-permission:
+        resource: credential
+        action: update
+      tags:
+        - Projects
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Credential Id
+          description: Credential UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Delete Project Credential
+      description: 'Delete a credential in this project. Requires: credential:delete permission.'
+      operationId: delete_project_credential
+      x-app-permission:
+        resource: credential
+        action: delete
+      tags:
+        - Projects
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Credential Id
+          description: Credential UUID
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /projects/{project_id}/credentials/{credential_id}/workflows:
+    get:
+      summary: Get Project Credential Workflows
+      description: 'Get workflows that reference this credential. Requires: credential:read permission.'
+      operationId: get_project_credential_workflows
+      x-app-permission:
+        resource: credential
+        action: read
+      tags:
+        - Projects
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Project Id
+          description: Project UUID
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Credential Id
+          description: Credential UUID
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                title: Response Get Project Credential Workflows
+                items:
+                  $ref: '#/components/schemas/CredentialWorkflowRef'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
   /settings:
     get:
       summary: List Settings
@@ -25068,6 +25849,43 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
+    ProjectCredentialCreate:
+      type: object
+      title: ProjectCredentialCreate
+      description: Schema for creating a credential via a project-scoped endpoint (project_id from URL path).
+      required:
+        - name
+        - credential_type_id
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable credential name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Optional description
+        credential_type_id:
+          type: string
+          format: uuid
+          title: Credential Type Id
+          description: ID of the credential type
+        inputs:
+          type: object
+          additionalProperties: true
+          title: Inputs
+          description: Field values validated against type schema
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          title: Labels
+          description: Key-value labels
     SettingValueType:
       type: string
       title: SettingValueType

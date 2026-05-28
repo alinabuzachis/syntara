@@ -41,6 +41,17 @@ from nexus.authz.services.role_service import RoleService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
+from nexus.credentials.exceptions import CredentialNotFoundError
+from nexus.credentials.models import (
+    CredentialCreate,
+    CredentialListParams,
+    CredentialListResponse,
+    CredentialPatch,
+    CredentialRead,
+)
+from nexus.credentials.models.credential import CredentialWorkflowRef, ProjectCredentialCreate
+from nexus.credentials.router import get_credential_service
+from nexus.credentials.services.credential_service import CredentialService
 from nexus.projects.schemas import (
     ProjectCreate,
     ProjectListParams,
@@ -72,6 +83,10 @@ _perm_policy_create = PermissionChecker("policy", "create", project_param="proje
 _perm_policy_read = PermissionChecker("policy", "read", project_param="project_id")
 _perm_policy_update = PermissionChecker("policy", "update", project_param="project_id")
 _perm_policy_delete = PermissionChecker("policy", "delete", project_param="project_id")
+_perm_credential_create = PermissionChecker("credential", "create", project_param="project_id")
+_perm_credential_read = PermissionChecker("credential", "read", project_param="project_id")
+_perm_credential_update = PermissionChecker("credential", "update", project_param="project_id")
+_perm_credential_delete = PermissionChecker("credential", "delete", project_param="project_id")
 
 
 def get_project_service(
@@ -698,3 +713,129 @@ async def delete_project_policy(
         msg = f"Policy {policy_id} not found in project {project_id}"
         raise PolicyNotFoundError(msg)
     await service.delete_policy(policy_id)
+
+
+# ============================================================================
+# Project-scoped Credentials (CRUD)
+# ============================================================================
+
+
+@router.post(
+    "/{project_id}/credentials",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_perm_credential_create)],
+    operation_id="create_project_credential",
+)
+async def create_project_credential(
+    project_id: UUID,
+    data: ProjectCredentialCreate,
+    service: Annotated[CredentialService, Depends(get_credential_service)],
+) -> CredentialRead:
+    """Create a new credential in this project. Requires: credential:create permission."""
+    create_data = CredentialCreate(
+        name=data.name,
+        description=data.description,
+        credential_type_id=data.credential_type_id,
+        inputs=data.inputs,
+        labels=data.labels,
+        project_id=project_id,
+    )
+    return await service.create_credential(create_data)
+
+
+@router.get(
+    "/{project_id}/credentials",
+    dependencies=[Depends(_perm_credential_read)],
+    operation_id="list_project_credentials",
+    response_description="Paginated list of credentials in the project",
+)
+async def list_project_credentials(
+    project_id: UUID,
+    request: Request,
+    service: Annotated[CredentialService, Depends(get_credential_service)],
+    params: Annotated[CredentialListParams, Query()],
+) -> CredentialListResponse:
+    """List credentials belonging to this project. Requires: credential:read permission."""
+    allowed = AllowedProjectsResult(all_projects=False, project_ids=[project_id])
+    return await service.list_credentials(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+        allowed_projects=allowed,
+    )
+
+
+@router.get(
+    "/{project_id}/credentials/{credential_id}",
+    dependencies=[Depends(_perm_credential_read)],
+    operation_id="get_project_credential",
+)
+async def get_project_credential(
+    project_id: UUID,
+    credential_id: UUID,
+    service: Annotated[CredentialService, Depends(get_credential_service)],
+) -> CredentialRead:
+    """Get a credential in this project. Secret fields masked as $encrypted$."""
+    raw = await service.get_credential_raw(credential_id)
+    if raw.project_id != project_id:
+        msg = f"Credential {credential_id} not found in project {project_id}"
+        raise CredentialNotFoundError(msg)
+    return await service.get_credential(credential_id)
+
+
+@router.patch(
+    "/{project_id}/credentials/{credential_id}",
+    dependencies=[Depends(_perm_credential_update)],
+    operation_id="update_project_credential",
+)
+async def update_project_credential(
+    project_id: UUID,
+    credential_id: UUID,
+    data: CredentialPatch,
+    service: Annotated[CredentialService, Depends(get_credential_service)],
+) -> CredentialRead:
+    """Update a credential in this project. Requires: credential:update permission."""
+    raw = await service.get_credential_raw(credential_id)
+    if raw.project_id != project_id:
+        msg = f"Credential {credential_id} not found in project {project_id}"
+        raise CredentialNotFoundError(msg)
+    return await service.update_credential(credential_id, data)
+
+
+@router.delete(
+    "/{project_id}/credentials/{credential_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_perm_credential_delete)],
+    operation_id="delete_project_credential",
+)
+async def delete_project_credential(
+    project_id: UUID,
+    credential_id: UUID,
+    service: Annotated[CredentialService, Depends(get_credential_service)],
+) -> None:
+    """Delete a credential in this project. Requires: credential:delete permission."""
+    raw = await service.get_credential_raw(credential_id)
+    if raw.project_id != project_id:
+        msg = f"Credential {credential_id} not found in project {project_id}"
+        raise CredentialNotFoundError(msg)
+    await service.delete_credential(credential_id)
+
+
+@router.get(
+    "/{project_id}/credentials/{credential_id}/workflows",
+    dependencies=[Depends(_perm_credential_read)],
+    operation_id="get_project_credential_workflows",
+)
+async def get_project_credential_workflows(
+    project_id: UUID,
+    credential_id: UUID,
+    service: Annotated[CredentialService, Depends(get_credential_service)],
+) -> list[CredentialWorkflowRef]:
+    """Get workflows that reference this credential. Requires: credential:read permission."""
+    raw = await service.get_credential_raw(credential_id)
+    if raw.project_id != project_id:
+        msg = f"Credential {credential_id} not found in project {project_id}"
+        raise CredentialNotFoundError(msg)
+    return await service.get_credential_workflows(credential_id)
