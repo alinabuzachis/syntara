@@ -48,12 +48,6 @@ const authMiddleware: Middleware = {
   },
 
   async onResponse({ request, response }) {
-    // Trigger background token refresh when the token is stale (e.g. group, profile, or status changes)
-    if (response.headers.get('X-Token-Stale') === 'true') {
-      const store = useAuthStore.getState()
-      store.refresh().catch(() => {})
-    }
-
     if (response.status !== 401) {
       return response
     }
