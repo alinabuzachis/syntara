@@ -308,6 +308,7 @@ class InvocationExecutor:
                         invocation_id=invocation.id, execution_id=execution_id, status=InvocationStatus.CANCELLED
                     )
                 )
+                self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="cancelled")
                 return  # Don't override the CANCELLED status
 
             # Update token usage record with actual provider-reported counts
@@ -339,6 +340,7 @@ class InvocationExecutor:
             # Invocation was cancelled during execution - this is expected behavior
             # Don't mark as failed since cancellation is already handled
             logger.info("Invocation cancelled during execution", invocation_id=invocation.id)
+            self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="cancelled")
         except Exception as e:
             self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="error", error=e)
 
@@ -486,7 +488,7 @@ class InvocationExecutor:
             recorder: Metrics recorder instance.
             start_time: ``time.perf_counter()`` value captured at invocation start.
             invocation_id: Invocation UUID.
-            status: Outcome label (``"success"`` or ``"error"``).
+            status: Outcome label (``"success"``, ``"error"``, or ``"cancelled"``).
             error: Optional exception for error-path labels.
 
         """

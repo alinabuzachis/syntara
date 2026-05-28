@@ -145,7 +145,6 @@ class TestCancellationImpact:
     ) -> None:
         nexus_api.internal_metrics.reset_store().assert_successful()
 
-    @pytest.mark.xfail(reason="Executor does not record AGENT_STATUS metrics for cancelled invocations")
     def test_cancelled_status_tracked_in_distribution(
         self,
         nexus_api: NexusApiRegistry,
