@@ -43,6 +43,22 @@ def extract_idp_group_values(
         logger.warning("JMESPath expression failed during group sync", expression=jmespath_expr, user_id=str(user_id))
         return None
 
+    if raw_groups is None and jmespath_expr.endswith("[*]"):
+        base_expr = jmespath_expr.removesuffix("[*]")
+        try:
+            raw_value = jmespath.search(base_expr, raw_merged_claims)
+        except (ValueError, TypeError, jmespath.exceptions.JMESPathError):
+            raw_value = None
+        if raw_value is not None and not isinstance(raw_value, (list, dict)):
+            logger.error(
+                "Groups claim is a scalar but JMESPath expression expects a list; "
+                "either fix the IdP to send an array or remove the trailing [*] from the expression",
+                expression=jmespath_expr,
+                claim_type=type(raw_value).__name__,
+                user_id=str(user_id),
+            )
+            return None
+
     if not isinstance(raw_groups, list):
         raw_groups = [raw_groups] if raw_groups else []
     return {escape_control_chars(str(g)) for g in raw_groups if g is not None}

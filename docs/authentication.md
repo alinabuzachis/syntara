@@ -810,6 +810,8 @@ Both modes respect the **JMESPath expression** configured on the provider. The e
 
 **JMESPath validation**: Expressions are validated at configuration time — saving an invalid expression (e.g., `[[[bad`) returns a 422 error. If a valid expression fails at runtime (e.g., unexpected token claim structure), the group sync is aborted and login is denied rather than silently removing the user's groups.
 
+**Scalar claim mismatch**: If the JMESPath expression uses a wildcard projection (e.g., `groups[*]`) but the IdP sends the claim as a bare string instead of an array (e.g., `"groups": "admin"` instead of `"groups": ["admin"]`), login is denied with an error. The error log message instructs the administrator to either fix the IdP to send an array or remove the trailing `[*]` from the expression. This strict behavior avoids silently guessing the intended interpretation of the expression.
+
 #### AAP Role Mapping
 
 When an AAP provider template is used (`idp_type: "aap"`), administrators can enable `aap_role_mapping_enabled` to automatically map the AAP `aap_system_role` claim to built-in Nexus groups. This is enabled by default in the UI when the AAP template is selected.

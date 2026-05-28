@@ -4,6 +4,7 @@
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
+import jmespath
 import pytest
 
 from nexus.auth.services.idp_group_sync import extract_idp_group_values, match_group_entries, sync_idp_groups
@@ -129,6 +130,69 @@ class TestExtractIdpGroupValues:
         claims = {"groups": ["admin", "developers", "ops"]}
         result = extract_idp_group_values("groups", claims, user_id)
         assert result == {"admin", "developers", "ops"}
+
+    def test_rejects_string_claim_with_wildcard_expression(self) -> None:
+        user_id = uuid4()
+        claims = {"groups": "nexus-users"}
+        result = extract_idp_group_values("groups[*]", claims, user_id)
+        assert result is None
+
+    def test_rejects_numeric_claim_with_wildcard_expression(self) -> None:
+        user_id = uuid4()
+        claims = {"groups": 42}
+        result = extract_idp_group_values("groups[*]", claims, user_id)
+        assert result is None
+
+    def test_rejects_nested_string_claim_with_wildcard_expression(self) -> None:
+        user_id = uuid4()
+        claims = {"realm_access": {"roles": "admin"}}
+        result = extract_idp_group_values("realm_access.roles[*]", claims, user_id)
+        assert result is None
+
+    def test_absent_claim_returns_empty_with_wildcard_expression(self) -> None:
+        user_id = uuid4()
+        claims = {"sub": "user-123"}
+        result = extract_idp_group_values("groups[*]", claims, user_id)
+        assert result == set()
+
+    def test_dict_claim_not_rejected_with_wildcard_expression(self) -> None:
+        user_id = uuid4()
+        claims = {"groups": {"nested": "value"}}
+        result = extract_idp_group_values("groups[*]", claims, user_id)
+        assert result == set()
+
+    def test_rejects_empty_string_claim_with_wildcard_expression(self) -> None:
+        user_id = uuid4()
+        claims = {"groups": ""}
+        result = extract_idp_group_values("groups[*]", claims, user_id)
+        assert result is None
+
+    def test_fallback_jmespath_error_returns_empty_set(self) -> None:
+        """When the base expression (without [*]) raises a JMESPath error, fall through to empty set."""
+        from unittest.mock import patch
+
+        user_id = uuid4()
+        claims = {"groups": "admin"}
+        call_count = 0
+        original_search = jmespath.search
+
+        def _search_side_effect(expr: str, data: object) -> object:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return original_search(expr, data)
+            msg = "simulated error"
+            raise jmespath.exceptions.JMESPathError(msg)
+
+        with patch("nexus.auth.services.idp_group_sync.jmespath.search", side_effect=_search_side_effect):
+            result = extract_idp_group_values("groups[*]", claims, user_id)
+        assert result == set()
+
+    def test_scalar_without_wildcard_still_works(self) -> None:
+        user_id = uuid4()
+        claims = {"role": "admin"}
+        result = extract_idp_group_values("role", claims, user_id)
+        assert result == {"admin"}
 
 
 class TestSyncIdpGroups:
@@ -262,6 +326,19 @@ class TestSyncIdpGroups:
         await sync_idp_groups(db, user, identity, {"role": "admin"}, config)
         assert db.execute.call_count > 1
 
+    @pytest.mark.asyncio
+    async def test_string_groups_claim_with_wildcard_denied(self):
+        """Should deny login when groups claim is a scalar string with [*] expression."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        nexus_group_id = uuid4()
+        config = _make_config(group_jmespath_expression="groups[*]")
+        db = _make_mock_db(mapping_entries=[_make_db_entry(provider_id, "nexus-users", nexus_group_id)])
+
+        result = await sync_idp_groups(db, user, identity, {"groups": "nexus-users"}, config)
+        assert result is False
+
 
 class TestAllowAllAuthenticated:
     """Tests for the allow_all_authenticated flag."""
@@ -327,6 +404,23 @@ class TestAllowAllAuthenticated:
 
         with patch("nexus.auth.services.idp_group_sync.jmespath.search", side_effect=TypeError("unexpected type")):
             result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_scalar_claim_mismatch_still_allows_login(self):
+        """Should return True when allow_all_authenticated is True even if groups claim is a scalar with [*]."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        nexus_group_id = uuid4()
+        users_group = _make_builtin_group("users")
+        config = _make_config(group_jmespath_expression="groups[*]", allow_all_authenticated=True)
+        db = _make_mock_db(
+            mapping_entries=[_make_db_entry(provider_id, "nexus-users", nexus_group_id)],
+            users_group=users_group,
+        )
+
+        result = await sync_idp_groups(db, user, identity, {"groups": "nexus-users"}, config)
         assert result is True
 
 
