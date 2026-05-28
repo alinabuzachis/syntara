@@ -1,8 +1,18 @@
 import { Label, LabelGroup, ToolbarItem } from '@patternfly/react-core'
+import type { ReactNode } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition, FilterOperator } from '../../types/filters'
 import { formatDateChipValue } from '../../utils/dateUtils'
 import { WorkflowName } from '../WorkflowName'
+
+/** User-applied filter values use outlined compact labels. */
+function ActiveFilterValueLabel({ children, onClose }: Readonly<{ children: ReactNode; onClose: () => void }>) {
+  return (
+    <Label variant="outline" isCompact onClose={onClose}>
+      {children}
+    </Label>
+  )
+}
 
 /** Resolves a filter value to a display label from field options or getOptionLabel. */
 function resolveFilterOptionDisplayLabel(field: FilterFieldDefinition | undefined, value: unknown): string | null {
@@ -60,9 +70,12 @@ function ArrayFilterValueLabels({ field, filter, operator, values, onChipRemove 
   return values.map((val) => {
     const displayLabel = getArrayFilterValueDisplayLabel(field, val)
     return (
-      <Label key={`${filter.key}-${operator}-${val}`} onClose={() => onChipRemove(filter.key, filter.operator, val)}>
+      <ActiveFilterValueLabel
+        key={`${filter.key}-${operator}-${val}`}
+        onClose={() => onChipRemove(filter.key, filter.operator, val)}
+      >
         {displayLabel}
-      </Label>
+      </ActiveFilterValueLabel>
     )
   })
 }
@@ -149,18 +162,18 @@ export function ActiveFilterChips({
 
               if (filter.key === 'workflow_id' && typeof filter.value === 'string') {
                 return (
-                  <Label key={uniqueKey} onClose={() => onChipRemove(filter.key, filter.operator)}>
+                  <ActiveFilterValueLabel key={uniqueKey} onClose={() => onChipRemove(filter.key, filter.operator)}>
                     <WorkflowName workflowId={filter.value} />
-                  </Label>
+                  </ActiveFilterValueLabel>
                 )
               }
 
               const displayValue = getScalarFilterDisplayValue(field, filter, operator)
 
               return (
-                <Label key={uniqueKey} onClose={() => onChipRemove(filter.key, filter.operator)}>
+                <ActiveFilterValueLabel key={uniqueKey} onClose={() => onChipRemove(filter.key, filter.operator)}>
                   {displayValue}
-                </Label>
+                </ActiveFilterValueLabel>
               )
             })}
           </LabelGroup>

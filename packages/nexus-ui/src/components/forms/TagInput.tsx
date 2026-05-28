@@ -1,6 +1,6 @@
 /**
  * Controlled input for a list of string items (e.g. tags, approvers).
- * Each item is shown as a PatternFly Label (removable pill). Add via Enter or comma.
+ * Each item is shown as an outlined PF Label (user-generated tags). Add via Enter or comma.
  * Uses a native input (not PF TextInput) so it sits inside the same bordered area as the
  * chips with no inner wrapper—one seamless control.
  */
@@ -85,13 +85,13 @@ export function TagInput({ value, onChange, id, ariaLabel, placeholder = '', hel
       >
         {value.map((item) =>
           isDisabled ? (
-            <Label key={item} color="grey">
+            <Label key={item} variant="outline">
               {item}
             </Label>
           ) : (
             <Label
               key={item}
-              color="grey"
+              variant="outline"
               onClose={(e) => {
                 e.preventDefault()
                 e.stopPropagation()

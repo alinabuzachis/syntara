@@ -692,9 +692,10 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // When there's no data and no filters, show EmptyStateNoData
+      // When there's no data and no filters, show EmptyStateNoData without the filter toolbar
       expect(screen.getByText('No executions found')).toBeInTheDocument()
       expect(screen.getByText('No executions found.')).toBeInTheDocument()
+      expect(screen.queryByRole('search', { name: 'Filters' })).not.toBeInTheDocument()
     })
 
     it('shows filter empty state when filtering returns no results', () => {

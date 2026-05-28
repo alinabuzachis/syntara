@@ -161,17 +161,13 @@ export function UsersTab() {
           )}
         </StackItem>
         <StackItem>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-            <FlexItem grow={{ default: 'grow' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-                clearAllFilters={handleClearAllFilters}
-              />
-            </FlexItem>
-            <FlexItem>
+          <FilterBar
+            fieldDefinitions={filterFieldDefinitions}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            showClearAll={true}
+            clearAllFilters={handleClearAllFilters}
+            toolbarEnd={
               <Button
                 variant="primary"
                 icon={<RhUiAddIcon />}
@@ -179,8 +175,8 @@ export function UsersTab() {
               >
                 Create user
               </Button>
-            </FlexItem>
-          </Flex>
+            }
+          />
         </StackItem>
         {users.length === 0 ? (
           <StackItem isFilled style={flexCenteredBothAxes}>

@@ -138,51 +138,53 @@ export default function Executions() {
       <NxPageHeader title="Workflow Runs" projectSelector={ProjectSelector} />
       <NxPageBody>
         <NxPanel isFullHeight>
-          <NxPanelContentStack variant="inset">
-            <StackItem>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
-            </StackItem>
+          {sortedExecutions.length === 0 && !hasActiveFilters ? (
+            <NxPageBody isCentered>
+              <EmptyStateNoData title="No executions found" description="No executions found." />
+            </NxPageBody>
+          ) : (
+            <NxPanelContentStack variant="inset">
+              <StackItem>
+                <FilterBar
+                  fieldDefinitions={filterFieldDefinitions}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  showClearAll={true}
+                />
+              </StackItem>
 
-            {sortedExecutions.length === 0 ? (
-              <NxPageBody isCentered>
-                {hasActiveFilters ? (
+              {sortedExecutions.length === 0 ? (
+                <NxPageBody isCentered>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                ) : (
-                  <EmptyStateNoData title="No executions found" description="No executions found." />
-                )}
-              </NxPageBody>
-            ) : (
-              <NxScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
-                <Thead>
-                  <Tr>
-                    <Th modifier="nowrap" sort={getSortParams(0)}>
-                      Workflow name
-                    </Th>
-                    <Th modifier="nowrap" sort={getSortParams(1)}>
-                      Run ID
-                    </Th>
-                    <Th sort={getSortParams(2)}>Status</Th>
-                    <Th sort={getSortParams(3)}>Created at</Th>
-                    <Th sort={getSortParams(4)}>Completed at</Th>
-                  </Tr>
-                </Thead>
-                {isAllProjects && groupedExecutions ? (
-                  <GroupedExecutionsTableBody
-                    groupedExecutions={groupedExecutions}
-                    collapsedProjects={collapsedProjects}
-                    onToggleProject={toggleProjectCollapsed}
-                  />
-                ) : (
-                  <FlatExecutionsTableBody executions={sortedExecutions} />
-                )}
-              </NxScrollableTableContainer>
-            )}
-          </NxPanelContentStack>
+                </NxPageBody>
+              ) : (
+                <NxScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
+                  <Thead>
+                    <Tr>
+                      <Th modifier="nowrap" sort={getSortParams(0)}>
+                        Workflow name
+                      </Th>
+                      <Th modifier="nowrap" sort={getSortParams(1)}>
+                        Run ID
+                      </Th>
+                      <Th sort={getSortParams(2)}>Status</Th>
+                      <Th sort={getSortParams(3)}>Created at</Th>
+                      <Th sort={getSortParams(4)}>Completed at</Th>
+                    </Tr>
+                  </Thead>
+                  {isAllProjects && groupedExecutions ? (
+                    <GroupedExecutionsTableBody
+                      groupedExecutions={groupedExecutions}
+                      collapsedProjects={collapsedProjects}
+                      onToggleProject={toggleProjectCollapsed}
+                    />
+                  ) : (
+                    <FlatExecutionsTableBody executions={sortedExecutions} />
+                  )}
+                </NxScrollableTableContainer>
+              )}
+            </NxPanelContentStack>
+          )}
         </NxPanel>
       </NxPageBody>
     </NxPage>

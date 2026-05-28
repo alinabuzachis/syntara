@@ -12,23 +12,17 @@ import {
   RhUiPlayIcon,
   RhUiTrashIcon,
 } from '@patternfly/react-icons'
-import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
-import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
-import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
@@ -42,7 +36,7 @@ import { accessClient } from '../access/accessClient'
 import { PublishWorkflowDialog } from '../builder/PublishWorkflowDialog'
 
 import { ImportWorkflowDialog } from './ImportWorkflowDialog'
-import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTableBody'
+import { WorkflowsListPanel } from './WorkflowsListPanel'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 type WorkflowDefinitionSchema = WorkflowAPI.components['schemas']['workflow_definition.schema']
@@ -394,7 +388,7 @@ export default function Workflows() {
           title="Workflows"
           projectSelector={queryState ? undefined : ProjectSelector}
           toolbar={
-            queryState ? undefined : (
+            queryState || (sortedWorkflows.length === 0 && !hasActiveFilters) ? undefined : (
               <>
                 <Button variant="secondary" icon={<RhUiImportIcon />} onClick={() => setImportDialogOpen(true)}>
                   Import workflow
@@ -410,54 +404,21 @@ export default function Workflows() {
         <NxPageBody>
           <NxPanel isFullHeight>
             {queryState ?? (
-              <NxPanelContentStack variant="inset">
-                <StackItem>
-                  <FilterBar
-                    fieldDefinitions={filterFieldDefinitions}
-                    filters={filters}
-                    onFilterChange={handleFilterChange}
-                    showClearAll={true}
-                  />
-                </StackItem>
-
-                {sortedWorkflows.length === 0 ? (
-                  <NxPageBody isCentered>
-                    {hasActiveFilters ? (
-                      <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                    ) : (
-                      <EmptyStateNoData
-                        title="No workflows yet"
-                        description="Create your first workflow to get started."
-                        buttonText="Create workflow"
-                        addData={() => setLocation('/workflow-builder/new')}
-                      />
-                    )}
-                  </NxPageBody>
-                ) : (
-                  <NxScrollableTableContainer aria-label="Workflows table" footer={getFooterProps(workflowsQuery.data)}>
-                    <Thead>
-                      <Tr>
-                        <Th>Name</Th>
-                        <Th>Created at</Th>
-                        <Th>Updated at</Th>
-                        <Th>Tags</Th>
-                        <Th>State</Th>
-                        <Th screenReaderText="Actions" />
-                      </Tr>
-                    </Thead>
-                    {isAllProjects && groupedWorkflows ? (
-                      <GroupedWorkflowsTableBody
-                        groupedWorkflows={groupedWorkflows}
-                        collapsedProjects={collapsedProjects}
-                        onToggleProject={toggleProjectCollapsed}
-                        getRowActions={getRowActions}
-                      />
-                    ) : (
-                      <FlatWorkflowsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
-                    )}
-                  </NxScrollableTableContainer>
-                )}
-              </NxPanelContentStack>
+              <WorkflowsListPanel
+                sortedWorkflows={sortedWorkflows}
+                hasActiveFilters={hasActiveFilters}
+                filterFieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onClearAllFilters={handleClearAllFilters}
+                onCreateWorkflow={() => setLocation('/workflow-builder/new')}
+                footer={getFooterProps(workflowsQuery.data)}
+                isAllProjects={isAllProjects}
+                groupedWorkflows={groupedWorkflows}
+                collapsedProjects={collapsedProjects}
+                onToggleProject={toggleProjectCollapsed}
+                getRowActions={getRowActions}
+              />
             )}
           </NxPanel>
         </NxPageBody>

@@ -1214,9 +1214,9 @@ describe('Workflows Component', () => {
 
       expect(screen.getByText('No workflows yet')).toBeInTheDocument()
       expect(screen.getByText('Create your first workflow to get started.')).toBeInTheDocument()
-      // Both the header and empty state have "Create workflow" buttons
+      expect(screen.queryByRole('search', { name: 'Filters' })).not.toBeInTheDocument()
       const createButtons = screen.getAllByRole('button', { name: 'Create workflow' })
-      expect(createButtons.length).toBeGreaterThanOrEqual(1)
+      expect(createButtons).toHaveLength(1)
     })
 
     it('navigates to builder when empty state "Create workflow" button is clicked', async () => {
@@ -1239,9 +1239,8 @@ describe('Workflows Component', () => {
 
       render(<Workflows />, { wrapper })
 
-      // Both the header and empty state have "Create workflow" buttons; click the last one (empty state)
-      const createButtons = screen.getAllByRole('button', { name: 'Create workflow' })
-      await user.click(createButtons[createButtons.length - 1])
+      const createButton = screen.getByRole('button', { name: 'Create workflow' })
+      await user.click(createButton)
 
       expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/new')
     })

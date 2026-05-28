@@ -229,23 +229,19 @@ function GroupMappingReadOnlyToolbar({
 }: Readonly<GroupMappingReadOnlyToolbarProps>) {
   return (
     <StackItem>
-      <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-        <FlexItem grow={{ default: 'grow' }}>
-          <FilterBar
-            fieldDefinitions={GROUP_MAPPING_KEYWORD_FILTER_FIELDS}
-            filters={filters}
-            onFilterChange={onFilterChange}
-            isCompact
-            showClearAll
-            clearAllFilters={clearAllFilters}
-          />
-        </FlexItem>
-        <FlexItem>
+      <FilterBar
+        fieldDefinitions={GROUP_MAPPING_KEYWORD_FILTER_FIELDS}
+        filters={filters}
+        onFilterChange={onFilterChange}
+        isCompact
+        showClearAll
+        clearAllFilters={clearAllFilters}
+        toolbarEnd={
           <Button variant="primary" icon={<RhUiEditIcon />} onClick={onEditMapping}>
             Edit mapping
           </Button>
-        </FlexItem>
-      </Flex>
+        }
+      />
     </StackItem>
   )
 }

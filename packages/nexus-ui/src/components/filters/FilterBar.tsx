@@ -1,4 +1,5 @@
 import { Button, Toolbar, ToolbarContent, ToolbarGroup, ToolbarItem, ToolbarFilter } from '@patternfly/react-core'
+import type { ReactNode } from 'react'
 import type React from 'react'
 import { useCallback } from 'react'
 
@@ -45,6 +46,10 @@ export type FilterBarProps = {
   clearAllFilters?: () => void
   /** Compact mode for narrow panels (reduces padding, hides clear-all) */
   isCompact?: boolean
+  /** Page controls placed after filter inputs (e.g. refresh, timestamps). Not for keyword search until backend/strategy is defined. */
+  toolbarItemsAfterFilters?: ReactNode
+  /** Page controls aligned to the toolbar end (e.g. primary actions) */
+  toolbarEnd?: ReactNode
 }
 
 /**
@@ -75,6 +80,8 @@ export function FilterBar({
   showClearAll = true,
   clearAllFilters,
   isCompact = false,
+  toolbarItemsAfterFilters,
+  toolbarEnd,
 }: FilterBarProps) {
   // Separate field definitions for TextFilter (TEXT/SELECT/DATERANGE/MULTISELECT) vs other filter types
   const attributeSearchFields = fieldDefinitions.filter(isAttributeSearchField)
@@ -205,6 +212,8 @@ export function FilterBar({
           ))}
         </ToolbarGroup>
 
+        {toolbarItemsAfterFilters && <ToolbarGroup variant="action-group">{toolbarItemsAfterFilters}</ToolbarGroup>}
+
         {/* Clear All Filters Button */}
         {effectiveShowClearAll && hasActiveFilters && (
           <ToolbarItem>
@@ -212,6 +221,12 @@ export function FilterBar({
               Clear all filters
             </Button>
           </ToolbarItem>
+        )}
+
+        {toolbarEnd && (
+          <ToolbarGroup variant="action-group" align={{ default: 'alignEnd' }}>
+            {toolbarEnd}
+          </ToolbarGroup>
         )}
       </ToolbarContent>
 

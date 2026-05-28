@@ -1,8 +1,8 @@
-import { Badge, Flex, FlexItem, Truncate } from '@patternfly/react-core'
+import { Flex, FlexItem, Label } from '@patternfly/react-core'
 
 /**
- * Renders a list of strings as badges in a flex wrap layout.
- * Used by the Workflows table for the Tags column.
+ * Renders user-defined tag strings as compact outlined labels.
+ * Used by the Workflows table Tags column (replaces incorrect `Badge` usage).
  */
 export function BadgesCell(props: { items: string[] }) {
   if (!props.items.length) {
@@ -12,9 +12,9 @@ export function BadgesCell(props: { items: string[] }) {
     <Flex flexWrap={{ default: 'wrap' }} gap={{ default: 'gapSm' }}>
       {props.items.map((item) => (
         <FlexItem key={item}>
-          <Badge>
-            <Truncate content={item} />
-          </Badge>
+          <Label variant="outline" isCompact>
+            {item}
+          </Label>
         </FlexItem>
       ))}
     </Flex>

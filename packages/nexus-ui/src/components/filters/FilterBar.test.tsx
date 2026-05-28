@@ -1,3 +1,4 @@
+import { Button } from '@patternfly/react-core'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -1923,6 +1924,21 @@ describe('FilterBar', () => {
       // All chips should be gone — filter is cleared
       expect(screen.queryByRole('button', { name: 'Close Running' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Close Failed' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('toolbar extension slots', () => {
+    it('renders toolbarItemsAfterFilters and toolbarEnd', () => {
+      render(
+        <FilterBar
+          {...defaultProps}
+          toolbarItemsAfterFilters={<Button>Refresh</Button>}
+          toolbarEnd={<Button>Primary action</Button>}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Primary action' })).toBeInTheDocument()
     })
   })
 })

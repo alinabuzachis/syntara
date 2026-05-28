@@ -1,6 +1,7 @@
 import { RhUiCheckCircleIcon } from '@patternfly/react-icons'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { IconLabel } from './IconLabel'
 
@@ -61,5 +62,10 @@ describe('IconLabel', () => {
 
     expect(screen.getByTestId('child-span')).toBeInTheDocument()
     expect(screen.getByText('Complex')).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations', async () => {
+    const { container } = render(<IconLabel icon={<RhUiCheckCircleIcon aria-hidden />}>Edit workflow</IconLabel>)
+    expect(await axe(container)).toHaveNoViolations()
   })
 })

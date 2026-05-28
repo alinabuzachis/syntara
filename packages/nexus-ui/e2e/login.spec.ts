@@ -226,17 +226,18 @@ test.describe('Built-in admin login flow', () => {
     )
 
     // Settings nav filtering uses POST /authz/can_i (underscore) per AAP-75846 — not legacy can-i.
+    const canIResponse = {
+      allowed: true,
+      denied: false,
+      matched_policy: '',
+      denial_reason: '',
+      denied_by: '',
+    }
     await page.route('**/api/v1/authz/can_i', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          allowed: true,
-          denied: false,
-          matched_policy: '',
-          denial_reason: '',
-          denied_by: '',
-        }),
+        body: JSON.stringify(canIResponse),
       })
     )
 
@@ -254,9 +255,13 @@ test.describe('Built-in admin login flow', () => {
 
     await page.getByRole('button', { name: 'Log in' }).click()
 
-    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible({ timeout: 30_000 })
+    const mainNav = page.getByRole('navigation', { name: 'Main navigation' })
+    await expect(mainNav).toBeVisible({ timeout: 30_000 })
     await settingsPermissionChecks
 
-    await expect(page.getByRole('button', { name: 'System Administration' })).toBeVisible({ timeout: 15_000 })
+    // Compass dock nav can overflow vertically; last items may need scroll into view.
+    const systemAdminNav = mainNav.getByRole('button', { name: 'System Administration' })
+    await systemAdminNav.scrollIntoViewIfNeeded()
+    await expect(systemAdminNav).toBeVisible()
   })
 })

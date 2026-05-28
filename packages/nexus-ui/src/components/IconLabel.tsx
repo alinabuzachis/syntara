@@ -2,8 +2,8 @@ import { Content, ContentVariants, Flex, FlexItem } from '@patternfly/react-core
 import type { ReactElement } from 'react'
 
 /**
- * IconLabel component for displaying an icon with a label.
- * Commonly used in action menus, status indicators, and navigation items.
+ * Inline icon + label for menus and compact actions. Label text uses PF `Content`;
+ * color is inherited from the wrapping `Flex` (including `isDanger` menu items).
  *
  * @example
  * <IconLabel icon={<PencilAltIcon />}>Edit workflow</IconLabel>
@@ -18,7 +18,9 @@ export function IconLabel(props: { icon?: ReactElement; children: React.ReactNod
     >
       {props.icon && <FlexItem>{props.icon}</FlexItem>}
       <FlexItem>
-        <Content component={ContentVariants.p}>{props.children}</Content>
+        <Content component={ContentVariants.p} style={{ margin: 0 }}>
+          {props.children}
+        </Content>
       </FlexItem>
     </Flex>
   )
