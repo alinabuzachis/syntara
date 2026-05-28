@@ -140,7 +140,8 @@ def sync_detailed(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        name (None | str | Unset): Filter by group name
+        name (None | str | Unset): Filter by group name (name=exact, name[contains]=substring,
+            name[starts_with]=prefix)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -184,7 +185,8 @@ def sync(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        name (None | str | Unset): Filter by group name
+        name (None | str | Unset): Filter by group name (name=exact, name[contains]=substring,
+            name[starts_with]=prefix)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -222,7 +224,8 @@ async def asyncio_detailed(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        name (None | str | Unset): Filter by group name
+        name (None | str | Unset): Filter by group name (name=exact, name[contains]=substring,
+            name[starts_with]=prefix)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -263,7 +266,8 @@ async def asyncio(
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
-        name (None | str | Unset): Filter by group name
+        name (None | str | Unset): Filter by group name (name=exact, name[contains]=substring,
+            name[starts_with]=prefix)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -134,20 +134,20 @@ class TestPrivilegeEscalation:
             assert resp.json()["allowed"] is False, f"Auditor should not be allowed {resource_type}:{action}"
 
     @pytest.mark.asyncio
-    async def test_authenticated_role_can_read_other_users(
+    async def test_user_role_cannot_read_other_users(
         self,
         auth_client: AsyncClient,
+        test_db_session: AsyncSession,
         user_factory: Callable[..., Awaitable[User]],
         auth_as: Callable[[User], None],
     ) -> None:
-        """SEC-005: User role (via users group) grants user:read:any."""
+        """SEC-005: User role no longer grants user:read:any — only directory lookups."""
         user_a = await user_factory(username="usera-sec5", email="usera-sec5@test.com", group_names=["users"])
         user_b = await user_factory(username="userb-sec5", email="userb-sec5@test.com")
 
-        # user_a has only the authenticated role policies
         auth_as(user_a)
 
-        # Can read self
+        # Can read self (via authenticated role's user:read:self)
         resp = await auth_client.post(
             "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "user", "resource_id": str(user_a.id)},
@@ -155,13 +155,13 @@ class TestPrivilegeEscalation:
         assert resp.status_code == 200
         assert resp.json()["allowed"] is True
 
-        # Can also read other users (user:read:any granted via user role on authenticated group)
+        # Cannot read other users (user:read:any removed from user role)
         resp = await auth_client.post(
             "/api/v1/authz/can_i",
             json={"action": "read", "resource_type": "user", "resource_id": str(user_b.id)},
         )
         assert resp.status_code == 200
-        assert resp.json()["allowed"] is True
+        assert resp.json()["allowed"] is False
 
 
 # ============================================================================
@@ -195,8 +195,8 @@ class TestRoleBoundaries:
         for p in system_perms:
             system_actions.update(p["actions"])
 
-        # User role should grant project:create, user:read, group:read at system scope
-        for expected in ["project:create", "user:read", "group:read"]:
+        # User role should grant project:create, directory lookups at system scope
+        for expected in ["project:create", "user-directory:read", "group-directory:read"]:
             assert expected in system_actions, f"User role missing {expected}"
 
         # User role should NOT grant workflow CRUD, execution, or policy management at system scope
@@ -240,8 +240,8 @@ class TestRoleBoundaries:
             "user_identity:read:self",
             "user_identity:detach:self",
             "project:create:any",
-            "user:read:any",
-            "group:read:any",
+            "user-directory:read:any",
+            "group-directory:read:any",
         }
         auditor_allows = [
             p

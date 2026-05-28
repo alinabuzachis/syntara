@@ -15348,6 +15348,7 @@ paths:
               - type: string
               - type: 'null'
             title: Username
+          description: Filter by username (username=exact, username[contains]=substring, username[starts_with]=prefix)
         - name: full_name
           in: query
           required: false
@@ -16599,9 +16600,9 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
-            description: Filter by username
+            description: Filter by username (username=exact, username[contains]=substring, username[starts_with]=prefix)
             title: Username
-          description: Filter by username
+          description: Filter by username (username=exact, username[contains]=substring, username[starts_with]=prefix)
       responses:
         '200':
           description: Lightweight list of users
@@ -16755,9 +16756,9 @@ paths:
             anyOf:
               - type: string
               - type: 'null'
-            description: Filter by group name
+            description: Filter by group name (name=exact, name[contains]=substring, name[starts_with]=prefix)
             title: Name
-          description: Filter by group name
+          description: Filter by group name (name=exact, name[contains]=substring, name[starts_with]=prefix)
       responses:
         '200':
           description: Lightweight list of groups

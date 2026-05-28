@@ -41,19 +41,19 @@ class TestAdminFullAccess:
 
 
 class TestUserRole:
-    """User role grants project:create, user:read, group:read only."""
+    """User role grants project:create, directory lookups only."""
 
     @pytest.mark.parametrize(
         ("action", "resource_type"),
         [
             ("create", "project"),
-            ("read", "user"),
-            ("read", "group"),
+            ("read", "user-directory"),
+            ("read", "group-directory"),
         ],
         ids=[
             "project:create",
-            "user:read",
-            "group:read",
+            "user-directory:read",
+            "group-directory:read",
         ],
     )
     def test_user_role_allowed_actions(self, opa_evaluate, action: str, resource_type: str):
@@ -75,6 +75,8 @@ class TestUserRole:
             ("read", "workflow"),
             ("run", "execution"),
             ("read", "credential"),
+            ("read", "user"),
+            ("read", "group"),
         ],
         ids=[
             "policy:create",
@@ -83,6 +85,8 @@ class TestUserRole:
             "workflow:read",
             "execution:run",
             "credential:read",
+            "user:read",
+            "group:read",
         ],
     )
     def test_user_role_denied_actions(self, opa_evaluate, action: str, resource_type: str):
@@ -159,8 +163,8 @@ class TestAuditorRole:
 class TestRoleBoundaries:
     """Cross-role boundary checks."""
 
-    def test_user_can_read_other_users(self, opa_evaluate):
-        """User role has user:read:any, so reading another user is allowed."""
+    def test_user_cannot_read_other_users(self, opa_evaluate):
+        """User role no longer has user:read:any — reading another user is denied."""
         result = opa_evaluate(
             build_opa_input(
                 action="read",
@@ -170,7 +174,7 @@ class TestRoleBoundaries:
                 effective_policies=policies_for_role("user"),
             )
         )
-        assert result["allow"] is True
+        assert result["allow"] is False
 
 
 class TestAuthenticatedRole:

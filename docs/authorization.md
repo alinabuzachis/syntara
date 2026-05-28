@@ -80,8 +80,8 @@ Defined in `BUILTIN_ROLES` in `src/nexus/authz/role_conventions.py`:
 | Role | Builtin | Scope | Description | Key Permissions |
 |------|---------|-------|-------------|-----------------|
 | `admin` | yes | system | Full system access | All policies |
-| `auditor` | yes | system | Read-only with audit visibility | Read workflows, executions, approvals, policies, roles |
-| `user` | yes | system | Base user permissions | Create projects, read users, read groups |
+| `auditor` | yes | system | Read-only with audit visibility | Read workflows, executions, approvals, policies, roles, users, groups |
+| `user` | yes | system | Base user permissions | Create projects, directory lookups (users/groups) |
 | `project-admin` | yes | project | Full access within a project | Manage project, assign roles, CRUD workflows/executions, create custom roles/policies |
 | `project-user` | yes | project | Standard access within a project | Read project, CRUD workflows, run executions |
 | `project-auditor` | yes | project | Read-only within a project | Read project, workflows, executions, roles, policies |
@@ -227,7 +227,7 @@ async def list_workflows(
     allowed_projects = visibility.to_allowed_projects()
     ...
 
-# System-scoped resources (users, groups)
+# System-scoped resources (users, groups — admin/auditor only)
 @router.get("")
 async def list_users(
     visibility: VisibilityResult = Depends(VisibilityFilter("user", "read")),
@@ -236,7 +236,7 @@ async def list_users(
     id_restriction = visibility.to_id_restriction()
     ...
 
-# Groups use group membership IDs instead of user ID
+# Groups use group membership IDs instead of user ID (admin/auditor only)
 @router.get("")
 async def list_groups(
     visibility: VisibilityResult = Depends(VisibilityFilter("group", "read")),
@@ -400,6 +400,19 @@ Projects also expose filtered views of their resources:
 |----------|------------|-------------|
 | `GET /{project_id}/workflows` | `workflow:read` | List workflows in the project |
 | `GET /{project_id}/approvals` | `approval:read` | List approvals in the project |
+
+## User and Group Access Model
+
+Full user and group endpoints (`/users`, `/groups`) require the `user:read` or `group:read` permission, which is granted only to the `admin` and `auditor` roles. Regular users can read their own record via `self`-scope (granted by the `authenticated` role).
+
+For non-admin users who need to look up users or groups (e.g., to populate assignment dropdowns), lightweight **directory endpoints** are available:
+
+| Endpoint | Permission | Returns |
+|----------|------------|---------|
+| `GET /users_directory` | `user-directory:read` | `id` + `username` only |
+| `GET /groups_directory` | `group-directory:read` | `id` + `name` only |
+
+The `user-directory:read` and `group-directory:read` policies are granted to the `user` role, so all standard users can perform directory lookups. These endpoints support cursor pagination, sorting, and filtering (by `username` or `name` respectively) but expose no sensitive fields.
 
 ## Policy and Role Management
 

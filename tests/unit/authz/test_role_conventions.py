@@ -154,8 +154,10 @@ class TestStatementResolution:  # noqa: D101
         assert len(stmts) > 0
         actions = {a for s in stmts for a in s["actions"]}
         assert "project:create" in actions
-        assert "user:read" in actions
-        assert "group:read" in actions
+        assert "user-directory:read" in actions
+        assert "group-directory:read" in actions
+        assert "user:read" not in actions
+        assert "group:read" not in actions
 
     def test_resolve_builtin_role_statements_unknown(self) -> None:
         stmts = resolve_builtin_role_statements("nonexistent")

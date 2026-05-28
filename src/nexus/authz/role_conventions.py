@@ -126,11 +126,11 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("policy", "delete", roles=("admin",)),
     # users & groups
     PolicyInfo("user", "create", roles=("admin",)),
-    PolicyInfo("user", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("user", "read", roles=("admin", "auditor")),
     PolicyInfo("user", "update", roles=("admin",)),
     PolicyInfo("user", "delete", roles=("admin",)),
     PolicyInfo("group", "create", roles=("admin",)),
-    PolicyInfo("group", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("group", "read", roles=("admin", "auditor")),
     PolicyInfo("group", "update", roles=("admin",)),
     PolicyInfo("group", "delete", roles=("admin",)),
     PolicyInfo("group", "manage-members", roles=("admin",)),
@@ -194,7 +194,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
 BUILTIN_ROLES: list[RoleInfo] = [
     RoleInfo("admin", "Full access to all resources"),
     RoleInfo("auditor", "Read-only access with audit log visibility"),
-    RoleInfo("user", "Base user permissions: create projects, read users and groups"),
+    RoleInfo("user", "Base user permissions: create projects, directory lookups"),
     RoleInfo(
         "project-admin",
         "Full access to a project and its resources, including role management",
