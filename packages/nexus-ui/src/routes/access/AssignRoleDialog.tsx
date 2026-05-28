@@ -254,7 +254,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
 
   const [userSearchTerm, setUserSearchTerm] = useState('')
   const debouncedUserSearch = useDebouncedValue(userSearchTerm)
-  const usersQuery = accessClient.useQuery('get', '/users', {
+  const usersQuery = accessClient.useQuery('get', '/users_directory', {
     params: {
       query: { limit: PAGE_SIZE, ...(debouncedUserSearch ? { 'username[contains]': debouncedUserSearch } : {}) },
     },
@@ -266,16 +266,13 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
 
   const [groupSearchTerm, setGroupSearchTerm] = useState('')
   const debouncedGroupSearch = useDebouncedValue(groupSearchTerm)
-  const groupsQuery = accessClient.useQuery('get', '/groups', {
+  const groupsQuery = accessClient.useQuery('get', '/groups_directory', {
     params: {
       query: { limit: PAGE_SIZE, ...(debouncedGroupSearch ? { 'name[contains]': debouncedGroupSearch } : {}) },
     },
   })
   const groupOptions = useMemo(
-    () =>
-      (groupsQuery.data?.resources ?? [])
-        .filter((g): g is typeof g & { id: string } => !!g.id)
-        .map((g) => ({ value: g.id, label: g.name })),
+    () => (groupsQuery.data?.resources ?? []).map((g) => ({ value: g.id, label: g.name })),
     [groupsQuery.data]
   )
 

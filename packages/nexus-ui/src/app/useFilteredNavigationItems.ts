@@ -1,25 +1,44 @@
 import { useMemo } from 'react'
 
+import { useAccessManagementPermissions } from '../routes/access-management/useAccessManagementPermissions'
 import { useSettingsPermissions } from '../routes/configuration/settings/useSettingsPermissions'
 
 import { AppRoute } from './AppRoute'
 import type { TNavigationItem } from './navigationItems'
 import { NAV_ITEMS } from './navigationItems'
 
+function filterItems(items: TNavigationItem[], hiddenPaths: Set<string>): TNavigationItem[] {
+  return items.reduce<TNavigationItem[]>((acc, item) => {
+    if (hiddenPaths.has(item.path)) return acc
+
+    if (!item.children) {
+      acc.push(item)
+      return acc
+    }
+
+    const filteredChildren = filterItems(item.children, hiddenPaths)
+    const changed =
+      filteredChildren.length !== item.children.length || filteredChildren.some((c, i) => c !== item.children![i])
+    acc.push(changed ? { ...item, children: filteredChildren } : item)
+    return acc
+  }, [])
+}
+
 export function useFilteredNavigationItems(): TNavigationItem[] {
   const { canRead: canReadSettings } = useSettingsPermissions()
+  const { canReadUsers, canReadGroups, isLoading } = useAccessManagementPermissions()
 
   return useMemo(() => {
-    if (canReadSettings) return NAV_ITEMS
+    const hiddenPaths = new Set<string>()
 
-    return NAV_ITEMS.map((item) => {
-      if (!item.children) return item
+    if (!canReadSettings) hiddenPaths.add(AppRoute.SystemAdministration.Settings)
+    if (!isLoading) {
+      if (!canReadUsers) hiddenPaths.add(AppRoute.AccessManagement.Users)
+      if (!canReadGroups) hiddenPaths.add(AppRoute.AccessManagement.Groups)
+    }
 
-      const filteredChildren = item.children.filter((child) => child.path !== AppRoute.SystemAdministration.Settings)
+    if (hiddenPaths.size === 0) return NAV_ITEMS
 
-      if (filteredChildren.length === item.children.length) return item
-
-      return { ...item, children: filteredChildren }
-    })
-  }, [canReadSettings])
+    return filterItems(NAV_ITEMS, hiddenPaths)
+  }, [canReadSettings, canReadUsers, canReadGroups, isLoading])
 }

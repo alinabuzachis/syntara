@@ -132,6 +132,46 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/users_directory': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Users Directory
+     * @description Return a lightweight directory of users (id + username only).
+     */
+    get: operations['list_users_directory']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/groups_directory': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Groups Directory
+     * @description Return a lightweight directory of groups (id + name only).
+     */
+    get: operations['list_groups_directory']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/groups': {
     parameters: {
       query?: never
@@ -431,7 +471,6 @@ export interface components {
       auth_type?: components['schemas']['AuthType']
       /**
        * Auth Sources
-       * @description Identity provider names for this user
        * @default []
        */
       auth_sources?: string[]
@@ -721,14 +760,13 @@ export interface components {
        * @default false
        */
       is_builtin?: boolean
-      /** @default local */
-      auth_type?: components['schemas']['AuthType']
       /**
        * Auth Sources
-       * @description Identity provider names for this user
        * @default []
        */
       auth_sources?: string[]
+      /** @default local */
+      auth_type?: components['schemas']['AuthType']
       /** Last Login */
       last_login?: string | null
       /**
@@ -869,6 +907,98 @@ export interface components {
        * @default Member added successfully
        */
       message?: string
+    }
+    /**
+     * UserDirectoryEntry
+     * @description Lightweight user record for directory lookups.
+     */
+    UserDirectoryEntry: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Username */
+      username: string
+    }
+    /**
+     * GroupDirectoryEntry
+     * @description Lightweight group record for directory lookups.
+     */
+    GroupDirectoryEntry: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Name */
+      name: string
+    }
+    /**
+     * ResourcesResponse[UserDirectoryEntry]
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponse_UserDirectoryEntry_: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['UserDirectoryEntry'][]
+    }
+    /**
+     * ResourcesResponse[GroupDirectoryEntry]
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponse_GroupDirectoryEntry_: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['GroupDirectoryEntry'][]
     }
     /**
      * SubResourceRoleAssignmentCreate
@@ -1227,8 +1357,10 @@ export interface operations {
         sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by username (username=exact, username[contains]=substring, username[starts_with]=prefix) */
         username?: string | null
         full_name?: string | null
+        auth_type?: components['schemas']['AuthType'] | null
         auth_source?: string | null
       }
       header?: never
@@ -1526,6 +1658,82 @@ export interface operations {
           [name: string]: unknown
         }
         content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_users_directory: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by username (username=exact, username[contains]=substring, username[starts_with]=prefix) */
+        username?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Lightweight list of users */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ResourcesResponse_UserDirectoryEntry_']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_groups_directory: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by group name (name=exact, name[contains]=substring, name[starts_with]=prefix) */
+        name?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Lightweight list of groups */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ResourcesResponse_GroupDirectoryEntry_']
+        }
       }
       400: components['responses']['BadRequestError']
       401: components['responses']['UnauthorizedError']

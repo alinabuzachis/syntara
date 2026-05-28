@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { useAccessManagementPermissions } from '../routes/access-management/useAccessManagementPermissions'
 import { useSettingsPermissions } from '../routes/configuration/settings/useSettingsPermissions'
 
 import { AppRoute } from './AppRoute'
@@ -11,10 +12,19 @@ vi.mock('../routes/configuration/settings/useSettingsPermissions', () => ({
   useSettingsPermissions: vi.fn(),
 }))
 
+vi.mock('../routes/access-management/useAccessManagementPermissions', () => ({
+  useAccessManagementPermissions: vi.fn(),
+}))
+
 describe('useFilteredNavigationItems', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: true })
+    vi.mocked(useAccessManagementPermissions).mockReturnValue({
+      canReadUsers: true,
+      canReadGroups: true,
+      isLoading: false,
+    })
   })
 
   it('returns all navigation items when user can read settings', () => {
@@ -56,5 +66,54 @@ describe('useFilteredNavigationItems', () => {
     const topLevelWithoutChildren = NAV_ITEMS.filter(({ children }) => !children)
     const filteredTopLevel = result.current.filter(({ children }) => !children)
     expect(filteredTopLevel).toEqual(topLevelWithoutChildren)
+  })
+
+  it('filters out Users tab when user cannot read users', () => {
+    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: true })
+    vi.mocked(useAccessManagementPermissions).mockReturnValue({
+      canReadUsers: false,
+      canReadGroups: true,
+      isLoading: false,
+    })
+
+    const { result } = renderHook(() => useFilteredNavigationItems())
+
+    const sysAdmin = result.current.find((item) => item.path === AppRoute.SystemAdministration.Root)
+    const accessGroup = sysAdmin?.children?.find((child) => child.path === AppRoute.AccessManagement.Root)
+    const { children: accessChildren } = accessGroup ?? {}
+    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Users)).toBe(false)
+    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Groups)).toBe(true)
+  })
+
+  it('filters out Groups tab when user cannot read groups', () => {
+    vi.mocked(useAccessManagementPermissions).mockReturnValue({
+      canReadUsers: true,
+      canReadGroups: false,
+      isLoading: false,
+    })
+
+    const { result } = renderHook(() => useFilteredNavigationItems())
+
+    const sysAdmin = result.current.find((item) => item.path === AppRoute.SystemAdministration.Root)
+    const accessGroup = sysAdmin?.children?.find((child) => child.path === AppRoute.AccessManagement.Root)
+    const { children: accessChildren } = accessGroup ?? {}
+    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Users)).toBe(true)
+    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Groups)).toBe(false)
+  })
+
+  it('filters out both Users and Groups when user cannot read either', () => {
+    vi.mocked(useAccessManagementPermissions).mockReturnValue({
+      canReadUsers: false,
+      canReadGroups: false,
+      isLoading: false,
+    })
+
+    const { result } = renderHook(() => useFilteredNavigationItems())
+
+    const sysAdmin = result.current.find((item) => item.path === AppRoute.SystemAdministration.Root)
+    const accessGroup = sysAdmin?.children?.find((child) => child.path === AppRoute.AccessManagement.Root)
+    const { children: accessChildren } = accessGroup ?? {}
+    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Users)).toBe(false)
+    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Groups)).toBe(false)
   })
 })

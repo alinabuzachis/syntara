@@ -1,5 +1,5 @@
 import { StackItem, Tab, Tabs } from '@patternfly/react-core'
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect, useMemo } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -14,9 +14,10 @@ import { RolesTab } from '../access/RolesTab'
 
 import { GroupsTab } from './GroupsTab'
 import { ProjectsTab } from './ProjectsTab'
+import { useAccessManagementPermissions } from './useAccessManagementPermissions'
 import { UsersTab } from './UsersTab'
 
-const tabs = [
+const allTabs = [
   { path: AppRoute.AccessManagement.Users, label: 'Users', component: UsersTab },
   { path: AppRoute.AccessManagement.Groups, label: 'Groups', component: GroupsTab },
   { path: AppRoute.AccessManagement.Projects, label: 'Projects', component: ProjectsTab },
@@ -24,24 +25,36 @@ const tabs = [
   { path: AppRoute.AccessManagement.Roles, label: 'Roles', component: RolesTab },
   { path: AppRoute.AccessManagement.Assignments, label: 'Assignments', component: AssignmentsTab },
   { path: AppRoute.AccessManagement.CanI, label: 'Can I?', component: CanITab },
-] as const
+]
 
 export function AccessManagement() {
   const [location, navigate] = useLocation()
+  const { canReadUsers, canReadGroups, isLoading } = useAccessManagementPermissions()
 
-  useLayoutEffect(() => {
-    if (location === AppRoute.AccessManagement.Root) {
-      navigate(AppRoute.AccessManagement.Users, { replace: true })
-    }
-  }, [location, navigate])
+  const tabs = useMemo(() => {
+    if (isLoading) return allTabs
+    const hiddenPaths = new Set<string>()
+    if (!canReadUsers) hiddenPaths.add(AppRoute.AccessManagement.Users)
+    if (!canReadGroups) hiddenPaths.add(AppRoute.AccessManagement.Groups)
+    if (hiddenPaths.size === 0) return allTabs
+    return allTabs.filter((tab) => !hiddenPaths.has(tab.path))
+  }, [canReadUsers, canReadGroups, isLoading])
+
+  const defaultTab = tabs[0]
 
   const activeTabIndex = tabs.findIndex((tab) => location.startsWith(tab.path))
+  const isRestrictedPath = !isLoading && activeTabIndex === -1 && location !== AppRoute.AccessManagement.Root
+
+  useLayoutEffect(() => {
+    if ((location === AppRoute.AccessManagement.Root || isRestrictedPath) && defaultTab) {
+      navigate(defaultTab.path, { replace: true })
+    }
+  }, [location, navigate, defaultTab, isRestrictedPath])
+
   const resolvedIndex = activeTabIndex === -1 ? 0 : activeTabIndex
   const ActiveTabComponent = tabs[resolvedIndex].component
   const activeTab = tabs[resolvedIndex]
-  // Default hub tab: same view as `/access-management` (canonical `/access-management/users`); title + tabs suffice.
-  const hubBreadcrumbs =
-    activeTab.path === AppRoute.AccessManagement.Users ? undefined : breadcrumbsAccessManagementHub(activeTab.label)
+  const hubBreadcrumbs = breadcrumbsAccessManagementHub(activeTab.label)
 
   const handleTabSelect = (_event: React.MouseEvent, tabIndex: string | number) => {
     const tab = tabs[Number(tabIndex)]

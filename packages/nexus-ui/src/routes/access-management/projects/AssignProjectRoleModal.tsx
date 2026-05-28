@@ -147,7 +147,7 @@ export function AssignProjectRoleModal({
   const [userSearchTerm, setUserSearchTerm] = useState('')
   const debouncedUserSearch = useDebouncedValue(userSearchTerm)
 
-  const usersQuery = accessClient.useQuery('get', '/users', {
+  const usersQuery = accessClient.useQuery('get', '/users_directory', {
     params: {
       query: {
         limit: PAGE_SIZE,
@@ -160,7 +160,7 @@ export function AssignProjectRoleModal({
   const [groupSearchTerm, setGroupSearchTerm] = useState('')
   const debouncedGroupSearch = useDebouncedValue(groupSearchTerm)
 
-  const groupsQuery = accessClient.useQuery('get', '/groups', {
+  const groupsQuery = accessClient.useQuery('get', '/groups_directory', {
     params: {
       query: {
         limit: PAGE_SIZE,
@@ -172,15 +172,12 @@ export function AssignProjectRoleModal({
   const { roles: projectRoles, isLoading: rolesLoading } = useAllProjectRoles(projectId)
 
   const userOptions = useMemo(
-    () => (usersQuery.data?.resources ?? []).map((u) => ({ value: u.id, label: u.username ?? u.id })),
+    () => (usersQuery.data?.resources ?? []).map((u) => ({ value: u.id, label: u.username })),
     [usersQuery.data]
   )
 
   const groupOptions = useMemo(
-    () =>
-      (groupsQuery.data?.resources ?? [])
-        .filter((g): g is typeof g & { id: string } => !!g.id)
-        .map((g) => ({ value: g.id, label: g.name })),
+    () => (groupsQuery.data?.resources ?? []).map((g) => ({ value: g.id, label: g.name })),
     [groupsQuery.data]
   )
 

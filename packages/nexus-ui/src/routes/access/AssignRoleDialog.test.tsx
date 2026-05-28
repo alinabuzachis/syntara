@@ -160,19 +160,19 @@ function setupDefaultMocks() {
         data: { resources: mockProjectRoles, next: null },
       } as never
     }
-    if (path === '/users') {
+    if (path === '/users_directory') {
       return {
         ...defaultQueryReturn,
         data: {
           resources: [
-            { id: 'u1', username: 'alice', email: 'alice@test.com', full_name: 'Alice' },
-            { id: 'u2', username: 'bob', email: 'bob@test.com', full_name: 'Bob' },
+            { id: 'u1', username: 'alice' },
+            { id: 'u2', username: 'bob' },
           ],
           next: null,
         },
       } as never
     }
-    if (path === '/groups') {
+    if (path === '/groups_directory') {
       return {
         ...defaultQueryReturn,
         data: {

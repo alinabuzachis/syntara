@@ -112,13 +112,13 @@ const mockRoles = [
 ]
 
 const mockUsers = [
-  { id: 'u1', username: 'alice', email: 'alice@test.com', full_name: 'Alice' },
-  { id: 'u2', username: 'bob', email: 'bob@test.com', full_name: 'Bob' },
+  { id: 'u1', username: 'alice' },
+  { id: 'u2', username: 'bob' },
 ]
 
 const mockGroups = [
-  { id: 'g1', name: 'developers', description: 'Dev team', is_builtin: false },
-  { id: 'g2', name: 'admins', description: 'Admin team', is_builtin: true },
+  { id: 'g1', name: 'developers' },
+  { id: 'g2', name: 'admins' },
 ]
 
 function getTypeaheadInput(groupName: string) {
@@ -144,7 +144,7 @@ describe('AssignProjectRoleModal', () => {
       refetch: vi.fn(),
     })
     vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-      if (path === '/users') {
+      if (path === '/users_directory') {
         return {
           data: { resources: mockUsers, next: null },
           isPending: false,
@@ -155,7 +155,7 @@ describe('AssignProjectRoleModal', () => {
           refetch: vi.fn(),
         } as never
       }
-      if (path === '/groups') {
+      if (path === '/groups_directory') {
         return {
           data: { resources: mockGroups, next: null },
           isPending: false,

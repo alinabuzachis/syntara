@@ -1352,6 +1352,24 @@ export const handlers = [
     return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
   }),
 
+  http.get('/api/v1/users_directory', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const usernameFilter = url.searchParams.get('username[contains]')
+
+    let resources = users.map((u) => ({ id: u.id, username: u.username }))
+
+    if (usernameFilter) {
+      const searchTerm = usernameFilter.toLowerCase()
+      resources = resources.filter((u) => u.username.toLowerCase().includes(searchTerm))
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
+  }),
+
   http.post('/api/v1/users', async ({ request }) => {
     const body = (await request.json()) as {
       username?: string
@@ -1739,6 +1757,26 @@ export const handlers = [
         const cmp = aVal.localeCompare(bVal)
         return isDesc ? -cmp : cmp
       })
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
+  }),
+
+  http.get('/api/v1/groups_directory', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const nameFilter = url.searchParams.get('name[contains]')
+
+    let resources = groups
+      .filter((g): g is typeof g & { id: string; name: string } => !!g.id && !!g.name)
+      .map((g) => ({ id: g.id, name: g.name }))
+
+    if (nameFilter) {
+      const searchTerm = nameFilter.toLowerCase()
+      resources = resources.filter((g) => g.name.toLowerCase().includes(searchTerm))
     }
 
     return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
