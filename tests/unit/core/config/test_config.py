@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import warnings
 from typing import TYPE_CHECKING
 
@@ -17,19 +16,13 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_settings_requires_nexus_prefix(monkeypatch: object) -> None:
+def test_settings_requires_nexus_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that settings only reads environment variables with APP_ prefix."""
-    # Set both prefixed and non-prefixed versions
-    os.environ["APP_OPENROUTER_MODEL"] = "prefixed-model"
+    monkeypatch.setenv("APP_OPENROUTER_MODEL", "prefixed-model")
 
-    try:
-        settings = Settings()
+    settings = Settings()
 
-        # Should read the APP_ prefixed variable
-        assert settings.openrouter_model == "prefixed-model"
-    finally:
-        # Cleanup
-        os.environ.pop("APP_OPENROUTER_MODEL", None)
+    assert settings.openrouter_model == "prefixed-model"
 
 
 # =============================================================================
@@ -62,100 +55,79 @@ class TestDatabaseSettings:
         assert url.port == 5432
         assert url.database == "nexus_api"
 
-    def test_database_url_with_custom_values(self) -> None:
+    def test_database_url_with_custom_values(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
         """Test database_url with custom configuration values."""
-        os.environ["APP_DB_USER"] = "testuser"
-        os.environ["APP_DB_PASSWORD"] = "testpass"  # noqa: S105
-        os.environ["APP_DB_HOST"] = "dbserver"
-        os.environ["APP_DB_PORT"] = "5433"
-        os.environ["APP_DB_NAME"] = "testdb"
+        from pydantic import SecretStr
 
-        try:
-            settings = Settings()
-            url = settings.database_url
+        from nexus.core.config.base import get_settings
+
+        with override_settings(
+            db_user="testuser",
+            db_password=SecretStr("testpass"),
+            db_host="dbserver",
+            db_port=5433,
+            db_name="testdb",
+        ):
+            url = get_settings().database_url
             assert url.drivername == "postgresql+asyncpg"
             assert url.username == "testuser"
             assert url.host == "dbserver"
             assert url.port == 5433
             assert url.database == "testdb"
-        finally:
-            os.environ.pop("APP_DB_USER", None)
-            os.environ.pop("APP_DB_PASSWORD", None)
-            os.environ.pop("APP_DB_HOST", None)
-            os.environ.pop("APP_DB_PORT", None)
-            os.environ.pop("APP_DB_NAME", None)
 
-    def test_database_port_validation(self) -> None:
+    def test_database_port_validation_too_low(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that database port validates within valid range."""
-        os.environ["APP_DB_PORT"] = "0"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 1"):
-                Settings()
-        finally:
-            os.environ.pop("APP_DB_PORT", None)
+        monkeypatch.setenv("APP_DB_PORT", "0")
+        with pytest.raises(ValueError, match="greater than or equal to 1"):
+            Settings()
 
-        os.environ["APP_DB_PORT"] = "70000"
-        try:
-            with pytest.raises(ValueError, match="less than or equal to 65535"):
-                Settings()
-        finally:
-            os.environ.pop("APP_DB_PORT", None)
+    def test_database_port_validation_too_high(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that database port validates within valid range."""
+        monkeypatch.setenv("APP_DB_PORT", "70000")
+        with pytest.raises(ValueError, match="less than or equal to 65535"):
+            Settings()
 
-    def test_database_url_override(self) -> None:
+    def test_database_url_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that APP_DATABASE_URL overrides component-based URL."""
         override_url = "postgresql+asyncpg://prod:s3cret@db.example.com:5432/proddb"
-        os.environ["APP_DATABASE_URL"] = override_url
-        try:
-            settings = Settings()
-            url = settings.database_url
-            assert url.drivername == "postgresql+asyncpg"
-            assert url.username == "prod"
-            assert url.host == "db.example.com"
-            assert url.database == "proddb"
-        finally:
-            os.environ.pop("APP_DATABASE_URL", None)
+        monkeypatch.setenv("APP_DATABASE_URL", override_url)
+        settings = Settings()
+        url = settings.database_url
+        assert url.drivername == "postgresql+asyncpg"
+        assert url.username == "prod"
+        assert url.host == "db.example.com"
+        assert url.database == "proddb"
 
-    def test_database_pool_settings_from_env(self) -> None:
+    def test_database_pool_settings_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test database pool settings can be configured via environment."""
-        os.environ["APP_DB_POOL_SIZE"] = "25"
-        os.environ["APP_DB_MAX_OVERFLOW"] = "10"
-        os.environ["APP_DB_POOL_TIMEOUT_SECONDS"] = "45"
-        try:
-            settings = Settings()
-            assert settings.db_pool_size == 25
-            assert settings.db_max_overflow == 10
-            assert settings.db_pool_timeout_seconds == 45
-        finally:
-            os.environ.pop("APP_DB_POOL_SIZE", None)
-            os.environ.pop("APP_DB_MAX_OVERFLOW", None)
-            os.environ.pop("APP_DB_POOL_TIMEOUT_SECONDS", None)
+        monkeypatch.setenv("APP_DB_POOL_SIZE", "25")
+        monkeypatch.setenv("APP_DB_MAX_OVERFLOW", "10")
+        monkeypatch.setenv("APP_DB_POOL_TIMEOUT_SECONDS", "45")
+        settings = Settings()
+        assert settings.db_pool_size == 25
+        assert settings.db_max_overflow == 10
+        assert settings.db_pool_timeout_seconds == 45
 
-    def test_database_pool_size_validation(self) -> None:
+    def test_database_pool_size_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that database pool size must be at least 1."""
-        os.environ["APP_DB_POOL_SIZE"] = "0"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 1"):
-                Settings()
-        finally:
-            os.environ.pop("APP_DB_POOL_SIZE", None)
+        monkeypatch.setenv("APP_DB_POOL_SIZE", "0")
+        with pytest.raises(ValueError, match="greater than or equal to 1"):
+            Settings()
 
-    def test_database_max_overflow_validation(self) -> None:
+    def test_database_max_overflow_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that database max overflow cannot be negative."""
-        os.environ["APP_DB_MAX_OVERFLOW"] = "-1"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 0"):
-                Settings()
-        finally:
-            os.environ.pop("APP_DB_MAX_OVERFLOW", None)
+        monkeypatch.setenv("APP_DB_MAX_OVERFLOW", "-1")
+        with pytest.raises(ValueError, match="greater than or equal to 0"):
+            Settings()
 
-    def test_database_pool_timeout_validation(self) -> None:
+    def test_database_pool_timeout_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that database pool timeout must be positive."""
-        os.environ["APP_DB_POOL_TIMEOUT_SECONDS"] = "0"
-        try:
-            with pytest.raises(ValueError, match="greater than 0"):
-                Settings()
-        finally:
-            os.environ.pop("APP_DB_POOL_TIMEOUT_SECONDS", None)
+        monkeypatch.setenv("APP_DB_POOL_TIMEOUT_SECONDS", "0")
+        with pytest.raises(ValueError, match="greater than 0"):
+            Settings()
 
 
 # =============================================================================
@@ -375,50 +347,35 @@ class TestServerSettings:
         assert settings.server_port == 8000
         assert settings.server_reload is False
 
-    def test_server_settings_from_env(self) -> None:
+    def test_server_settings_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test server settings can be configured via environment."""
-        os.environ["APP_SERVER_HOST"] = "127.0.0.1"
-        os.environ["APP_SERVER_PORT"] = "9000"
-        os.environ["APP_SERVER_RELOAD"] = "true"
+        monkeypatch.setenv("APP_SERVER_HOST", "127.0.0.1")
+        monkeypatch.setenv("APP_SERVER_PORT", "9000")
+        monkeypatch.setenv("APP_SERVER_RELOAD", "true")
+        settings = Settings()
+        assert settings.server_host == "127.0.0.1"
+        assert settings.server_port == 9000
+        assert settings.server_reload is True
 
-        try:
-            settings = Settings()
-            assert settings.server_host == "127.0.0.1"
-            assert settings.server_port == 9000
-            assert settings.server_reload is True
-        finally:
-            os.environ.pop("APP_SERVER_HOST", None)
-            os.environ.pop("APP_SERVER_PORT", None)
-            os.environ.pop("APP_SERVER_RELOAD", None)
-
-    def test_cors_settings_from_env(self) -> None:
+    def test_cors_settings_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test CORS settings can be configured via environment."""
-        os.environ["APP_CORS_ALLOW_ORIGINS"] = '["http://localhost:3000", "http://example.com"]'
-        os.environ["APP_CORS_ALLOW_CREDENTIALS"] = "false"
+        monkeypatch.setenv("APP_CORS_ALLOW_ORIGINS", '["http://localhost:3000", "http://example.com"]')
+        monkeypatch.setenv("APP_CORS_ALLOW_CREDENTIALS", "false")
+        settings = Settings()
+        assert settings.cors_allow_origins == ["http://localhost:3000", "http://example.com"]
+        assert settings.cors_allow_credentials is False
 
-        try:
-            settings = Settings()
-            assert settings.cors_allow_origins == ["http://localhost:3000", "http://example.com"]
-            assert settings.cors_allow_credentials is False
-        finally:
-            os.environ.pop("APP_CORS_ALLOW_ORIGINS", None)
-            os.environ.pop("APP_CORS_ALLOW_CREDENTIALS", None)
-
-    def test_server_port_validation(self) -> None:
+    def test_server_port_validation_too_low(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that server port validates within valid range."""
-        os.environ["APP_SERVER_PORT"] = "0"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 1"):
-                Settings()
-        finally:
-            os.environ.pop("APP_SERVER_PORT", None)
+        monkeypatch.setenv("APP_SERVER_PORT", "0")
+        with pytest.raises(ValueError, match="greater than or equal to 1"):
+            Settings()
 
-        os.environ["APP_SERVER_PORT"] = "70000"
-        try:
-            with pytest.raises(ValueError, match="less than or equal to 65535"):
-                Settings()
-        finally:
-            os.environ.pop("APP_SERVER_PORT", None)
+    def test_server_port_validation_too_high(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that server port validates within valid range."""
+        monkeypatch.setenv("APP_SERVER_PORT", "70000")
+        with pytest.raises(ValueError, match="less than or equal to 65535"):
+            Settings()
 
     def test_server_public_url_default_is_none(self) -> None:
         """Test that server_public_url defaults to None."""
@@ -489,14 +446,11 @@ class TestServerSettings:
 
             assert get_settings().post_logout_redirect_uri == "https://nexus.example.com"
 
-    def test_server_public_url_empty_string_treated_as_none(self) -> None:
+    def test_server_public_url_empty_string_treated_as_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that empty string APP_SERVER_PUBLIC_URL is treated as None."""
-        os.environ["APP_SERVER_PUBLIC_URL"] = ""
-        try:
-            settings = Settings()
-            assert settings.server_public_url is None
-        finally:
-            os.environ.pop("APP_SERVER_PUBLIC_URL", None)
+        monkeypatch.setenv("APP_SERVER_PUBLIC_URL", "")
+        settings = Settings()
+        assert settings.server_public_url is None
 
 
 # =============================================================================
@@ -524,25 +478,17 @@ class TestLoggingSettings:
         finally:
             get_settings.cache_clear()
 
-    def test_fallback_log_level_from_env(self) -> None:
+    def test_fallback_log_level_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test fallback log level can be configured via environment."""
-        os.environ["APP_FALLBACK_LOG_LEVEL"] = "DEBUG"
+        monkeypatch.setenv("APP_FALLBACK_LOG_LEVEL", "DEBUG")
+        settings = Settings()
+        assert settings.fallback_log_level == "DEBUG"
 
-        try:
-            settings = Settings()
-            assert settings.fallback_log_level == "DEBUG"
-        finally:
-            os.environ.pop("APP_FALLBACK_LOG_LEVEL", None)
-
-    def test_fallback_log_level_rejects_invalid(self) -> None:
+    def test_fallback_log_level_rejects_invalid(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that invalid log levels are rejected at config time."""
-        os.environ["APP_FALLBACK_LOG_LEVEL"] = "TRACE"
-
-        try:
-            with pytest.raises(ValidationError):
-                Settings()
-        finally:
-            os.environ.pop("APP_FALLBACK_LOG_LEVEL", None)
+        monkeypatch.setenv("APP_FALLBACK_LOG_LEVEL", "TRACE")
+        with pytest.raises(ValidationError):
+            Settings()
 
 
 # =============================================================================
@@ -576,24 +522,17 @@ class TestTemporalSettings:
         finally:
             get_settings.cache_clear()
 
-    def test_temporal_settings_from_env(self) -> None:
+    def test_temporal_settings_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test Temporal settings can be configured via environment."""
-        os.environ["APP_TEMPORAL_ADDRESS"] = "temporal.example.com:7233"
-        os.environ["APP_TEMPORAL_NAMESPACE"] = "production"
-        os.environ["APP_TASK_QUEUE"] = "prod-queue"
-        os.environ["APP_SYSTEM_USER_ID"] = "12345678-1234-1234-1234-123456789012"
-
-        try:
-            settings = Settings()
-            assert settings.temporal_address == "temporal.example.com:7233"
-            assert settings.temporal_namespace == "production"
-            assert settings.task_queue == "prod-queue"
-            assert str(settings.system_user_id) == "12345678-1234-1234-1234-123456789012"
-        finally:
-            os.environ.pop("APP_TEMPORAL_ADDRESS", None)
-            os.environ.pop("APP_TEMPORAL_NAMESPACE", None)
-            os.environ.pop("APP_TASK_QUEUE", None)
-            os.environ.pop("APP_SYSTEM_USER_ID", None)
+        monkeypatch.setenv("APP_TEMPORAL_ADDRESS", "temporal.example.com:7233")
+        monkeypatch.setenv("APP_TEMPORAL_NAMESPACE", "production")
+        monkeypatch.setenv("APP_TASK_QUEUE", "prod-queue")
+        monkeypatch.setenv("APP_SYSTEM_USER_ID", "12345678-1234-1234-1234-123456789012")
+        settings = Settings()
+        assert settings.temporal_address == "temporal.example.com:7233"
+        assert settings.temporal_namespace == "production"
+        assert settings.task_queue == "prod-queue"
+        assert str(settings.system_user_id) == "12345678-1234-1234-1234-123456789012"
 
 
 # =============================================================================
@@ -612,15 +551,11 @@ class TestWorkflowEngineSettings:
         assert settings.max_env_var_length == 32768
         assert str(settings.agent_orchestrator_base_url) == "http://localhost:8000/api/v1"
 
-    def test_workflow_engine_settings_from_env(self) -> None:
+    def test_workflow_engine_settings_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test workflow engine settings can be configured via environment."""
-        os.environ["APP_AGENT_ORCHESTRATOR_BASE_URL"] = "http://agent.example.com/api/v1"
-
-        try:
-            settings = Settings()
-            assert str(settings.agent_orchestrator_base_url) == "http://agent.example.com/api/v1"
-        finally:
-            os.environ.pop("APP_AGENT_ORCHESTRATOR_BASE_URL", None)
+        monkeypatch.setenv("APP_AGENT_ORCHESTRATOR_BASE_URL", "http://agent.example.com/api/v1")
+        settings = Settings()
+        assert str(settings.agent_orchestrator_base_url) == "http://agent.example.com/api/v1"
 
 
 # =============================================================================
@@ -637,43 +572,31 @@ class TestOpenRouterSettingsExtended:
         assert settings.openrouter_temperature == pytest.approx(0.7)
         assert settings.openrouter_max_tokens == 1000
 
-    def test_openrouter_extended_settings_from_env(self) -> None:
+    def test_openrouter_extended_settings_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test OpenRouter extended settings can be configured via environment."""
-        os.environ["APP_OPENROUTER_TEMPERATURE"] = "0.5"
-        os.environ["APP_OPENROUTER_MAX_TOKENS"] = "2000"
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "0.5")
+        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "2000")
+        settings = Settings()
+        assert settings.openrouter_temperature == pytest.approx(0.5)
+        assert settings.openrouter_max_tokens == 2000
 
-        try:
-            settings = Settings()
-            assert settings.openrouter_temperature == pytest.approx(0.5)
-            assert settings.openrouter_max_tokens == 2000
-        finally:
-            os.environ.pop("APP_OPENROUTER_TEMPERATURE", None)
-            os.environ.pop("APP_OPENROUTER_MAX_TOKENS", None)
-
-    def test_openrouter_temperature_validation(self) -> None:
+    def test_openrouter_temperature_validation_too_low(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that OpenRouter temperature is validated between 0.0 and 1.0."""
-        os.environ["APP_OPENROUTER_TEMPERATURE"] = "-0.1"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 0"):
-                Settings()
-        finally:
-            os.environ.pop("APP_OPENROUTER_TEMPERATURE", None)
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "-0.1")
+        with pytest.raises(ValueError, match="greater than or equal to 0"):
+            Settings()
 
-        os.environ["APP_OPENROUTER_TEMPERATURE"] = "1.5"
-        try:
-            with pytest.raises(ValueError, match="less than or equal to 1"):
-                Settings()
-        finally:
-            os.environ.pop("APP_OPENROUTER_TEMPERATURE", None)
+    def test_openrouter_temperature_validation_too_high(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that OpenRouter temperature is validated between 0.0 and 1.0."""
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "1.5")
+        with pytest.raises(ValueError, match="less than or equal to 1"):
+            Settings()
 
-    def test_openrouter_max_tokens_validation(self) -> None:
+    def test_openrouter_max_tokens_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that OpenRouter max_tokens must be at least 1."""
-        os.environ["APP_OPENROUTER_MAX_TOKENS"] = "0"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 1"):
-                Settings()
-        finally:
-            os.environ.pop("APP_OPENROUTER_MAX_TOKENS", None)
+        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "0")
+        with pytest.raises(ValueError, match="greater than or equal to 1"):
+            Settings()
 
 
 # =============================================================================
@@ -684,9 +607,8 @@ class TestOpenRouterSettingsExtended:
 class TestRetrieverServiceSettings:
     """Tests for RetrieverServiceSettings configuration."""
 
-    def test_keyword_ranking_weights_sum_success(self) -> None:
+    def test_keyword_ranking_weights_sum_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test successful validation when keyword ranking weights sum to valid value."""
-        # Test with default values (sum to 1.0)
         settings = Settings()
         assert settings.retriever_keyword_ranking_term_frequency == pytest.approx(0.4)
         assert settings.retriever_keyword_ranking_filename_match == pytest.approx(0.25)
@@ -695,61 +617,41 @@ class TestRetrieverServiceSettings:
         assert settings.retriever_keyword_ranking_exact_match_bonus == pytest.approx(0.1)
         assert settings.retriever_keyword_ranking_fuzzy_match_bonus == pytest.approx(0.05)
 
-        # Test with custom values that sum to 0.8 (valid range)
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.3"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.2"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.15"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.1"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.04"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.01"
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", "0.3")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", "0.2")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", "0.15")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", "0.1")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", "0.04")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", "0.01")
+        settings = Settings()
+        assert settings.retriever_keyword_ranking_term_frequency == pytest.approx(0.3)
+        assert settings.retriever_keyword_ranking_filename_match == pytest.approx(0.2)
+        assert settings.retriever_keyword_ranking_content_density == pytest.approx(0.15)
+        assert settings.retriever_keyword_ranking_proximity_bonus == pytest.approx(0.1)
+        assert settings.retriever_keyword_ranking_exact_match_bonus == pytest.approx(0.04)
+        assert settings.retriever_keyword_ranking_fuzzy_match_bonus == pytest.approx(0.01)
 
-        try:
-            settings = Settings()
-            # Should not raise any validation errors
-            assert settings.retriever_keyword_ranking_term_frequency == pytest.approx(0.3)
-            assert settings.retriever_keyword_ranking_filename_match == pytest.approx(0.2)
-            assert settings.retriever_keyword_ranking_content_density == pytest.approx(0.15)
-            assert settings.retriever_keyword_ranking_proximity_bonus == pytest.approx(0.1)
-            assert settings.retriever_keyword_ranking_exact_match_bonus == pytest.approx(0.04)
-            assert settings.retriever_keyword_ranking_fuzzy_match_bonus == pytest.approx(0.01)
-        finally:
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
-
-    def test_keyword_ranking_weights_sum_failure(self) -> None:
+    def test_keyword_ranking_weights_sum_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test validation failure when keyword ranking weights sum exceeds valid range."""
-        # Test with values that sum to 1.55 (invalid - exceeds 1.0)
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.5"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.4"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.3"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.2"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.1"
-        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.05"
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", "0.5")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", "0.4")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", "0.3")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", "0.2")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", "0.1")
+        monkeypatch.setenv("APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", "0.05")
 
-        try:
-            with pytest.raises(ValueError) as exc_info:
-                Settings()
+        with pytest.raises(ValueError) as exc_info:
+            Settings()
 
-            error_msg = str(exc_info.value)
-            assert "Keyword ranking weights must sum to between 0.0 and 1.0" in error_msg
-            assert "but sum to 1.550" in error_msg
-            assert "retriever_keyword_ranking_term_frequency" in error_msg
-            assert "retriever_keyword_ranking_filename_match" in error_msg
-            assert "retriever_keyword_ranking_content_density" in error_msg
-            assert "retriever_keyword_ranking_proximity_bonus" in error_msg
-            assert "retriever_keyword_ranking_exact_match_bonus" in error_msg
-            assert "retriever_keyword_ranking_fuzzy_match_bonus" in error_msg
-        finally:
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
-            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
+        error_msg = str(exc_info.value)
+        assert "Keyword ranking weights must sum to between 0.0 and 1.0" in error_msg
+        assert "but sum to 1.550" in error_msg
+        assert "retriever_keyword_ranking_term_frequency" in error_msg
+        assert "retriever_keyword_ranking_filename_match" in error_msg
+        assert "retriever_keyword_ranking_content_density" in error_msg
+        assert "retriever_keyword_ranking_proximity_bonus" in error_msg
+        assert "retriever_keyword_ranking_exact_match_bonus" in error_msg
+        assert "retriever_keyword_ranking_fuzzy_match_bonus" in error_msg
 
 
 # =============================================================================
