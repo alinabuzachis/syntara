@@ -4,7 +4,7 @@ export type IdentityProvider = IdentityProvidersAPI.components['schemas']['Ident
 
 export const identityProviders: IdentityProvider[] = [
   {
-    id: 'idp-001',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     name: 'Corporate SSO',
     description: 'Company-wide Ansible Automation Platform single sign-on',
     enabled: true,
@@ -22,7 +22,7 @@ export const identityProviders: IdentityProvider[] = [
     updated_at: '2025-05-10T14:22:00Z',
   },
   {
-    id: 'idp-002',
+    id: '550e8400-e29b-41d4-a716-446655440002',
     name: 'GitHub OAuth',
     description: 'GitHub OIDC integration for external collaborators',
     enabled: true,

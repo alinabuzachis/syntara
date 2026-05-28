@@ -154,3 +154,146 @@ export async function listCredentialsByName(app: Page, name: string): Promise<Ar
     return []
   }
 }
+
+export type GroupResource = {
+  id: string
+  name?: string
+  is_builtin?: boolean
+}
+
+/**
+ * List all groups via paginated API (mock API and real backend).
+ */
+export async function listAllGroups(app: Page): Promise<GroupResource[]> {
+  try {
+    const token = await getAuthToken(app)
+    if (!token) return []
+
+    const collected: GroupResource[] = []
+    let cursor: string | undefined
+    do {
+      const path = cursor ? `/groups?limit=100&cursor=${encodeURIComponent(cursor)}` : '/groups?limit=100'
+      const resp = await apiRequest(app, 'get', path, { token })
+      if (!resp.ok()) return collected
+
+      const body = (await resp.json()) as {
+        resources?: GroupResource[]
+        next?: string | null
+      }
+      collected.push(...(body.resources ?? []))
+      cursor = body.next ?? undefined
+    } while (cursor)
+
+    return collected
+  } catch {
+    return []
+  }
+}
+
+/** Create a group via the API. Returns the group ID or null. */
+export async function createGroupViaApi(
+  app: Page,
+  options: { name: string; description?: string }
+): Promise<string | null> {
+  try {
+    const token = await getAuthToken(app)
+    if (!token) return null
+
+    const resp = await apiRequest(app, 'post', '/groups', {
+      token,
+      data: { name: options.name, description: options.description ?? `E2E group: ${options.name}` },
+    })
+    if (!resp.ok()) return null
+    const group = (await resp.json()) as { id?: string }
+    return group.id ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Delete a group via the API (best-effort cleanup). */
+export async function deleteGroupViaApi(app: Page, groupId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) {
+      await apiRequest(app, 'delete', `/groups/${groupId}`, { token })
+    }
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
+export type IdentityProviderResource = {
+  id: string
+  name?: string
+  configuration?: {
+    group_jmespath_expression?: string | null
+    group_mapping_entries?: Array<{ idp_group_value: string; nexus_group_id: string }>
+    claim_mapping?: Record<string, string | null>
+  }
+}
+
+/** Create an identity provider via the API. Returns the provider or null. */
+export async function createIdentityProviderViaApi(
+  app: Page,
+  body: {
+    name: string
+    enabled?: boolean
+    configuration: IdentityProviderResource['configuration'] & Record<string, unknown>
+  }
+): Promise<IdentityProviderResource | null> {
+  try {
+    const token = await getAuthToken(app)
+    if (!token) return null
+
+    const resp = await apiRequest(app, 'post', '/identity_providers', {
+      token,
+      data: {
+        name: body.name,
+        enabled: body.enabled ?? true,
+        configuration: body.configuration,
+      },
+    })
+    if (!resp.ok()) return null
+    return (await resp.json()) as IdentityProviderResource
+  } catch {
+    return null
+  }
+}
+
+/** Delete an identity provider via the API (best-effort cleanup). */
+export async function deleteIdentityProviderViaApi(app: Page, providerId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) {
+      await apiRequest(app, 'delete', `/identity_providers/${providerId}`, { token })
+    }
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
+/** Find a builtin group by name (case-insensitive). */
+export async function findBuiltinGroupByName(app: Page, name: string): Promise<GroupResource | null> {
+  const groups = await listAllGroups(app)
+  const normalized = name.toLowerCase()
+  return groups.find((g) => g.is_builtin && g.name?.toLowerCase() === normalized) ?? null
+}
+
+/** Find an identity provider by exact name. */
+export async function findIdentityProviderByName(app: Page, name: string): Promise<IdentityProviderResource | null> {
+  try {
+    const token = await getAuthToken(app)
+    if (!token) return null
+
+    const resp = await apiRequest(app, 'get', '/identity_providers?limit=100', { token })
+    if (!resp.ok()) return null
+
+    const body = (await resp.json()) as { resources?: IdentityProviderResource[] }
+    return body.resources?.find((p) => p.name === name) ?? null
+  } catch {
+    return null
+  }
+}

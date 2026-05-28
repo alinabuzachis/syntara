@@ -23,6 +23,7 @@ import { activityExecutions } from './resources/activityExecutions'
 import { approvals } from './resources/approvals'
 import { settings, settingsCategories } from './resources/settings'
 import { identityProviders, type IdentityProvider } from './resources/identityProviders'
+import { validateGroupJmespathExpression } from './utils/jmespathValidation'
 import { users, userIdentities, type UserRead, type UserIdentityRead } from './resources/users'
 import { groups, userGroupMemberships, type GroupRead } from './resources/groups'
 import {
@@ -1099,6 +1100,21 @@ export const handlers = [
       configuration?: IdentityProvider['configuration']
     }
 
+    const jmespathError = validateGroupJmespathExpression(body.configuration?.group_jmespath_expression)
+    if (jmespathError) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: jmespathError,
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+          instance: '/api/v1/identity_providers',
+        },
+        { status: 422 }
+      )
+    }
+
     const existing = identityProviders.find((p) => p.name?.toLowerCase() === body.name?.toLowerCase())
     if (existing) {
       return HttpResponse.json(
@@ -1189,8 +1205,25 @@ export const handlers = [
       }
     }
 
+    const mergedConfiguration =
+      body.configuration !== undefined ? { ...provider.configuration, ...body.configuration } : provider.configuration
+    const jmespathError = validateGroupJmespathExpression(mergedConfiguration?.group_jmespath_expression)
+    if (jmespathError) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: jmespathError,
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+          instance: `/api/v1/identity_providers/${params.providerId as string}`,
+        },
+        { status: 422 }
+      )
+    }
+
     const index = identityProviders.indexOf(provider)
-    let patchedConfig = body.configuration
+    let patchedConfig = body.configuration !== undefined ? mergedConfiguration : undefined
     if (patchedConfig) {
       const { client_secret: _stripped, ...safeConfig } = patchedConfig as Record<string, unknown>
       patchedConfig = safeConfig as typeof body.configuration
