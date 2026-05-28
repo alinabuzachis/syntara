@@ -27,7 +27,7 @@ export type NxPanelContentStackProps = StackProps & {
 /**
  * `Stack` preconfigured with full-height flex sizing for use inside `NxPanel isFullHeight`.
  *
- * Sets `flex: 1`, `minHeight: 0`, and `height: 100%` so that nested `ScrollableTableContainer`
+ * Sets `flex: 1`, `minHeight: 0`, and `height: 100%` so that nested `NxScrollableTableContainer`
  * regions get a real bounded height — `height: 100%` alone fails inside a flex parent.
  */
 export function NxPanelContentStack({ variant = 'default', style, ...props }: NxPanelContentStackProps) {

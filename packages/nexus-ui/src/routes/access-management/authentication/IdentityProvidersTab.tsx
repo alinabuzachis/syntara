@@ -25,7 +25,7 @@ import { IconLabel } from '../../../components/IconLabel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -202,7 +202,7 @@ export function IdentityProvidersTab() {
           <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
         </StackItem>
       ) : (
-        <ScrollableTableContainer aria-label="Identity providers table" footer={getFooterProps(query.data)}>
+        <NxScrollableTableContainer aria-label="Identity providers table" footer={getFooterProps(query.data)}>
           <Thead>
             <Tr>
               <Th sort={getSortParams(0)}>Name</Th>
@@ -258,7 +258,7 @@ export function IdentityProvidersTab() {
               </Tr>
             ))}
           </Tbody>
-        </ScrollableTableContainer>
+        </NxScrollableTableContainer>
       )}
       <IdentityProviderDeleteDialog
         isOpen={deleteDialogOpen}

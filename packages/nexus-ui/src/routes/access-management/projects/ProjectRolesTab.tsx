@@ -12,7 +12,7 @@ import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -221,7 +221,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </NxPageBody>
         ) : (
-          <ScrollableTableContainer
+          <NxScrollableTableContainer
             aria-label="Project roles"
             footer={{
               page,
@@ -239,7 +239,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
               onEdit={setRoleToEdit}
               onDelete={deleteDialog.open}
             />
-          </ScrollableTableContainer>
+          </NxScrollableTableContainer>
         )}
       </NxPanelContentStack>
 

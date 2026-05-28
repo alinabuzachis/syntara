@@ -23,8 +23,8 @@ import { usersClient } from '../../../client'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { type PaginationFooterProps } from '../../../components/table/PaginationFooter'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts } from '../../../providers/alerts'
@@ -106,7 +106,7 @@ function UsersStep({
           <EmptyStateFilter clearAllFilters={usersFilter.clearAllFilters} />
         </StackItem>
       ) : (
-        <ScrollableTableContainer aria-label="Select a user" footer={footerProps}>
+        <NxScrollableTableContainer aria-label="Select a user" footer={footerProps}>
           <Thead>
             <Tr>
               <Th sort={usersSort.getSortParams(0)}>Username</Th>
@@ -133,7 +133,7 @@ function UsersStep({
               </Tr>
             ))}
           </Tbody>
-        </ScrollableTableContainer>
+        </NxScrollableTableContainer>
       )}
     </NxPanelContentStack>
   )
@@ -223,7 +223,7 @@ function IdentitiesStep({
             borderRadius: 'var(--pf-t--global--border--radius--medium)',
           }}
         >
-          <ScrollableTableContainer
+          <NxScrollableTableContainer
             aria-label="Select an identity"
             footer={{
               page,
@@ -276,7 +276,7 @@ function IdentitiesStep({
                 )
               })}
             </Tbody>
-          </ScrollableTableContainer>
+          </NxScrollableTableContainer>
         </div>
       )}
     </NxPanelContentStack>

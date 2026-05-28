@@ -15,7 +15,7 @@ import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -187,7 +187,7 @@ export function UsersTab() {
             <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
           </StackItem>
         ) : (
-          <ScrollableTableContainer aria-label="Users" footer={getFooterProps(data)}>
+          <NxScrollableTableContainer aria-label="Users" footer={getFooterProps(data)}>
             <Thead>
               <Tr>
                 <Th sort={getSortParams(0)}>Username</Th>
@@ -231,7 +231,7 @@ export function UsersTab() {
                 </Tr>
               ))}
             </Tbody>
-          </ScrollableTableContainer>
+          </NxScrollableTableContainer>
         )}
       </NxPanelContentStack>
       <NxConfirmationDialog

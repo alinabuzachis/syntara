@@ -21,7 +21,7 @@ import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
@@ -183,7 +183,7 @@ export function AssignmentsTab() {
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </NxPageBody>
         ) : (
-          <ScrollableTableContainer
+          <NxScrollableTableContainer
             aria-label="Role assignments"
             footer={{
               page,
@@ -253,7 +253,7 @@ export function AssignmentsTab() {
                 </Tr>
               ))}
             </Tbody>
-          </ScrollableTableContainer>
+          </NxScrollableTableContainer>
         )}
       </NxPanelContentStack>
 

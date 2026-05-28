@@ -4,9 +4,9 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { ScrollableTableContainer } from './ScrollableTableContainer'
+import { NxScrollableTableContainer } from './NxScrollableTableContainer'
 
-describe('ScrollableTableContainer', () => {
+describe('NxScrollableTableContainer', () => {
   const minimalTable = (
     <>
       <Thead>
@@ -25,7 +25,7 @@ describe('ScrollableTableContainer', () => {
   it('renders table content when used as a direct child of Stack', () => {
     render(
       <Stack style={{ height: '240px' }}>
-        <ScrollableTableContainer aria-label="Demo table">{minimalTable}</ScrollableTableContainer>
+        <NxScrollableTableContainer aria-label="Demo table">{minimalTable}</NxScrollableTableContainer>
       </Stack>
     )
 
@@ -35,7 +35,7 @@ describe('ScrollableTableContainer', () => {
   it('has no accessibility violations in the supported Stack layout', async () => {
     const { container } = render(
       <Stack style={{ height: '240px' }}>
-        <ScrollableTableContainer aria-label="Accessible table">{minimalTable}</ScrollableTableContainer>
+        <NxScrollableTableContainer aria-label="Accessible table">{minimalTable}</NxScrollableTableContainer>
       </Stack>
     )
 
@@ -44,13 +44,13 @@ describe('ScrollableTableContainer', () => {
 
   /**
    * The component’s root is a `StackItem` with `data-testid="scrollable-table-container-root"`. It must
-   * be a direct child of the page `Stack` (see `ScrollableTableContainer` JSDoc). Nesting it inside
+   * be a direct child of the page `Stack` (see `NxScrollableTableContainer` JSDoc). Nesting it inside
    * another `StackItem` breaks flex height.
    */
   it('root is a direct child of the page Stack in the supported layout', () => {
     render(
       <Stack aria-label="Fixture page stack" role="region" style={{ height: '240px' }}>
-        <ScrollableTableContainer aria-label="Layout table">{minimalTable}</ScrollableTableContainer>
+        <NxScrollableTableContainer aria-label="Layout table">{minimalTable}</NxScrollableTableContainer>
       </Stack>
     )
 
@@ -66,7 +66,7 @@ describe('ScrollableTableContainer', () => {
     render(
       <Stack aria-label="Fixture page stack" role="region" style={{ height: '240px' }}>
         <StackItem isFilled>
-          <ScrollableTableContainer aria-label="Nested layout table">{minimalTable}</ScrollableTableContainer>
+          <NxScrollableTableContainer aria-label="Nested layout table">{minimalTable}</NxScrollableTableContainer>
         </StackItem>
       </Stack>
     )

@@ -11,7 +11,7 @@ import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { StatusLabel } from '../../builder/ExecutionStatus'
@@ -73,7 +73,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
   return (
     <NxPanelContentStack style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
       <NxPageBody style={{ overflow: 'auto' }}>
-        <ScrollableTableContainer
+        <NxScrollableTableContainer
           aria-label="Workflows using this credential"
           footer={{
             page,
@@ -136,7 +136,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
               </Tr>
             ))}
           </Tbody>
-        </ScrollableTableContainer>
+        </NxScrollableTableContainer>
       </NxPageBody>
     </NxPanelContentStack>
   )

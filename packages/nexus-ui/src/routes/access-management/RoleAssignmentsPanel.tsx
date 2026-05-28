@@ -13,7 +13,7 @@ import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import { useAlerts } from '../../providers/alerts'
@@ -236,7 +236,7 @@ function RoleAssignmentsTable({
   onPerPageChange: (perPage: number) => void
 }>) {
   return (
-    <ScrollableTableContainer
+    <NxScrollableTableContainer
       aria-label="Role assignments table"
       footer={{
         page,
@@ -292,7 +292,7 @@ function RoleAssignmentsTable({
           </Tr>
         ))}
       </Tbody>
-    </ScrollableTableContainer>
+    </NxScrollableTableContainer>
   )
 }
 

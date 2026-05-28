@@ -13,7 +13,7 @@ import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { useSortState } from '../../../hooks/useSortState'
 import { useAlerts } from '../../../providers/alerts'
@@ -147,7 +147,7 @@ function RoleAssignmentsTable({
   onPerPageChange: (perPage: number) => void
 }>) {
   return (
-    <ScrollableTableContainer
+    <NxScrollableTableContainer
       aria-label="Project role assignments"
       footer={{
         page,
@@ -201,7 +201,7 @@ function RoleAssignmentsTable({
           </Tr>
         ))}
       </Tbody>
-    </ScrollableTableContainer>
+    </NxScrollableTableContainer>
   )
 }
 

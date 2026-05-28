@@ -307,11 +307,11 @@ export function MyListPage() {
   return (
     <NxPage>
       <FilterBar ... />
-      <ScrollableTableContainer
+      <NxScrollableTableContainer
         footer={getFooterProps(query.data)}
       >
         {/* table content */}
-      </ScrollableTableContainer>
+      </NxScrollableTableContainer>
       <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}

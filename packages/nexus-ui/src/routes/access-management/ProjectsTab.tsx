@@ -25,7 +25,7 @@ import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
@@ -334,7 +334,7 @@ export function ProjectsTab() {
             />
           </NxPageBody>
         ) : (
-          <ScrollableTableContainer
+          <NxScrollableTableContainer
             aria-label="Projects"
             footer={{
               page,
@@ -356,7 +356,7 @@ export function ProjectsTab() {
                 deleteDialog.open(p)
               }}
             />
-          </ScrollableTableContainer>
+          </NxScrollableTableContainer>
         )}
       </NxPanelContentStack>
 

@@ -13,7 +13,7 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useProjectSelector } from '../../../hooks/useProjectSelector'
@@ -310,7 +310,7 @@ export default function Credentials() {
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </NxPageBody>
               ) : (
-                <ScrollableTableContainer
+                <NxScrollableTableContainer
                   isExpandable
                   aria-label="Credentials table"
                   footer={getFooterProps(query.data)}
@@ -355,7 +355,7 @@ export default function Credentials() {
                       onToggleEnabled={handleToggleEnabled}
                     />
                   )}
-                </ScrollableTableContainer>
+                </NxScrollableTableContainer>
               )}
             </NxPanelContentStack>
           </NxPanel>

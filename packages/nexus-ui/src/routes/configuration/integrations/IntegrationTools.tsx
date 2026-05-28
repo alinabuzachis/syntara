@@ -26,7 +26,7 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer.tsx'
 import { useCursorPagination, useCursorReset, type UseCursorPaginationResult } from '../../../hooks/useCursorPagination'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -166,7 +166,7 @@ function IntegrationToolsLoadedView({
                   />
                 </NxPageBody>
               ) : (
-                <ScrollableTableContainer aria-label="Tools table" isExpandable footer={getFooterProps(queryData)}>
+                <NxScrollableTableContainer aria-label="Tools table" isExpandable footer={getFooterProps(queryData)}>
                   <Thead>
                     <Tr>
                       <Th
@@ -201,7 +201,7 @@ function IntegrationToolsLoadedView({
                       </Tr>
                     ))}
                   </Tbody>
-                </ScrollableTableContainer>
+                </NxScrollableTableContainer>
               )}
             </NxPanelContentStack>
           </NxPanel>

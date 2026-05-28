@@ -5,12 +5,12 @@ import type { CSSProperties } from 'react'
  *
  * - **NxPanelContentStack** composes `panelContentStackStyle` (see `NxPanelContentStack.tsx`) — prefer
  *   that component over spreading the style object directly.
- * - **Standalone exports** (`stackPaddingLgOnlyStyle`, `scrollableTableShellStackStyle`, etc.) are for
- *   call sites that need a raw `style` object without the wrapper.
+ * - **Standalone exports** (`stackPaddingLgOnlyStyle`, etc.) are for call sites that need a raw `style`
+ *   object without the wrapper.
  *
  * PatternFly `Stack` props for the main content column inside `NxPanel` with `isFullHeight`.
  * `height: '100%'` alone often fails to fill a flex parent; `flex: 1` + `minHeight: 0` opts into
- * correct flex shrink/growth so nested `ScrollableTableContainer` / scroll regions get a real height.
+ * correct flex shrink/growth so nested `NxScrollableTableContainer` / scroll regions get a real height.
  */
 export const panelContentStackStyle = {
   height: '100%',
@@ -28,12 +28,4 @@ export const panelContentStackInsetStyle = {
 /** Loading / empty sections in credential workflows tab (padded `Stack`, not full panel fill). */
 export const stackPaddingLgOnlyStyle = {
   padding: 'var(--pf-t--global--spacer--lg)',
-} as const satisfies CSSProperties
-
-/** Inner column inside `ScrollableTableContainer` (clip + bounded height). */
-export const scrollableTableShellStackStyle = {
-  ...panelContentStackStyle,
-  maxHeight: '100%',
-  overflow: 'hidden',
-  width: '100%',
 } as const satisfies CSSProperties

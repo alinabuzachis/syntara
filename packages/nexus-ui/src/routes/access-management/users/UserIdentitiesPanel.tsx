@@ -28,7 +28,7 @@ import { NxPanelContentStack } from '../../../components/layout/NxPanelContentSt
 import { ProviderIcon } from '../../../components/ProviderIcon'
 import { LoadingState } from '../../../components/states/LoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts, type AlertConfig } from '../../../providers/alerts'
@@ -373,7 +373,7 @@ export function UserIdentitiesPanel({
           <EmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
         </StackItem>
       ) : (
-        <ScrollableTableContainer
+        <NxScrollableTableContainer
           aria-label="User identities table"
           isExpandable
           footer={{
@@ -446,7 +446,7 @@ export function UserIdentitiesPanel({
               })}
             </Tbody>
           )}
-        </ScrollableTableContainer>
+        </NxScrollableTableContainer>
       )}
       {dialogs}
     </NxPanelContentStack>

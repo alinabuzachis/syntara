@@ -13,7 +13,7 @@ import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -157,7 +157,7 @@ export default function Executions() {
                 )}
               </NxPageBody>
             ) : (
-              <ScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
+              <NxScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
                 <Thead>
                   <Tr>
                     <Th modifier="nowrap" sort={getSortParams(0)}>
@@ -180,7 +180,7 @@ export default function Executions() {
                 ) : (
                   <FlatExecutionsTableBody executions={sortedExecutions} />
                 )}
-              </ScrollableTableContainer>
+              </NxScrollableTableContainer>
             )}
           </NxPanelContentStack>
         </NxPanel>

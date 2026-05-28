@@ -9,7 +9,7 @@ import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../hooks/useDialogState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
@@ -222,14 +222,14 @@ export function PoliciesTab() {
             <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
-          <ScrollableTableContainer aria-label="Policies" footer={tableFooter}>
+          <NxScrollableTableContainer aria-label="Policies" footer={tableFooter}>
             <PoliciesTableBody
               policies={policies}
               projectNameMap={projectNameMap}
               getSortParams={getSortParams}
               onViewPolicyJson={policyJsonDialog.open}
             />
-          </ScrollableTableContainer>
+          </NxScrollableTableContainer>
         )}
       </Stack>
 

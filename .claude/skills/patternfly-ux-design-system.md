@@ -265,8 +265,8 @@ Filter bar is visible when data exists or when filters are active; hidden only w
 
 ### Table Component
 
-- Always use `ScrollableTableContainer` wrapper — this applies the standard table variant by default
-- `ScrollableTableContainer` does not set `variant="compact"` — the default (standard) variant is used for main data tables
+- Always use `NxScrollableTableContainer` wrapper — this applies the standard table variant by default
+- `NxScrollableTableContainer` does not set `variant="compact"` — the default (standard) variant is used for main data tables
 - Use `variant="compact"` only for dense, supplementary tables (e.g., activity state tables inside panels) where space is constrained
 - Always include `<Thead>` with column headers
 - Actions column is rightmost
@@ -287,16 +287,16 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Action order: non-destructive actions first (e.g., "Edit credential", "Duplicate workflow", "Disable credential"), then a divider, then destructive actions last (e.g., "Delete credential", "Remove integration")
   - On the **details page header**, the same actions appear in a kebab menu. Frequently used actions (e.g., Edit) are promoted to direct buttons in the header — primary button with icon for the most common action (e.g., `RhUiEditIcon` + "Edit credential"), remaining actions stay in the kebab.
 - **Text truncation** — All text-heavy columns (names, descriptions, emails, URLs) must use PatternFly's `<Truncate>` component. Long values show ellipsis with the full text in a tooltip on hover.
-  - `ScrollableTableContainer` uses `table-layout: fixed` for equal column distribution — do not opt out with `useFixedLayout={false}`
+  - `NxScrollableTableContainer` uses `table-layout: fixed` for equal column distribution — do not opt out with `useFixedLayout={false}`
   - Wrap cell text in `<Truncate content={value} />` for any column that may contain user-generated or variable-length content
   - `LinkCell` children support `<Truncate>` — the link button constrains overflow automatically
 - **Expandable rows** — When a table uses expandable rows to show nested detail (e.g., policies under a role, event details in an audit log):
-  - Pass `isExpandable` to `ScrollableTableContainer` for proper PF6 table styling
+  - Pass `isExpandable` to `NxScrollableTableContainer` for proper PF6 table styling
   - Include an expand-all / collapse-all toggle in the `<Thead>` using the `expand` prop on the first `<Th>`
   - Use `ExpandableRowContent` for the expanded row body
   - Expanded content should use compact gray `Label` components for list-style data (e.g., attached policies)
   - Column order left to right: expand/collapse chevron → [checkbox if selectable] → data columns → actions
-- **Footer/pagination** — use `PaginationFooter` via the `ScrollableTableContainer` `footer` prop. `PaginationFooter` wraps PatternFly's [Pagination](https://www.patternfly.org/components/pagination) component; supports `page`, `perPage`, `total` (optional), `hasNext`, `onPrev`, `onNext`, and `onPerPageChange`. When `total` is unknown (cursor-based APIs), item count is estimated from `page`, `perPage`, and `hasNext`. Pair with `useCursorPagination` from `src/hooks/useCursorPagination.tsx` for cursor state management
+- **Footer/pagination** — use `PaginationFooter` via the `NxScrollableTableContainer` `footer` prop. `PaginationFooter` wraps PatternFly's [Pagination](https://www.patternfly.org/components/pagination) component; supports `page`, `perPage`, `total` (optional), `hasNext`, `onPrev`, `onNext`, and `onPerPageChange`. When `total` is unknown (cursor-based APIs), item count is estimated from `page`, `perPage`, and `hasNext`. Pair with `useCursorPagination` from `src/hooks/useCursorPagination.tsx` for cursor state management
 
 ### Form Component
 
@@ -436,8 +436,8 @@ When building or reviewing any page, verify every item:
 
 ### Main Content
 
-- [ ] Tables use `ScrollableTableContainer`
-- [ ] Main data tables use `ScrollableTableContainer` (standard variant by default)
+- [ ] Tables use `NxScrollableTableContainer`
+- [ ] Main data tables use `NxScrollableTableContainer` (standard variant by default)
 - [ ] `variant="compact"` only used for dense, supplementary tables where space is constrained
 - [ ] Tables have proper column headers
 - [ ] Forms have max-width of 600px
@@ -1249,10 +1249,10 @@ When implementing a new page or feature, use this decision tree:
 ```text
 What are you building?
 ├── List/table view
-│   ├── Use ScrollableTableContainer (standard variant by default, "compact" only for dense supplementary tables)
+│   ├── Use NxScrollableTableContainer (standard variant by default, "compact" only for dense supplementary tables)
 │   ├── Add NxPageHeader with title + primary action
 │   ├── Add FilterBar (Attribute Search)
-│   ├── Add cursor-based pagination footer via ScrollableTableContainer's footer prop
+│   ├── Add cursor-based pagination footer via NxScrollableTableContainer's footer prop
 │   ├── "Created"/"Modified" columns: username (linked) + date together
 │   └── Handle 3 empty states (no data / no results / error)
 │
@@ -1285,7 +1285,7 @@ What are you building?
 │   └── Single "Close" button (variant="primary")
 │
 ├── Log / event viewer (read-only)
-│   ├── Use ScrollableTableContainer with expandable rows (isExpandable)
+│   ├── Use NxScrollableTableContainer with expandable rows (isExpandable)
 │   ├── Add expand-all/collapse-all toggle in header
 │   ├── Add FilterBar with multiple attribute filters (category, date range, status, severity, etc.)
 │   ├── All columns sortable

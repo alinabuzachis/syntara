@@ -11,8 +11,8 @@ import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -229,7 +229,7 @@ function ApprovalsTableContent({
   isLoadingPermissions,
 }: Readonly<ApprovalsTableContentProps>) {
   return (
-    <ScrollableTableContainer aria-label="Approvals table" isExpandable footer={footerProps}>
+    <NxScrollableTableContainer aria-label="Approvals table" isExpandable footer={footerProps}>
       <ApprovalsTableHead
         getSortParams={getSortParams}
         allRowsExpanded={allRowsExpanded}
@@ -265,7 +265,7 @@ function ApprovalsTableContent({
           isLoadingPermissions={isLoadingPermissions}
         />
       )}
-    </ScrollableTableContainer>
+    </NxScrollableTableContainer>
   )
 }
 

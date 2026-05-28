@@ -24,7 +24,7 @@ import { EmptyStateFilter } from '../../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../../components/layout/NxPanelContentStack'
-import { ScrollableTableContainer } from '../../../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../../types/filters'
 
@@ -320,7 +320,7 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
           <EmptyStateFilter clearAllFilters={clearFiltersAndPage} />
         </StackItem>
       ) : (
-        <ScrollableTableContainer
+        <NxScrollableTableContainer
           aria-label="Group mappings"
           footer={{
             page,
@@ -349,7 +349,7 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
               />
             ))}
           </Tbody>
-        </ScrollableTableContainer>
+        </NxScrollableTableContainer>
       )}
     </NxPanelContentStack>
   )

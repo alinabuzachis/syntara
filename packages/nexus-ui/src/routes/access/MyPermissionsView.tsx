@@ -8,7 +8,7 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { ErrorState } from '../../components/states/ErrorState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
@@ -298,9 +298,9 @@ export function MyPermissionsView() {
       )}
 
       {showToolbar && pageData.length > 0 && (
-        <ScrollableTableContainer aria-label="User permissions" footer={tableFooter}>
+        <NxScrollableTableContainer aria-label="User permissions" footer={tableFooter}>
           <PermissionsTableContent permissions={pageData} getSortParams={getSortParams} />
-        </ScrollableTableContainer>
+        </NxScrollableTableContainer>
       )}
     </Stack>
   )

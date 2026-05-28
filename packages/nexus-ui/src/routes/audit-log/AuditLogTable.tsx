@@ -5,7 +5,7 @@ import { Fragment } from 'react'
 import { AppRoute } from '../../app/AppRoute'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
-import { type TableFooterProps, ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { type TableFooterProps, NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { parseResourceUrn } from '../../utils/resourceUrn'
 import { capitalize, formatSnakeCase } from '../../utils/stringUtils'
 
@@ -51,7 +51,7 @@ export function AuditLogTable({
   const collapseAllAriaLabel = allRowsExpanded ? 'Collapse all' : 'Expand all'
 
   return (
-    <ScrollableTableContainer aria-label="Audit log table" isExpandable footer={footer}>
+    <NxScrollableTableContainer aria-label="Audit log table" isExpandable footer={footer}>
       <Thead>
         <Tr>
           <Th
@@ -139,6 +139,6 @@ export function AuditLogTable({
           )
         })}
       </Tbody>
-    </ScrollableTableContainer>
+    </NxScrollableTableContainer>
   )
 }

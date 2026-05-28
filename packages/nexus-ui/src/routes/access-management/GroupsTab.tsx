@@ -15,7 +15,7 @@ import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
+import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -140,7 +140,7 @@ export function GroupsTab() {
               <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
             </NxPageBody>
           ) : (
-            <ScrollableTableContainer aria-label="Groups table" footer={getFooterProps(data)}>
+            <NxScrollableTableContainer aria-label="Groups table" footer={getFooterProps(data)}>
               <Thead>
                 <Tr>
                   <Th sort={getSortParams(0)}>Name</Th>
@@ -193,7 +193,7 @@ export function GroupsTab() {
                   </Tr>
                 ))}
               </Tbody>
-            </ScrollableTableContainer>
+            </NxScrollableTableContainer>
           )}
         </NxPanelContentStack>
       )}
