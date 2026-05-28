@@ -28,7 +28,13 @@ def _build_app() -> Starlette:
     async def homepage(request: Request) -> PlainTextResponse:
         return PlainTextResponse("ok")
 
-    app = Starlette(routes=[Route("/", homepage), Route("/api/v1/auth/logout", homepage, methods=["POST"])])
+    app = Starlette(
+        routes=[
+            Route("/", homepage),
+            Route("/api/v1/auth/logout", homepage, methods=["POST"]),
+            Route("/api/v1/auth/refresh", homepage, methods=["POST"]),
+        ]
+    )
     app.add_middleware(StaleTokenMiddleware)
     return app
 
@@ -81,6 +87,25 @@ def _mock_async_session(
     return mock_ctx
 
 
+def _build_app_with_impostor_routes() -> Starlette:
+    """Build an app that also has paths ending in /auth/logout and /auth/refresh but under a different prefix."""
+
+    async def homepage(request: Request) -> PlainTextResponse:
+        return PlainTextResponse("ok")
+
+    app = Starlette(
+        routes=[
+            Route("/", homepage),
+            Route("/api/v1/auth/logout", homepage, methods=["POST"]),
+            Route("/api/v1/auth/refresh", homepage, methods=["POST"]),
+            Route("/some-other/auth/logout", homepage, methods=["POST"]),
+            Route("/some-other/auth/refresh", homepage, methods=["POST"]),
+        ]
+    )
+    app.add_middleware(StaleTokenMiddleware)
+    return app
+
+
 class TestStaleTokenMiddleware:
     """Tests for StaleTokenMiddleware."""
 
@@ -98,8 +123,8 @@ class TestStaleTokenMiddleware:
         assert response.status_code == 200
         assert "X-Token-Stale" not in response.headers
 
-    def test_stale_header_set_when_token_outdated(self) -> None:
-        """When token token_ver < DB version, X-Token-Stale header is set."""
+    def test_stale_token_returns_401(self) -> None:
+        """When token token_ver < DB version, middleware returns 401 TOKEN_STALE."""
         app = _build_app()
         payload = _make_payload(sub="user-123", token_version=1)
 
@@ -113,8 +138,10 @@ class TestStaleTokenMiddleware:
             client = TestClient(app)
             response = client.get("/", headers={"Authorization": "Bearer some-jwt"})
 
-        assert response.status_code == 200
-        assert response.headers.get("X-Token-Stale") == "true"
+        assert response.status_code == 401
+        body = response.json()
+        assert body["code"] == "TOKEN_STALE"
+        assert body["retryable"] is True
 
     def test_no_stale_header_when_token_current(self) -> None:
         """When token token_ver >= DB version, no X-Token-Stale header."""
@@ -222,8 +249,8 @@ class TestStaleTokenMiddleware:
 
         assert response.status_code == 401
 
-    def test_disabled_and_stale_returns_401(self) -> None:
-        """Disabled user rejection takes priority over stale token header."""
+    def test_disabled_and_stale_returns_disabled(self) -> None:
+        """Disabled user rejection takes priority over stale token rejection."""
         app = _build_app()
         payload = _make_payload(sub="user-123", token_version=1)
 
@@ -238,7 +265,8 @@ class TestStaleTokenMiddleware:
             response = client.get("/", headers={"Authorization": "Bearer some-jwt"})
 
         assert response.status_code == 401
-        assert "X-Token-Stale" not in response.headers
+        body = response.json()
+        assert body["code"] == "ACCOUNT_DISABLED"
 
     def test_user_not_found_passes_through(self) -> None:
         """When user row not found, default to enabled and pass through."""
@@ -273,3 +301,114 @@ class TestStaleTokenMiddleware:
             response = client.post("/api/v1/auth/logout", headers={"Authorization": "Bearer some-jwt"})
 
         assert response.status_code == 200
+
+    def test_stale_token_can_still_logout(self) -> None:
+        """Users with stale tokens must be able to POST /auth/logout."""
+        app = _build_app()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.post("/api/v1/auth/logout", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 200
+
+    def test_stale_token_can_still_refresh(self) -> None:
+        """Users with stale tokens must be able to POST /auth/refresh to get a new token."""
+        app = _build_app()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.post("/api/v1/auth/refresh", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 200
+
+    def test_group_change_seamless_refresh(self) -> None:
+        """After admin bumps token_version, user is rejected then refreshes seamlessly.
+
+        Simulates: token_ver=1, admin bumps to 2, request rejected,
+        refresh allowed, new token with ver=2 succeeds.
+        """
+        app = _build_app()
+        stale_payload = _make_payload(sub="user-123", token_version=1)
+        fresh_payload = _make_payload(sub="user-123", token_version=2)
+
+        mock_ts = _mock_token_service(payload=stale_payload)
+        mock_ctx = _mock_async_session(token_version=2)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+
+            # Step 1: Regular request with stale token → 401 TOKEN_STALE
+            response = client.get("/", headers={"Authorization": "Bearer stale-jwt"})
+            assert response.status_code == 401
+            assert response.json()["code"] == "TOKEN_STALE"
+            assert response.json()["retryable"] is True
+
+            # Step 2: Refresh request with stale token → allowed through (exempted path)
+            response = client.post("/api/v1/auth/refresh", headers={"Authorization": "Bearer stale-jwt"})
+            assert response.status_code == 200
+
+        # Step 3: Retry with fresh token (version matches DB) → 200 success
+        mock_ts_fresh = _mock_token_service(payload=fresh_payload)
+        mock_ctx_fresh = _mock_async_session(token_version=2)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx_fresh),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts_fresh),
+        ):
+            client = TestClient(app)
+            response = client.get("/", headers={"Authorization": "Bearer fresh-jwt"})
+            assert response.status_code == 200
+
+    def test_impostor_logout_path_not_exempted(self) -> None:
+        """A path that ends with /auth/logout but under a different prefix must NOT be exempted."""
+        app = _build_app_with_impostor_routes()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.post("/some-other/auth/logout", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "TOKEN_STALE"
+
+    def test_impostor_refresh_path_not_exempted(self) -> None:
+        """A path that ends with /auth/refresh but under a different prefix must NOT be exempted."""
+        app = _build_app_with_impostor_routes()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.post("/some-other/auth/refresh", headers={"Authorization": "Bearer some-jwt"})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "TOKEN_STALE"

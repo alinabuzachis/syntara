@@ -1,10 +1,10 @@
-"""Stale token detection and disabled-user enforcement middleware.
+"""Stale token rejection and disabled-user enforcement middleware.
 
 Checks whether the authenticated user's access token has an outdated
 ``token_ver`` claim by comparing it against the ``token_version`` column
-on the users table.  When stale, the response includes an
-``X-Token-Stale: true`` header so the frontend can trigger a background
-token refresh.
+on the users table.  When stale, returns a 401 ``TOKEN_STALE`` response
+so the frontend triggers a token refresh.  The ``/auth/logout`` and
+``/auth/refresh`` paths are exempted so users can still refresh or log out.
 
 Also rejects requests from disabled users with a 401 response.  The
 ``is_enabled`` flag is fetched in the same query as ``token_version``
@@ -38,12 +38,20 @@ _DISABLED_USER_RESPONSE = {
     "retryable": False,
 }
 
+_STALE_TOKEN_RESPONSE = {
+    "type": "https://api.nexus.com/errors/unauthorized",
+    "title": "Unauthorized",
+    "detail": "Token is outdated, please refresh",
+    "code": "TOKEN_STALE",
+    "retryable": True,
+}
+
 
 class StaleTokenMiddleware(BaseHTTPMiddleware):
     """Enforce disabled-user rejection and stale-token detection."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        """Reject disabled users and set stale header when token is outdated."""
+        """Reject disabled users and reject stale tokens."""
         auth_header = request.headers.get("authorization", "")
         if not auth_header.startswith("Bearer "):
             return await call_next(request)
@@ -82,7 +90,9 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
         except Exception:  # noqa: BLE001
             logger.debug("Token/status check failed, skipping", exc_info=True)
 
-        is_logout = request.url.path.rstrip("/").endswith("/auth/logout")
+        normalized_path = request.url.path.rstrip("/")
+        is_logout = normalized_path == "/api/v1/auth/logout"
+        is_auth_lifecycle = is_logout or normalized_path == "/api/v1/auth/refresh"
         if status_resolved and not is_enabled and not is_logout:
             from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
             from nexus.auth.audit.disabled_user_rejection import (  # noqa: PLC0415
@@ -100,11 +110,7 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 media_type="application/problem+json",
             )
 
-        response = await call_next(request)
-
-        if status_resolved and current_ver > token_ver:
-            response.headers["X-Token-Stale"] = "true"
-
+        if status_resolved and current_ver > token_ver and not is_auth_lifecycle:
             if user_id not in _stale_audit_cache:
                 from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
                 from nexus.auth.audit.stale_token_detection import StaleTokenDetectionEvent  # noqa: PLC0415
@@ -118,4 +124,11 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 )
                 _stale_audit_cache[user_id] = True
 
-        return response
+            logger.warning("Rejected request with stale token", user_id=user_id)
+            return JSONResponse(
+                status_code=401,
+                content=_STALE_TOKEN_RESPONSE,
+                media_type="application/problem+json",
+            )
+
+        return await call_next(request)

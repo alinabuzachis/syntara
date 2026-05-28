@@ -305,11 +305,9 @@ app.add_middleware(
     allow_credentials=_cors_settings.cors_allow_credentials,
     allow_methods=_cors_settings.cors_allow_methods,
     allow_headers=_cors_settings.cors_allow_headers,
-    expose_headers=["X-Token-Stale"],
 )
 
-# Register stale token detection middleware.
-# Added after CORS so it can set X-Token-Stale header on responses.
+# Register stale token rejection middleware.
 app.add_middleware(StaleTokenMiddleware)
 
 # Register metrics middleware (outermost = first to execute).

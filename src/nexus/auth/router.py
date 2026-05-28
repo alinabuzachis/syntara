@@ -645,6 +645,9 @@ async def logout(
         store = create_session_store(db)
         session_metadata = await store.get(payload.jti)
 
+        # Increment token version first to invalidate access tokens before revoking the session.
+        # Both operations share the same AsyncSession and commit atomically via get_db().
+        await store.increment_token_version(UUID(payload.sub))
         revoked = await store.revoke(payload.jti)
 
         if revoked:

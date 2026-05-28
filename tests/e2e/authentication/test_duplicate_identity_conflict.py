@@ -19,10 +19,12 @@ from uuid import UUID
 import httpx
 import pytest
 from nexus_api_client import Client
+from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
 from nexus_api_client.api.authentication.oidc_authorize import sync_detailed as oidc_authorize_sync
 from nexus_api_client.api.authentication.oidc_callback import sync_detailed as oidc_callback_sync
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
+from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.oidc_authorize_flow_type_0 import OidcAuthorizeFlowType0
 
 from tests.fixtures.external_services.oidc_login import _idp_form_user_login
@@ -82,14 +84,25 @@ class TestDuplicateIdentityConflict:
         set_cookie = callback_resp.headers["set-cookie"]
         cookie_match = re.search(r"ao_refresh_token=([^;]+)", set_cookie)
         assert cookie_match is not None
-        user_b_refresh_token = cookie_match.group(1)
+        csrf_match = re.search(r"ao_csrf_token=([^;]+)", set_cookie)
+        assert csrf_match is not None
 
-        # Verify User B can authenticate with the refresh token
-        user_b_client = Client(
+        user_b_cookies = {
+            "ao_refresh_token": cookie_match.group(1),
+            "ao_csrf_token": csrf_match.group(1),
+        }
+
+        # Obtain CSRF form token, then verify User B can refresh
+        csrf_client = Client(
             base_url=f"{nexus_base_url}/api/v1",
-            cookies={"ao_refresh_token": user_b_refresh_token},
+            cookies=user_b_cookies,
             verify_ssl=False,
         )
+        csrf_resp = csrf_token_sync(client=csrf_client)
+        assert csrf_resp.status_code == HTTPStatus.OK
+        assert isinstance(csrf_resp.parsed, CsrfTokenResponse)
+
+        user_b_client = csrf_client.with_headers({"X-CSRF-Token": csrf_resp.parsed.csrf_token})
         refresh_resp = refresh_sync(client=user_b_client)
         assert refresh_resp.status_code == HTTPStatus.OK
         assert isinstance(refresh_resp.parsed, AccessTokenResponse)

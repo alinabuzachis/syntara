@@ -727,7 +727,7 @@ class TestLogoutEndpoint:
 
     @pytest.mark.asyncio
     async def test_success_revokes_session_and_clears_cookies(self) -> None:
-        """Successful logout revokes session in session store and clears refresh + CSRF cookies."""
+        """Successful logout revokes session, increments token version, and clears refresh + CSRF cookies."""
         request = _make_request()
         response = _make_response()
         db = AsyncMock()
@@ -747,6 +747,7 @@ class TestLogoutEndpoint:
 
         assert result == {"detail": "Successfully logged out"}
         mock_store.revoke.assert_called_once_with("jti-123")
+        mock_store.increment_token_version.assert_called_once_with(UUID(payload.sub))
         mock_clear.assert_called_once_with(response)
         mock_clear_csrf.assert_called_once_with(response)
 
@@ -787,7 +788,31 @@ class TestLogoutEndpoint:
             result = await logout(payload, request, response, db)
 
         assert result == {"detail": "Successfully logged out"}
+        mock_store.increment_token_version.assert_called_once_with(UUID(payload.sub))
         mock_clear.assert_called_once_with(response)
+
+    @pytest.mark.asyncio
+    async def test_logout_increments_token_version(self) -> None:
+        """Logout must increment token_version to invalidate outstanding access tokens."""
+        request = _make_request()
+        response = _make_response()
+        db = AsyncMock()
+
+        user_id = str(uuid4())
+        payload = _make_payload(jti="jti-ver", sub=user_id)
+
+        mock_store = AsyncMock()
+        mock_store.get.return_value = None
+        mock_store.revoke.return_value = True
+        mock_store.increment_token_version.return_value = 1
+
+        with (
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.clear_refresh_cookie"),
+        ):
+            await logout(payload, request, response, db)
+
+        mock_store.increment_token_version.assert_called_once_with(UUID(user_id))
 
     @pytest.mark.asyncio
     async def test_rp_logout_returns_auth_error_when_endpoint_unresolvable(self) -> None:

@@ -30,9 +30,10 @@ Both methods produce the same JWT access/refresh token pair. Passwords are hashe
 ### Logout (`POST /api/v1/auth/logout`)
 
 1. The refresh token session is soft-revoked in PostgreSQL (`revoked_at` is set).
-2. The `ao_refresh_token` cookie is cleared.
-3. The access token remains valid until it naturally expires (stateless JWT — no server-side revocation).
-4. If the session was authenticated via an OIDC provider with RP-initiated logout enabled, the response includes a `redirect_url` the frontend should navigate to (`window.location.href`) to terminate the upstream IdP session.
+2. The user's `token_version` is incremented, invalidating all outstanding access tokens.
+3. The `ao_refresh_token` cookie is cleared.
+4. The `StaleTokenMiddleware` rejects subsequent requests using the old access token with `401 TOKEN_STALE` (within ~5 seconds, governed by the middleware's TTL cache). Since the refresh session is also revoked, the client cannot refresh and must re-authenticate.
+5. If the session was authenticated via an OIDC provider with RP-initiated logout enabled, the response includes a `redirect_url` the frontend should navigate to (`window.location.href`) to terminate the upstream IdP session.
 
 The logout endpoint always returns JSON (never a 302 redirect). The response includes:
 
@@ -365,14 +366,15 @@ When an admin changes a user's account (group memberships, profile, role, etc.),
 Each user has a `token_version` column on the `users` table. The counter is included in the access token as the `token_ver` claim.
 
 ```
-Admin changes user's account (groups, profile, etc.)
+Admin changes user's account (groups, profile, etc.) — or user logs out
   -> SQL: UPDATE users SET token_version = token_version + 1 WHERE id = :uid
   -> User's next API request:
        StaleTokenMiddleware compares token's token_ver vs DB version (5s TTLCache)
-       Token is stale → response includes X-Token-Stale: true header
-  -> Frontend detects header → triggers background POST /auth/refresh
-  -> New access token has updated claims + current token_ver
-  -> UI reflects correct state without logout
+       Token is stale → 401 TOKEN_STALE response (retryable)
+  -> Frontend receives 401 → attempts POST /auth/refresh
+       If refresh session is valid → new access token with current token_ver → retry succeeds
+       If refresh session is revoked (logout) → refresh fails → redirect to login
+  -> UI reflects correct state seamlessly (no forced logout for non-logout scenarios)
 ```
 
 #### What triggers a version bump
@@ -384,17 +386,17 @@ Admin changes user's account (groups, profile, etc.)
 | `PUT /users/{id}/groups` | User's group memberships replaced |
 | `PATCH /users/{id}` | User profile updated (name, email, enabled status, password) |
 | `DELETE /users/{id}` | User soft-deleted (next refresh fails → auto-logout) |
+| `POST /auth/logout` | User logs out (refresh session also revoked → forced re-authentication) |
 
 #### Backend components
 
 - **`SessionStore.increment_token_version(user_id)`** — called after any admin action that changes a user's account. Uses `UPDATE users SET token_version = token_version + 1 ... RETURNING token_version`. Also invalidates the middleware's in-process TTLCache entry for the user.
 - **`SessionStore.get_with_token_version(jti)`** — called during refresh. A single JOIN query fetches the session and the user's `token_version` together, which is embedded in the new access token's `token_ver` claim. During login, `token_version` is read directly from the already-loaded `User` object (zero additional queries).
-- **`StaleTokenMiddleware`** — Starlette middleware registered in `main.py`. On every authenticated request, it decodes `sub` and `token_ver` from the token (lightweight, no signature verification — the auth dependency already validated it), checks the version via an in-process `cachetools.TTLCache` (5-second TTL, max 4096 entries), and sets `X-Token-Stale: true` if the token is outdated. Cache misses query PostgreSQL directly. Errors are swallowed to avoid blocking requests.
-- **CORS `expose_headers`** — `X-Token-Stale` is added to the CORS `expose_headers` list so the browser allows the frontend to read it.
+- **`StaleTokenMiddleware`** — Starlette middleware registered in `main.py`. On every authenticated request, it decodes `sub` and `token_ver` from the token, checks the version via an in-process `cachetools.TTLCache` (5-second TTL, max 4096 entries), and returns `401 TOKEN_STALE` if the token is outdated. The `/auth/logout` and `/auth/refresh` paths are exempted so users can still refresh or log out with a stale token. Cache misses query PostgreSQL directly. Errors are swallowed to avoid blocking requests.
 
 #### Frontend handling
 
-The `authMiddleware` in `client.tsx` checks every response for the `X-Token-Stale: true` header. When detected, it fires a background `store.refresh()` call (fire-and-forget). The current response is returned normally — the user is never blocked. After the refresh completes, subsequent requests use the new token with updated claims.
+When the middleware returns `401 TOKEN_STALE`, the frontend's `authMiddleware` in `client.tsx` attempts a token refresh via `POST /auth/refresh`. If the refresh succeeds (refresh session still valid), the original request is retried with the new access token — seamless to the user. If the refresh fails (e.g., after logout where the refresh session is revoked), the user is redirected to the login page.
 
 #### Disabled user enforcement
 
