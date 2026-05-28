@@ -18,6 +18,7 @@ import stat
 import time
 from typing import TYPE_CHECKING
 
+import asyncpg
 import pytest
 import sqlalchemy
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -60,7 +61,7 @@ _BOOT_SCRIPT = (
 # ---------------------------------------------------------------------------
 
 
-def _wait_for_pg_ready(container: Container, timeout: int = 30) -> None:
+def _wait_for_pg_ready(container: Container, timeout: int = 60) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         container.reload()
@@ -68,8 +69,8 @@ def _wait_for_pg_ready(container: Container, timeout: int = 30) -> None:
             logs = container.logs().decode(errors="replace")
             msg = f"Container exited unexpectedly.\n{logs[-500:]}"
             raise RuntimeError(msg)
-        logs = container.logs().decode(errors="replace")
-        if "database system is ready to accept connections" in logs:
+        exit_code, _ = container.exec_run("pg_isready -U test -d testdb")
+        if exit_code == 0:
             return
         time.sleep(1)
     logs = container.logs().decode(errors="replace")
@@ -161,7 +162,7 @@ async def _check_ssl_active(engine: AsyncEngine, retries: int = 5, delay: float 
             async with engine.connect() as conn:
                 result = await conn.execute(sqlalchemy.text("SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()"))
                 return bool(result.one()[0])
-        except (ConnectionResetError, OSError) as exc:
+        except (ConnectionResetError, OSError, asyncpg.CannotConnectNowError) as exc:
             last_err = exc
             await asyncio.sleep(delay)
     raise last_err  # type: ignore[misc]
