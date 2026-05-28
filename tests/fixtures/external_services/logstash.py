@@ -13,7 +13,7 @@ from external_services.types import HttpApiService
 from external_services.utils import WaitException
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def logstash_service(
     request: pytest.FixtureRequest,
     gke_ext_service_provider: K8sProvider,
@@ -31,7 +31,7 @@ def logstash_service(
     return service
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def logstash_nginx_web_service(logstash_service: HttpApiService) -> tuple[str, int]:
     """Return the nginx (hostname, port) co-deployed alongside Logstash."""
     nginx_port = 443

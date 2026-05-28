@@ -172,7 +172,7 @@ def _add_user_to_realm_group(base_url: str) -> None:
         resp.raise_for_status()
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def keycloak_service(
     request: pytest.FixtureRequest,
     gke_ext_service_provider: K8sProvider,

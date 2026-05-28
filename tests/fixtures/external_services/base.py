@@ -20,7 +20,7 @@ from external_services.types import HttpApiService
 from kubernetes.client import ApiClient, Configuration
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def gke_ext_service_client() -> ApiClient:
     """Return a Kubernetes ApiClient configured from GKE_CLUSTER_* env vars."""
     missing = [v for v in ("GKE_CLUSTER_ENDPOINT", "GKE_CLUSTER_API_KEY") if v not in os.environ]
@@ -34,13 +34,13 @@ def gke_ext_service_client() -> ApiClient:
     return ApiClient(configuration=kube_config)
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def gke_ext_service_provider(gke_ext_service_client: ApiClient) -> K8sProvider:
     """Return a K8sProvider for the 'integration' namespace."""
     return K8sProvider(namespace="integration", k8s_client=gke_ext_service_client)
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def gke_ext_service_url_retriever() -> Callable[[HttpApiService], str]:
     """Return a URL-retriever callable that constructs the GKE HTTPS service URL."""
     cluster_domain = os.environ["GKE_CLUSTER_DOMAIN"]

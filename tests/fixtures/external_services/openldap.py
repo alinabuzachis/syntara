@@ -116,7 +116,7 @@ class OpenldapServiceWrapper:
         return url
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def openldap_service(
     request: pytest.FixtureRequest,
     gke_ext_service_provider: K8sProvider,
