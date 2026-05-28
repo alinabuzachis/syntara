@@ -771,35 +771,20 @@ For high-frequency bulk decisions where speed matters (e.g., Approvals), bulk ac
 
 ## 11. Statuses and Labels
 
-Use `Label` only when visual distinction is needed — for statuses, categorical metadata where users need to differentiate between types at a glance (e.g., User vs. Group), and user-generated tags. For informational text that doesn't require visual emphasis, use plain text.
+Use `Label` only when visual distinction is needed — for statuses, categorical metadata where users need to differentiate between types at a glance (e.g., User vs. Group), and user-authored tags. For informational text that doesn't require visual emphasis, use plain text.
 
-### Statuses
+### Component selection
 
-- Use PatternFly's [Outline Status Label component](https://www.patternfly.org/components/label#outlined-labels)
-
-### Labels/Tags
+| Use case                                                                           | Component   | Variant               |
+| ---------------------------------------------------------------------------------- | ----------- | --------------------- |
+| All system-generated labels (statuses, categories, metadata, counts, filter chips) | `NxLabel`   | `filled` (default)    |
+| User-authored content (workflow tags, user-entered values)                         | `NxUserTag` | `outline` (hardcoded) |
 
 - If labels on a table reference a resource, make them clickable labels, navigating to the details page of the resource if one exists
+- Use outline (unfilled) `RhUi*Icon` variants when passing icons to `NxLabel`
+- If a label is used for a single thing (a count, a callout) and not to distinguish between 2+ types, use a filled gray label (`color="grey"`)
 
-#### System-generated labels
-
-- Use PatternFly's [Filled Non-status Label component](https://www.patternfly.org/components/label#filled-labels) and default to gray
-- If used to categorize types (e.g., User vs. Group), use a colored variant
-- Color variants should have enough contrast to distinguish between them
-
-#### Filter labels
-
-- Use PatternFly's gray Filled Non-status Label component
-
-#### User-generated labels
-
-- Use PatternFly's colored [Outline Status Label component](https://www.patternfly.org/components/label#outlined-labels)
-
-#### Label colors
-
-**General**
-
-- If a label is used for a single thing (a count, a callout) and not to distinguish between 2+ different types, use a filled gray label
+### Label colors
 
 **Workflow versioning**
 
