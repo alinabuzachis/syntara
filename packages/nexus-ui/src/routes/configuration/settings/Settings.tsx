@@ -1,11 +1,11 @@
-import { Button, EmptyState, EmptyStateBody, Stack, StackItem, Tab } from '@patternfly/react-core'
-import { RhUiLockIcon } from '@patternfly/react-icons'
+import { Button, Stack, StackItem, Tab } from '@patternfly/react-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsSettingsCategory, breadcrumbsSettingsPage } from '../../../app/breadcrumbBuilders'
 import { settingsClient } from '../../../client'
+import { EmptyStateAccessDenied } from '../../../components/EmptyStateAccessDenied'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -163,12 +163,7 @@ export default function Settings() {
         <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
         <StackItem isFilled>
           <NxPanel isFullHeight>
-            <EmptyState headingLevel="h2" titleText="Access denied" icon={RhUiLockIcon} isFullHeight>
-              <EmptyStateBody>
-                You don&apos;t have permission to view settings. Contact your administrator to request the auditor or
-                admin role.
-              </EmptyStateBody>
-            </EmptyState>
+            <EmptyStateAccessDenied description="You don't have permission to view settings. Contact your administrator to request the auditor or admin role." />
           </NxPanel>
         </StackItem>
       </NxPage>

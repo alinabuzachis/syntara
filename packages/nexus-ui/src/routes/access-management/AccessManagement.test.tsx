@@ -128,7 +128,9 @@ describe('AccessManagement', () => {
     wouterLocation.path = AppRoute.AccessManagement.Root
     await renderAndSettle(<AccessManagement />)
 
-    expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Users, { replace: true })
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Users, { replace: true })
+    })
   })
 
   it('renders breadcrumbs on all tabs including Users', async () => {
@@ -218,5 +220,33 @@ describe('AccessManagement', () => {
       })
     })
     expect(results!).toHaveNoViolations()
+  })
+
+  describe('no access', () => {
+    it('shows access denied when user lacks all AM permissions', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+
+      render(<AccessManagement />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByText('Access denied')).toBeInTheDocument()
+      })
+      expect(screen.getByRole('heading', { name: 'Access Management' })).toBeInTheDocument()
+      expect(screen.getByText(/You don't have permission to view access management/)).toBeInTheDocument()
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    })
+
+    it('has no accessibility violations in access denied state', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+
+      const { container } = render(<AccessManagement />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByText('Access denied')).toBeInTheDocument()
+      })
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
   })
 })

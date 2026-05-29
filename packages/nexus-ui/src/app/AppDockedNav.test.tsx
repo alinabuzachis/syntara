@@ -26,7 +26,15 @@ vi.mock('./useUnsavedChanges', () => ({
 // Mock usePermissionChecks used by useFilteredNavigationItems
 vi.mock('../hooks/usePermissionChecks', () => ({
   usePermissionChecks: () => ({
-    permissions: { 'setting:read': true, 'user:read': true, 'group:read': true },
+    permissions: {
+      'setting:read': true,
+      'user:read': true,
+      'group:read': true,
+      'identity-provider:read': true,
+      'audit:read': true,
+      'project:read': true,
+      'role-assignment:read': true,
+    },
     isLoading: false,
   }),
 }))

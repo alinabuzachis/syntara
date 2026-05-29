@@ -4,6 +4,7 @@ import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../app/AppRoute'
 import { breadcrumbsAccessManagementHub } from '../../app/breadcrumbBuilders'
+import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
@@ -29,7 +30,7 @@ const allTabs = [
 
 export function AccessManagement() {
   const [location, navigate] = useLocation()
-  const { canReadUsers, canReadGroups, isLoading } = useAccessManagementPermissions()
+  const { canReadUsers, canReadGroups, canAccessPage, isLoading } = useAccessManagementPermissions()
 
   const tabs = useMemo(() => {
     if (isLoading) return allTabs
@@ -46,10 +47,23 @@ export function AccessManagement() {
   const isRestrictedPath = !isLoading && activeTabIndex === -1 && location !== AppRoute.AccessManagement.Root
 
   useLayoutEffect(() => {
-    if ((location === AppRoute.AccessManagement.Root || isRestrictedPath) && defaultTab) {
+    if (canAccessPage && (location === AppRoute.AccessManagement.Root || isRestrictedPath) && defaultTab) {
       navigate(defaultTab.path, { replace: true })
     }
-  }, [location, navigate, defaultTab, isRestrictedPath])
+  }, [location, navigate, defaultTab, isRestrictedPath, canAccessPage])
+
+  if (!isLoading && !canAccessPage) {
+    return (
+      <NxPage>
+        <NxPageHeader title="Access Management" breadcrumbs={[{ label: 'Access Management' }]} />
+        <NxPageBody>
+          <NxPanel isFullHeight>
+            <EmptyStateAccessDenied description="You don't have permission to view access management. Contact your administrator to request access." />
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
+    )
+  }
 
   const resolvedIndex = activeTabIndex === -1 ? 0 : activeTabIndex
   const ActiveTabComponent = tabs[resolvedIndex].component

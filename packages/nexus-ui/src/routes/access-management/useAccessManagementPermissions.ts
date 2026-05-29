@@ -5,30 +5,43 @@ import { accessFetchClient } from '../access/accessClient'
 type AccessManagementPermissions = {
   canReadUsers: boolean
   canReadGroups: boolean
+  canReadProjects: boolean
+  canReadAssignments: boolean
+  /** `true` when the user has at least one of the four core AM permissions. */
+  canAccessPage: boolean
   isLoading: boolean
 }
 
+const AM_CHECKS = [
+  { action: 'read', resource_type: 'user' },
+  { action: 'read', resource_type: 'group' },
+  { action: 'read', resource_type: 'project' },
+  { action: 'read', resource_type: 'role-assignment' },
+] as const
+
 export function useAccessManagementPermissions(): AccessManagementPermissions {
-  const [usersResult, groupsResult] = useQueries({
-    queries: [
-      {
-        queryKey: ['authz', 'can_i', { action: 'read', resource_type: 'user' }],
-        queryFn: () => accessFetchClient.POST('/authz/can_i', { body: { action: 'read', resource_type: 'user' } }),
-        staleTime: Infinity,
-        retry: false,
-      },
-      {
-        queryKey: ['authz', 'can_i', { action: 'read', resource_type: 'group' }],
-        queryFn: () => accessFetchClient.POST('/authz/can_i', { body: { action: 'read', resource_type: 'group' } }),
-        staleTime: Infinity,
-        retry: false,
-      },
-    ],
+  const results = useQueries({
+    queries: AM_CHECKS.map((body) => ({
+      queryKey: ['authz', 'can_i', body] as const,
+      queryFn: () => accessFetchClient.POST('/authz/can_i', { body }),
+      staleTime: Infinity,
+      retry: false,
+    })),
   })
 
+  const [usersResult, groupsResult, projectsResult, assignmentsResult] = results
+
+  const canReadUsers = usersResult.data?.data?.allowed === true
+  const canReadGroups = groupsResult.data?.data?.allowed === true
+  const canReadProjects = projectsResult.data?.data?.allowed === true
+  const canReadAssignments = assignmentsResult.data?.data?.allowed === true
+
   return {
-    canReadUsers: usersResult.data?.data?.allowed !== false,
-    canReadGroups: groupsResult.data?.data?.allowed !== false,
-    isLoading: usersResult.isLoading || groupsResult.isLoading,
+    canReadUsers,
+    canReadGroups,
+    canReadProjects,
+    canReadAssignments,
+    canAccessPage: canReadUsers || canReadGroups || canReadProjects || canReadAssignments,
+    isLoading: results.some((r) => r.isLoading),
   }
 }

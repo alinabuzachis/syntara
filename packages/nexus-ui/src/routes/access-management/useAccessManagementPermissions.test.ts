@@ -28,12 +28,21 @@ describe('useAccessManagementPermissions', () => {
     vi.clearAllMocks()
   })
 
-  it('defaults to canReadUsers: true and canReadGroups: true while loading', () => {
+  const allGranted = {
+    canReadUsers: true,
+    canReadGroups: true,
+    canReadProjects: true,
+    canReadAssignments: true,
+    canAccessPage: true,
+    isLoading: false,
+  }
+
+  it('defaults to safe-false for all permissions while loading', () => {
     vi.mocked(accessFetchClient.POST).mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
-    expect(result.current).toEqual({ canReadUsers: true, canReadGroups: true, isLoading: true })
+    expect(result.current).toMatchObject({ canAccessPage: false, isLoading: true })
   })
 
   it('updates to true when API confirms access', async () => {
@@ -42,29 +51,45 @@ describe('useAccessManagementPermissions', () => {
     const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(result.current).toEqual({ canReadUsers: true, canReadGroups: true, isLoading: false })
+      expect(result.current).toEqual(allGranted)
     })
   })
 
-  it('updates to false when API denies access', async () => {
+  it('updates to false when API denies all access', async () => {
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
 
     const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(result.current).toEqual({ canReadUsers: false, canReadGroups: false, isLoading: false })
+      expect(result.current).toEqual({
+        canReadUsers: false,
+        canReadGroups: false,
+        canReadProjects: false,
+        canReadAssignments: false,
+        canAccessPage: false,
+        isLoading: false,
+      })
     })
   })
 
-  it('handles mixed permissions', async () => {
+  it('handles mixed permissions — canAccessPage true when at least one is granted', async () => {
     vi.mocked(accessFetchClient.POST)
-      .mockResolvedValueOnce({ data: { allowed: true } } as never)
-      .mockResolvedValueOnce({ data: { allowed: false } } as never)
+      .mockResolvedValueOnce({ data: { allowed: false } } as never) // user
+      .mockResolvedValueOnce({ data: { allowed: false } } as never) // group
+      .mockResolvedValueOnce({ data: { allowed: true } } as never) // project
+      .mockResolvedValueOnce({ data: { allowed: false } } as never) // role-assignment
 
     const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(result.current).toEqual({ canReadUsers: true, canReadGroups: false, isLoading: false })
+      expect(result.current).toEqual({
+        canReadUsers: false,
+        canReadGroups: false,
+        canReadProjects: true,
+        canReadAssignments: false,
+        canAccessPage: true,
+        isLoading: false,
+      })
     })
   })
 
@@ -74,13 +99,19 @@ describe('useAccessManagementPermissions', () => {
     renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)
+      expect(accessFetchClient.POST).toHaveBeenCalledTimes(4)
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'read', resource_type: 'user' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'read', resource_type: 'group' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
+      body: { action: 'read', resource_type: 'project' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
+      body: { action: 'read', resource_type: 'role-assignment' },
     })
   })
 
@@ -92,11 +123,11 @@ describe('useAccessManagementPermissions', () => {
     renderHook(() => useAccessManagementPermissions(), { wrapper })
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)
+      expect(accessFetchClient.POST).toHaveBeenCalledTimes(4)
     })
   })
 
-  it('defaults to true when API call fails', async () => {
+  it('defaults to false when API call fails (fail-secure)', async () => {
     vi.mocked(accessFetchClient.POST).mockRejectedValue(new Error('network error'))
 
     const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
@@ -104,6 +135,13 @@ describe('useAccessManagementPermissions', () => {
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
-    expect(result.current).toEqual({ canReadUsers: true, canReadGroups: true, isLoading: false })
+    expect(result.current).toEqual({
+      canReadUsers: false,
+      canReadGroups: false,
+      canReadProjects: false,
+      canReadAssignments: false,
+      canAccessPage: false,
+      isLoading: false,
+    })
   })
 })

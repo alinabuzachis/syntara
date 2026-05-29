@@ -38,19 +38,29 @@ function isNavItemVisible(item: TNavigationItem, permissions: Record<string, boo
 }
 
 function filterNavItems(items: readonly TNavigationItem[], permissions: Record<string, boolean>): TNavigationItem[] {
-  return items
-    .filter((item) => isNavItemVisible(item, permissions))
-    .map((item) => {
-      if (!item.children) return item
+  const filtered: TNavigationItem[] = []
 
-      const filteredChildren = filterNavItems(item.children, permissions)
+  for (const item of items) {
+    if (!isNavItemVisible(item, permissions)) continue
 
-      const unchanged =
-        filteredChildren.length === item.children.length && filteredChildren.every((c, i) => c === item.children![i])
-      if (unchanged) return item
+    if (!item.children) {
+      filtered.push(item)
+      continue
+    }
 
-      return { ...item, children: filteredChildren }
-    })
+    const filteredChildren = filterNavItems(item.children, permissions)
+
+    // Hide section when it originally had visible children but all were filtered out
+    const hadVisibleChildren = item.children.some((c) => !c.hidden)
+    if (hadVisibleChildren && !filteredChildren.some((c) => !c.hidden)) continue
+
+    const unchanged =
+      filteredChildren.length === item.children.length && filteredChildren.every((c, i) => c === item.children![i])
+
+    filtered.push(unchanged ? item : { ...item, children: filteredChildren })
+  }
+
+  return filtered
 }
 
 /**

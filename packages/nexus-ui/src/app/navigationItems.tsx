@@ -137,6 +137,12 @@ export const NAV_ITEMS: TNavigationItem[] = [
         path: AppRoute.AccessManagement.Root,
         icon: <RhUiUsersIcon />,
         element: <AccessManagement />,
+        requiredPermissions: [
+          { action: 'read', resourceType: 'user' },
+          { action: 'read', resourceType: 'group' },
+          { action: 'read', resourceType: 'project' },
+          { action: 'read', resourceType: 'role-assignment' },
+        ],
         children: [
           {
             label: 'Users',
@@ -236,6 +242,7 @@ export const NAV_ITEMS: TNavigationItem[] = [
         path: AppRoute.SystemAdministration.Authentication.Root,
         icon: <RhUiSecuredIcon />,
         element: <Authentication />,
+        requiredPermissions: [{ action: 'read', resourceType: 'identity-provider' }],
         children: [
           {
             label: 'Add Identity Provider',
@@ -274,6 +281,7 @@ export const NAV_ITEMS: TNavigationItem[] = [
         path: AppRoute.SystemAdministration.AuditLog,
         icon: <RhUiDocumentIcon />,
         element: <AuditLog />,
+        requiredPermissions: [{ action: 'read', resourceType: 'audit' }],
       },
     ],
   },

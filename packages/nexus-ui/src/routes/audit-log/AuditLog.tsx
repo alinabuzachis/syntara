@@ -2,13 +2,15 @@ import { Bullseye, Stack, StackItem } from '@patternfly/react-core'
 import { useMemo, useReducer } from 'react'
 
 import { auditClient } from '../../client'
+import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'
 import { FilterBar } from '../../components/filters/FilterBar'
-import { NxPage } from '../../components/layout/NxPage'
+import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
+import { useCanI } from '../../hooks/useCanI'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useTableSort } from '../../hooks/useTableSort'
 import { detachPromise } from '../../utils/detachPromise'
@@ -67,6 +69,7 @@ function buildFilterFieldDefinitions() {
 }
 
 export default function AuditLog() {
+  const { allowed: canRead, isChecking } = useCanI('read', 'audit')
   const [expandedRows, dispatch] = useReducer(expandReducer, new Set<string>())
 
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
@@ -93,6 +96,7 @@ export default function AuditLog() {
     params: {
       query: queryParams,
     },
+    enabled: canRead,
   })
 
   const events = auditQuery.data?.resources ?? []
@@ -105,6 +109,30 @@ export default function AuditLog() {
     title: 'Error loading audit log',
     onRetry: () => detachPromise(auditQuery.refetch()),
   })
+
+  if (isChecking) {
+    return (
+      <NxPage>
+        <NxPageHeader title="Audit Log" />
+        <NxPageBody>
+          <NxPanel isFullHeight />
+        </NxPageBody>
+      </NxPage>
+    )
+  }
+
+  if (!canRead) {
+    return (
+      <NxPage>
+        <NxPageHeader title="Audit Log" />
+        <NxPageBody>
+          <NxPanel isFullHeight>
+            <EmptyStateAccessDenied description="You don't have permission to view the audit log. Contact your administrator to request the auditor or admin role." />
+          </NxPanel>
+        </NxPageBody>
+      </NxPage>
+    )
+  }
 
   if (queryState) {
     return (

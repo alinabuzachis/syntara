@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { auditClient } from '../../client'
+import { useCanI } from '../../hooks/useCanI'
 import { useFilterState } from '../../hooks/useFilterState'
 import { AlertProvider } from '../../providers/alerts'
 
@@ -18,6 +19,10 @@ vi.mock('../../client', () => ({
   auditClient: {
     useQuery: vi.fn(),
   },
+}))
+
+vi.mock('../../hooks/useCanI', () => ({
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false })),
 }))
 
 function getLastQueryParams() {
@@ -148,6 +153,7 @@ function mockAuditQuery(
 describe('AuditLog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false })
     vi.mocked(useFilterState).mockRestore?.()
     mockAuditQuery()
   })
@@ -476,5 +482,46 @@ describe('AuditLog', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  // ── Access denied ───────────────────────────────────────────────────
+
+  it('does not show access denied while permission is loading', () => {
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true })
+
+    render(<AuditLog />, { wrapper })
+
+    expect(screen.getByRole('heading', { name: 'Audit Log' })).toBeInTheDocument()
+    expect(screen.queryByText('Access denied')).not.toBeInTheDocument()
+  })
+
+  describe('no access', () => {
+    beforeEach(() => {
+      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false })
+    })
+
+    it('shows access denied when user cannot read audit log', () => {
+      render(<AuditLog />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'Audit Log' })).toBeInTheDocument()
+      expect(screen.getByText('Access denied')).toBeInTheDocument()
+      expect(screen.getByText(/You don't have permission to view the audit log/)).toBeInTheDocument()
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument()
+    })
+
+    it('does not fetch audit data when access is denied', () => {
+      render(<AuditLog />, { wrapper })
+
+      const lastCall = vi.mocked(auditClient.useQuery).mock.calls.at(-1)
+      const options = lastCall?.[2] as { enabled?: boolean } | undefined
+      expect(options?.enabled).toBe(false)
+    })
+
+    it('has no accessibility violations in access denied state', async () => {
+      const { container } = render(<AuditLog />, { wrapper })
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
   })
 })

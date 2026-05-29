@@ -109,6 +109,14 @@ test.describe('Disable Built-in Admin — Flow and State Update', () => {
       })
     })
 
+    await page.route('**/api/v1/authz/can_i', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ allowed: true, denied: false, matched_policy: 'admin-policy' }),
+      })
+    )
+
     await page.goto(toAppUrl(USER_MANAGEMENT_ACCESS_URL))
 
     const toggle = page.getByRole('switch', { name: /Built-in administrator account/ })
@@ -214,6 +222,14 @@ test.describe('Disable Built-in Admin — Lockout Prevention Error', () => {
       })
     )
 
+    await page.route('**/api/v1/authz/can_i', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ allowed: true, denied: false, matched_policy: 'admin-policy' }),
+      })
+    )
+
     await page.goto(toAppUrl(USER_MANAGEMENT_ACCESS_URL))
 
     const toggle = page.getByRole('switch', { name: /Built-in administrator account/ })
@@ -276,6 +292,14 @@ test.describe('Re-enable Built-in Admin', () => {
       }
       return route.continue()
     })
+
+    await page.route('**/api/v1/authz/can_i', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ allowed: true, denied: false, matched_policy: 'admin-policy' }),
+      })
+    )
 
     await page.goto(toAppUrl(USER_MANAGEMENT_ACCESS_URL))
 
