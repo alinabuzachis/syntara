@@ -5,6 +5,7 @@ nexus_client, nexus_api) are defined in the root tests/conftest.py and
 inherited automatically.  This file adds e2e-specific fixtures.
 """
 
+import logging
 import os
 import secrets
 import time
@@ -28,9 +29,12 @@ from nexus_api_client.models.sub_resource_role_assignment_create import SubResou
 from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
+from nexus_api_client.models.user_read import UserRead
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_read import WorkflowRead
 from nexus_api_client.types import Response
+
+logger = logging.getLogger(__name__)
 
 
 def unique_name(base: str) -> str:
@@ -418,3 +422,48 @@ def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[
         nexus_api.credentials.delete(credential_id=UUID(cred_id))
     except Exception:
         pass
+
+
+@pytest.fixture
+def local_user_factory(
+    nexus_api: NexusApiRegistry,
+) -> Generator[Callable[..., tuple[UserRead, str]], None, None]:
+    """Factory that creates a local user and cleans up after the test.
+
+    Returns a tuple of (UserRead, password) so tests can verify login behavior.
+    Accepts optional overrides for username, email, full_name, and password.
+    """
+    created_user_ids: list[UUID] = []
+
+    def _create(
+        *,
+        username: str | None = None,
+        email: str | None = None,
+        full_name: str = "Test Local User",
+        password: str | None = None,
+    ) -> tuple[UserRead, str]:
+        username = username or f"local-user-{uuid4().hex[:8]}"
+        password = password or generate_test_password()
+        email = email or f"{username}@example.com"
+
+        resp = nexus_api.users.create(
+            body=UserCreate(
+                username=username,
+                email=email,
+                full_name=full_name,
+                password=password,
+                is_enabled=True,
+            )
+        )
+        assert resp.status_code == 201
+        assert resp.parsed is not None
+        created_user_ids.append(resp.parsed.id)
+        return resp.parsed, password
+
+    yield _create
+
+    for user_id in created_user_ids:
+        try:
+            nexus_api.users.delete(user_id=user_id)
+        except Exception:
+            logger.warning("Failed to clean up local user %s", user_id, exc_info=True)

@@ -5,6 +5,9 @@ Verifies that:
 2. Non-builtin local users can link identities and are converted to federated
 3. Password is removed and auth_type changes to FEDERATED
 4. Old password no longer works, can authenticate via IdP
+
+Also covers API-34 (Local/Federated Mutual Exclusivity):
+- Setting a password on a federated user returns 409 PASSWORD_ON_FEDERATED_USER
 """
 
 from __future__ import annotations
@@ -15,14 +18,12 @@ pytest.importorskip("external_services")
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
+from uuid import UUID
 
-import pytest
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
 from nexus_api_client.models.auth_type import AuthType
 from nexus_api_client.models.login_request import LoginRequest
-from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_identity_attach import UserIdentityAttach
 from nexus_api_client.models.user_update import UserUpdate
 
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from nexus_api_client import Client
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
+    from nexus_api_client.models.user_read import UserRead
 
 pytestmark = [pytest.mark.e2e]
 
@@ -90,30 +92,19 @@ class TestLocalUserConversion:
         federated_identities_after = federated_identities_after_resp.parsed.resources
         assert len(federated_identities_after) == 1
 
-    def test_non_builtin_local_user_converts_to_federated(  # noqa: PLR0915
+    def test_non_builtin_local_user_converts_to_federated(
         self,
         nexus_api: NexusApiRegistry,
         unauthenticated_client: Client,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         oidc_provider_factory: Callable[[], IdentityProviderResponse],
         oidc_user_factory: Callable[[UUID, str, str], NexusApiRegistry],
+        local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
         """Test that non-builtin local user converts to federated when linking identity."""
-        local_username = f"local-user-{uuid4().hex[:8]}"
-        local_password = generate_test_password()
-
-        local_user_resp = nexus_api.users.create(
-            body=UserCreate(
-                username=local_username,
-                email=f"{local_username}@example.com",
-                full_name="Test Local User",
-                password=local_password,
-                is_enabled=True,
-            )
-        )
-        assert local_user_resp.status_code == HTTPStatus.CREATED
-        assert local_user_resp.parsed is not None
-        local_user_id = local_user_resp.parsed.id
+        local_user, local_password = local_user_factory()
+        local_user_id = local_user.id
+        local_username = local_user.username
 
         local_user_details_resp = nexus_api.users.get(user_id=local_user_id)
         assert local_user_details_resp.status_code == HTTPStatus.OK

@@ -17,7 +17,6 @@ from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
 import httpx
-import pytest
 from nexus_api_client import Client
 from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
 from nexus_api_client.api.authentication.oidc_authorize import sync_detailed as oidc_authorize_sync
@@ -61,7 +60,9 @@ class TestDuplicateIdentityConflict:
         oidc_user_factory(provider_id, username_a, password_a)
 
         # Step 2: User B authenticates via OIDC — creates a separate Nexus user.
-        #         We need the refresh_token cookie so B can initiate a link flow.
+        #         We create via factory first for cleanup, then re-authenticate
+        #         to capture the refresh_token cookie needed for the link flow.
+        oidc_user_factory(provider_id, username_b, password_b)
         user_b_auth = nexus_api.authentication.oidc_authorize(provider_id=provider_id)
         assert user_b_auth.status_code in (HTTPStatus.FOUND, HTTPStatus.TEMPORARY_REDIRECT)
         oidc_auth_url = user_b_auth.headers["location"]

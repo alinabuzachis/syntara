@@ -6,6 +6,10 @@ Verifies that an admin can move a federated identity from one user to another:
 - Active sessions for source user authenticated via moved identity are revoked
 - Target user can log in using the moved identity
 - Audit log entry is created
+
+Also covers API-34 (Local/Federated Mutual Exclusivity):
+- Attaching an identity to the builtin admin returns 409 IDENTITY_ON_BUILTIN_USER
+- Attaching an identity to a non-builtin local user converts them to federated
 """
 
 from __future__ import annotations
@@ -16,16 +20,12 @@ pytest.importorskip("external_services")
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
+from uuid import UUID
 
-import pytest
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
 from nexus_api_client.models.auth_type import AuthType
 from nexus_api_client.models.login_request import LoginRequest
-from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_identity_attach import UserIdentityAttach
-
-from tests.e2e.conftest import generate_test_password
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from nexus_api_client import Client
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
+    from nexus_api_client.models.user_read import UserRead
 
 pytestmark = [pytest.mark.e2e]
 
@@ -118,27 +119,16 @@ class TestAdminAttachIdentity:
         oidc_provider_factory: Callable[[], IdentityProviderResponse],
         oidc_user_factory: Callable[[UUID, str, str], NexusApiRegistry],
         unauthenticated_client: Client,
+        local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
         """Test admin can move identity to local user, converting them to federated."""
         username, password = keycloak_user_factory()
         provider = oidc_provider_factory()
         assert isinstance(provider.id, UUID)
 
-        local_username = f"local-user-{uuid4().hex[:8]}"
-        local_password = generate_test_password()
-
-        local_user_resp = nexus_api.users.create(
-            body=UserCreate(
-                username=local_username,
-                email=f"{local_username}@example.com",
-                full_name="Test Local User",
-                password=local_password,
-                is_enabled=True,
-            )
-        )
-        assert local_user_resp.status_code == HTTPStatus.CREATED
-        assert local_user_resp.parsed is not None
-        local_user_id = local_user_resp.parsed.id
+        local_user, local_password = local_user_factory()
+        local_user_id = local_user.id
+        local_username = local_user.username
 
         local_user_details_resp = nexus_api.users.get(user_id=local_user_id)
         assert local_user_details_resp.status_code == HTTPStatus.OK
