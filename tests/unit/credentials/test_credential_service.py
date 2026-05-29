@@ -561,6 +561,23 @@ class TestValidateInputs:
     def test_boolean_field_sentinel_skipped(self) -> None:
         _validate_inputs({"verify_ssl": ENCRYPTED_SENTINEL}, BOOLEAN_TYPE_INPUTS, allow_sentinel=True)
 
+    # --- String type validation ---
+
+    def test_string_field_accepts_string(self) -> None:
+        _validate_inputs({"token": "my-token"}, BEARER_TYPE_INPUTS)
+
+    def test_string_field_rejects_dict(self) -> None:
+        with pytest.raises(CredentialValidationError, match="must be a string"):
+            _validate_inputs({"token": {"nested": "object"}}, BEARER_TYPE_INPUTS)
+
+    def test_string_field_rejects_list(self) -> None:
+        with pytest.raises(CredentialValidationError, match="must be a string"):
+            _validate_inputs({"token": ["a", "b"]}, BEARER_TYPE_INPUTS)
+
+    def test_string_field_rejects_integer(self) -> None:
+        with pytest.raises(CredentialValidationError, match="must be a string"):
+            _validate_inputs({"token": 12345}, BEARER_TYPE_INPUTS)
+
     # --- Host URL validation (AAP-74616 SSRF prevention) ---
 
     @pytest.mark.parametrize(

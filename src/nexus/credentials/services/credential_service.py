@@ -94,6 +94,10 @@ def _validate_field_value(field_id: str, value: Any, field_def: dict[str, Any]) 
         msg = f"Field '{field_id}' must be a boolean (true/false), got {type(value).__name__}"
         raise CredentialValidationError(msg)
 
+    if field_def.get("type") == "string" and not isinstance(value, str):
+        msg = f"Field '{field_id}' must be a string, got {type(value).__name__}"
+        raise CredentialValidationError(msg)
+
     if field_id == "ssh_private_key":
         _validate_ssh_private_key(value)
 
