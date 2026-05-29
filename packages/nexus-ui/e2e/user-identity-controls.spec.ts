@@ -1,9 +1,11 @@
 /**
  * Test UI-24: Self-Service Identity — Builtin User Controls Hidden
+ * Test UI-32: Local User IdP Link — Conversion Warning
  *
  * Critical paths covered:
- * - Builtin admin sees empty state — no Connect or Attach identity controls
- * - Non-builtin local user sees Connect controls with conversion warning dialog
+ * - Builtin admin sees empty state — no Connect or Attach identity controls (UI-24)
+ * - Non-builtin local user sees Connect controls with conversion warning dialog (UI-24, UI-32)
+ * - Warning displays account conversion message and password removal notice (UI-32)
  *
  * Uses Playwright route interception to mock API responses. No backend data is
  * created or modified; route intercepts are cleared automatically after each test.
