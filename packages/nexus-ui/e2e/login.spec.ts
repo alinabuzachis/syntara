@@ -13,48 +13,11 @@
  */
 import AxeBuilder from '@axe-core/playwright'
 
-import { test, expect, appBaseUrl } from './fixtures'
+import { test, expect } from './fixtures'
 import { BUILT_IN_ADMIN_USER_INFO } from './fixtures/mock-users'
+import { goToLoginPage } from './helpers/login'
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] as const
-
-/**
- * Navigate to the login page in a clean state by blocking the
- * bootstrap refresh (which would auto-authenticate via cookie).
- */
-async function goToLoginPage(page: import('@playwright/test').Page) {
-  await page.route('**/api/v1/auth/csrf-token', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ csrf_token: 'mock-csrf-e2e' }),
-    })
-  )
-
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({
-      status: 401,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        type: 'https://api.nexus.com/errors/unauthorized',
-        title: 'Unauthorized',
-        detail: 'Authentication required',
-        code: 'AUTHENTICATION_REQUIRED',
-      }),
-    })
-  )
-
-  await page.route('**/api/v1/auth/providers', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ items: [], count: 0 }),
-    })
-  )
-
-  await page.goto(appBaseUrl)
-  await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
-}
 
 test.describe('Login form error handling', () => {
   test.use({ storageState: { cookies: [], origins: [] } })

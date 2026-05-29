@@ -12,8 +12,9 @@
  * auto-logs-in via the mock API. We intercept `/auth/refresh` to block
  * the bootstrap.
  */
-import { test, expect, toAppUrl, appBaseUrl } from './fixtures'
+import { test, expect, toAppUrl } from './fixtures'
 import { AAP_AUTH_PROVIDER, KEYCLOAK_OIDC_IDP } from './fixtures/mock-oidc-idps'
+import { goToLoginPage } from './helpers/login'
 
 test.describe('IdP configuration — keycloak external OIDC', () => {
   test.beforeEach(async ({ app }) => {
@@ -173,29 +174,7 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
 
 test.describe('IdP login form verification - list OIDC providers', () => {
   test('Login page - OIDC providers listed', async ({ page }) => {
-    await page.route('**/api/v1/auth/refresh', (route) =>
-      route.fulfill({
-        status: 401,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          type: 'https://api.nexus.com/errors/unauthorized',
-          title: 'Unauthorized',
-          detail: 'Authentication required',
-          code: 'AUTHENTICATION_REQUIRED',
-        }),
-      })
-    )
-
-    await page.route('**/api/v1/auth/providers**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ providers: [AAP_AUTH_PROVIDER, KEYCLOAK_OIDC_IDP] }),
-      })
-    )
-
-    await page.goto(appBaseUrl)
-    await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+    await goToLoginPage(page, { providers: [AAP_AUTH_PROVIDER, KEYCLOAK_OIDC_IDP] })
 
     await expect(page.getByRole('button', { name: /Log in with AAP/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Log in with Keycloak/i })).toBeVisible()
