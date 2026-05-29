@@ -7,8 +7,8 @@ import { workflowClient } from '../../client'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
-import { ErrorState } from '../../components/states/ErrorState'
-import { LoadingState } from '../../components/states/LoadingState'
+import { NxErrorState } from '../../components/states/NxErrorState'
+import { NxLoadingState } from '../../components/states/NxLoadingState'
 
 import { BuilderContent } from './BuilderContent'
 
@@ -39,7 +39,7 @@ export default function BuilderEdit() {
         <NxPageHeader title="Error loading workflow" />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <ErrorState title="Error loading workflow" message={error} />
+            <NxErrorState title="Error loading workflow" message={error} />
           </NxPanel>
         </NxPageBody>
       </NxPage>
@@ -54,7 +54,7 @@ export default function BuilderEdit() {
         <NxPageHeader title="Loading workflow" />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <LoadingState />
+            <NxLoadingState />
           </NxPanel>
         </NxPageBody>
       </NxPage>

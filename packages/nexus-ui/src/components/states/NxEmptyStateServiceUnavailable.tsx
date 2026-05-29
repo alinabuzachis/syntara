@@ -1,7 +1,7 @@
 import { EmptyState, EmptyStateBody } from '@patternfly/react-core'
 import { RhUiErrorFillIcon } from '@patternfly/react-icons'
 
-export type EmptyStateServiceUnavailableProps = {
+export type NxEmptyStateServiceUnavailableProps = {
   title?: string
   description?: string
   showAdminHint?: boolean
@@ -10,15 +10,12 @@ export type EmptyStateServiceUnavailableProps = {
 /**
  * Display for 503 Service Unavailable errors.
  *
- * Use when POST /api/v1/invocations returns 503 because OPENROUTER_API_KEY
- * is not configured (backend PR #197).
- *
  * @example
  * if (error.error === 'service_unavailable') {
- *   return <EmptyStateServiceUnavailable description={error.message} />
+ *   return <NxEmptyStateServiceUnavailable description={error.message} />
  * }
  */
-export function EmptyStateServiceUnavailable(props: Readonly<EmptyStateServiceUnavailableProps>) {
+export function NxEmptyStateServiceUnavailable(props: Readonly<NxEmptyStateServiceUnavailableProps>) {
   const { title, description, showAdminHint = true } = props
 
   const defaultTitle = 'Service Unavailable'

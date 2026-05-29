@@ -5,12 +5,12 @@ import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../../hooks/useDialogState'
@@ -158,7 +158,7 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
   }
 
   if (policies.length === 0 && !hasActiveFilters) {
-    return <EmptyStateNoData title="No policies found" description="No policies are available for this project." />
+    return <NxEmptyStateNoData title="No policies found" description="No policies are available for this project." />
   }
 
   return (
@@ -176,7 +176,7 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
 
         {policies.length === 0 ? (
           <NxPageBody isCentered>
-            <EmptyStateFilter clearAllFilters={clearAllFilters} />
+            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer

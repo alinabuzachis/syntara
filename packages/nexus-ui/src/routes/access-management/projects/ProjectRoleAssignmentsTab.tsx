@@ -6,12 +6,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
@@ -320,7 +320,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
   return (
     <>
       {rows.length === 0 && !hasActiveFilters ? (
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No role assignments"
           description="No roles have been assigned in this project."
           buttonText="Assign role"
@@ -362,7 +362,7 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
 
           {sortedRows.length === 0 ? (
             <NxPageBody isCentered>
-              <EmptyStateFilter
+              <NxEmptyStateFilter
                 clearAllFilters={() => {
                   clearAllFilters()
                   setPage(1)

@@ -8,12 +8,12 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -102,7 +102,7 @@ export function GroupsTab() {
   return (
     <>
       {results.length === 0 && !hasActiveFilters ? (
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No groups"
           description="Create a group to organize users and manage access."
           buttonText="Create group"
@@ -137,7 +137,7 @@ export function GroupsTab() {
 
           {results.length === 0 ? (
             <NxPageBody isCentered>
-              <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+              <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
             </NxPageBody>
           ) : (
             <NxScrollableTableContainer aria-label="Groups table" footer={getFooterProps(data)}>

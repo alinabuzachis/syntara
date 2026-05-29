@@ -20,10 +20,10 @@ import { PlusIcon, RhUiEditIcon } from '@patternfly/react-icons'
 import { Table, Tbody } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
-import { EmptyStateFilter } from '../../../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../../../components/states/NxEmptyStateNoData'
 import { NxScrollableTableContainer } from '../../../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../../types/filters'
@@ -296,7 +296,7 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
   /** Defensive: parent normally switches to empty state before rendering read-only with zero rows */
   if (entries.length === 0) {
     return (
-      <EmptyStateNoData
+      <NxEmptyStateNoData
         title="No group mappings"
         description="There are no group mappings to display for this identity provider."
       />
@@ -313,7 +313,7 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
       />
       {filteredEntries.length === 0 ? (
         <StackItem isFilled style={READ_ONLY_EMPTY_FILTER_STATE_STYLE}>
-          <EmptyStateFilter clearAllFilters={clearFiltersAndPage} />
+          <NxEmptyStateFilter clearAllFilters={clearFiltersAndPage} />
         </StackItem>
       ) : (
         <NxScrollableTableContainer

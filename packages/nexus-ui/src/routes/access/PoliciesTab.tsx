@@ -4,10 +4,10 @@ import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo } from 'react'
 
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -194,7 +194,7 @@ export function PoliciesTab() {
   }
 
   if (policies.length === 0 && !hasActiveFilters) {
-    return <EmptyStateNoData title="No policies found" description="No policies are available." />
+    return <NxEmptyStateNoData title="No policies found" description="No policies are available." />
   }
 
   return (
@@ -219,7 +219,7 @@ export function PoliciesTab() {
 
         {policies.length === 0 ? (
           <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EmptyStateFilter clearAllFilters={clearAllFilters} />
+            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
           <NxScrollableTableContainer aria-label="Policies" footer={tableFooter}>

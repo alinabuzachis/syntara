@@ -19,8 +19,8 @@ import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
-import { ErrorState } from '../../components/states/ErrorState'
-import { LoadingState } from '../../components/states/LoadingState'
+import { NxErrorState } from '../../components/states/NxErrorState'
+import { NxLoadingState } from '../../components/states/NxLoadingState'
 import type { FilterConfig } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
@@ -403,7 +403,7 @@ export default function ExecutionDetail() {
         <NxPageHeader title="Error" />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <ErrorState title="Invalid execution" message="No execution ID provided" />
+            <NxErrorState title="Invalid execution" message="No execution ID provided" />
           </NxPanel>
         </NxPageBody>
       </NxPage>
@@ -417,7 +417,7 @@ export default function ExecutionDetail() {
         <NxPageHeader title="Error loading execution" />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <ErrorState
+            <NxErrorState
               title="Error loading execution"
               message={executionQuery.error}
               onRetry={() => detachPromise(executionQuery.refetch())}
@@ -434,7 +434,7 @@ export default function ExecutionDetail() {
         <NxPageHeader title="Loading execution" />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <LoadingState />
+            <NxLoadingState />
           </NxPanel>
         </NxPageBody>
       </NxPage>

@@ -3,11 +3,11 @@ import { StackItem } from '@patternfly/react-core'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { NxScrollableTableContainer, type TableFooterProps } from '../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import type { ProjectRead } from '../access/types'
@@ -52,7 +52,7 @@ export function WorkflowsListPanel({
   if (sortedWorkflows.length === 0 && !hasActiveFilters) {
     return (
       <NxPageBody isCentered>
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No workflows yet"
           description="Create your first workflow to get started."
           buttonText="Create workflow"
@@ -75,7 +75,7 @@ export function WorkflowsListPanel({
 
       {sortedWorkflows.length === 0 ? (
         <NxPageBody isCentered>
-          <EmptyStateFilter clearAllFilters={onClearAllFilters} />
+          <NxEmptyStateFilter clearAllFilters={onClearAllFilters} />
         </NxPageBody>
       ) : (
         <NxScrollableTableContainer aria-label="Workflows table" footer={footer}>

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { ErrorState } from './ErrorState'
+import { NxErrorState } from './NxErrorState'
 
 // Mock the apiErrors utilities
 vi.mock('../../utils/apiErrors', () => ({
@@ -26,9 +26,9 @@ vi.mock('../../utils/apiErrors', () => ({
   },
 }))
 
-describe('ErrorState', () => {
+describe('NxErrorState', () => {
   it('has no accessibility violations', async () => {
-    const { container } = render(<ErrorState message="Something went wrong" />)
+    const { container } = render(<NxErrorState message="Something went wrong" />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
@@ -36,21 +36,21 @@ describe('ErrorState', () => {
 
   it('has no accessibility violations with retry button', async () => {
     const error = { message: 'Retryable error', retryable: true }
-    const { container } = render(<ErrorState message={error} onRetry={vi.fn()} />)
+    const { container } = render(<NxErrorState message={error} onRetry={vi.fn()} />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
   it('renders with error message string', () => {
-    render(<ErrorState message="Something went wrong" />)
+    render(<NxErrorState message="Something went wrong" />)
 
     expect(screen.getByTestId('error-state')).toBeInTheDocument()
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
   })
 
   it('renders with custom title', () => {
-    render(<ErrorState title="Custom Error Title" message="Error details" />)
+    render(<NxErrorState title="Custom Error Title" message="Error details" />)
 
     expect(screen.getByText('Custom Error Title')).toBeInTheDocument()
     expect(screen.getByText('Error details')).toBeInTheDocument()
@@ -58,7 +58,7 @@ describe('ErrorState', () => {
 
   it('renders with error object', () => {
     const error = { message: 'API failed', title: 'API Error' }
-    render(<ErrorState message={error} />)
+    render(<NxErrorState message={error} />)
 
     expect(screen.getByText('API Error')).toBeInTheDocument()
     expect(screen.getByText('API failed')).toBeInTheDocument()
@@ -66,7 +66,7 @@ describe('ErrorState', () => {
 
   it('does not show retry button for non-retryable errors', () => {
     const onRetry = vi.fn()
-    render(<ErrorState message="Non-retryable error" onRetry={onRetry} />)
+    render(<NxErrorState message="Non-retryable error" onRetry={onRetry} />)
 
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
   })
@@ -74,7 +74,7 @@ describe('ErrorState', () => {
   it('shows retry button for retryable errors when onRetry provided', () => {
     const onRetry = vi.fn()
     const error = { message: 'Retryable error', retryable: true }
-    render(<ErrorState message={error} onRetry={onRetry} />)
+    render(<NxErrorState message={error} onRetry={onRetry} />)
 
     const retryButton = screen.getByRole('button', { name: 'Retry' })
     expect(retryButton).toBeInTheDocument()
@@ -84,7 +84,7 @@ describe('ErrorState', () => {
     const user = userEvent.setup()
     const onRetry = vi.fn()
     const error = { message: 'Retryable error', retryable: true }
-    render(<ErrorState message={error} onRetry={onRetry} />)
+    render(<NxErrorState message={error} onRetry={onRetry} />)
 
     await user.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onRetry).toHaveBeenCalledTimes(1)
@@ -92,7 +92,7 @@ describe('ErrorState', () => {
 
   it('renders EmptyStateServiceUnavailable for 503 errors', () => {
     const error = { message: 'Service unavailable', status: 503 }
-    render(<ErrorState message={error} />)
+    render(<NxErrorState message={error} />)
 
     // Should render EmptyStateServiceUnavailable instead
     expect(screen.getByText('Service Unavailable')).toBeInTheDocument()
@@ -100,7 +100,7 @@ describe('ErrorState', () => {
 
   it('does not show retry button when onRetry is not provided', () => {
     const error = { message: 'Retryable error', retryable: true }
-    render(<ErrorState message={error} />)
+    render(<NxErrorState message={error} />)
 
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
   })

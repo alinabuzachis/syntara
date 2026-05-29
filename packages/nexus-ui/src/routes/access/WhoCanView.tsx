@@ -20,8 +20,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
-import { ErrorState } from '../../components/states/ErrorState'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
+import { NxErrorState } from '../../components/states/NxErrorState'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
@@ -297,7 +297,7 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
         <Stack hasGutter>
           {whoCanMutation.isIdle && (
             <StackItem>
-              <EmptyStateNoData
+              <NxEmptyStateNoData
                 title="Find who has access"
                 description="Enter an action and resource type to see which users can perform it."
               />
@@ -317,7 +317,7 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
 
           {whoCanMutation.isError && (
             <StackItem>
-              <ErrorState title="Query failed" message={getErrorMessage(whoCanMutation.error)} onRetry={onSubmit} />
+              <NxErrorState title="Query failed" message={getErrorMessage(whoCanMutation.error)} onRetry={onSubmit} />
             </StackItem>
           )}
 

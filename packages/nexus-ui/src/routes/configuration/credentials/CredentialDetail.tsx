@@ -13,7 +13,7 @@ import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
-import { ErrorState } from '../../../components/states/ErrorState'
+import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
@@ -174,7 +174,7 @@ export default function CredentialDetail() {
         <NxPageHeader title="Error" breadcrumbs={breadcrumbsCredentialEarlyShell('Error')} />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <ErrorState title="Invalid credential" message="No credential ID provided" />
+            <NxErrorState title="Invalid credential" message="No credential ID provided" />
           </NxPanel>
         </NxPageBody>
       </NxPage>

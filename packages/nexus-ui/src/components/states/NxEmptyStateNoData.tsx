@@ -2,19 +2,20 @@ import { Button, EmptyState, EmptyStateBody, EmptyStateActions, EmptyStateFooter
 import { RhUiCubesFillIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
+import { NxEmptyStateImageIcon } from './NxEmptyStateImageIcon'
+
 /**
- * EmptyStateNoData component for displaying when there's no data available.
- * Uses PatternFly's EmptyState component directly.
+ * Full-height empty state for when there is no data available yet.
  *
  * @example
- * <EmptyStateNoData
+ * <NxEmptyStateNoData
  *   title="No workflows found"
  *   description="Create your first workflow to get started."
  *   buttonText="Create Workflow"
  *   addData={() => navigate('/create')}
  * />
  */
-export type EmptyStateNoDataProps = {
+export type NxEmptyStateNoDataProps = {
   title?: string
   description?: string
   buttonText?: string
@@ -24,24 +25,7 @@ export type EmptyStateNoDataProps = {
   secondaryActions?: ReactNode
 }
 
-// Component to render an image as an icon
-function ImageIcon({ src, alt }: { src: string; alt?: string }) {
-  return (
-    <img
-      src={src}
-      alt={alt}
-      style={{
-        maxWidth: '200px',
-        height: 'auto',
-        display: 'block',
-        margin: '0 auto',
-        objectFit: 'contain',
-      }}
-    />
-  )
-}
-
-export function EmptyStateNoData(props: EmptyStateNoDataProps) {
+export function NxEmptyStateNoData(props: NxEmptyStateNoDataProps) {
   const { title, description, buttonText, imageSrc, imageAlt, addData, secondaryActions } = props
 
   const defaultTitle = 'No data available'
@@ -49,7 +33,7 @@ export function EmptyStateNoData(props: EmptyStateNoDataProps) {
   const defaultButtonText = 'Add data'
 
   // Use custom image component if provided, otherwise use default icon
-  const icon = imageSrc ? () => <ImageIcon src={imageSrc} alt={imageAlt ?? 'No data'} /> : RhUiCubesFillIcon
+  const icon = imageSrc ? () => <NxEmptyStateImageIcon src={imageSrc} alt={imageAlt ?? 'No data'} /> : RhUiCubesFillIcon
 
   return (
     <EmptyState headingLevel="h2" titleText={title ?? defaultTitle} icon={icon} isFullHeight>

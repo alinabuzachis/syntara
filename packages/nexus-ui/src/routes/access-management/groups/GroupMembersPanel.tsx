@@ -5,12 +5,12 @@ import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
@@ -136,7 +136,7 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
   if (members.length === 0) {
     return (
       <>
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No members"
           description="Add users to this group to manage their access."
           buttonText="Add member"
@@ -180,7 +180,7 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
 
         {filteredMembers.length === 0 ? (
           <NxPageBody isCentered>
-            <EmptyStateFilter
+            <NxEmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
                 setPage(1)

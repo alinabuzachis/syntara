@@ -2,28 +2,28 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { LoadingState } from './LoadingState'
+import { NxLoadingState } from './NxLoadingState'
 
-describe('LoadingState', () => {
+describe('NxLoadingState', () => {
   it('has no accessibility violations', async () => {
-    const { container } = render(<LoadingState />)
+    const { container } = render(<NxLoadingState />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
   it('renders without crashing', () => {
-    render(<LoadingState />)
+    render(<NxLoadingState />)
     expect(screen.getByTestId('loading-state')).toBeInTheDocument()
   })
 
   it('displays a spinner with correct aria-label', () => {
-    render(<LoadingState />)
+    render(<NxLoadingState />)
     expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
   })
 
   it('renders with centered layout', () => {
-    render(<LoadingState />)
+    render(<NxLoadingState />)
     const container = screen.getByTestId('loading-state')
     expect(container).toHaveClass('pf-v6-l-flex')
   })

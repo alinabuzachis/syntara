@@ -18,12 +18,12 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -267,7 +267,7 @@ export function ProjectsTab() {
   if (allProjects.length === 0 && !hasActiveFilters) {
     return (
       <>
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No projects yet"
           description="Create a project to organize workflows and manage access."
           buttonText="Create project"
@@ -326,7 +326,7 @@ export function ProjectsTab() {
         </StackItem>
         {paginatedProjects.length === 0 ? (
           <NxPageBody isCentered>
-            <EmptyStateFilter
+            <NxEmptyStateFilter
               clearAllFilters={() => {
                 clearAllFilters()
                 setPage(1)

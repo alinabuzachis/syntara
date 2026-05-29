@@ -68,16 +68,16 @@ function isCredentialArray(value: unknown): value is Credential[] {
 
 ---
 
-## 4. Always Use `ErrorState` Component — Never Raw Error Markup
+## 4. Always Use `NxErrorState` Component — Never Raw Error Markup
 
-The project has a standard `ErrorState` component that handles retryable errors, displays consistent UI, and shows a retry button automatically for 5xx errors.
+The project has a standard `NxErrorState` component that handles retryable errors, displays consistent UI, and shows a retry button automatically for 5xx errors.
 
 ```typescript
 // ❌ BAD
 {error && <span>Unable to load profile information.</span>}
 
 // ✅ GOOD
-<ErrorState
+<NxErrorState
   title="Unable to load profile"
   message={error}
   onRetry={() => detachPromise(refetch())}
@@ -787,11 +787,11 @@ mutate(data, {
 
 ### Retry Button in Error States
 
-The `ErrorState` component automatically shows a retry button for retryable errors when `onRetry` is provided:
+The `NxErrorState` component automatically shows a retry button for retryable errors when `onRetry` is provided:
 
 ```typescript
 // Retry button appears automatically for 5xx errors or errors with retryable=true
-<ErrorState
+<NxErrorState
   title="Failed to load data"
   message={error}
   onRetry={() => detachPromise(refetch())}

@@ -3,13 +3,13 @@ import { StackItem } from '@patternfly/react-core'
 import type { ThProps } from '@patternfly/react-table'
 import { useMemo, useReducer, useState } from 'react'
 
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
@@ -152,9 +152,12 @@ function ApprovalsContent({
     return (
       <NxPageBody isCentered>
         {hasActiveFilters ? (
-          <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+          <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
         ) : (
-          <EmptyStateNoData title="No approvals found" description="No approvals are currently pending or available." />
+          <NxEmptyStateNoData
+            title="No approvals found"
+            description="No approvals are currently pending or available."
+          />
         )}
       </NxPageBody>
     )

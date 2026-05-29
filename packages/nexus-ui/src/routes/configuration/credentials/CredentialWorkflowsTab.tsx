@@ -7,9 +7,9 @@ import { useLocation } from 'wouter'
 import { AppRoute } from '../../../app/AppRoute'
 import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'
 import { credentialsClient } from '../../../client'
-import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { formatDateTime } from '../../../utils/dateUtils'
@@ -61,7 +61,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
 
   if (workflows.length === 0) {
     return (
-      <EmptyStateNoData
+      <NxEmptyStateNoData
         title="No workflows using this credential"
         description="This credential is not currently referenced by any workflows. Workflows will appear here once they are configured to use this credential."
       />

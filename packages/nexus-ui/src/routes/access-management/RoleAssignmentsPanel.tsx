@@ -5,14 +5,14 @@ import type { IAction, ThProps } from '@patternfly/react-table'
 import { type ReactNode, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
-import { ErrorState } from '../../components/states/ErrorState'
-import { LoadingState } from '../../components/states/LoadingState'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
+import { NxErrorState } from '../../components/states/NxErrorState'
+import { NxLoadingState } from '../../components/states/NxLoadingState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
@@ -359,7 +359,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   // ── Loading / error states ──────────────────────────────────────────────
   if (activeQuery.isError && !queryForbidden) {
     return (
-      <ErrorState
+      <NxErrorState
         title="Error loading role assignments"
         message={activeQuery.error}
         onRetry={() => detachPromise(activeQuery.refetch())}
@@ -367,12 +367,12 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     )
   }
 
-  if (isLoading) return <LoadingState />
+  if (isLoading) return <NxLoadingState />
 
   if (rows.length === 0 && !queryForbidden) {
     return (
       <>
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No role assignments"
           description={`No roles have been assigned to this ${principalType}.`}
           buttonText="Assign role"
@@ -394,7 +394,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     if (rows.length === 0) {
       tableContent = (
         <NxPageBody isCentered>
-          <EmptyStateNoData
+          <NxEmptyStateNoData
             title="No role assignments"
             description={`No project-scoped roles have been assigned to this ${principalType}.`}
             buttonText="Assign role"
@@ -405,7 +405,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     } else {
       tableContent = (
         <NxPageBody isCentered>
-          <EmptyStateFilter
+          <NxEmptyStateFilter
             clearAllFilters={() => {
               clearAllFilters()
               setPage(1)

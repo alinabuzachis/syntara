@@ -1,0 +1,5 @@
+.container {
+  height: 100%;
+  /* 200px floor so the spinner is visible in short panels; no PF token maps to this layout constraint */
+  min-height: 200px;
+}

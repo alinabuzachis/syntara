@@ -3,7 +3,7 @@ import { Component, type ReactNode } from 'react'
 import { NxPage, NxPageBody } from './layout/NxPage'
 import { NxPageHeader } from './layout/NxPageHeader'
 import { NxPanel } from './layout/NxPanel'
-import { ErrorState } from './states/ErrorState'
+import { NxErrorState } from './states/NxErrorState'
 
 type ErrorBoundaryProps = {
   children: ReactNode
@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <NxPageHeader title="Something went wrong" />
           <NxPageBody>
             <NxPanel isFullHeight>
-              <ErrorState
+              <NxErrorState
                 title="Something went wrong"
                 message={this.state.error?.message ?? 'An unexpected error occurred'}
               />

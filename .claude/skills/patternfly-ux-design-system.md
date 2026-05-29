@@ -181,7 +181,7 @@ The following four compositions are the canonical page structures. Storybook doc
 | **List page**      | `NxPageHeader` (Create CTA) → `NxPageBody` → `NxPanel isFullHeight` → `NxPanelContentStack variant="inset"` → filter bar + table |
 | **Detail page**    | `NxPageBreadcrumbs` → `NxPageHeader` → `NxPanel isFullHeight` → `NxPanelContentStack` (default) → tabs + content                 |
 | **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` with Cancel/Save toolbar → `NxPanel` → form body (max-width 600px)                          |
-| **Error in panel** | Same shell as list page → `NxPageBody isCentered` + `ErrorState` **inside** `NxPanel` (page header and shell remain visible)     |
+| **Error in panel** | Same shell as list page → `NxPageBody isCentered` + `NxErrorState` **inside** `NxPanel` (page header and shell remain visible)   |
 
 ### Page Header Structure
 
@@ -406,7 +406,7 @@ Each empty state scenario maps to a specific icon, optional `status` prop, and s
 - For non-status empty states (no data, no results, configuration, no access), icons render in **gray by default** — do not manually set a color
 - Variant sizing: `sm` inside tables, modals, or wizards; `lg` for full-page empty states; `xl` for getting started or full-page success
 - **CTA deduplication:** When the empty state includes a primary create/configure CTA button, **hide the page-header primary button** to avoid duplicate CTAs. The empty state CTA is sufficient — the header button reappears once data exists.
-- **Tab-level empty states:** Use the shared `EmptyStateNoData` component (not ad-hoc `EmptyState`) with the correct heading level (`h2` inside tabs) and `isFullHeight` prop
+- **Tab-level empty states:** Use the shared `NxEmptyStateNoData` component (not ad-hoc `EmptyState`) with the correct heading level (`h2` inside tabs) and `isFullHeight` prop
 
 ---
 
@@ -714,10 +714,10 @@ Success toasts are **not required** when the UI already communicates the outcome
 
 ### Error Feedback
 
-- For page-level data loading errors, use `useQueryState(query, { title: '...', onRetry: ... })` — this hooks up the `ErrorState` component with a retry button automatically for retryable (5xx) errors
-- For mutation errors (create/update/delete), use `useMutationErrorHandler` — this wires up `ErrorState` and toast alerts automatically
+- For page-level data loading errors, use `useQueryState(query, { title: '...', onRetry: ... })` — this hooks up the `NxErrorState` component with a retry button automatically for retryable (5xx) errors
+- For mutation errors (create/update/delete), use `useMutationErrorHandler` — this wires up `NxErrorState` and toast alerts automatically
 - For form validation errors, use inline field-level errors via PatternFly's Validated component (see Form Component section)
-- **Error state placement:** Error states render **inside `NxPanel`** using `NxPageBody isCentered` + `ErrorState` — not as a bare centered message outside the content frame. The page header and app shell remain visible so the user can navigate away.
+- **Error state placement:** Error states render **inside `NxPanel`** using `NxPageBody isCentered` + `NxErrorState` — not as a bare centered message outside the content frame. The page header and app shell remain visible so the user can navigate away.
 
 ### Loading States
 
@@ -1212,7 +1212,7 @@ The project ships with Storybook for documenting and reviewing `Nx*` components.
 - **Light and dark mode:** Preview components in both themes via the Storybook toolbar (System / Light / Dark) before sign-off
 - **Composed stories over isolated demos:** Stories should reflect real app compositions (e.g., a full list page layout), not isolated prop playgrounds
 - **Autodocs:** Foundational `Nx*` components have `autodocs` enabled — browse auto-generated API docs alongside live examples
-- **Available stories:** `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `ErrorState`
+- **Available stories:** `NxPage`, `NxPageHeader`, `NxPageBreadcrumbs`, `NxPanel`, `NxPanelContentStack`, `NxUrlTabs`, `NxConfirmationDialog`, `NxCodeBlock`, `NxDetail`, `NxDetailList`, `NxErrorState`, `NxLoadingState`, `NxEmptyStateNoData`, `NxEmptyStateFilter`, `NxEmptyStateServiceUnavailable`
 
 ---
 

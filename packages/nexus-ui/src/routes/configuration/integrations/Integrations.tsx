@@ -16,13 +16,13 @@ import { useLocation } from 'wouter'
 import { AppRoute } from '../../../app/AppRoute'
 import { toolManagerClient } from '../../../client'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
@@ -287,7 +287,7 @@ export default function Integrations() {
 
               {results.length === 0 ? (
                 <NxPageBody isCentered>
-                  <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+                  <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </NxPageBody>
               ) : (
                 <NxScrollableTableContainer aria-label="Integrations table" footer={getFooterProps(query.data)}>

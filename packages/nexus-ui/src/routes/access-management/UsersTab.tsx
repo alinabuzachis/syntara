@@ -19,11 +19,11 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../app/flexCenteredBothAxes'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -142,7 +142,7 @@ export function UsersTab() {
 
   if (users.length === 0 && !hasActiveFilters) {
     return (
-      <EmptyStateNoData
+      <NxEmptyStateNoData
         title="No users"
         description="Create a user to manage access to the platform."
         buttonText="Create user"
@@ -198,7 +198,7 @@ export function UsersTab() {
         </StackItem>
         {users.length === 0 ? (
           <StackItem isFilled style={flexCenteredBothAxes}>
-            <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+            <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
           </StackItem>
         ) : (
           <NxScrollableTableContainer aria-label="Users" footer={getFooterProps(data)}>

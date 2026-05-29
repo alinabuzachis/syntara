@@ -8,10 +8,10 @@ import {
 } from '@patternfly/react-core'
 import { useMemo } from 'react'
 
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { useFuse } from '../../../hooks/useFuse'
 
 import { useGlossaryTerms } from './useGlossaryTerms'
@@ -43,7 +43,7 @@ export default function Glossary() {
       {results.length === 0 ? (
         <NxPageBody>
           <NxPanel isFullHeight>
-            <EmptyStateFilter clearAllFilters={() => setSearch('')} />
+            <NxEmptyStateFilter clearAllFilters={() => setSearch('')} />
           </NxPanel>
         </NxPageBody>
       ) : (

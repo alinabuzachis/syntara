@@ -17,7 +17,7 @@ import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
-import { ErrorState } from '../../components/states/ErrorState'
+import { NxErrorState } from '../../components/states/NxErrorState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
@@ -195,7 +195,7 @@ export function NodeExecutionDetailsPanel({
       {/* Side-by-side Input / Output panes */}
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         {!!error && (
-          <ErrorState title="Error loading activity data" message={error} onRetry={() => detachPromise(refetch())} />
+          <NxErrorState title="Error loading activity data" message={error} onRetry={() => detachPromise(refetch())} />
         )}
         {!error && isLoading && <Spinner aria-label="Loading activity data" />}
         {!error && !isLoading && (

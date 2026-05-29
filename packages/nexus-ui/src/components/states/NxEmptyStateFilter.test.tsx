@@ -3,25 +3,25 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { EmptyStateFilter } from './EmptyStateFilter'
+import { NxEmptyStateFilter } from './NxEmptyStateFilter'
 
-describe('EmptyStateFilter', () => {
+describe('NxEmptyStateFilter', () => {
   it('has no accessibility violations with default props', async () => {
-    const { container } = render(<EmptyStateFilter />)
+    const { container } = render(<NxEmptyStateFilter />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
   it('has no accessibility violations with action button', async () => {
-    const { container } = render(<EmptyStateFilter clearAllFilters={vi.fn()} />)
+    const { container } = render(<NxEmptyStateFilter clearAllFilters={vi.fn()} />)
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
 
   it('renders with default title and description', () => {
-    render(<EmptyStateFilter />)
+    render(<NxEmptyStateFilter />)
 
     expect(screen.getByText('No results found')).toBeInTheDocument()
     expect(
@@ -30,26 +30,26 @@ describe('EmptyStateFilter', () => {
   })
 
   it('renders with custom title', () => {
-    render(<EmptyStateFilter title="Custom Title" />)
+    render(<NxEmptyStateFilter title="Custom Title" />)
 
     expect(screen.getByText('Custom Title')).toBeInTheDocument()
   })
 
   it('renders with custom description', () => {
-    render(<EmptyStateFilter description="Custom description text" />)
+    render(<NxEmptyStateFilter description="Custom description text" />)
 
     expect(screen.getByText('Custom description text')).toBeInTheDocument()
   })
 
   it('shows clear filters button when clearAllFilters is provided', () => {
     const clearAllFilters = vi.fn()
-    render(<EmptyStateFilter clearAllFilters={clearAllFilters} />)
+    render(<NxEmptyStateFilter clearAllFilters={clearAllFilters} />)
 
     expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument()
   })
 
   it('does not show clear filters button when clearAllFilters is not provided', () => {
-    render(<EmptyStateFilter />)
+    render(<NxEmptyStateFilter />)
 
     expect(screen.queryByRole('button', { name: 'Clear all filters' })).not.toBeInTheDocument()
   })
@@ -57,7 +57,7 @@ describe('EmptyStateFilter', () => {
   it('calls clearAllFilters when button is clicked', async () => {
     const user = userEvent.setup()
     const clearAllFilters = vi.fn()
-    render(<EmptyStateFilter clearAllFilters={clearAllFilters} />)
+    render(<NxEmptyStateFilter clearAllFilters={clearAllFilters} />)
 
     await user.click(screen.getByRole('button', { name: 'Clear all filters' }))
     expect(clearAllFilters).toHaveBeenCalledTimes(1)
@@ -65,13 +65,13 @@ describe('EmptyStateFilter', () => {
 
   it('renders with custom button text', () => {
     const clearAllFilters = vi.fn()
-    render(<EmptyStateFilter clearAllFilters={clearAllFilters} buttonText="Reset Filters" />)
+    render(<NxEmptyStateFilter clearAllFilters={clearAllFilters} buttonText="Reset Filters" />)
 
     expect(screen.getByRole('button', { name: 'Reset Filters' })).toBeInTheDocument()
   })
 
   it('renders with custom image', () => {
-    render(<EmptyStateFilter imageSrc="/test-image.png" imageAlt="Test alt text" />)
+    render(<NxEmptyStateFilter imageSrc="/test-image.png" imageAlt="Test alt text" />)
 
     const image = screen.getByRole('img', { name: 'Test alt text' })
     expect(image).toBeInTheDocument()
@@ -79,7 +79,7 @@ describe('EmptyStateFilter', () => {
   })
 
   it('uses default alt text for image when not provided', () => {
-    render(<EmptyStateFilter imageSrc="/test-image.png" />)
+    render(<NxEmptyStateFilter imageSrc="/test-image.png" />)
 
     const image = screen.getByRole('img', { name: 'No results' })
     expect(image).toBeInTheDocument()
@@ -88,7 +88,7 @@ describe('EmptyStateFilter', () => {
   it('renders all custom props together', () => {
     const clearAllFilters = vi.fn()
     render(
-      <EmptyStateFilter
+      <NxEmptyStateFilter
         title="No Matches"
         description="Try different search terms"
         buttonText="Clear Search"

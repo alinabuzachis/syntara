@@ -70,8 +70,8 @@ export type UseExecutionDataReturn = {
  * function ExecutionVisualization({ executionId }: Props) {
  *   const { data, isLoading, error } = useExecutionData(executionId)
  *
- *   if (isLoading) return <LoadingState />
- *   if (error) return <ErrorState error={error} />
+ *   if (isLoading) return <NxLoadingState />
+ *   if (error) return <NxErrorState error={error} />
  *
  *   return <ExecutionGraph execution={data} />
  * }

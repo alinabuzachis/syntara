@@ -82,7 +82,7 @@ onError: (error) => {
 
 // Check for 503 errors
 if (isServiceUnavailableError(error)) {
-  return <EmptyStateServiceUnavailable description={getErrorMessage(error)} />
+  return <NxEmptyStateServiceUnavailable description={getErrorMessage(error)} />
 }
 ```
 
@@ -96,12 +96,12 @@ if (isServiceUnavailableError(error)) {
 
 Automatically handles query loading, error, and 503 states.
 
-| Error Type              | Component Rendered             |
-| ----------------------- | ------------------------------ |
-| 503 Service Unavailable | `EmptyStateServiceUnavailable` |
-| Other errors            | `ErrorState` + alert           |
-| Loading                 | `LoadingState`                 |
-| Success                 | `null` (render data)           |
+| Error Type              | Component Rendered               |
+| ----------------------- | -------------------------------- |
+| 503 Service Unavailable | `NxEmptyStateServiceUnavailable` |
+| Other errors            | `NxErrorState` + alert           |
+| Loading                 | `NxLoadingState`                 |
+| Success                 | `null` (render data)             |
 
 #### Usage
 
@@ -271,9 +271,9 @@ mutate(data, {
 
 ## 503 Service Unavailable Handling
 
-### EmptyStateServiceUnavailable Component
+### NxEmptyStateServiceUnavailable Component
 
-**Location:** `packages/nexus-ui/src/components/states/EmptyStateServiceUnavailable.tsx`
+**Location:** `packages/nexus-ui/src/components/states/NxEmptyStateServiceUnavailable.tsx`
 
 A reusable component for displaying 503 Service Unavailable errors. Uses PatternFly's `EmptyState` component with an error icon.
 
@@ -288,13 +288,13 @@ A reusable component for displaying 503 Service Unavailable errors. Uses Pattern
 #### Usage
 
 ```tsx
-import { EmptyStateServiceUnavailable } from './components/states/EmptyStateServiceUnavailable'
+import { NxEmptyStateServiceUnavailable } from './components/states/NxEmptyStateServiceUnavailable'
 
 // Basic usage with defaults
-<EmptyStateServiceUnavailable />
+<NxEmptyStateServiceUnavailable />
 
 // With custom message from API
-<EmptyStateServiceUnavailable
+<NxEmptyStateServiceUnavailable
   title="AI Service Unavailable"
   description="OPENROUTER_API_KEY environment variable is required."
 />
@@ -357,10 +357,10 @@ packages/
     └── src/
         ├── components/
         │   └── states/
-        │       ├── EmptyStateServiceUnavailable.tsx       # 503 empty state
-        │       ├── EmptyStateServiceUnavailable.test.tsx
+        │       ├── NxEmptyStateServiceUnavailable.tsx       # 503 empty state
+        │       ├── NxEmptyStateServiceUnavailable.test.tsx
         │       ├── useQueryState.tsx          # Query state hook (handles 503)
-        │       └── ErrorState.tsx             # Generic error display with retry
+        │       └── NxErrorState.tsx             # Generic error display with retry
         ├── hooks/
         │   ├── useApiErrorAlert.ts            # Deduped error alerts
         │   ├── useMutationErrorHandler.ts     # Mutation error handler
@@ -376,10 +376,10 @@ packages/
 
 ### Unit Tests
 
-| File                                    | Tests | Coverage                                         |
-| --------------------------------------- | ----- | ------------------------------------------------ |
-| `apiErrors.test.ts`                     | 25    | Error parsing, 503 detection, message extraction |
-| `EmptyStateServiceUnavailable.test.tsx` | 5     | Component rendering, props                       |
+| File                                      | Tests | Coverage                                         |
+| ----------------------------------------- | ----- | ------------------------------------------------ |
+| `apiErrors.test.ts`                       | 25    | Error parsing, 503 detection, message extraction |
+| `NxEmptyStateServiceUnavailable.test.tsx` | 5     | Component rendering, props                       |
 
 ### Running Tests
 

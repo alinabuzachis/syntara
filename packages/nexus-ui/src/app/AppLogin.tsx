@@ -13,7 +13,7 @@ import {
 import { ExclamationCircleIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { LoadingState } from '../components/states/LoadingState'
+import { NxLoadingState } from '../components/states/NxLoadingState'
 import { AuthError, useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
 
 import { resolveAuthError } from './authErrorMessages'
@@ -217,7 +217,7 @@ function AppLoginForm() {
   if (!bootstrapDone || isRefreshing || providersLoading) {
     return (
       <Bullseye style={{ height: '100vh' }}>
-        <LoadingState />
+        <NxLoadingState />
       </Bullseye>
     )
   }

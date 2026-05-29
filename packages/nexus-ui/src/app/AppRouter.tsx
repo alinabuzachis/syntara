@@ -2,14 +2,14 @@ import { Fragment, Suspense } from 'react'
 import { Redirect, Route, Switch } from 'wouter'
 
 import { ErrorBoundary } from '../components/ErrorBoundary'
-import { LoadingState } from '../components/states/LoadingState'
+import { NxLoadingState } from '../components/states/NxLoadingState'
 
 import { NAV_ITEMS } from './navigationItems'
 
 export function AppRouter() {
   return (
     <ErrorBoundary>
-      <Suspense fallback={<LoadingState />}>
+      <Suspense fallback={<NxLoadingState />}>
         <Switch>
           {NAV_ITEMS.map((item) => (
             <Fragment key={item.path}>

@@ -23,7 +23,7 @@ import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
-import { ErrorState } from '../../components/states/ErrorState'
+import { NxErrorState } from '../../components/states/NxErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
@@ -79,7 +79,7 @@ export default function ApprovalDetail() {
         <NxPageHeader title="Error" breadcrumbs={breadcrumbsApprovalsPage('Error')} />
         <NxPageBody>
           <NxPanel isFullHeight>
-            <ErrorState title="Invalid approval" message="No approval ID provided" />
+            <NxErrorState title="Invalid approval" message="No approval ID provided" />
           </NxPanel>
         </NxPageBody>
       </NxPage>

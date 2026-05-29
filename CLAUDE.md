@@ -76,7 +76,7 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 4. **`vitest-axe` test for every new component** — at least one `toHaveNoViolations()`
 5. **`userEvent` over `fireEvent`** — full browser event sequence, use `userEvent.setup()`
 6. **Accessible queries first** — `getByRole` > `getByLabelText` > `getByText` > `getByTestId`; never `querySelector`
-7. **`ErrorState` component** — never raw error markup; pass raw error object + `onRetry`
+7. **`NxErrorState` component** — never raw error markup; pass raw error object + `onRetry`
 8. **Zod + react-hook-form** — never manual `useState` per field; use `zodResolver`
 9. **Reset `defaultValues` in edit modals** — `reset()` in `useEffect` keyed on `[isOpen, item]`
 10. **Extract shared patterns** — use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`, `useCursorPagination`

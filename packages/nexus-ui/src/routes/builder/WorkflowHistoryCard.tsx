@@ -19,10 +19,10 @@ import {
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import { useMemo, type CSSProperties, type ReactNode } from 'react'
 
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { FilterBar } from '../../components/filters/FilterBar'
 import pageMainSlotStyles from '../../components/layout/NxPage.module.css'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { formatElapsedTime } from '../../utils/dateUtils'
@@ -129,7 +129,7 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
 
   let executionListBody: ReactNode
   if (executions.length === 0 && filters.length > 0) {
-    executionListBody = <EmptyStateFilter clearAllFilters={onFilterChange ? () => onFilterChange([]) : undefined} />
+    executionListBody = <NxEmptyStateFilter clearAllFilters={onFilterChange ? () => onFilterChange([]) : undefined} />
   } else if (executions.length === 0) {
     executionListBody = (
       <Content

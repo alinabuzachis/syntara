@@ -5,12 +5,12 @@ import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../../hooks/useDialogState'
@@ -177,7 +177,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
   if (roles.length === 0 && !hasActiveFilters) {
     return (
       <>
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No roles found"
           description="No roles are available for this project."
           buttonText="Add role"
@@ -218,7 +218,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
 
         {roles.length === 0 ? (
           <NxPageBody isCentered>
-            <EmptyStateFilter clearAllFilters={clearAllFilters} />
+            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer

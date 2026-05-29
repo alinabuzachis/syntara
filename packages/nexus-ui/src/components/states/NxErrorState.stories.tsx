@@ -1,10 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 
-import { ErrorState } from './ErrorState'
+import { NxErrorState } from './NxErrorState'
+import { pageDecorator } from './storyDecorators'
 
-const meta: Meta<typeof ErrorState> = {
-  component: ErrorState,
+const meta: Meta<typeof NxErrorState> = {
+  component: NxErrorState,
+  decorators: [pageDecorator],
+  tags: ['autodocs'],
 }
 export default meta
 

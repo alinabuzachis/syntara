@@ -2,7 +2,7 @@ import { Button, Content, StackItem } from '@patternfly/react-core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 
-import { ErrorState } from '../states/ErrorState'
+import { NxErrorState } from '../states/NxErrorState'
 
 import { NxPage, NxPageBody } from './NxPage'
 import { NxPageHeader } from './NxPageHeader'
@@ -150,7 +150,7 @@ export const ErrorPageLayout: Story = {
       <NxPageHeader title="Workflows" toolbar={<Button variant="primary">Create workflow</Button>} />
       <NxPageBody isCentered>
         <NxPanel isFullHeight>
-          <ErrorState message={{ detail: 'Connection timed out.', retryable: true }} onRetry={fn()} />
+          <NxErrorState message={{ detail: 'Connection timed out.', retryable: true }} onRetry={fn()} />
         </NxPanel>
       </NxPageBody>
     </NxPage>

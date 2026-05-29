@@ -5,13 +5,13 @@ import { useMemo, useState } from 'react'
 import { useSearch } from 'wouter'
 
 import { executionsClient } from '../../client'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
@@ -140,7 +140,7 @@ export default function Executions() {
         <NxPanel isFullHeight>
           {sortedExecutions.length === 0 && !hasActiveFilters ? (
             <NxPageBody isCentered>
-              <EmptyStateNoData title="No executions found" description="No executions found." />
+              <NxEmptyStateNoData title="No executions found" description="No executions found." />
             </NxPageBody>
           ) : (
             <NxPanelContentStack variant="inset">
@@ -155,7 +155,7 @@ export default function Executions() {
 
               {sortedExecutions.length === 0 ? (
                 <NxPageBody isCentered>
-                  <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+                  <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </NxPageBody>
               ) : (
                 <NxScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>

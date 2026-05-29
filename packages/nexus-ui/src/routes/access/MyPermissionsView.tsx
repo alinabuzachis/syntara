@@ -4,10 +4,10 @@ import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { ThProps } from '@patternfly/react-table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
-import { ErrorState } from '../../components/states/ErrorState'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
+import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
@@ -279,20 +279,24 @@ export function MyPermissionsView() {
 
       {!isLoading && error != null && (
         <StackItem isFilled>
-          <ErrorState title="Failed to load permissions" message={error} onRetry={() => detachPromise(handleFetch())} />
+          <NxErrorState
+            title="Failed to load permissions"
+            message={error}
+            onRetry={() => detachPromise(handleFetch())}
+          />
         </StackItem>
       )}
 
       {!isLoading && !error && permissions?.length === 0 && !hasActiveFilters && (
         <StackItem isFilled>
-          <EmptyStateNoData title="No permissions" description="The current user has no permissions assigned." />
+          <NxEmptyStateNoData title="No permissions" description="The current user has no permissions assigned." />
         </StackItem>
       )}
 
       {showToolbar && pageData.length === 0 && (
         <StackItem isFilled>
           <Flex justifyContent={{ default: 'justifyContentCenter' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <EmptyStateFilter clearAllFilters={clearAllFilters} />
+            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
           </Flex>
         </StackItem>
       )}

@@ -19,11 +19,11 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { identityProvidersClient } from '../../../client'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
@@ -199,7 +199,7 @@ export function IdentityProvidersTab() {
       </StackItem>
       {providers.length === 0 && hasActiveFilters ? (
         <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+          <NxEmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
         </StackItem>
       ) : (
         <NxScrollableTableContainer aria-label="Identity providers table" footer={getFooterProps(query.data)}>

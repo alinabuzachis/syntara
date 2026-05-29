@@ -15,12 +15,12 @@ import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
@@ -138,7 +138,7 @@ export function AssignmentsTab() {
   if (allRows.length === 0 && !hasActiveFilters) {
     return (
       <>
-        <EmptyStateNoData
+        <NxEmptyStateNoData
           title="No assignments found"
           description="Assign roles to users or groups to grant access."
           buttonText="Add assignment"
@@ -180,7 +180,7 @@ export function AssignmentsTab() {
 
         {sortedRows.length === 0 ? (
           <NxPageBody isCentered>
-            <EmptyStateFilter clearAllFilters={clearAllFilters} />
+            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer

@@ -18,13 +18,13 @@ import { breadcrumbsIntegrationTools } from '../../../app/breadcrumbBuilders'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolManagerClient } from '../../../client'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer.tsx'
 import { useCursorPagination, useCursorReset, type UseCursorPaginationResult } from '../../../hooks/useCursorPagination'
@@ -134,7 +134,7 @@ function IntegrationToolsLoadedView({
       {results.length === 0 && !hasActiveFilters ? (
         <NxPageBody>
           <NxPanel isFullHeight>
-            <EmptyStateNoData
+            <NxEmptyStateNoData
               title="No tools available"
               description={`No tools found for "${providerName}". Click the button below to refresh and fetch the latest tools from this integration.`}
               buttonText="Refresh tools"
@@ -159,7 +159,7 @@ function IntegrationToolsLoadedView({
 
               {results.length === 0 ? (
                 <NxPageBody isCentered>
-                  <EmptyStateFilter
+                  <NxEmptyStateFilter
                     clearAllFilters={handleClearAllFilters}
                     imageSrc={noToolsImage}
                     imageAlt="No results"

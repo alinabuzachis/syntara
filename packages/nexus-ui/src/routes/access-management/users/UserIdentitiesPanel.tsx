@@ -22,11 +22,11 @@ import { resolveLinkError } from '../../../app/authErrorMessages'
 import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import { useAuthProviders } from '../../../app/useAuthProviders'
 import { OIDC_AUTHORIZE_PATH, usersClient } from '../../../client'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
-import { LoadingState } from '../../../components/states/LoadingState'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
@@ -331,7 +331,7 @@ export function UserIdentitiesPanel({
   }
 
   // Prevent "No identity providers configured" from flashing before useAuthProviders settles.
-  if (isProvidersLoading && identities.length === 0) return <LoadingState />
+  if (isProvidersLoading && identities.length === 0) return <NxLoadingState />
 
   if (!showTable) {
     return (
@@ -370,7 +370,7 @@ export function UserIdentitiesPanel({
       </StackItem>
       {sortedIdentities.length === 0 && unlinkedProviders.length === 0 ? (
         <StackItem isFilled style={flexCenteredBothAxes}>
-          <EmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
+          <NxEmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
         </StackItem>
       ) : (
         <NxScrollableTableContainer

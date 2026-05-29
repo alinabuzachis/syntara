@@ -2,12 +2,12 @@ import { Bullseye, Stack, StackItem } from '@patternfly/react-core'
 import { useMemo, useReducer } from 'react'
 
 import { auditClient } from '../../client'
-import { EmptyStateFilter } from '../../components/EmptyStateFilter'
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { NxPage } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -147,9 +147,9 @@ export default function AuditLog() {
               <StackItem isFilled>
                 <Bullseye>
                   {hasActiveFilters ? (
-                    <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+                    <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
                   ) : (
-                    <EmptyStateNoData
+                    <NxEmptyStateNoData
                       title="No audit events found"
                       description="No audit events have been recorded yet."
                     />

@@ -20,8 +20,8 @@ import { useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
-import { EmptyStateNoData } from '../../components/EmptyStateNoData'
-import { ErrorState } from '../../components/states/ErrorState'
+import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
+import { NxErrorState } from '../../components/states/NxErrorState'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
@@ -240,7 +240,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
         <Stack hasGutter>
           {canIMutation.isIdle && (
             <StackItem>
-              <EmptyStateNoData
+              <NxEmptyStateNoData
                 title="Check access permissions"
                 description="Select a resource type and action, then click Check Access to verify your permissions."
               />
@@ -260,7 +260,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
 
           {canIMutation.isError && (
             <StackItem>
-              <ErrorState
+              <NxErrorState
                 title="Access check failed"
                 message={getErrorMessage(canIMutation.error)}
                 onRetry={onSubmit}

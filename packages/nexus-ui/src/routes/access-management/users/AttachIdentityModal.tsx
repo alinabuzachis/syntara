@@ -20,9 +20,9 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import { usersClient } from '../../../client'
-import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { type PaginationFooterProps } from '../../../components/table/PaginationFooter'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
@@ -103,7 +103,7 @@ function UsersStep({
       </StackItem>
       {users.length === 0 && hasActiveFilters ? (
         <StackItem isFilled style={flexCenteredBothAxes}>
-          <EmptyStateFilter clearAllFilters={usersFilter.clearAllFilters} />
+          <NxEmptyStateFilter clearAllFilters={usersFilter.clearAllFilters} />
         </StackItem>
       ) : (
         <NxScrollableTableContainer aria-label="Select a user" footer={footerProps}>
@@ -204,7 +204,7 @@ function IdentitiesStep({
       </StackItem>
       {identities.length === 0 && hasActiveFilters && (
         <StackItem isFilled style={flexCenteredBothAxes}>
-          <EmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
+          <NxEmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
         </StackItem>
       )}
       {identities.length === 0 && !hasActiveFilters && (
