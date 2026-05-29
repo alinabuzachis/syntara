@@ -285,6 +285,11 @@ def get_keycloak_nexus_admin_password() -> str:
     return _KEYCLOAK_NEXUS_ADMIN_PASSWORD
 
 
+def get_keycloak_nexus_admin_email() -> str:
+    """Getter for Keycloak Nexus admin email."""
+    return _KEYCLOAK_NEXUS_ADMIN_EMAIL
+
+
 def generate_test_user_credentials() -> tuple[str, str]:
     """Generate unique Keycloak user credentials for tests."""
     username = f"test-user-{uuid4().hex[:8]}"

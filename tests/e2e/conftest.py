@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from click.testing import Result
 from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
@@ -33,6 +34,7 @@ from nexus_api_client.models.user_read import UserRead
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_read import WorkflowRead
 from nexus_api_client.types import Response
+from typer.testing import CliRunner
 
 logger = logging.getLogger(__name__)
 
@@ -117,11 +119,17 @@ def _generate_e2e_token(base_url: str) -> str:
     return _login(base_url, "admin", password)
 
 
-def built_in_admin_login(base_url: str) -> Response[Any]:
-    """Login built-in admin user in Unauthenticated client."""
-    password = _admin_password()
+def local_user_login(
+    base_url: str,
+    *,
+    username: str | None = None,
+    password: str | None = None,
+) -> Response[Any]:
+    """Login local user in Unauthenticated client. By default, login built-in admin."""
+    resolved_username = username or "admin"
+    resolved_password = password if password else _admin_password()
     unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
-    return login_sync(client=unauthenticated, body=LoginRequest(username="admin", password=password))
+    return login_sync(client=unauthenticated, body=LoginRequest(username=resolved_username, password=resolved_password))
 
 
 @pytest.fixture(scope="session")
@@ -442,7 +450,7 @@ def local_user_factory(
         full_name: str = "Test Local User",
         password: str | None = None,
     ) -> tuple[UserRead, str]:
-        username = username or f"local-user-{uuid4().hex[:8]}"
+        username = username or unique_name("e2e-test-user")
         password = password or generate_test_password()
         email = email or f"{username}@example.com"
 
@@ -467,3 +475,26 @@ def local_user_factory(
             nexus_api.users.delete(user_id=user_id)
         except Exception:
             logger.warning("Failed to clean up local user %s", user_id, exc_info=True)
+
+
+@pytest.fixture
+def ao_authenticated_cli(nexus_base_url: str) -> Callable[[list[str]], Result]:
+    """Invokable aap automation cli with base url and a fresh admin token."""
+    from aap_orchestrator_cli import app
+
+    runner = CliRunner()
+    token = _generate_e2e_token(nexus_base_url)
+
+    def invoke(args: list[str]) -> Result:
+        return runner.invoke(
+            app,
+            [
+                "--base-url",
+                nexus_base_url,
+                "--token",
+                token,
+                *args,
+            ],
+        )
+
+    return invoke

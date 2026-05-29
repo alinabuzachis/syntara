@@ -15,6 +15,7 @@ pytest.importorskip("external_services")
 from tests.fixtures.external_services.keycloak import (
     add_keycloak_service_admin_user,
     destroy_keycloak_oidc_identity_provider,
+    get_keycloak_nexus_admin_email,
     get_keycloak_nexus_admin_password,
     get_keycloak_nexus_admin_username,
     keycloak_oidc_config,
@@ -33,7 +34,7 @@ pytestmark = [pytest.mark.e2e]
 
 
 class TestKeycloakOIDCAuthentication:
-    """Test API 4-6: Keycloak OIDC authentication tests."""
+    """Test API 4-7: Keycloak OIDC authentication tests."""
 
     def test_keycloak_oidc_idp_config(
         self,
@@ -62,10 +63,8 @@ class TestKeycloakOIDCAuthentication:
 
         try:
             """Verify created Keycloak IdP appears in list."""
-            idp_resp = nexus_api.identity_providers.list()
-            assert idp_resp.status_code == HTTPStatus.OK
-            assert idp_resp.parsed is not None
-            assert any(p.id == provider_id for p in idp_resp.parsed.resources)
+            identity_providers = nexus_api.identity_providers.list().assert_and_get()
+            assert any(p.id == provider_id for p in identity_providers.resources)
 
             """Verify .well-known/openid-configuration is reachable"""
             config_resp = httpx.get(
@@ -116,10 +115,8 @@ class TestKeycloakOIDCAuthentication:
 
         try:
             """Verify created Keycloak IdP appears in list."""
-            idp_resp = nexus_api.identity_providers.list()
-            assert idp_resp.status_code == HTTPStatus.OK
-            assert idp_resp.parsed is not None
-            assert any(p.id == provider_id for p in idp_resp.parsed.resources)
+            identity_providers = nexus_api.identity_providers.list().assert_and_get()
+            assert any(p.id == provider_id for p in identity_providers.resources)
 
             """Verify .well-known/openid-configuration is reachable"""
             config_resp = httpx.get(
@@ -172,3 +169,13 @@ class TestKeycloakOIDCAuthentication:
             idp_create_resp.parsed.detail
             == "Validation failed: root: token_endpoint is required when auto_discovery is disabled"
         )
+
+    def test_enterprise_sso_login(
+        self,
+        keycloak_nexus_api: NexusApiRegistry,
+    ) -> None:
+        """API-7: Verify enterprise sso login via API."""
+        keycloak_user = keycloak_nexus_api.authentication.get_current_user().assert_and_get()
+        assert keycloak_user.username == get_keycloak_nexus_admin_username()
+        assert keycloak_user.email == get_keycloak_nexus_admin_email()
+        assert "admins" in keycloak_user.groups

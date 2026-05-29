@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import json
 from http import HTTPStatus
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 from nexus_api_client.models.auth_type import AuthType
 from nexus_api_client.models.user_update import UserUpdate
 
-from tests.e2e.conftest import built_in_admin_login
+from tests.e2e.conftest import local_user_login
 
 if TYPE_CHECKING:
-    from uuid import UUID
+    from collections.abc import Callable
 
+    from click.testing import Result
     from nexus_api_client.api import NexusApiRegistry
+    from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
     from nexus_api_client.models.user_info import UserInfo
     from nexus_api_client.models.user_read import UserRead
 
@@ -53,25 +57,97 @@ class TestBuiltInAdminManagement:
 
         try:
             """Disable built-in admin user."""
-            update_resp = nexus_api.users.update(user_id=nexus_admin_user.id, body=UserUpdate(is_enabled=False))
-            assert update_resp.status_code == HTTPStatus.OK
-            assert update_resp.parsed is not None
-            assert not update_resp.parsed.is_enabled
+            updated_user = nexus_api.users.update(
+                user_id=nexus_admin_user.id, body=UserUpdate(is_enabled=False)
+            ).assert_and_get()
+            assert not updated_user.is_enabled
 
             """Login attempt with disabled built-in admin user."""
-            login_attempt_resp = built_in_admin_login(base_url=nexus_base_url)
+            login_attempt_resp = local_user_login(base_url=nexus_base_url)
             assert login_attempt_resp.status_code == HTTPStatus.UNAUTHORIZED
 
             """Authenticate as Keycloak IdP admin user."""
-            keycloak_user_resp = keycloak_nexus_api.authentication.get_current_user()
-            assert keycloak_user_resp.status_code == HTTPStatus.OK
-            assert keycloak_user_resp.parsed is not None
-            assert keycloak_user_resp.parsed.username == get_keycloak_nexus_admin_username()
+            keycloak_curr_user = keycloak_nexus_api.authentication.get_current_user().assert_and_get()
+            assert keycloak_curr_user.username == get_keycloak_nexus_admin_username()
         finally:
             """Re-enable built-in admin user using Keycloak IdP."""
-            enable_update_resp = keycloak_nexus_api.users.update(
+            enabled_user = keycloak_nexus_api.users.update(
                 user_id=nexus_admin_user.id, body=UserUpdate(is_enabled=True)
-            )
-            assert enable_update_resp.status_code == HTTPStatus.OK
-            assert enable_update_resp.parsed is not None
-            assert enable_update_resp.parsed.is_enabled
+            ).assert_and_get()
+            assert enabled_user.is_enabled
+
+
+class TestUserManagementUsingCLI:
+    """Test API-40: Re-enable Disabled Account Without Application Access."""
+
+    def test_re_enable_disabled_local_account_without_application_access(
+        self,
+        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        ao_authenticated_cli: Callable[[list[str]], Result],
+        local_user_factory: Callable[..., tuple[UserRead, str]],
+    ) -> None:
+        """Verify a disabled local user with no group memberships can be re-enabled via CLI."""
+        user, password = local_user_factory()
+        username = user.username
+        user_id = user.id
+
+        disabled_user = nexus_api.users.update(user_id=user_id, body=UserUpdate(is_enabled=False)).assert_and_get()
+        assert disabled_user.is_enabled is False
+
+        local_user_login(base_url=nexus_base_url, username=username, password=password).assert_error()
+
+        enable_resp = ao_authenticated_cli(["users", "update", str(user_id), "--is-enabled", "true"])
+        assert enable_resp.exit_code == 0
+
+        output = json.loads(enable_resp.output)
+        assert output["is_enabled"] is True
+
+        login_attempt = local_user_login(base_url=nexus_base_url, username=username, password=password).assert_and_get()
+        assert login_attempt.access_token is not None
+
+    def test_re_enable_disabled_keycloak_account_without_application_access(
+        self,
+        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        ao_authenticated_cli: Callable[[list[str]], Result],
+        nexus_api_admin_group_id: UUID,
+        keycloak_user_factory: Callable[[], tuple[str, str]],
+        oidc_provider_factory: Callable[[], IdentityProviderResponse],
+        oidc_user_factory: Callable[[UUID, str, str], NexusApiRegistry],
+    ) -> None:
+        """Verify a disabled keycloak user with no group memberships can be re-enabled via CLI."""
+        from tests.fixtures.external_services.oidc_login import assert_oidc_login_denied
+
+        # Set up OIDC provider and Keycloak test user
+        provider = oidc_provider_factory()
+        assert isinstance(provider.id, UUID)
+        kc_username, kc_password = keycloak_user_factory()
+        kc_user_api = oidc_user_factory(provider.id, kc_username, kc_password)
+
+        # Get Nexus user id
+        current_user = kc_user_api.authentication.get_current_user().assert_and_get()
+        user_id = current_user.id
+
+        # Disable user
+        disabled_user = nexus_api.users.update(user_id=user_id, body=UserUpdate(is_enabled=False)).assert_and_get()
+        assert disabled_user.is_enabled is False
+
+        # Verify OIDC login denied
+        assert_oidc_login_denied(
+            nexus_api=nexus_api,
+            nexus_base_url=nexus_base_url,
+            oidc_provider_id=provider.id,
+            username=kc_username,
+            password=kc_password,
+        )
+
+        # Re-enable via CLI
+        enable_resp = ao_authenticated_cli(["users", "update", str(user_id), "--is-enabled", "true"])
+        assert enable_resp.exit_code == 0
+
+        output = json.loads(enable_resp.output)
+        assert output["is_enabled"] is True
+
+        kc_user_api_retry = oidc_user_factory(provider.id, kc_username, kc_password)
+        kc_user_api_retry.authentication.get_current_user().assert_successful()

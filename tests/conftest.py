@@ -121,8 +121,11 @@ _EXTERNAL_SERVICES_FIXTURES = frozenset(
         "keycloak_auth_client",
         "keycloak_nexus_api",
         "keycloak_service",
+        "keycloak_user_factory",
         "logstash_service",
         "logstash_nginx_web_service",
+        "oidc_provider_factory",
+        "oidc_user_factory",
         "openldap_service",
     }
 )
