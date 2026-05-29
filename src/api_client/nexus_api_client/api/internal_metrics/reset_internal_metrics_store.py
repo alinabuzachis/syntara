@@ -91,6 +91,10 @@ def sync_detailed(
 
      Clear all in-memory metrics (useful between test runs).
 
+    Also clears the emission deduplication tracker and running counters to
+    prevent the completion poller from re-emitting metrics for old executions
+    that fall back into its lookback window.
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -116,6 +120,10 @@ def sync(
 
      Clear all in-memory metrics (useful between test runs).
 
+    Also clears the emission deduplication tracker and running counters to
+    prevent the completion poller from re-emitting metrics for old executions
+    that fall back into its lookback window.
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -136,6 +144,10 @@ async def asyncio_detailed(
     """Metrics Store Reset
 
      Clear all in-memory metrics (useful between test runs).
+
+    Also clears the emission deduplication tracker and running counters to
+    prevent the completion poller from re-emitting metrics for old executions
+    that fall back into its lookback window.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -159,6 +171,10 @@ async def asyncio(
     """Metrics Store Reset
 
      Clear all in-memory metrics (useful between test runs).
+
+    Also clears the emission deduplication tracker and running counters to
+    prevent the completion poller from re-emitting metrics for old executions
+    that fall back into its lookback window.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

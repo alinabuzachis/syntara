@@ -22,6 +22,7 @@ from pydantic import ConfigDict
 from sqlmodel import Field, SQLModel
 
 from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.emission import reset_emission_trackers
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import (
     METRIC_CATEGORIES,
@@ -56,6 +57,7 @@ async def _guard(recorder: MetricsRecorder) -> None:
             recorder.store.clear()
             with recorder._counters_lock:  # noqa: SLF001
                 recorder._counters.clear()  # noqa: SLF001
+            reset_emission_trackers()
             logger.info("perf_test_mode disabled — in-memory metrics store flushed")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -479,10 +481,16 @@ async def metrics_store_component_kpis(
 async def metrics_store_reset(
     recorder: Annotated[MetricsRecorder, Depends(get_metrics_recorder)],
 ) -> dict[str, Any]:
-    """Clear all in-memory metrics (useful between test runs)."""
+    """Clear all in-memory metrics (useful between test runs).
+
+    Also clears the emission deduplication tracker and running counters to
+    prevent the completion poller from re-emitting metrics for old executions
+    that fall back into its lookback window.
+    """
     await _guard(recorder)
     count = recorder.store.count()
     recorder.store.clear()
     with recorder._counters_lock:  # noqa: SLF001
         recorder._counters.clear()  # noqa: SLF001
+    reset_emission_trackers()
     return {"cleared_records": count, "status": "ok"}

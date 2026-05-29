@@ -202,6 +202,22 @@ class TestCancellationImpact:
             f"  Session: {session_id}"
         )
 
+        status_counts = poll_until_resources_terminal(
+            nexus_api,
+            "invocation",
+            invocation_ids,
+            id_param="invocation_id",
+            timeout=STABILIZATION_TIMEOUT,
+        )
+
+        terminal_count = sum(v for k, v in status_counts.items() if k in TERMINAL_STATUSES)
+        assert terminal_count >= len(invocation_ids), (
+            f"Only {terminal_count}/{len(invocation_ids)} invocations reached terminal state "
+            f"within {STABILIZATION_TIMEOUT}s\n"
+            f"  Status counts: {status_counts}\n"
+            f"  Session: {session_id}"
+        )
+
         kpis = poll_for_component_kpis(
             nexus_api.internal_metrics,
             "invocation_service",

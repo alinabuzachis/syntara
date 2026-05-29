@@ -27,9 +27,11 @@ PODMAN_SOCK ?= $(or \
 	$(shell podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null),\
 	$(wildcard /var/run/podman/podman.sock)\
 )
+SED_INPLACE := sed -i ''
 else
 # Linux
 PODMAN_SOCK ?= /run/user/$(shell id -u)/podman/podman.sock
+SED_INPLACE := sed -i
 endif
 COMPOSE_CMD ?= uv run podman-compose
 COMPOSE_ARGS ?= -p $(PODMAN_PROJECT) -f podman-compose.yml
@@ -539,7 +541,7 @@ generate-api-client: ## Generate the Nexus Python API client from the OpenAPI sp
 	@rm -rf src/api_client
 	@mv $(TMPDIR)/nexus_api_client src/api_client
 	@rm -rf $(TMPDIR)
-	@find src/api_client -type f \( -name '*.py' -o -name '*.md' -o -name '*.toml' -o -name '*.typed' -o -name '*.txt' \) -exec sed -i 's/[[:space:]]*$$//' {} +
+	@find src/api_client -type f \( -name '*.py' -o -name '*.md' -o -name '*.toml' -o -name '*.typed' -o -name '*.txt' \) -exec $(SED_INPLACE) 's/[[:space:]]*$$//' {} +
 	@find src/api_client -type f \( -name '*.py' -o -name '*.md' -o -name '*.toml' -o -name '*.typed' -o -name '*.txt' \) -exec sh -c 'test -s "$$1" && [ "$$(tail -c1 "$$1" | wc -l)" -eq 0 ] && echo >> "$$1"' _ {} \;
 	@echo "Done. Client written to src/api_client/"
 

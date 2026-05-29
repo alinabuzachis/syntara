@@ -8721,7 +8721,12 @@ paths:
       tags:
         - InternalMetrics
       summary: Metrics Store Reset
-      description: Clear all in-memory metrics (useful between test runs).
+      description: |-
+        Clear all in-memory metrics (useful between test runs).
+
+        Also clears the emission deduplication tracker and running counters to
+        prevent the completion poller from re-emitting metrics for old executions
+        that fall back into its lookback window.
       operationId: reset_internal_metrics_store
       responses:
         '200':
