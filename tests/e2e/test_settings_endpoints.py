@@ -103,6 +103,7 @@ def _find_bulk_audit_event(events: list[Any], expected_keys: set[str]) -> Any:  
     return None
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestSettings:
     """E2E tests for settings GET and PATCH endpoints."""
 
@@ -163,6 +164,7 @@ class TestSettings:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original_value)
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestLogLevelSetting:
     """E2E tests for the logging.log_level runtime setting."""
 
@@ -424,6 +426,7 @@ class TestSettingsValidation:
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestSettingsResetToDefault:
     """E2E tests for resetting a setting to its default value."""
 
@@ -442,6 +445,7 @@ class TestSettingsResetToDefault:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original_value)
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestSettingsBulkUpdate:
     """E2E tests for the bulk update endpoint PATCH /settings."""
 
@@ -557,6 +561,7 @@ class TestSettingsBulkUpdate:
             _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, setting_b.effective_value)
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestSettingsOptimisticLocking:
     """E2E tests for optimistic locking via expected_version."""
 
@@ -604,6 +609,7 @@ class TestSettingsOptimisticLocking:
             _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestAdminSettingsAccess:
     """E2E test verifying admin has full CRUD access to all settings endpoints."""
 
@@ -629,6 +635,7 @@ class TestAdminSettingsAccess:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original)
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestSettingsAuditLog:
     """E2E tests verifying audit events are created for settings changes."""
 
@@ -749,6 +756,7 @@ class TestSettingsAuditLog:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original_value)
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestWorkflowExecutionSetting:
     """E2E tests for workflow execution settings."""
 
@@ -770,6 +778,7 @@ class TestWorkflowExecutionSetting:
             _restore_setting(nexus_api, _SCRIPT_TIMEOUT_KEY, original_value)
 
 
+@pytest.mark.xdist_group("settings_write")
 class TestApplicationSetting:
     """E2E tests for application category settings."""
 
