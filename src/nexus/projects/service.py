@@ -228,12 +228,12 @@ class ProjectService(BaseService):
         user_id = self.user.id
 
         # Step 1: Hard-delete approval requests
-        await self.session.execute(
+        await self.session.exec(
             delete(ApprovalRequest).where(ApprovalRequest.project_id == project_id)  # type: ignore[arg-type]
         )
 
         # Step 2: Soft-delete executions
-        await self.session.execute(
+        await self.session.exec(
             update(Execution)
             .where(
                 Execution.project_id == project_id,  # type: ignore[arg-type]
@@ -244,7 +244,7 @@ class ProjectService(BaseService):
 
         # Step 3: Soft-delete workflow versions (no direct project_id, found via workflow)
         workflow_ids_subq = select(Workflow.id).where(Workflow.project_id == project_id).scalar_subquery()
-        await self.session.execute(
+        await self.session.exec(
             update(WorkflowVersion)
             .where(
                 WorkflowVersion.workflow_id.in_(workflow_ids_subq),  # type: ignore[attr-defined]
@@ -254,7 +254,7 @@ class ProjectService(BaseService):
         )
 
         # Step 4: Soft-delete workflows
-        await self.session.execute(
+        await self.session.exec(
             update(Workflow)
             .where(
                 Workflow.project_id == project_id,  # type: ignore[arg-type]
@@ -264,16 +264,16 @@ class ProjectService(BaseService):
         )
 
         # Step 5: Collect secret IDs, null FK, delete secrets, then hard-delete credentials
-        secret_ids_result = await self.session.execute(
+        secret_ids_result = await self.session.exec(
             select(Credential.secret_id).where(
                 Credential.project_id == project_id,
                 Credential.secret_id.isnot(None),  # type: ignore[union-attr]
             )
         )
-        secret_ids = [row[0] for row in secret_ids_result.all()]
+        secret_ids = list(secret_ids_result.all())
 
         # Null secret_id (breaks FK before secret deletion)
-        await self.session.execute(
+        await self.session.exec(
             update(Credential)
             .where(Credential.project_id == project_id)  # type: ignore[arg-type]
             .values(secret_id=None)
@@ -281,32 +281,32 @@ class ProjectService(BaseService):
 
         # Delete secrets
         if secret_ids:
-            await self.session.execute(
+            await self.session.exec(
                 delete(EncryptedSecret).where(
                     EncryptedSecret.secret_id.in_(secret_ids)  # type: ignore[attr-defined]
                 )
             )
-            await self.session.execute(
+            await self.session.exec(
                 delete(Secret).where(Secret.id.in_(secret_ids))  # type: ignore[attr-defined]
             )
 
         # Hard-delete credentials
-        await self.session.execute(
+        await self.session.exec(
             delete(Credential).where(Credential.project_id == project_id)  # type: ignore[arg-type]
         )
 
         # Step 6: Hard-delete role assignments
-        await self.session.execute(
+        await self.session.exec(
             delete(RoleAssignment).where(RoleAssignment.project_id == project_id)  # type: ignore[arg-type]
         )
 
         # Step 7: Hard-delete custom roles
-        await self.session.execute(
+        await self.session.exec(
             delete(Role).where(Role.project_id == project_id)  # type: ignore[arg-type]
         )
 
         # Step 8: Hard-delete custom policies
-        await self.session.execute(
+        await self.session.exec(
             delete(Policy).where(Policy.project_id == project_id)  # type: ignore[arg-type]
         )
 

@@ -206,8 +206,8 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
         async with self._session_factory() as db_session:
             stmt = select(Invocation).where(Invocation.id == invocation_id)  # type: ignore[arg-type]
-            result = await db_session.execute(stmt)
-            invocation = result.scalar_one_or_none()
+            result = await db_session.exec(stmt)  # type: ignore[call-overload]
+            invocation = result.one_or_none()
 
             if invocation is None:
                 logger.warning("Invocation not found in database", invocation_id=invocation_id)

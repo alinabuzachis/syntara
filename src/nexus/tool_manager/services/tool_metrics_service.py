@@ -246,7 +246,7 @@ class ToolMetricsService(BaseService):
         if query.namespaced_name is not None:
             stmt = stmt.where(Tool.namespaced_name == query.namespaced_name)
 
-        raw_result = await self.session.execute(stmt)
+        raw_result = await self.session.exec(stmt)
         rows = raw_result.all()
 
         summaries = []
@@ -300,7 +300,7 @@ class ToolMetricsService(BaseService):
         if query.end_time is not None:
             stmt = stmt.where(ToolExecution.execution_start <= query.end_time)
 
-        raw_result = await self.session.execute(stmt)
+        raw_result = await self.session.exec(stmt)
         rows = raw_result.all()
 
         summaries = []

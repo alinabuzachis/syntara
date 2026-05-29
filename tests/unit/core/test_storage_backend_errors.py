@@ -110,17 +110,17 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_healthy_returns_true(self, backend: DatabaseBackend, mock_session: MagicMock) -> None:
-        mock_session.execute = AsyncMock()
+        mock_session.exec = AsyncMock()
         assert await backend.health_check() is True
 
     @pytest.mark.asyncio
     async def test_unreachable_returns_false(self, backend: DatabaseBackend, mock_session: MagicMock) -> None:
-        mock_session.execute = AsyncMock(
+        mock_session.exec = AsyncMock(
             side_effect=OperationalError("connection refused", {}, Exception("connection refused"))
         )
         assert await backend.health_check() is False
 
     @pytest.mark.asyncio
     async def test_database_error_returns_false(self, backend: DatabaseBackend, mock_session: MagicMock) -> None:
-        mock_session.execute = AsyncMock(side_effect=DatabaseError("corrupt", {}, Exception("corrupt")))
+        mock_session.exec = AsyncMock(side_effect=DatabaseError("corrupt", {}, Exception("corrupt")))
         assert await backend.health_check() is False

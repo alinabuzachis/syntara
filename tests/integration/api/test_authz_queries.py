@@ -89,7 +89,7 @@ async def _make_admin(session: AsyncSession, user: User) -> None:
     session.add(group)
     await session.flush()
     session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="admin"))
-    await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
 
@@ -99,7 +99,7 @@ async def _make_auditor(session: AsyncSession, user: User) -> None:
     session.add(group)
     await session.flush()
     session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor"))
-    await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
 
@@ -109,7 +109,7 @@ async def _make_user_role(session: AsyncSession, user: User) -> None:
     session.add(group)
     await session.flush()
     session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="user"))
-    await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
 
@@ -285,7 +285,7 @@ async def test_can_i_wildcard_action(
     test_db_session.add(
         RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="wildcard-test-role")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 
     response = await auth_client.post(
@@ -335,7 +335,7 @@ async def test_can_i_explicit_deny_overrides_allow(
     test_db_session.add(
         RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="deny-delete-role")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
     await test_db_session.commit()
 
     response = await auth_client.post(
@@ -387,7 +387,7 @@ async def test_who_can_returns_authorized_users(
     other = await user_factory(username="reader", email="reader@example.com", full_name="Reader")
     test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
     assert test_group is not None
-    await test_db_session.execute(insert(user_groups).values(user_id=other.id, group_id=test_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=other.id, group_id=test_group.id))
     await test_db_session.commit()
 
     response = await auth_client.post(
@@ -459,7 +459,7 @@ async def test_who_can_excludes_inactive_users(
     # Add to test-users group (grants user role with user:read)
     test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
     assert test_group is not None
-    await test_db_session.execute(insert(user_groups).values(user_id=inactive.id, group_id=test_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=inactive.id, group_id=test_group.id))
     # Deactivate
     inactive.is_enabled = False
     test_db_session.add(inactive)
@@ -489,7 +489,7 @@ async def test_who_can_pagination(
     assert test_group is not None
     for i in range(3):
         u = await user_factory(username=f"page-user-{i}", email=f"page{i}@example.com", full_name=f"Page {i}")
-        await test_db_session.execute(insert(user_groups).values(user_id=u.id, group_id=test_group.id))
+        await test_db_session.exec(insert(user_groups).values(user_id=u.id, group_id=test_group.id))
     await test_db_session.commit()
 
     # Request page 1 with limit=2

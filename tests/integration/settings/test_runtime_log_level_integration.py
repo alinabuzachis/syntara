@@ -43,9 +43,9 @@ async def _set_log_level_value(
     value: str,
 ) -> None:
     """Upsert the logging.log_level runtime setting to *value*."""
-    await session.execute(
+    await session.exec(  # type: ignore[call-overload]
         text(_UPSERT_LOG_LEVEL),
-        {"key": _LOG_LEVEL_KEY, "value": f'"{value}"'},
+        params={"key": _LOG_LEVEL_KEY, "value": f'"{value}"'},
     )
     await session.commit()
     # Evict any ORM-cached RuntimeSetting objects so subsequent
@@ -58,9 +58,9 @@ async def _restore_log_level_setting(test_db_session: AsyncSession) -> AsyncGene
     """Restore the logging.log_level value to its seeded default after the test."""
     yield
     await test_db_session.rollback()
-    await test_db_session.execute(
+    await test_db_session.exec(  # type: ignore[call-overload]
         text("UPDATE runtime_settings SET value = NULL WHERE key = :key"),
-        {"key": _LOG_LEVEL_KEY},
+        params={"key": _LOG_LEVEL_KEY},
     )
     await test_db_session.commit()
 

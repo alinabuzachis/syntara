@@ -888,7 +888,7 @@ async def user_factory(
 
             for name in group_names:
                 group = (await test_db_session.exec(select(Group).where(Group.name == name))).one()
-                await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+                await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
 
         await test_db_session.commit()
         return user
@@ -2076,7 +2076,7 @@ async def group_with_members(
 
     members = multiple_local_users[:3]
     for user in members:
-        await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=test_group.id))
+        await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=test_group.id))
     await test_db_session.commit()
 
     return test_group, members

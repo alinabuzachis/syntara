@@ -498,7 +498,7 @@ class GroupsService(BaseService):
         # Batch-populate auth_sources for federated users
         federated_ids = [r.id for r in resources if r.auth_type == AuthType.FEDERATED]
         if federated_ids:
-            idp_result = await self.session.execute(
+            idp_result = await self.session.exec(
                 select(UserIdentity.user_id, IdentityProvider.name)
                 .join(
                     IdentityProvider,
@@ -615,16 +615,15 @@ class GroupsService(BaseService):
                 user_idp_groups.c.group_id.in_(group_ids),
             )
         )
-        idp_result = await self.session.execute(idp_query)
+        idp_result = await self.session.exec(idp_query)
 
         sources: dict[UUID, list[MembershipSource]] = {}
         idp_managed_groups: set[UUID] = set()
 
-        for row in idp_result:
-            gid = row.group_id
+        for gid, provider_id, provider_name in idp_result:
             idp_managed_groups.add(gid)
             sources.setdefault(gid, []).append(
-                MembershipSource(type="idp", provider_name=row.provider_name, provider_id=row.provider_id)
+                MembershipSource(type="idp", provider_name=provider_name, provider_id=provider_id)
             )
 
         # Groups without any IdP tracking rows are manually assigned.
@@ -658,16 +657,15 @@ class GroupsService(BaseService):
                 user_idp_groups.c.user_id.in_(user_ids),
             )
         )
-        idp_result = await self.session.execute(idp_query)
+        idp_result = await self.session.exec(idp_query)
 
         sources: dict[UUID, list[MembershipSource]] = {}
         idp_managed_users: set[UUID] = set()
 
-        for row in idp_result:
-            uid = row.user_id
+        for uid, provider_id, provider_name in idp_result:
             idp_managed_users.add(uid)
             sources.setdefault(uid, []).append(
-                MembershipSource(type="idp", provider_name=row.provider_name, provider_id=row.provider_id)
+                MembershipSource(type="idp", provider_name=provider_name, provider_id=provider_id)
             )
 
         for uid in user_ids:

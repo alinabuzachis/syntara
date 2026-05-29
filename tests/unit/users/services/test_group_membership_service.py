@@ -621,7 +621,7 @@ async def test_list_members_idp_source(test_db_session: AsyncSession, test_user:
     await service.add_member(group.id, member.id)
 
     # Simulate IdP tracking entry
-    await test_db_session.execute(
+    await test_db_session.exec(
         user_idp_groups.insert().values(
             user_id=member.id,
             identity_provider_id=provider.id,
@@ -661,7 +661,7 @@ async def test_list_user_groups_idp_source(test_db_session: AsyncSession, test_u
 
     await service.add_member(group.id, member.id)
 
-    await test_db_session.execute(
+    await test_db_session.exec(
         user_idp_groups.insert().values(
             user_id=member.id,
             identity_provider_id=provider.id,
@@ -731,8 +731,8 @@ async def _create_mapping_entry(
 
 async def _get_user_group_ids(session: AsyncSession, user_id: UUID) -> set[UUID]:
     """Get all group IDs a user belongs to."""
-    result = await session.execute(select(user_groups.c.group_id).where(user_groups.c.user_id == user_id))
-    return {row[0] for row in result}
+    result = await session.exec(select(user_groups.c.group_id).where(user_groups.c.user_id == user_id))
+    return set(result.all())
 
 
 async def _get_user_idp_group_ids(
@@ -741,13 +741,13 @@ async def _get_user_idp_group_ids(
     provider_id: UUID,
 ) -> set[UUID]:
     """Get group IDs tracked by a specific provider for a user."""
-    result = await session.execute(
+    result = await session.exec(
         select(user_idp_groups.c.group_id).where(
             user_idp_groups.c.user_id == user_id,
             user_idp_groups.c.identity_provider_id == provider_id,
         )
     )
-    return {row[0] for row in result}
+    return set(result.all())
 
 
 @pytest.mark.asyncio
@@ -958,7 +958,7 @@ async def test_sync_idp_groups_preserves_manual_groups(test_db_session: AsyncSes
     manual_group = await _create_test_group(test_db_session, "manually-assigned", test_user)
 
     # Manually assign a group (insert directly into user_groups, no user_idp_groups entry)
-    await test_db_session.execute(user_groups.insert().values(user_id=member.id, group_id=manual_group.id))
+    await test_db_session.exec(user_groups.insert().values(user_id=member.id, group_id=manual_group.id))
     await test_db_session.commit()
 
     await _create_mapping_entry(test_db_session, provider.id, "idp-role", idp_group.id)
@@ -1029,8 +1029,8 @@ async def test_sync_idp_groups_session_scoped_all_idp_tracking_cleared(
 
 async def _get_all_user_idp_tracking_rows(session: AsyncSession, user_id: UUID) -> set[UUID]:
     """Get all group IDs tracked by any provider for a user."""
-    result = await session.execute(select(user_idp_groups.c.group_id).where(user_idp_groups.c.user_id == user_id))
-    return {row[0] for row in result}
+    result = await session.exec(select(user_idp_groups.c.group_id).where(user_idp_groups.c.user_id == user_id))
+    return set(result.all())
 
 
 @pytest.mark.asyncio
@@ -1100,7 +1100,7 @@ async def test_sync_idp_groups_empty_desired_removes_all_idp_groups(
     await _create_mapping_entry(test_db_session, provider_a.id, "role-a", group_a.id)
 
     # Manually assign a group (no user_idp_groups tracking)
-    await test_db_session.execute(user_groups.insert().values(user_id=member.id, group_id=manual_group.id))
+    await test_db_session.exec(user_groups.insert().values(user_id=member.id, group_id=manual_group.id))
     await test_db_session.commit()
 
     config_a = OIDCConfiguration(

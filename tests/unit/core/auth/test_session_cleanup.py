@@ -29,7 +29,7 @@ class TestCleanupExpiredSessions:
         result_expired = MagicMock(rowcount=5)
         result_expired_done = MagicMock(rowcount=0)
         result_revoked_done = MagicMock(rowcount=0)
-        mock_session.execute = AsyncMock(
+        mock_session.exec = AsyncMock(
             side_effect=[result_expired, result_expired_done, result_revoked_done],
         )
 
@@ -40,7 +40,7 @@ class TestCleanupExpiredSessions:
     @pytest.mark.asyncio
     async def test_no_expired_sessions(self, mock_session_factory, mock_session):
         result = MagicMock(rowcount=0)
-        mock_session.execute = AsyncMock(return_value=result)
+        mock_session.exec = AsyncMock(return_value=result)
 
         await cleanup_expired_sessions(mock_session_factory)
 
@@ -53,7 +53,7 @@ class TestCleanupExpiredSessions:
         result_partial = MagicMock(rowcount=50)
         result_revoked_done = MagicMock(rowcount=0)
 
-        mock_session.execute = AsyncMock(
+        mock_session.exec = AsyncMock(
             side_effect=[result_full, result_partial, result_revoked_done],
         )
 
@@ -68,7 +68,7 @@ class TestCleanupExpiredSessions:
         result_revoked = MagicMock(rowcount=3)
         result_revoked_done = MagicMock(rowcount=0)
 
-        mock_session.execute = AsyncMock(
+        mock_session.exec = AsyncMock(
             side_effect=[result_expired_done, result_revoked, result_revoked_done],
         )
 

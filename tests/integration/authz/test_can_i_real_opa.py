@@ -75,7 +75,7 @@ async def _assign_role(
     session.add(group)
     await session.flush()
     session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name=role_name))
-    await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
 

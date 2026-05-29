@@ -23,7 +23,7 @@ def setting_validation_error_handler(request: Request, exc: "SettingValidationEr
     """Handle SettingValidationError with RFC 9457 format."""
     logger.warning("Setting validation error", key=exc.key, detail=exc.detail)
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Setting Validation Error",
         detail=exc.detail,
@@ -37,7 +37,7 @@ def setting_type_error_handler(request: Request, exc: "SettingTypeError") -> JSO
     """Handle SettingTypeError with RFC 9457 format."""
     logger.warning("Setting type error", key=exc.key, expected=exc.expected, actual=exc.actual)
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Setting Type Error",
         detail=str(exc),

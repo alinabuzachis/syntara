@@ -71,14 +71,14 @@ def _mock_async_session(
     """Create a mock AsyncSessionLocal context manager that returns a mock session."""
     mock_session = AsyncMock()
     if error:
-        mock_session.execute.side_effect = error
+        mock_session.exec.side_effect = error
     else:
         mock_result = MagicMock()
         if token_version is not None:
             mock_result.one_or_none.return_value = (token_version, is_enabled)
         else:
             mock_result.one_or_none.return_value = None
-        mock_session.execute.return_value = mock_result
+        mock_session.exec.return_value = mock_result
 
     # Build the async context manager
     mock_ctx = AsyncMock()

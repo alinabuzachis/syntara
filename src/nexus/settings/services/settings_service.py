@@ -382,9 +382,9 @@ class SettingsService(BaseService):
                 updated_at=datetime.now(UTC),
             )
 
-        result = await self.session.execute(stmt)
+        result = await self.session.exec(stmt)
 
-        if result.rowcount == 0:  # type: ignore[attr-defined]
+        if result.rowcount == 0:
             if expected_version is not None:
                 raise OptimisticLockError(key, current.version, expected_version)
             # rowcount=0 without locking means key not found (already checked above)

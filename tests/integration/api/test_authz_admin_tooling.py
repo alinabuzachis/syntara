@@ -103,7 +103,7 @@ async def test_explicit_deny_fields(
     test_db_session.add(
         RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="deny-delete-role-at")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 
     auth_as(bob)

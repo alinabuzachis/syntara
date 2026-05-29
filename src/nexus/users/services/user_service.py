@@ -66,7 +66,7 @@ class UsersService(BaseService):
         """Convert a User model to UserRead response."""
         result: UserRead = self.convert_resource_mixin.convert_resource(user)
         if user.auth_type == AuthType.FEDERATED:
-            identity_result = await self.session.execute(
+            identity_result = await self.session.exec(
                 select(IdentityProvider.name)
                 .join(UserIdentity, col(UserIdentity.identity_provider_id) == IdentityProvider.id)
                 .where(
@@ -74,7 +74,7 @@ class UsersService(BaseService):
                     IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
             )
-            result.auth_sources = sorted(identity_result.scalars().all())
+            result.auth_sources = sorted(identity_result.all())
         return result
 
     def _is_duplicate_username_error(self, e: IntegrityError) -> bool:
@@ -171,15 +171,15 @@ class UsersService(BaseService):
         explicit = group_names is not None
         resolved_names = group_names if explicit else []
         if resolved_names:
-            result = await self.session.execute(select(Group).where(col(Group.name).in_(resolved_names)))
-            groups = list(result.scalars().all())
+            result = await self.session.exec(select(Group).where(col(Group.name).in_(resolved_names)))
+            groups = list(result.all())
             if explicit:
                 found_names = {g.name for g in groups}
                 missing = [n for n in resolved_names if n not in found_names]
                 if missing:
                     raise GroupNamesNotFoundError(missing)
             if groups:
-                await self.session.execute(
+                await self.session.exec(
                     sa_insert(user_groups).values([{"user_id": user.id, "group_id": g.id} for g in groups])
                 )
                 await self.session.commit()
@@ -246,7 +246,7 @@ class UsersService(BaseService):
 
     async def _get_user_ids_by_provider_name(self, provider_name: str) -> list[UUID]:
         """Get user IDs linked to a specific identity provider by name."""
-        result = await self.session.execute(
+        result = await self.session.exec(
             select(UserIdentity.user_id)
             .join(IdentityProvider, col(IdentityProvider.id) == UserIdentity.identity_provider_id)
             .where(
@@ -254,7 +254,7 @@ class UsersService(BaseService):
                 IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
-        return list(result.scalars().all())
+        return list(result.all())
 
     async def _populate_auth_sources(self, response: UserListResponse) -> None:
         """Batch-populate auth_sources for federated users in a list response."""
@@ -262,7 +262,7 @@ class UsersService(BaseService):
         if not federated_ids:
             return
 
-        result = await self.session.execute(
+        result = await self.session.exec(
             select(UserIdentity.user_id, IdentityProvider.name)
             .join(IdentityProvider, col(IdentityProvider.id) == UserIdentity.identity_provider_id)
             .where(
@@ -424,7 +424,7 @@ class UsersService(BaseService):
         # Lock the admins group row to serialize concurrent disable/delete
         # operations, preventing a race where two requests both see enough
         # admins and then both disable, leaving zero.
-        await self.session.execute(
+        await self.session.exec(
             select(Group)
             .where(
                 col(Group.name) == "admins",
@@ -448,6 +448,6 @@ class UsersService(BaseService):
         if exclude_user_id is not None:
             query = query.where(col(User.id) != exclude_user_id)
 
-        result = await self.session.execute(query)
-        if result.scalar_one() < 1:
+        result = await self.session.exec(query)
+        if result.one() < 1:
             raise AdminDisableNoOtherAdminsError

@@ -1224,7 +1224,7 @@ class TestResolveAndLoginUserRollback:
         # The flush succeeds, but the subsequent group check returns no rows
         other_groups_result = MagicMock()
         other_groups_result.first.return_value = None
-        db.execute.return_value = other_groups_result
+        db.exec.return_value = other_groups_result
 
         provider = MagicMock(spec=IdentityProvider)
         provider.name = "TestIdP"

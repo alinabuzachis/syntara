@@ -65,7 +65,6 @@ def _make_mock_session() -> MagicMock:
     session.flush = AsyncMock()
     session.delete = AsyncMock()
     session.exec = AsyncMock()
-    session.execute = AsyncMock()
     return session
 
 
@@ -343,21 +342,19 @@ async def test_delete_provider_success() -> None:
     mock_session = _make_mock_session()
     mock_secret = _make_mock_secret_service()
 
-    mock_result = MagicMock()
-    mock_result.one_or_none.return_value = provider
-    mock_session.exec = AsyncMock(return_value=mock_result)
+    mock_find_result = MagicMock()
+    mock_find_result.one_or_none.return_value = provider
 
-    # Mock execute calls: identity delete (0 rows), delete memberships (0), delete tracking (0)
     mock_identity_delete = MagicMock()
     mock_identity_delete.rowcount = 0
-
     mock_memberships_delete = MagicMock()
     mock_memberships_delete.rowcount = 0
-
     mock_tracking_delete = MagicMock()
     mock_tracking_delete.rowcount = 0
 
-    mock_session.execute = AsyncMock(side_effect=[mock_identity_delete, mock_memberships_delete, mock_tracking_delete])
+    mock_session.exec = AsyncMock(
+        side_effect=[mock_find_result, mock_identity_delete, mock_memberships_delete, mock_tracking_delete]
+    )
 
     service = _make_service(mock_session, secret_service=mock_secret)
 
@@ -393,25 +390,19 @@ async def test_delete_provider_revokes_sessions_and_deletes_identities() -> None
     mock_session = _make_mock_session()
     mock_secret = _make_mock_secret_service()
 
-    mock_result = MagicMock()
-    mock_result.one_or_none.return_value = provider
-    mock_session.exec = AsyncMock(return_value=mock_result)
+    mock_find_result = MagicMock()
+    mock_find_result.one_or_none.return_value = provider
 
-    # Mock execute calls:
-    # 1. identity delete (rowcount=3)
-    # 2. delete sole-source memberships via EXISTS/NOT EXISTS (rowcount=1)
-    # 3. delete tracking rows (rowcount=1)
     mock_identity_delete = MagicMock()
     mock_identity_delete.rowcount = 3
-
     mock_memberships_delete = MagicMock()
     mock_memberships_delete.rowcount = 1
-
     mock_tracking_delete = MagicMock()
     mock_tracking_delete.rowcount = 1
 
-    mock_session.execute = AsyncMock(
+    mock_session.exec = AsyncMock(
         side_effect=[
+            mock_find_result,
             mock_identity_delete,
             mock_memberships_delete,
             mock_tracking_delete,
@@ -427,8 +418,8 @@ async def test_delete_provider_revokes_sessions_and_deletes_identities() -> None
 
         await service.delete_provider(provider.id)
 
-    # 3 execute calls: identity delete, delete sole-source memberships, delete tracking rows
-    assert mock_session.execute.call_count == 3
+    # 4 exec calls: find provider, identity delete, delete sole-source memberships, delete tracking rows
+    assert mock_session.exec.call_count == 4
     # Sessions should have been revoked
     mock_store.revoke_by_idp.assert_called_once_with(str(provider.id))
 

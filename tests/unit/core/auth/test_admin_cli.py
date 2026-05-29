@@ -33,7 +33,7 @@ def _mock_db_session(*, rowcount: int = 1) -> AsyncMock:
     mock_execute_result.rowcount = rowcount
 
     mock_session = AsyncMock()
-    mock_session.execute = AsyncMock(return_value=mock_execute_result)
+    mock_session.exec = AsyncMock(return_value=mock_execute_result)
     mock_session.commit = AsyncMock()
     return mock_session
 
@@ -59,7 +59,7 @@ class TestRevokeAllTokens:
         ):
             await _revoke_all_tokens(actor="admin-cli")
 
-        mock_session.execute.assert_called_once()
+        mock_session.exec.assert_called_once()
         mock_session.commit.assert_called_once()
         mock_dispatcher.dispatch.assert_called_once()
 
@@ -71,13 +71,16 @@ class TestRevokeAllTokens:
     @pytest.mark.asyncio
     async def test_inserts_singleton_when_no_row_exists(self) -> None:
         """Should insert the singleton row when the table is empty."""
-        mock_session = _mock_db_session(rowcount=0)
+        mock_update_result = MagicMock()
+        mock_update_result.rowcount = 0
 
-        # Mock the SELECT that checks for existing row
-        mock_exec_result = MagicMock()
-        mock_exec_result.one_or_none.return_value = None
-        mock_session.exec = AsyncMock(return_value=mock_exec_result)
+        mock_select_result = MagicMock()
+        mock_select_result.one_or_none.return_value = None
+
+        mock_session = AsyncMock()
+        mock_session.exec = AsyncMock(side_effect=[mock_update_result, mock_select_result])
         mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),

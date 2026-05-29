@@ -280,7 +280,7 @@ async def test_admin_can_delete_default_project(
     test_db_session.add(
         RoleAssignment(id=uuid4(), principal_type=PrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=admin_user.id, group_id=admin_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=admin_user.id, group_id=admin_group.id))
     await test_db_session.commit()
 
     _auth_as(admin_user)
@@ -510,8 +510,8 @@ async def test_project_admin_assigns_group_role(
     alice = await user_factory(username="alice", email="alice@example.com", full_name="Alice")
     frank = await user_factory(username="frank", email="frank@example.com", full_name="Frank")
 
-    await test_db_session.execute(insert(user_groups).values(user_id=alice.id, group_id=group.id))
-    await test_db_session.execute(insert(user_groups).values(user_id=frank.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=alice.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=frank.id, group_id=group.id))
     await test_db_session.commit()
 
     # Assign project-admin to the group via API
@@ -585,7 +585,7 @@ async def test_revoke_group_role_removes_access(
     await test_db_session.flush()
 
     member = await user_factory(username="member", email="member@example.com", full_name="Member")
-    await test_db_session.execute(insert(user_groups).values(user_id=member.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=member.id, group_id=group.id))
     await test_db_session.commit()
 
     # Assign and then revoke

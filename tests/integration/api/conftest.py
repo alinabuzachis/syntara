@@ -107,7 +107,7 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
     )
     test_db_session.add(dev_user)
     await test_db_session.flush()
-    await test_db_session.execute(insert(user_groups).values(user_id=dev_user.id, group_id=test_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=dev_user.id, group_id=test_group.id))
 
     await test_db_session.commit()
 
@@ -125,7 +125,7 @@ async def test_user(
 
     test_group = (await test_db_session.exec(select(Group).where(Group.name == _TEST_GROUP_NAME))).first()
     if test_group:
-        await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=test_group.id))
+        await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=test_group.id))
         await test_db_session.commit()
 
     return user
@@ -186,7 +186,7 @@ async def _make_role_assignment(
             role_name=role_name,
         )
     )
-    await session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
     await session.commit()
 
 

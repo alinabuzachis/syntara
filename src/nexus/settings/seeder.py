@@ -81,7 +81,7 @@ async def _upsert(
         index_elements=conflict_on,
         set_={col: upsert.excluded[col] for col in update_fields},
     )
-    result = await session.execute(upsert.returning(sa.literal_column("(xmax = 0)")))
+    result = await session.exec(upsert.returning(sa.literal_column("(xmax = 0)")))
     is_insert_flags = list(result.scalars().all())
     inserts = sum(1 for flag in is_insert_flags if flag)
     return inserts, len(is_insert_flags) - inserts

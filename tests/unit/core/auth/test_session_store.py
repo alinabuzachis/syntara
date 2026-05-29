@@ -292,19 +292,19 @@ class TestRevoke:
         """Should return True when an active session is soft-revoked."""
         mock_result = MagicMock()
         mock_result.rowcount = 1
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         result = await store.revoke("active-jti")
 
         assert result is True
-        mock_db.execute.assert_awaited_once()
+        mock_db.exec.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_returns_false_when_already_revoked(self, store: SessionStore, mock_db: AsyncMock) -> None:
         """Should return False when session was already revoked (rowcount=0)."""
         mock_result = MagicMock()
         mock_result.rowcount = 0
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         result = await store.revoke("already-revoked-jti")
 
@@ -315,7 +315,7 @@ class TestRevoke:
         """Should return False when no session exists with the given JTI."""
         mock_result = MagicMock()
         mock_result.rowcount = 0
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         result = await store.revoke("nonexistent-jti")
 
@@ -330,7 +330,7 @@ class TestRevokeAllForUser:
         """Should return the number of sessions revoked."""
         mock_result = MagicMock()
         mock_result.rowcount = 3
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         count = await store.revoke_all_for_user(uuid4())
 
@@ -341,7 +341,7 @@ class TestRevokeAllForUser:
         """Should return 0 when user has no active sessions."""
         mock_result = MagicMock()
         mock_result.rowcount = 0
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         count = await store.revoke_all_for_user(uuid4())
 
@@ -352,7 +352,7 @@ class TestRevokeAllForUser:
         """Should accept user_id as a string and convert to UUID."""
         mock_result = MagicMock()
         mock_result.rowcount = 1
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         user_id = uuid4()
         count = await store.revoke_all_for_user(str(user_id))
@@ -368,7 +368,7 @@ class TestRevokeByIdp:
         """Should return the number of sessions revoked for the IDP."""
         mock_result = MagicMock()
         mock_result.rowcount = 5
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         count = await store.revoke_by_idp("provider-uuid-456")
 
@@ -379,7 +379,7 @@ class TestRevokeByIdp:
         """Should return 0 when IDP has no active sessions."""
         mock_result = MagicMock()
         mock_result.rowcount = 0
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         count = await store.revoke_by_idp("unknown-provider")
 
@@ -394,7 +394,7 @@ class TestRevokeByIdentity:
         """Should return the number of sessions revoked for the identity."""
         mock_result = MagicMock()
         mock_result.rowcount = 2
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         count = await store.revoke_by_identity("identity-uuid-123")
 
@@ -405,7 +405,7 @@ class TestRevokeByIdentity:
         """Should return 0 when identity has no active sessions."""
         mock_result = MagicMock()
         mock_result.rowcount = 0
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         count = await store.revoke_by_identity("unknown-identity")
 
@@ -416,7 +416,7 @@ class TestRevokeByIdentity:
         """Should accept identity_id as a UUID and convert to string."""
         mock_result = MagicMock()
         mock_result.rowcount = 1
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         count = await store.revoke_by_identity(uuid4())
 
@@ -431,19 +431,19 @@ class TestIncrementTokenVersion:
         """Should return the incremented token version."""
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = (4,)
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         version = await store.increment_token_version(uuid4())
 
         assert version == 4
-        mock_db.execute.assert_awaited_once()
+        mock_db.exec.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_returns_zero_when_user_not_found(self, store: SessionStore, mock_db: AsyncMock) -> None:
         """Should return 0 when user does not exist."""
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         version = await store.increment_token_version(uuid4())
 
@@ -458,7 +458,7 @@ class TestGetTokenVersion:
         """Should return the current token version for the user."""
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = (7,)
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         version = await store.get_token_version(uuid4())
 
@@ -469,7 +469,7 @@ class TestGetTokenVersion:
         """Should return 0 when user does not exist."""
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
+        mock_db.exec.return_value = mock_result
 
         version = await store.get_token_version(uuid4())
 

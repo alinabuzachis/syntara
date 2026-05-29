@@ -1575,11 +1575,6 @@ class TestSyncNodesToTerminalStatus:
         mock_session = Mock()
         mock_session.exec = AsyncMock(return_value=mock_result)
 
-        names = actually_updated_names if actually_updated_names is not None else {a.activity_name for a in activities}
-        mock_update_result = Mock()
-        mock_update_result.fetchall.return_value = [(name,) for name in names]
-        mock_session.execute = AsyncMock(return_value=mock_update_result)
-
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
@@ -1655,7 +1650,6 @@ class TestSyncNodesToTerminalStatus:
 
         await self.service._sync_failed_nodes(metadata, handle)
 
-        mock_session.execute.assert_not_awaited()
         mock_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1676,7 +1670,6 @@ class TestSyncNodesToTerminalStatus:
         with patch.object(self.service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
             await self.service._sync_failed_nodes(metadata, handle)
 
-        mock_session.execute.assert_not_awaited()
         mock_session.commit.assert_not_awaited()
         mock_publish.assert_not_awaited()
 

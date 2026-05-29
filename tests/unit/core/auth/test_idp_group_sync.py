@@ -73,37 +73,30 @@ def _make_mock_db(
 ) -> AsyncMock:
     """Create a mock db session.
 
-    The first call to db.execute returns the mapping entries (for the
+    The first call to db.exec returns the mapping entries (for the
     IdpGroupMappingEntry query). If ``users_group`` is provided, the second
     call returns it (for ``_resolve_users_group``). Remaining calls return
     empty results.
     """
     db = AsyncMock()
 
-    # Build result for mapping entries query (first call)
     entries = mapping_entries or []
     mapping_result = MagicMock()
-    mapping_scalars = MagicMock()
-    mapping_scalars.all = MagicMock(return_value=entries)
-    mapping_result.scalars = MagicMock(return_value=mapping_scalars)
+    mapping_result.all = MagicMock(return_value=entries)
 
-    # Build result for users group lookup (second call, if provided)
     users_group_result = MagicMock()
-    users_group_scalars = MagicMock()
-    users_group_scalars.first = MagicMock(return_value=users_group)
-    users_group_result.scalars = MagicMock(return_value=users_group_scalars)
+    users_group_result.first = MagicMock(return_value=users_group)
 
-    # Build empty result for all subsequent queries
     def _make_empty_result() -> MagicMock:
         r = MagicMock()
         r.__iter__ = MagicMock(return_value=iter([]))
         r.first = MagicMock(return_value=None)
-        r.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+        r.all = MagicMock(return_value=[])
         return r
 
     call_count = 0
 
-    async def _execute_side_effect(*args: object, **kwargs: object) -> MagicMock:
+    async def _exec_side_effect(*args: object, **kwargs: object) -> MagicMock:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -112,7 +105,7 @@ def _make_mock_db(
             return users_group_result
         return _make_empty_result()
 
-    db.execute = AsyncMock(side_effect=_execute_side_effect)
+    db.exec = AsyncMock(side_effect=_exec_side_effect)
     return db
 
 
@@ -209,7 +202,7 @@ class TestSyncIdpGroups:
 
         result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
         assert result is False
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     @pytest.mark.asyncio
     async def test_denies_when_no_mapping_entries(self):
@@ -222,7 +215,7 @@ class TestSyncIdpGroups:
 
         result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
         assert result is False
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     def test_rejects_invalid_jmespath_at_config_time(self):
         """Should reject syntactically invalid JMESPath at model validation time."""
@@ -246,7 +239,7 @@ class TestSyncIdpGroups:
             result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
         assert result is False
         # Should only have the mapping entries query, no sync queries
-        assert db.execute.call_count == 1
+        assert db.exec.call_count == 1
 
     @pytest.mark.asyncio
     async def test_processes_matching_groups(self):
@@ -260,7 +253,7 @@ class TestSyncIdpGroups:
 
         result = await sync_idp_groups(db, user, identity, {"groups": ["admin", "users"]}, config)
         assert result is True
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     @pytest.mark.asyncio
     async def test_handles_nested_jmespath(self):
@@ -279,7 +272,7 @@ class TestSyncIdpGroups:
             {"realm_access": {"roles": ["admin", "user"]}},
             config,
         )
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     @pytest.mark.asyncio
     async def test_returns_false_when_no_groups_match(self):
@@ -295,7 +288,7 @@ class TestSyncIdpGroups:
         result = await sync_idp_groups(db, user, identity, {"groups": ["users"]}, config)
         assert result is False
         # Still calls execute for the tracking table query and cleanup
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     @pytest.mark.asyncio
     async def test_returns_false_when_claim_missing(self):
@@ -311,7 +304,7 @@ class TestSyncIdpGroups:
         result = await sync_idp_groups(db, user, identity, {"sub": "user-123"}, config)
         assert result is False
         # Should still execute for tracking table query and cleanup
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     @pytest.mark.asyncio
     async def test_handles_scalar_jmespath_result(self):
@@ -324,7 +317,7 @@ class TestSyncIdpGroups:
         db = _make_mock_db(mapping_entries=[_make_db_entry(provider_id, "admin", nexus_group_id)])
 
         await sync_idp_groups(db, user, identity, {"role": "admin"}, config)
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     @pytest.mark.asyncio
     async def test_string_groups_claim_with_wildcard_denied(self):
@@ -372,7 +365,7 @@ class TestAllowAllAuthenticated:
 
         result = await sync_idp_groups(db, user, identity, {"groups": ["admin"]}, config)
         assert result is True
-        assert db.execute.call_count > 1
+        assert db.exec.call_count > 1
 
     @pytest.mark.asyncio
     async def test_false_requires_mappings(self):
@@ -585,27 +578,21 @@ def _make_mock_db_for_aap(
     entries = mapping_entries or []
 
     mapping_result = MagicMock()
-    mapping_scalars = MagicMock()
-    mapping_scalars.all = MagicMock(return_value=entries)
-    mapping_result.scalars = MagicMock(return_value=mapping_scalars)
+    mapping_result.all = MagicMock(return_value=entries)
 
     builtin_result = MagicMock()
-    builtin_scalars = MagicMock()
-    builtin_scalars.first = MagicMock(return_value=builtin_group)
-    builtin_result.scalars = MagicMock(return_value=builtin_scalars)
+    builtin_result.first = MagicMock(return_value=builtin_group)
 
     def _make_empty_result() -> MagicMock:
         r = MagicMock()
         r.__iter__ = MagicMock(return_value=iter([]))
         r.first = MagicMock(return_value=None)
-        r.scalars = MagicMock(
-            return_value=MagicMock(all=MagicMock(return_value=[]), first=MagicMock(return_value=None))
-        )
+        r.all = MagicMock(return_value=[])
         return r
 
     call_count = 0
 
-    async def _execute_side_effect(*args: object, **kwargs: object) -> MagicMock:
+    async def _exec_side_effect(*args: object, **kwargs: object) -> MagicMock:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -614,7 +601,7 @@ def _make_mock_db_for_aap(
             return builtin_result
         return _make_empty_result()
 
-    db.execute = AsyncMock(side_effect=_execute_side_effect)
+    db.exec = AsyncMock(side_effect=_exec_side_effect)
     return db
 
 

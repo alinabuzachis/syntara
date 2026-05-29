@@ -160,7 +160,7 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_returns_true_when_db_reachable(self, backend: DatabaseBackend, mock_session: MagicMock) -> None:
-        mock_session.execute = AsyncMock()
+        mock_session.exec = AsyncMock()
         result = await backend.health_check()
         assert result is True
 
@@ -168,6 +168,6 @@ class TestHealthCheck:
     async def test_returns_false_when_db_unreachable(self, backend: DatabaseBackend, mock_session: MagicMock) -> None:
         from sqlalchemy.exc import OperationalError
 
-        mock_session.execute = AsyncMock(side_effect=OperationalError("conn refused", {}, Exception("conn refused")))
+        mock_session.exec = AsyncMock(side_effect=OperationalError("conn refused", {}, Exception("conn refused")))
         result = await backend.health_check()
         assert result is False

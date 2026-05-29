@@ -53,8 +53,8 @@ async def cleanup_expired_sessions(
     async with session_factory() as session:
         for query, params in queries_and_params:
             for _ in range(_CLEANUP_MAX_BATCHES):
-                result = await session.execute(text(query), params)
-                deleted = result.rowcount  # type: ignore[attr-defined]
+                result = await session.exec(text(query), params=params)  # type: ignore[call-overload]
+                deleted = result.rowcount
                 if deleted:
                     await session.commit()
                     total_deleted += deleted

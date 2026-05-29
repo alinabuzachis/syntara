@@ -198,8 +198,8 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
         async with self._session_factory() as db_session:
             stmt = select(Execution).where(Execution.id == execution_id)  # type: ignore[arg-type]
-            result = await db_session.execute(stmt)
-            execution = result.scalar_one_or_none()
+            result = await db_session.exec(stmt)  # type: ignore[call-overload]
+            execution = result.one_or_none()
 
             if execution is None:
                 logger.warning("Execution not found in database", execution_id=execution_id)

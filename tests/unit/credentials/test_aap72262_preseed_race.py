@@ -36,7 +36,7 @@ class TestAAP72262PreseedRaceCondition:
 
         await preseed_credential_types(session)
 
-        session.execute.assert_awaited_once()
+        session.exec.assert_awaited_once()
         session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -72,7 +72,7 @@ class TestAAP72262PreseedRaceCondition:
             except Exception as e:
                 pytest.fail(f"Preseed failed on run {i + 1}: {e}")
 
-        assert session.execute.await_count == 5
+        assert session.exec.await_count == 5
         assert session.commit.await_count == 5
 
     def test_ga_types_all_have_unique_names(self) -> None:
@@ -95,6 +95,5 @@ class TestAAP72262PreseedRaceCondition:
 
         await preseed_credential_types(session)
 
-        assert not hasattr(session, "exec") or not session.exec.called, (
-            "preseed should use execute() with upsert, not exec() with SELECT"
-        )
+        result = session.exec.return_value
+        assert not result.one_or_none.called, "preseed should use upsert, not SELECT with one_or_none()"

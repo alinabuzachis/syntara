@@ -74,9 +74,9 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 current_ver, is_enabled = cached
             else:
                 async with AsyncSessionLocal() as session:
-                    result = await session.execute(
+                    result = await session.exec(  # type: ignore[call-overload]
                         text(_GET_USER_STATUS_SQL),
-                        {"uid": user_id},
+                        params={"uid": user_id},
                     )
                     row = result.one_or_none()
                     if row:

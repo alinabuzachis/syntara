@@ -172,7 +172,7 @@ class SessionStore:
     async def revoke(self, jti: str) -> bool:
         """Soft-revoke a refresh token session. Returns True if revoked."""
         now = datetime.now(UTC)
-        result = await self._db.execute(
+        result = await self._db.exec(
             update(RefreshSession)
             .where(
                 RefreshSession.jti == jti,  # type: ignore[arg-type]
@@ -180,7 +180,7 @@ class SessionStore:
             )
             .values(revoked_at=now)
         )
-        revoked: bool = result.rowcount > 0  # type: ignore[attr-defined]
+        revoked: bool = result.rowcount > 0
         if revoked:
             logger.debug("Revoked refresh token", jti=jti)
         else:
@@ -191,7 +191,7 @@ class SessionStore:
         """Revoke all active sessions for a user. O(1) via partial index."""
         user_id_val = UUID(str(user_id))
         now = datetime.now(UTC)
-        result = await self._db.execute(
+        result = await self._db.exec(
             update(RefreshSession)
             .where(
                 RefreshSession.user_id == user_id_val,  # type: ignore[arg-type]
@@ -199,7 +199,7 @@ class SessionStore:
             )
             .values(revoked_at=now)
         )
-        revoked_count: int = result.rowcount  # type: ignore[attr-defined]
+        revoked_count: int = result.rowcount
         logger.info(
             "Revoked all refresh tokens for user",
             user_id=str(user_id),
@@ -210,7 +210,7 @@ class SessionStore:
     async def revoke_by_idp(self, idp_id: str) -> int:
         """Revoke all sessions for an identity provider. O(m) via partial index."""
         now = datetime.now(UTC)
-        result = await self._db.execute(
+        result = await self._db.exec(
             update(RefreshSession)
             .where(
                 RefreshSession.idp_id == idp_id,  # type: ignore[arg-type]
@@ -218,7 +218,7 @@ class SessionStore:
             )
             .values(revoked_at=now)
         )
-        revoked_count: int = result.rowcount  # type: ignore[attr-defined]
+        revoked_count: int = result.rowcount
         logger.info("Revoked sessions by IDP", idp_id=idp_id, revoked_count=revoked_count)
         return revoked_count
 
@@ -226,7 +226,7 @@ class SessionStore:
         """Revoke all sessions for a user identity. O(m) via partial index."""
         identity_id_str = str(identity_id)
         now = datetime.now(UTC)
-        result = await self._db.execute(
+        result = await self._db.exec(
             update(RefreshSession)
             .where(
                 RefreshSession.identity_id == identity_id_str,  # type: ignore[arg-type]
@@ -234,16 +234,16 @@ class SessionStore:
             )
             .values(revoked_at=now)
         )
-        revoked_count: int = result.rowcount  # type: ignore[attr-defined]
+        revoked_count: int = result.rowcount
         logger.info("Revoked sessions by identity", identity_id=identity_id_str, revoked_count=revoked_count)
         return revoked_count
 
     async def increment_token_version(self, user_id: UUID | str) -> int:
         """Increment the token version counter for a user. Returns new version."""
         user_id_str = str(user_id)
-        result = await self._db.execute(
+        result = await self._db.exec(  # type: ignore[call-overload]
             text("UPDATE users SET token_version = token_version + 1 WHERE id = :user_id RETURNING token_version"),
-            {"user_id": user_id_str},
+            params={"user_id": user_id_str},
         )
         row = result.one_or_none()
         new_version = row[0] if row else 0
@@ -256,9 +256,9 @@ class SessionStore:
 
     async def get_token_version(self, user_id: UUID | str) -> int:
         """Get the current token version for a user. Returns 0 if not found."""
-        result = await self._db.execute(
+        result = await self._db.exec(  # type: ignore[call-overload]
             text("SELECT token_version FROM users WHERE id = :user_id"),
-            {"user_id": str(user_id)},
+            params={"user_id": str(user_id)},
         )
         row = result.one_or_none()
         return row[0] if row else 0

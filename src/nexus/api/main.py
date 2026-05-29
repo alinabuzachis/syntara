@@ -375,7 +375,7 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
     db_status = "unknown"
     try:
         async for session in get_db():
-            result = await session.execute(text("SELECT 1"))
+            result = await session.exec(text("SELECT 1"))  # type: ignore[call-overload]
             result.scalar()
             db_status = "ok"
             break

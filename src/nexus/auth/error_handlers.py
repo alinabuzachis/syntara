@@ -327,7 +327,7 @@ def group_names_not_found_handler(
     logger.warning("Groups not found", names=exc.names)
 
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Groups Not Found",
         detail=f"The following groups do not exist: {', '.join(exc.names)}",

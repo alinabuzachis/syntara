@@ -43,7 +43,7 @@ async def test_group_grants_access(
     test_db_session.add(group)
     await test_db_session.flush()
     test_db_session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor"))
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 
     # Bob now allowed
@@ -72,7 +72,7 @@ async def test_multiple_groups_additive(
     test_db_session.add(
         RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=admin_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=admin_group.id))
 
     # Reader group with auditor role
     reader_group = Group(name="reader-group-mga", description="Reader group", labels={})
@@ -81,7 +81,7 @@ async def test_multiple_groups_additive(
     test_db_session.add(
         RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=reader_group.id, role_name="auditor")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=reader_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=reader_group.id))
     await test_db_session.commit()
 
     auth_as(bob)
@@ -124,7 +124,7 @@ async def test_group_project_role(
     group = Group(name="gamma-team-gpr", description="Gamma team", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=group.id))
 
     # Assign project-user role to group for gamma
     project = (await test_db_session.exec(select(Project).where(Project.name == gamma_name))).first()
@@ -172,7 +172,7 @@ async def test_remove_revokes_access(
     test_db_session.add(group)
     await test_db_session.flush()
     test_db_session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor"))
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=group.id))
     await test_db_session.commit()
 
     # Bob can read policies while in group
@@ -187,7 +187,7 @@ async def test_remove_revokes_access(
     # Remove bob from group
     from sqlalchemy import delete
 
-    await test_db_session.execute(
+    await test_db_session.exec(
         delete(user_groups).where(
             user_groups.c.user_id == bob.id,
             user_groups.c.group_id == group.id,

@@ -130,7 +130,7 @@ async def test_lp4_system_auditor_sees_all_projects(
             id=uuid4(), principal_type=PrincipalType.GROUP, principal_id=auditor_group.id, role_name="auditor"
         )
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=auditor.id, group_id=auditor_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=auditor.id, group_id=auditor_group.id))
     await test_db_session.commit()
 
     _auth_as(auditor)
@@ -165,7 +165,7 @@ async def test_lp5_system_admin_sees_all_projects(
     test_db_session.add(
         RoleAssignment(id=uuid4(), principal_type=PrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
     )
-    await test_db_session.execute(insert(user_groups).values(user_id=admin.id, group_id=admin_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=admin.id, group_id=admin_group.id))
     await test_db_session.commit()
 
     _auth_as(admin)

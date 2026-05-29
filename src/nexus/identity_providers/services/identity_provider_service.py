@@ -151,13 +151,13 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         """
         if entries:
             requested_ids = {e.nexus_group_id for e in entries}
-            result = await self.session.execute(
+            result = await self.session.exec(
                 select(Group.id).where(
                     col(Group.id).in_(requested_ids),
                     Group.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
             )
-            found_ids = {row[0] for row in result.all()}
+            found_ids = set(result.all())
             missing = requested_ids - found_ids
             if missing:
                 raise GroupNotFoundError(next(iter(missing)))
@@ -176,7 +176,7 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         entries: list[OIDCGroupMappingEntry],
     ) -> None:
         """Delete existing entries for provider and insert new ones."""
-        await self.session.execute(
+        await self.session.exec(
             sa_delete(IdpGroupMappingEntry).where(col(IdpGroupMappingEntry.identity_provider_id) == provider_id)
         )
         await self._save_group_mapping_entries(provider_id, entries)
@@ -372,10 +372,10 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
             raise IdentityProviderNotFoundError(msg)
 
         # Bulk-delete all user identities linked to this provider
-        delete_result = await self.session.execute(
+        delete_result = await self.session.exec(
             sa_delete(UserIdentity).where(col(UserIdentity.identity_provider_id) == provider_id)
         )
-        deleted_count = getattr(delete_result, "rowcount", 0)
+        deleted_count = delete_result.rowcount
         if deleted_count:
             logger.info(
                 "Deleted user identities for removed provider",
@@ -390,7 +390,7 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
         affected_users_sq = (
             select(user_idp_groups.c.user_id).where(user_idp_groups.c.identity_provider_id == provider_id).distinct()
         )
-        memberships_result = await self.session.execute(
+        memberships_result = await self.session.exec(
             sa_delete(user_groups).where(
                 user_groups.c.user_id.in_(affected_users_sq),
                 exists().where(
@@ -405,15 +405,15 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
                 ),
             )
         )
-        memberships_removed = getattr(memberships_result, "rowcount", 0)
+        memberships_removed = memberships_result.rowcount
 
         # 2. Delete all tracking rows for this provider.
-        tracking_result = await self.session.execute(
+        tracking_result = await self.session.exec(
             sa_delete(user_idp_groups).where(
                 user_idp_groups.c.identity_provider_id == provider_id,
             )
         )
-        tracking_deleted = getattr(tracking_result, "rowcount", 0)
+        tracking_deleted = tracking_result.rowcount
 
         if tracking_deleted:
             logger.info(

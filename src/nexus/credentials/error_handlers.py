@@ -57,7 +57,7 @@ def credential_validation_error_handler(request: Request, exc: "CredentialValida
     """Handle CredentialValidationError with RFC 9457 format."""
     logger.error("Credential validation error", exc_info=exc)
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Credential Validation Error",
         detail=exc.message,
@@ -89,7 +89,7 @@ def credential_disabled_error_handler(request: Request, exc: "CredentialDisabled
     """Handle CredentialDisabledError with RFC 9457 format."""
     logger.warning("Credential disabled", credential_name=exc.name)
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Credential Disabled",
         detail=exc.message,

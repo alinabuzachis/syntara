@@ -1836,7 +1836,7 @@ async def _resolve_and_login_user(
             # No groups resolved from this provider (no mappings matched
             # or extraction failed) — check if the user has any group
             # memberships from other sources (manually assigned).
-            other_groups = await db.execute(
+            other_groups = await db.exec(
                 select(user_groups.c.group_id).where(user_groups.c.user_id == user.id).limit(1)
             )
             if other_groups.first() is None:

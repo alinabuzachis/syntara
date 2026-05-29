@@ -166,7 +166,7 @@ async def test_cross_project_group_role(
     test_db_session.add(group)
     await test_db_session.flush()
 
-    await test_db_session.execute(insert(user_groups).values(user_id=bob.id, group_id=group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=bob.id, group_id=group.id))
 
     project = (await test_db_session.exec(select(Project).where(Project.name == alpha_name))).first()
     assert project is not None

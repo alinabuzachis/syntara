@@ -132,14 +132,14 @@ async def _resolve_aap_role_groups(
             return None
         return {users_group_id}
 
-    result = await db.execute(
+    result = await db.exec(
         select(Group).filter(
             col(Group.name) == target_name,
             col(Group.is_builtin) == True,  # noqa: E712
             Group.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
-    group = result.scalars().first()
+    group = result.first()
     if not group:
         logger.error(
             "Built-in group not found for AAP role mapping",
@@ -190,14 +190,14 @@ def _resolve_claim_based_groups(
 
 async def _resolve_users_group(db: AsyncSession, user_id: UUID) -> UUID | None:
     """Look up the built-in ``users`` group. Returns None if not found."""
-    result = await db.execute(
+    result = await db.exec(
         select(Group).filter(
             col(Group.name) == "users",
             col(Group.is_builtin) == True,  # noqa: E712
             Group.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
-    group: Group | None = result.scalars().first()
+    group: Group | None = result.first()
     if not group:
         logger.error("Built-in 'users' group not found", user_id=str(user_id))
         return None
@@ -236,10 +236,10 @@ async def sync_idp_groups(
     provider_id = identity.identity_provider_id
 
     # Load mapping entries from DB table
-    mapping_entries_result = await db.execute(
+    mapping_entries_result = await db.exec(
         select(IdpGroupMappingEntry).where(IdpGroupMappingEntry.identity_provider_id == provider_id)
     )
-    mapping_entries = list(mapping_entries_result.scalars().all())
+    mapping_entries = list(mapping_entries_result.all())
 
     has_claim_based = bool(mapping_entries)
     if not has_claim_based and not aap_role_mapping:
@@ -291,7 +291,7 @@ async def _apply_group_membership_diff(
     Groups that exist only in ``user_groups`` (no ``user_idp_groups`` row)
     are manually assigned and left untouched.
     """
-    all_idp_rows = await db.execute(
+    all_idp_rows = await db.exec(
         select(user_idp_groups.c.group_id, user_idp_groups.c.identity_provider_id).where(
             user_idp_groups.c.user_id == user_id,
         )
@@ -304,37 +304,39 @@ async def _apply_group_membership_diff(
     displaced_provider_ids = {row[1] for row in rows if row[0] in to_remove} - {provider_id}
 
     if desired_group_ids:
-        existing_rows = await db.execute(
+        existing_rows = await db.exec(
             select(user_groups.c.group_id).where(
                 user_groups.c.user_id == user_id,
                 user_groups.c.group_id.in_(desired_group_ids),
             )
         )
-        already_member: set[UUID] = {row[0] for row in existing_rows}
+        already_member: set[UUID] = set(existing_rows.all())
         new_memberships = desired_group_ids - already_member
         if new_memberships:
-            await db.execute(
+            await db.exec(
                 user_groups.insert(),
-                [{"user_id": user_id, "group_id": gid} for gid in new_memberships],
+                params=[{"user_id": user_id, "group_id": gid} for gid in new_memberships],
             )
 
     if to_remove:
-        await db.execute(
+        await db.exec(
             sa_delete(user_groups).where(
                 user_groups.c.user_id == user_id,
                 user_groups.c.group_id.in_(to_remove),
             )
         )
 
-    await db.execute(
+    await db.exec(
         sa_delete(user_idp_groups).where(
             user_idp_groups.c.user_id == user_id,
         )
     )
     if desired_group_ids:
-        await db.execute(
+        await db.exec(
             user_idp_groups.insert(),
-            [{"user_id": user_id, "identity_provider_id": provider_id, "group_id": gid} for gid in desired_group_ids],
+            params=[
+                {"user_id": user_id, "identity_provider_id": provider_id, "group_id": gid} for gid in desired_group_ids
+            ],
         )
 
     added = len(desired_group_ids - all_idp_group_ids)

@@ -401,7 +401,7 @@ class TestGroupMembershipEdgeCases:
         empty_group = Group(name=f"empty-sec29-{uuid4()}", description="", labels={})
         test_db_session.add(empty_group)
         await test_db_session.flush()
-        await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=empty_group.id))
+        await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=empty_group.id))
         await test_db_session.commit()
 
         auth_as(user)
@@ -430,7 +430,7 @@ class TestGroupMembershipEdgeCases:
         await test_db_session.flush()
         role_assignment = RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor")
         test_db_session.add(role_assignment)
-        await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=group.id))
+        await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
         await test_db_session.commit()
 
         auth_as(user)

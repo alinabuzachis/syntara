@@ -265,7 +265,7 @@ async def preseed_credential_types(session: AsyncSession) -> None:
         set_={col: stmt.excluded[col] for col in _UPSERT_UPDATE_FIELDS},
     )
 
-    await session.execute(stmt)
+    await session.exec(stmt)
     await session.commit()
 
     logger.info("credential_types.preseed.complete", count=len(rows))

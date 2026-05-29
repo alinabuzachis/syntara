@@ -93,7 +93,7 @@ class RoleNameConflictError(NexusError):
 
 def _invalid_action_handler(request: Request, exc: NexusError) -> JSONResponse:
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Invalid Resource Action",
         detail=exc.message,

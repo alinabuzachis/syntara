@@ -87,8 +87,8 @@ async def _revoke_all_tokens(actor: str) -> None:
             .where(GlobalRevocationTimestamp.id == 1)  # type: ignore[arg-type]
             .values(revoked_before=now, updated_at=now)
         )
-        result = await session.execute(stmt)
-        if result.rowcount == 0:  # type: ignore[attr-defined]
+        result = await session.exec(stmt)
+        if result.rowcount == 0:
             # Row doesn't exist yet — insert the singleton
             from sqlmodel import select  # noqa: PLC0415
 

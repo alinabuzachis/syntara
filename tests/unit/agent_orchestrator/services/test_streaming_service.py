@@ -30,9 +30,9 @@ def mock_db_session_factory(handler: WebSocketStreamingHandler, scalar_result: A
     """
     # Create mock session and result
     mock_session = AsyncMock()
-    mock_result = MagicMock()  # Not AsyncMock - scalar_one_or_none is not async
-    mock_result.scalar_one_or_none.return_value = scalar_result
-    mock_session.execute.return_value = mock_result
+    mock_result = MagicMock()  # Not AsyncMock - one_or_none is not async
+    mock_result.one_or_none.return_value = scalar_result
+    mock_session.exec.return_value = mock_result
 
     # Create async context manager mock
     mock_cm = AsyncMock()

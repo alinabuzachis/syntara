@@ -333,8 +333,8 @@ class TestQueryExecutionCountsRealDB:
         )
 
         # Update created_at to `now` so durations are 60s and 120s
-        await test_db_session.execute(update(Execution).where(Execution.id == exec1.id).values(created_at=now))  # type: ignore[arg-type]
-        await test_db_session.execute(update(Execution).where(Execution.id == exec2.id).values(created_at=now))  # type: ignore[arg-type]
+        await test_db_session.exec(update(Execution).where(Execution.id == exec1.id).values(created_at=now))  # type: ignore[arg-type]
+        await test_db_session.exec(update(Execution).where(Execution.id == exec2.id).values(created_at=now))  # type: ignore[arg-type]
         await test_db_session.commit()
 
         result = await query_execution_counts(test_db_session)

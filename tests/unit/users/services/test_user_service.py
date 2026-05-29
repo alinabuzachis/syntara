@@ -236,7 +236,7 @@ async def test_update_user_is_enabled(test_db_session: AsyncSession, test_user: 
 
     # Seed an admins group with a member so the guard allows disabling other users
     admins_group = await _get_or_create_admins_group(test_db_session)
-    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
     await test_db_session.flush()
 
     user = await service.create_user(
@@ -318,10 +318,10 @@ async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None
 
     # Seed admins group with both members (clear any pre-seeded memberships first)
     admins_group = await _get_or_create_admins_group(test_db_session)
-    await test_db_session.execute(user_groups.delete().where(user_groups.c.group_id == admins_group.id))
+    await test_db_session.exec(user_groups.delete().where(user_groups.c.group_id == admins_group.id))
     await test_db_session.flush()
-    await test_db_session.execute(insert(user_groups).values(user_id=admin.id, group_id=admins_group.id))
-    await test_db_session.execute(insert(user_groups).values(user_id=other_admin.id, group_id=admins_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=admin.id, group_id=admins_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=other_admin.id, group_id=admins_group.id))
     await test_db_session.commit()
 
     # Service running as admin
@@ -518,7 +518,7 @@ async def test_delete_user_success(test_db_session: AsyncSession, test_user: Use
 
     # Need an admins group with the test_user so _ensure_other_admins_exist passes
     admins_group = await _get_or_create_admins_group(test_db_session)
-    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
     await test_db_session.flush()
 
     await service.delete_user(user.id)
@@ -546,7 +546,7 @@ async def test_delete_user_anonymizes_email(test_db_session: AsyncSession, test_
 
     # Need an admins group with the test_user so _ensure_other_admins_exist passes
     admins_group = await _get_or_create_admins_group(test_db_session)
-    await test_db_session.execute(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=test_user.id, group_id=admins_group.id))
     await test_db_session.flush()
 
     # Verify email exists before deletion
@@ -649,8 +649,8 @@ async def test_delete_last_admin_raises_error(test_db_session: AsyncSession) -> 
     test_db_session.add(sole_admin)
 
     admins_group = await _get_or_create_admins_group(test_db_session)
-    await test_db_session.execute(user_groups.delete().where(user_groups.c.group_id == admins_group.id))
-    await test_db_session.execute(insert(user_groups).values(user_id=sole_admin.id, group_id=admins_group.id))
+    await test_db_session.exec(user_groups.delete().where(user_groups.c.group_id == admins_group.id))
+    await test_db_session.exec(insert(user_groups).values(user_id=sole_admin.id, group_id=admins_group.id))
     await test_db_session.commit()
 
     service = UsersService(test_db_session, sole_admin)
@@ -672,10 +672,10 @@ async def _create_group(session: AsyncSession, name: str) -> Group:
 
 
 async def _user_group_names(session: AsyncSession, user: User) -> set[str]:
-    rows = await session.execute(
+    rows = await session.exec(
         select(Group.name).join(user_groups, user_groups.c.group_id == Group.id).where(user_groups.c.user_id == user.id)
     )
-    return {r[0] for r in rows.all()}
+    return set(rows.all())
 
 
 @pytest.mark.asyncio

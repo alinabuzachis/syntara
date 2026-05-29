@@ -153,7 +153,7 @@ class DatabaseBackend:
         """Check if the database is reachable via a simple query."""
         try:
             # SECURITY: keep as static literal — never interpolate variables
-            await self._session.execute(text("SELECT 1"))
+            await self._session.exec(text("SELECT 1"))  # type: ignore[call-overload]
         except (OperationalError, DatabaseError):
             logger.warning("Storage backend health check failed", exc_info=True)
             return False

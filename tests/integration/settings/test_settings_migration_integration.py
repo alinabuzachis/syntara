@@ -47,9 +47,9 @@ async def _set_int_setting(
     category: str = "workflow_execution",
     vtype: str = "integer",
 ) -> None:
-    await session.execute(
+    await session.exec(  # type: ignore[call-overload]
         text(_UPSERT_SETTING),
-        {
+        params={
             "key": key,
             "name": name,
             "value": str(value),
@@ -88,9 +88,9 @@ async def _restore_settings(
         _CONVERSION_TIMEOUT_KEY,
         _CONVERSION_OVERWRITE_KEY,
     ):
-        await test_db_session.execute(
+        await test_db_session.exec(  # type: ignore[call-overload]
             text("UPDATE runtime_settings SET value = NULL WHERE key = :key"),
-            {"key": key},
+            params={"key": key},
         )
     await test_db_session.commit()
 
@@ -143,9 +143,9 @@ async def test_conversion_config_reads_live_timeout(
         category="application",
     )
     # Seed overwrite_existing so from_settings() can read both values
-    await test_db_session.execute(
+    await test_db_session.exec(  # type: ignore[call-overload]
         text(_UPSERT_SETTING),
-        {
+        params={
             "key": _CONVERSION_OVERWRITE_KEY,
             "name": "Overwrite existing",
             "value": "false",
@@ -220,9 +220,9 @@ async def test_conversion_overwrite_setting_propagates(
         name="Conversion timeout",
         category="application",
     )
-    await test_db_session.execute(
+    await test_db_session.exec(  # type: ignore[call-overload]
         text(_UPSERT_SETTING),
-        {
+        params={
             "key": _CONVERSION_OVERWRITE_KEY,
             "name": "Overwrite existing",
             "value": "true",
