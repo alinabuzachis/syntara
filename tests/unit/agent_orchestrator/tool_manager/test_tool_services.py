@@ -108,8 +108,10 @@ class TestToolServices:
             mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_tool])
 
             # Test the full synchronization process
+            session_id = "session-abc"
             invocation_id = uuid4()
-            synchronizer = tool_services.ToolSynchronizer(invocation_id)
+            execution_id = uuid4()
+            synchronizer = tool_services.ToolSynchronizer(session_id, invocation_id, execution_id=execution_id)
             result = await synchronizer.synchronize_tools()
 
             # Should return filtered tools
@@ -242,8 +244,10 @@ class TestToolServices:
             mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_tool])
 
             # Test the ToolSynchronizer class
+            session_id = "session-abc"
             invocation_id = uuid4()
-            synchronizer = tool_services.ToolSynchronizer(invocation_id)
+            execution_id = uuid4()
+            synchronizer = tool_services.ToolSynchronizer(session_id, invocation_id, execution_id)
 
             # Verify initial state
             assert synchronizer.invocation_id == invocation_id

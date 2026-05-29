@@ -132,7 +132,9 @@ class TestOrchestrationServiceGetTools:
         Disabled tools are not processed since they're filtered out at the service layer.
         """
         _provider_id, [enabled_tool_id, disabled_tool_id] = test_tool_provider_with_tools
+        session_id = "session-abc"
         invocation_id = uuid4()
+        execution_id = uuid4()
 
         # Log test setup information for debugging
         provider_list_response = await jwt_client.get("/api/v1/tool_manager/tool_providers")
@@ -161,7 +163,7 @@ class TestOrchestrationServiceGetTools:
             mock_mcp_instance.get_tools = AsyncMock(return_value=[])  # No tools from MCP server
 
             # Call _get_tools
-            result_tools = await orchestration_service._get_tools(invocation_id)
+            result_tools = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
 
             # Should return empty list since no tools are available
             assert result_tools == []
@@ -198,7 +200,9 @@ class TestOrchestrationServiceGetTools:
         Should return the matching tool and keep it enabled.
         """
         _provider_id, [enabled_tool_id, disabled_tool_id] = test_tool_provider_with_tools
+        session_id = "session-abc"
         invocation_id = uuid4()
+        execution_id = uuid4()
 
         # Create mock BaseTool that matches the enabled tool
         mock_enabled_tool = Mock(spec=BaseTool)
@@ -219,7 +223,7 @@ class TestOrchestrationServiceGetTools:
             mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_enabled_tool])
 
             # Call _get_tools
-            result_tools = await orchestration_service._get_tools(invocation_id)
+            result_tools = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
 
             # Should return the one matching enabled tool
             assert len(result_tools) == 1
@@ -292,7 +296,9 @@ class TestOrchestrationServiceGetTools:
             provider_record.status = ProviderStatus.AVAILABLE
             await test_db_session.commit()
 
+        session_id = "session-abc"
         invocation_id = uuid4()
+        execution_id = uuid4()
 
         # Mock MCP server to now return the previously missing tool
         mock_recovery_tool = Mock(spec=BaseTool)
@@ -311,7 +317,7 @@ class TestOrchestrationServiceGetTools:
             mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_recovery_tool])
 
             # Call _get_tools - should trigger re-enablement in the background
-            result_tools = await orchestration_service._get_tools(invocation_id)
+            result_tools = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
 
             # Tool won't be returned immediately since it's being processed from disabled state
             # But it should be re-enabled for the next execution
@@ -327,7 +333,7 @@ class TestOrchestrationServiceGetTools:
             assert recovered_tool["refresh_error"] is None  # Error cleared
 
             # On a subsequent call, the tool should now be available since it's enabled
-            result_tools_2 = await orchestration_service._get_tools(uuid4())
+            result_tools_2 = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
             assert len(result_tools_2) == 1
             assert result_tools_2[0] is mock_recovery_tool
 
@@ -376,7 +382,9 @@ class TestOrchestrationServiceGetTools:
             provider_record.status = ProviderStatus.AVAILABLE
             await test_db_session.commit()
 
+        session_id = "session-abc"
         invocation_id = uuid4()
+        execution_id = uuid4()
 
         # Mock MCP client to raise ConnectionError
         with (
@@ -391,7 +399,7 @@ class TestOrchestrationServiceGetTools:
             mock_mcp_instance.get_tools = AsyncMock(side_effect=ConnectionError("Connection refused"))
 
             # Call _get_tools - should handle the connection error gracefully
-            result_tools = await orchestration_service._get_tools(invocation_id)
+            result_tools = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
 
             # Should return empty list since provider failed
             assert result_tools == []
@@ -461,7 +469,9 @@ class TestOrchestrationServiceGetTools:
         test_db_session.add(provider_tool)
         await test_db_session.commit()
 
+        session_id = "session-abc"
         invocation_id = uuid4()
+        execution_id = uuid4()
 
         # Mock MCP server to now work and return tools
         mock_provider_tool = Mock(spec=BaseTool)
@@ -480,7 +490,7 @@ class TestOrchestrationServiceGetTools:
             mock_mcp_instance.get_tools = AsyncMock(return_value=[mock_provider_tool])
 
             # Call _get_tools - should retry the ERROR provider and re-enable it
-            result_tools = await orchestration_service._get_tools(invocation_id)
+            result_tools = await orchestration_service._get_tools(session_id, invocation_id, execution_id)
 
             # Should return the tool from the recovered provider
             assert len(result_tools) == 1

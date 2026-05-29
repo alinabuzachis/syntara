@@ -26,12 +26,15 @@ class TestInvocationLifecycleHandler:
 
     async def test_running_status_with_user_actor(self, test_user: User) -> None:
         """Running invocation with USER actor produces SUCCESS status."""
-        execution_id = uuid4()
         invocation_id = uuid4()
+        execution_id = uuid4()
+        request_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.RUNNING,
+            session_id="session-abc",
             invocation_id=invocation_id,
             execution_id=execution_id,
+            request_id=request_id,
             actor_context=AuditActorContext(
                 actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
             ),
@@ -50,18 +53,22 @@ class TestInvocationLifecycleHandler:
         assert result.actor_type == ActorType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
-        assert result.resource_urn == f"urn:nexus:execution:{execution_id}"
+        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
 
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "invocation_lifecycle"
         assert result.structured_data.invocation_status == InvocationStatus.RUNNING
+        assert result.structured_data.request_id == request_id
         assert result.structured_data.error_type is None
 
     async def test_failed_status_with_error(self, test_user: User) -> None:
         """Failed invocation produces ERROR severity with error details."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.FAILED,
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
                 actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
@@ -85,9 +92,12 @@ class TestInvocationLifecycleHandler:
 
     def test_cancelled_status_produces_warning(self) -> None:
         """Cancelled invocation produces WARNING severity."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.CANCELLED,
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
         )
@@ -104,9 +114,12 @@ class TestInvocationLifecycleHandler:
 
     def test_metadata_fields_included(self) -> None:
         """Metadata fields (model_name, total_token_count, conversion_failures) are included."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.COMPLETED,
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
             model_name="claude-3-5-sonnet",
@@ -119,9 +132,12 @@ class TestInvocationLifecycleHandler:
 
     def test_metadata_fields_optional(self) -> None:
         """Metadata fields are optional."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.RUNNING,
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
         )
@@ -133,10 +149,11 @@ class TestInvocationLifecycleHandler:
 
     def test_invocation_id_included(self) -> None:
         """Invocation ID is included in structured_data when provided."""
-        execution_id = uuid4()
         invocation_id = uuid4()
+        execution_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.RUNNING,
+            session_id="session-abc",
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
@@ -148,26 +165,14 @@ class TestInvocationLifecycleHandler:
         assert result.execution_id == execution_id
         assert result.structured_data.invocation_id == invocation_id
 
-    def test_invocation_id_optional(self) -> None:
-        """Invocation ID is optional in structured_data."""
-        execution_id = uuid4()
-        event = InvocationLifecycleEvent(
-            status=InvocationStatus.RUNNING,
-            invocation_id=None,
-            execution_id=execution_id,
-            actor_context=AuditActorContext(),
-        )
-
-        handler = InvocationLifecycleHandler()
-        result = handler.handle(event)
-
-        assert result.structured_data.invocation_id is None
-
     def test_no_actor_context(self) -> None:
         """Event without actor_context handles None gracefully."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.COMPLETED,
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=None,
         )
@@ -181,10 +186,13 @@ class TestInvocationLifecycleHandler:
 
     def test_status_case_insensitive(self) -> None:
         """Status is converted to lowercase for action and message."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         # InvocationStatus values are typically uppercase
         event = InvocationLifecycleEvent(
             status=InvocationStatus.RUNNING,  # This is "RUNNING" as an enum
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
         )
@@ -198,9 +206,12 @@ class TestInvocationLifecycleHandler:
 
     def test_failed_without_error_type(self) -> None:
         """Failed status without explicit error_type still produces error event."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = InvocationLifecycleEvent(
             status=InvocationStatus.FAILED,
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
             error_type=None,

@@ -9,6 +9,7 @@ import math
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -19,6 +20,7 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_
     RelevantDocument,
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.services import RetrieverService
+from nexus.agent_orchestrator.models import Invocation
 from nexus.core.models import User
 from nexus.files.models import FileMetadata
 from tests.conftest import FakeSettingsCache
@@ -85,10 +87,19 @@ async def execute_planner_request(
     async def mock_session_context() -> AsyncIterator[AsyncSession]:
         yield test_db_session
 
+    invocation = Invocation(created_by=test_user.id, prompt="test", session_id="session-abc")
+    test_db_session.add(invocation)
+    await test_db_session.flush()
+    await test_db_session.refresh(invocation)
+    invocation_id = invocation.id
+
     with patch.object(planner, "get_async_session_context", mock_session_context):
         return await planner.plan_request(
-            session_id="test-session",
             query="test query",
+            session_id="test-session",
+            invocation_id=invocation_id,
+            execution_id=uuid4(),
+            request_id=uuid4(),
             user_id=test_user.id,
         )
 

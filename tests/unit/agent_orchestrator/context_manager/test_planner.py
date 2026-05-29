@@ -54,7 +54,9 @@ class TestContextManagerPlanner:
         assert planner.llm_credential_config is None
 
     @pytest.mark.asyncio
-    async def test_plan_request_successful_workflow(self, mock_user: User, mock_compressor) -> None:
+    async def test_plan_request_successful_workflow(
+        self, mock_user: User, mock_session_factory, mock_compressor
+    ) -> None:
         """Test plan_request executes the full workflow successfully with new AssemblerService."""
         # Mock the RetrieverService
         mock_retrieve_service = AsyncMock()
@@ -77,6 +79,7 @@ class TestContextManagerPlanner:
         )
 
         planner = ContextManagerPlanner(
+            session_factory=mock_session_factory,
             retriever_service_factory=mock_retriever_factory,
             compressor_service_factory=lambda: mock_compressor,
         )
@@ -87,8 +90,11 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ) as mock_assemble:
             result = await planner.plan_request(
-                session_id="test-session",
                 query="test query",
+                session_id="test-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
                 user_id=mock_user.id,
             )
 
@@ -110,7 +116,9 @@ class TestContextManagerPlanner:
         mock_retrieve_service.retrieve_relevant_documents.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_plan_request_with_different_parameters(self, mock_user: User, mock_compressor) -> None:
+    async def test_plan_request_with_different_parameters(
+        self, mock_user: User, mock_session_factory, mock_compressor
+    ) -> None:
         """Test plan_request with different parameter combinations."""
         mock_context_package = ContextPackage(
             payload={},
@@ -119,7 +127,9 @@ class TestContextManagerPlanner:
             package_metadata={},
         )
 
-        planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
+        planner = ContextManagerPlanner(
+            session_factory=mock_session_factory, compressor_service_factory=lambda: mock_compressor
+        )
 
         with patch(
             "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
@@ -127,15 +137,18 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ):
             result = await planner.plan_request(
-                session_id="different-session",
                 query="different query",
+                session_id="different-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
                 user_id=mock_user.id,
             )
 
         assert isinstance(result, ContextPackage)
 
     @pytest.mark.asyncio
-    async def test_plan_request_timing_metadata(self, mock_user: User, mock_compressor) -> None:
+    async def test_plan_request_timing_metadata(self, mock_user: User, mock_session_factory, mock_compressor) -> None:
         """Test that timing metadata is properly recorded in AssemblerService."""
         mock_context_package = ContextPackage(
             payload={},
@@ -149,7 +162,9 @@ class TestContextManagerPlanner:
             },
         )
 
-        planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
+        planner = ContextManagerPlanner(
+            session_factory=mock_session_factory, compressor_service_factory=lambda: mock_compressor
+        )
 
         with patch(
             "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
@@ -157,8 +172,11 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ):
             result = await planner.plan_request(
-                session_id="test-session",
                 query="timing query",
+                session_id="test-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
                 user_id=mock_user.id,
             )
 
@@ -205,6 +223,7 @@ class TestContextManagerPlanner:
                 session_id="test-session",
                 query="error query",
                 invocation_id=UUID("12345678-1234-5678-1234-567812345678"),
+                request_id=uuid4(),
                 user_id=mock_user.id,
             )
 
@@ -217,7 +236,9 @@ class TestContextManagerPlanner:
             mock_retrieve_service.retrieve_relevant_documents.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_plan_request_passes_config_to_assembler(self, mock_user: User, mock_compressor) -> None:
+    async def test_plan_request_passes_config_to_assembler(
+        self, mock_user: User, mock_session_factory, mock_compressor
+    ) -> None:
         """Test that planner passes configuration values to AssemblerService."""
         mock_context_package = ContextPackage(
             payload={},
@@ -226,7 +247,9 @@ class TestContextManagerPlanner:
             package_metadata={},
         )
 
-        planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
+        planner = ContextManagerPlanner(
+            session_factory=mock_session_factory, compressor_service_factory=lambda: mock_compressor
+        )
 
         with patch(
             "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
@@ -234,8 +257,11 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ) as mock_assemble:
             await planner.plan_request(
-                session_id="test-session",
                 query="config query",
+                session_id="test-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
                 user_id=mock_user.id,
             )
 
@@ -249,6 +275,7 @@ class TestContextManagerPlanner:
     @pytest.mark.asyncio
     async def test_plan_request_reads_max_total_tokens_from_settings(
         self,
+        mock_session_factory,
         mock_compressor,
         override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]],
     ) -> None:
@@ -268,8 +295,16 @@ class TestContextManagerPlanner:
                 return_value=mock_context_package,
             ) as mock_assemble,
         ):
-            planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
-            await planner.plan_request(session_id="test-session", query="cache query")
+            planner = ContextManagerPlanner(
+                session_factory=mock_session_factory, compressor_service_factory=lambda: mock_compressor
+            )
+            await planner.plan_request(
+                query="cache query",
+                session_id="test-session",
+                invocation_id=uuid4(),
+                execution_id=uuid4(),
+                request_id=uuid4(),
+            )
 
         call_kwargs = mock_assemble.call_args.kwargs
         assert call_kwargs["max_tokens"] == 8000

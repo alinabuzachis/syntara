@@ -67,6 +67,7 @@ class OrchestratorAgent:
         session_id = state["session_id"]
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
+        request_id = state.get("request_id", None)
 
         # Emit START event (ContextVar also set by invocation_executor)
         AuditEventDispatcher.dispatch(
@@ -75,6 +76,7 @@ class OrchestratorAgent:
                 session_id=session_id,
                 invocation_id=invocation_id,
                 execution_id=execution_id,
+                request_id=request_id,
                 status=AgentExecutionStatus.STARTED,
             )
         )
@@ -100,6 +102,7 @@ class OrchestratorAgent:
                     session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=AgentExecutionStatus.COMPLETED,
                     context_applied=context_applied,
                     grounding_score=grounding_score,
@@ -123,6 +126,7 @@ class OrchestratorAgent:
                     session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=AgentExecutionStatus.FAILED,
                     error_type=type(e).__name__,
                 )
@@ -146,6 +150,7 @@ class OrchestratorAgent:
         session_id = state["session_id"]
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
+        request_id = state.get("request_id", None)
         original_prompt = state["original_prompt"]
 
         try:
@@ -160,6 +165,8 @@ class OrchestratorAgent:
                 self.context_manager.plan_request(
                     session_id=session_id,
                     invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    request_id=request_id,
                     query=original_prompt,
                     user_id=user_id,
                 ),
@@ -185,6 +192,7 @@ class OrchestratorAgent:
                     session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=ContextIntegrationStatus.SUCCESS,
                     grounding_score=context_package.grounding_score,
                     citations_count=len(context_package.citations) if context_package.citations else 0,
@@ -206,8 +214,8 @@ class OrchestratorAgent:
                     session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=ContextIntegrationStatus.TIMEOUT,
-                    error_type="TimeoutError",
                 )
             )
 
@@ -233,8 +241,8 @@ class OrchestratorAgent:
                     session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=ContextIntegrationStatus.FALLBACK,
-                    error_type=type(e).__name__,
                 )
             )
 

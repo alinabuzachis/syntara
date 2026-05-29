@@ -78,3 +78,58 @@ async def test_middleware_extracts_path_params(
     assert post_event["event_action"] == "request_completed"
     assert post_event["event_status"] == "error"  # 404 response
     assert str(execution_id) in post_event["event_message"]
+
+
+@pytest.mark.asyncio
+async def test_middleware_captures_request_id_in_structured_data(
+    base_client: AsyncClient,
+    admin_user: User,
+    create_jwt_for_user: Callable[[User], str],
+) -> None:
+    """Test that middleware captures X-Request-Id header and includes it in structured_data.
+
+    Sends a request with X-Request-Id header and verifies the audit event
+    contains the request_id in its structured_data field.
+    """
+    # Create JWT token for admin user
+    admin_token = create_jwt_for_user(admin_user)
+    request_id = uuid4()
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "X-Request-Id": str(request_id),
+    }
+
+    # Make a simple GET request to the audit endpoint
+    response = await base_client.get(f"{AUDIT_URL}?sort=-created_at", headers=headers)
+    assert response.status_code == 200
+
+    # Drain the audit writer to ensure all events have been written to the database
+    _audit_writer = get_audit_writer()
+    assert _audit_writer is not None
+    await _audit_writer.drain()
+
+    # Query the audit endpoint again to retrieve the audit event for the previous GET
+    audit_response = await base_client.get(AUDIT_URL, headers=headers)
+    assert audit_response.status_code == 200
+
+    audit_data = audit_response.json()
+    # Should have at least one event for the first GET request
+    assert len(audit_data["resources"]) >= 1
+
+    # Find the audit event for the first GET request (should be the most recent with our request_id)
+    first_get_event = None
+    for event in audit_data["resources"]:
+        structured_data = event.get("structured_data", {})
+        if structured_data.get("request_id") == str(request_id):
+            first_get_event = event
+            break
+
+    # Verify we found the event
+    assert first_get_event is not None, "Should find audit event with matching request_id"
+
+    # Verify the structured_data contains the request_id
+    assert first_get_event["structured_data"]["request_id"] == str(request_id)
+    assert first_get_event["actor_id"] == str(admin_user.id)
+    assert first_get_event["actor_username"] == admin_user.username
+    assert first_get_event["event_action"] == "request_completed"
+    assert first_get_event["event_status"] == "success"  # 200 response

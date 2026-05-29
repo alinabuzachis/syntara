@@ -23,6 +23,11 @@ from nexus.agent_orchestrator.models import Invocation, InvocationContextData, I
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
+from nexus.agent_orchestrator.utils.context_helpers import (
+    extract_execution_id,
+    extract_request_id,
+    extract_workflow_id,
+)
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.audit.context_managers import actor_context as audit_actor_context
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -42,36 +47,6 @@ from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
 
 logger = structlog.stdlib.get_logger(__name__)
-
-
-def _extract_workflow_id(ctx: InvocationContextData) -> UUID | None:
-    """Extract workflow_id UUID from invocation context."""
-    if ctx.workflow_id:
-        with contextlib.suppress(ValueError):
-            return UUID(ctx.workflow_id)
-    return None
-
-
-def _extract_execution_id(ctx: InvocationContextData) -> UUID | None:
-    """Extract execution_id UUID from invocation context."""
-    if ctx.execution_id:
-        with contextlib.suppress(ValueError):
-            return UUID(ctx.execution_id)
-    return None
-
-
-def _extract_request_id(ctx: InvocationContextData) -> UUID | None:
-    """Extract request_id UUID from invocation context."""
-    if ctx.metadata and ctx.metadata.request_id:
-        with contextlib.suppress(ValueError):
-            return UUID(ctx.metadata.request_id)
-    return None
-
-
-def _extract_response_schema(ctx: InvocationContextData) -> dict[str, Any] | None:
-    """Extract response_schema from invocation context."""
-    opaque = ctx.metadata.response_schema if ctx.metadata else None
-    return opaque.get_data() if opaque else None
 
 
 def _extract_model_name(result_dict: dict[str, Any]) -> str | None:
@@ -223,10 +198,10 @@ class InvocationExecutor:
                 return
 
             # Execute orchestration with error handling
-            workflow_id: UUID | None = _extract_workflow_id(ctx)
+            workflow_id: UUID | None = extract_workflow_id(ctx)
             activity_id: str | None = ctx.activity_id
-            execution_id: UUID | None = _extract_execution_id(ctx)
-            request_id: UUID | None = _extract_request_id(ctx)
+            execution_id: UUID | None = extract_execution_id(ctx)
+            request_id: UUID | None = extract_request_id(ctx)
             actor_context = await self._get_actor_context_for_invocation(session, invocation)
             with audit_actor_context(
                 actor=actor_context,
@@ -257,7 +232,8 @@ class InvocationExecutor:
         """
         recorder = get_metrics_recorder()
         invocation_start = time.perf_counter()
-        execution_id = _extract_execution_id(ctx)
+        execution_id = extract_execution_id(ctx)
+        request_id = extract_request_id(ctx)
 
         try:
             # Mark invocation as started
@@ -268,7 +244,11 @@ class InvocationExecutor:
             # Dispatch RUNNING event
             AuditEventDispatcher.dispatch(
                 InvocationLifecycleEvent(
-                    invocation_id=invocation.id, execution_id=execution_id, status=InvocationStatus.RUNNING
+                    session_id=invocation.session_id,
+                    invocation_id=invocation.id,
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    status=InvocationStatus.RUNNING,
                 )
             )
 
@@ -305,7 +285,11 @@ class InvocationExecutor:
                 # Dispatch CANCELLED event
                 AuditEventDispatcher.dispatch(
                     InvocationLifecycleEvent(
-                        invocation_id=invocation.id, execution_id=execution_id, status=InvocationStatus.CANCELLED
+                        session_id=invocation.session_id,
+                        invocation_id=invocation.id,
+                        execution_id=execution_id,
+                        request_id=request_id,
+                        status=InvocationStatus.CANCELLED,
                     )
                 )
                 self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="cancelled")
@@ -327,8 +311,10 @@ class InvocationExecutor:
             # Dispatch COMPLETED event
             AuditEventDispatcher.dispatch(
                 InvocationLifecycleEvent(
+                    session_id=invocation.session_id,
                     invocation_id=invocation.id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=InvocationStatus.COMPLETED,
                     model_name=model_name,
                 )
@@ -349,7 +335,7 @@ class InvocationExecutor:
                 invocation_id=invocation.id,
                 error_type=type(e).__name__,
             )
-            await self._handle_execution_error(e, invocation.id, execution_id, session)
+            await self._handle_execution_error(e, invocation.id, execution_id, request_id, session)
 
             # Send failure signal to workflow
             cb_url = ctx.callback_url.get_secret_value() if ctx.callback_url else None
@@ -502,7 +488,12 @@ class InvocationExecutor:
         recorder.record(MetricType.AGENT_STATUS, value=1, labels=status_labels)
 
     async def _handle_execution_error(
-        self, error: Exception, invocation_id: UUID, execution_id: UUID | None, session: AsyncSession
+        self,
+        error: Exception,
+        invocation_id: UUID,
+        execution_id: UUID | None,
+        request_id: UUID | None,
+        session: AsyncSession,
     ) -> None:
         """Handle execution errors by marking invocation as failed.
 
@@ -510,6 +501,7 @@ class InvocationExecutor:
             error: The exception that occurred
             invocation_id: ID of the invocation that failed
             execution_id: ID of the execution
+            request_id: Optional X-Request-Id from the originating HTTP request.
             session: Database session
 
         """
@@ -536,8 +528,10 @@ class InvocationExecutor:
             # Dispatch FAILED event
             AuditEventDispatcher.dispatch(
                 InvocationLifecycleEvent(
+                    session_id=fresh_invocation.session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=InvocationStatus.FAILED,
                     error_type=type(error).__name__,
                 )

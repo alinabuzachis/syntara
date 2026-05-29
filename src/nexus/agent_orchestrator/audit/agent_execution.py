@@ -30,10 +30,11 @@ class AgentExecutionEvent:
     """
 
     agent_type: str  # "orchestrator", "generic_agent"
-    session_id: str
     status: AgentExecutionStatus
-    invocation_id: UUID | None = None
+    session_id: str
+    invocation_id: UUID
     execution_id: UUID | None = None
+    request_id: UUID | None = None
     actor_context: AuditActorContext | None = None
     error_type: str | None = None
 
@@ -72,7 +73,7 @@ class AgentExecutionHandler(AuditEventHandler[AgentExecutionEvent]):
             status = EventStatus.ERROR
             message = f"Agent {event.agent_type} failed"
             error_type = event.error_type
-            error_message = message
+            error_message = "Look at the Operational Logs for full diagnosis" if error_type is not None else None
         else:
             severity = EventSeverity.INFO
             status = EventStatus.SUCCESS
@@ -89,6 +90,7 @@ class AgentExecutionHandler(AuditEventHandler[AgentExecutionEvent]):
             status=event.status.value,
             session_id=event.session_id,
             invocation_id=event.invocation_id,
+            request_id=event.request_id,
             context_applied=event.context_applied,
             grounding_score=event.grounding_score,
             routed_to_agent=event.routed_to_agent,
@@ -106,5 +108,5 @@ class AgentExecutionHandler(AuditEventHandler[AgentExecutionEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
-            resource_urn=f"urn:nexus:execution:{event.execution_id}",
+            resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
         )

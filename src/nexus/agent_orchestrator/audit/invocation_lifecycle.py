@@ -22,8 +22,10 @@ class InvocationLifecycleEvent:
     """
 
     status: InvocationStatus
-    invocation_id: UUID | None = None
+    session_id: str
+    invocation_id: UUID
     execution_id: UUID | None = None
+    request_id: UUID | None = None
     actor_context: AuditActorContext | None = None
     error_type: str | None = None
 
@@ -68,7 +70,7 @@ class InvocationLifecycleHandler(AuditEventHandler[InvocationLifecycleEvent]):
             severity = EventSeverity.ERROR
             status = EventStatus.ERROR
             error_type = event.error_type
-            error_message = "Look at the Operational Logs for full diagnosis"
+            error_message = "Look at the Operational Logs for full diagnosis" if error_type is not None else None
         else:
             severity = EventSeverity.INFO
             status = EventStatus.SUCCESS
@@ -80,7 +82,9 @@ class InvocationLifecycleHandler(AuditEventHandler[InvocationLifecycleEvent]):
             data_type="invocation_lifecycle",
             error_type=error_type,
             error_message=error_message,
+            session_id=event.session_id,
             invocation_id=event.invocation_id,
+            request_id=event.request_id,
             invocation_status=event.status,
             model_name=event.model_name,
         )
@@ -97,5 +101,5 @@ class InvocationLifecycleHandler(AuditEventHandler[InvocationLifecycleEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
-            resource_urn=f"urn:nexus:execution:{event.execution_id}",
+            resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
         )

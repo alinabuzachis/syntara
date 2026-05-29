@@ -13,9 +13,16 @@ import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.agent_orchestrator.audit.context_planning import (
+    CancellationEvent,
+    ContextPlanningEvent,
+    ContextPlanningPhase,
+    ContextPlanningStatus,
+)
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus, LLMCredentialConfig
 from nexus.agent_orchestrator.token_manager import TokenValidationService
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.database.session import get_db
 from nexus.settings.cache.settings_cache import get_runtime_settings
 
@@ -60,12 +67,22 @@ class ContextManagerPlanner:
         self.compressor_service_factory = compressor_service_factory
         self.llm_credential_config = llm_credential_config
 
-    async def _check_cancellation(self, invocation_id: UUID, phase: str) -> None:
+    async def _check_cancellation(
+        self,
+        session_id: str,
+        invocation_id: UUID,
+        phase: ContextPlanningPhase,
+        execution_id: UUID | None = None,
+        request_id: UUID | None = None,
+    ) -> None:
         """Check if invocation has been cancelled.
 
         Args:
+            session_id: Session identifier for multi-tenant isolation
             invocation_id: UUID of the invocation to check
             phase: Current execution phase for error reporting
+            execution_id: Optional Workflow Execution ID
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         Raises:
             InvocationCancelledError: If invocation has been cancelled
@@ -77,7 +94,19 @@ class ContextManagerPlanner:
                 invocation = await session.get(Invocation, invocation_id)
                 if invocation and invocation.status == InvocationStatus.CANCELLED:
                     logger.info("Invocation cancelled during phase", phase=phase, invocation_id=invocation_id)
-                    raise InvocationCancelledError(str(invocation_id), phase)
+
+                    # Emit cancellation detected event
+                    AuditEventDispatcher.dispatch(
+                        CancellationEvent(
+                            phase=phase,
+                            session_id=session_id,
+                            invocation_id=invocation_id,
+                            execution_id=execution_id,
+                            request_id=request_id,
+                        )
+                    )
+
+                    raise InvocationCancelledError(str(invocation_id), phase.value)
         except (SQLAlchemyError, OSError) as e:
             # Log but don't fail on database errors - graceful degradation
             logger.warning(
@@ -91,7 +120,9 @@ class ContextManagerPlanner:
         self,
         session_id: str,
         query: str,
-        invocation_id: UUID | None = None,
+        invocation_id: UUID,
+        execution_id: UUID | None = None,
+        request_id: UUID | None = None,
         user_id: UUID | None = None,
     ) -> ContextPackage:
         """Plan and execute a context request.
@@ -101,10 +132,12 @@ class ContextManagerPlanner:
         2. Assembly: Create final context package (with internal compression retry loop)
 
         Args:
-            session_id: Session identifier for grouping related invocations
+            session_id: Session identifier for multi-tenant isolation
             query: User query string for context retrieval
-            invocation_id: Optional invocation ID for cancellation checking
-            user_id: UUID of the user making the request (for context assembly)
+            invocation_id: Invocation ID for cancellation checking
+            execution_id: Optional Workflow Execution ID
+            request_id: Optional X-Request-Id from the originating HTTP request.
+            user_id: Optional UUID of the user making the request (for context assembly)
 
         Returns:
             ContextPackage: Assembled context ready for LLM consumption
@@ -123,11 +156,24 @@ class ContextManagerPlanner:
 
         # Phase 1: Retrieval
         # Check for cancellation before starting retrieval
-        if invocation_id:
-            await self._check_cancellation(invocation_id, "retrieval")
+        await self._check_cancellation(
+            session_id, invocation_id, ContextPlanningPhase.RETRIEVAL, execution_id=execution_id, request_id=request_id
+        )
 
-        retrieval_start = time.time()
+        # Emit STARTED event for retrieval phase
+        AuditEventDispatcher.dispatch(
+            ContextPlanningEvent(
+                phase=ContextPlanningPhase.RETRIEVAL,
+                status=ContextPlanningStatus.STARTED,
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+            )
+        )
+
         retrieved_docs = []
+        retrieval_start = time.time()
         try:
             retriever = self.retriever_service_factory(self.session_factory)
             retrieved_docs = await retriever.retrieve_relevant_documents(
@@ -139,44 +185,114 @@ class ContextManagerPlanner:
                 retrieval_time_ms=timing_data["retrieval_time_ms"],
                 document_count=len(retrieved_docs),
             )
-        except Exception:
+
+            # Emit COMPLETED event for retrieval phase
+            AuditEventDispatcher.dispatch(
+                ContextPlanningEvent(
+                    phase=ContextPlanningPhase.RETRIEVAL,
+                    status=ContextPlanningStatus.COMPLETED,
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    document_count=len(retrieved_docs),
+                )
+            )
+        except Exception as e:
             timing_data["retrieval_time_ms"] = int((time.time() - retrieval_start) * 1000)
             logger.exception("Retrieval phase failed")
+
+            # Emit FAILED event for retrieval phase
+            AuditEventDispatcher.dispatch(
+                ContextPlanningEvent(
+                    phase=ContextPlanningPhase.RETRIEVAL,
+                    status=ContextPlanningStatus.FAILED,
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    error_type=type(e).__name__,
+                )
+            )
             retrieved_docs = []
 
         # Phase 2: Assembly
         # Check for cancellation before starting assembly
-        if invocation_id:
-            await self._check_cancellation(invocation_id, "assembly")
+        await self._check_cancellation(
+            session_id, invocation_id, ContextPlanningPhase.ASSEMBLY, execution_id=execution_id, request_id=request_id
+        )
+
+        # Emit STARTED event for assembly phase
+        AuditEventDispatcher.dispatch(
+            ContextPlanningEvent(
+                phase=ContextPlanningPhase.ASSEMBLY,
+                status=ContextPlanningStatus.STARTED,
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                document_count=len(retrieved_docs),
+            )
+        )
 
         assembly_start = time.time()
+        try:
+            # Get configuration parameters from runtime settings
+            max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
+            compression_loop = await self.settings.get_int("context_manager.compression_loop")
 
-        # Get configuration parameters from runtime settings
-        max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
-        compression_loop = await self.settings.get_int("context_manager.compression_loop")
+            # Get database session for context assembly
+            async with self.get_async_session_context() as session:
+                # Create assembler with injected dependencies
+                token_service = TokenValidationService()
+                compressor_service = self.compressor_service_factory()
+                assembler = AssemblerService(
+                    token_service=token_service,
+                    compressor_service=compressor_service,
+                )
 
-        # Get database session for context assembly
-        async with self.get_async_session_context() as session:
-            # Create assembler with injected dependencies
-            token_service = TokenValidationService()
-            compressor_service = self.compressor_service_factory()
-            assembler = AssemblerService(
-                token_service=token_service,
-                compressor_service=compressor_service,
+                # Assemble context package (with internal compression retry loop)
+                context_package = await assembler.assemble(
+                    documents=retrieved_docs,
+                    max_tokens=max_tokens,
+                    compression_loop=compression_loop,
+                    invocation_id=invocation_id,
+                    user_id=user_id,
+                    session=session,
+                )
+
+            timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
+            logger.info("Assembly phase completed", assembly_time_ms=timing_data["assembly_time_ms"])
+
+            # Emit COMPLETED event for assembly phase
+            AuditEventDispatcher.dispatch(
+                ContextPlanningEvent(
+                    phase=ContextPlanningPhase.ASSEMBLY,
+                    status=ContextPlanningStatus.COMPLETED,
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    request_id=request_id,
+                )
             )
 
-            # Assemble context package (with internal compression retry loop)
-            context_package = await assembler.assemble(
-                documents=retrieved_docs,
-                max_tokens=max_tokens,
-                compression_loop=compression_loop,
-                invocation_id=invocation_id,
-                user_id=user_id,
-                session=session,
-            )
+        except Exception as e:
+            timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
+            logger.exception("Assembly phase failed")
 
-        timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
-        logger.info("Assembly phase completed", assembly_time_ms=timing_data["assembly_time_ms"])
+            # Emit FAILED event for assembly phase
+            AuditEventDispatcher.dispatch(
+                ContextPlanningEvent(
+                    phase=ContextPlanningPhase.ASSEMBLY,
+                    status=ContextPlanningStatus.FAILED,
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    error_type=type(e).__name__,
+                )
+            )
+            raise
 
         # Calculate total execution time
         total_time_ms = int((time.time() - start_time) * 1000)

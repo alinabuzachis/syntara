@@ -10,6 +10,7 @@ from uuid import UUID
 import structlog
 from langchain_core.tools import BaseTool
 
+from nexus.agent_orchestrator.audit.tool_management import ToolDiscoveryEvent, ToolDiscoveryStatus
 from nexus.agent_orchestrator.tool_manager.tool_filtering import (
     enhance_namespaced_tools_with_metadata,
     filter_base_tools_by_enabled,
@@ -22,6 +23,7 @@ from nexus.agent_orchestrator.tool_manager.types import (
     NamespacedBaseTool,
     ToolDiscoveryResult,
 )
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.config.base import get_settings
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
@@ -463,14 +465,22 @@ class ToolSynchronizer:
     and eliminates the need for repeated parameter passing.
     """
 
-    def __init__(self, invocation_id: UUID) -> None:
+    def __init__(
+        self, session_id: str, invocation_id: UUID, execution_id: UUID | None = None, request_id: UUID | None = None
+    ) -> None:
         """Initialize the tool synchronizer.
 
         Args:
+            session_id: Session identifier for multi-tenant isolation
             invocation_id: Unique identifier for this synchronization session
+            execution_id: Optional Workflow Execution ID
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         """
+        self.session_id = session_id
         self.invocation_id = invocation_id
+        self.execution_id = execution_id
+        self.request_id = request_id
         self.all_providers: list[ToolProviderWithConfiguration] = []
         self.enabled_tools: list[ToolWithParameters] = []
         self.disabled_tools: list[ToolWithParameters] = []
@@ -487,6 +497,17 @@ class ToolSynchronizer:
 
         """
         logger.info("Starting tool synchronization", invocation_id=self.invocation_id)
+
+        # Emit STARTED event
+        AuditEventDispatcher.dispatch(
+            ToolDiscoveryEvent(
+                status=ToolDiscoveryStatus.STARTED,
+                session_id=self.session_id,
+                invocation_id=self.invocation_id,
+                execution_id=self.execution_id,
+                request_id=self.request_id,
+            )
+        )
 
         try:
             # Step 1: Discover tools and providers from Tool Manager
@@ -512,9 +533,41 @@ class ToolSynchronizer:
             _log_unregistered_tools(self.namespaced_tools, self.enabled_tools)
 
             logger.info("Tool synchronization completed", invocation_id=self.invocation_id)
+
+            # Emit COMPLETED event with metrics
+            tool_names = [tool.name for tool in enhanced_tools]
+            AuditEventDispatcher.dispatch(
+                ToolDiscoveryEvent(
+                    status=ToolDiscoveryStatus.COMPLETED,
+                    session_id=self.session_id,
+                    invocation_id=self.invocation_id,
+                    execution_id=self.execution_id,
+                    request_id=self.request_id,
+                    providers_discovered=len(self.all_providers),
+                    tools_discovered=len(self.namespaced_tools),
+                    tools_enabled=len(self.enabled_tools),
+                    tools_disabled=len(self.disabled_tools),
+                    tools_filtered=len(filtered_tools),
+                    tools_provided_to_llm=len(enhanced_tools),
+                    tool_names=tool_names,
+                )
+            )
+
             return enhanced_tools
 
-        except Exception:
+        except Exception as e:
+            # Emit FAILED event
+            AuditEventDispatcher.dispatch(
+                ToolDiscoveryEvent(
+                    status=ToolDiscoveryStatus.FAILED,
+                    session_id=self.session_id,
+                    invocation_id=self.invocation_id,
+                    execution_id=self.execution_id,
+                    request_id=self.request_id,
+                    error_type=type(e).__name__,
+                )
+            )
+
             # Don't fail the entire execution if tool sync fails
             logger.exception("Tool synchronization failed", invocation_id=self.invocation_id)
             return []

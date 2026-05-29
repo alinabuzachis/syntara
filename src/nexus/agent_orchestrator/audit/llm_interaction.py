@@ -40,8 +40,10 @@ class LLMInteractionEvent:
     interaction_type: LLMInteractionType
     status: LLMInteractionStatus
     model_name: str
-    invocation_id: UUID | None = None
+    session_id: str
+    invocation_id: UUID
     execution_id: UUID | None = None
+    request_id: UUID | None = None
     actor_context: AuditActorContext | None = None
     error_type: str | None = None
 
@@ -82,7 +84,7 @@ class LLMInteractionHandler(AuditEventHandler[LLMInteractionEvent]):
             status = EventStatus.ERROR
             message = f"LLM interaction failed ({interaction_type})"
             error_type = event.error_type
-            error_message = message
+            error_message = "Look at the Operational Logs for full diagnosis" if error_type is not None else None
         elif event.status == LLMInteractionStatus.EMPTY_RESPONSE:
             severity = EventSeverity.WARNING
             status = EventStatus.SUCCESS
@@ -101,7 +103,9 @@ class LLMInteractionHandler(AuditEventHandler[LLMInteractionEvent]):
             data_type="llm_interaction",
             error_type=error_type,
             error_message=error_message,
+            session_id=event.session_id,
             invocation_id=event.invocation_id,
+            request_id=event.request_id,
             interaction_type=event.interaction_type,
             model_name=event.model_name,
             status=event.status.value,
@@ -123,5 +127,5 @@ class LLMInteractionHandler(AuditEventHandler[LLMInteractionEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
-            resource_urn=f"urn:nexus:execution:{event.execution_id}",
+            resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
         )

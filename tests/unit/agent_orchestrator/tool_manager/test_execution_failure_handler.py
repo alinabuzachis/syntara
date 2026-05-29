@@ -40,7 +40,7 @@ async def _execute_async_wrapper(
         The ToolMessage or Command result from the async wrapper execution
 
     """
-    wrapper = create_tool_awrapper()
+    wrapper = create_tool_awrapper(session_id="session-abc", invocation_id=uuid4(), execution_id=uuid4())
 
     async def mock_execute(tool_request: ToolCallRequest) -> ToolMessage | Command[Any]:
         if exception is not None:
@@ -86,7 +86,7 @@ def _execute_sync_wrapper(
         The ToolMessage result from the sync wrapper execution
 
     """
-    wrapper = create_tool_wrapper(loop)
+    wrapper = create_tool_wrapper(session_id="session-abc", invocation_id=uuid4(), execution_id=uuid4(), loop=loop)
 
     def mock_execute(tool_request: ToolCallRequest) -> ToolMessage | Command[Any]:
         if exception is not None:

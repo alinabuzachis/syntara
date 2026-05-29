@@ -69,7 +69,7 @@ class MockA2AClient(A2AClient):
         Args:
             agent_url: URL of the agent service (unused in mock)
             task: Natural language task description
-            session_id: Session identifier
+            session_id: Session identifier for multi-tenant isolation
             context: Optional context data
 
         Yields:

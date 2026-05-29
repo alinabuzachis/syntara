@@ -377,6 +377,7 @@ class TestInvocationExecutorLifecycleEvents:
                 error=ValueError("Test error"),
                 invocation_id=invocation_id,
                 execution_id=execution_id,
+                request_id=None,
                 session=mock_session,
             )
 
@@ -387,3 +388,44 @@ class TestInvocationExecutorLifecycleEvents:
         assert lifecycle_events[0].structured_data.invocation_status == InvocationStatus.FAILED  # type: ignore[attr-defined]
         assert lifecycle_events[0].structured_data.error_type == "ValueError"
         assert lifecycle_events[0].execution_id == execution_id
+
+    @pytest.mark.asyncio
+    async def test_invocation_lifecycle_events_includes_context_identifiers(self) -> None:
+        """All lifecycle events include session_id, invocation_id, execution_id, request_id and resource_urn."""
+        execution_id = uuid4()
+        request_id = uuid4()
+        session_id = "sess-lifecycle-schema"
+        user = _make_user()
+
+        invocation = _make_invocation(
+            created_by=user.id,
+            session_id=session_id,
+            context_data={"execution_id": str(execution_id), "metadata": {"request_id": str(request_id)}},
+        )
+
+        # Mock orchestration service
+        mock_orchestration_service = AsyncMock()
+        mock_orchestration_service.execute = AsyncMock(return_value={"content": "result", "llm_token_usage_log": []})
+
+        events = await self._execute_invocation(
+            invocation=invocation,
+            user=user,
+            mock_orchestration_service=mock_orchestration_service,
+        )
+
+        lifecycle_events = [e for e in events if e.event_action in ["invocation_running", "invocation_completed"]]
+
+        # Verify both RUNNING and COMPLETED events
+        assert len(lifecycle_events) == 2
+
+        for event in lifecycle_events:
+            # Verify session_id is redacted in structured_data
+            assert event.structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+            # Verify invocation_id is included
+            assert event.structured_data.invocation_id == str(invocation.id)  # type: ignore[attr-defined]
+            # Verify execution_id is included
+            assert event.execution_id == execution_id
+            # Verify request_id is included (stored as string in audit structured_data)
+            assert event.structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
+            # Verify resource_urn
+            assert event.resource_urn == f"urn:nexus:invocation:{invocation.id}"

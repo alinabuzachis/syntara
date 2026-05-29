@@ -26,13 +26,17 @@ class TestContextIntegrationHandler:
 
     async def test_success_status_with_user_actor(self, test_user: User) -> None:
         """Successful context integration with USER actor produces SUCCESS status."""
+        invocation_id = uuid4()
         execution_id = uuid4()
+        request_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-123",
             status=ContextIntegrationStatus.SUCCESS,
             grounding_score=0.92,
             citations_count=5,
+            session_id="session-123",
+            invocation_id=invocation_id,
             execution_id=execution_id,
+            request_id=request_id,
             actor_context=AuditActorContext(
                 actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
             ),
@@ -51,7 +55,7 @@ class TestContextIntegrationHandler:
         assert result.actor_type == ActorType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
-        assert result.resource_urn == f"urn:nexus:execution:{execution_id}"
+        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
 
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "context_integration"
@@ -59,15 +63,18 @@ class TestContextIntegrationHandler:
         assert result.structured_data.session_id == "session-123"
         assert result.structured_data.grounding_score == 0.92
         assert result.structured_data.citations_count == 5
+        assert result.structured_data.request_id == request_id
         assert result.structured_data.error_type is None
         assert result.structured_data.error_message is None
 
     async def test_timeout_status_produces_warning(self, test_user: User) -> None:
         """Timeout context integration produces WARNING severity."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-789",
             status=ContextIntegrationStatus.TIMEOUT,
+            session_id="session-789",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
                 actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
@@ -85,13 +92,14 @@ class TestContextIntegrationHandler:
 
     def test_fallback_status_produces_warning(self) -> None:
         """Fallback context integration produces WARNING severity."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-abc",
             status=ContextIntegrationStatus.FALLBACK,
+            session_id="session-abc",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
-            error_type="ContextManagerError",
         )
 
         handler = ContextIntegrationHandler()
@@ -105,10 +113,12 @@ class TestContextIntegrationHandler:
 
     def test_grounding_score_optional(self) -> None:
         """Grounding score is optional."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-ghi",
             status=ContextIntegrationStatus.SUCCESS,
+            session_id="session-ghi",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
             grounding_score=None,
@@ -121,10 +131,12 @@ class TestContextIntegrationHandler:
 
     def test_citations_count_optional(self) -> None:
         """Citations count is optional."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-jkl",
             status=ContextIntegrationStatus.SUCCESS,
+            session_id="session-jkl",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
             citations_count=None,
@@ -137,11 +149,11 @@ class TestContextIntegrationHandler:
 
     def test_invocation_id_included(self) -> None:
         """Invocation ID is included in structured_data when provided."""
-        execution_id = uuid4()
         invocation_id = uuid4()
+        execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-mno",
             status=ContextIntegrationStatus.SUCCESS,
+            session_id="session-mno",
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
@@ -153,28 +165,14 @@ class TestContextIntegrationHandler:
         assert result.execution_id == execution_id
         assert result.structured_data.invocation_id == invocation_id
 
-    def test_invocation_id_optional(self) -> None:
-        """Invocation ID is optional in structured_data."""
-        execution_id = uuid4()
-        event = ContextIntegrationEvent(
-            session_id="session-xyz",
-            status=ContextIntegrationStatus.SUCCESS,
-            invocation_id=None,
-            execution_id=execution_id,
-            actor_context=AuditActorContext(),
-        )
-
-        handler = ContextIntegrationHandler()
-        result = handler.handle(event)
-
-        assert result.structured_data.invocation_id is None
-
     def test_no_actor_context(self) -> None:
         """Event without actor_context handles None gracefully."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-pqr",
             status=ContextIntegrationStatus.SUCCESS,
+            session_id="session-pqr",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=None,
         )
@@ -188,10 +186,12 @@ class TestContextIntegrationHandler:
 
     def test_zero_citations_count(self) -> None:
         """Zero citations count is preserved."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-stu",
             status=ContextIntegrationStatus.SUCCESS,
+            session_id="session-stu",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
             citations_count=0,
@@ -204,10 +204,12 @@ class TestContextIntegrationHandler:
 
     def test_low_grounding_score(self) -> None:
         """Low grounding score is preserved in structured data."""
+        invocation_id = uuid4()
         execution_id = uuid4()
         event = ContextIntegrationEvent(
-            session_id="session-vwx",
             status=ContextIntegrationStatus.SUCCESS,
+            session_id="session-vwx",
+            invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(),
             grounding_score=0.15,

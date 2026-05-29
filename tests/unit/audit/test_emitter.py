@@ -14,6 +14,7 @@ from nexus.audit.emitter import (
     actor_context_var,
     emit_audit_event,
     execution_id_context_var,
+    request_id_context_var,
     workflow_id_context_var,
 )
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventStatus
@@ -421,6 +422,106 @@ class TestEventCaptureEmitAuditEvent:
         assert request_data["method"] == "POST"
         response_data = context_data.response_data  # type: ignore[attr-defined]
         assert response_data["status_code"] == 201
+
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    def test_emit_audit_event_with_request_id_injection(self, mock_do_emit: Mock) -> None:
+        """Test that request_id from context is injected into structured_data."""
+        test_request_id = uuid4()
+
+        # Use context copy to isolate the test
+        ctx = copy_context()
+
+        def test_in_context() -> None:
+            # Set request_id context variable
+            request_id_context_var.set(test_request_id)
+
+            # Create event without request_id in structured_data
+            event = AuditEvent(
+                event_category=EventCategory.API_EXECUTION,
+                event_action="api_call",
+                actor_id=uuid4(),
+                actor_type=ActorType.USER,
+                source_component="api_service",
+                event_message="API call executed",
+                event_status=EventStatus.SUCCESS,
+                structured_data=AuditContextData(data_type="test", endpoint="/api/v1/users"),
+            )
+
+            # Emit the event
+            emit_audit_event(event)
+
+            # Verify request_id was injected into structured_data
+            event_obj = mock_do_emit.call_args[0][0]
+            context_data = event_obj.structured_data
+            assert isinstance(context_data, AuditContextData)
+            assert hasattr(context_data, "request_id")
+            assert context_data.request_id == str(test_request_id)
+
+        ctx.run(test_in_context)
+
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    def test_emit_audit_event_no_request_id_override(self, mock_do_emit: Mock) -> None:
+        """Test that existing request_id in structured_data is not overridden."""
+        existing_request_id = uuid4()
+        context_request_id = uuid4()
+
+        # Use context copy to isolate the test
+        ctx = copy_context()
+
+        def test_in_context() -> None:
+            # Set request_id context variable
+            request_id_context_var.set(context_request_id)
+
+            # Create event with existing request_id in structured_data
+            event = AuditEvent(
+                event_category=EventCategory.API_EXECUTION,
+                event_action="api_call",
+                actor_id=uuid4(),
+                actor_type=ActorType.USER,
+                source_component="api_service",
+                event_message="API call executed",
+                event_status=EventStatus.SUCCESS,
+                structured_data=AuditContextData(
+                    data_type="test",
+                    endpoint="/api/v1/users",
+                    request_id=str(existing_request_id),
+                ),
+            )
+
+            # Emit the event
+            emit_audit_event(event)
+
+            # Verify original request_id was preserved
+            event_obj = mock_do_emit.call_args[0][0]
+            context_data = event_obj.structured_data
+            assert isinstance(context_data, AuditContextData)
+            assert context_data.request_id == str(existing_request_id)  # type: ignore[attr-defined]
+            assert context_data.request_id != str(context_request_id)  # type: ignore[attr-defined]
+
+        ctx.run(test_in_context)
+
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    def test_emit_audit_event_without_request_id_context(self, mock_do_emit: Mock) -> None:
+        """Test that no request_id is added when context variable is not set."""
+        # Create event without setting request_id context variable
+        event = AuditEvent(
+            event_category=EventCategory.SYSTEM_OPERATION,
+            event_action="system_action",
+            actor_type=ActorType.SYSTEM,
+            source_component="system_service",
+            event_message="System operation",
+            event_status=EventStatus.SUCCESS,
+            structured_data=AuditContextData(data_type="test", operation="cleanup"),
+        )
+
+        # Emit the event
+        emit_audit_event(event)
+
+        # Verify no request_id was added to structured_data
+        event_obj = mock_do_emit.call_args[0][0]
+        context_data = event_obj.structured_data
+        assert isinstance(context_data, AuditContextData)
+        assert not hasattr(context_data, "request_id")
 
 
 class TestEventCaptureDoEmitAuditEvent:

@@ -157,7 +157,7 @@ class BaseAgent(ABC):
 
         Args:
             invocation_id: Invocation ID
-            session_id: Session ID
+            session_id: Session identifier for multi-tenant isolation
 
         """
         self.logger.info(

@@ -41,6 +41,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_awrapper,
     create_tool_wrapper,
 )
+from nexus.agent_orchestrator.utils.context_helpers import extract_request_id
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.audit.decorators import audit
 from nexus.audit.emitter import AuditActorContext
@@ -86,14 +87,19 @@ class OrchestrationService:
         workflow = StateGraph(AgentState)
 
         # Add agent nodes
+        session_id: str = state["session_id"]
         invocation_id: UUID = state["invocation_id"]
-        available_tools: list[BaseTool] = await self._get_tools(invocation_id)
+        execution_id: UUID | None = state["execution_id"]
+        request_id: UUID | None = state["request_id"]
+        available_tools: list[BaseTool] = await self._get_tools(session_id, invocation_id, execution_id, request_id)
 
         workflow.add_node(AgentRoutes.ORCHESTRATOR, self._create_orchestrator_node())
         workflow.add_node(AgentRoutes.GENERIC_AGENT, self._create_generic_agent_node(available_tools))
         workflow.add_node(
             AgentRoutes.TOOLS,
-            self._create_tool_node(available_tools, execution_id=state.get("execution_id")),
+            self._create_tool_node(
+                available_tools, session_id, invocation_id, execution_id=execution_id, request_id=request_id
+            ),
         )
 
         # Set entry point to ToolNode
@@ -121,20 +127,29 @@ class OrchestrationService:
         logger.info("LangGraph orchestration with ToolNode initialized successfully")
         return graph
 
-    async def _get_tools(self, invocation_id: UUID) -> list[BaseTool]:
+    async def _get_tools(
+        self,
+        session_id: str,
+        invocation_id: UUID,
+        execution_id: UUID | None = None,
+        request_id: UUID | None = None,
+    ) -> list[BaseTool]:
         """Get available tools for the agent execution.
 
         Performs tool discovery and synchronization to ensure all available
         tools are properly registered and accessible for the current invocation.
 
         Args:
+            session_id: Session identifier
             invocation_id: Unique identifier for the current invocation
+            execution_id: Optional Workflow Execution ID
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         Returns:
             List of synchronized BaseTool instances available for agent use
 
         """
-        synchronizer = ToolSynchronizer(invocation_id)
+        synchronizer = ToolSynchronizer(session_id, invocation_id, execution_id=execution_id, request_id=request_id)
         return await synchronizer.synchronize_tools()
 
     @audit(
@@ -150,7 +165,7 @@ class OrchestrationService:
         session_id: str,
         invocation_id: UUID,
         actor_context: AuditActorContext,
-        ctx: InvocationContextData | None = None,
+        ctx: InvocationContextData,
         execution_id: UUID | None = None,
         response_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -164,7 +179,7 @@ class OrchestrationService:
             session_id: Session identifier for multi-turn tracking
             invocation_id: Invocation UUID
             actor_context: Optional AuditActorContext with actor_id, actor_username, actor_type
-            ctx: Optional typed context_data from the invocation
+            ctx: Parsed context_data model
             execution_id: Optional workflow execution ID for telemetry correlation
             response_schema: Optional JSON Schema for structured output
 
@@ -178,6 +193,7 @@ class OrchestrationService:
         logger.info("Executing streaming orchestration for invocation", invocation_id=invocation_id)
 
         stream_id = get_invocation_stream_id(invocation_id)
+        request_id = extract_request_id(ctx)
 
         # Create initial state — AgentState is a LangGraph TypedDict,
         # so we pass a plain dict with secrets revealed.
@@ -188,6 +204,7 @@ class OrchestrationService:
             metadata=ctx.to_state_dict() if ctx else None,
             actor_context=actor_context,
             execution_id=execution_id,
+            request_id=request_id,
             response_schema=response_schema,
         )
 
@@ -414,6 +431,7 @@ class OrchestrationService:
             )
             tool_input = {k: v for k, v in tool_input.items() if k not in _bad}
 
+        # Publish streaming event for real-time WebSocket
         tool_call_data = ToolCallEventData(tool_name=tool_name, tool_input=tool_input)
         tool_call_event = {
             "event_type": "tool_call",
@@ -444,6 +462,7 @@ class OrchestrationService:
 
         logger.info("Tool call completed", tool_name=tool_name, invocation_id=invocation_id)
 
+        # Publish streaming event for real-time WebSocket
         tool_result_data = ToolResultEventData(tool_name=tool_name, tool_output=tool_output)
         tool_result_event = {
             "event_type": "tool_result",
@@ -696,7 +715,10 @@ class OrchestrationService:
     def _create_tool_node(
         self,
         tools: list[BaseTool],
+        session_id: str,
+        invocation_id: UUID,
         execution_id: UUID | None = None,
+        request_id: UUID | None = None,
     ) -> ToolNode:
         """Create ToolNode with retry error handling for both sync and async tools."""
         # Get the current event loop to pass to sync wrapper for reliable tool disable operations
@@ -708,8 +730,16 @@ class OrchestrationService:
         # Create ToolNode with both sync and async wrappers for comprehensive failure handling
         return ToolNode(
             tools,
-            awrap_tool_call=create_tool_awrapper(execution_id=execution_id),
-            wrap_tool_call=create_tool_wrapper(loop, execution_id=execution_id),
+            awrap_tool_call=create_tool_awrapper(
+                session_id=session_id, invocation_id=invocation_id, execution_id=execution_id, request_id=request_id
+            ),
+            wrap_tool_call=create_tool_wrapper(
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                loop=loop,
+            ),
         )
 
     # ===============================

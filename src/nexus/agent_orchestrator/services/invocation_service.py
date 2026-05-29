@@ -30,10 +30,12 @@ from nexus.agent_orchestrator.models import (
     Invocation,
     InvocationContextData,
     InvocationListResponse,
+    InvocationMetadata,
     InvocationStatus,
 )
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.emitter import request_id_context_var
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.core.exceptions import SafeValueError
@@ -191,7 +193,7 @@ class InvocationService(BaseService):
 
         Args:
             prompt: Natural language prompt
-            session_id: Session identifier
+            session_id: Session identifier for multi-tenant isolation
             context_data: Optional context data (may contain file_ids)
             files: Optional list of file uploads (runtime upload)
 
@@ -212,6 +214,19 @@ class InvocationService(BaseService):
         # fields (callback_url, credential_id) which must be preserved in JSONB.
         final_context_data = dict(context_data or {})
         ctx = InvocationContextData.model_validate(final_context_data)
+
+        # Capture request_id from context var and persist it in metadata
+        # This allows the executor to restore the request_id when executing asynchronously
+        request_id = request_id_context_var.get()
+        if request_id is not None:
+            # Ensure metadata exists
+            if ctx.metadata is None:
+                ctx.metadata = InvocationMetadata()
+            ctx.metadata.request_id = str(request_id)
+            # Update the raw dict to include the request_id in metadata
+            if "metadata" not in final_context_data:
+                final_context_data["metadata"] = {}
+            final_context_data["metadata"]["request_id"] = str(request_id)  # type: ignore[index]
 
         # Validate existing file_ids reference real files
         if ctx.file_ids:

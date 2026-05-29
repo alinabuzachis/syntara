@@ -71,11 +71,13 @@ class TestOrchestratorAgentExecutionEvents:
         session_id = "sess-123"
         invocation_id = uuid4()
         execution_id = uuid4()
+        request_id = uuid4()
 
         state = _make_agent_state(
             session_id=session_id,
             invocation_id=invocation_id,
             execution_id=execution_id,
+            request_id=request_id,
         )
 
         # Mock context manager to return valid package
@@ -102,7 +104,7 @@ class TestOrchestratorAgentExecutionEvents:
             await agent.execute(state)
 
         # Verify events: STARTED, SUCCESS (context), COMPLETED, plus @audit decorator event
-        assert mock_do_emit.call_count >= 3
+        assert mock_do_emit.call_count == 3
         events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
         # Filter to AgentExecutionEvents (by event_action pattern)
@@ -116,6 +118,8 @@ class TestOrchestratorAgentExecutionEvents:
         assert execution_events[0].structured_data.status == "started"  # type: ignore[attr-defined]
         assert execution_events[0].structured_data.agent_type == "orchestrator"  # type: ignore[attr-defined]
         assert execution_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+        assert execution_events[0].execution_id == execution_id
+        assert execution_events[0].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
 
         # Event 2: COMPLETED
         assert execution_events[1].event_action == "agent_completed"
@@ -123,6 +127,8 @@ class TestOrchestratorAgentExecutionEvents:
         assert execution_events[1].structured_data.context_applied is True  # type: ignore[attr-defined]
         assert execution_events[1].structured_data.grounding_score == 0.85  # type: ignore[attr-defined]
         assert execution_events[1].structured_data.routed_to_agent is not None  # type: ignore[attr-defined]
+        assert execution_events[1].execution_id == execution_id
+        assert execution_events[1].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_execute_emits_failed_event_on_exception(self) -> None:
@@ -318,18 +324,19 @@ class TestOrchestratorAgentContextIntegrationEvents:
         assert result["context_package"] is None
 
     @pytest.mark.asyncio
-    async def test_integrate_context_includes_invocation_id(self) -> None:
-        """ContextIntegrationEvent includes invocation_id when provided."""
+    async def test_context_integration_event_includes_context_identifiers(self) -> None:
+        """ContextIntegrationEvent includes session_id, invocation_id, execution_id and resource_urn."""
+        session_id = "sess-context-schema"
         invocation_id = uuid4()
         execution_id = uuid4()
 
-        state = _make_agent_state(invocation_id=invocation_id, execution_id=execution_id)
+        state = _make_agent_state(session_id=session_id, invocation_id=invocation_id, execution_id=execution_id)
 
         mock_context_manager = AsyncMock()
         mock_context_manager.plan_request = AsyncMock(
             return_value=ContextPackage(
-                id="pkg-3",
-                grounding_score=0.75,
+                id="pkg-schema",
+                grounding_score=0.9,
                 citations=[],
                 payload={},
             )
@@ -351,5 +358,11 @@ class TestOrchestratorAgentContextIntegrationEvents:
         context_events = [e for e in events if e.event_action == "context_integration"]
 
         assert len(context_events) == 1
+        # Verify session_id is redacted in structured_data
+        assert context_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+        # Verify invocation_id is included
         assert context_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
+        # Verify execution_id is included
         assert context_events[0].execution_id == execution_id
+        # Verify resource_urn
+        assert context_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"

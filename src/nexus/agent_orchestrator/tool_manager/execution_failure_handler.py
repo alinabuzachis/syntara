@@ -16,6 +16,7 @@ from langchain_core.messages.tool import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
+from nexus.agent_orchestrator.audit.tool_management import ToolInvocationEvent, ToolInvocationStatus
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.agent_orchestrator.utils import retry_with_backoff
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -189,7 +190,10 @@ async def _persist_tool_execution_to_db(
 
 
 def create_tool_awrapper(
+    session_id: str,
+    invocation_id: UUID,
     execution_id: UUID | None = None,
+    request_id: UUID | None = None,
 ) -> Callable[
     [ToolCallRequest, Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]]],
     Awaitable[ToolMessage | Command[Any]],
@@ -198,6 +202,12 @@ def create_tool_awrapper(
 
     This wrapper intercepts tool execution, provides access to the actual BaseTool,
     and handles failures with proper tool auto-disable functionality.
+
+    Args:
+        session_id: Session identifier for multi-tenant isolation
+        invocation_id: Invocation UUID for audit correlation
+        execution_id: Optional parent workflow execution ID for telemetry
+        request_id: Optional X-Request-Id from the originating HTTP request.
 
     Returns:
         An async ToolCallWrapper function for use with ToolNode awrap_tool_call
@@ -227,16 +237,62 @@ def create_tool_awrapper(
         """
         start_time = time.perf_counter()
         caught_error: Exception | None = None
+        tool_name = request.tool_call["name"]
+        tool_input = request.tool_call.get("args", {})
+
+        # Emit audit event for tool invocation start
+        AuditEventDispatcher.dispatch(
+            ToolInvocationEvent(
+                tool_name=tool_name,
+                status=ToolInvocationStatus.STARTED,
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                tool_input=tool_input,
+            )
+        )
+
         try:
             # Execute the tool normally
-            return await _execute(request, execute)
+            result = await _execute(request, execute)
+
+            # Extract tool output from result
+            tool_output = str(result.content) if hasattr(result, "content") else str(result)
+
+            # Emit audit event for successful tool invocation
+            AuditEventDispatcher.dispatch(
+                ToolInvocationEvent(
+                    tool_name=tool_name,
+                    status=ToolInvocationStatus.COMPLETED,
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    tool_output=tool_output,
+                )
+            )
+
+            return result
         except Exception as error:
             caught_error = error
 
             # Extract tool info from request
-            tool_name = request.tool_call["name"]
             tool_call_id = request.tool_call["id"]
             base_tool = request.tool
+
+            # Emit audit event for failed tool invocation
+            AuditEventDispatcher.dispatch(
+                ToolInvocationEvent(
+                    tool_name=tool_name,
+                    status=ToolInvocationStatus.FAILED,
+                    session_id=session_id,
+                    invocation_id=invocation_id,
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    error_type=error.__class__.__name__,
+                )
+            )
 
             # Handle the error and extract tool_id for disabling
             logger.exception(
@@ -253,7 +309,7 @@ def create_tool_awrapper(
             # Return standardized error message
             return _create_error_tool_message(error, tool_call_id or "unknown", tool_name)
         finally:
-            duration_ms = (time.perf_counter() - start_time) * 1000
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
             status = _resolve_execution_status(caught_error)
             tool = request.tool
             namespaced_name = (
@@ -281,8 +337,11 @@ def create_tool_awrapper(
 
 
 def create_tool_wrapper(
-    loop: asyncio.AbstractEventLoop | None = None,
+    session_id: str,
+    invocation_id: UUID,
     execution_id: UUID | None = None,
+    request_id: UUID | None = None,
+    loop: asyncio.AbstractEventLoop | None = None,
 ) -> Callable[[ToolCallRequest, Callable[[ToolCallRequest], ToolMessage | Command[Any]]], ToolMessage | Command[Any]]:
     """Create a synchronous tool call wrapper that handles failures with tool context.
 
@@ -290,8 +349,11 @@ def create_tool_wrapper(
     and handles failures with proper tool auto-disable functionality for synchronous tools.
 
     Args:
-        loop: Optional event loop to use for tool disable operations
+        session_id: Session identifier for multi-tenant isolation
+        invocation_id: Optional invocation UUID for audit correlation
         execution_id: Optional parent workflow execution ID for telemetry
+        request_id: Optional X-Request-Id from the originating HTTP request.
+        loop: Optional event loop to use for tool disable operations
 
     Returns:
         A sync ToolCallWrapper function for use with ToolNode wrap_tool_call
@@ -341,16 +403,56 @@ def create_tool_wrapper(
         """
         start_time = time.perf_counter()
         caught_error: Exception | None = None
+        tool_name = request.tool_call["name"]
+        tool_input = request.tool_call.get("args", {})
+
+        # Emit audit event for tool invocation start
+        _emit_tool_invocation_audit(
+            tool_name=tool_name,
+            status=ToolInvocationStatus.STARTED,
+            session_id=session_id,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            request_id=request_id,
+            tool_input=tool_input,
+        )
+
         try:
             # Execute the tool normally with retry
-            return _execute_sync(request, execute)
+            result = _execute_sync(request, execute)
+
+            # Extract tool output from result
+            tool_output = str(result.content) if hasattr(result, "content") else str(result)
+
+            # Emit audit event for successful tool invocation
+            _emit_tool_invocation_audit(
+                tool_name=tool_name,
+                status=ToolInvocationStatus.COMPLETED,
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                tool_output=tool_output,
+            )
+
+            return result
         except Exception as error:
             caught_error = error
 
             # Extract tool info from request
-            tool_name = request.tool_call["name"]
             tool_call_id = request.tool_call["id"]
             base_tool = request.tool
+
+            # Emit audit event for failed tool invocation
+            _emit_tool_invocation_audit(
+                tool_name=tool_name,
+                status=ToolInvocationStatus.FAILED,
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                error_type=error.__class__.__name__,
+            )
 
             logger.exception(
                 "Tool execution failed during wrapped call",
@@ -365,7 +467,7 @@ def create_tool_wrapper(
             # Return standardized error message
             return _create_error_tool_message(error, tool_call_id or "unknown", tool_name)
         finally:
-            duration_ms = (time.perf_counter() - start_time) * 1000
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
             status = _resolve_execution_status(caught_error)
             tool = request.tool
             namespaced_name = (
@@ -394,6 +496,46 @@ def create_tool_wrapper(
             )
 
     return tool_wrapper
+
+
+def _emit_tool_invocation_audit(
+    tool_name: str,
+    status: ToolInvocationStatus,
+    session_id: str,
+    invocation_id: UUID,
+    execution_id: UUID | None,
+    request_id: UUID | None,
+    tool_input: dict[str, Any] | None = None,
+    tool_output: str | None = None,
+    error_type: str | None = None,
+) -> None:
+    """Emit tool invocation audit event if invocation_id is available.
+
+    Args:
+        tool_name: Name of the tool being invoked
+        status: Tool invocation status
+        session_id: Session identifier for multi-tenant isolation
+        invocation_id: Invocation UUID for audit correlation (required)
+        execution_id: Optional parent workflow execution ID
+        request_id: Optional X-Request-Id from the originating HTTP request.
+        tool_input: Optional tool input parameters
+        tool_output: Optional tool output
+        error_type: Optional error type for failed invocations
+
+    """
+    AuditEventDispatcher.dispatch(
+        ToolInvocationEvent(
+            tool_name=tool_name,
+            status=status,
+            session_id=session_id,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            request_id=request_id,
+            tool_input=tool_input,
+            tool_output=tool_output,
+            error_type=error_type,
+        )
+    )
 
 
 def _run_coroutine_from_sync(

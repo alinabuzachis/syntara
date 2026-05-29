@@ -75,11 +75,13 @@ class TestGenericAgentExecutionEvents:
         session_id = "sess-123"
         invocation_id = uuid4()
         execution_id = uuid4()
+        request_id = uuid4()
 
         state = _make_agent_state(
             session_id=session_id,
             invocation_id=invocation_id,
             execution_id=execution_id,
+            request_id=request_id,
         )
 
         # Mock LLM to return valid response
@@ -98,7 +100,7 @@ class TestGenericAgentExecutionEvents:
             await agent._execute(state)
 
         # Verify events: STARTED, SUCCESS (LLM), COMPLETED, plus @audit decorator event
-        assert mock_do_emit.call_count >= 3
+        assert mock_do_emit.call_count == 3
         events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
 
         # Filter to AgentExecutionEvents only (by event_action pattern)
@@ -113,10 +115,14 @@ class TestGenericAgentExecutionEvents:
         assert execution_events[0].structured_data.agent_type == "generic_agent"  # type: ignore[attr-defined]
         assert execution_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
         assert execution_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
+        assert execution_events[0].execution_id == execution_id
+        assert execution_events[0].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
 
         # Event 2: COMPLETED
         assert execution_events[1].event_action == "agent_completed"
         assert execution_events[1].structured_data.status == "completed"  # type: ignore[attr-defined]
+        assert execution_events[1].execution_id == execution_id
+        assert execution_events[1].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
         assert execution_events[1].structured_data.agent_type == "generic_agent"  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
@@ -170,10 +176,11 @@ class TestGenericAgentLLMInteractionEvents:
     @pytest.mark.asyncio
     async def test_execute_standard_emits_success_event(self) -> None:
         """Standard LLM call emits SUCCESS LLMInteractionEvent."""
+        session_id = "sess-llm-standard"
         invocation_id = uuid4()
         execution_id = uuid4()
 
-        state = _make_agent_state(invocation_id=invocation_id, execution_id=execution_id)
+        state = _make_agent_state(session_id=session_id, invocation_id=invocation_id, execution_id=execution_id)
 
         mock_llm = MagicMock()
         mock_llm.bind_tools.return_value.ainvoke = AsyncMock(
@@ -196,13 +203,18 @@ class TestGenericAgentLLMInteractionEvents:
         assert llm_events[0].structured_data.interaction_type == LLMInteractionType.STANDARD  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.status == LLMInteractionStatus.SUCCESS  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.model_name == "test-model"  # type: ignore[attr-defined]
+        # Verify session_id and resource_urn
+        assert llm_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+        assert llm_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
+        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
 
     @pytest.mark.asyncio
     async def test_execute_standard_emits_empty_response_event(self) -> None:
         """Empty LLM response emits EMPTY_RESPONSE LLMInteractionEvent."""
+        session_id = "sess-llm-empty"
         invocation_id = uuid4()
 
-        state = _make_agent_state(invocation_id=invocation_id)
+        state = _make_agent_state(session_id=session_id, invocation_id=invocation_id)
 
         mock_llm = MagicMock()
         mock_llm.bind_tools.return_value.ainvoke = AsyncMock(return_value=AIMessage(content="", response_metadata={}))
@@ -224,14 +236,18 @@ class TestGenericAgentLLMInteractionEvents:
         assert llm_events[0].structured_data.status == LLMInteractionStatus.EMPTY_RESPONSE  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.error_type is None
         assert llm_events[0].structured_data.error_message is None
+        # Verify session_id and resource_urn
+        assert llm_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
 
     @pytest.mark.asyncio
     async def test_execute_structured_emits_success_event(self) -> None:
         """Structured output emits SUCCESS LLMInteractionEvent."""
+        session_id = "sess-llm-struct"
         invocation_id = uuid4()
         execution_id = uuid4()
 
-        state = _make_agent_state(invocation_id=invocation_id, execution_id=execution_id)
+        state = _make_agent_state(session_id=session_id, invocation_id=invocation_id, execution_id=execution_id)
         response_schema: dict[str, Any] = {"type": "object"}
 
         mock_llm = MagicMock()
@@ -253,6 +269,9 @@ class TestGenericAgentLLMInteractionEvents:
         assert llm_events[0].structured_data.interaction_type == LLMInteractionType.STRUCTURED_OUTPUT  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.status == LLMInteractionStatus.SUCCESS  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.response_schema_provided is True  # type: ignore[attr-defined]
+        # Verify session_id and resource_urn
+        assert llm_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
 
     @pytest.mark.asyncio
     async def test_execute_structured_emits_error_event_on_failure(self) -> None:
@@ -281,7 +300,7 @@ class TestGenericAgentLLMInteractionEvents:
         llm_events = [e for e in events if e.event_action == "llm_call"]
 
         # Should have ERROR (structured_output) + SUCCESS (standard fallback)
-        assert len(llm_events) >= 1
+        assert len(llm_events) == 2
         error_event = next(
             e
             for e in llm_events

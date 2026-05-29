@@ -87,6 +87,7 @@ def emit_audit_event(event: AuditEvent) -> None:
         _workflow_id = workflow_id_context_var.get()
         _activity_id = activity_id_context_var.get()
         _execution_id = execution_id_context_var.get()
+        _request_id = request_id_context_var.get()
         if event.actor_id is None and _actor is not None and _actor.actor_id is not None:
             event.actor_id = _actor.actor_id
         if event.actor_username is None and _actor is not None and _actor.actor_username is not None:
@@ -99,6 +100,10 @@ def emit_audit_event(event: AuditEvent) -> None:
             event.activity_id = _activity_id
         if event.execution_id is None and _execution_id is not None:
             event.execution_id = _execution_id
+
+        # Inject request_id into structured_data if available and not already set
+        if _request_id is not None and not hasattr(event.structured_data, "request_id"):
+            event.structured_data.request_id = str(_request_id)
 
         # Sanitize and enforce payload limits before emitting
         event.structured_data = _sanitizer.sanitize(event.structured_data)

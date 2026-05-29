@@ -69,6 +69,7 @@ class GenericAgent(BaseAgent):
         session_id = state["session_id"]
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
+        request_id = state.get("request_id", None)
 
         # Emit START event
         AuditEventDispatcher.dispatch(
@@ -77,6 +78,7 @@ class GenericAgent(BaseAgent):
                 session_id=session_id,
                 invocation_id=invocation_id,
                 execution_id=execution_id,
+                request_id=request_id,
                 status=AgentExecutionStatus.STARTED,
             )
         )
@@ -102,6 +104,7 @@ class GenericAgent(BaseAgent):
                     session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=AgentExecutionStatus.COMPLETED,
                 )
             )
@@ -116,6 +119,7 @@ class GenericAgent(BaseAgent):
                     session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     status=AgentExecutionStatus.FAILED,
                     error_type=type(e).__name__,
                 )
@@ -133,8 +137,10 @@ class GenericAgent(BaseAgent):
 
         """
         # Extract context from AgentState
+        session_id = state["session_id"]
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
+        request_id = state.get("request_id", None)
 
         # Query LLM via LangChain (async)
         llm_with_tools = self.llm.bind_tools(self.available_tools)
@@ -158,8 +164,10 @@ class GenericAgent(BaseAgent):
             # Emit EMPTY_RESPONSE event before raising
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
+                    session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     interaction_type=LLMInteractionType.STANDARD,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.EMPTY_RESPONSE,
@@ -172,8 +180,10 @@ class GenericAgent(BaseAgent):
         tool_calls_count = len(result_message.tool_calls) if result_message.tool_calls else 0
         AuditEventDispatcher.dispatch(
             LLMInteractionEvent(
+                session_id=session_id,
                 invocation_id=invocation_id,
                 execution_id=execution_id,
+                request_id=request_id,
                 interaction_type=LLMInteractionType.STANDARD,
                 model_name=getattr(self.llm, "model_name", "unknown"),
                 status=LLMInteractionStatus.SUCCESS,
@@ -209,8 +219,10 @@ class GenericAgent(BaseAgent):
 
         """
         # Extract context from AgentState
+        session_id = state["session_id"]
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
+        request_id = state.get("request_id", None)
 
         try:
             structured_llm = self.llm.with_structured_output(response_schema, method="json_mode")
@@ -234,8 +246,10 @@ class GenericAgent(BaseAgent):
             # Emit ERROR event before fallback
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
+                    session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.ERROR,
@@ -251,8 +265,10 @@ class GenericAgent(BaseAgent):
             # Emit EMPTY_RESPONSE event before raising
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
+                    session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.EMPTY_RESPONSE,
@@ -264,11 +280,13 @@ class GenericAgent(BaseAgent):
         # Emit SUCCESS event after successful structured output
         AuditEventDispatcher.dispatch(
             LLMInteractionEvent(
-                invocation_id=state["invocation_id"],
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
                 interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
                 model_name=getattr(self.llm, "model_name", "unknown"),
                 status=LLMInteractionStatus.SUCCESS,
-                execution_id=state.get("execution_id"),
                 tools_available=0,  # No tools in structured mode
                 response_schema_provided=True,
                 fallback_strategy_used="native",
@@ -300,8 +318,10 @@ class GenericAgent(BaseAgent):
 
         """
         # Extract context from AgentState
+        session_id = state["session_id"]
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
+        request_id = state.get("request_id", None)
 
         try:
             result_dict = state.get("result")
@@ -333,8 +353,10 @@ class GenericAgent(BaseAgent):
             # Emit SUCCESS event after successful extraction
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
+                    session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     interaction_type=LLMInteractionType.EXTRACTION,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.SUCCESS,
@@ -350,8 +372,10 @@ class GenericAgent(BaseAgent):
             # Emit ERROR event before fallback
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
+                    session_id=session_id,
                     invocation_id=invocation_id,
                     execution_id=execution_id,
+                    request_id=request_id,
                     interaction_type=LLMInteractionType.EXTRACTION,
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.ERROR,

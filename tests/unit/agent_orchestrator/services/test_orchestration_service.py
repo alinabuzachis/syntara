@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
+from nexus.agent_orchestrator.models import InvocationContextData
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 from nexus.audit.emitter import AuditActorContext
 
@@ -102,6 +103,7 @@ class TestOrchestrationServiceStreamingExecution:
                 session_id="test-session",
                 invocation_id=invocation_id,
                 actor_context=AuditActorContext(),
+                ctx=InvocationContextData(),
             )
 
             # Assert - Result should contain streaming metadata
@@ -156,6 +158,7 @@ class TestOrchestrationServiceStreamingExecution:
                 session_id="test-session",
                 invocation_id=invocation_id,
                 actor_context=AuditActorContext(),
+                ctx=InvocationContextData(),
             )
 
             # Assert - Check delta event structure
@@ -198,6 +201,7 @@ class TestOrchestrationServiceStreamingExecution:
                 session_id="test-session",
                 invocation_id=invocation_id,
                 actor_context=AuditActorContext(),
+                ctx=InvocationContextData(),
             )
 
             # Assert - Check completion event
@@ -251,6 +255,7 @@ class TestOrchestrationServiceErrorHandling:
                     session_id="test-session",
                     invocation_id=invocation_id,
                     actor_context=AuditActorContext(),
+                    ctx=InvocationContextData(),
                 )
 
             assert "LLM streaming error" in str(exc_info.value)
@@ -298,6 +303,7 @@ class TestOrchestrationServiceErrorHandling:
                     session_id="test-session",
                     invocation_id=invocation_id,
                     actor_context=AuditActorContext(),
+                    ctx=InvocationContextData(),
                 )
 
             # Verify error event was published
@@ -347,6 +353,7 @@ class TestOrchestrationServiceSessionManagement:
                 session_id=session_id,
                 invocation_id=invocation_id_1,
                 actor_context=AuditActorContext(),
+                ctx=InvocationContextData(),
             )
 
             # Act - Second invocation with same session
@@ -355,6 +362,7 @@ class TestOrchestrationServiceSessionManagement:
                 session_id=session_id,
                 invocation_id=invocation_id_2,
                 actor_context=AuditActorContext(),
+                ctx=InvocationContextData(),
             )
 
             # Assert - Both should return streaming metadata
@@ -408,6 +416,7 @@ class TestOrchestrationServiceLogging:
                 session_id="test-session",
                 invocation_id=invocation_id,
                 actor_context=AuditActorContext(),
+                ctx=InvocationContextData(),
             )
 
             # Assert - Verify streaming start was logged
