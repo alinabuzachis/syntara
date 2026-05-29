@@ -12,12 +12,9 @@ import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 
+from tests.e2e.conftest import unique_name
+
 pytestmark = [pytest.mark.e2e]
-
-
-def _unique_workflow_name(prefix: str = "e2e-test") -> str:
-    """Generate a unique workflow name for testing."""
-    return f"{prefix}-{uuid4().hex[:8]}"
 
 
 def _minimal_workflow_definition(workflow_name: str) -> WorkflowDefinition:
@@ -57,7 +54,7 @@ class TestWorkflowAPI:
         self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
     ):
         """API 1: Create workflow with minimal definition (empty nodes/edges)."""
-        workflow_name = _unique_workflow_name("e2e-create-minimal")
+        workflow_name = unique_name("e2e-create-minimal")
 
         workflow_data = WorkflowCreate(
             name=workflow_name,
@@ -90,7 +87,7 @@ class TestWorkflowAPI:
         self, nexus_api: NexusApiRegistry, workflow_factory: Callable[[WorkflowCreate], WorkflowRead]
     ):
         """API 2: Retrieve workflow by ID including its graph-based definition."""
-        workflow_name = _unique_workflow_name("e2e-get-with-nodes")
+        workflow_name = unique_name("e2e-get-with-nodes")
 
         workflow_data = WorkflowCreate(
             name=workflow_name,
@@ -178,7 +175,7 @@ class TestWorkflowAPI:
     ):
         """API 3: Update workflow metadata (name, description)."""
         # Create initial workflow
-        workflow_name = _unique_workflow_name("e2e-update-metadata")
+        workflow_name = unique_name("e2e-update-metadata")
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Original description",
@@ -189,7 +186,7 @@ class TestWorkflowAPI:
         original_updated_at = workflow.updated_at
 
         # Update the workflow metadata
-        updated_name = _unique_workflow_name("e2e-updated-metadata")
+        updated_name = unique_name("e2e-updated-metadata")
         update_data = WorkflowUpdate(name=updated_name, description="Updated description")
 
         nexus_api.workflows.update(workflow_id=workflow.id, body=update_data).assert_successful()
@@ -209,7 +206,7 @@ class TestWorkflowAPI:
     ):
         """API 4: Delete workflow and verify it's no longer accessible."""
         # Create a workflow with nodes and edges
-        workflow_name = _unique_workflow_name("e2e-delete")
+        workflow_name = unique_name("e2e-delete")
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow to be deleted",
