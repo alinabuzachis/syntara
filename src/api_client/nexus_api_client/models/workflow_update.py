@@ -9,6 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.workflow_definition import WorkflowDefinition
     from ..models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
 
 
@@ -26,18 +27,19 @@ class WorkflowUpdate:
             name (None | str | Unset): Update workflow name
             description (None | str | Unset): Update workflow description
             labels (None | Unset | WorkflowUpdateLabelsType0): Update workflow labels
-            workflow_definition (Any | None | Unset): New workflow definition (auto-creates version)
+            workflow_definition (None | Unset | WorkflowDefinition): New workflow definition (auto-creates version)
             change_description (None | str | Unset): Description of changes for version history
     """
 
     name: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
     labels: None | Unset | WorkflowUpdateLabelsType0 = UNSET
-    workflow_definition: Any | None | Unset = UNSET
+    workflow_definition: None | Unset | WorkflowDefinition = UNSET
     change_description: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.workflow_definition import WorkflowDefinition
         from ..models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
 
         name: None | str | Unset
@@ -60,9 +62,11 @@ class WorkflowUpdate:
         else:
             labels = self.labels
 
-        workflow_definition: Any | None | Unset
+        workflow_definition: dict[str, Any] | None | Unset
         if isinstance(self.workflow_definition, Unset):
             workflow_definition = UNSET
+        elif isinstance(self.workflow_definition, WorkflowDefinition):
+            workflow_definition = self.workflow_definition.to_dict()
         else:
             workflow_definition = self.workflow_definition
 
@@ -90,6 +94,7 @@ class WorkflowUpdate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.workflow_definition import WorkflowDefinition
         from ..models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
 
         d = dict(src_dict)
@@ -129,12 +134,20 @@ class WorkflowUpdate:
 
         labels = _parse_labels(d.pop("labels", UNSET))
 
-        def _parse_workflow_definition(data: object) -> Any | None | Unset:
+        def _parse_workflow_definition(data: object) -> None | Unset | WorkflowDefinition:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(Any | None | Unset, data)
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                workflow_definition_type_0 = WorkflowDefinition.from_dict(data)
+
+                return workflow_definition_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | WorkflowDefinition, data)
 
         workflow_definition = _parse_workflow_definition(d.pop("workflow_definition", UNSET))
 

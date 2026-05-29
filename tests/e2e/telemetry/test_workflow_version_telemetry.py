@@ -15,43 +15,50 @@ from uuid import UUID, uuid4
 import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 
 pytestmark = pytest.mark.e2e
 
-WORKFLOW_DEFINITION_V1: dict[str, Any] = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
-    ],
-    "nodes": [
-        {
-            "id": "node_v1",
-            "name": "V1 Node",
-            "type": "script",
-            "config": {"language": "python", "code": "print('v1')"},
-        },
-    ],
-    "edges": [{"from": "trigger", "to": "node_v1"}],
-}
+WORKFLOW_DEFINITION_V1: WorkflowDefinition = WorkflowDefinition.from_dict(
+    {
+        "name": "telemetryv1",
+        "schema_version": "2.0.0",
+        "triggers": [
+            {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+        ],
+        "nodes": [
+            {
+                "id": "node_v1",
+                "name": "V1 Node",
+                "type": "script",
+                "config": {"language": "python", "code": "print('v1')"},
+            },
+        ],
+        "edges": [{"from": "trigger", "to": "node_v1"}],
+    }
+)
 
-WORKFLOW_DEFINITION_V2: dict[str, Any] = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
-    ],
-    "nodes": [
-        {
-            "id": "node_v2",
-            "name": "V2 Node",
-            "type": "script",
-            "config": {"language": "python", "code": "print('v2')"},
-        },
-    ],
-    "edges": [{"from": "trigger", "to": "node_v2"}],
-}
+WORKFLOW_DEFINITION_V2: WorkflowDefinition = WorkflowDefinition.from_dict(
+    {
+        "name": "telemetryv2",
+        "schema_version": "2.0.0",
+        "triggers": [
+            {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+        ],
+        "nodes": [
+            {
+                "id": "node_v2",
+                "name": "V2 Node",
+                "type": "script",
+                "config": {"language": "python", "code": "print('v2')"},
+            },
+        ],
+        "edges": [{"from": "trigger", "to": "node_v2"}],
+    }
+)
 
 
 @pytest.fixture(scope="module")

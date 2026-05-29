@@ -13,13 +13,16 @@ Run with:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.performance.workflow_engine.conftest import (
     SIMPLE_WORKFLOW_DEFINITION,
 )
 
-EXECUTION_WORKFLOW_DEFINITION: dict[str, Any] = SIMPLE_WORKFLOW_DEFINITION
+EXECUTION_WORKFLOW_DEFINITION: WorkflowDefinition = SIMPLE_WORKFLOW_DEFINITION
 
 TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 

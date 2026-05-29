@@ -22,6 +22,7 @@ from tests.performance.workflow_engine.conftest import build_workflow_definition
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 pytestmark = pytest.mark.performance
 
@@ -158,14 +159,15 @@ class TestValidationPerformance:
 
             for i in range(num_invalid):
                 wf_name = f"perf-suite2-val-invalid-{uuid4().hex[:6]}"
-                definition = INVALID_DEFINITIONS[i % len(INVALID_DEFINITIONS)]
 
                 start = time.monotonic()
                 r = nexus_api.workflows.create(
                     body=WorkflowCreate(
                         name=wf_name,
                         description="Validation test: invalid definition",
-                        workflow_definition=definition,
+                        workflow_definition=WorkflowDefinition.from_dict(
+                            INVALID_DEFINITIONS[i % len(INVALID_DEFINITIONS)]
+                        ),
                     ),
                 )
                 elapsed_ms = (time.monotonic() - start) * 1000

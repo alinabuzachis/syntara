@@ -54,6 +54,7 @@ from .workflow import (
     WorkflowReadWithVersion,
     WorkflowUpdate,
 )
+from .workflow_definition import WorkflowDefinition
 from .workflow_version import (
     PublishVersionRequest,
     WorkflowVersion,
@@ -86,6 +87,7 @@ __all__ = [
     "WebhookTriggerRead",
     "Workflow",
     "WorkflowCreate",
+    "WorkflowDefinition",
     "WorkflowListParams",
     "WorkflowListResponse",
     "WorkflowRead",

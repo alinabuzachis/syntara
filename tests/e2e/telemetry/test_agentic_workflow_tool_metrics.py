@@ -21,6 +21,7 @@ import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 
@@ -31,35 +32,38 @@ POLL_TIMEOUT = 120
 pytestmark = [pytest.mark.e2e]
 
 
-def _workflow_definition(credential_id: str, model: str) -> dict[str, Any]:
-    return {
-        "schema_version": "2.0.0",
-        "triggers": [
-            {
-                "id": "trigger_manual",
-                "type": "manual_trigger",
-                "config": {"inputs": {}},
-            }
-        ],
-        "nodes": [
-            {
-                "id": "agentic_task",
-                "name": "Agentic Task",
-                "type": "agentic",
-                "config": {
-                    "prompt": (
-                        "You MUST use the get_greeting tool to greet jimmy. "
-                        "Do not answer without calling the tool first."
-                    ),
-                    "credential_id": credential_id,
-                    "model": model,
-                },
-            }
-        ],
-        "edges": [
-            {"from": "trigger_manual", "to": "agentic_task"},
-        ],
-    }
+def _workflow_definition(credential_id: str, model: str) -> WorkflowDefinition:
+    return WorkflowDefinition.from_dict(
+        {
+            "name": "test-workflow",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {
+                    "id": "trigger_manual",
+                    "type": "manual_trigger",
+                    "config": {"inputs": {}},
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "agentic_task",
+                    "name": "Agentic Task",
+                    "type": "agentic",
+                    "config": {
+                        "prompt": (
+                            "You MUST use the get_greeting tool to greet jimmy. "
+                            "Do not answer without calling the tool first."
+                        ),
+                        "credential_id": credential_id,
+                        "model": model,
+                    },
+                }
+            ],
+            "edges": [
+                {"from": "trigger_manual", "to": "agentic_task"},
+            ],
+        }
+    )
 
 
 def _get_metrics(

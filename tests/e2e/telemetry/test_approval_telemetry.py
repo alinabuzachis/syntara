@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 
@@ -47,24 +48,27 @@ def _create_approval_workflow(nexus_api: NexusApiRegistry) -> str:
         body=WorkflowCreate(
             name=WORKFLOW_NAME,
             description="E2E approval telemetry test workflow",
-            workflow_definition={
-                "schema_version": "2.0.0",
-                "triggers": [
-                    {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
-                ],
-                "nodes": [
-                    {
-                        "id": APPROVAL_NODE_ID,
-                        "name": "Approval Step",
-                        "type": "approval",
-                        "config": {
-                            "description": "E2E telemetry approval test",
-                            "timeout": 300,
+            workflow_definition=WorkflowDefinition.from_dict(
+                {
+                    "name": "approval-telemetry",
+                    "schema_version": "2.0.0",
+                    "triggers": [
+                        {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                    ],
+                    "nodes": [
+                        {
+                            "id": APPROVAL_NODE_ID,
+                            "name": "Approval Step",
+                            "type": "approval",
+                            "config": {
+                                "description": "E2E telemetry approval test",
+                                "timeout": 300,
+                            },
                         },
-                    },
-                ],
-                "edges": [{"from": "trigger", "to": APPROVAL_NODE_ID}],
-            },
+                    ],
+                    "edges": [{"from": "trigger", "to": APPROVAL_NODE_ID}],
+                }
+            ),
         ),
     ).assert_and_get()
     return str(data.id)

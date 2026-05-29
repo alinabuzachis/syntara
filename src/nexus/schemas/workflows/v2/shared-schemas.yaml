@@ -324,10 +324,8 @@ components:
           title: Deleted By
         workflow_definition:
           anyOf:
-            - additionalProperties: true
-              type: object
+            - $ref: "#/components/schemas/WorkflowDefinition"
             - type: 'null'
-          title: Workflow Definition
           description: Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
         activities:
           anyOf:
@@ -585,7 +583,7 @@ components:
           title: Labels
           description: Workflow labels
         workflow_definition:
-          title: Workflow Definition
+          $ref: "#/components/schemas/WorkflowDefinition"
           description: Workflow definition object
         project_id:
           anyOf:
@@ -628,9 +626,8 @@ components:
           description: Update workflow labels
         workflow_definition:
           anyOf:
-            - {}
+            - $ref: "#/components/schemas/WorkflowDefinition"
             - type: "null"
-          title: Workflow Definition
           description: New workflow definition (auto-creates version)
         change_description:
           anyOf:
@@ -834,3 +831,66 @@ components:
               type: object
               additionalProperties:
                 type: string
+
+    WorkflowDefinition:
+      title: WorkflowDefinition
+      description: |-
+        JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2.
+
+        Attributes:
+            schema_version: Schema version that this workflow definition conforms to
+            name: Workflow name
+            description: Human-readable description of the workflow's purpose
+            triggers: Trigger nodes that define how the workflow is initiated
+            nodes: Execution and control nodes in the workflow graph
+            edges: Directed edges connecting triggers and nodes in the workflow graph
+      type: object
+      required:
+        - schema_version
+        - name
+        - triggers
+        - nodes
+        - edges
+      properties:
+        schema_version:
+          type: string
+          const: "2.0.0"
+          title: Schema Version
+          description: Schema version that this workflow definition conforms to
+        name:
+          type: string
+          title: Name
+          description: Workflow name
+          minLength: 1
+          maxLength: 255
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 1000
+            - type: "null"
+          title: Description
+          description: Human-readable description of the workflow's purpose
+        triggers:
+          type: array
+          title: Triggers
+          description: Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation.
+          minItems: 1
+          items:
+            additionalProperties: true
+            type: object
+        nodes:
+          type: array
+          title: Nodes
+          description: Execution and control nodes in the workflow graph
+          items:
+            additionalProperties: true
+            type: object
+        edges:
+          type: array
+          title: Edges
+          description: List of directed edges connecting triggers and nodes in the workflow graph
+          items:
+            additionalProperties: true
+            type: object
+      additionalProperties: false

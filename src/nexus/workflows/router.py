@@ -121,7 +121,7 @@ async def create_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
-        workflow_definition=request.workflow_definition,
+        workflow_definition=request.workflow_definition.model_dump(),
         project_id=request.project_id,
     )
     return workflow
@@ -192,7 +192,7 @@ async def update_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
-        workflow_definition=request.workflow_definition,
+        workflow_definition=request.workflow_definition.model_dump() if request.workflow_definition else None,
         change_description=request.change_description,
     )
 

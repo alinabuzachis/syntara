@@ -13,10 +13,10 @@ Run with:
 
 from __future__ import annotations
 
-from typing import Any
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 
-def build_workflow_definition(num_nodes: int) -> dict[str, Any]:
+def build_workflow_definition(num_nodes: int) -> WorkflowDefinition:
     """Build a valid V2 workflow definition with the specified number of nodes.
 
     Creates a linear chain: trigger -> node_0 -> node_1 -> ... -> node_{n-1}.
@@ -35,18 +35,21 @@ def build_workflow_definition(num_nodes: int) -> dict[str, Any]:
     for i in range(num_nodes - 1):
         edges.append({"from": f"node_{i}", "to": f"node_{i + 1}"})
 
-    return {
-        "schema_version": "2.0.0",
-        "triggers": [
-            {
-                "id": "trigger_manual",
-                "type": "manual_trigger",
-                "config": {"inputs": {}},
-            }
-        ],
-        "nodes": nodes,
-        "edges": edges,
-    }
+    return WorkflowDefinition.from_dict(
+        {
+            "name": "perfomance",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {
+                    "id": "trigger_manual",
+                    "type": "manual_trigger",
+                    "config": {"inputs": {}},
+                }
+            ],
+            "nodes": nodes,
+            "edges": edges,
+        }
+    )
 
 
-SIMPLE_WORKFLOW_DEFINITION: dict[str, Any] = build_workflow_definition(1)
+SIMPLE_WORKFLOW_DEFINITION: WorkflowDefinition = build_workflow_definition(1)

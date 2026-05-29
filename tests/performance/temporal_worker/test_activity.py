@@ -30,6 +30,7 @@ from tests.performance.temporal_worker.conftest import (
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 pytestmark = pytest.mark.performance
 
@@ -193,7 +194,7 @@ class TestActivitySuccessRate:
             wf_id = create_perf_test_workflow(
                 nexus_api,
                 f"perf-activity-{i}",
-                definition,
+                WorkflowDefinition.from_dict(definition),
             )
             assert wf_id is not None, f"Failed to create test workflow for definition {i}"
             workflow_ids.append(wf_id)
@@ -268,7 +269,7 @@ class TestActivityDuration:
             wf_id = create_perf_test_workflow(
                 nexus_api,
                 f"perf-duration-{i}",
-                definition,
+                WorkflowDefinition.from_dict(definition),
             )
             assert wf_id is not None, f"Failed to create test workflow for definition {i}"
             workflow_ids.append(wf_id)

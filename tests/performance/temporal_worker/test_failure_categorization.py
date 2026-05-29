@@ -15,9 +15,10 @@ Run with:
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.performance.conftest import create_perf_test_workflow, submit_execution
 from tests.performance.temporal_worker.conftest import poll_until_activities_stabilize
@@ -30,81 +31,93 @@ pytestmark = pytest.mark.performance
 EXECUTIONS_PER_WORKFLOW = 5
 MAX_WORKERS = 10
 
-FAILING_WORKFLOW_DEFINITIONS: list[dict[str, Any]] = [
-    {
-        "schema_version": "2.0.0",
-        "triggers": [
-            {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
-        ],
-        "nodes": [
-            {
-                "id": "bad_bash",
-                "name": "Failing Bash Script",
-                "type": "script",
-                "config": {"language": "bash", "code": "exit 1"},
-            },
-        ],
-        "edges": [
-            {"from": "trigger_manual", "to": "bad_bash"},
-        ],
-    },
-    {
-        "schema_version": "2.0.0",
-        "triggers": [
-            {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
-        ],
-        "nodes": [
-            {
-                "id": "bad_python",
-                "name": "Failing Python Script",
-                "type": "script",
-                "config": {"language": "python", "code": "raise RuntimeError('deliberate failure')"},
-            },
-        ],
-        "edges": [
-            {"from": "trigger_manual", "to": "bad_python"},
-        ],
-    },
-    {
-        "schema_version": "2.0.0",
-        "triggers": [
-            {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
-        ],
-        "nodes": [
-            {
-                "id": "bad_http",
-                "name": "Failing HTTP Tool",
-                "type": "http_request",
-                "config": {
-                    "method": "GET",
-                    "url": "http://localhost:1/nonexistent",
-                    "timeout": 2,
+FAILING_WORKFLOW_DEFINITIONS: list[WorkflowDefinition] = [
+    WorkflowDefinition.from_dict(
+        {
+            "name": "failure1",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
+            ],
+            "nodes": [
+                {
+                    "id": "bad_bash",
+                    "name": "Failing Bash Script",
+                    "type": "script",
+                    "config": {"language": "bash", "code": "exit 1"},
                 },
-            },
-        ],
-        "edges": [
-            {"from": "trigger_manual", "to": "bad_http"},
-        ],
-    },
+            ],
+            "edges": [
+                {"from": "trigger_manual", "to": "bad_bash"},
+            ],
+        }
+    ),
+    WorkflowDefinition.from_dict(
+        {
+            "name": "failure2",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
+            ],
+            "nodes": [
+                {
+                    "id": "bad_python",
+                    "name": "Failing Python Script",
+                    "type": "script",
+                    "config": {"language": "python", "code": "raise RuntimeError('deliberate failure')"},
+                },
+            ],
+            "edges": [
+                {"from": "trigger_manual", "to": "bad_python"},
+            ],
+        }
+    ),
+    WorkflowDefinition.from_dict(
+        {
+            "name": "failure3",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
+            ],
+            "nodes": [
+                {
+                    "id": "bad_http",
+                    "name": "Failing HTTP Tool",
+                    "type": "http_request",
+                    "config": {
+                        "method": "GET",
+                        "url": "http://localhost:1/nonexistent",
+                        "timeout": 2,
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "trigger_manual", "to": "bad_http"},
+            ],
+        }
+    ),
 ]
 
-PASSING_WORKFLOW_DEFINITION: dict[str, Any] = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
-    ],
-    "nodes": [
-        {
-            "id": "good_script",
-            "name": "Passing Script",
-            "type": "script",
-            "config": {"language": "bash", "code": "echo ok"},
-        },
-    ],
-    "edges": [
-        {"from": "trigger_manual", "to": "good_script"},
-    ],
-}
+PASSING_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
+    {
+        "name": "passing1",
+        "schema_version": "2.0.0",
+        "triggers": [
+            {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
+        ],
+        "nodes": [
+            {
+                "id": "good_script",
+                "name": "Passing Script",
+                "type": "script",
+                "config": {"language": "bash", "code": "echo ok"},
+            },
+        ],
+        "edges": [
+            {"from": "trigger_manual", "to": "good_script"},
+        ],
+    }
+)
 
 
 class TestFailureCategorization:

@@ -14,6 +14,7 @@ from sqlmodel import CheckConstraint, Field, Index, Relationship, SQLModel, text
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import Resource
 from nexus.core.models.pagination import ResourcesResponse
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution
@@ -166,7 +167,7 @@ class WorkflowCreate(WorkflowBase):
     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
     """
 
-    workflow_definition: Any = Field(..., description="Workflow definition object")
+    workflow_definition: WorkflowDefinition = Field(..., description="Workflow definition object")
     project_id: UUID | None = Field(default=None, description="Project to assign workflow to")
 
 
@@ -182,7 +183,9 @@ class WorkflowUpdate(SQLModel):
         None, max_length=FieldLimits.DESCRIPTION_MAX_LENGTH, description="Update workflow description"
     )
     labels: dict[str, Any] | None = Field(None, description="Update workflow labels")
-    workflow_definition: Any | None = Field(None, description="New workflow definition (auto-creates version)")
+    workflow_definition: WorkflowDefinition | None = Field(
+        None, description="New workflow definition (auto-creates version)"
+    )
     change_description: str | None = Field(None, description="Description of changes for version history")
 
 

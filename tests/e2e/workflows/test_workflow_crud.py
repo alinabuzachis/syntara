@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import WorkflowCreate, WorkflowRead, WorkflowUpdate
+from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -20,27 +20,34 @@ def _unique_workflow_name(prefix: str = "e2e-test") -> str:
     return f"{prefix}-{uuid4().hex[:8]}"
 
 
-def _minimal_workflow_definition() -> dict[str, Any]:
+def _minimal_workflow_definition(workflow_name: str) -> WorkflowDefinition:
     """Standard minimal workflow definition for testing."""
-    return {
-        "schema_version": "2.0.0",
-        "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
-        "nodes": [],
-        "edges": [],
-    }
+    return WorkflowDefinition.from_dict(
+        {
+            "name": workflow_name,
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+            "nodes": [],
+            "edges": [],
+        }
+    )
 
 
 def _workflow_definition_with_nodes(
     *nodes: dict[str, Any],
     edges: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
+    workflow_name: str = "workflow_with_node",
+) -> WorkflowDefinition:
     """Workflow definition with custom nodes and edges."""
-    return {
-        "schema_version": "2.0.0",
-        "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
-        "nodes": list(nodes),
-        "edges": edges or [],
-    }
+    return WorkflowDefinition.from_dict(
+        {
+            "name": workflow_name,
+            "schema_version": "2.0.0",
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+            "nodes": list(nodes),
+            "edges": edges or [],
+        }
+    )
 
 
 class TestWorkflowAPI:
@@ -55,7 +62,7 @@ class TestWorkflowAPI:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="E2E test workflow",
-            workflow_definition=_minimal_workflow_definition(),
+            workflow_definition=_minimal_workflow_definition(workflow_name=workflow_name),
         )
 
         workflow = workflow_factory(workflow_data)
@@ -105,6 +112,7 @@ class TestWorkflowAPI:
                     {"from": "trigger_manual", "to": "script_node_1"},
                     {"from": "script_node_1", "to": "script_node_2"},
                 ],
+                workflow_name=workflow_name,
             ),
         )
 
@@ -174,7 +182,7 @@ class TestWorkflowAPI:
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Original description",
-            workflow_definition=_minimal_workflow_definition(),
+            workflow_definition=_minimal_workflow_definition(workflow_name=workflow_name),
         )
 
         workflow = workflow_factory(workflow_data)
@@ -213,6 +221,7 @@ class TestWorkflowAPI:
                     "config": {"language": "bash", "code": "echo 'test'"},
                 },
                 edges=[{"from": "trigger_manual", "to": "script_node_1"}],
+                workflow_name=workflow_name,
             ),
         )
 
@@ -245,7 +254,7 @@ class TestWorkflowAPI:
             workflow_data = WorkflowCreate(
                 name=wf_config["name"],
                 description="Test workflow for listing",
-                workflow_definition=_minimal_workflow_definition(),
+                workflow_definition=_minimal_workflow_definition(workflow_name=wf_config["name"]),
             )
             workflow_factory(workflow_data)
 

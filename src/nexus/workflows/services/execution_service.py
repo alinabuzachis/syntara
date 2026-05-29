@@ -41,6 +41,7 @@ from nexus.workflows.models.execution import (
     PreResolvedNodeOutput,
 )
 from nexus.workflows.models.workflow import Workflow
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
@@ -84,7 +85,9 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
         if self.include and len(self.include) > 0:
             # Only include workflow_definition if explicitly requested
             if ExecutionInclude.WORKFLOW_DEFINITION in self.include:
-                result.workflow_definition = resource.workflow_version.workflow_definition
+                result.workflow_definition = WorkflowDefinition.model_validate(
+                    resource.workflow_version.workflow_definition
+                )
 
             # Only include activities if explicitly requested
             if ExecutionInclude.ACTIVITIES in self.include:

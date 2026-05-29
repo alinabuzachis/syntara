@@ -22,6 +22,7 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.project_create import ProjectCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.e2e.telemetry.conftest import POLL_INTERVAL
 
@@ -146,29 +147,32 @@ class TestSystemAnalyticsCredentialCounts:
         cred_id = str(cred_data.id)
 
         # Create a workflow whose node references this credential
-        workflow_definition = {
-            "schema_version": "2.0.0",
-            "triggers": [
-                {
-                    "id": "trigger_manual",
-                    "type": "manual_trigger",
-                    "config": {"inputs": {}},
-                }
-            ],
-            "nodes": [
-                {
-                    "id": "api_node",
-                    "name": "API call with credential",
-                    "type": "http_request",
-                    "config": {
-                        "method": "GET",
-                        "url": "https://example.com",
-                        "credential_id": cred_id,
+        workflow_definition: WorkflowDefinition = WorkflowDefinition.from_dict(
+            {
+                "name": "analytics",
+                "schema_version": "2.0.0",
+                "triggers": [
+                    {
+                        "id": "trigger_manual",
+                        "type": "manual_trigger",
+                        "config": {"inputs": {}},
+                    }
+                ],
+                "nodes": [
+                    {
+                        "id": "api_node",
+                        "name": "API call with credential",
+                        "type": "http_request",
+                        "config": {
+                            "method": "GET",
+                            "url": "https://example.com",
+                            "credential_id": cred_id,
+                        },
                     },
-                },
-            ],
-            "edges": [{"from": "trigger_manual", "to": "api_node"}],
-        }
+                ],
+                "edges": [{"from": "trigger_manual", "to": "api_node"}],
+            }
+        )
         nexus_api.workflows.create(
             body=WorkflowCreate(
                 name=f"e2e-cred-wf-{uuid4().hex[:8]}",

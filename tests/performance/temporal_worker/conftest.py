@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.performance.conftest import SIMPLE_WORKFLOW_DEFINITION, poll_until
 
@@ -88,17 +89,19 @@ def poll_until_activities_stabilize(
     )
 
 
-SLOW_WORKFLOW_DEFINITION: dict[str, Any] = {
-    **SIMPLE_WORKFLOW_DEFINITION,
-    "nodes": [
-        {
-            "id": "script_task",
-            "name": "Script Task",
-            "type": "script",
-            "config": {"language": "python", "code": "import time; time.sleep(0.5); print('done')"},
-        }
-    ],
-}
+SLOW_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
+    {
+        **WorkflowDefinition.to_dict(SIMPLE_WORKFLOW_DEFINITION),
+        "nodes": [
+            {
+                "id": "script_task",
+                "name": "Script Task",
+                "type": "script",
+                "config": {"language": "python", "code": "import time; time.sleep(0.5); print('done')"},
+            }
+        ],
+    }
+)
 
 MULTI_ACTIVITY_WORKFLOW_DEFINITIONS: list[dict[str, Any]] = [
     {

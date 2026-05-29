@@ -37,10 +37,10 @@ if TYPE_CHECKING:
 
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.api.internal_metrics import InternalMetricsApi
-    from nexus_api_client.models.invocation_create_request_contextdata import (
-        InvocationCreateRequestContextdata,
-    )
+    from nexus_api_client.models.invocation_create_request_contextdata import InvocationCreateRequestContextdata
     from nexus_api_client.types import Unset
+
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 pytestmark = pytest.mark.performance
 
@@ -131,27 +131,30 @@ ALL_LLM_TEST_PROMPTS: list[str] = [p for ps in LLM_TEST_PROMPTS.values() for p i
 # Common test data
 # ---------------------------------------------------------------------------
 
-SIMPLE_WORKFLOW_DEFINITION: dict[str, Any] = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {
-            "id": "trigger_manual",
-            "type": "manual_trigger",
-            "config": {"inputs": {}},
-        }
-    ],
-    "nodes": [
-        {
-            "id": "script_task",
-            "name": "Script Task",
-            "type": "script",
-            "config": {"language": "python", "code": "print('hello')"},
-        }
-    ],
-    "edges": [
-        {"from": "trigger_manual", "to": "script_task"},
-    ],
-}
+SIMPLE_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
+    {
+        "name": "perfomance",
+        "schema_version": "2.0.0",
+        "triggers": [
+            {
+                "id": "trigger_manual",
+                "type": "manual_trigger",
+                "config": {"inputs": {}},
+            }
+        ],
+        "nodes": [
+            {
+                "id": "script_task",
+                "name": "Script Task",
+                "type": "script",
+                "config": {"language": "python", "code": "print('hello')"},
+            }
+        ],
+        "edges": [
+            {"from": "trigger_manual", "to": "script_task"},
+        ],
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +380,7 @@ def poll_until_resources_terminal(
 def create_perf_test_workflow(
     nexus_api: NexusApiRegistry,
     name_prefix: str,
-    workflow_definition: dict[str, Any] | None = None,
+    workflow_definition: WorkflowDefinition | None = None,
 ) -> str | None:
     """Create a workflow via the API and return its ID, or None on failure.
 
@@ -647,9 +650,7 @@ def create_invocation_with_id(
 
     """
     from nexus_api_client.models.invocation_create_request import InvocationCreateRequest
-    from nexus_api_client.models.invocation_create_request_contextdata import (
-        InvocationCreateRequestContextdata as _Ctx,
-    )
+    from nexus_api_client.models.invocation_create_request_contextdata import InvocationCreateRequestContextdata as _Ctx
     from nexus_api_client.types import UNSET
 
     ctx: InvocationCreateRequestContextdata | Unset = UNSET

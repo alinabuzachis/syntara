@@ -726,6 +726,9 @@ components:
     ExecutionRead:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionRead
 
+    WorkflowDefinition:
+      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowDefinition
+
     WebhookResponse:
       type: object
       title: WebhookResponse

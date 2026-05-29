@@ -18,6 +18,7 @@ from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
     from nexus.workflows.models.activity_execution import ActivityExecution
@@ -391,7 +392,7 @@ class ExecutionRead(SQLModel):
     execution_metadata: dict[str, Any] | None = None
 
     # Optional: Only populated when ?include=workflow_definition
-    workflow_definition: dict[str, Any] | None = Field(
+    workflow_definition: WorkflowDefinition | None = Field(
         default=None,
         description="Workflow definition from the executed version. "
         "Only included when requested via ?include=workflow_definition query parameter.",

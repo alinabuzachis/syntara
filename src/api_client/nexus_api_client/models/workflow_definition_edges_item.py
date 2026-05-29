@@ -6,11 +6,11 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ExecutionReadWorkflowDefinitionType0")
+T = TypeVar("T", bound="WorkflowDefinitionEdgesItem")
 
 
 @_attrs_define
-class ExecutionReadWorkflowDefinitionType0:
+class WorkflowDefinitionEdgesItem:
     """ """
 
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -24,10 +24,10 @@ class ExecutionReadWorkflowDefinitionType0:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        execution_read_workflow_definition_type_0 = cls()
+        workflow_definition_edges_item = cls()
 
-        execution_read_workflow_definition_type_0.additional_properties = d
-        return execution_read_workflow_definition_type_0
+        workflow_definition_edges_item.additional_properties = d
+        return workflow_definition_edges_item
 
     @property
     def additional_keys(self) -> list[str]:

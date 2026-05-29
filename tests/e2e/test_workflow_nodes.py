@@ -20,6 +20,7 @@ from nexus_api_client.models import (
     WorkflowUpdate,
 )
 from nexus_api_client.models.execution_status import ExecutionStatus
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 POLL_INTERVAL = 1
 POLL_TIMEOUT = 20
@@ -54,13 +55,15 @@ def _create_and_run_workflow(
 
     if existing:
         wf_id = existing[0].id
-        api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=definition))
+        api.workflows.update(
+            workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=WorkflowDefinition.from_dict(definition))
+        )
     else:
         create_response = api.workflows.create(
             body=WorkflowCreate(
                 name=name,
                 description=f"E2E test: {name}",
-                workflow_definition=definition,
+                workflow_definition=WorkflowDefinition.from_dict(definition),
             )
         )
         assert create_response.is_success, f"Failed to create workflow {name}"
@@ -85,6 +88,7 @@ def test_script_node_bash(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-script-bash",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -117,6 +121,7 @@ def test_script_node_python(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-script-python",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -153,6 +158,7 @@ def test_http_request_node(nexus_api: NexusApiRegistry, worker_base_url: str):
         nexus_api,
         "e2e-http-request",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -189,6 +195,7 @@ def test_condition_true_branch(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-condition-true",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -236,6 +243,7 @@ def test_condition_false_branch(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-condition-false",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -288,6 +296,7 @@ def test_loop_for_each(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-loop-foreach",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -335,6 +344,7 @@ def test_parallel_paths_with_converge(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-parallel-converge",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -395,6 +405,7 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-multi-node",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -472,6 +483,7 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
         nexus_api,
         "e2e-script-to-agentic",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -521,6 +533,7 @@ def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
         nexus_api,
         "e2e-agentic-to-script",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -572,6 +585,7 @@ def test_loop_with_agentic_body(
         nexus_api,
         "e2e-loop-agentic",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -624,6 +638,7 @@ def test_http_request_then_agentic(
         nexus_api,
         "e2e-http-to-agentic",
         {
+            "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -704,6 +719,7 @@ def _switch_workflow_definition(cases: list[dict[str, str]], default_port: str =
     edges.append({"from": "sw", "to": "action_default", "from_port": default_port})
 
     return {
+        "name": "test",
         "schema_version": "2.0.0",
         "triggers": [{"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}}],
         "nodes": nodes,
@@ -924,6 +940,7 @@ def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-switch-empty-cases",
         {
+            "name": "test",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -964,6 +981,7 @@ def test_switch_after_script_node(nexus_api: NexusApiRegistry):
         nexus_api,
         "e2e-switch-after-script",
         {
+            "name": "test",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},

@@ -17,6 +17,7 @@ import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
@@ -28,24 +29,27 @@ WORKFLOW_NAME = "e2e-telemetry-script"
 POLL_INTERVAL = 3
 POLL_TIMEOUT = 60
 
-WORKFLOW_DEFINITION: dict[str, Any] = {
-    "schema_version": "2.0.0",
-    "triggers": [
-        {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
-    ],
-    "nodes": [
-        {
-            "id": "script_task",
-            "name": "Script Task",
-            "type": "script",
-            "config": {
-                "language": "python",
-                "code": "print('telemetry test')",
+WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
+    {
+        "name": "workflow-exec",
+        "schema_version": "2.0.0",
+        "triggers": [
+            {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+        ],
+        "nodes": [
+            {
+                "id": "script_task",
+                "name": "Script Task",
+                "type": "script",
+                "config": {
+                    "language": "python",
+                    "code": "print('telemetry test')",
+                },
             },
-        },
-    ],
-    "edges": [{"from": "trigger", "to": "script_task"}],
-}
+        ],
+        "edges": [{"from": "trigger", "to": "script_task"}],
+    }
+)
 
 # Fields that must NEVER appear in telemetry events (PII / sensitive data)
 PII_FIELDS = {

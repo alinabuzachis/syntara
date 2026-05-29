@@ -22,6 +22,7 @@ from nexus_api_client.models import (
     WorkflowUpdate,
 )
 from nexus_api_client.models.execution_status import ExecutionStatus
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -58,10 +59,16 @@ def _run_workflow(
 
     if existing:
         wf_id = existing[0].id
-        api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=definition))
+        api.workflows.update(
+            workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=WorkflowDefinition.from_dict(definition))
+        )
     else:
         create = api.workflows.create(
-            body=WorkflowCreate(name=name, description=f"E2E: {name}", workflow_definition=definition)
+            body=WorkflowCreate(
+                name=name,
+                description=f"E2E: {name}",
+                workflow_definition=WorkflowDefinition.from_dict(definition),
+            )
         )
         assert create.is_success
         assert create.parsed is not None
@@ -103,6 +110,7 @@ def test_script_timeout_setting_affects_execution(
             nexus_api,
             "e2e-settings-script-timeout",
             {
+                "name": "runtime_setting",
                 "schema_version": "2.0.0",
                 "triggers": [{"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}}],
                 "nodes": [
@@ -146,6 +154,7 @@ def test_max_loop_iterations_setting_affects_execution(
             nexus_api,
             "e2e-settings-max-loop",
             {
+                "name": "runtime_setting",
                 "schema_version": "2.0.0",
                 "triggers": [{"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}}],
                 "nodes": [
