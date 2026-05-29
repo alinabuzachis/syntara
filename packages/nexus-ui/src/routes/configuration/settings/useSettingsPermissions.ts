@@ -1,47 +1,19 @@
-import { useEffect, useState } from 'react'
-
-import { detachPromise } from '../../../utils/detachPromise'
-import { accessFetchClient } from '../../access/accessClient'
+import { useCanI } from '../../../hooks/useCanI'
 
 type SettingsPermissions = {
   canRead: boolean
   canWrite: boolean
 }
 
-const defaults: SettingsPermissions = { canRead: false, canWrite: false }
-
+/**
+ * Checks whether the current user can read and/or write settings.
+ *
+ * Delegates to the shared `useCanI` hook for each check. Safe-false
+ * defaults: both permissions are `false` until their API calls resolve.
+ */
 export function useSettingsPermissions(): SettingsPermissions {
-  const [permissions, setPermissions] = useState<SettingsPermissions>(defaults)
+  const { allowed: canRead } = useCanI('read', 'setting')
+  const { allowed: canWrite } = useCanI('write', 'setting')
 
-  useEffect(() => {
-    let cancelled = false
-
-    detachPromise(
-      Promise.all([
-        accessFetchClient.POST('/authz/can_i', {
-          body: { action: 'read', resource_type: 'setting' },
-        }),
-        accessFetchClient.POST('/authz/can_i', {
-          body: { action: 'write', resource_type: 'setting' },
-        }),
-      ])
-        .then(([readResult, writeResult]) => {
-          if (!cancelled) {
-            setPermissions({
-              canRead: readResult.data?.allowed === true,
-              canWrite: writeResult.data?.allowed === true,
-            })
-          }
-        })
-        .catch(() => {
-          // Leave permissions at safe defaults (canRead: false, canWrite: false)
-        })
-    )
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  return permissions
+  return { canRead, canWrite }
 }

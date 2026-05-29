@@ -1,4 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
+import { createElement } from 'react'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { accessFetchClient } from '../../access/accessClient'
@@ -16,6 +19,15 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+}
+
 describe('useSettingsPermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -26,7 +38,7 @@ describe('useSettingsPermissions', () => {
       data: { allowed: true },
     })
 
-    const { result } = renderHook(() => useSettingsPermissions())
+    const { result } = renderHook(() => useSettingsPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(result.current.canRead).toBe(true)
@@ -49,7 +61,7 @@ describe('useSettingsPermissions', () => {
       return Promise.resolve({ data: { allowed: false } })
     })
 
-    const { result } = renderHook(() => useSettingsPermissions())
+    const { result } = renderHook(() => useSettingsPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(result.current.canRead).toBe(true)
@@ -63,7 +75,7 @@ describe('useSettingsPermissions', () => {
       data: { allowed: false },
     })
 
-    const { result } = renderHook(() => useSettingsPermissions())
+    const { result } = renderHook(() => useSettingsPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)
@@ -78,7 +90,7 @@ describe('useSettingsPermissions', () => {
       data: undefined,
     })
 
-    const { result } = renderHook(() => useSettingsPermissions())
+    const { result } = renderHook(() => useSettingsPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)
@@ -91,7 +103,7 @@ describe('useSettingsPermissions', () => {
   it('defaults to both false while requests are in flight', () => {
     vi.mocked(accessFetchClient.POST).mockReturnValue(new Promise(() => {}))
 
-    const { result } = renderHook(() => useSettingsPermissions())
+    const { result } = renderHook(() => useSettingsPermissions(), { wrapper: createWrapper() })
 
     expect(result.current.canRead).toBe(false)
     expect(result.current.canWrite).toBe(false)
@@ -105,7 +117,7 @@ describe('useSettingsPermissions', () => {
       })
     )
 
-    const { result, unmount } = renderHook(() => useSettingsPermissions())
+    const { result, unmount } = renderHook(() => useSettingsPermissions(), { wrapper: createWrapper() })
 
     unmount()
 
@@ -121,7 +133,7 @@ describe('useSettingsPermissions', () => {
   it('returns safe defaults when requests fail', async () => {
     vi.mocked(accessFetchClient.POST).mockRejectedValue(new Error('network error'))
 
-    const { result } = renderHook(() => useSettingsPermissions())
+    const { result } = renderHook(() => useSettingsPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(accessFetchClient.POST).toHaveBeenCalledTimes(2)

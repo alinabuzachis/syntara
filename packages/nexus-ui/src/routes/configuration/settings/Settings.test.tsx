@@ -369,6 +369,16 @@ describe('Settings', () => {
       expect(screen.queryByRole('tab')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
     })
+
+    it('shows access denied when categories query returns 403', () => {
+      vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: false })
+      const forbiddenError = Object.assign(new Error('Forbidden'), { status: 403 })
+      mockQueries({ error: forbiddenError })
+      render(<Settings />)
+
+      expect(screen.getByText('Access denied')).toBeInTheDocument()
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    })
   })
 
   describe('read-only mode', () => {

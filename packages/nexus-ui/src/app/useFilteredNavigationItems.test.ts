@@ -1,119 +1,127 @@
 import { renderHook } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useAccessManagementPermissions } from '../routes/access-management/useAccessManagementPermissions'
-import { useSettingsPermissions } from '../routes/configuration/settings/useSettingsPermissions'
+import type { usePermissionChecks as UsePermissionChecksFn } from '../hooks/usePermissionChecks'
 
-import { AppRoute } from './AppRoute'
-import { NAV_ITEMS } from './navigationItems'
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 
-vi.mock('../routes/configuration/settings/useSettingsPermissions', () => ({
-  useSettingsPermissions: vi.fn(),
+const mockUsePermissionChecks = vi.fn<typeof UsePermissionChecksFn>()
+
+vi.mock('../hooks/usePermissionChecks', () => ({
+  usePermissionChecks: (...args: Parameters<typeof UsePermissionChecksFn>) => mockUsePermissionChecks(...args),
 }))
 
-vi.mock('../routes/access-management/useAccessManagementPermissions', () => ({
-  useAccessManagementPermissions: vi.fn(),
+vi.mock('../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
 }))
+
+vi.mock('../routes/access/accessClient', () => ({
+  accessFetchClient: {
+    POST: vi.fn(),
+    use: vi.fn(),
+  },
+}))
+
+/** Helper: find a nav item by label at any depth */
+function findItem(
+  items: readonly { label: string; children?: readonly { label: string }[] }[],
+  label: string
+): { label: string } | undefined {
+  for (const item of items) {
+    if (item.label === label) return item
+    if (item.children) {
+      // eslint-disable-next-line testing-library/no-node-access -- .children is a TNavigationItem property, not DOM node access
+      const found = findItem(item.children, label)
+      if (found) return found
+    }
+  }
+  return undefined
+}
+
+function setPermissions(overrides: Record<string, boolean>) {
+  mockUsePermissionChecks.mockReturnValue({
+    permissions: {
+      'setting:read': true,
+      'user:read': true,
+      'group:read': true,
+      ...overrides,
+    },
+    isLoading: false,
+  })
+}
 
 describe('useFilteredNavigationItems', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: true })
-    vi.mocked(useAccessManagementPermissions).mockReturnValue({
-      canReadUsers: true,
-      canReadGroups: true,
-      isLoading: false,
-    })
+    setPermissions({})
   })
 
-  it('returns all navigation items when user can read settings', () => {
-    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: true })
-
+  it('includes all gated items when all permissions are allowed', () => {
+    setPermissions({})
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    expect(result.current).toBe(NAV_ITEMS)
+    expect(findItem(result.current, 'Settings')).toBeDefined()
+    expect(findItem(result.current, 'Users')).toBeDefined()
+    expect(findItem(result.current, 'Groups')).toBeDefined()
   })
 
-  it('filters out Settings nav item when user cannot read settings', () => {
-    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: false, canWrite: false })
-
+  it('excludes Settings when setting:read is denied', () => {
+    setPermissions({ 'setting:read': false })
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const sysAdminGroup = result.current.find((item) => item.label === 'System Administration')
-    expect(sysAdminGroup?.children?.some((child) => child.path === AppRoute.SystemAdministration.Settings)).toBe(false)
+    expect(findItem(result.current, 'Settings')).toBeUndefined()
+    expect(findItem(result.current, 'Users')).toBeDefined()
+    expect(findItem(result.current, 'Groups')).toBeDefined()
+  })
+
+  it('always includes items without requiredPermissions', () => {
+    setPermissions({ 'setting:read': false, 'user:read': false, 'group:read': false })
+    const { result } = renderHook(() => useFilteredNavigationItems())
+
+    expect(findItem(result.current, 'Workflows')).toBeDefined()
+    expect(findItem(result.current, 'Approvals')).toBeDefined()
+    expect(findItem(result.current, 'Audit Log')).toBeDefined()
+  })
+
+  it('hides all gated items when all permissions are denied', () => {
+    setPermissions({ 'setting:read': false, 'user:read': false, 'group:read': false })
+    const { result } = renderHook(() => useFilteredNavigationItems())
+
+    expect(findItem(result.current, 'Settings')).toBeUndefined()
+    expect(findItem(result.current, 'Users')).toBeUndefined()
+    expect(findItem(result.current, 'Groups')).toBeUndefined()
   })
 
   it('preserves other System Administration children when Settings is filtered', () => {
-    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: false, canWrite: false })
-
+    setPermissions({ 'setting:read': false })
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const sysAdminGroup = result.current.find((item) => item.label === 'System Administration')
-    // testing-library/no-node-access flags any `.children` property access regardless of
-    // whether it is a DOM node or a plain data object. Destructure to satisfy the rule.
-    const { children: sysAdminChildren } = sysAdminGroup ?? {}
-    expect(sysAdminChildren).toBeDefined()
-    expect(sysAdminChildren!.length).toBeGreaterThan(0)
-    expect(sysAdminChildren!.every((child) => child.path !== AppRoute.SystemAdministration.Settings)).toBe(true)
+    expect(findItem(result.current, 'Access Management')).toBeDefined()
+    expect(findItem(result.current, 'Identity Providers')).toBeDefined()
+    expect(findItem(result.current, 'Settings')).toBeUndefined()
   })
 
-  it('does not modify items without children', () => {
-    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: false, canWrite: false })
-
+  it('filters out Users tab when user:read is denied', () => {
+    setPermissions({ 'user:read': false })
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const topLevelWithoutChildren = NAV_ITEMS.filter(({ children }) => !children)
-    const filteredTopLevel = result.current.filter(({ children }) => !children)
-    expect(filteredTopLevel).toEqual(topLevelWithoutChildren)
+    expect(findItem(result.current, 'Users')).toBeUndefined()
+    expect(findItem(result.current, 'Groups')).toBeDefined()
   })
 
-  it('filters out Users tab when user cannot read users', () => {
-    vi.mocked(useSettingsPermissions).mockReturnValue({ canRead: true, canWrite: true })
-    vi.mocked(useAccessManagementPermissions).mockReturnValue({
-      canReadUsers: false,
-      canReadGroups: true,
-      isLoading: false,
-    })
-
+  it('filters out Groups tab when group:read is denied', () => {
+    setPermissions({ 'group:read': false })
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const sysAdmin = result.current.find((item) => item.path === AppRoute.SystemAdministration.Root)
-    const accessGroup = sysAdmin?.children?.find((child) => child.path === AppRoute.AccessManagement.Root)
-    const { children: accessChildren } = accessGroup ?? {}
-    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Users)).toBe(false)
-    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Groups)).toBe(true)
+    expect(findItem(result.current, 'Users')).toBeDefined()
+    expect(findItem(result.current, 'Groups')).toBeUndefined()
   })
 
-  it('filters out Groups tab when user cannot read groups', () => {
-    vi.mocked(useAccessManagementPermissions).mockReturnValue({
-      canReadUsers: true,
-      canReadGroups: false,
-      isLoading: false,
-    })
-
+  it('filters out both Users and Groups when both are denied', () => {
+    setPermissions({ 'user:read': false, 'group:read': false })
     const { result } = renderHook(() => useFilteredNavigationItems())
 
-    const sysAdmin = result.current.find((item) => item.path === AppRoute.SystemAdministration.Root)
-    const accessGroup = sysAdmin?.children?.find((child) => child.path === AppRoute.AccessManagement.Root)
-    const { children: accessChildren } = accessGroup ?? {}
-    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Users)).toBe(true)
-    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Groups)).toBe(false)
-  })
-
-  it('filters out both Users and Groups when user cannot read either', () => {
-    vi.mocked(useAccessManagementPermissions).mockReturnValue({
-      canReadUsers: false,
-      canReadGroups: false,
-      isLoading: false,
-    })
-
-    const { result } = renderHook(() => useFilteredNavigationItems())
-
-    const sysAdmin = result.current.find((item) => item.path === AppRoute.SystemAdministration.Root)
-    const accessGroup = sysAdmin?.children?.find((child) => child.path === AppRoute.AccessManagement.Root)
-    const { children: accessChildren } = accessGroup ?? {}
-    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Users)).toBe(false)
-    expect(accessChildren?.some((child) => child.path === AppRoute.AccessManagement.Groups)).toBe(false)
+    expect(findItem(result.current, 'Users')).toBeUndefined()
+    expect(findItem(result.current, 'Groups')).toBeUndefined()
   })
 })

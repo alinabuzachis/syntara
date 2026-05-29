@@ -14,7 +14,7 @@ import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
-import { getErrorCode } from '../../../utils/apiErrors'
+import { getErrorCode, isForbiddenError } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import { SettingsCategoryTab } from './SettingsCategoryTab'
@@ -39,6 +39,8 @@ export default function Settings() {
   } = useAllSettings({ enabled: canRead })
 
   const { mutate: bulkUpdate, isPending: isSaving } = settingsClient.useMutation('patch', '/settings')
+
+  const isForbidden = isForbiddenError(categoriesQuery.error) || isForbiddenError(settingsError)
 
   const categoriesState = useQueryState(categoriesQuery, {
     title: 'Error loading setting categories',
@@ -155,7 +157,7 @@ export default function Settings() {
   const hasChanges = edits.size > 0
   const hasValidationErrors = validationErrors.size > 0
 
-  if (!canRead) {
+  if (!canRead || isForbidden) {
     return (
       <NxPage>
         <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />

@@ -3542,23 +3542,56 @@ export const handlers = [
   http.post('/api/v1/authz/can_i', async ({ request }) => {
     const username = getUsernameFromRequest(request)
     const body = (await request.json()) as { action?: string; resource_type?: string } | null
-    const action = body?.action
-    const resourceType = body?.resource_type
+    const action = (body?.action ?? '').toLowerCase()
+    const resourceType = (body?.resource_type ?? '').toLowerCase()
+
+    if (!action || !resourceType) {
+      return HttpResponse.json({
+        allowed: false,
+        denied: true,
+        matched_policy: '',
+        denial_reason: 'Missing required parameters: action and resource_type',
+        denied_by: 'authorization-service',
+      })
+    }
+
+    const WRITE_ACTIONS = new Set([
+      'create',
+      'update',
+      'delete',
+      'write',
+      'assign',
+      'revoke',
+      'manage-members',
+      'attach',
+      'detach',
+      'test',
+      'run',
+      'decide',
+    ])
 
     let allowed = true
 
     if (username === 'viewer') {
-      if (resourceType === 'setting') allowed = false
+      const readableResources = new Set(['workflow', 'execution', 'approval', 'credential'])
+      if (readableResources.has(resourceType)) {
+        allowed = action === 'read'
+      } else {
+        allowed = false
+      }
     } else if (username === 'auditor') {
-      if (resourceType === 'setting' && action === 'write') allowed = false
+      if (WRITE_ACTIONS.has(action)) {
+        allowed = false
+      }
     }
+    // admin / demo / default: all actions allowed
 
     return HttpResponse.json({
       allowed,
       denied: !allowed,
-      matched_policy: '',
-      denial_reason: allowed ? '' : 'Insufficient permissions',
-      denied_by: '',
+      matched_policy: allowed ? 'default-policy' : '',
+      denial_reason: allowed ? '' : `Insufficient permissions for ${resourceType}:${action}`,
+      denied_by: allowed ? '' : 'authorization-service',
     })
   }),
 

@@ -214,6 +214,34 @@ export function isServiceUnavailableError(error: unknown): boolean {
 }
 
 /**
+ * Detects if an error is a 403 Forbidden / authorization error.
+ *
+ * Checks status code first, then falls back to message/code heuristics
+ * because openapi-react-query errors may not carry the HTTP status.
+ */
+export function isForbiddenError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  if (getErrorStatus(error) === 403) {
+    return true
+  }
+
+  const code = getErrorCode(error)
+  if (code === 'FORBIDDEN' || code === 'AUTHORIZATION_ERROR') {
+    return true
+  }
+
+  const message = getErrorMessage(error).toLowerCase()
+  if (message.includes('not authorized') || message.includes('forbidden')) {
+    return true
+  }
+
+  return false
+}
+
+/**
  * Extracts a user-friendly message from RFC 9457 error formats.
  *
  * Tries to extract message from (in order):

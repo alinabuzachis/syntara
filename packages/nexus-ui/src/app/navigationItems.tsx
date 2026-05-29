@@ -13,6 +13,8 @@ import {
   RhUiUsersIcon,
 } from '@patternfly/react-icons'
 
+import type { PermissionRequirement } from '../hooks/permissionUtils'
+
 import { AppRoute } from './AppRoute'
 import {
   AccessManagement,
@@ -51,6 +53,12 @@ export type TNavigationItem = {
   matchPattern?: string // Optional pattern to match for active state (e.g., "/workflow-builder/:workflowId")
   separatorBefore?: boolean // Render a divider above this item in the nav
   icon?: React.ReactNode // Icon to display next to the label in dropdown menus
+  /**
+   * If set, the item is visible only when the user has **at least one** of
+   * these permissions (OR logic). Hidden when every check is denied.
+   * Omit to keep the item always visible.
+   */
+  requiredPermissions?: PermissionRequirement[]
 }
 
 export const NAV_ITEMS: TNavigationItem[] = [
@@ -134,11 +142,13 @@ export const NAV_ITEMS: TNavigationItem[] = [
             label: 'Users',
             path: AppRoute.AccessManagement.Users,
             element: <AccessManagement />,
+            requiredPermissions: [{ action: 'read', resourceType: 'user' }],
           },
           {
             label: 'Groups',
             path: AppRoute.AccessManagement.Groups,
             element: <AccessManagement />,
+            requiredPermissions: [{ action: 'read', resourceType: 'group' }],
           },
           {
             label: 'Policies',
@@ -249,6 +259,7 @@ export const NAV_ITEMS: TNavigationItem[] = [
         path: AppRoute.SystemAdministration.Settings,
         icon: <RhUiSettingsIcon />,
         element: <Settings />,
+        requiredPermissions: [{ action: 'read', resourceType: 'setting' }],
         children: [
           {
             label: 'Settings Tab',

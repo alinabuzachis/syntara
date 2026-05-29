@@ -1,44 +1,67 @@
 import { useMemo } from 'react'
 
-import { useAccessManagementPermissions } from '../routes/access-management/useAccessManagementPermissions'
-import { useSettingsPermissions } from '../routes/configuration/settings/useSettingsPermissions'
+import type { PermissionRequirement } from '../hooks/permissionUtils'
+import { permissionKey } from '../hooks/permissionUtils'
+import { usePermissionChecks } from '../hooks/usePermissionChecks'
 
-import { AppRoute } from './AppRoute'
 import type { TNavigationItem } from './navigationItems'
 import { NAV_ITEMS } from './navigationItems'
 
-function filterItems(items: TNavigationItem[], hiddenPaths: Set<string>): TNavigationItem[] {
-  return items.reduce<TNavigationItem[]>((acc, item) => {
-    if (hiddenPaths.has(item.path)) return acc
+/**
+ * Walks the nav tree and collects every unique permission requirement.
+ * Computed once at module init since NAV_ITEMS is a static constant.
+ */
+function collectRequiredPermissions(items: readonly TNavigationItem[]): PermissionRequirement[] {
+  const seen = new Map<string, PermissionRequirement>()
 
-    if (!item.children) {
-      acc.push(item)
-      return acc
+  function walk(navItems: readonly TNavigationItem[]) {
+    for (const item of navItems) {
+      if (item.requiredPermissions) {
+        for (const perm of item.requiredPermissions) {
+          const key = permissionKey(perm)
+          if (!seen.has(key)) seen.set(key, perm)
+        }
+      }
+      if (item.children) walk(item.children)
     }
+  }
 
-    const filteredChildren = filterItems(item.children, hiddenPaths)
-    const changed =
-      filteredChildren.length !== item.children.length || filteredChildren.some((c, i) => c !== item.children![i])
-    acc.push(changed ? { ...item, children: filteredChildren } : item)
-    return acc
-  }, [])
+  walk(items)
+  return [...seen.values()]
 }
 
+const ALL_NAV_PERMISSIONS = collectRequiredPermissions(NAV_ITEMS)
+
+function isNavItemVisible(item: TNavigationItem, permissions: Record<string, boolean>): boolean {
+  if (!item.requiredPermissions?.length) return true
+  return item.requiredPermissions.some((p) => permissions[permissionKey(p)] === true)
+}
+
+function filterNavItems(items: readonly TNavigationItem[], permissions: Record<string, boolean>): TNavigationItem[] {
+  return items
+    .filter((item) => isNavItemVisible(item, permissions))
+    .map((item) => {
+      if (!item.children) return item
+
+      const filteredChildren = filterNavItems(item.children, permissions)
+
+      const unchanged =
+        filteredChildren.length === item.children.length && filteredChildren.every((c, i) => c === item.children![i])
+      if (unchanged) return item
+
+      return { ...item, children: filteredChildren }
+    })
+}
+
+/**
+ * Returns the nav tree with permission-gated items removed.
+ *
+ * Automatically collects all `requiredPermissions` from NAV_ITEMS,
+ * checks them via `usePermissionChecks`, and filters the tree.
+ * Items are visible when at least one of their required permissions is granted.
+ */
 export function useFilteredNavigationItems(): TNavigationItem[] {
-  const { canRead: canReadSettings } = useSettingsPermissions()
-  const { canReadUsers, canReadGroups, isLoading } = useAccessManagementPermissions()
+  const { permissions } = usePermissionChecks(ALL_NAV_PERMISSIONS)
 
-  return useMemo(() => {
-    const hiddenPaths = new Set<string>()
-
-    if (!canReadSettings) hiddenPaths.add(AppRoute.SystemAdministration.Settings)
-    if (!isLoading) {
-      if (!canReadUsers) hiddenPaths.add(AppRoute.AccessManagement.Users)
-      if (!canReadGroups) hiddenPaths.add(AppRoute.AccessManagement.Groups)
-    }
-
-    if (hiddenPaths.size === 0) return NAV_ITEMS
-
-    return filterItems(NAV_ITEMS, hiddenPaths)
-  }, [canReadSettings, canReadUsers, canReadGroups, isLoading])
+  return useMemo(() => filterNavItems(NAV_ITEMS, permissions), [permissions])
 }

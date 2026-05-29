@@ -23,12 +23,12 @@ vi.mock('./useUnsavedChanges', () => ({
   }),
 }))
 
-// Mock permission hooks used by useFilteredNavigationItems
-vi.mock('../routes/configuration/settings/useSettingsPermissions', () => ({
-  useSettingsPermissions: () => ({ canRead: true, canWrite: true }),
-}))
-vi.mock('../routes/access-management/useAccessManagementPermissions', () => ({
-  useAccessManagementPermissions: () => ({ canReadUsers: true, canReadGroups: true, isLoading: false }),
+// Mock usePermissionChecks used by useFilteredNavigationItems
+vi.mock('../hooks/usePermissionChecks', () => ({
+  usePermissionChecks: () => ({
+    permissions: { 'setting:read': true, 'user:read': true, 'group:read': true },
+    isLoading: false,
+  }),
 }))
 
 // Mock useAuthStore used by UserMenuDropdown

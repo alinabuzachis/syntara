@@ -65,6 +65,20 @@ describe('useApiErrorAlert', () => {
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
+  it('suppresses 403 errors with status code', () => {
+    renderHook(() => useApiErrorAlert({ status: 403, detail: 'Forbidden' }))
+
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(mockShowWarning).not.toHaveBeenCalled()
+  })
+
+  it('suppresses errors with "not authorized" in message (no status code)', () => {
+    renderHook(() => useApiErrorAlert({ detail: 'Not authorized to perform read on setting' }))
+
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(mockShowWarning).not.toHaveBeenCalled()
+  })
+
   it('dedupes repeated errors with same key', () => {
     const error = { detail: 'Same error' }
     const { rerender } = renderHook(({ e }) => useApiErrorAlert(e), {
