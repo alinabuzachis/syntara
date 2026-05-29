@@ -129,7 +129,7 @@ services:
       - APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem
       - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]
       # CORS: allow UI origins (must be explicit for credentials/cookies)
-      - APP_CORS_ALLOW_ORIGINS=["http://localhost:${APP_UI_PORT:-8080}","https://localhost:${APP_UI_PORT:-8080}","http://localhost:5173","https://localhost:5173"]
+      - APP_CORS_ALLOW_ORIGINS=${APP_CORS_ALLOW_ORIGINS:-["http://localhost:8080","https://localhost:8080","http://localhost:5173","https://localhost:5173"]}
       # Bootstrap admin password (mounted as secret file)
       - APP_ADMIN_PASSWORD_PATH=/run/secrets/admin-password
       - APP_OPA_URL=${APP_OPA_URL:-http://opa:8181}
