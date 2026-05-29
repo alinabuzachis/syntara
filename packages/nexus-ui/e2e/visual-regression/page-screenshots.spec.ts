@@ -13,6 +13,7 @@
  */
 import { expect, test } from '@playwright/test'
 
+import { VISUAL_REGRESSION_CLOCK } from '../../playwright.config'
 import { appBaseUrl, toAppUrl } from '../fixtures'
 import { isSkipWebServerForPlaywrightTests } from '../playwrightWebServerEnv'
 
@@ -44,8 +45,7 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
       await page.goto(appBaseUrl)
       await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
 
-      // Freeze clock for deterministic timestamps (e.g. "3 days ago" renders identically)
-      await page.clock.setFixedTime(new Date('2025-06-15T10:00:00Z'))
+      await page.clock.setFixedTime(new Date(VISUAL_REGRESSION_CLOCK))
 
       // Clear persisted project-selector state so every screenshot starts from
       // the same "All projects" baseline regardless of test ordering.
@@ -64,6 +64,11 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
 
       // Wait for all network requests to settle before taking the screenshot
       await page.waitForLoadState('networkidle')
+
+      // Remove focus from any active element to avoid flaky focus-ring diffs
+      await page.evaluate(() => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      })
 
       // Screenshot with section-based directory organization
       const options = entry.maxDiffPixelRatio
@@ -95,6 +100,10 @@ test.describe('Login page screenshots', { tag: '@local-only' }, () => {
       }
 
       await page.waitForLoadState('networkidle')
+
+      await page.evaluate(() => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      })
       await expect(page).toHaveScreenshot([entry.section, `${entry.name}.png`], SCREENSHOT_OPTIONS)
     })
   }

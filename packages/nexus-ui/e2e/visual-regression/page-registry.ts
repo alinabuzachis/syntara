@@ -17,10 +17,15 @@ import { type Page, expect } from '@playwright/test'
 import { AppRoute } from '../../src/app/AppRoute'
 
 import {
+  approvalInteractivePages,
   authenticationInteractivePages,
   builderInteractivePages,
+  credentialDialogPages,
   detailTabPages,
+  integrationDialogPages,
+  settingsTabPages,
   statusVariantPages,
+  workflowDialogPages,
 } from './page-entries-interactive'
 
 export type PageEntry = {
@@ -102,6 +107,8 @@ export const pages: PageEntry[] = [
     },
   },
 
+  ...workflowDialogPages,
+
   // ── Builder ──────────────────────────────────────────────────────────────
   // Note: builder-new excluded — ReactFlow + Zustand + lazy-load initialization
   // exceeds the 10s assertion timeout in CI. builder-edit covers the canvas.
@@ -173,6 +180,7 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
   },
+  ...approvalInteractivePages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // ACCESS MANAGEMENT — Users
@@ -322,6 +330,20 @@ export const pages: PageEntry[] = [
   },
   {
     section: 'access-management/projects',
+    name: 'projects-list-empty-filter',
+    path: AppRoute.AccessManagement.Projects,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
+      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/projects',
     name: 'projects-create-modal',
     path: AppRoute.AccessManagement.Projects,
     waitFor: async (page) => {
@@ -356,6 +378,20 @@ export const pages: PageEntry[] = [
   },
   {
     section: 'access-management/roles',
+    name: 'roles-list-empty-filter',
+    path: AppRoute.AccessManagement.Roles,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
+      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/roles',
     name: 'roles-add-dialog',
     path: AppRoute.AccessManagement.Roles,
     waitFor: async (page) => {
@@ -378,6 +414,20 @@ export const pages: PageEntry[] = [
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/policies',
+    name: 'policies-list-empty-filter',
+    path: AppRoute.AccessManagement.Policies,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
+      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
     },
   },
 
@@ -518,7 +568,7 @@ export const pages: PageEntry[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // CONFIGURATION — Integrations
+  // CONFIGURATION — Integrations (+ disconnect dialog, detail from interactive)
   // ══════════════════════════════════════════════════════════════════════════
   {
     section: 'configuration/integrations',
@@ -559,6 +609,7 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
   },
+  ...integrationDialogPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // CONFIGURATION — Credentials
@@ -612,6 +663,7 @@ export const pages: PageEntry[] = [
       await expect(page.getByText('Production API Auth').first()).toBeVisible()
     },
   },
+  ...credentialDialogPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // SUPPORT
@@ -626,11 +678,12 @@ export const pages: PageEntry[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // INTERACTIVE STATES — status variants, detail tabs, authentication
-  // (entries defined in page-entries-interactive.ts)
+  // INTERACTIVE STATES — status variants, detail tabs, settings tabs,
+  // authentication (entries defined in page-entries-interactive.ts)
   // ══════════════════════════════════════════════════════════════════════════
   ...statusVariantPages,
   ...detailTabPages,
+  ...settingsTabPages,
   ...authenticationInteractivePages,
 ]
 

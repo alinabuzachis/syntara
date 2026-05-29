@@ -1,50 +1,49 @@
 import type { Execution } from '@ansible/nexus-contracts'
 
-// Generate mock executions for workflows
-// We'll create a few executions for each workflow to simulate run history
+import { mockDate } from './mockDates'
+
 export const executions: Execution[] = [
-  // Executions for workflow-1 (basic/hello-world.yaml)
   {
     id: 'exec-1',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.daysAgo2,
+    updatedAt: mockDate.daysAgo2,
     workflow_id: '1',
     status: 'completed',
-    started_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 1000).toISOString(),
-    completed_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 5000).toISOString(),
+    started_at: mockDate.daysAgo2Plus1s,
+    completed_at: mockDate.daysAgo2Plus5s,
     started_by: 'user-1',
     input_data: {},
   },
   {
     id: 'exec-2',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.daysAgo1, // 1 day ago
+    updatedAt: mockDate.daysAgo1,
     workflow_id: '1',
     status: 'completed',
-    started_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 1000).toISOString(),
-    completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 3000).toISOString(),
+    started_at: mockDate.daysAgo1Plus1s,
+    completed_at: mockDate.daysAgo1Plus3s,
     started_by: 'user-1',
     input_data: {},
   },
   {
     id: 'exec-3',
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-    updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.hoursAgo6, // 6 hours ago
+    updatedAt: mockDate.hoursAgo6,
     workflow_id: '1',
     status: 'failed',
-    started_at: new Date(Date.now() - 6 * 60 * 60 * 1000 + 1000).toISOString(),
-    completed_at: new Date(Date.now() - 6 * 60 * 60 * 1000 + 2000).toISOString(),
+    started_at: mockDate.hoursAgo6Plus1s,
+    completed_at: mockDate.hoursAgo6Plus2s,
     started_by: 'user-2',
     input_data: {},
     error_details: 'Task execution failed: Connection timeout',
   },
   {
     id: 'exec-4',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+    createdAt: mockDate.hoursAgo2, // 2 hours ago
+    updatedAt: mockDate.minutesAgo30, // 30 minutes ago
     workflow_id: '1',
     status: 'running',
-    started_at: new Date(Date.now() - 2 * 60 * 60 * 1000 + 1000).toISOString(),
+    started_at: mockDate.hoursAgo2Plus1s,
     completed_at: null,
     started_by: 'user-1',
     input_data: {},
@@ -59,22 +58,22 @@ export const executions: Execution[] = [
   // Executions for workflow-2 (basic/conditional-demo.yaml)
   {
     id: 'exec-5',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.daysAgo3, // 3 days ago
+    updatedAt: mockDate.daysAgo3,
     workflow_id: '2',
     status: 'completed',
-    started_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 1000).toISOString(),
-    completed_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 8000).toISOString(),
+    started_at: mockDate.daysAgo3Plus1s,
+    completed_at: mockDate.daysAgo3Plus8s,
     started_by: 'user-1',
     input_data: { value: 42 },
   },
   {
     id: 'exec-6',
-    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
-    updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.hoursAgo12, // 12 hours ago
+    updatedAt: mockDate.hoursAgo12,
     workflow_id: '2',
     status: 'paused',
-    started_at: new Date(Date.now() - 12 * 60 * 60 * 1000 + 1000).toISOString(),
+    started_at: mockDate.hoursAgo12Plus1s,
     completed_at: null,
     started_by: 'user-2',
     input_data: { value: 10 },
@@ -89,42 +88,42 @@ export const executions: Execution[] = [
   // Executions for workflow-3 (basic/loop-demo.yaml)
   {
     id: 'exec-7',
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.daysAgo5, // 5 days ago
+    updatedAt: mockDate.daysAgo5,
     workflow_id: '3',
     status: 'completed',
-    started_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 1000).toISOString(),
-    completed_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 15000).toISOString(),
+    started_at: mockDate.daysAgo5Plus1s,
+    completed_at: mockDate.daysAgo5Plus15s,
     started_by: 'user-1',
     input_data: { items: [1, 2, 3] },
   },
   {
     id: 'exec-8',
-    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
-    updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.hoursAgo1, // 1 hour ago
+    updatedAt: mockDate.hoursAgo1,
     workflow_id: '3',
     status: 'cancelled',
-    started_at: new Date(Date.now() - 1 * 60 * 60 * 1000 + 1000).toISOString(),
-    completed_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 minutes ago
+    started_at: mockDate.hoursAgo1Plus1s,
+    completed_at: mockDate.minutesAgo45, // 45 minutes ago
     started_by: 'user-3',
     input_data: { items: [1, 2, 3, 4, 5] },
   },
   // Executions for workflow-4 (basic/parallel-demo.yaml)
   {
     id: 'exec-9',
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
-    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: mockDate.daysAgo4, // 4 days ago
+    updatedAt: mockDate.daysAgo4,
     workflow_id: '4',
     status: 'completed',
-    started_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 1000).toISOString(),
-    completed_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 12000).toISOString(),
+    started_at: mockDate.daysAgo4Plus1s,
+    completed_at: mockDate.daysAgo4Plus12s,
     started_by: 'user-1',
     input_data: {},
   },
   {
     id: 'exec-10',
-    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-    updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
+    createdAt: mockDate.minutesAgo30, // 30 minutes ago
+    updatedAt: mockDate.minutesAgo15, // 15 minutes ago
     workflow_id: '4',
     status: 'pending',
     started_at: null,

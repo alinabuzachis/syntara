@@ -57,6 +57,10 @@ const yamlFiles = [
   'timeout-retry/activity-timeout.yaml',
   'timeout-retry/retry-policy.yaml',
   'timeout-retry/timeout-with-retry.yaml',
+  'agentic/simple-research.yaml',
+  'api/simple-get-request.yaml',
+  'api/post-with-body.yaml',
+  'mixed/sequential-mixed-types.yaml',
 ]
 
 // Project IDs to distribute workflows across

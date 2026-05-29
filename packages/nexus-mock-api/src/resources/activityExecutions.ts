@@ -1,18 +1,8 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 
+import { mockDate } from './mockDates'
+
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
-
-/**
- * Helper to build a timestamp offset from now.
- */
-function ts(offsetMs: number): string {
-  return new Date(Date.now() + offsetMs).toISOString()
-}
-
-// Common time offsets for readability
-const TWO_DAYS_AGO = -2 * 24 * 60 * 60 * 1000
-const ONE_DAY_AGO = -1 * 24 * 60 * 60 * 1000
-const THREE_DAYS_AGO = -3 * 24 * 60 * 60 * 1000
 
 /**
  * Sample activity execution data for mock API.
@@ -26,13 +16,13 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
   'exec-1': [
     {
       id: 'act-1-1',
-      created_at: ts(TWO_DAYS_AGO),
-      updated_at: ts(TWO_DAYS_AGO + 2500),
+      created_at: mockDate.daysAgo2,
+      updated_at: mockDate.daysAgo2Plus2500ms,
       execution_id: 'exec-1',
       activity_name: 'say_hello',
       status: 'completed',
-      started_at: ts(TWO_DAYS_AGO + 1000),
-      completed_at: ts(TWO_DAYS_AGO + 2500),
+      started_at: mockDate.daysAgo2Plus1s,
+      completed_at: mockDate.daysAgo2Plus2500ms,
       input_data: {
         GREETING: 'Hello',
         WORLD_NAME: 'World',
@@ -47,13 +37,13 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
     },
     {
       id: 'act-1-2',
-      created_at: ts(TWO_DAYS_AGO + 2500),
-      updated_at: ts(TWO_DAYS_AGO + 4000),
+      created_at: mockDate.daysAgo2Plus2500ms,
+      updated_at: mockDate.daysAgo2Plus4s,
       execution_id: 'exec-1',
       activity_name: 'say_goodbye',
       status: 'completed',
-      started_at: ts(TWO_DAYS_AGO + 2500),
-      completed_at: ts(TWO_DAYS_AGO + 4000),
+      started_at: mockDate.daysAgo2Plus2500ms,
+      completed_at: mockDate.daysAgo2Plus4s,
       input_data: {
         FAREWELL: 'Goodbye',
       } as Record<string, unknown>,
@@ -69,13 +59,13 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
   'exec-2': [
     {
       id: 'act-2-1',
-      created_at: ts(ONE_DAY_AGO),
-      updated_at: ts(ONE_DAY_AGO + 1500),
+      created_at: mockDate.daysAgo1,
+      updated_at: mockDate.daysAgo1Plus1500ms,
       execution_id: 'exec-2',
       activity_name: 'say_hello',
       status: 'completed',
-      started_at: ts(ONE_DAY_AGO + 1000),
-      completed_at: ts(ONE_DAY_AGO + 1500),
+      started_at: mockDate.daysAgo1Plus1s,
+      completed_at: mockDate.daysAgo1Plus1500ms,
       input_data: {
         GREETING: 'Hello',
         WORLD_NAME: 'World',
@@ -90,13 +80,13 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
     },
     {
       id: 'act-2-2',
-      created_at: ts(ONE_DAY_AGO + 1500),
-      updated_at: ts(ONE_DAY_AGO + 2500),
+      created_at: mockDate.daysAgo1Plus1500ms,
+      updated_at: mockDate.daysAgo1Plus2500ms,
       execution_id: 'exec-2',
       activity_name: 'say_goodbye',
       status: 'completed',
-      started_at: ts(ONE_DAY_AGO + 1500),
-      completed_at: ts(ONE_DAY_AGO + 2500),
+      started_at: mockDate.daysAgo1Plus1500ms,
+      completed_at: mockDate.daysAgo1Plus2500ms,
       input_data: {
         FAREWELL: 'Goodbye',
       } as Record<string, unknown>,
@@ -112,19 +102,19 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
   'exec-5': [
     {
       id: 'act-5-1',
-      created_at: ts(THREE_DAYS_AGO),
-      updated_at: ts(THREE_DAYS_AGO + 2000),
+      created_at: mockDate.daysAgo3,
+      updated_at: mockDate.daysAgo3Plus2s,
       execution_id: 'exec-5',
       activity_name: 'check_temperature',
       status: 'completed',
-      started_at: ts(THREE_DAYS_AGO + 1000),
-      completed_at: ts(THREE_DAYS_AGO + 2000),
+      started_at: mockDate.daysAgo3Plus1s,
+      completed_at: mockDate.daysAgo3Plus2s,
       input_data: {
         temp: 42,
       } as Record<string, unknown>,
       output_data: {
         temp_value: '42',
-        stdout: 'Current temperature: 42\u00B0C\nChecked at: 2025-04-07T08:00:00Z',
+        stdout: 'Current temperature: 42°C\nChecked at: 2025-04-07T08:00:00Z',
       } as Record<string, unknown>,
       error_details: null,
       retry_count: 0,
@@ -132,13 +122,13 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
     },
     {
       id: 'act-5-2',
-      created_at: ts(THREE_DAYS_AGO + 2000),
-      updated_at: ts(THREE_DAYS_AGO + 2500),
+      created_at: mockDate.daysAgo3Plus2s,
+      updated_at: mockDate.daysAgo3Plus2500ms,
       execution_id: 'exec-5',
       activity_name: 'temperature_routing',
       status: 'completed',
-      started_at: ts(THREE_DAYS_AGO + 2000),
-      completed_at: ts(THREE_DAYS_AGO + 2500),
+      started_at: mockDate.daysAgo3Plus2s,
+      completed_at: mockDate.daysAgo3Plus2500ms,
       input_data: {
         temperature: 42,
       } as Record<string, unknown>,
@@ -152,13 +142,13 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
     },
     {
       id: 'act-5-3',
-      created_at: ts(THREE_DAYS_AGO + 2500),
-      updated_at: ts(THREE_DAYS_AGO + 4000),
+      created_at: mockDate.daysAgo3Plus2500ms,
+      updated_at: mockDate.daysAgo3Plus4s,
       execution_id: 'exec-5',
       activity_name: 'hot_weather',
       status: 'completed',
-      started_at: ts(THREE_DAYS_AGO + 2500),
-      completed_at: ts(THREE_DAYS_AGO + 4000),
+      started_at: mockDate.daysAgo3Plus2500ms,
+      completed_at: mockDate.daysAgo3Plus4s,
       input_data: {
         temperature: 42,
       } as Record<string, unknown>,

@@ -1,29 +1,20 @@
 import type { Approval } from '@ansible/nexus-contracts'
 
-// Generate mock approvals matching the Approvals API spec
-// Note: Using type assertions since contracts haven't been regenerated yet
-// Structure includes:
-// - Top-level name, description fields
-// - execution_id, approval_node_id
-// - workflow_context with workflow_version_id (uuid), workflow_name, inputs and previous_step
-// - next_step_approved, next_step_rejected (ActivitySummary)
-// - decided_by (UserReference with id and name), decided_at, decision_notes
-// - timeout_at
-const now = Date.now()
+import { mockDate } from './mockDates'
 
 export const approvals: Approval[] = [
   // Approval linked to exec-4 (the running execution for workflow 1) — used for execution view approval demo
   {
     id: '550e8400-e29b-41d4-a716-446655440050',
-    created_at: new Date(now - 10 * 60 * 1000).toISOString(), // 10 minutes ago
-    updated_at: new Date(now - 10 * 60 * 1000).toISOString(),
+    created_at: mockDate.minutesAgo10, // 10 minutes ago
+    updated_at: mockDate.minutesAgo10,
     labels: {},
     execution_id: 'exec-4',
     approval_node_id: 'hello-world-task',
     name: 'Production Deployment Approval',
     description: 'Review the deployment plan before proceeding to production.',
     status: 'pending',
-    timeout_at: new Date(now + 23 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow23,
     next_step_approved: {
       id: 'deploy_to_prod',
       name: 'Deploy to Production',
@@ -58,8 +49,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440001',
-    created_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    updated_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo2, // 2 hours ago
+    updated_at: mockDate.hoursAgo2,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440001',
@@ -68,7 +59,7 @@ export const approvals: Approval[] = [
     description:
       'AI agent has recommended deploying version 2.1.0 to production. Review the security scan results and deployment plan before approving.',
     status: 'pending',
-    timeout_at: new Date(now + 22 * 60 * 60 * 1000).toISOString(), // 22 hours from now
+    timeout_at: mockDate.hoursFromNow22, // 22 hours from now
     next_step_approved: {
       id: 'apply_changes',
       name: 'Apply Changes',
@@ -106,8 +97,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
-    created_at: new Date(now - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
-    updated_at: new Date(now - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+    created_at: mockDate.hoursAgo3, // 3 hours ago
+    updated_at: mockDate.hoursAgo1, // 1 hour ago
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440002',
@@ -149,13 +140,13 @@ export const approvals: Approval[] = [
       id: '770e8400-e29b-41d4-a716-446655440001',
       name: 'John Doe',
     },
-    decided_at: new Date(now - 1 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo1,
     decision_notes: 'Approved after reviewing policy violations. Remediation plan looks good.',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440003',
-    created_at: new Date(now - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
-    updated_at: new Date(now - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
+    created_at: mockDate.hoursAgo4, // 4 hours ago
+    updated_at: mockDate.hoursAgo3, // 3 hours ago
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440003',
@@ -196,13 +187,13 @@ export const approvals: Approval[] = [
       id: '770e8400-e29b-41d4-a716-446655440002',
       name: 'Alice Smith',
     },
-    decided_at: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo3,
     decision_notes: 'Rejected due to policy violation. Cost exceeds budget threshold.',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440004',
-    created_at: new Date(now - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
-    updated_at: new Date(now - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
+    created_at: mockDate.hoursAgo5, // 5 hours ago
+    updated_at: mockDate.hoursAgo4, // 4 hours ago
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440004',
@@ -242,13 +233,13 @@ export const approvals: Approval[] = [
       id: '770e8400-e29b-41d4-a716-446655440001',
       name: 'John Doe',
     },
-    decided_at: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo4,
     decision_notes: 'Approved - all policies compliant',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440005',
-    created_at: new Date(now - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-    updated_at: new Date(now - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+    created_at: mockDate.hoursAgo6, // 6 hours ago
+    updated_at: mockDate.hoursAgo5, // 5 hours ago
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440005',
@@ -288,13 +279,13 @@ export const approvals: Approval[] = [
       id: '770e8400-e29b-41d4-a716-446655440002',
       name: 'Alice Smith',
     },
-    decided_at: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo5,
     decision_notes: 'Rejected due to cost concerns. Playbook would exceed monthly budget.',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440006',
-    created_at: new Date(now - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-    updated_at: new Date(now - 30 * 60 * 1000).toISOString(),
+    created_at: mockDate.minutesAgo30, // 30 minutes ago
+    updated_at: mockDate.minutesAgo30,
     labels: {},
     project_id: null,
     execution_id: '660e8400-e29b-41d4-a716-446655440006',
@@ -302,7 +293,7 @@ export const approvals: Approval[] = [
     name: 'Standalone Approval Request',
     description: 'External system integration requires approval to proceed with data synchronization.',
     status: 'pending',
-    timeout_at: new Date(now + 23 * 60 * 60 * 1000).toISOString(), // 23 hours from now
+    timeout_at: mockDate.hoursFromNow23, // 23 hours from now
     next_step_approved: {
       id: 'sync_data',
       name: 'Sync Data',
@@ -332,8 +323,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440007',
-    created_at: new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-    updated_at: new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString(), // 6 days ago
+    created_at: mockDate.daysAgo7, // 7 days ago
+    updated_at: mockDate.daysAgo6, // 6 days ago
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440007',
@@ -341,7 +332,7 @@ export const approvals: Approval[] = [
     name: 'Expired Approval Request',
     description: 'This approval request expired before a decision could be made.',
     status: 'expired',
-    timeout_at: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago (expired)
+    timeout_at: mockDate.daysAgo5, // 5 days ago (expired)
     next_step_approved: {
       id: 'proceed',
       name: 'Proceed',
@@ -375,8 +366,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440008',
-    created_at: new Date(now - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
-    updated_at: new Date(now - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+    created_at: mockDate.hoursAgo1, // 1 hour ago
+    updated_at: mockDate.minutesAgo30, // 30 minutes ago
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440008',
@@ -416,13 +407,13 @@ export const approvals: Approval[] = [
       id: '770e8400-e29b-41d4-a716-446655440003',
       name: 'System',
     },
-    decided_at: new Date(now - 30 * 60 * 1000).toISOString(),
+    decided_at: mockDate.minutesAgo30,
     decision_notes: 'Cancelled due to workflow cancellation',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440009',
-    created_at: new Date(now - 8 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 8 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo8,
+    updated_at: mockDate.hoursAgo8,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440009',
@@ -430,7 +421,7 @@ export const approvals: Approval[] = [
     name: 'Database Migration Approval',
     description: 'Database schema migration requires approval before execution.',
     status: 'pending',
-    timeout_at: new Date(now + 20 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow20,
     next_step_approved: { id: 'migrate_db', name: 'Migrate Database', type: 'task' },
     next_step_rejected: { id: 'cancel_migration', name: 'Cancel Migration', type: 'task' },
     workflow_context: {
@@ -445,8 +436,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440010',
-    created_at: new Date(now - 9 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 7 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo9,
+    updated_at: mockDate.hoursAgo7,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440010',
@@ -464,13 +455,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'scan', name: 'Vulnerability Scan', type: 'task', output: { vulnerabilities: 1 } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 7 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo7,
     decision_notes: 'Approved - critical security patch',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440011',
-    created_at: new Date(now - 10 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 10 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo10,
+    updated_at: mockDate.hoursAgo10,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440011',
@@ -478,7 +469,7 @@ export const approvals: Approval[] = [
     name: 'Infrastructure Scaling',
     description: 'Auto-scaling recommendation requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 18 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow18,
     next_step_approved: { id: 'scale_up', name: 'Scale Up', type: 'task' },
     next_step_rejected: { id: 'maintain', name: 'Maintain Current', type: 'task' },
     workflow_context: {
@@ -493,8 +484,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440012',
-    created_at: new Date(now - 11 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 9 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo11,
+    updated_at: mockDate.hoursAgo9,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440012',
@@ -512,13 +503,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'verify_backup', name: 'Verify Backup', type: 'task', output: { valid: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 9 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo9,
     decision_notes: 'Rejected - backup too old',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440013',
-    created_at: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo12,
+    updated_at: mockDate.hoursAgo12,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440013',
@@ -526,7 +517,7 @@ export const approvals: Approval[] = [
     name: 'Certificate Renewal',
     description: 'SSL certificate renewal requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 16 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow16,
     next_step_approved: { id: 'renew_cert', name: 'Renew Certificate', type: 'task' },
     next_step_rejected: { id: 'extend_old', name: 'Extend Old Certificate', type: 'task' },
     workflow_context: {
@@ -541,8 +532,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440014',
-    created_at: new Date(now - 13 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 11 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo13,
+    updated_at: mockDate.hoursAgo11,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440014',
@@ -560,13 +551,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'verify_user', name: 'Verify User', type: 'task', output: { verified: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 11 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo11,
     decision_notes: 'Approved - user verified',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440015',
-    created_at: new Date(now - 14 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 14 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo14,
+    updated_at: mockDate.hoursAgo14,
     labels: {},
     project_id: null,
     execution_id: '660e8400-e29b-41d4-a716-446655440015',
@@ -574,7 +565,7 @@ export const approvals: Approval[] = [
     name: 'Data Deletion Request',
     description: 'Permanent data deletion requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 14 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow14,
     next_step_approved: { id: 'delete_data', name: 'Delete Data', type: 'task' },
     next_step_rejected: { id: 'archive_data', name: 'Archive Data', type: 'task' },
     workflow_context: {
@@ -589,8 +580,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440016',
-    created_at: new Date(now - 15 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 13 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo15,
+    updated_at: mockDate.hoursAgo13,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440016',
@@ -608,13 +599,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'test_staging', name: 'Test Staging', type: 'task', output: { passed: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 13 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo13,
     decision_notes: 'Approved - all tests passed',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440017',
-    created_at: new Date(now - 16 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 16 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo16,
+    updated_at: mockDate.hoursAgo16,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440017',
@@ -622,7 +613,7 @@ export const approvals: Approval[] = [
     name: 'Configuration Change',
     description: 'Production configuration change requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 12 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow12,
     next_step_approved: { id: 'apply_config', name: 'Apply Configuration', type: 'task' },
     next_step_rejected: { id: 'revert_config', name: 'Revert Configuration', type: 'task' },
     workflow_context: {
@@ -637,8 +628,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440018',
-    created_at: new Date(now - 17 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 15 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo17,
+    updated_at: mockDate.hoursAgo15,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440018',
@@ -656,13 +647,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'analyze_impact', name: 'Analyze Impact', type: 'task', output: { risk: 'medium' } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 15 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo15,
     decision_notes: 'Rejected - security risk too high',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440019',
-    created_at: new Date(now - 18 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 18 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo18,
+    updated_at: mockDate.hoursAgo18,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440019',
@@ -670,7 +661,7 @@ export const approvals: Approval[] = [
     name: 'Budget Allocation',
     description: 'Budget allocation for Q2 requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 10 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow10,
     next_step_approved: { id: 'allocate_budget', name: 'Allocate Budget', type: 'task' },
     next_step_rejected: { id: 'revise_budget', name: 'Revise Budget', type: 'task' },
     workflow_context: {
@@ -685,8 +676,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440020',
-    created_at: new Date(now - 19 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 17 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo19,
+    updated_at: mockDate.hoursAgo17,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440020',
@@ -704,13 +695,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'review_terms', name: 'Review Terms', type: 'task', output: { acceptable: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 17 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo17,
     decision_notes: 'Approved - terms acceptable',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440021',
-    created_at: new Date(now - 20 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 20 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo20,
+    updated_at: mockDate.hoursAgo20,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440021',
@@ -718,7 +709,7 @@ export const approvals: Approval[] = [
     name: 'Service Upgrade',
     description: 'Service tier upgrade requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 8 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow8,
     next_step_approved: { id: 'upgrade_service', name: 'Upgrade Service', type: 'task' },
     next_step_rejected: { id: 'maintain_tier', name: 'Maintain Current Tier', type: 'task' },
     workflow_context: {
@@ -733,8 +724,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440022',
-    created_at: new Date(now - 21 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 19 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo21,
+    updated_at: mockDate.hoursAgo19,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440022',
@@ -752,13 +743,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'run_audit', name: 'Run Audit', type: 'task', output: { severity: 'low' } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 19 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo19,
     decision_notes: 'Approved - low severity findings',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440023',
-    created_at: new Date(now - 22 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 22 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo22,
+    updated_at: mockDate.hoursAgo22,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440023',
@@ -766,7 +757,7 @@ export const approvals: Approval[] = [
     name: 'Disaster Recovery Test',
     description: 'DR test execution requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 6 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow6,
     next_step_approved: { id: 'run_dr_test', name: 'Run DR Test', type: 'task' },
     next_step_rejected: { id: 'postpone_test', name: 'Postpone Test', type: 'task' },
     workflow_context: {
@@ -781,8 +772,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440024',
-    created_at: new Date(now - 23 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 21 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo23,
+    updated_at: mockDate.hoursAgo21,
     labels: {},
     project_id: null,
     execution_id: '660e8400-e29b-41d4-a716-446655440024',
@@ -800,13 +791,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'benchmark', name: 'Benchmark', type: 'task', output: { improvement: '15%' } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 21 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo21,
     decision_notes: 'Rejected - needs more testing',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440025',
-    created_at: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo24,
+    updated_at: mockDate.hoursAgo24,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440025',
@@ -814,7 +805,7 @@ export const approvals: Approval[] = [
     name: 'API Rate Limit Change',
     description: 'API rate limit adjustment requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 4 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow4,
     next_step_approved: { id: 'update_limits', name: 'Update Rate Limits', type: 'task' },
     next_step_rejected: { id: 'keep_limits', name: 'Keep Current Limits', type: 'task' },
     workflow_context: {
@@ -829,8 +820,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440026',
-    created_at: new Date(now - 25 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 23 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo25,
+    updated_at: mockDate.hoursAgo23,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440026',
@@ -848,13 +839,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'test_alert', name: 'Test Alert', type: 'task', output: { working: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 23 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo23,
     decision_notes: 'Approved - alert configuration valid',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440027',
-    created_at: new Date(now - 26 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 26 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo26,
+    updated_at: mockDate.hoursAgo26,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440027',
@@ -862,7 +853,7 @@ export const approvals: Approval[] = [
     name: 'Load Balancer Configuration',
     description: 'Load balancer configuration change requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow2,
     next_step_approved: { id: 'update_lb', name: 'Update Load Balancer', type: 'task' },
     next_step_rejected: { id: 'rollback_lb', name: 'Rollback Load Balancer', type: 'task' },
     workflow_context: {
@@ -877,8 +868,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440028',
-    created_at: new Date(now - 27 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 25 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo27,
+    updated_at: mockDate.hoursAgo25,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440028',
@@ -896,13 +887,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'check_usage', name: 'Check Usage', type: 'task', output: { usage_percent: 85 } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 25 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo25,
     decision_notes: 'Approved - storage nearly full',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440029',
-    created_at: new Date(now - 28 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 28 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo28,
+    updated_at: mockDate.hoursAgo28,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440029',
@@ -910,7 +901,7 @@ export const approvals: Approval[] = [
     name: 'Logging Configuration Update',
     description: 'Logging level change requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 1 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow1,
     next_step_approved: { id: 'update_logging', name: 'Update Logging', type: 'task' },
     next_step_rejected: { id: 'keep_logging', name: 'Keep Current Logging', type: 'task' },
     workflow_context: {
@@ -925,8 +916,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440030',
-    created_at: new Date(now - 29 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 27 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo29,
+    updated_at: mockDate.hoursAgo27,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440030',
@@ -944,13 +935,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'security_review', name: 'Security Review', type: 'task', output: { approved: false } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 27 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo27,
     decision_notes: 'Rejected - security concerns',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440031',
-    created_at: new Date(now - 30 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 30 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo30,
+    updated_at: mockDate.hoursAgo30,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440031',
@@ -958,7 +949,7 @@ export const approvals: Approval[] = [
     name: 'Retention Policy Change',
     description: 'Data retention policy update requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow24,
     next_step_approved: { id: 'update_retention', name: 'Update Retention Policy', type: 'task' },
     next_step_rejected: { id: 'keep_retention', name: 'Keep Current Policy', type: 'task' },
     workflow_context: {
@@ -973,8 +964,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440032',
-    created_at: new Date(now - 31 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 29 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo31,
+    updated_at: mockDate.hoursAgo29,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440032',
@@ -992,13 +983,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'backup_keys', name: 'Backup Keys', type: 'task', output: { backup_complete: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 29 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo29,
     decision_notes: 'Approved - scheduled rotation',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440033',
-    created_at: new Date(now - 32 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 32 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo32,
+    updated_at: mockDate.hoursAgo32,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440033',
@@ -1006,7 +997,7 @@ export const approvals: Approval[] = [
     name: 'Dependency Update',
     description: 'Major dependency version update requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow48,
     next_step_approved: { id: 'update_dependency', name: 'Update Dependency', type: 'task' },
     next_step_rejected: { id: 'skip_update', name: 'Skip Update', type: 'task' },
     workflow_context: {
@@ -1021,8 +1012,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440034',
-    created_at: new Date(now - 33 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 31 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo33,
+    updated_at: mockDate.hoursAgo31,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440034',
@@ -1040,13 +1031,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'scan_image', name: 'Scan Image', type: 'task', output: { vulnerabilities: 0 } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 31 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo31,
     decision_notes: 'Approved - no vulnerabilities found',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440035',
-    created_at: new Date(now - 34 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 34 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo34,
+    updated_at: mockDate.hoursAgo34,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440035',
@@ -1054,7 +1045,7 @@ export const approvals: Approval[] = [
     name: 'DNS Record Update',
     description: 'DNS record modification requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 36 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow36,
     next_step_approved: { id: 'update_dns', name: 'Update DNS Record', type: 'task' },
     next_step_rejected: { id: 'cancel_dns_update', name: 'Cancel DNS Update', type: 'task' },
     workflow_context: {
@@ -1069,8 +1060,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440036',
-    created_at: new Date(now - 35 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 33 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo35,
+    updated_at: mockDate.hoursAgo33,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440036',
@@ -1088,13 +1079,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'test_feature', name: 'Test Feature', type: 'task', output: { tests_passed: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 33 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo33,
     decision_notes: 'Approved - gradual rollout to 10%',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440037',
-    created_at: new Date(now - 36 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 36 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo36,
+    updated_at: mockDate.hoursAgo36,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440037',
@@ -1102,7 +1093,7 @@ export const approvals: Approval[] = [
     name: 'Webhook Configuration',
     description: 'New webhook endpoint configuration requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 72 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow72,
     next_step_approved: { id: 'register_webhook', name: 'Register Webhook', type: 'task' },
     next_step_rejected: { id: 'reject_webhook', name: 'Reject Webhook', type: 'task' },
     workflow_context: {
@@ -1117,8 +1108,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440038',
-    created_at: new Date(now - 37 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 35 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo37,
+    updated_at: mockDate.hoursAgo35,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440038',
@@ -1136,13 +1127,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'analyze_usage', name: 'Analyze Usage', type: 'task', output: { utilization: 75 } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 35 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo35,
     decision_notes: 'Rejected - resources still needed',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440039',
-    created_at: new Date(now - 38 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 38 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo38,
+    updated_at: mockDate.hoursAgo38,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440039',
@@ -1150,7 +1141,7 @@ export const approvals: Approval[] = [
     name: 'Scheduled Job Modification',
     description: 'Cron job schedule change requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 12 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow12,
     next_step_approved: { id: 'update_schedule', name: 'Update Schedule', type: 'task' },
     next_step_rejected: { id: 'keep_schedule', name: 'Keep Current Schedule', type: 'task' },
     workflow_context: {
@@ -1165,8 +1156,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440040',
-    created_at: new Date(now - 39 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 37 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo39,
+    updated_at: mockDate.hoursAgo37,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440040',
@@ -1184,13 +1175,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'preview_template', name: 'Preview Template', type: 'task', output: { looks_good: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 37 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo37,
     decision_notes: 'Approved - branding updated',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440041',
-    created_at: new Date(now - 40 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 40 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo40,
+    updated_at: mockDate.hoursAgo40,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440041',
@@ -1198,7 +1189,7 @@ export const approvals: Approval[] = [
     name: 'CDN Configuration Change',
     description: 'CDN cache policy update requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 6 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow6,
     next_step_approved: { id: 'update_cdn', name: 'Update CDN Config', type: 'task' },
     next_step_rejected: { id: 'rollback_cdn', name: 'Rollback CDN Config', type: 'task' },
     workflow_context: {
@@ -1213,8 +1204,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440042',
-    created_at: new Date(now - 41 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 39 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo41,
+    updated_at: mockDate.hoursAgo39,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440042',
@@ -1232,13 +1223,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'analyze_queue', name: 'Analyze Queue', type: 'task', output: { avg_messages: 5000 } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440001', name: 'John Doe' },
-    decided_at: new Date(now - 39 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo39,
     decision_notes: 'Approved - queue optimization',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440043',
-    created_at: new Date(now - 42 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 42 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo42,
+    updated_at: mockDate.hoursAgo42,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440043',
@@ -1246,7 +1237,7 @@ export const approvals: Approval[] = [
     name: 'Service Account Creation',
     description: 'New service account creation requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 18 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow18,
     next_step_approved: { id: 'create_account', name: 'Create Service Account', type: 'task' },
     next_step_rejected: { id: 'deny_account', name: 'Deny Service Account', type: 'task' },
     workflow_context: {
@@ -1261,8 +1252,8 @@ export const approvals: Approval[] = [
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440044',
-    created_at: new Date(now - 43 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 41 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo43,
+    updated_at: mockDate.hoursAgo41,
     labels: {},
     project_id: 'p-002',
     execution_id: '660e8400-e29b-41d4-a716-446655440044',
@@ -1280,13 +1271,13 @@ export const approvals: Approval[] = [
       previous_step: { id: 'prepare_failover', name: 'Prepare Failover', type: 'task', output: { ready: true } },
     },
     decided_by: { id: '770e8400-e29b-41d4-a716-446655440002', name: 'Alice Smith' },
-    decided_at: new Date(now - 41 * 60 * 60 * 1000).toISOString(),
+    decided_at: mockDate.hoursAgo41,
     decision_notes: 'Rejected - production impact too high',
   } as Approval,
   {
     id: '550e8400-e29b-41d4-a716-446655440045',
-    created_at: new Date(now - 44 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(now - 44 * 60 * 60 * 1000).toISOString(),
+    created_at: mockDate.hoursAgo44,
+    updated_at: mockDate.hoursAgo44,
     labels: {},
     project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440045',
@@ -1294,7 +1285,7 @@ export const approvals: Approval[] = [
     name: 'Maintenance Window Scheduling',
     description: 'Production maintenance window requires approval.',
     status: 'pending',
-    timeout_at: new Date(now + 96 * 60 * 60 * 1000).toISOString(),
+    timeout_at: mockDate.hoursFromNow96,
     next_step_approved: { id: 'schedule_maintenance', name: 'Schedule Maintenance', type: 'task' },
     next_step_rejected: { id: 'reschedule', name: 'Reschedule Maintenance', type: 'task' },
     workflow_context: {

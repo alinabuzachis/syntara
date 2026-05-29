@@ -1,3 +1,5 @@
+import { mockDate } from './mockDates'
+
 export interface AuditEventMock {
   id: string
   created_at: string
@@ -25,19 +27,11 @@ export interface AuditEventMock {
   }
 }
 
-const now = Date.now()
-const HOUR = 60 * 60 * 1000
-const DAY = 24 * HOUR
-
-function ts(offset: number): string {
-  return new Date(now - offset).toISOString()
-}
-
 export const auditEvents: AuditEventMock[] = [
   {
     id: 'ae-001',
-    created_at: ts(1 * HOUR),
-    updated_at: ts(1 * HOUR),
+    created_at: mockDate.hoursAgo1,
+    updated_at: mockDate.hoursAgo1,
     labels: {},
     event_category: 'security_event',
     event_action: 'OIDC Login',
@@ -62,8 +56,8 @@ export const auditEvents: AuditEventMock[] = [
   },
   {
     id: 'ae-002',
-    created_at: ts(2 * HOUR),
-    updated_at: ts(2 * HOUR),
+    created_at: mockDate.hoursAgo2,
+    updated_at: mockDate.hoursAgo2,
     labels: {},
     event_category: 'security_event',
     event_action: 'OIDC Login',
@@ -90,8 +84,8 @@ export const auditEvents: AuditEventMock[] = [
   },
   {
     id: 'ae-003',
-    created_at: ts(3 * HOUR),
-    updated_at: ts(3 * HOUR),
+    created_at: mockDate.hoursAgo3,
+    updated_at: mockDate.hoursAgo3,
     labels: {},
     event_category: 'security_event',
     event_action: 'Local User Login',
@@ -115,8 +109,8 @@ export const auditEvents: AuditEventMock[] = [
   },
   {
     id: 'ae-004',
-    created_at: ts(5 * HOUR),
-    updated_at: ts(5 * HOUR),
+    created_at: mockDate.hoursAgo5,
+    updated_at: mockDate.hoursAgo5,
     labels: {},
     event_category: 'api_execution',
     event_action: 'Request Completed',
@@ -143,8 +137,8 @@ export const auditEvents: AuditEventMock[] = [
   },
   {
     id: 'ae-005',
-    created_at: ts(8 * HOUR),
-    updated_at: ts(8 * HOUR),
+    created_at: mockDate.hoursAgo8,
+    updated_at: mockDate.hoursAgo8,
     labels: {},
     event_category: 'security_event',
     event_action: 'OIDC Login',
@@ -171,8 +165,8 @@ export const auditEvents: AuditEventMock[] = [
   },
   {
     id: 'ae-006',
-    created_at: ts(1 * DAY),
-    updated_at: ts(1 * DAY),
+    created_at: mockDate.haysAgo1,
+    updated_at: mockDate.haysAgo1,
     labels: {},
     event_category: 'user_action',
     event_action: 'Workflow Created',
@@ -196,8 +190,8 @@ export const auditEvents: AuditEventMock[] = [
   },
   {
     id: 'ae-007',
-    created_at: ts(2 * DAY),
-    updated_at: ts(2 * DAY),
+    created_at: mockDate.haysAgo2,
+    updated_at: mockDate.haysAgo2,
     labels: {},
     event_category: 'workflow_event',
     event_action: 'Workflow Execution',
@@ -220,8 +214,8 @@ export const auditEvents: AuditEventMock[] = [
   },
   {
     id: 'ae-008',
-    created_at: ts(3 * DAY),
-    updated_at: ts(3 * DAY),
+    created_at: mockDate.haysAgo3,
+    updated_at: mockDate.haysAgo3,
     labels: {},
     event_category: 'user_action',
     event_action: 'Create Project',

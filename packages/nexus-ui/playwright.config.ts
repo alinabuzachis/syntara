@@ -9,6 +9,13 @@ const apiPort = process.env.NEXUS_E2E_API_PORT ?? '3300'
 const baseURL = process.env.NEXUS_E2E_BASE_URL ?? `http://localhost:${uiPort}`
 const useWebServer = !isSkipWebServerForPlaywrightTests()
 
+/**
+ * Pinned clock for visual regression determinism.
+ * Used by page-screenshots.spec.ts (page.clock.setFixedTime for the browser).
+ * Mock API data uses hardcoded ISO strings relative to this date.
+ */
+export const VISUAL_REGRESSION_CLOCK = '2026-06-15T10:00:00Z'
+
 export default defineConfig({
   testDir: './e2e',
   testIgnore: [
