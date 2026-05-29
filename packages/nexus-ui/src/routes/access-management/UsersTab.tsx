@@ -1,5 +1,15 @@
 import type { User } from '@ansible/nexus-contracts'
-import { Button, Content, ContentVariants, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
+import {
+  Button,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
+  Label,
+  Stack,
+  StackItem,
+  Truncate,
+} from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -145,20 +155,28 @@ export function UsersTab() {
     <>
       <NxPanelContentStack>
         <StackItem>
-          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
-            Users represent individual people who interact with the system. Users are assigned roles directly or through
-            the groups they belong to. A user can belong to multiple groups.
-          </Content>
-        </StackItem>
-        <StackItem>
-          {builtinUser && (
-            <BuiltInAdminCard
-              userId={builtinUser.id}
-              isEnabled={isAdminEnabled}
-              canToggle={adminToggle.canToggle}
-              onToggle={adminToggle.handleToggle}
-            />
-          )}
+          <Stack hasGutter>
+            <StackItem>
+              <Content component={ContentVariants.p}>
+                Users represent individual people who interact with the system. Users are assigned roles directly or
+                through the groups they belong to. A user can belong to multiple groups.
+              </Content>
+            </StackItem>
+
+            {builtinUser ? (
+              <StackItem>
+                <BuiltInAdminCard
+                  userId={builtinUser.id}
+                  isEnabled={isAdminEnabled}
+                  canToggle={adminToggle.canToggle}
+                  onToggle={adminToggle.handleToggle}
+                />
+              </StackItem>
+            ) : null}
+
+            {/* Spacer used to add additional gap that would otherwise be missing between admin card section and table filters */}
+            <StackItem />
+          </Stack>
         </StackItem>
         <StackItem>
           <FilterBar
