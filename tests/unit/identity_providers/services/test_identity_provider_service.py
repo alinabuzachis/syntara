@@ -63,6 +63,7 @@ def _make_mock_session() -> MagicMock:
     session = MagicMock()
     session.add = MagicMock()
     session.flush = AsyncMock()
+    session.commit = AsyncMock()
     session.delete = AsyncMock()
     session.exec = AsyncMock()
     return session
@@ -144,6 +145,7 @@ async def test_create_provider_calls_store_config_and_flush() -> None:
     mock_secret.create_secret.assert_called_once()
     mock_session.add.assert_called_once()
     mock_session.flush.assert_called()
+    mock_session.commit.assert_called_once()
 
 
 @pytest.mark.asyncio

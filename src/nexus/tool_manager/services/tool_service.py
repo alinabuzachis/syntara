@@ -190,6 +190,7 @@ class ToolService(BaseService):
         tool.updated_at = datetime.now(UTC)
 
         await self.session.flush()
+        await self.session.commit()
 
         AuditEventDispatcher.dispatch(
             ToolUpdateEvent(
@@ -301,6 +302,7 @@ class ToolService(BaseService):
         skipped_count = len(unique_tool_ids) - updated_count
 
         await self.session.flush()
+        await self.session.commit()
 
         AuditEventDispatcher.dispatch(
             ToolBulkUpdateEvent(

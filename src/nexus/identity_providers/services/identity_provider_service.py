@@ -230,7 +230,7 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
             await self.session.flush()
             if entries:
                 await self._save_group_mapping_entries(provider.id, entries)
-                await self.session.flush()
+            await self.session.commit()
             logger.info("Successfully created identity provider", provider_name=provider.name)
             AuditEventDispatcher.dispatch(
                 IdentityProviderLifecycleEvent(
@@ -338,7 +338,7 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
             await self.session.flush()
             if patch_entries is not None:
                 await self._replace_group_mapping_entries(provider.id, patch_entries)
-                await self.session.flush()
+            await self.session.commit()
             AuditEventDispatcher.dispatch(
                 IdentityProviderLifecycleEvent(
                     provider_id=provider.id,
@@ -437,6 +437,7 @@ class IdentityProviderService(BaseService, SecretConsumerMixin):
 
         provider.deleted_at = datetime.now(UTC)
         provider.deleted_by = self.user.id
+        await self.session.commit()
 
         AuditEventDispatcher.dispatch(
             IdentityProviderLifecycleEvent(

@@ -332,6 +332,7 @@ class ToolProviderService(BaseService):
 
         try:
             await self.session.flush()
+            await self.session.commit()
             logger.info("Successfully created provider with VALIDATING status", provider_name=provider.name)
 
             # Dispatch success audit event
@@ -425,6 +426,7 @@ class ToolProviderService(BaseService):
 
         try:
             await self.session.flush()
+            await self.session.commit()
 
             # Dispatch success audit event
             AuditEventDispatcher.dispatch(
@@ -516,6 +518,7 @@ class ToolProviderService(BaseService):
 
         try:
             await self.session.flush()
+            await self.session.commit()
 
             # Dispatch success audit event
             AuditEventDispatcher.dispatch(
@@ -586,6 +589,7 @@ class ToolProviderService(BaseService):
 
         try:
             await self.session.flush()
+            await self.session.commit()
 
             # Dispatch success audit event
             AuditEventDispatcher.dispatch(

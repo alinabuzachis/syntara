@@ -41,7 +41,7 @@ async def concurrency_client(test_db_engine, test_user: User, session_app) -> As
 
     # Override get_db to create a new session for each request
     async def get_db_for_concurrency() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSession(test_db_engine) as session:
+        async with AsyncSession(test_db_engine, expire_on_commit=False) as session:
             try:
                 yield session
                 await session.commit()

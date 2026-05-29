@@ -44,6 +44,12 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for database sessions.
 
+    **Important**: Services that write data MUST call ``await session.commit()``
+    explicitly before returning.  FastAPI runs yield-dependency cleanup *after*
+    the HTTP response has been sent to the client, so the ``commit()`` below is
+    only a safety net for read-only requests — it must NOT be relied upon for
+    write visibility.
+
     Yields:
         AsyncSession: Database session with automatic cleanup and soft delete filtering.
 
