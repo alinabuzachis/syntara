@@ -20,7 +20,6 @@ Run with: pytest --run-performance
 
 from __future__ import annotations
 
-import logging
 import os
 import re
 import time
@@ -738,9 +737,6 @@ def extract_routing_decisions(
         if target:
             decisions.append({"invocation_id": inv_id, "target_agent": target})
     return decisions
-
-
-logger = logging.getLogger(__name__)
 
 
 def find_llm_credential_id(nexus_api: NexusApiRegistry) -> str | None:
