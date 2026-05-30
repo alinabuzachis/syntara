@@ -8,7 +8,8 @@ CLAIM_ALIASES: dict[str, list[str]] = {
     "sub": ["sub"],
     "email": ["email", "mail", "upn", "emailaddress"],
     "username": ["preferred_username", "login", "uid", "sAMAccountName", "upn"],
-    "full_name": ["name", "displayName", "cn", "commonName"],
+    "first_name": ["given_name", "givenName", "first_name", "firstName", "name", "displayName"],
+    "last_name": ["family_name", "familyName", "last_name", "lastName", "sn", "surname"],
 }
 
 

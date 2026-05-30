@@ -57,7 +57,7 @@ async def _make_user(session: AsyncSession, username: str) -> User:
         id=uuid4(),
         username=username,
         email=f"{username}@test.local",
-        full_name=username.title(),
+        first_name=username.title(),
         password_hash="$argon2id$test",  # noqa: S106
         is_enabled=True,
     )

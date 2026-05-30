@@ -20,16 +20,17 @@ class TestUsersPatchContract:
     """Contract tests for user patch endpoint."""
 
     @pytest.mark.asyncio
-    async def test_update_user_full_name(self, admin_client: AsyncClient, test_user: User) -> None:
-        """Test successful full_name update returns 200."""
-        patch_data = {"full_name": "Updated Name"}
+    async def test_update_user_first_name(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test successful first_name update returns 200."""
+        patch_data = {"first_name": "Updated", "last_name": "Name"}
 
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
         assert response.status_code == 200
 
         data = response.json()
-        assert data["full_name"] == "Updated Name"
+        assert data["first_name"] == "Updated"
+        assert data["last_name"] == "Name"
         assert data["username"] == test_user.username
 
     @pytest.mark.asyncio
@@ -59,14 +60,15 @@ class TestUsersPatchContract:
     @pytest.mark.asyncio
     async def test_update_user_multiple_fields(self, admin_client: AsyncClient, test_user: User) -> None:
         """Test updating multiple fields at once."""
-        patch_data = {"full_name": "New Full Name", "email": "multi@example.com"}
+        patch_data = {"first_name": "New Full", "last_name": "Name", "email": "multi@example.com"}
 
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
         assert response.status_code == 200
 
         data = response.json()
-        assert data["full_name"] == "New Full Name"
+        assert data["first_name"] == "New Full"
+        assert data["last_name"] == "Name"
         assert data["email"] == "multi@example.com"
 
     @pytest.mark.asyncio
@@ -85,23 +87,51 @@ class TestUsersPatchContract:
     @pytest.mark.asyncio
     async def test_update_user_preserves_unchanged_fields(self, admin_client: AsyncClient, test_user: User) -> None:
         """Test partial update preserves fields not included in patch."""
-        patch_data = {"full_name": "Only Name Changed"}
+        patch_data = {"first_name": "Only Name", "last_name": "Changed"}
 
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
         assert response.status_code == 200
 
         data = response.json()
-        assert data["full_name"] == "Only Name Changed"
+        assert data["first_name"] == "Only Name"
+        assert data["last_name"] == "Changed"
         assert data["email"] == test_user.email
         assert data["is_enabled"] == test_user.is_enabled
+
+    @pytest.mark.asyncio
+    async def test_clear_last_name_via_patch(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test that sending last_name: null clears the field."""
+        # First set a last_name
+        await admin_client.patch(f"{USERS_URL}/{test_user.id}", json={"last_name": "Doe"})
+
+        # Now clear it
+        response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json={"last_name": None})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["last_name"] is None
+
+    @pytest.mark.asyncio
+    async def test_omit_last_name_preserves_value(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test that omitting last_name from PATCH body preserves the existing value."""
+        # Set a last_name
+        await admin_client.patch(f"{USERS_URL}/{test_user.id}", json={"last_name": "Doe"})
+
+        # PATCH without last_name — should preserve it
+        response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json={"first_name": "Changed"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["first_name"] == "Changed"
+        assert data["last_name"] == "Doe"
 
     @pytest.mark.asyncio
     async def test_update_user_updates_timestamp(self, admin_client: AsyncClient, test_user: User) -> None:
         """Test that updated_at timestamp changes after update."""
         original_updated_at = test_user.updated_at
 
-        patch_data = {"full_name": "Timestamp Test"}
+        patch_data = {"first_name": "Timestamp", "last_name": "Test"}
 
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
@@ -119,7 +149,8 @@ class TestUsersPatchContract:
             json={
                 "username": "otheruser",
                 "email": "existing@example.com",
-                "full_name": "Other User",
+                "first_name": "Other",
+                "last_name": "User",
                 "password": "SecurePassword123!",
             },
         )
@@ -135,16 +166,16 @@ class TestUsersPatchContract:
     async def test_update_user_not_found(self, admin_client: AsyncClient) -> None:
         """Test 404 error for non-existent user."""
         user_id = "99999999-9999-9999-9999-999999999999"
-        patch_data = {"full_name": "New Name"}
+        patch_data = {"first_name": "New", "last_name": "Name"}
 
         response = await admin_client.patch(f"{USERS_URL}/{user_id}", json=patch_data)
 
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_update_user_full_name_too_long(self, admin_client: AsyncClient, test_user: User) -> None:
-        """Test 422 when full_name exceeds max length."""
-        patch_data = {"full_name": "x" * 256}
+    async def test_update_user_first_name_too_long(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test 422 when first_name exceeds max length."""
+        patch_data = {"first_name": "x" * 256}
 
         response = await admin_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
@@ -153,7 +184,7 @@ class TestUsersPatchContract:
     @pytest.mark.asyncio
     async def test_update_user_unauthenticated(self, base_client: AsyncClient, test_user: User) -> None:
         """Test updating a user requires authentication."""
-        patch_data = {"full_name": "Unauth Update"}
+        patch_data = {"first_name": "Unauth", "last_name": "Update"}
 
         response = await base_client.patch(f"{USERS_URL}/{test_user.id}", json=patch_data)
 
@@ -225,13 +256,14 @@ class TestUsersPatchAdminRestrictions:
 
         app.dependency_overrides[get_current_user] = override_as_admin
 
-        patch_data = {"full_name": "Updated Admin Name"}
+        patch_data = {"first_name": "Updated", "last_name": "Admin Name"}
         response = await base_client.patch(f"{USERS_URL}/{non_builtin_admin.id}", json=patch_data)
 
         assert response.status_code == 200
 
         data = response.json()
-        assert data["full_name"] == "Updated Admin Name"
+        assert data["first_name"] == "Updated"
+        assert data["last_name"] == "Admin Name"
 
     @pytest.mark.asyncio
     async def test_admin_can_disable_and_reenable_self(self, admin_client: AsyncClient, admin_user: User) -> None:

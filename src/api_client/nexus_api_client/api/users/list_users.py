@@ -18,7 +18,8 @@ def _get_kwargs(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
-    full_name: None | str | Unset = UNSET,
+    first_name: None | str | Unset = UNSET,
+    last_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
@@ -52,12 +53,19 @@ def _get_kwargs(
         json_username = username
     params["username"] = json_username
 
-    json_full_name: None | str | Unset
-    if isinstance(full_name, Unset):
-        json_full_name = UNSET
+    json_first_name: None | str | Unset
+    if isinstance(first_name, Unset):
+        json_first_name = UNSET
     else:
-        json_full_name = full_name
-    params["full_name"] = json_full_name
+        json_first_name = first_name
+    params["first_name"] = json_first_name
+
+    json_last_name: None | str | Unset
+    if isinstance(last_name, Unset):
+        json_last_name = UNSET
+    else:
+        json_last_name = last_name
+    params["last_name"] = json_last_name
 
     json_auth_type: None | str | Unset
     if isinstance(auth_type, Unset):
@@ -156,7 +164,8 @@ def sync_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
-    full_name: None | str | Unset = UNSET,
+    first_name: None | str | Unset = UNSET,
+    last_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
@@ -174,7 +183,8 @@ def sync_detailed(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
-        full_name (None | str | Unset):
+        first_name (None | str | Unset):
+        last_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
         auth_source (None | str | Unset):
 
@@ -192,7 +202,8 @@ def sync_detailed(
         sort=sort,
         include_total=include_total,
         username=username,
-        full_name=full_name,
+        first_name=first_name,
+        last_name=last_name,
         auth_type=auth_type,
         auth_source=auth_source,
         additional_params=additional_params,
@@ -213,7 +224,8 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
-    full_name: None | str | Unset = UNSET,
+    first_name: None | str | Unset = UNSET,
+    last_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserRead | None:
@@ -230,7 +242,8 @@ def sync(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
-        full_name (None | str | Unset):
+        first_name (None | str | Unset):
+        last_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
         auth_source (None | str | Unset):
 
@@ -249,7 +262,8 @@ def sync(
         sort=sort,
         include_total=include_total,
         username=username,
-        full_name=full_name,
+        first_name=first_name,
+        last_name=last_name,
         auth_type=auth_type,
         auth_source=auth_source,
     ).parsed
@@ -263,7 +277,8 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
-    full_name: None | str | Unset = UNSET,
+    first_name: None | str | Unset = UNSET,
+    last_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
 ) -> Response[ErrorData | ResourcesResponseUserRead]:
@@ -280,7 +295,8 @@ async def asyncio_detailed(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
-        full_name (None | str | Unset):
+        first_name (None | str | Unset):
+        last_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
         auth_source (None | str | Unset):
 
@@ -298,7 +314,8 @@ async def asyncio_detailed(
         sort=sort,
         include_total=include_total,
         username=username,
-        full_name=full_name,
+        first_name=first_name,
+        last_name=last_name,
         auth_type=auth_type,
         auth_source=auth_source,
     )
@@ -316,7 +333,8 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
-    full_name: None | str | Unset = UNSET,
+    first_name: None | str | Unset = UNSET,
+    last_name: None | str | Unset = UNSET,
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserRead | None:
@@ -333,7 +351,8 @@ async def asyncio(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         username (None | str | Unset):
-        full_name (None | str | Unset):
+        first_name (None | str | Unset):
+        last_name (None | str | Unset):
         auth_type (AuthType | None | Unset):
         auth_source (None | str | Unset):
 
@@ -353,7 +372,8 @@ async def asyncio(
             sort=sort,
             include_total=include_total,
             username=username,
-            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name,
             auth_type=auth_type,
             auth_source=auth_source,
         )

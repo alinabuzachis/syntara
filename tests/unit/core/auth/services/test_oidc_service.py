@@ -1065,18 +1065,20 @@ class TestExtractUserClaims:
         assert result["preferred_username"] is None
 
     def test_custom_claim_mapping(self, oidc_service: OIDCService) -> None:
-        """Test extraction with custom claim mapping (e.g. Azure AD 'mail' instead of 'email')."""
+        """Test extraction with custom claim mapping (e.g. Azure AD claim names)."""
         mapping = OIDCClaimMapping(
             subject="sub",
             email="mail",
             username="upn",
-            full_name="displayName",
+            first_name="givenName",
+            last_name="surname",
         )
         id_token_claims = {
             "sub": "user-456",
             "mail": "azure-user@example.com",
             "upn": "azure-user",
-            "displayName": "Azure User",
+            "givenName": "Azure",
+            "surname": "User",
         }
 
         result = oidc_service.extract_user_claims(id_token_claims, mapping)
@@ -1084,7 +1086,8 @@ class TestExtractUserClaims:
         assert result["sub"] == "user-456"
         assert result["email"] == "azure-user@example.com"
         assert result["preferred_username"] == "azure-user"
-        assert result["name"] == "Azure User"
+        assert result["given_name"] == "Azure"
+        assert result["family_name"] == "User"
 
     def test_custom_claim_mapping_with_groups(self, oidc_service: OIDCService) -> None:
         """Test extraction with groups claim mapping."""
@@ -1092,7 +1095,7 @@ class TestExtractUserClaims:
             subject="sub",
             email="email",
             username="preferred_username",
-            full_name="name",
+            first_name="name",
             groups="memberOf",
         )
         id_token_claims = {
@@ -1138,6 +1141,12 @@ class TestExtractUserClaims:
         result = oidc_service.extract_user_claims(id_token_claims)
         assert result["name"] == "Test\\x00User"
 
+    def test_escapes_control_chars_in_given_name(self, oidc_service: OIDCService) -> None:
+        id_token_claims = {"sub": "u1", "given_name": "Test\nUser", "family_name": "Last\rName"}
+        result = oidc_service.extract_user_claims(id_token_claims)
+        assert result["given_name"] == "Test\\nUser"
+        assert result["family_name"] == "Last\\rName"
+
     def test_clean_claims_unchanged(self, oidc_service: OIDCService) -> None:
         id_token_claims = {
             "sub": "user-123",
@@ -1156,7 +1165,7 @@ class TestExtractUserClaims:
             subject="sub",
             email="email",
             username="preferred_username",
-            full_name="name",
+            first_name="name",
             groups="groups",
         )
         id_token_claims = {"sub": "u1", "groups": "admin\nops"}

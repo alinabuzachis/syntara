@@ -30,6 +30,7 @@ from nexus.auth.exceptions import (
 )
 from nexus.auth.services.token_service import TokenPayload, TokenService
 from nexus.core.auth.jwt_utils import extract_actor_claims
+from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import User
 
 # Optional bearer scheme - doesn't auto-raise 403
@@ -149,13 +150,24 @@ def _user_from_payload(payload: TokenPayload) -> User:
     user_id = actor_claims.actor_id
     username = actor_claims.actor_username or payload.sub
     email = payload.email or f"{username}@unknown"
-    full_name = payload.name or username
+    # JWT claims from our own token service are already sanitized, but external
+    # JWTs (e.g. delegated tokens) may not be — sanitize defensively.
+    if payload.given_name:
+        first_name = strip_control_chars(payload.given_name)
+        last_name = strip_control_chars(payload.family_name) if payload.family_name else None
+    elif payload.name:
+        first_name = strip_control_chars(payload.name)
+        last_name = None
+    else:
+        first_name = username
+        last_name = None
 
     return User(
         id=user_id,
         username=username,
         email=email,
-        full_name=full_name,
+        first_name=first_name,
+        last_name=last_name,
         is_enabled=True,
     )
 

@@ -383,7 +383,7 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
             assert result.status == ApprovalRequestStatus.APPROVED
             assert result.decided_by is not None
             assert result.decided_by.id == test_user.id
-            assert result.decided_by.name == test_user.full_name
+            assert result.decided_by.name == test_user.display_name
             assert result.decision_notes == "Looks good to proceed!"
             assert result.decided_at is not None
 
@@ -430,7 +430,7 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
             assert result.status == ApprovalRequestStatus.REJECTED
             assert result.decided_by is not None
             assert result.decided_by.id == test_user.id
-            assert result.decided_by.name == test_user.full_name
+            assert result.decided_by.name == test_user.display_name
             assert result.decision_notes == "Insufficient justification"
 
             # Verify workflow signal was sent with rejection
@@ -521,7 +521,7 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
             assert result.status == ApprovalRequestStatus.APPROVED
             assert result.decided_by is not None
             assert result.decided_by.id == test_user.id
-            assert result.decided_by.name == test_user.full_name
+            assert result.decided_by.name == test_user.display_name
             assert result.decision_notes == "Should succeed despite signal failure"
 
             # Verify approval was updated in database
@@ -584,7 +584,7 @@ class TestApprovalServiceBatchDecide(TestApprovalServiceBase):
             assert result.results[0].decision_notes == "Looks good"
             assert result.results[0].decided_by is not None
             assert result.results[0].decided_by.id == test_user.id
-            assert result.results[0].decided_by.name == test_user.full_name
+            assert result.results[0].decided_by.name == test_user.display_name
             assert result.results[0].decided_at is not None
             assert result.results[0].error is None
 

@@ -36,7 +36,8 @@ async def user_b_config(test_db_session: AsyncSession, user_factory) -> UserToke
     user_b = await user_factory(
         email="userb@example.com",
         username="userb",
-        full_name="User B",
+        first_name="User",
+        last_name="B",
     )
 
     config = UserTokenConfig(

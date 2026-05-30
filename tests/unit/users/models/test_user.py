@@ -30,7 +30,8 @@ async def test_create_user_with_required_fields(
     assert user.id is not None
     assert user.username == default_user_data["username"]
     assert user.email == default_user_data["email"]
-    assert user.full_name == default_user_data["full_name"]
+    assert user.first_name == default_user_data["first_name"]
+    assert user.last_name == default_user_data["last_name"]
     assert user.is_enabled is True
     assert user.preferences == {}
     assert user.deleted_at is None
@@ -49,7 +50,8 @@ async def test_create_user_with_all_fields(test_db_session: AsyncSession) -> Non
         id=uuid4(),
         username="fulluser",
         email="full@example.com",
-        full_name="Full Test User",
+        first_name="Full",
+        last_name="Test User",
         password_hash="$argon2id$v=19$m=65536,t=3,p=4$test",  # noqa: S106
         is_enabled=True,
         last_login=now,
@@ -74,7 +76,8 @@ async def test_user_soft_delete(
         id=uuid4(),
         username="softdelete-admin",
         email="softdelete-admin@example.com",
-        full_name="Admin User",
+        first_name="Admin",
+        last_name="User",
     )
 
     # Create user to be deleted
@@ -82,7 +85,8 @@ async def test_user_soft_delete(
         id=uuid4(),
         username="deleteme",
         email="delete@example.com",
-        full_name="Delete Me",
+        first_name="Delete",
+        last_name="Me",
     )
 
     # Perform soft delete
@@ -117,7 +121,8 @@ async def test_user_repr() -> None:
         id=user_id,
         username="repruser",
         email="repr@example.com",
-        full_name="Repr User",
+        first_name="Repr",
+        last_name="User",
     )
 
     repr_str = repr(user)
@@ -139,6 +144,29 @@ async def test_user_is_enabled_default(test_user: User) -> None:
     assert test_user.is_enabled is True
 
 
+def test_display_name_with_last_name() -> None:
+    """display_name should combine first and last name."""
+    user = User(
+        id=uuid4(),
+        username="jdoe",
+        email="j@example.com",
+        first_name="Jane",
+        last_name="Doe",
+    )
+    assert user.display_name == "Jane Doe"
+
+
+def test_display_name_without_last_name() -> None:
+    """display_name should return first_name when last_name is None."""
+    user = User(
+        id=uuid4(),
+        username="jane",
+        email="jane@example.com",
+        first_name="Jane",
+    )
+    assert user.display_name == "Jane"
+
+
 @pytest.mark.asyncio
 async def test_user_inactive(user_factory: Callable[..., Awaitable[User]]) -> None:
     """Test creating an inactive user."""
@@ -146,7 +174,8 @@ async def test_user_inactive(user_factory: Callable[..., Awaitable[User]]) -> No
         id=uuid4(),
         username="inactiveuser",
         email="inactive@example.com",
-        full_name="Inactive User",
+        first_name="Inactive",
+        last_name="User",
         is_enabled=False,
     )
 

@@ -22,7 +22,8 @@ async def local_user(test_db_session: AsyncSession, admin_user: User) -> User:
     service = UsersService(test_db_session, admin_user)
     return await service.create_user(
         username="localuser",
-        full_name="Local User",
+        first_name="Local",
+        last_name="User",
         password="LocalPassword123!",  # noqa: S106
         email="local@example.com",
         is_enabled=True,
@@ -38,7 +39,8 @@ async def federated_user(test_db_session: AsyncSession) -> User:
         id=uuid4(),
         username="federateduser",
         email="federated@example.com",
-        full_name="Federated User",
+        first_name="Federated",
+        last_name="User",
         auth_type=AuthType.FEDERATED,
         is_enabled=True,
     )

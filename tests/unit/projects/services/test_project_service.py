@@ -276,7 +276,7 @@ async def test_delete_project_cascades_role_assignments(seeded_db: AsyncSession,
         id=uuid4(),
         username="cascade-u",
         email="cascade-u@test.com",
-        full_name="CU",
+        first_name="CU",
         password_hash="$argon2id$test",  # noqa: S106
     )
     group = Group(id=uuid4(), name="cascade-grp", description="", labels={})

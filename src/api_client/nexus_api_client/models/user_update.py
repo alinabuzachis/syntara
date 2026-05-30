@@ -19,14 +19,16 @@ class UserUpdate:
 
         Attributes:
             username (None | str | Unset): Update username
-            full_name (None | str | Unset): Update display name
+            first_name (None | str | Unset): Update first name
+            last_name (None | str | Unset): Update last name
             email (None | str | Unset): Update email address
             password (None | str | Unset): New password (will be hashed). Omit to keep current password.
             is_enabled (bool | None | Unset): Enable or disable user account
     """
 
     username: None | str | Unset = UNSET
-    full_name: None | str | Unset = UNSET
+    first_name: None | str | Unset = UNSET
+    last_name: None | str | Unset = UNSET
     email: None | str | Unset = UNSET
     password: None | str | Unset = UNSET
     is_enabled: bool | None | Unset = UNSET
@@ -39,11 +41,17 @@ class UserUpdate:
         else:
             username = self.username
 
-        full_name: None | str | Unset
-        if isinstance(self.full_name, Unset):
-            full_name = UNSET
+        first_name: None | str | Unset
+        if isinstance(self.first_name, Unset):
+            first_name = UNSET
         else:
-            full_name = self.full_name
+            first_name = self.first_name
+
+        last_name: None | str | Unset
+        if isinstance(self.last_name, Unset):
+            last_name = UNSET
+        else:
+            last_name = self.last_name
 
         email: None | str | Unset
         if isinstance(self.email, Unset):
@@ -68,8 +76,10 @@ class UserUpdate:
         field_dict.update({})
         if username is not UNSET:
             field_dict["username"] = username
-        if full_name is not UNSET:
-            field_dict["full_name"] = full_name
+        if first_name is not UNSET:
+            field_dict["first_name"] = first_name
+        if last_name is not UNSET:
+            field_dict["last_name"] = last_name
         if email is not UNSET:
             field_dict["email"] = email
         if password is not UNSET:
@@ -92,14 +102,23 @@ class UserUpdate:
 
         username = _parse_username(d.pop("username", UNSET))
 
-        def _parse_full_name(data: object) -> None | str | Unset:
+        def _parse_first_name(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(None | str | Unset, data)
 
-        full_name = _parse_full_name(d.pop("full_name", UNSET))
+        first_name = _parse_first_name(d.pop("first_name", UNSET))
+
+        def _parse_last_name(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        last_name = _parse_last_name(d.pop("last_name", UNSET))
 
         def _parse_email(data: object) -> None | str | Unset:
             if data is None:
@@ -130,7 +149,8 @@ class UserUpdate:
 
         user_update = cls(
             username=username,
-            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name,
             email=email,
             password=password,
             is_enabled=is_enabled,

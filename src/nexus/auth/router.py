@@ -80,6 +80,7 @@ from nexus.core.config.base import get_settings
 from nexus.core.constants import FieldLimits
 from nexus.core.database.session import get_db
 from nexus.core.lib.encryption import SecretEncryptor, key_from_string
+from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import Group, User, UserIdentity
 from nexus.core.models.group import user_groups
 from nexus.core.models.user import AuthType
@@ -233,7 +234,8 @@ async def login(
         user_id=user.id,
         username=user.username,
         email=user.email,
-        full_name=user.full_name,
+        first_name=user.first_name,
+        last_name=user.last_name,
         amr=[AMR.PASSWORD],
         idp="local",
         groups=user_group_names,
@@ -422,7 +424,8 @@ async def refresh_token(
             user_id=user.id,
             username=username,
             email=user.email,
-            full_name=user.full_name,
+            first_name=user.first_name,
+            last_name=user.last_name,
             amr=amr,
             idp=idp,
             groups=user_group_names,
@@ -1325,8 +1328,19 @@ async def _auto_create_user(
             preferred_username = user_claims.get("sub") or secrets.token_hex(8)
     preferred_username = preferred_username.lower()
 
-    raw_name = (user_claims.get("name") or "").strip()
-    full_name = (raw_name or preferred_username)[: FieldLimits.NAME_MAX_LENGTH]
+    raw_given_name = strip_control_chars((user_claims.get("given_name") or "").strip())
+    raw_family_name = strip_control_chars((user_claims.get("family_name") or "").strip())
+    raw_name = strip_control_chars((user_claims.get("name") or "").strip())
+
+    if raw_given_name:
+        first_name = raw_given_name[: FieldLimits.NAME_MAX_LENGTH]
+        last_name = raw_family_name[: FieldLimits.NAME_MAX_LENGTH] if raw_family_name else None
+    elif raw_name:
+        first_name = raw_name[: FieldLimits.NAME_MAX_LENGTH]
+        last_name = None
+    else:
+        first_name = preferred_username[: FieldLimits.NAME_MAX_LENGTH]
+        last_name = None
 
     # Truncate username to leave room for the random suffix (hyphen + 16 hex chars)
     max_base_len = FieldLimits.NAME_MAX_LENGTH - 17
@@ -1345,7 +1359,8 @@ async def _auto_create_user(
     user = User(
         username=username,
         email=email,
-        full_name=full_name,
+        first_name=first_name,
+        last_name=last_name,
         password_hash=None,
         auth_type=AuthType.FEDERATED,
         is_enabled=True,

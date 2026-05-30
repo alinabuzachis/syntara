@@ -48,7 +48,8 @@ async def seed_user(test_db_session: AsyncSession) -> User:
     user = User(
         username=f"oidc-{uuid4().hex[:8]}",
         email=f"oidc-{uuid4().hex[:8]}@example.com",
-        full_name="OIDC Test User",
+        first_name="OIDC",
+        last_name="Test User",
         is_enabled=True,
         auth_type=AuthType.FEDERATED,
     )
@@ -185,7 +186,7 @@ class TestResolveOidcUserConcurrentCreation:
         winner = User(
             username=f"winner-{uuid4().hex[:8]}",
             email=email,
-            full_name="Winner",
+            first_name="Winner",
             is_enabled=True,
             auth_type=AuthType.FEDERATED,
         )

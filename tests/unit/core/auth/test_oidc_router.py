@@ -71,7 +71,8 @@ def _make_user(
         id=UUID(user_id) if user_id else uuid4(),
         username=username,
         email=email,
-        full_name="Test User",
+        first_name="Test",
+        last_name="User",
         is_enabled=is_enabled,
         password_hash=password_hash,
         auth_type=AuthType(auth_type),
@@ -161,14 +162,21 @@ def _make_user_claims(
     email: str = "user@example.com",
     name: str = "Test User",
     preferred_username: str = "testuser",
+    given_name: str | None = None,
+    family_name: str | None = None,
 ) -> dict[str, str | None]:
     """Make a mock user claims dict from ID token."""
-    return {
+    claims: dict[str, str | None] = {
         "sub": "oidc-sub-12345",
         "email": email,
         "name": name,
         "preferred_username": preferred_username,
     }
+    if given_name is not None:
+        claims["given_name"] = given_name
+    if family_name is not None:
+        claims["family_name"] = family_name
+    return claims
 
 
 def _patch_session_store(mock_store: AsyncMock) -> MagicMock:
@@ -1506,11 +1514,48 @@ class TestAutoCreateUser:
 
         assert result.username == "alice"
         assert result.email == email
-        assert result.full_name == "Alice Smith"
+        assert result.first_name == "Alice Smith"
+        assert result.last_name is None
         assert result.is_enabled is True
         assert result.password_hash is None
         db.add.assert_called_once()
         db.flush.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_creates_user_with_given_and_family_name(self) -> None:
+        """Should split into first_name/last_name when given_name and family_name are present."""
+        email = "user@example.com"
+        user_claims = _make_user_claims(
+            email=email, preferred_username="alice", given_name="Alice", family_name="Smith"
+        )
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Google", email=email)
+
+        assert result.first_name == "Alice"
+        assert result.last_name == "Smith"
+
+    @pytest.mark.asyncio
+    async def test_creates_user_with_given_name_only(self) -> None:
+        """Should use given_name as first_name with last_name=None when family_name is absent."""
+        email = "user@example.com"
+        user_claims = _make_user_claims(email=email, preferred_username="alice", given_name="Alice")
+
+        db = AsyncMock()
+        _add_begin_nested(db)
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = None
+        db.exec.return_value = mock_result
+
+        result = await _auto_create_user(db, user_claims, "Google", email=email)
+
+        assert result.first_name == "Alice"
+        assert result.last_name is None
 
     @pytest.mark.asyncio
     async def test_uses_email_prefix_when_no_preferred_username(self) -> None:
@@ -1631,8 +1676,8 @@ class TestAutoCreateUser:
             await _auto_create_user(db, user_claims, "Azure", email=email)
 
     @pytest.mark.asyncio
-    async def test_uses_preferred_username_as_full_name_fallback(self) -> None:
-        """Should use preferred_username for full_name when name claim missing."""
+    async def test_uses_preferred_username_as_first_name_fallback(self) -> None:
+        """Should use preferred_username for first_name when name claim missing."""
         email = "dave@example.com"
         user_claims: dict[str, str | None] = {
             "sub": "user-sub",
@@ -1649,7 +1694,8 @@ class TestAutoCreateUser:
 
         result = await _auto_create_user(db, user_claims, "Provider", email=email)
 
-        assert result.full_name == "dave"
+        assert result.first_name == "dave"
+        assert result.last_name is None
 
     @pytest.mark.asyncio
     async def test_creates_user_without_email(self) -> None:
@@ -1671,7 +1717,8 @@ class TestAutoCreateUser:
 
         assert result.email is None
         assert result.username == "noemail"
-        assert result.full_name == "No Email User"
+        assert result.first_name == "No Email User"
+        assert result.last_name is None
 
     @pytest.mark.asyncio
     async def test_username_falls_back_to_sub_when_no_email_or_preferred_username(self) -> None:
@@ -1693,7 +1740,8 @@ class TestAutoCreateUser:
 
         assert result.email is None
         assert result.username == "unique-sub-id"
-        assert result.full_name == "unique-sub-id"
+        assert result.first_name == "unique-sub-id"
+        assert result.last_name is None
 
     @pytest.mark.asyncio
     async def test_strips_whitespace_from_email(self) -> None:
@@ -1727,7 +1775,7 @@ class TestAutoCreateUser:
         assert result.username == "alice"
 
     @pytest.mark.asyncio
-    async def test_strips_whitespace_from_full_name(self) -> None:
+    async def test_strips_whitespace_from_name(self) -> None:
         """Should strip leading/trailing whitespace from name claim."""
         user_claims = _make_user_claims(name="  Bob Jones  ", preferred_username="bob")
 
@@ -1739,11 +1787,12 @@ class TestAutoCreateUser:
 
         result = await _auto_create_user(db, user_claims, "Provider", email="bob@example.com")
 
-        assert result.full_name == "Bob Jones"
+        assert result.first_name == "Bob Jones"
+        assert result.last_name is None
 
     @pytest.mark.asyncio
-    async def test_truncates_long_full_name(self) -> None:
-        """Should truncate full_name to 255 characters when name claim exceeds limit."""
+    async def test_truncates_long_first_name(self) -> None:
+        """Should truncate first_name to 255 characters when name claim exceeds limit."""
         long_name = "A" * 500
         user_claims = _make_user_claims(name=long_name, preferred_username="user")
 
@@ -1755,7 +1804,7 @@ class TestAutoCreateUser:
 
         result = await _auto_create_user(db, user_claims, "Provider", email="user@example.com")
 
-        assert len(result.full_name) == FieldLimits.NAME_MAX_LENGTH
+        assert len(result.first_name) == FieldLimits.NAME_MAX_LENGTH
 
     @pytest.mark.asyncio
     async def test_rejects_email_exceeding_max_length(self) -> None:
@@ -1818,7 +1867,7 @@ class TestAutoCreateUser:
 
     @pytest.mark.asyncio
     async def test_whitespace_only_name_falls_back_to_username(self) -> None:
-        """Should treat whitespace-only name claim as empty and use preferred_username for full_name."""
+        """Should treat whitespace-only name claim as empty and use preferred_username for first_name."""
         user_claims = _make_user_claims(name="   ", preferred_username="alice")
 
         db = AsyncMock()
@@ -1829,7 +1878,8 @@ class TestAutoCreateUser:
 
         result = await _auto_create_user(db, user_claims, "Provider", email="alice@example.com")
 
-        assert result.full_name == "alice"
+        assert result.first_name == "alice"
+        assert result.last_name is None
 
 
 # =============================================================================

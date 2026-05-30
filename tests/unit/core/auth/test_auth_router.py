@@ -102,7 +102,8 @@ def _make_user(
         id=UUID(user_id) if user_id else uuid4(),
         username="testuser",
         email="test@example.com",
-        full_name="Test User",
+        first_name="Test",
+        last_name="User",
         is_enabled=is_enabled,
         is_builtin=is_builtin,
         password_hash=password_hash,
@@ -1215,7 +1216,7 @@ class TestResolveAndLoginUserRollback:
         from nexus.auth.router import _resolve_and_login_user
         from nexus.identity_providers.models.identity_provider import IdentityProvider
 
-        user = User(id=uuid4(), username="testuser", email="t@t.com", full_name="Test", is_enabled=True)
+        user = User(id=uuid4(), username="testuser", email="t@t.com", first_name="Test", is_enabled=True)
         identity = MagicMock()
         mock_resolve.return_value = (user, identity)
         mock_sync.return_value = False  # No groups matched

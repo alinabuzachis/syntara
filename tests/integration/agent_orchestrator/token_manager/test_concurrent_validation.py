@@ -188,7 +188,8 @@ class TestConcurrentRequestPerformance:
             user = await user_factory(
                 username=f"perf_test_user_{i}",
                 email=f"perf_test_user_{i}@example.com",
-                full_name=f"Performance Test User {i}",
+                first_name="Performance",
+                last_name=f"Test User {i}",
             )
 
             config = UserTokenConfig(

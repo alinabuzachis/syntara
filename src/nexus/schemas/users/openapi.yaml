@@ -54,14 +54,22 @@ paths:
               - type: 'null'
             title: Username
           description: "Filter by username (username=exact, username[contains]=substring, username[starts_with]=prefix)"
-        - name: full_name
+        - name: first_name
           in: query
           required: false
           schema:
             anyOf:
               - type: string
               - type: 'null'
-            title: Full Name
+            title: First Name
+        - name: last_name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Last Name
         - name: auth_type
           in: query
           required: false
@@ -1279,7 +1287,7 @@ components:
         Excludes auto-generated fields: id, created_at, updated_at, last_login, preferences.
       required:
         - username
-        - full_name
+        - first_name
         - password
       properties:
         username:
@@ -1296,12 +1304,19 @@ components:
             - type: 'null'
           description: Email address
           title: Email
-        full_name:
+        first_name:
           type: string
           minLength: 1
           maxLength: 255
-          description: User's display name
-          title: Full Name
+          description: User's first name
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          description: User's last name
+          title: Last Name
         password:
           type: string
           format: password
@@ -1339,14 +1354,21 @@ components:
             - type: 'null'
           description: Update username
           title: Username
-        full_name:
+        first_name:
           anyOf:
             - type: string
               minLength: 1
               maxLength: 255
             - type: 'null'
-          description: Update display name
-          title: Full Name
+          description: Update first name
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+              maxLength: 255
+            - type: 'null'
+          description: Update last name
+          title: Last Name
         email:
           anyOf:
             - type: string
@@ -1388,7 +1410,7 @@ components:
       required:
         - id
         - username
-        - full_name
+        - first_name
         - is_enabled
         - created_at
         - updated_at
@@ -1405,9 +1427,14 @@ components:
             - type: string
             - type: 'null'
           title: Email
-        full_name:
+        first_name:
           type: string
-          title: Full Name
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Last Name
         is_enabled:
           type: boolean
           title: Is Enabled
@@ -1760,7 +1787,7 @@ components:
       required:
         - id
         - username
-        - full_name
+        - first_name
         - is_enabled
         - created_at
         - updated_at
@@ -1777,9 +1804,14 @@ components:
             - type: string
             - type: 'null'
           title: Email
-        full_name:
+        first_name:
           type: string
-          title: Full Name
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Last Name
         is_enabled:
           type: boolean
           title: Is Enabled

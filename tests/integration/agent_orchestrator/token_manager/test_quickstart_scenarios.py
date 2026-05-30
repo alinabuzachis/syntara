@@ -110,7 +110,8 @@ class TestQuickstartScenarios:
         user = await user_factory(
             username="qs_user3",
             email="qs_user3@example.com",
-            full_name="Quickstart User 3",
+            first_name="Quickstart",
+            last_name="User 3",
         )
 
         # Create config with 24-hour window
@@ -157,12 +158,14 @@ class TestQuickstartScenarios:
         user_a = await user_factory(
             username="qs_user_a",
             email="qs_user_a@example.com",
-            full_name="Quickstart User A",
+            first_name="Quickstart",
+            last_name="User A",
         )
         user_b = await user_factory(
             username="qs_user_b",
             email="qs_user_b@example.com",
-            full_name="Quickstart User B",
+            first_name="Quickstart",
+            last_name="User B",
         )
 
         # Create different configs

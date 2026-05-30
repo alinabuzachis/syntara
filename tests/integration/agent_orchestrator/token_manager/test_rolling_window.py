@@ -155,7 +155,8 @@ async def test_per_user_window_configuration(
     user_b = await user_factory(
         email="userb_window@example.com",
         username="userb_window",
-        full_name="User B Window",
+        first_name="User B",
+        last_name="Window",
     )
 
     user_b_config = UserTokenConfig(

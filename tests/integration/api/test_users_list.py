@@ -50,7 +50,7 @@ class TestUsersListContract:
             "id",
             "username",
             "email",
-            "full_name",
+            "first_name",
             "is_enabled",
             "created_at",
             "updated_at",

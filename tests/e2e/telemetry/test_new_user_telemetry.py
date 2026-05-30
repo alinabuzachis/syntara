@@ -48,7 +48,7 @@ def new_user_login(
         json={
             "username": username,
             "email": email,
-            "full_name": "E2E New User Test",
+            "first_name": "E2E New User Test",
             "password": password,
         },
     )

@@ -384,7 +384,7 @@ async def test_who_can_returns_authorized_users(
     await _make_admin(test_db_session, test_user)
 
     # Create a second user also with the user role
-    other = await user_factory(username="reader", email="reader@example.com", full_name="Reader")
+    other = await user_factory(username="reader", email="reader@example.com", first_name="Reader")
     test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
     assert test_group is not None
     await test_db_session.exec(insert(user_groups).values(user_id=other.id, group_id=test_group.id))
@@ -412,7 +412,7 @@ async def test_who_can_excludes_unauthorized_users(
     await _make_admin(test_db_session, test_user)
 
     # Create an auditor who can read but not create workflows
-    auditor = await user_factory(username="aud-user", email="aud@example.com", full_name="Auditor")
+    auditor = await user_factory(username="aud-user", email="aud@example.com", first_name="Auditor")
     await _make_auditor(test_db_session, auditor)
 
     response = await auth_client.post(
@@ -455,7 +455,7 @@ async def test_who_can_excludes_inactive_users(
     """WC-4: Inactive users are not returned even if they have permissions."""
     await _make_admin(test_db_session, test_user)
 
-    inactive = await user_factory(username="inactive-user", email="inactive@example.com", full_name="Inactive")
+    inactive = await user_factory(username="inactive-user", email="inactive@example.com", first_name="Inactive")
     # Add to test-users group (grants user role with user:read)
     test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
     assert test_group is not None
@@ -488,7 +488,7 @@ async def test_who_can_pagination(
     test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
     assert test_group is not None
     for i in range(3):
-        u = await user_factory(username=f"page-user-{i}", email=f"page{i}@example.com", full_name=f"Page {i}")
+        u = await user_factory(username=f"page-user-{i}", email=f"page{i}@example.com", first_name=f"Page {i}")
         await test_db_session.exec(insert(user_groups).values(user_id=u.id, group_id=test_group.id))
     await test_db_session.commit()
 

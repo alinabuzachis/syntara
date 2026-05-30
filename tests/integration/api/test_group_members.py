@@ -208,7 +208,7 @@ class TestListMembers:
         assert response.status_code == 200
 
         data = response.json()
-        required_fields = ["id", "username", "email", "full_name", "is_enabled"]
+        required_fields = ["id", "username", "email", "first_name", "is_enabled"]
         for member in data["resources"]:
             for field in required_fields:
                 assert field in member, f"Missing required field: {field}"

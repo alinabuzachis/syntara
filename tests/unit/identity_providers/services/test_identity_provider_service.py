@@ -262,7 +262,7 @@ async def test_patch_provider_not_found_raises() -> None:
 @pytest.mark.asyncio
 async def test_patch_provider_configuration_preserves_claim_mapping() -> None:
     """Patching config without claim_mapping preserves the existing one."""
-    custom_mapping = OIDCClaimMapping(subject="sub", email="mail", username="upn", full_name="displayName")
+    custom_mapping = OIDCClaimMapping(subject="sub", email="mail", username="upn", first_name="displayName")
     config = OIDCConfigurationResponse(
         issuer_url="https://idp.example.com",
         client_id="nexus-client",

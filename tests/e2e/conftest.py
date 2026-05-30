@@ -197,7 +197,7 @@ def viewer_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authentic
         body=UserCreate(
             username=username,
             email="e2e-viewer@example.com",
-            full_name="E2E Viewer",
+            first_name="E2E Viewer",
             password=password,
         ),
     )
@@ -229,7 +229,7 @@ def auditor_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authenti
         body=UserCreate(
             username=username,
             email="e2e-auditor@example.com",
-            full_name="E2E Auditor",
+            first_name="E2E Auditor",
             password=password,
         ),
     )
@@ -439,7 +439,7 @@ def local_user_factory(
     """Factory that creates a local user and cleans up after the test.
 
     Returns a tuple of (UserRead, password) so tests can verify login behavior.
-    Accepts optional overrides for username, email, full_name, and password.
+    Accepts optional overrides for username, email, first/last name, and password.
     """
     created_user_ids: list[UUID] = []
 
@@ -447,7 +447,8 @@ def local_user_factory(
         *,
         username: str | None = None,
         email: str | None = None,
-        full_name: str = "Test Local User",
+        first_name: str = "Test",
+        last_name: str = "Local User",
         password: str | None = None,
     ) -> tuple[UserRead, str]:
         username = username or unique_name("e2e-test-user")
@@ -458,7 +459,8 @@ def local_user_factory(
             body=UserCreate(
                 username=username,
                 email=email,
-                full_name=full_name,
+                first_name=first_name,
+                last_name=last_name,
                 password=password,
                 is_enabled=True,
             )

@@ -435,7 +435,7 @@ async def test_resolve_user_groups_empty_when_no_groups(
         id=uuid4(),
         username="orphan",
         email="orphan@test.com",
-        full_name="Orphan",
+        first_name="Orphan",
         password_hash="$argon2id$test",  # noqa: S106
     )
     seeded_db.add(orphan)

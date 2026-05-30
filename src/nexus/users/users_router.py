@@ -37,7 +37,7 @@ from nexus.core.models.user_schemas import (
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.users.services.group_service import GroupsService
 from nexus.users.services.user_identity_service import UserIdentityService
-from nexus.users.services.user_service import UsersService
+from nexus.users.services.user_service import UNSET, UsersService
 
 router = NexusRouter(prefix="/users", tags=["Users"])
 
@@ -107,8 +107,9 @@ async def create_user(
     """Create a new local user."""
     user = await service.create_user(
         username=request.username,
-        full_name=request.full_name,
+        first_name=request.first_name,
         password=request.password.get_secret_value(),
+        last_name=request.last_name,
         email=request.email,
         is_enabled=request.is_enabled,
         group_names=request.group_names,
@@ -167,10 +168,12 @@ async def update_user(
     """
     password = request.password.get_secret_value() if request.password else None
 
+    last_name = request.last_name if "last_name" in request.model_fields_set else UNSET
     user = await service.update_user(
         user_id,
         username=request.username,
-        full_name=request.full_name,
+        first_name=request.first_name,
+        last_name=last_name,
         email=request.email,
         password=password,
         is_enabled=request.is_enabled,

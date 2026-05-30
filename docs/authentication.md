@@ -479,7 +479,7 @@ The built-in admin user (identified by `is_builtin=True`) has special protection
 
 | Action | Who Can Do It | Guard |
 |--------|--------------|-------|
-| **Modify properties** (username, full_name, email) | Nobody | `AdminModifyError` (403) |
+| **Modify properties** (username, first_name, last_name, email) | Nobody | `AdminModifyError` (403) |
 | **Change password** | Only the admin itself | `AdminModifyError` (403) for non-self |
 | **Disable** (`is_enabled=false`) | Only the admin itself, and only when at least one other enabled user exists in the admins group | `AdminModifyError` (403) for non-self; `AdminDisableNoOtherAdminsError` (403) if no other enabled admins |
 | **Re-enable** (`is_enabled=true`) | Any admin user | Always allowed |
@@ -695,7 +695,8 @@ When a user authenticates via OIDC and no `UserIdentity` exists for their `(issu
 2. A new user is auto-created with:
    - `username` from `preferred_username` claim (or email prefix). If taken, a 16-character random hex suffix is appended (e.g., `alice-a1b2c3d4e5f6g7h8`)
    - `email` from the `email` claim (must contain `@`). Duplicate emails are allowed across users.
-   - `full_name` from the `name` claim
+   - `first_name` from the `given_name` claim (falls back to splitting `name`)
+   - `last_name` from the `family_name` claim
    - `role` = `VIEWER` (default for auto-provisioned users)
    - `auth_type` = `'federated'`, `password_hash` = `null` (federated user, cannot use local login)
 4. A `UserIdentity` row is created linking `(issuer, sub)` to the user
@@ -713,7 +714,8 @@ Different identity providers use different claim names for the same user informa
 | `subject` | `sub` | OIDC subject identifier |
 | `email` | `email` | User's email address |
 | `username` | `preferred_username` | Preferred username |
-| `full_name` | `name` | User's full name |
+| `first_name` | `given_name` | User's first name |
+| `last_name` | `family_name` | User's last name |
 | `groups` | *(not mapped)* | Groups claim (must be explicitly configured) |
 
 #### Example: Azure AD
@@ -723,7 +725,8 @@ Different identity providers use different claim names for the same user informa
   "claim_mapping": {
     "email": "mail",
     "username": "upn",
-    "full_name": "displayName",
+    "first_name": "givenName",
+    "last_name": "surname",
     "groups": "groups"
   }
 }
@@ -740,7 +743,7 @@ OIDC tokens from external identity providers may contain ASCII control character
 | Claim type | Claims | Strategy | Rationale |
 |---|---|---|---|
 | **Identity** | `sub`, `email` | **Reject** — deny the login | These claims are used as identity keys (`user_identities` table is keyed on `(issuer, sub)`). Silently modifying them could collapse two distinct identities into one, causing an authorization bypass or account takeover. Rejection is the safest and most transparent response. |
-| **Display** | `name`, `preferred_username` | **Escape** — replace control chars with visible escape sequences (e.g., `\n`, `\x00`) | These claims are used for display and auto-provisioning. Escaping preserves the original information in logs and stored values for diagnostics, without silently discarding characters. |
+| **Display** | `name`, `given_name`, `family_name`, `preferred_username` | **Escape** — replace control chars with visible escape sequences (e.g., `\n`, `\x00`) | These claims are used for display and auto-provisioning. Escaping preserves the original information in logs and stored values for diagnostics, without silently discarding characters. |
 | **Group** | Group values extracted via JMESPath | **Escape** — same as display claims | Group values are matched against configured mapping entries for authorization. Stripping characters could silently alter group names, causing authorization bypass (a group name that should not match now matches after stripping) or silent denial (a legitimate group stops matching). Escaping preserves the original value for accurate matching and log transparency. |
 
 #### Why not strip?

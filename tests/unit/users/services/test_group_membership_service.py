@@ -43,7 +43,8 @@ async def _create_test_user(session: AsyncSession, username: str, email: str) ->
         id=uuid4(),
         username=username,
         email=email,
-        full_name=f"Test {username}",
+        first_name="Test",
+        last_name=username,
         password_hash=hash_password(TEST_PASSWORD),
     )
     session.add(user)

@@ -58,7 +58,7 @@ async def _get_or_create_builtin_admin(session: AsyncSession) -> User:
         id=uuid4(),
         username="admin",
         email="admin@example.com",
-        full_name="Admin",
+        first_name="Admin",
         password_hash=hash_password("adminpassword"),
         is_builtin=True,
     )
@@ -78,13 +78,15 @@ async def test_create_user_success(test_db_session: AsyncSession, test_user: Use
     user = await service.create_user(
         username="newuser",
         email="newuser@example.com",
-        full_name="New User",
+        first_name="New",
         password=TEST_PASSWORD,
+        last_name="User",
     )
 
     assert user.username == "newuser"
     assert user.email == "newuser@example.com"
-    assert user.full_name == "New User"
+    assert user.first_name == "New"
+    assert user.last_name == "User"
     assert user.is_enabled is True
     assert user.id is not None
     assert user.password_hash is not None
@@ -99,8 +101,9 @@ async def test_create_user_inactive(test_db_session: AsyncSession, test_user: Us
     user = await service.create_user(
         username="inactiveuser",
         email="inactive@example.com",
-        full_name="Inactive User",
+        first_name="Inactive",
         password=TEST_PASSWORD,
+        last_name="User",
         is_enabled=False,
     )
 
@@ -115,16 +118,18 @@ async def test_create_user_duplicate_username(test_db_session: AsyncSession, tes
     await service.create_user(
         username="dupuser",
         email="dup1@example.com",
-        full_name="Dup User 1",
+        first_name="Dup",
         password=TEST_PASSWORD,
+        last_name="User 1",
     )
 
     with pytest.raises(UserUsernameConflictError):
         await service.create_user(
             username="dupuser",
             email="dup2@example.com",
-            full_name="Dup User 2",
+            first_name="Dup",
             password=TEST_PASSWORD,
+            last_name="User 2",
         )
 
 
@@ -136,16 +141,18 @@ async def test_create_user_duplicate_email_rejected(test_db_session: AsyncSessio
     await service.create_user(
         username="emailuser1",
         email="same@example.com",
-        full_name="Email User 1",
+        first_name="Email",
         password=TEST_PASSWORD,
+        last_name="User 1",
     )
 
     with pytest.raises(UserEmailConflictError):
         await service.create_user(
             username="emailuser2",
             email="same@example.com",
-            full_name="Email User 2",
+            first_name="Email",
             password=TEST_PASSWORD,
+            last_name="User 2",
         )
 
 
@@ -157,8 +164,9 @@ async def test_get_user_by_id_success(test_db_session: AsyncSession, test_user: 
     created = await service.create_user(
         username="getuser",
         email="getuser@example.com",
-        full_name="Get User",
+        first_name="Get",
         password=TEST_PASSWORD,
+        last_name="User",
     )
 
     fetched = await service.get_user_by_id(created.id)
@@ -178,21 +186,62 @@ async def test_get_user_by_id_not_found(test_db_session: AsyncSession, test_user
 
 
 @pytest.mark.asyncio
-async def test_update_user_full_name(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test successful full_name update."""
+async def test_update_user_first_name(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test successful first_name update."""
     service = UsersService(test_db_session, test_user)
 
     user = await service.create_user(
         username="updatename",
         email="updatename@example.com",
-        full_name="Original Name",
+        first_name="Original",
         password=TEST_PASSWORD,
+        last_name="Name",
     )
 
-    updated = await service.update_user(user.id, full_name="Updated Name")
+    updated = await service.update_user(user.id, first_name="Updated", last_name="Name")
 
-    assert updated.full_name == "Updated Name"
+    assert updated.first_name == "Updated"
+    assert updated.last_name == "Name"
     assert updated.email == "updatename@example.com"
+
+
+@pytest.mark.asyncio
+async def test_update_user_clear_last_name(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test clearing last_name to None via explicit None."""
+    service = UsersService(test_db_session, test_user)
+
+    user = await service.create_user(
+        username="clearlast",
+        email="clearlast@example.com",
+        first_name="Clear",
+        password=TEST_PASSWORD,
+        last_name="Last",
+    )
+    assert user.last_name == "Last"
+
+    updated = await service.update_user(user.id, last_name=None)
+
+    assert updated.last_name is None
+    assert updated.first_name == "Clear"
+
+
+@pytest.mark.asyncio
+async def test_update_user_preserves_last_name_when_omitted(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that omitting last_name from update preserves it."""
+    service = UsersService(test_db_session, test_user)
+
+    user = await service.create_user(
+        username="keeplast",
+        email="keeplast@example.com",
+        first_name="Keep",
+        password=TEST_PASSWORD,
+        last_name="Existing",
+    )
+
+    updated = await service.update_user(user.id, first_name="Updated")
+
+    assert updated.first_name == "Updated"
+    assert updated.last_name == "Existing"
 
 
 @pytest.mark.asyncio
@@ -203,7 +252,8 @@ async def test_update_user_email(test_db_session: AsyncSession, test_user: User)
     user = await service.create_user(
         username="updateemail",
         email="old@example.com",
-        full_name="Update Email User",
+        first_name="Update",
+        last_name="Email User",
         password=TEST_PASSWORD,
     )
 
@@ -220,7 +270,8 @@ async def test_update_user_email_normalizes_case(test_db_session: AsyncSession, 
     user = await service.create_user(
         username="emailcase",
         email="original@example.com",
-        full_name="Email Case User",
+        first_name="Email",
+        last_name="Case User",
         password=TEST_PASSWORD,
     )
 
@@ -242,7 +293,8 @@ async def test_update_user_is_enabled(test_db_session: AsyncSession, test_user: 
     user = await service.create_user(
         username="disableuser",
         email="disable@example.com",
-        full_name="Disable User",
+        first_name="Disable",
+        last_name="User",
         password=TEST_PASSWORD,
     )
 
@@ -259,14 +311,16 @@ async def test_update_user_duplicate_email_rejected(test_db_session: AsyncSessio
     await service.create_user(
         username="emailconflict1",
         email="taken@example.com",
-        full_name="Conflict User 1",
+        first_name="Conflict",
+        last_name="User 1",
         password=TEST_PASSWORD,
     )
 
     user = await service.create_user(
         username="emailconflict2",
         email="original@example.com",
-        full_name="Conflict User 2",
+        first_name="Conflict",
+        last_name="User 2",
         password=TEST_PASSWORD,
     )
 
@@ -280,7 +334,7 @@ async def test_update_user_not_found(test_db_session: AsyncSession, test_user: U
     service = UsersService(test_db_session, test_user)
 
     with pytest.raises(UserNotFoundError):
-        await service.update_user(uuid4(), full_name="New Name")
+        await service.update_user(uuid4(), first_name="New", last_name="Name")
 
 
 @pytest.mark.asyncio
@@ -291,12 +345,13 @@ async def test_update_user_updates_timestamp(test_db_session: AsyncSession, test
     user = await service.create_user(
         username="tsuser",
         email="tsuser@example.com",
-        full_name="TS User",
+        first_name="TS",
+        last_name="User",
         password=TEST_PASSWORD,
     )
     original_ts = user.updated_at
 
-    updated = await service.update_user(user.id, full_name="TS Updated")
+    updated = await service.update_user(user.id, first_name="TS", last_name="Updated")
 
     assert updated.updated_at > original_ts
 
@@ -311,7 +366,8 @@ async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None
         id=uuid4(),
         username="otheradmin",
         email="other@example.com",
-        full_name="Other Admin",
+        first_name="Other",
+        last_name="Admin",
         password_hash=hash_password("otherpassword"),
     )
     test_db_session.add(other_admin)
@@ -352,7 +408,7 @@ async def test_non_admin_cannot_modify_admin_fields(test_db_session: AsyncSessio
     service = UsersService(test_db_session, test_user)
 
     with pytest.raises(AdminModifyError):
-        await service.update_user(admin.id, full_name="Updated Admin")
+        await service.update_user(admin.id, first_name="Updated", last_name="Admin")
 
 
 @pytest.mark.asyncio
@@ -364,7 +420,8 @@ async def test_list_users_cursor(test_db_session: AsyncSession, test_user: User)
         await service.create_user(
             username=f"listuser{i}",
             email=f"listuser{i}@example.com",
-            full_name=f"List User {i}",
+            first_name="List",
+            last_name=f"User {i}",
             password=TEST_PASSWORD,
         )
 
@@ -382,7 +439,8 @@ async def test_create_user_normalizes_case(test_db_session: AsyncSession, test_u
     user = await service.create_user(
         username="BobSmith",
         email="Bob@Example.COM",
-        full_name="Bob Smith",
+        first_name="Bob",
+        last_name="Smith",
         password=TEST_PASSWORD,
     )
 
@@ -426,7 +484,8 @@ async def test_update_user_rejects_password_on_federated_user(test_db_session: A
         id=uuid4(),
         username="feduser",
         email="fed@example.com",
-        full_name="Federated User",
+        first_name="Federated",
+        last_name="User",
         password_hash=None,
         auth_type=AuthType.FEDERATED,
     )
@@ -446,7 +505,8 @@ async def test_to_read_sets_auth_type_local(test_db_session: AsyncSession, test_
     user = await service.create_user(
         username="withpass",
         email="withpass@example.com",
-        full_name="With Password",
+        first_name="With",
+        last_name="Password",
         password=TEST_PASSWORD,
     )
 
@@ -468,7 +528,8 @@ async def test_to_read_sets_auth_type_federated(test_db_session: AsyncSession, t
         id=uuid4(),
         username="oidcuser",
         email="oidc@example.com",
-        full_name="OIDC User",
+        first_name="OIDC",
+        last_name="User",
         password_hash=None,
         auth_type=AuthType.FEDERATED,
     )
@@ -492,7 +553,8 @@ async def test_to_read_serialization_no_enum_warning(test_db_session: AsyncSessi
     user = await service.create_user(
         username="sercheck",
         email="sercheck@example.com",
-        full_name="Serialization Check",
+        first_name="Serialization",
+        last_name="Check",
         password=TEST_PASSWORD,
     )
 
@@ -512,7 +574,8 @@ async def test_delete_user_success(test_db_session: AsyncSession, test_user: Use
     user = await service.create_user(
         username="todelete",
         email="todelete@example.com",
-        full_name="To Delete",
+        first_name="To",
+        last_name="Delete",
         password=TEST_PASSWORD,
     )
 
@@ -540,7 +603,8 @@ async def test_delete_user_anonymizes_email(test_db_session: AsyncSession, test_
     user = await service.create_user(
         username="victim",
         email=original_email,
-        full_name="Victim User",
+        first_name="Victim",
+        last_name="User",
         password=TEST_PASSWORD,
     )
 
@@ -562,8 +626,9 @@ async def test_delete_user_anonymizes_email(test_db_session: AsyncSession, test_
     new_user = await service.create_user(  # type: ignore[unreachable]
         username="newuser",
         email=original_email,  # Same email as deleted user
-        full_name="New User",
+        first_name="New",
         password=TEST_PASSWORD,
+        last_name="User",
     )
     assert new_user.email == original_email
     assert new_user.id != user.id
@@ -588,13 +653,13 @@ async def test_list_users_with_id_restriction(test_db_session: AsyncSession, tes
     user1 = await service.create_user(
         username="restricted1",
         email="r1@example.com",
-        full_name="R1",
+        first_name="R1",
         password=TEST_PASSWORD,
     )
     await service.create_user(
         username="restricted2",
         email="r2@example.com",
-        full_name="R2",
+        first_name="R2",
         password=TEST_PASSWORD,
     )
 
@@ -611,7 +676,7 @@ async def test_list_users_with_empty_id_restriction(test_db_session: AsyncSessio
     await service.create_user(
         username="noaccess",
         email="no@example.com",
-        full_name="No",
+        first_name="No",
         password=TEST_PASSWORD,
     )
 
@@ -628,7 +693,7 @@ async def test_list_users_with_none_id_restriction(test_db_session: AsyncSession
         await service.create_user(
             username=f"allaccess{i}",
             email=f"all{i}@example.com",
-            full_name=f"All {i}",
+            first_name=f"All {i}",
             password=TEST_PASSWORD,
         )
 
@@ -643,7 +708,8 @@ async def test_delete_last_admin_raises_error(test_db_session: AsyncSession) -> 
         id=uuid4(),
         username="soleadmin",
         email="sole@example.com",
-        full_name="Sole Admin",
+        first_name="Sole",
+        last_name="Admin",
         password_hash=hash_password("adminpassword"),
     )
     test_db_session.add(sole_admin)
@@ -684,7 +750,8 @@ async def test_create_user_no_groups_by_default(test_db_session: AsyncSession, t
     service = UsersService(test_db_session, test_user)
     user = await service.create_user(
         username="defaultuser",
-        full_name="Default User",
+        first_name="Default",
+        last_name="User",
         password=TEST_PASSWORD,
     )
 
@@ -702,7 +769,8 @@ async def test_create_user_explicit_groups(test_db_session: AsyncSession, test_u
     service = UsersService(test_db_session, test_user)
     user = await service.create_user(
         username="teamuser",
-        full_name="Team User",
+        first_name="Team",
+        last_name="User",
         password=TEST_PASSWORD,
         group_names=["team-alpha", "team-beta"],
     )
@@ -719,7 +787,8 @@ async def test_create_user_nonexistent_group_raises(test_db_session: AsyncSessio
     with pytest.raises(GroupNamesNotFoundError, match="no-such-group"):
         await service.create_user(
             username="baduser",
-            full_name="Bad User",
+            first_name="Bad",
+            last_name="User",
             password=TEST_PASSWORD,
             group_names=["no-such-group"],
         )
@@ -763,7 +832,7 @@ async def _create_federated_user(
         id=uuid4(),
         username=username,
         email=f"{username}@example.com",
-        full_name=username.title(),
+        first_name=username.title(),
         password_hash=None,
         auth_type=AuthType.FEDERATED,
     )
@@ -820,7 +889,8 @@ async def test_list_users_populates_auth_sources(test_db_session: AsyncSession, 
 
     local_user = await service.create_user(
         username="locallist",
-        full_name="Local List",
+        first_name="Local",
+        last_name="List",
         password=TEST_PASSWORD,
     )
 
@@ -842,7 +912,8 @@ async def test_list_users_filter_auth_source_local(test_db_session: AsyncSession
 
     local_user = await service.create_user(
         username="localfilter",
-        full_name="Local Filter",
+        first_name="Local",
+        last_name="Filter",
         password=TEST_PASSWORD,
     )
 
@@ -868,7 +939,8 @@ async def test_list_users_filter_auth_source_provider(test_db_session: AsyncSess
 
     await service.create_user(
         username="localexcluded",
-        full_name="Local Excluded",
+        first_name="Local",
+        last_name="Excluded",
         password=TEST_PASSWORD,
     )
 
@@ -894,7 +966,8 @@ async def test_list_users_filter_auth_source_nonexistent(test_db_session: AsyncS
 
     await service.create_user(
         username="nofilter",
-        full_name="No Filter",
+        first_name="No",
+        last_name="Filter",
         password=TEST_PASSWORD,
     )
 
@@ -924,3 +997,43 @@ async def test_list_users_filter_auth_source_with_id_restriction(
 
     assert len(result.resources) == 1
     assert result.resources[0].id == user_a.id
+
+
+@pytest.mark.asyncio
+async def test_update_user_strips_control_chars_from_names(test_db_session: AsyncSession, test_user: User) -> None:
+    """Control characters in first/last name are stripped on update."""
+    service = UsersService(test_db_session, test_user)
+
+    user = await service.create_user(
+        username="ctrlchar",
+        email="ctrlchar@example.com",
+        first_name="Clean",
+        password=TEST_PASSWORD,
+        last_name="Name",
+    )
+
+    updated = await service.update_user(
+        user.id,
+        first_name="Al\x00ice",
+        last_name="Smi\x0dth",
+    )
+
+    assert updated.first_name == "Alice"
+    assert updated.last_name == "Smith"
+
+
+@pytest.mark.asyncio
+async def test_update_user_strips_control_chars_from_username(test_db_session: AsyncSession, test_user: User) -> None:
+    """Control characters in username are stripped on update."""
+    service = UsersService(test_db_session, test_user)
+
+    user = await service.create_user(
+        username="ctrluser",
+        email="ctrluser@example.com",
+        first_name="Ctrl",
+        password=TEST_PASSWORD,
+    )
+
+    updated = await service.update_user(user.id, username="new\x00user")
+
+    assert updated.username == "newuser"

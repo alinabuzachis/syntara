@@ -71,6 +71,8 @@ class TokenPayload:
     jti: str | None = None
     email: str | None = None
     name: str | None = None
+    given_name: str | None = None
+    family_name: str | None = None
     preferred_username: str | None = None
     groups: list[str] | None = None
     token_version: int | None = None
@@ -429,7 +431,8 @@ class TokenService:
         user_id: UUID | str,
         username: str,
         email: str | None = None,
-        full_name: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
         amr: list[str] | None = None,
         idp: str = "local",
         groups: list[str] | None = None,
@@ -441,7 +444,8 @@ class TokenService:
             user_id: User UUID (stored in 'sub' claim)
             username: Username
             email: User email
-            full_name: User's display name (OIDC 'name' claim)
+            first_name: User's first name (OIDC 'given_name' claim)
+            last_name: User's last name (OIDC 'family_name' claim)
             amr: Authentication methods references (e.g., ["pwd"], ["fed", "mfa"])
             idp: Identity provider identifier (e.g., "local", "azure-ad-prod")
             groups: Group memberships
@@ -472,8 +476,12 @@ class TokenService:
             "amr": amr,
             "idp": idp,
         }
-        if full_name:
-            payload["name"] = full_name
+        if first_name:
+            display_name = f"{first_name} {last_name}".strip() if last_name else first_name
+            payload["name"] = display_name
+            payload["given_name"] = first_name
+            if last_name:
+                payload["family_name"] = last_name
 
         headers = {
             "kid": self._key_manager.key_id,

@@ -22,7 +22,8 @@ def _make_user() -> User:
         id=uuid4(),
         username="testuser",
         email="test@example.com",
-        full_name="Test User",
+        first_name="Test",
+        last_name="User",
         is_enabled=True,
     )
 

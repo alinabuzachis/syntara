@@ -280,10 +280,14 @@ components:
           type: string
           default: preferred_username
           title: Username
-        full_name:
+        first_name:
           type: string
-          default: name
-          title: Full Name
+          default: given_name
+          title: First Name
+        last_name:
+          type: string
+          default: family_name
+          title: Last Name
         groups:
           anyOf:
             - type: string

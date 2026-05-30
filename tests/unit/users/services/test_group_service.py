@@ -277,7 +277,8 @@ async def _create_second_user(session: AsyncSession) -> User:
         id=uuid4(),
         username="seconduser",
         email="second@example.com",
-        full_name="Second User",
+        first_name="Second",
+        last_name="User",
         password_hash=hash_password(TEST_PASSWORD),
     )
     session.add(user)

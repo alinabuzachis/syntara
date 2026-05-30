@@ -47,7 +47,7 @@ def user_login_events(
         json={
             "username": username,
             "email": email,
-            "full_name": "E2E Login Test",
+            "first_name": "E2E Login Test",
             "password": password,
         },
     )

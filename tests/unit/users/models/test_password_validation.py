@@ -19,7 +19,8 @@ class TestPasswordValidation:
         with pytest.raises(ValidationError, match="at least 14"):
             UserCreate(
                 username="testuser",
-                full_name="Test User",
+                first_name="Test",
+                last_name="User",
                 password="Short123!",  # Only 9 characters  # noqa: S106
             )
 
@@ -28,7 +29,8 @@ class TestPasswordValidation:
         with pytest.raises(ValidationError, match=r"at least 3.*character classes"):
             UserCreate(
                 username="testuser",
-                full_name="Test User",
+                first_name="Test",
+                last_name="User",
                 password="lowercasepasswordonly",  # 21 chars but only 1 class  # noqa: S106
             )
 
@@ -37,7 +39,8 @@ class TestPasswordValidation:
         with pytest.raises(ValidationError, match=r"at least 3.*character classes"):
             UserCreate(
                 username="testuser",
-                full_name="Test User",
+                first_name="Test",
+                last_name="User",
                 password="lowercaseonly123456",  # Only lowercase + digits (2 classes)  # noqa: S106
             )
 
@@ -45,7 +48,8 @@ class TestPasswordValidation:
         """Test password with uppercase + lowercase + digits (3 classes) is accepted."""
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password="ValidPassword123",  # Uppercase + lowercase + digits  # noqa: S106
         )
         assert user.username == "testuser"
@@ -54,7 +58,8 @@ class TestPasswordValidation:
         """Test password with lowercase + digits + special (3 classes) is accepted."""
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password="validpassword123!@#",  # Lowercase + digits + special  # noqa: S106
         )
         assert user.username == "testuser"
@@ -63,7 +68,8 @@ class TestPasswordValidation:
         """Test password with uppercase + digits + special (3 classes) is accepted."""
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password="VALIDPASSWORD123!",  # Uppercase + digits + special  # noqa: S106
         )
         assert user.username == "testuser"
@@ -72,7 +78,8 @@ class TestPasswordValidation:
         """Test password with uppercase + lowercase + special (3 classes) is accepted."""
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password="ValidPassword!@#$",  # Uppercase + lowercase + special  # noqa: S106
         )
         assert user.username == "testuser"
@@ -81,7 +88,8 @@ class TestPasswordValidation:
         """Test password with all 4 character classes is accepted."""
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password="ValidPassword123!",  # All 4 classes  # noqa: S106
         )
         assert user.username == "testuser"
@@ -90,7 +98,8 @@ class TestPasswordValidation:
         """Test password can contain spaces (counts as punctuation/other class)."""
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password="Valid Password 123",  # Uppercase + lowercase + digits + space  # noqa: S106
         )
         assert user.username == "testuser"
@@ -99,7 +108,8 @@ class TestPasswordValidation:
         """Test minimum length boundary: exactly 14 characters with 3 classes."""
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password="ValidPass123!!",  # Exactly 14 chars: upper + lower + digit + special  # noqa: S106
         )
         assert user.username == "testuser"
@@ -110,7 +120,8 @@ class TestPasswordValidation:
         password = f"ValidPassword{special_chars}"  # Mix of classes
         user = UserCreate(
             username="testuser",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             password=password,
         )
         assert user.username == "testuser"

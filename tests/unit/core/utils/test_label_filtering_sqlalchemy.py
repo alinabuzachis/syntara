@@ -261,7 +261,8 @@ class TestLabelFilteringSQLAlchemy:
         user_with_many_labels = User(
             username="complex-user",
             email="complex@example.com",
-            full_name="Complex User",
+            first_name="Complex",
+            last_name="User",
             password_hash="$argon2id$test",  # noqa: S106
             is_enabled=True,
             labels={f"label_{i}": f"value_{i}" for i in range(20)},  # 20 labels

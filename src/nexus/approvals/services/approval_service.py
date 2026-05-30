@@ -83,9 +83,9 @@ class ApprovalServiceConvertResourceMixin(ConvertResourceMixin):
         if resource.decided_by is not None:
             decider = getattr(resource, "decider", None)
             if decider is not None:
-                decider_name = decider.full_name
+                decider_name = decider.display_name
             elif resource.decided_by == self.user.id:
-                decider_name = self.user.full_name
+                decider_name = self.user.display_name
             else:
                 decider_name = ""
             result.decided_by = UserReference(id=resource.decided_by, name=decider_name)
@@ -424,7 +424,7 @@ class ApprovalService(BaseService):
             success=True,
             status=status,
             decided_at=approval.decided_at,
-            decided_by=UserReference(id=self.user.id, name=self.user.full_name),
+            decided_by=UserReference(id=self.user.id, name=self.user.display_name),
             decision_notes=notes,
         )
 

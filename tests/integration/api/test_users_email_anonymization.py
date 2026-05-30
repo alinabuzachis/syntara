@@ -25,7 +25,8 @@ class TestEmailAnonymizationOnDeletion:
         user_data = {
             "username": "emailuser",
             "email": "test@example.com",
-            "full_name": "Email User",
+            "first_name": "Email",
+            "last_name": "User",
             "password": "SecurePassword123!",
         }
         create_response = await admin_client.post(USERS_URL, json=user_data)
@@ -49,7 +50,8 @@ class TestEmailAnonymizationOnDeletion:
         user1_data = {
             "username": "user1",
             "email": original_email,
-            "full_name": "User 1",
+            "first_name": "User",
+            "last_name": "1",
             "password": "SecurePassword123!",
         }
         create1_response = await admin_client.post(USERS_URL, json=user1_data)
@@ -64,7 +66,8 @@ class TestEmailAnonymizationOnDeletion:
         user2_data = {
             "username": "user2",
             "email": original_email,  # Same email as deleted user
-            "full_name": "User 2",
+            "first_name": "User",
+            "last_name": "2",
             "password": "SecurePassword123!",
         }
         create2_response = await admin_client.post(USERS_URL, json=user2_data)
@@ -80,7 +83,8 @@ class TestEmailAnonymizationOnDeletion:
         # Create user without email
         user_data = {
             "username": "noemail",
-            "full_name": "No Email User",
+            "first_name": "No Email",
+            "last_name": "User",
             "password": "SecurePassword123!",
         }
         create_response = await admin_client.post(USERS_URL, json=user_data)
@@ -105,7 +109,8 @@ class TestEmailAnonymizationOnDeletion:
             user_data = {
                 "username": f"user{i}",
                 "email": shared_email,
-                "full_name": f"User {i}",
+                "first_name": "User",
+                "last_name": f"{i}",
                 "password": "SecurePassword123!",
             }
             create_response = await admin_client.post(USERS_URL, json=user_data)

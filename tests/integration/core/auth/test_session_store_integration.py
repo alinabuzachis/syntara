@@ -27,7 +27,8 @@ async def test_user(test_db_session: AsyncSession) -> User:
     """Create a real user in the database for FK-constrained session tests."""
     user = User(
         username=f"test-{uuid4().hex[:8]}",
-        full_name="Test User",
+        first_name="Test",
+        last_name="User",
         is_enabled=True,
         password_hash="$argon2id$placeholder",  # noqa: S106
     )
@@ -41,7 +42,8 @@ async def second_user(test_db_session: AsyncSession) -> User:
     """Create a second user for multi-user tests."""
     user = User(
         username=f"test-{uuid4().hex[:8]}",
-        full_name="Second User",
+        first_name="Second",
+        last_name="User",
         is_enabled=True,
         password_hash="$argon2id$placeholder",  # noqa: S106
     )

@@ -52,13 +52,13 @@ class TestFilterParserSQLAlchemy:
     async def test_apply_filters_contains_operator(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test applying contains filter using ilike."""
         query = select(User)
-        filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value="o")]
+        filters = [Filter(field="first_name", operator=FilterOperator.CONTAINS, value="o")]
 
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match users with 'o' in full_name
-        expected_users = [u for u in test_users if "o" in u.full_name.lower()]
+        # Should match users with 'o' in first_name
+        expected_users = [u for u in test_users if "o" in u.first_name.lower()]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -206,7 +206,7 @@ class TestFilterParserSQLAlchemy:
         query = select(User)
 
         # Test contains with different case
-        filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value="ALICE")]
+        filters = [Filter(field="first_name", operator=FilterOperator.CONTAINS, value="ALICE")]
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
@@ -516,7 +516,7 @@ class TestSQLInjectionProtection:
         ]
 
         for injection_value in injection_attempts:
-            filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value=injection_value)]
+            filters = [Filter(field="first_name", operator=FilterOperator.CONTAINS, value=injection_value)]
             filtered_query = apply_filters(query, filters, User)
 
             # Should execute safely without SQL injection
@@ -537,7 +537,7 @@ class TestSQLInjectionProtection:
         ]
 
         for injection_value in injection_attempts:
-            filters = [Filter(field="full_name", operator=FilterOperator.STARTS_WITH, value=injection_value)]
+            filters = [Filter(field="first_name", operator=FilterOperator.STARTS_WITH, value=injection_value)]
             filtered_query = apply_filters(query, filters, User)
 
             # Should execute safely without SQL injection
@@ -653,7 +653,7 @@ class TestSQLInjectionProtection:
         # Combine multiple injection attempts in one filter set
         filters = [
             Filter(field="username", operator=FilterOperator.CONTAINS, value="'; DROP TABLE--"),
-            Filter(field="full_name", operator=FilterOperator.STARTS_WITH, value="%' OR 1=1--"),
+            Filter(field="first_name", operator=FilterOperator.STARTS_WITH, value="%' OR 1=1--"),
             Filter(field="email", operator=FilterOperator.EQ, value="' UNION SELECT--"),
         ]
 
@@ -677,7 +677,7 @@ class TestSQLInjectionProtection:
         ]
 
         for injection_value in case_injection_attempts:
-            filters = [Filter(field="full_name", operator=FilterOperator.CONTAINS, value=injection_value)]
+            filters = [Filter(field="first_name", operator=FilterOperator.CONTAINS, value=injection_value)]
             filtered_query = apply_filters(query, filters, User)
 
             # Should execute safely
@@ -728,23 +728,23 @@ class TestLogicalORFiltering:
     ) -> None:
         """Test OR logic with bracket notation using contains operator."""
         # Parse comma-separated values with contains operator
-        params = {"full_name[contains]": "Smith,Johnson,Prince"}
-        allowed_fields = ["full_name"]
+        params = {"last_name[contains]": "Smith,Johnson,Prince"}
+        allowed_fields = ["last_name"]
         filters = parse_filters(params, allowed_fields)
 
         # Should create 3 separate filters for OR logic
         assert len(filters) == 3
-        assert all(f.field == "full_name" for f in filters)
+        assert all(f.field == "last_name" for f in filters)
         assert all(f.operator == FilterOperator.CONTAINS for f in filters)
 
-        # Apply to query - should match users whose full_name contains 'Smith' OR 'Johnson' OR 'Prince'
+        # Apply to query - should match users whose last_name contains 'Smith' OR 'Johnson' OR 'Prince'
         query = select(User)
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match users whose full_name contains specified values
+        # Should match users whose last_name contains specified values
         contains_values = ["Smith", "Johnson", "Prince"]
-        expected_users = [u for u in test_users if any(val in u.full_name for val in contains_values)]
+        expected_users = [u for u in test_users if u.last_name and any(val in u.last_name for val in contains_values)]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -846,9 +846,9 @@ class TestLogicalORFiltering:
         self, test_users: list[User], test_db_session: AsyncSession
     ) -> None:
         """Test OR logic with starts_with operator."""
-        # full_name starts_with 'Alice' OR 'Bob' OR 'Eve'
-        params = {"full_name[starts_with]": "Alice,Bob,Eve"}
-        allowed_fields = ["full_name"]
+        # first_name starts_with 'Alice' OR 'Bob' OR 'Eve'
+        params = {"first_name[starts_with]": "Alice,Bob,Eve"}
+        allowed_fields = ["first_name"]
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
@@ -856,9 +856,9 @@ class TestLogicalORFiltering:
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match users whose full_name starts with specified values
+        # Should match users whose first_name starts with specified values
         start_values = ["Alice", "Bob", "Eve"]
-        expected_users = [u for u in test_users if any(u.full_name.startswith(val) for val in start_values)]
+        expected_users = [u for u in test_users if any(u.first_name.startswith(val) for val in start_values)]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -942,8 +942,8 @@ class TestLogicalORFiltering:
     ) -> None:
         """Test that OR logic works correctly with case-insensitive operations."""
         # Test contains with different cases
-        params = {"full_name[contains]": "SMITH,johnson,brown"}
-        allowed_fields = ["full_name"]
+        params = {"last_name[contains]": "SMITH,johnson,brown"}
+        allowed_fields = ["last_name"]
         filters = parse_filters(params, allowed_fields)
 
         # Apply to query
@@ -951,9 +951,11 @@ class TestLogicalORFiltering:
         filtered_query = apply_filters(query, filters, User)
         result = (await test_db_session.exec(filtered_query)).all()
 
-        # Should match users whose full_name contains specified values (case-insensitive)
+        # Should match users whose last_name contains specified values (case-insensitive)
         contains_values = ["SMITH", "johnson", "brown"]
-        expected_users = [u for u in test_users if any(val.lower() in u.full_name.lower() for val in contains_values)]
+        expected_users = [
+            u for u in test_users if u.last_name and any(val.lower() in u.last_name.lower() for val in contains_values)
+        ]
         assert len(result) == len(expected_users)
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
@@ -966,10 +968,10 @@ class TestLogicalORFiltering:
         # Simulate real API query with multiple OR conditions
         params = {
             "username": "alice,diana",  # Simple OR
-            "full_name[starts_with]": "Bob,Charlie",  # Bracket notation OR
-            # This creates: (username='alice' OR 'diana') AND (full_name starts_with 'Bob' OR 'Charlie')
+            "first_name[starts_with]": "Bob,Charlie",  # Bracket notation OR
+            # This creates: (username='alice' OR 'diana') AND (first_name starts_with 'Bob' OR 'Charlie')
         }
-        allowed_fields = ["username", "full_name"]
+        allowed_fields = ["username", "first_name"]
 
         # Parse filters
         filters = parse_filters(params, allowed_fields)
@@ -1089,12 +1091,12 @@ class TestLogicalANDFiltering:
     async def test_string_contains_and_starts_with_same_field_are_anded(
         self, test_users: list[User], test_db_session: AsyncSession
     ) -> None:
-        """``full_name[contains]`` + ``full_name[starts_with]`` must AND together."""
+        """``first_name[contains]`` + ``first_name[starts_with]`` must AND together."""
         params = {
-            "full_name[starts_with]": "A",  # Matches "Alice Smith"
-            "full_name[contains]": "Smith",  # Also in "Alice Smith"
+            "first_name[starts_with]": "A",  # Matches "Alice"
+            "first_name[contains]": "lic",  # Also in "Alice"
         }
-        filters = parse_filters(params, ["full_name"])
+        filters = parse_filters(params, ["first_name"])
 
         query = apply_filters(select(User), filters, User)
         result = (await test_db_session.exec(query)).all()

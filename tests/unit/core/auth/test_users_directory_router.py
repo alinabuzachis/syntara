@@ -18,7 +18,8 @@ def _make_user(**kwargs: object) -> User:
     defaults = {
         "id": uuid4(),
         "username": "testuser",
-        "full_name": "Test User",
+        "first_name": "Test",
+        "last_name": "User",
         "is_enabled": True,
         "password_hash": "hashed",
     }

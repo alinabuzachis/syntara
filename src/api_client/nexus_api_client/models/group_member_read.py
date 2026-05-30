@@ -26,11 +26,12 @@ class GroupMemberRead:
     Attributes:
         id (UUID):
         username (str):
-        full_name (str):
+        first_name (str):
         is_enabled (bool):
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
         email (None | str | Unset):
+        last_name (None | str | Unset):
         is_builtin (bool | Unset):  Default: False.
         auth_sources (list[str] | Unset):
         auth_type (AuthType | Unset): Authentication type for users.
@@ -40,11 +41,12 @@ class GroupMemberRead:
 
     id: UUID
     username: str
-    full_name: str
+    first_name: str
     is_enabled: bool
     created_at: datetime.datetime
     updated_at: datetime.datetime
     email: None | str | Unset = UNSET
+    last_name: None | str | Unset = UNSET
     is_builtin: bool | Unset = False
     auth_sources: list[str] | Unset = UNSET
     auth_type: AuthType | Unset = UNSET
@@ -57,7 +59,7 @@ class GroupMemberRead:
 
         username = self.username
 
-        full_name = self.full_name
+        first_name = self.first_name
 
         is_enabled = self.is_enabled
 
@@ -70,6 +72,12 @@ class GroupMemberRead:
             email = UNSET
         else:
             email = self.email
+
+        last_name: None | str | Unset
+        if isinstance(self.last_name, Unset):
+            last_name = UNSET
+        else:
+            last_name = self.last_name
 
         is_builtin = self.is_builtin
 
@@ -102,7 +110,7 @@ class GroupMemberRead:
             {
                 "id": id,
                 "username": username,
-                "full_name": full_name,
+                "first_name": first_name,
                 "is_enabled": is_enabled,
                 "created_at": created_at,
                 "updated_at": updated_at,
@@ -110,6 +118,8 @@ class GroupMemberRead:
         )
         if email is not UNSET:
             field_dict["email"] = email
+        if last_name is not UNSET:
+            field_dict["last_name"] = last_name
         if is_builtin is not UNSET:
             field_dict["is_builtin"] = is_builtin
         if auth_sources is not UNSET:
@@ -132,7 +142,7 @@ class GroupMemberRead:
 
         username = d.pop("username")
 
-        full_name = d.pop("full_name")
+        first_name = d.pop("first_name")
 
         is_enabled = d.pop("is_enabled")
 
@@ -148,6 +158,15 @@ class GroupMemberRead:
             return cast(None | str | Unset, data)
 
         email = _parse_email(d.pop("email", UNSET))
+
+        def _parse_last_name(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        last_name = _parse_last_name(d.pop("last_name", UNSET))
 
         is_builtin = d.pop("is_builtin", UNSET)
 
@@ -189,11 +208,12 @@ class GroupMemberRead:
         group_member_read = cls(
             id=id,
             username=username,
-            full_name=full_name,
+            first_name=first_name,
             is_enabled=is_enabled,
             created_at=created_at,
             updated_at=updated_at,
             email=email,
+            last_name=last_name,
             is_builtin=is_builtin,
             auth_sources=auth_sources,
             auth_type=auth_type,

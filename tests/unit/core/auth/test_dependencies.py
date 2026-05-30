@@ -60,6 +60,50 @@ class TestUserFromPayload:
         with pytest.raises(InvalidTokenError):
             _user_from_payload(payload)
 
+    def test_uses_given_name_and_family_name_when_present(self) -> None:
+        """Should use given_name / family_name claims directly."""
+        payload = _make_payload()
+        payload.given_name = "Alice"
+        payload.family_name = "Smith"
+
+        user = _user_from_payload(payload)
+
+        assert user.first_name == "Alice"
+        assert user.last_name == "Smith"
+
+    def test_uses_given_name_without_family_name(self) -> None:
+        """Should set last_name to None when family_name claim is absent."""
+        payload = _make_payload()
+        payload.given_name = "Alice"
+        payload.family_name = None
+
+        user = _user_from_payload(payload)
+
+        assert user.first_name == "Alice"
+        assert user.last_name is None
+
+    def test_strips_control_chars_from_names(self) -> None:
+        """Should strip control characters from given_name and family_name."""
+        payload = _make_payload()
+        payload.given_name = "Al\x00ice"
+        payload.family_name = "Smi\x0dth"
+
+        user = _user_from_payload(payload)
+
+        assert user.first_name == "Alice"
+        assert user.last_name == "Smith"
+
+    def test_uses_full_name_as_first_name_when_given_name_absent(self) -> None:
+        """Should store the entire name as first_name without splitting."""
+        payload = _make_payload()
+        payload.given_name = None
+        payload.name = "Jane Doe"
+
+        user = _user_from_payload(payload)
+
+        assert user.first_name == "Jane Doe"
+        assert user.last_name is None
+
     def test_falls_back_when_optional_claims_are_none(self) -> None:
         """Missing preferred_username and email should fall back to sub-based values."""
         payload = _make_payload()
@@ -71,7 +115,7 @@ class TestUserFromPayload:
 
         assert user.username == payload.sub
         assert user.email == f"{payload.sub}@unknown"
-        assert user.full_name == payload.sub
+        assert user.first_name == payload.sub
 
 
 class TestGetCurrentUser:

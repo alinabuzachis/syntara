@@ -100,7 +100,7 @@ class TestBatchApprovalContract:
             # Validate decided_by matches request
             assert result["decided_by"] is not None
             assert result["decided_by"]["id"] == str(test_user.id)
-            assert result["decided_by"]["name"] == test_user.full_name
+            assert result["decided_by"]["name"] == test_user.display_name
 
             # Validate notes match request
             expected_notes = batch_payload["decisions"][i]["notes"]

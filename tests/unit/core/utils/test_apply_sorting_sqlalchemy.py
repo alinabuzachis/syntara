@@ -132,7 +132,7 @@ class TestApplySortingSQLAlchemy:
         query = select(User)
         sort_tuples = [
             ("is_enabled", SortDirection.ASC),  # Inactive first (False < True)
-            ("full_name", SortDirection.ASC),  # Then by full_name ascending
+            ("first_name", SortDirection.ASC),  # Then by first_name ascending
             ("username", SortDirection.ASC),  # Then by username ascending
         ]
 
@@ -142,7 +142,7 @@ class TestApplySortingSQLAlchemy:
         assert len(result) == len(test_users)
         usernames = [user.username for user in result]
         expected_usernames = [
-            u.username for u in sorted(test_users, key=lambda x: (x.is_enabled, x.full_name, x.username))
+            u.username for u in sorted(test_users, key=lambda x: (x.is_enabled, x.first_name, x.username))
         ]
         assert usernames == expected_usernames
         # Verify the expected split between inactive and active users
@@ -235,7 +235,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [
             ("is_enabled", SortDirection.ASC),
             ("username", SortDirection.DESC),
-            ("full_name", SortDirection.ASC),
+            ("first_name", SortDirection.ASC),
             ("email", SortDirection.DESC),
             ("created_at", SortDirection.ASC),
         ]
@@ -254,16 +254,16 @@ class TestApplySortingSQLAlchemy:
     ) -> None:
         """Test sorting string fields with various cases."""
         query = select(User)
-        sort_tuples = [("full_name", SortDirection.ASC)]
+        sort_tuples = [("first_name", SortDirection.ASC)]
 
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
 
-        # Should be sorted by full_name ascending
+        # Should be sorted by first_name ascending
         assert len(result) == len(test_users)
-        full_names = [user.full_name for user in result]
-        expected_full_names = [u.full_name for u in sorted(test_users, key=lambda x: x.full_name)]
-        assert full_names == expected_full_names
+        first_names = [user.first_name for user in result]
+        expected_first_names = [u.first_name for u in sorted(test_users, key=lambda x: x.first_name)]
+        assert first_names == expected_first_names
 
     async def test_apply_sorting_boolean_field_sorting(
         self, test_users: list[User], test_db_session: AsyncSession

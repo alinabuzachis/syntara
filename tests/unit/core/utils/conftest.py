@@ -41,7 +41,8 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
         User(
             username="alice",
             email="alice@example.com",
-            full_name="Alice Smith",
+            first_name="Alice",
+            last_name="Smith",
             password_hash=_TEST_PW_HASH,
             is_enabled=True,
             labels={
@@ -56,7 +57,8 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
         User(
             username="bob",
             email="bob@example.com",
-            full_name="Bob Johnson",
+            first_name="Bob",
+            last_name="Johnson",
             password_hash=_TEST_PW_HASH,
             is_enabled=True,
             labels={
@@ -71,7 +73,8 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
         User(
             username="charlie",
             email="charlie@example.com",
-            full_name="Charlie Brown",
+            first_name="Charlie",
+            last_name="Brown",
             password_hash=_TEST_PW_HASH,
             is_enabled=False,
             labels={
@@ -86,7 +89,8 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
         User(
             username="diana",
             email="diana@example.com",
-            full_name="Diana Prince",
+            first_name="Diana",
+            last_name="Prince",
             password_hash=_TEST_PW_HASH,
             is_enabled=True,
             labels={
@@ -101,7 +105,8 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
         User(
             username="eve",
             email="eve@example.com",
-            full_name="Eve Davis",
+            first_name="Eve",
+            last_name="Davis",
             password_hash=_TEST_PW_HASH,
             is_enabled=False,
             labels={"environment": "development", "region": "us-west-1", "team": "dev", "experimental": "true"},

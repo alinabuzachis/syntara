@@ -101,7 +101,8 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
         id=uuid4(),
         username="dev-user",
         email="dev@example.com",
-        full_name="Development User",
+        first_name="Development",
+        last_name="User",
         password_hash="$argon2id$test",  # noqa: S106
         is_enabled=True,
     )

@@ -40,7 +40,8 @@ def _make_user() -> User:
         id=uuid4(),
         username="test-admin",
         email="admin@test.com",
-        full_name="Test Admin",
+        first_name="Test",
+        last_name="Admin",
         is_active=True,
     )
 

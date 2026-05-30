@@ -28,7 +28,8 @@ class UserCreate(SQLModel):
 
     username: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Unique username")
     email: EmailStr | None = Field(default=None, max_length=FieldLimits.NAME_MAX_LENGTH, description="Email address")
-    full_name: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="User's display name")
+    first_name: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="User's first name")
+    last_name: str | None = Field(default=None, max_length=FieldLimits.NAME_MAX_LENGTH, description="User's last name")
     password: SecretStr = Field(..., min_length=14, description="Plaintext password (will be hashed)")
     is_enabled: bool = Field(default=True, description="Whether the user account is enabled")
     group_names: list[str] | None = Field(
@@ -88,9 +89,10 @@ class UserUpdate(SQLModel):
     username: str | None = Field(
         None, min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update username"
     )
-    full_name: str | None = Field(
-        None, min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update display name"
+    first_name: str | None = Field(
+        None, min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update first name"
     )
+    last_name: str | None = Field(None, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update last name")
     email: EmailStr | None = Field(None, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update email address")
     password: SecretStr | None = Field(
         None, description="New password (will be hashed). Omit to keep current password."
@@ -109,7 +111,8 @@ class UserRead(SQLModel):
     id: UUID
     username: str
     email: str | None = None
-    full_name: str
+    first_name: str
+    last_name: str | None = None
     is_enabled: bool
     is_builtin: bool = False
     auth_type: AuthType = AuthType.LOCAL
@@ -139,6 +142,7 @@ class UserListParams(BaseListParams):
     """Query parameters for listing users."""
 
     username: str | None = Field(default=None, description="Filter by username")
-    full_name: str | None = Field(default=None, description="Filter by full name")
+    first_name: str | None = Field(default=None, description="Filter by first name")
+    last_name: str | None = Field(default=None, description="Filter by last name")
     auth_type: AuthType | None = Field(default=None, description="Filter by authentication type (local or federated)")
     auth_source: str | None = Field(default=None, description="Filter by authentication source")

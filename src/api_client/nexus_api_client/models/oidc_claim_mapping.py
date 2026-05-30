@@ -18,14 +18,16 @@ class OIDCClaimMapping:
         subject (str | Unset):  Default: 'sub'.
         email (str | Unset):  Default: 'email'.
         username (str | Unset):  Default: 'preferred_username'.
-        full_name (str | Unset):  Default: 'name'.
+        first_name (str | Unset):  Default: 'given_name'.
+        last_name (str | Unset):  Default: 'family_name'.
         groups (None | str | Unset):
     """
 
     subject: str | Unset = "sub"
     email: str | Unset = "email"
     username: str | Unset = "preferred_username"
-    full_name: str | Unset = "name"
+    first_name: str | Unset = "given_name"
+    last_name: str | Unset = "family_name"
     groups: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
@@ -35,7 +37,9 @@ class OIDCClaimMapping:
 
         username = self.username
 
-        full_name = self.full_name
+        first_name = self.first_name
+
+        last_name = self.last_name
 
         groups: None | str | Unset
         if isinstance(self.groups, Unset):
@@ -52,8 +56,10 @@ class OIDCClaimMapping:
             field_dict["email"] = email
         if username is not UNSET:
             field_dict["username"] = username
-        if full_name is not UNSET:
-            field_dict["full_name"] = full_name
+        if first_name is not UNSET:
+            field_dict["first_name"] = first_name
+        if last_name is not UNSET:
+            field_dict["last_name"] = last_name
         if groups is not UNSET:
             field_dict["groups"] = groups
 
@@ -68,7 +74,9 @@ class OIDCClaimMapping:
 
         username = d.pop("username", UNSET)
 
-        full_name = d.pop("full_name", UNSET)
+        first_name = d.pop("first_name", UNSET)
+
+        last_name = d.pop("last_name", UNSET)
 
         def _parse_groups(data: object) -> None | str | Unset:
             if data is None:
@@ -83,7 +91,8 @@ class OIDCClaimMapping:
             subject=subject,
             email=email,
             username=username,
-            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name,
             groups=groups,
         )
 

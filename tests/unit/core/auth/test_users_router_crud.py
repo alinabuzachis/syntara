@@ -21,7 +21,8 @@ def _make_user(**kwargs: object) -> User:
         "id": uuid4(),
         "username": "testuser",
         "email": "test@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+        "last_name": "User",
         "is_enabled": True,
         "password_hash": "hashed",
     }
@@ -42,7 +43,8 @@ class TestCreateUserEndpoint:
                 id=user.id,
                 username=user.username,
                 email=user.email,
-                full_name=user.full_name,
+                first_name=user.first_name,
+                last_name=user.last_name,
                 is_enabled=user.is_enabled,
                 auth_type="local",
                 created_at=user.created_at,
@@ -53,7 +55,8 @@ class TestCreateUserEndpoint:
         request = UserCreate(
             username="newuser",
             email="new@example.com",
-            full_name="New User",
+            first_name="New",
+            last_name="User",
             password=SecretStr("ValidPassword123!"),
         )
 
@@ -77,7 +80,8 @@ class TestGetUserEndpoint:
                 id=user.id,
                 username=user.username,
                 email=user.email,
-                full_name=user.full_name,
+                first_name=user.first_name,
+                last_name=user.last_name,
                 is_enabled=user.is_enabled,
                 auth_type="local",
                 created_at=user.created_at,
@@ -96,7 +100,7 @@ class TestUpdateUserEndpoint:
 
     @pytest.mark.asyncio
     async def test_updates_user_and_returns_read(self) -> None:
-        updated_user = _make_user(full_name="Updated")
+        updated_user = _make_user(first_name="Updated")
         actor = _make_user(username="admin")
         service = AsyncMock()
         service.update_user = AsyncMock(return_value=updated_user)
@@ -105,7 +109,8 @@ class TestUpdateUserEndpoint:
                 id=updated_user.id,
                 username=updated_user.username,
                 email=updated_user.email,
-                full_name=updated_user.full_name,
+                first_name=updated_user.first_name,
+                last_name=updated_user.last_name,
                 is_enabled=updated_user.is_enabled,
                 auth_type="local",
                 created_at=updated_user.created_at,
@@ -116,11 +121,11 @@ class TestUpdateUserEndpoint:
 
         mock_store = AsyncMock()
 
-        request = UserUpdate(full_name="Updated")
+        request = UserUpdate(first_name="Updated")
         with patch("nexus.users.users_router.create_session_store", return_value=mock_store):
             result = await update_user(updated_user.id, request, service, actor, db)
 
-        assert result.full_name == "Updated"
+        assert result.first_name == "Updated"
         service.update_user.assert_called_once()
 
     @pytest.mark.asyncio

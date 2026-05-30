@@ -353,7 +353,8 @@ class TestActorExtractorSystemUserClassification:
             id=settings.system_user_id,
             username="system_user",
             email="system@example.com",
-            full_name="System User",
+            first_name="System",
+            last_name="User",
             password_hash="not-a-real-hash",  # noqa: S106
         )
 
@@ -378,7 +379,8 @@ class TestActorExtractorSystemUserClassification:
             id=uuid4(),
             username="regular_user",
             email="regular@example.com",
-            full_name="Regular User",
+            first_name="Regular",
+            last_name="User",
             password_hash="not-a-real-hash",  # noqa: S106
         )
         assert regular_user.id != settings.system_user_id
@@ -404,7 +406,8 @@ class TestActorExtractorSystemUserClassification:
             id=settings.system_user_id,
             username="system_via_dep",
             email="system_dep@example.com",
-            full_name="System Dep",
+            first_name="System",
+            last_name="Dep",
             password_hash="not-a-real-hash",  # noqa: S106
         )
 
@@ -425,7 +428,8 @@ class TestActorExtractorSystemUserClassification:
             id=settings.system_user_id,
             username="system_explicit",
             email="system_explicit@example.com",
-            full_name="System Explicit",
+            first_name="System",
+            last_name="Explicit",
             password_hash="not-a-real-hash",  # noqa: S106
         )
 

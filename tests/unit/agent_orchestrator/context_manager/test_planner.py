@@ -40,7 +40,8 @@ class TestContextManagerPlanner:
             id=uuid4(),
             username="testuser",
             email="testuser@example.com",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
         )
 
     def test_planner_initialization(self, mock_compressor) -> None:

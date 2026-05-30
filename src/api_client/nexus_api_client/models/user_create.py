@@ -19,18 +19,20 @@ class UserCreate:
 
         Attributes:
             username (str): Unique username
-            full_name (str): User's display name
+            first_name (str): User's first name
             password (str): Plaintext password (will be hashed)
             email (None | str | Unset): Email address
+            last_name (None | str | Unset): User's last name
             is_enabled (bool | Unset): Whether the user account is enabled Default: True.
             group_names (list[str] | None | Unset): Groups to assign the user to. Omit to use the default (users group).
                 Pass an empty list to skip group assignment.
     """
 
     username: str
-    full_name: str
+    first_name: str
     password: str
     email: None | str | Unset = UNSET
+    last_name: None | str | Unset = UNSET
     is_enabled: bool | Unset = True
     group_names: list[str] | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -38,7 +40,7 @@ class UserCreate:
     def to_dict(self) -> dict[str, Any]:
         username = self.username
 
-        full_name = self.full_name
+        first_name = self.first_name
 
         password = self.password
 
@@ -47,6 +49,12 @@ class UserCreate:
             email = UNSET
         else:
             email = self.email
+
+        last_name: None | str | Unset
+        if isinstance(self.last_name, Unset):
+            last_name = UNSET
+        else:
+            last_name = self.last_name
 
         is_enabled = self.is_enabled
 
@@ -64,12 +72,14 @@ class UserCreate:
         field_dict.update(
             {
                 "username": username,
-                "full_name": full_name,
+                "first_name": first_name,
                 "password": password,
             }
         )
         if email is not UNSET:
             field_dict["email"] = email
+        if last_name is not UNSET:
+            field_dict["last_name"] = last_name
         if is_enabled is not UNSET:
             field_dict["is_enabled"] = is_enabled
         if group_names is not UNSET:
@@ -82,7 +92,7 @@ class UserCreate:
         d = dict(src_dict)
         username = d.pop("username")
 
-        full_name = d.pop("full_name")
+        first_name = d.pop("first_name")
 
         password = d.pop("password")
 
@@ -94,6 +104,15 @@ class UserCreate:
             return cast(None | str | Unset, data)
 
         email = _parse_email(d.pop("email", UNSET))
+
+        def _parse_last_name(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        last_name = _parse_last_name(d.pop("last_name", UNSET))
 
         is_enabled = d.pop("is_enabled", UNSET)
 
@@ -116,9 +135,10 @@ class UserCreate:
 
         user_create = cls(
             username=username,
-            full_name=full_name,
+            first_name=first_name,
             password=password,
             email=email,
+            last_name=last_name,
             is_enabled=is_enabled,
             group_names=group_names,
         )

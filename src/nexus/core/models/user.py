@@ -39,7 +39,8 @@ class User(SoftDeletableResource, table=True):
         deleted_by: UUID of user who performed soft delete (from SoftDeletableResource)
         username: Unique username for authentication
         email: Email address
-        full_name: User's display name
+        first_name: User's first name
+        last_name: User's last name
         password_hash: Argon2id hash for local auth (null for federated-only users)
         is_enabled: Whether the user account is enabled
         last_login: Timestamp of last successful login
@@ -56,7 +57,8 @@ class User(SoftDeletableResource, table=True):
         "updated_at",
         "username",
         "email",
-        "full_name",
+        "first_name",
+        "last_name",
         "is_enabled",
         "auth_type",
     ]
@@ -67,7 +69,8 @@ class User(SoftDeletableResource, table=True):
         "updated_at",
         "username",
         "email",
-        "full_name",
+        "first_name",
+        "last_name",
         "last_login",
         "auth_type",
     ]
@@ -89,12 +92,26 @@ class User(SoftDeletableResource, table=True):
         index=True,
     )
 
-    full_name: str = Field(
+    first_name: str = Field(
         min_length=1,
         max_length=FieldLimits.NAME_MAX_LENGTH,
         sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
-        description="User's display name",
+        description="User's first name",
     )
+
+    last_name: str | None = Field(
+        default=None,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="User's last name",
+    )
+
+    @property
+    def display_name(self) -> str:
+        """Computed display name from first and last name."""
+        if self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.first_name
 
     password_hash: str | None = Field(
         default=None,

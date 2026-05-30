@@ -6,6 +6,8 @@ HTTP/API concerns in the FastAPI endpoints.
 
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import func
@@ -24,6 +26,7 @@ from nexus.auth.exceptions import (
     UserUsernameConflictError,
 )
 from nexus.auth.passwords import hash_password
+from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from nexus.core.models.user import AuthType
@@ -36,6 +39,13 @@ from nexus.core.queries.user_queries import get_user_by_id
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.identity_providers.models.identity_provider import IdentityProvider
+
+
+class _Sentinel(Enum):
+    UNSET = "UNSET"
+
+
+UNSET = _Sentinel.UNSET
 
 
 class UserConvertResourceMixin(ConvertResourceMixin):
@@ -129,9 +139,10 @@ class UsersService(BaseService):
     async def create_user(
         self,
         username: str,
-        full_name: str,
+        first_name: str,
         password: str,
         *,
+        last_name: str | None = None,
         email: str | None = None,
         is_enabled: bool = True,
         group_names: list[str] | None = None,
@@ -140,8 +151,9 @@ class UsersService(BaseService):
 
         Args:
             username: Unique username
-            full_name: User's display name
+            first_name: User's first name
             password: Plaintext password (will be hashed)
+            last_name: User's last name (optional)
             email: Email address (optional)
             is_enabled: Account activation status
             group_names: Groups to assign. None = use setting default, [] = no groups.
@@ -159,7 +171,8 @@ class UsersService(BaseService):
             id=uuid4(),
             username=username,
             email=email.lower() if email else None,
-            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name,
             password_hash=hash_password(password),
             is_enabled=is_enabled,
         )
@@ -297,7 +310,8 @@ class UsersService(BaseService):
         self,
         user_id: UUID,
         username: str | None = None,
-        full_name: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None | _Sentinel = UNSET,
         email: str | None = None,
         password: str | None = None,
         *,
@@ -308,7 +322,8 @@ class UsersService(BaseService):
         Args:
             user_id: UUID of user to update
             username: New username (optional)
-            full_name: New display name (optional)
+            first_name: New first name (optional)
+            last_name: New last name, pass None to clear, omit to keep (optional)
             email: New email (optional)
             password: New plaintext password (optional, will be hashed)
             is_enabled: New activation status (optional)
@@ -330,7 +345,8 @@ class UsersService(BaseService):
                 is_self=self.user.id == target_user.id,
                 is_enabled=is_enabled,
                 username=username,
-                full_name=full_name,
+                first_name=first_name,
+                last_name=last_name,
                 email=email,
                 password=password,
             )
@@ -344,29 +360,18 @@ class UsersService(BaseService):
         if password is not None and target_user.auth_type == AuthType.FEDERATED:
             raise PasswordOnFederatedUserError(user_id)
 
-        has_changes = False
+        updates = self._build_update_fields(
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            password=password,
+            is_enabled=is_enabled,
+        )
+        for attr, value in updates.items():
+            setattr(target_user, attr, value)
 
-        if username is not None:
-            target_user.username = username.lower()
-            has_changes = True
-
-        if full_name is not None:
-            target_user.full_name = full_name
-            has_changes = True
-
-        if email is not None:
-            target_user.email = email.lower()
-            has_changes = True
-
-        if password is not None:
-            target_user.password_hash = hash_password(password)
-            has_changes = True
-
-        if is_enabled is not None:
-            target_user.is_enabled = is_enabled
-            has_changes = True
-
-        if has_changes:
+        if updates:
             target_user.updated_at = datetime.now(UTC)
 
         await self._commit_with_duplicate_check(target_user.username, email=target_user.email)
@@ -392,23 +397,55 @@ class UsersService(BaseService):
         await self.session.commit()
 
     @staticmethod
+    def _build_update_fields(
+        *,
+        username: str | None,
+        first_name: str | None,
+        last_name: str | None | _Sentinel,
+        email: str | None,
+        password: str | None,
+        is_enabled: bool | None,
+    ) -> dict[str, Any]:
+        """Build a dict of fields to update on the user model."""
+        updates: dict[str, Any] = {}
+        if username is not None:
+            updates["username"] = strip_control_chars(username).lower()
+        if first_name is not None:
+            updates["first_name"] = strip_control_chars(first_name)
+        if last_name is not UNSET:
+            updates["last_name"] = strip_control_chars(last_name) if last_name else last_name
+        if email is not None:
+            updates["email"] = strip_control_chars(email).lower()
+        if password is not None:
+            updates["password_hash"] = hash_password(password)
+        if is_enabled is not None:
+            updates["is_enabled"] = is_enabled
+        return updates
+
+    @staticmethod
     def _guard_builtin_update(
         *,
         is_self: bool,
         is_enabled: bool | None,
         username: str | None,
-        full_name: str | None,
+        first_name: str | None,
+        last_name: str | None | _Sentinel,
         email: str | None,
         password: str | None,
     ) -> None:
         """Enforce modification rules for the built-in admin user."""
+        last_name_changed = last_name is not UNSET
         if is_self:
             # Self can do anything except change protected fields
-            if any(field is not None for field in (username, full_name, email)):
+            if any(field is not None for field in (username, first_name, email)) or last_name_changed:
                 raise AdminModifyError
             return
         # Non-self: only re-enabling is allowed (is_enabled=True, nothing else)
-        if is_enabled is not True or any(field is not None for field in (username, full_name, email, password)):
+        if (
+            is_enabled is not True
+            or any(field is not None for field in (username, first_name, email, password))
+            or last_name_changed
+        ):
             raise AdminModifyError
 
     async def _ensure_other_admins_exist(self, exclude_user_id: UUID | None = None) -> None:

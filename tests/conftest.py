@@ -863,7 +863,8 @@ def default_user_data() -> dict[str, Any]:
     return {
         "username": "testuser",
         "email": "testuser@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+        "last_name": "User",
         "password_hash": hash_password("password123"),
     }
 
@@ -911,7 +912,8 @@ async def non_local_user(test_db_session: AsyncSession) -> "User":
         id=uuid4(),
         username="federateduser",
         email="federated@example.com",
-        full_name="Federated User",
+        first_name="Federated",
+        last_name="User",
         auth_type=AuthType.FEDERATED,
     )
     test_db_session.add(user)
@@ -1922,7 +1924,8 @@ async def admin_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
     return await user_factory(
         username="admin",
         email="admin@example.com",
-        full_name="Admin User",
+        first_name="Admin",
+        last_name="User",
     )
 
 
@@ -1966,7 +1969,8 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             id=uuid4(),
             username="alice",
             email="alice@example.com",
-            full_name="Alice Anderson",
+            first_name="Alice",
+            last_name="Anderson",
             password_hash=hash_password("password123"),
             is_enabled=True,
         ),
@@ -1974,7 +1978,8 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             id=uuid4(),
             username="bob",
             email="bob@example.com",
-            full_name="Bob Brown",
+            first_name="Bob",
+            last_name="Brown",
             password_hash=hash_password("password123"),
             is_enabled=True,
         ),
@@ -1982,7 +1987,8 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             id=uuid4(),
             username="charlie",
             email="charlie@example.com",
-            full_name="Charlie Clark",
+            first_name="Charlie",
+            last_name="Clark",
             password_hash=hash_password("password123"),
             is_enabled=False,
         ),
@@ -1990,7 +1996,8 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             id=uuid4(),
             username="diana",
             email="diana@example.com",
-            full_name="Diana Davis",
+            first_name="Diana",
+            last_name="Davis",
             password_hash=hash_password("password123"),
             is_enabled=True,
         ),
@@ -1998,7 +2005,8 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             id=uuid4(),
             username="edward",
             email="edward@example.com",
-            full_name="Edward Evans",
+            first_name="Edward",
+            last_name="Evans",
             password_hash=hash_password("password123"),
             is_enabled=True,
         ),
@@ -2006,7 +2014,8 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             id=uuid4(),
             username="fiona",
             email="fiona@example.com",
-            full_name="Fiona Foster",
+            first_name="Fiona",
+            last_name="Foster",
             password_hash=hash_password("password123"),
             is_enabled=True,
         ),

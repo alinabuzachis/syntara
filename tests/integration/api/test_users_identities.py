@@ -54,7 +54,8 @@ async def federated_user(test_db_session: AsyncSession) -> User:
         id=uuid4(),
         username="fed-test-user",
         email="fed-test@example.com",
-        full_name="Federated Test User",
+        first_name="Federated",
+        last_name="Test User",
         auth_type=AuthType.FEDERATED,
         is_enabled=True,
     )
@@ -147,13 +148,15 @@ class TestAttachUserIdentity:
         source = User(
             username="source-user",
             email="source@example.com",
-            full_name="Source User",
+            first_name="Source",
+            last_name="User",
             auth_type=AuthType.FEDERATED,
         )
         target = User(
             username="target-user",
             email="target@example.com",
-            full_name="Target User",
+            first_name="Target",
+            last_name="User",
             auth_type=AuthType.FEDERATED,
         )
         test_db_session.add(source)
@@ -247,7 +250,8 @@ class TestDetachUserIdentity:
             id=uuid4(),
             username="fed-only-user",
             email="fed-only@example.com",
-            full_name="Federated Only",
+            first_name="Federated",
+            last_name="Only",
             password_hash=None,
             auth_type=AuthType.FEDERATED,
             is_enabled=True,

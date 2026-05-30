@@ -101,7 +101,7 @@ async def test_project_admin_grants_roles(
     project_id = response.json()["id"]
 
     # Create another user
-    other_user = await user_factory(username="bob", email="bob@example.com", full_name="Bob")
+    other_user = await user_factory(username="bob", email="bob@example.com", first_name="Bob")
 
     # Assign project-user role to bob
     response = await auth_client.post(
@@ -142,7 +142,7 @@ async def test_project_admin_grants_admin_to_another_user(
     assert response.status_code == 201
     project_id = response.json()["id"]
 
-    other_user = await user_factory(username="alice", email="alice@example.com", full_name="Alice")
+    other_user = await user_factory(username="alice", email="alice@example.com", first_name="Alice")
 
     # Grant project-admin to alice
     response = await auth_client.post(
@@ -170,7 +170,7 @@ async def test_assigned_user_gets_project_scoped_policies(
     project_name = response.json()["name"]
 
     other_user = await user_factory(
-        username="carol", email="carol@example.com", full_name="Carol", group_names=["users"]
+        username="carol", email="carol@example.com", first_name="Carol", group_names=["users"]
     )
 
     # Assign project-user
@@ -211,7 +211,7 @@ async def test_revoke_project_role(
     assert response.status_code == 201
     project_id = response.json()["id"]
 
-    other_user = await user_factory(username="dave", email="dave@example.com", full_name="Dave")
+    other_user = await user_factory(username="dave", email="dave@example.com", first_name="Dave")
 
     # Assign project-user
     response = await auth_client.post(
@@ -246,7 +246,7 @@ async def test_invalid_role_name_rejected(
     assert response.status_code == 201
     project_id = response.json()["id"]
 
-    other_user = await user_factory(username="eve", email="eve@example.com", full_name="Eve")
+    other_user = await user_factory(username="eve", email="eve@example.com", first_name="Eve")
 
     response = await auth_client.post(
         f"/api/v1/projects/{project_id}/role_assignments",
@@ -402,8 +402,8 @@ async def test_non_admin_cannot_assign_roles(
     project_id = response.json()["id"]
 
     # Create two other users
-    non_admin = await user_factory(username="nonadmin", email="nonadmin@example.com", full_name="Non Admin")
-    target_user = await user_factory(username="target", email="target@example.com", full_name="Target")
+    non_admin = await user_factory(username="nonadmin", email="nonadmin@example.com", first_name="Non Admin")
+    target_user = await user_factory(username="target", email="target@example.com", first_name="Target")
 
     # Assign project-user (not admin) to non_admin
     response = await auth_client.post(
@@ -448,7 +448,7 @@ async def test_project_auditor_has_read_only_permissions(
     project_id = response.json()["id"]
     project_name = response.json()["name"]
 
-    auditor = await user_factory(username="auditor", email="auditor@example.com", full_name="Auditor")
+    auditor = await user_factory(username="auditor", email="auditor@example.com", first_name="Auditor")
 
     # Assign project-auditor
     response = await auth_client.post(
@@ -507,8 +507,8 @@ async def test_project_admin_assigns_group_role(
     await test_db_session.flush()
 
     # Create two users and add them to the group
-    alice = await user_factory(username="alice", email="alice@example.com", full_name="Alice")
-    frank = await user_factory(username="frank", email="frank@example.com", full_name="Frank")
+    alice = await user_factory(username="alice", email="alice@example.com", first_name="Alice")
+    frank = await user_factory(username="frank", email="frank@example.com", first_name="Frank")
 
     await test_db_session.exec(insert(user_groups).values(user_id=alice.id, group_id=group.id))
     await test_db_session.exec(insert(user_groups).values(user_id=frank.id, group_id=group.id))
@@ -584,7 +584,7 @@ async def test_revoke_group_role_removes_access(
     test_db_session.add(group)
     await test_db_session.flush()
 
-    member = await user_factory(username="member", email="member@example.com", full_name="Member")
+    member = await user_factory(username="member", email="member@example.com", first_name="Member")
     await test_db_session.exec(insert(user_groups).values(user_id=member.id, group_id=group.id))
     await test_db_session.commit()
 

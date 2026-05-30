@@ -154,7 +154,7 @@ class TestGetApprovalContract:
         assert "id" in data["decided_by"]
         assert "name" in data["decided_by"]
         assert data["decided_by"]["id"] == str(test_user.id)
-        assert data["decided_by"]["name"] == test_user.full_name
+        assert data["decided_by"]["name"] == test_user.display_name
         assert data["decided_at"] is not None
         assert isinstance(data["decided_at"], str)  # ISO datetime string
         assert data["decision_notes"] is not None

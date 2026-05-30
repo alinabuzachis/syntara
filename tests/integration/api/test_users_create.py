@@ -20,7 +20,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "newuser",
             "email": "newuser@example.com",
-            "full_name": "New User",
+            "first_name": "New",
+            "last_name": "User",
             "password": "SecurePassword123!",
         }
 
@@ -31,7 +32,8 @@ class TestUsersCreateContract:
         data = response.json()
         assert data["username"] == "newuser"
         assert data["email"] == "newuser@example.com"
-        assert data["full_name"] == "New User"
+        assert data["first_name"] == "New"
+        assert data["last_name"] == "User"
         assert data["is_enabled"] is True  # default
 
     @pytest.mark.asyncio
@@ -40,7 +42,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "fulluser",
             "email": "fulluser@example.com",
-            "full_name": "Full User",
+            "first_name": "Full",
+            "last_name": "User",
             "password": "SecurePassword123!",
             "is_enabled": False,
         }
@@ -59,7 +62,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "schemauser",
             "email": "schemauser@example.com",
-            "full_name": "Schema User",
+            "first_name": "Schema",
+            "last_name": "User",
             "password": "SecurePassword123!",
         }
 
@@ -72,7 +76,7 @@ class TestUsersCreateContract:
             "id",
             "username",
             "email",
-            "full_name",
+            "first_name",
             "is_enabled",
             "last_login",
             "created_at",
@@ -91,7 +95,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "nopwduser",
             "email": "nopwduser@example.com",
-            "full_name": "No Password User",
+            "first_name": "No Password",
+            "last_name": "User",
             "password": "SecurePassword123!",
         }
 
@@ -109,7 +114,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "dupuser",
             "email": "dupuser@example.com",
-            "full_name": "Dup User",
+            "first_name": "Dup",
+            "last_name": "User",
             "password": "SecurePassword123!",
         }
 
@@ -137,7 +143,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "emailuser1",
             "email": "same@example.com",
-            "full_name": "Email User 1",
+            "first_name": "Email",
+            "last_name": "User 1",
             "password": "SecurePassword123!",
         }
 
@@ -147,7 +154,8 @@ class TestUsersCreateContract:
 
         # Create second user with same email — should fail
         user_data["username"] = "emailuser2"
-        user_data["full_name"] = "Email User 2"
+        user_data["first_name"] = "Email"
+        user_data["last_name"] = "User 2"
         response2 = await admin_client.post(USERS_URL, json=user_data)
 
         assert response2.status_code == 409
@@ -157,7 +165,8 @@ class TestUsersCreateContract:
         """Test 422 when username is missing."""
         user_data = {
             "email": "nouser@example.com",
-            "full_name": "No Username",
+            "first_name": "No",
+            "last_name": "Username",
             "password": "SecurePassword123!",
         }
 
@@ -170,7 +179,8 @@ class TestUsersCreateContract:
         """Test user can be created without email."""
         user_data = {
             "username": "noemail",
-            "full_name": "No Email",
+            "first_name": "No",
+            "last_name": "Email",
             "password": "SecurePassword123!",
         }
 
@@ -187,7 +197,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "nopwd",
             "email": "nopwd@example.com",
-            "full_name": "No Password",
+            "first_name": "No",
+            "last_name": "Password",
         }
 
         response = await admin_client.post(USERS_URL, json=user_data)
@@ -200,7 +211,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "",
             "email": "empty@example.com",
-            "full_name": "Empty Username",
+            "first_name": "Empty",
+            "last_name": "Username",
             "password": "SecurePassword123!",
         }
 
@@ -214,7 +226,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "x" * 256,
             "email": "long@example.com",
-            "full_name": "Long Username",
+            "first_name": "Long",
+            "last_name": "Username",
             "password": "SecurePassword123!",
         }
 
@@ -228,7 +241,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "unauth",
             "email": "unauth@example.com",
-            "full_name": "Unauth User",
+            "first_name": "Unauth",
+            "last_name": "User",
             "password": "SecurePassword123!",
         }
 
@@ -246,7 +260,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "shortpwd",
             "email": "shortpwd@example.com",
-            "full_name": "Short Password",
+            "first_name": "Short",
+            "last_name": "Password",
             "password": "Short123!",  # Only 9 characters
         }
 
@@ -262,7 +277,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "twoclasses",
             "email": "twoclasses@example.com",
-            "full_name": "Two Classes",
+            "first_name": "Two",
+            "last_name": "Classes",
             "password": "lowercaseonly123456",  # Only lowercase + digits (2 classes)
         }
 
@@ -279,7 +295,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "threeclasses1",
             "email": "threeclasses1@example.com",
-            "full_name": "Three Classes 1",
+            "first_name": "Three",
+            "last_name": "Classes 1",
             "password": "ValidPassword123",  # Uppercase + lowercase + digits
         }
 
@@ -295,7 +312,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "threeclasses2",
             "email": "threeclasses2@example.com",
-            "full_name": "Three Classes 2",
+            "first_name": "Three",
+            "last_name": "Classes 2",
             "password": "validpassword123!@#",  # Lowercase + digits + special
         }
 
@@ -309,7 +327,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "fourclasses",
             "email": "fourclasses@example.com",
-            "full_name": "Four Classes",
+            "first_name": "Four",
+            "last_name": "Classes",
             "password": "ValidPassword123!",  # All 4 classes
         }
 
@@ -323,7 +342,8 @@ class TestUsersCreateContract:
         user_data = {
             "username": "spaceword",
             "email": "spaceword@example.com",
-            "full_name": "Space Password",
+            "first_name": "Space",
+            "last_name": "Password",
             "password": "Valid Password 123",  # Uppercase + lowercase + digits + space
         }
 

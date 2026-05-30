@@ -184,6 +184,37 @@ class TestTokenCreation:
         payload = jwt.decode(token, options={"verify_signature": False, "verify_aud": False})
         assert payload["groups"] == ["engineering", "admins"]
 
+    def test_create_access_token_with_first_and_last_name(self, token_service: TokenService) -> None:
+        """Test that access token includes given_name, family_name, and computed name."""
+        user_id = uuid4()
+        token = token_service.create_access_token(
+            user_id=user_id,
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Smith",
+        )
+
+        payload = jwt.decode(token, options={"verify_signature": False, "verify_aud": False})
+        assert payload["given_name"] == "Alice"
+        assert payload["family_name"] == "Smith"
+        assert payload["name"] == "Alice Smith"
+
+    def test_create_access_token_with_first_name_only(self, token_service: TokenService) -> None:
+        """Test that access token omits family_name when last_name is not provided."""
+        user_id = uuid4()
+        token = token_service.create_access_token(
+            user_id=user_id,
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+        )
+
+        payload = jwt.decode(token, options={"verify_signature": False, "verify_aud": False})
+        assert payload["given_name"] == "Alice"
+        assert payload["name"] == "Alice"
+        assert "family_name" not in payload
+
     def test_create_access_token_has_correct_expiry(self, token_service: TokenService) -> None:
         """Test that access token expires after configured lifetime."""
         user_id = uuid4()

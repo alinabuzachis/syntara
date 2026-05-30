@@ -218,7 +218,8 @@ async def test_query_invocations_by_user(
     user2 = await user_factory(
         username="testuser2",
         email="testuser2@example.com",
-        full_name="Test User 2",
+        first_name="Test",
+        last_name="User 2",
     )
 
     # Create invocations for different users
