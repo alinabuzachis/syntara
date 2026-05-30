@@ -40,7 +40,7 @@ describe('useAllUsers', () => {
       {
         id: 'u1',
         username: 'alice',
-        full_name: 'Alice',
+        first_name: 'Alice',
         email: 'a@test.com',
         is_active: true,
         created_at: '2026-01-01T00:00:00Z',
@@ -68,7 +68,7 @@ describe('useAllUsers', () => {
       {
         id: 'u1',
         username: 'a',
-        full_name: null,
+        first_name: null,
         email: null,
         is_active: true,
         created_at: '2026-01-01T00:00:00Z',
@@ -79,7 +79,7 @@ describe('useAllUsers', () => {
       {
         id: 'u2',
         username: 'b',
-        full_name: null,
+        first_name: null,
         email: null,
         is_active: true,
         created_at: '2026-01-01T00:00:00Z',

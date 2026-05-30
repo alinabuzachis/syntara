@@ -101,10 +101,15 @@ export interface components {
        */
       username?: string
       /**
-       * Full Name
-       * @default name
+       * First Name
+       * @default given_name
        */
-      full_name?: string
+      first_name?: string
+      /**
+       * Last Name
+       * @default family_name
+       */
+      last_name?: string
       /** Groups */
       groups?: string | null
     }
@@ -151,6 +156,7 @@ export interface components {
       auto_discovery?: boolean
       /**
        * Issuer Url
+       * Format: uri
        * @description OIDC issuer URL (e.g. https://accounts.google.com)
        */
       issuer_url: string
@@ -166,6 +172,7 @@ export interface components {
       client_secret?: string | null
       /**
        * Redirect Uri
+       * Format: uri
        * @description OAuth 2.0 redirect URI
        */
       redirect_uri: string
@@ -260,6 +267,7 @@ export interface components {
       auto_discovery?: boolean
       /**
        * Issuer Url
+       * Format: uri
        * @description OIDC issuer URL (e.g. https://accounts.google.com)
        */
       issuer_url: string
@@ -270,6 +278,7 @@ export interface components {
       client_id: string
       /**
        * Redirect Uri
+       * Format: uri
        * @description OAuth 2.0 redirect URI
        */
       redirect_uri: string
@@ -363,6 +372,7 @@ export interface components {
       auto_discovery?: boolean
       /**
        * Issuer Url
+       * Format: uri
        * @description OIDC issuer URL (e.g. https://accounts.google.com)
        */
       issuer_url: string
@@ -378,6 +388,7 @@ export interface components {
       client_secret?: string | null
       /**
        * Redirect Uri
+       * Format: uri
        * @description OAuth 2.0 redirect URI
        */
       redirect_uri: string
@@ -441,7 +452,7 @@ export interface components {
       aap_role_mapping_enabled?: boolean | null
       /**
        * Disable Tls Verify
-       * @description Disable TLS certificate verification for requests to this identity provider (omit to keep existing)
+       * @description Disable TLS certificate verification for this identity provider (omit to keep existing)
        */
       disable_tls_verify?: boolean | null
     }

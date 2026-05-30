@@ -1276,7 +1276,8 @@ export const handlers = [
       claim_aliases: {
         email: ['email'],
         username: ['preferred_username'],
-        full_name: ['name'],
+        first_name: ['given_name'],
+        last_name: ['family_name'],
         groups: ['groups'],
       },
       end_session_endpoint_supported: true,
@@ -1306,10 +1307,16 @@ export const handlers = [
       resources = resources.filter((u) => u.email.toLowerCase().includes(searchTerm))
     }
 
-    const fullNameContains = url.searchParams.get('full_name[contains]')
-    if (fullNameContains) {
-      const searchTerm = fullNameContains.toLowerCase()
-      resources = resources.filter((u) => u.full_name.toLowerCase().includes(searchTerm))
+    const firstNameContains = url.searchParams.get('first_name[contains]')
+    if (firstNameContains) {
+      const searchTerm = firstNameContains.toLowerCase()
+      resources = resources.filter((u) => u.first_name.toLowerCase().includes(searchTerm))
+    }
+
+    const lastNameContains = url.searchParams.get('last_name[contains]')
+    if (lastNameContains) {
+      const searchTerm = lastNameContains.toLowerCase()
+      resources = resources.filter((u) => (u.last_name ?? '').toLowerCase().includes(searchTerm))
     }
 
     const authSource = url.searchParams.get('auth_source')
@@ -1328,9 +1335,13 @@ export const handlers = [
             aVal = a.username
             bVal = b.username
             break
-          case 'full_name':
-            aVal = a.full_name
-            bVal = b.full_name
+          case 'first_name':
+            aVal = a.first_name
+            bVal = b.first_name
+            break
+          case 'last_name':
+            aVal = a.last_name ?? ''
+            bVal = b.last_name ?? ''
             break
           case 'email':
             aVal = a.email
@@ -1374,7 +1385,8 @@ export const handlers = [
     const body = (await request.json()) as {
       username?: string
       email?: string
-      full_name?: string
+      first_name?: string
+      last_name?: string | null
       password?: string
       is_enabled?: boolean
       group_names?: string[] | null
@@ -1403,7 +1415,8 @@ export const handlers = [
       id: uuidv4(),
       username: body.username ?? '',
       email: body.email ?? '',
-      full_name: body.full_name ?? '',
+      first_name: body.first_name ?? '',
+      last_name: body.last_name ?? null,
       is_enabled: body.is_enabled ?? true,
       auth_type: 'local',
       auth_sources: ['Local'],
@@ -1450,7 +1463,8 @@ export const handlers = [
     }
 
     const body = (await request.json()) as {
-      full_name?: string
+      first_name?: string
+      last_name?: string | null
       email?: string
       password?: string
       is_enabled?: boolean
@@ -1476,7 +1490,8 @@ export const handlers = [
     const index = users.indexOf(user)
     const updated: UserRead = {
       ...user,
-      ...(body.full_name !== undefined && { full_name: body.full_name }),
+      ...(body.first_name !== undefined && { first_name: body.first_name }),
+      ...(body.last_name !== undefined && { last_name: body.last_name }),
       ...(body.email !== undefined && { email: body.email }),
       ...(body.is_enabled !== undefined && { is_enabled: body.is_enabled }),
       updated_at: new Date().toISOString(),
@@ -1688,6 +1703,43 @@ export const handlers = [
         created_at: a.created_at,
       }))
     return HttpResponse.json({ resources: assignments, total: assignments.length })
+  }),
+
+  // Directory handlers (lightweight id + username/name only)
+  http.get('/api/v1/users_directory', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let resources = users.map((u) => ({ id: u.id, username: u.username }))
+
+    const usernameContains = url.searchParams.get('username[contains]')
+    if (usernameContains) {
+      const searchTerm = usernameContains.toLowerCase()
+      resources = resources.filter((u) => u.username.toLowerCase().includes(searchTerm))
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
+  }),
+
+  http.get('/api/v1/groups_directory', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let resources = groups.map((g) => ({ id: g.id, name: g.name }))
+
+    const nameContains = url.searchParams.get('name[contains]')
+    if (nameContains) {
+      const searchTerm = nameContains.toLowerCase()
+      resources = resources.filter((g) => g.name.toLowerCase().includes(searchTerm))
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
   }),
 
   // Group handlers

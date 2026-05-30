@@ -42,8 +42,9 @@ import { BuiltInAdminCard } from './BuiltInAdminCard'
 import { DisabledBadge } from './DisabledBadge'
 import { useAdminToggle } from './useAdminToggle'
 import { getAuthSourceFilterDefinition } from './userFilters'
+import { userDisplayName } from './users/userDisplayName'
 
-const SORT_FIELDS = ['username', 'full_name', 'email', 'last_login'] as const
+const SORT_FIELDS = ['username', 'first_name', 'last_name', 'email', 'last_login'] as const
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
@@ -55,12 +56,20 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
     placeholder: 'Filter by username',
   },
   {
-    key: 'full_name',
-    label: 'Name',
+    key: 'first_name',
+    label: 'First Name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by name',
+    placeholder: 'Filter by first name',
+  },
+  {
+    key: 'last_name',
+    label: 'Last Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by last name',
   },
   {
     key: 'email',
@@ -206,9 +215,9 @@ export function UsersTab() {
               <Tr>
                 <Th sort={getSortParams(0)}>Username</Th>
                 <Th sort={getSortParams(1)}>Name</Th>
-                <Th sort={getSortParams(2)}>Email</Th>
+                <Th sort={getSortParams(3)}>Email</Th>
                 <Th>Authentication</Th>
-                <Th sort={getSortParams(3)}>Last Login</Th>
+                <Th sort={getSortParams(4)}>Last Login</Th>
                 <Th screenReaderText="Actions" />
               </Tr>
             </Thead>
@@ -222,7 +231,7 @@ export function UsersTab() {
                     {!user.is_enabled && <DisabledBadge />}
                   </Td>
                   <Td dataLabel="Name">
-                    <Truncate content={user.full_name ?? ''} />
+                    <Truncate content={userDisplayName(user)} />
                   </Td>
                   <Td dataLabel="Email">
                     <Truncate content={user.email ?? ''} />

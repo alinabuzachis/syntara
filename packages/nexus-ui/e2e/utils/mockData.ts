@@ -11,7 +11,8 @@ export const NON_BUILTIN_USER_ID = 'b2c3d4e5-f6a7-8901-bcde-f12345678901'
 export const builtinUserResponse = {
   id: BUILTIN_USER_ID,
   username: 'admin',
-  full_name: 'Built-in Admin',
+  first_name: 'Built-in',
+  last_name: 'Admin',
   email: 'admin@nexus.local',
   is_enabled: true,
   is_builtin: true,
@@ -24,7 +25,8 @@ export const builtinUserResponse = {
 export const nonBuiltinUserResponse = {
   id: NON_BUILTIN_USER_ID,
   username: 'jdoe',
-  full_name: 'John Doe',
+  first_name: 'John',
+  last_name: 'Doe',
   email: 'jdoe@nexus.local',
   is_enabled: true,
   is_builtin: false,
@@ -105,7 +107,8 @@ export const FEDERATED_USER_ID = 'c3d4e5f6-a7b8-9012-cdef-234567890abc'
 export const federatedUserResponse = {
   id: FEDERATED_USER_ID,
   username: 'asmith',
-  full_name: 'Alice Smith',
+  first_name: 'Alice',
+  last_name: 'Smith',
   email: 'asmith@nexus.local',
   is_enabled: true,
   is_builtin: false,

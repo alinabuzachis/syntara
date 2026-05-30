@@ -63,7 +63,8 @@ function claimMappingPayload(formData: IdentityProviderFormData) {
     subject: formData.claimMapping.subject,
     email: formData.claimMapping.email,
     username: formData.claimMapping.username,
-    full_name: formData.claimMapping.fullName,
+    first_name: formData.claimMapping.firstName,
+    last_name: formData.claimMapping.lastName,
     groups: formData.claimMapping.groups,
   }
 }
@@ -143,7 +144,8 @@ function toClaimMappingValues(cm?: ProviderConfig['claim_mapping']): IdentityPro
     subject: cm?.subject ?? 'sub',
     email: cm?.email ?? 'email',
     username: cm?.username ?? 'preferred_username',
-    fullName: cm?.full_name ?? 'name',
+    firstName: cm?.first_name ?? 'given_name',
+    lastName: cm?.last_name ?? 'family_name',
     groups: cm?.groups ?? null,
   }
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PASSWORD_CHARACTER_CLASSES_MESSAGE, PASSWORD_MIN_LENGTH_MESSAGE } from './passwordComplexity'
 import { COMPLIANT_TEST_PASSWORD } from './passwordComplexity.testFixtures'
-import { splitFullName, toFullName, userFormSchema, userCreateSchema } from './userFormSchema'
+import { userFormSchema, userCreateSchema } from './userFormSchema'
 
 describe('userFormSchema', () => {
   const validData = {
@@ -143,33 +143,5 @@ describe('userCreateSchema', () => {
       const passwordError = result.error.issues.find((i) => i.path.includes('password'))
       expect(passwordError?.message).toBe('Password is required')
     }
-  })
-})
-
-describe('toFullName', () => {
-  it('joins first and last name', () => {
-    expect(toFullName('John', 'Doe')).toBe('John Doe')
-  })
-
-  it('handles empty last name', () => {
-    expect(toFullName('John', '')).toBe('John')
-  })
-})
-
-describe('splitFullName', () => {
-  it('splits first and last name', () => {
-    expect(splitFullName('John Doe')).toEqual({ first_name: 'John', last_name: 'Doe' })
-  })
-
-  it('handles single name', () => {
-    expect(splitFullName('John')).toEqual({ first_name: 'John', last_name: '' })
-  })
-
-  it('handles multiple spaces in last name', () => {
-    expect(splitFullName('John van Doe')).toEqual({ first_name: 'John', last_name: 'van Doe' })
-  })
-
-  it('handles empty string', () => {
-    expect(splitFullName('')).toEqual({ first_name: '', last_name: '' })
   })
 })

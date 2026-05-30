@@ -99,7 +99,8 @@ const mockUserData = {
   id: VALID_UUID,
   username: 'jdoe',
   email: 'jdoe@nexus.local',
-  full_name: 'John Doe',
+  first_name: 'John',
+  last_name: 'Doe',
   is_enabled: true,
 }
 
@@ -181,7 +182,8 @@ describe('UserForm', () => {
         body: {
           username: 'newuser',
           email: 'new@nexus.local',
-          full_name: 'New User',
+          first_name: 'New',
+          last_name: 'User',
           password: COMPLIANT_TEST_PASSWORD,
           is_enabled: true,
           group_names: ['users'],
@@ -342,7 +344,8 @@ describe('UserForm', () => {
         params: { path: { user_id: VALID_UUID } },
         body: {
           username: 'jdoe',
-          full_name: 'John Doe',
+          first_name: 'John',
+          last_name: 'Doe',
           email: 'updated@nexus.local',
           is_enabled: true,
         },

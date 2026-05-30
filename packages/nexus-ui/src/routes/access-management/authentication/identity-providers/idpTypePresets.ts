@@ -17,7 +17,8 @@ export type IdpTypePreset = {
     subject: string
     email: string
     username: string
-    fullName: string
+    firstName: string
+    lastName: string
     groups: string | null
   }
   groupMappingExpression: string
@@ -33,7 +34,8 @@ export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
       subject: 'sub',
       email: 'email',
       username: 'preferred_username',
-      fullName: 'name',
+      firstName: 'given_name',
+      lastName: 'family_name',
       groups: null,
     },
     groupMappingExpression: "[aap_teams[*].join('/', [organization, name]), aap_organizations[*].name] | []",
@@ -47,7 +49,8 @@ export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
       subject: 'sub',
       email: 'email',
       username: 'preferred_username',
-      fullName: 'name',
+      firstName: 'given_name',
+      lastName: 'family_name',
       groups: null,
     },
     groupMappingExpression: 'groups[*]',

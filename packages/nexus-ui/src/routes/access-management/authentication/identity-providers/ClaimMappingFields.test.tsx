@@ -38,7 +38,8 @@ describe('UserClaimMappingFields', () => {
     expect(screen.getByText('Subject claim')).toBeInTheDocument()
     expect(screen.getByText('Email claim')).toBeInTheDocument()
     expect(screen.getByText('Username claim')).toBeInTheDocument()
-    expect(screen.getByText('Full name claim')).toBeInTheDocument()
+    expect(screen.getByText('First name claim')).toBeInTheDocument()
+    expect(screen.getByText('Last name claim')).toBeInTheDocument()
   })
 
   it('renders text inputs with default values when no claimsSupported provided', () => {
@@ -47,7 +48,8 @@ describe('UserClaimMappingFields', () => {
     expect(screen.getByDisplayValue('sub')).toBeInTheDocument()
     expect(screen.getByDisplayValue('email')).toBeInTheDocument()
     expect(screen.getByDisplayValue('preferred_username')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('name')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('given_name')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('family_name')).toBeInTheDocument()
   })
 
   it('renders dropdowns when claimsSupported is provided', () => {
@@ -56,7 +58,8 @@ describe('UserClaimMappingFields', () => {
       sub: ['sub'],
       email: ['email', 'mail'],
       username: ['preferred_username'],
-      full_name: ['name', 'displayName'],
+      first_name: ['given_name', 'givenName'],
+      last_name: ['family_name', 'familyName'],
     }
 
     render(<UserClaimWrapper claimsSupported={claimsSupported} claimAliases={claimAliases} />)
@@ -139,8 +142,8 @@ describe('UserClaimMappingFields', () => {
     render(<UserClaimWrapper claimsSupported={null} />)
 
     const inputs = screen.getAllByRole('textbox')
-    // All four fields should render as plain text inputs
-    expect(inputs.length).toBe(4)
+    // All five fields should render as plain text inputs
+    expect(inputs.length).toBe(5)
     expect(screen.getByDisplayValue('sub')).toBeInTheDocument()
   })
 
@@ -148,7 +151,7 @@ describe('UserClaimMappingFields', () => {
     render(<UserClaimWrapper claimsSupported={undefined} />)
 
     const inputs = screen.getAllByRole('textbox')
-    expect(inputs.length).toBe(4)
+    expect(inputs.length).toBe(5)
   })
 
   it('shows "No claims match" message when filter matches nothing', async () => {
@@ -187,9 +190,7 @@ describe('UserClaimMappingFields', () => {
     await user.click(screen.getByRole('option', { name: 'name' }))
 
     // Subject claim value should now be 'name'
-    // There will be two inputs with 'name' (Subject and Full Name), so use getAllBy
-    const nameInputs = screen.getAllByDisplayValue('name')
-    expect(nameInputs.length).toBe(2)
+    expect(screen.getByDisplayValue('name')).toBeInTheDocument()
   })
 
   it('renders read-only text inputs even when claimsSupported is provided', () => {
@@ -208,7 +209,7 @@ describe('UserClaimMappingFields', () => {
     render(<UserClaimWrapper isReadOnly />)
 
     const helperTexts = screen.getAllByText('Pre-configured by provider template. Select Custom to modify.')
-    expect(helperTexts.length).toBe(4)
+    expect(helperTexts.length).toBe(5)
   })
 
   it('orders matched aliases before other claims in dropdown', async () => {
@@ -318,7 +319,8 @@ describe('UserClaimMappingFields', () => {
     expect(screen.getByText(/IdP claim for the unique user identifier/)).toBeInTheDocument()
     expect(screen.getByText(/IdP claim for the user email/)).toBeInTheDocument()
     expect(screen.getByText(/IdP claim for the username/)).toBeInTheDocument()
-    expect(screen.getByText(/IdP claim for the display name/)).toBeInTheDocument()
+    expect(screen.getByText(/IdP claim for the first name/)).toBeInTheDocument()
+    expect(screen.getByText(/IdP claim for the last name/)).toBeInTheDocument()
   })
 
   it('handles empty claimsSupported array', async () => {

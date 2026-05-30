@@ -12,7 +12,7 @@ import {
   BUILTIN_ADMINS_GROUP_NAME,
   LAST_ADMIN_TOGGLE_DISABLED_REASON,
 } from '../adminConstants'
-import { splitFullName, type UserFormData } from '../userFormSchema'
+import type { UserFormData } from '../userFormSchema'
 
 type ToggleStatusResult = {
   canToggleStatus: boolean
@@ -41,19 +41,22 @@ function computeToggleStatus(
 }
 
 function useStableFormValues(
-  userData: { username: string; full_name: string | null; email?: string | null; is_enabled: boolean } | undefined
+  userData:
+    | { username: string; first_name: string; last_name?: string | null; email?: string | null; is_enabled: boolean }
+    | undefined
 ): UserFormData | undefined {
   const username = userData?.username
-  const fullName = userData?.full_name ?? ''
+  const firstName = userData?.first_name ?? ''
+  const lastName = userData?.last_name ?? ''
   const email = userData?.email ?? ''
   const isEnabledVal = userData?.is_enabled
 
   return useMemo(
     () =>
       username !== undefined && isEnabledVal !== undefined
-        ? { username, ...splitFullName(fullName), email, password: '', is_enabled: isEnabledVal }
+        ? { username, first_name: firstName, last_name: lastName, email, password: '', is_enabled: isEnabledVal }
         : undefined,
-    [username, fullName, email, isEnabledVal]
+    [username, firstName, lastName, email, isEnabledVal]
   )
 }
 

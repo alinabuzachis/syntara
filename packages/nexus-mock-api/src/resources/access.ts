@@ -5,15 +5,16 @@
 export interface MockUser {
   id: string
   username: string
-  full_name: string
+  first_name: string
+  last_name?: string | null
 }
 
 export const mockUsers: MockUser[] = [
-  { id: 'u-001', username: 'alice', full_name: 'Alice Johnson' },
-  { id: 'u-002', username: 'bob', full_name: 'Bob Smith' },
-  { id: 'u-003', username: 'carol', full_name: 'Carol Williams' },
-  { id: 'u-004', username: 'admin', full_name: 'System Admin' },
-  { id: 'u-005', username: 'dave', full_name: 'Dave Chen' },
+  { id: 'u-001', username: 'alice', first_name: 'Alice', last_name: 'Johnson' },
+  { id: 'u-002', username: 'bob', first_name: 'Bob', last_name: 'Smith' },
+  { id: 'u-003', username: 'carol', first_name: 'Carol', last_name: 'Williams' },
+  { id: 'u-004', username: 'admin', first_name: 'System', last_name: 'Admin' },
+  { id: 'u-005', username: 'dave', first_name: 'Dave', last_name: 'Chen' },
 ]
 
 // ── Groups ────────────────────────────────────────────────────────────────
@@ -559,7 +560,8 @@ export const mockUserRoleAssignments: MockUserRoleAssignment[] = [
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 export function getUserName(userId: string): string {
-  return mockUsers.find((u) => u.id === userId)?.full_name ?? userId
+  const user = mockUsers.find((u) => u.id === userId)
+  return user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : userId
 }
 
 export function getGroupName(groupId: string): string {

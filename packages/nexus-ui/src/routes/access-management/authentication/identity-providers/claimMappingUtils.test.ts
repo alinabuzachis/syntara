@@ -7,7 +7,8 @@ describe('autoSelectClaimMappings', () => {
     subject: 'sub',
     email: 'email',
     username: 'preferred_username',
-    fullName: 'name',
+    firstName: 'given_name',
+    lastName: 'family_name',
     groups: null,
   }
 
@@ -23,18 +24,20 @@ describe('autoSelectClaimMappings', () => {
 
   it('selects alias when current value is not supported', () => {
     const setFieldValue = vi.fn()
-    const claimsSupported = ['sub', 'mail', 'upn', 'displayName']
+    const claimsSupported = ['sub', 'mail', 'upn', 'givenName', 'familyName']
     const claimAliases = {
       email: ['mail', 'email_address'],
       username: ['upn', 'preferred_username'],
-      full_name: ['displayName', 'name'],
+      first_name: ['givenName', 'given_name'],
+      last_name: ['familyName', 'family_name'],
     }
 
     autoSelectClaimMappings(claimsSupported, claimAliases, defaultMapping, setFieldValue)
 
     expect(setFieldValue).toHaveBeenCalledWith('claimMapping.email', 'mail')
     expect(setFieldValue).toHaveBeenCalledWith('claimMapping.username', 'upn')
-    expect(setFieldValue).toHaveBeenCalledWith('claimMapping.fullName', 'displayName')
+    expect(setFieldValue).toHaveBeenCalledWith('claimMapping.firstName', 'givenName')
+    expect(setFieldValue).toHaveBeenCalledWith('claimMapping.lastName', 'familyName')
   })
 
   it('picks the first matching alias', () => {

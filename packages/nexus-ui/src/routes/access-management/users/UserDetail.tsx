@@ -34,10 +34,10 @@ import { AUTH_TYPE_LOCAL } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
-import { splitFullName } from '../userFormSchema'
 
 import type { UserIdentity } from './identityUtils'
 import { computeGroupCount, computeRoleAssignmentCount } from './userDetailUtils'
+import { userDisplayName } from './userDisplayName'
 import { UserGroupsPanel } from './UserGroupsPanel'
 import { UserIdentitiesPanel } from './UserIdentitiesPanel'
 import { UserNotFoundState } from './UserNotFoundState'
@@ -99,7 +99,7 @@ function UserDetailsTab({
   user: User
   identities: Pick<UserIdentity, 'provider_name' | 'identity_provider_id'>[]
 }) {
-  const { first_name, last_name } = splitFullName(user.full_name ?? '')
+  const { first_name, last_name } = user
 
   const isLocal = user.auth_type === AUTH_TYPE_LOCAL
   const uniqueProviders = identities.reduce<Map<string, string>>((acc, i) => {
@@ -224,13 +224,13 @@ export function UserDetail() {
 
   if (!userData) return null
 
-  const userDisplayName = userData.full_name ?? userData.username
-  const userBreadcrumbs = breadcrumbsUserDetail(userDisplayName, basePath, activeTab)
+  const displayName = userDisplayName(userData) || userData.username
+  const userBreadcrumbs = breadcrumbsUserDetail(displayName, basePath, activeTab)
 
   return (
     <NxPage>
       <NxPageHeader
-        title={userDisplayName}
+        title={displayName}
         breadcrumbs={userBreadcrumbs}
         titleAddons={
           !userData.is_enabled ? (

@@ -6,7 +6,10 @@ import { FilterOperatorEnum } from '../../../types/filters'
 
 export type UserIdentity = UsersAPI.components['schemas']['UserIdentityRead']
 
-export type UserSummary = Pick<UsersAPI.components['schemas']['UserRead'], 'id' | 'username' | 'email' | 'full_name'>
+export type UserSummary = Pick<
+  UsersAPI.components['schemas']['UserRead'],
+  'id' | 'username' | 'email' | 'first_name' | 'last_name'
+>
 
 export function useLocalFilterState() {
   const [filters, setFilters] = useState<FilterConfig[]>([])

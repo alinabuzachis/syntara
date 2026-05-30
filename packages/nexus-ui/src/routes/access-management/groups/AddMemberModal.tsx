@@ -18,6 +18,7 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllUsers } from '../../access/useAllUsers'
+import { userDisplayName } from '../users/userDisplayName'
 
 type AddMemberModalProps = {
   groupId: string
@@ -46,7 +47,7 @@ export function AddMemberModal({
       .map((u) => ({
         value: u.id,
         label: u.username,
-        description: u.full_name ?? undefined,
+        description: userDisplayName(u) || undefined,
       }))
   }, [allUsers, existingMemberIds])
 

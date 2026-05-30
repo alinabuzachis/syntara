@@ -44,14 +44,16 @@ const mockMembers = [
   {
     id: 'u1',
     username: 'alice',
-    full_name: 'Alice Smith',
+    first_name: 'Alice',
+    last_name: 'Smith',
     email: 'alice@example.com',
     membership_sources: [{ type: 'manual' }],
   },
   {
     id: 'u2',
     username: 'bob',
-    full_name: 'Bob Jones',
+    first_name: 'Bob',
+    last_name: 'Jones',
     email: 'bob@example.com',
     membership_sources: [{ type: 'idp', provider_name: 'Azure AD' }],
   },
@@ -288,7 +290,8 @@ describe('GroupMembersPanel', () => {
       const manyMembers = Array.from({ length: 25 }, (_, i) => ({
         id: `u-${i}`,
         username: `user-${i}`,
-        full_name: `User ${i}`,
+        first_name: `User`,
+        last_name: `${i}`,
         email: `user${i}@example.com`,
         membership_sources: [{ type: 'manual' }],
       }))
@@ -427,7 +430,8 @@ describe('GroupMembersPanel', () => {
             {
               id: 'u3',
               username: 'charlie',
-              full_name: 'Charlie Brown',
+              first_name: 'Charlie',
+              last_name: 'Brown',
               email: 'charlie@example.com',
               is_enabled: false,
               membership_sources: [{ type: 'manual' }],
@@ -453,7 +457,8 @@ describe('GroupMembersPanel', () => {
             {
               id: 'u4',
               username: 'system',
-              full_name: 'System User',
+              first_name: 'System',
+              last_name: 'User',
               email: 'system@example.com',
               is_builtin: true,
               membership_sources: [{ type: 'manual' }],

@@ -36,6 +36,7 @@ import { getUserDetailPath } from '../accessManagementPaths'
 
 import type { UserIdentity, UserSummary } from './identityUtils'
 import { applyLocalFilters, useLocalFilterState } from './identityUtils'
+import { userDisplayName } from './userDisplayName'
 import styles from './UserIdentitiesPanel.module.css'
 
 const userFilterDefs: FilterFieldDefinition[] = [
@@ -182,7 +183,7 @@ function IdentitiesStep({
             </Button>
           </FlexItem>
           <FlexItem>
-            <Title headingLevel="h4">{selectedUser.full_name ?? selectedUser.username}</Title>
+            <Title headingLevel="h4">{userDisplayName(selectedUser) || selectedUser.username}</Title>
           </FlexItem>
         </Flex>
       </StackItem>
@@ -446,8 +447,8 @@ export function AttachIdentityModal({
       {selectedUser && selectedIdentityId && (
         <div className={styles.modalWarning}>
           <Alert variant="warning" isInline title="This will move the identity to the current user.">
-            <strong>{selectedUser.full_name ?? selectedUser.username}</strong> will be logged out of any pre-existing
-            sessions.
+            <strong>{userDisplayName(selectedUser) || selectedUser.username}</strong> will be logged out of any
+            pre-existing sessions.
           </Alert>
         </div>
       )}

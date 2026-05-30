@@ -5,7 +5,7 @@ import { useAlerts } from '../../../providers/alerts'
 import { useAuthStore } from '../../../stores/useAuthStore'
 import { accessClient } from '../../access/accessClient'
 import { logoutWithAlert } from '../logoutWithAlert'
-import { toFullName, type UserFormData } from '../userFormSchema'
+import type { UserFormData } from '../userFormSchema'
 
 type UseUserFormSubmitOptions = {
   isEdit: boolean
@@ -55,7 +55,6 @@ export function useUserFormSubmit({
   }
 
   const onSubmit = (formData: UserFormData) => {
-    const fullName = toFullName(formData.first_name, formData.last_name ?? '')
     const context = formData.username ? `User "${formData.username}"` : undefined
     if (isEdit && isValidId) {
       // undefined omits the field from the PATCH body (no change)
@@ -64,7 +63,14 @@ export function useUserFormSubmit({
         {
           params: { path: { user_id: userId } },
           body: {
-            ...(isBuiltinUser ? {} : { username: formData.username, full_name: fullName, email }),
+            ...(isBuiltinUser
+              ? {}
+              : {
+                  username: formData.username,
+                  first_name: formData.first_name,
+                  last_name: formData.last_name || undefined,
+                  email,
+                }),
             is_enabled: formData.is_enabled,
             ...(formData.password && !isFederatedUser && (!isBuiltinUser || isSelf)
               ? { password: formData.password }
@@ -94,7 +100,8 @@ export function useUserFormSubmit({
           body: {
             username: formData.username,
             email,
-            full_name: fullName,
+            first_name: formData.first_name,
+            last_name: formData.last_name || null,
             password: formData.password ?? '',
             is_enabled: formData.is_enabled,
             group_names: formData.group_names,

@@ -114,7 +114,8 @@ describe('useUserFormSubmit', () => {
         params: { path: { user_id: 'user-123' } },
         body: {
           username: 'testuser',
-          full_name: 'Test User',
+          first_name: 'Test',
+          last_name: 'User',
           email: 'test@example.com',
           is_enabled: true,
         },
@@ -267,7 +268,7 @@ describe('useUserFormSubmit', () => {
   })
 
   describe('builtin user handling', () => {
-    it('omits username and full_name for builtin users', () => {
+    it('omits username, first_name, and last_name for builtin users', () => {
       const { result } = renderHook(() => useUserFormSubmit({ ...defaultOptions, isBuiltinUser: true }))
 
       act(() => {

@@ -28,7 +28,7 @@ vi.mock('./accessClient', () => ({
 
 vi.mock('./useAllUsers', () => ({
   useAllUsers: () => ({
-    users: [{ id: 'u1', username: 'admin', full_name: 'Admin' }],
+    users: [{ id: 'u1', username: 'admin', first_name: 'Admin' }],
     isLoading: false,
     error: null,
   }),

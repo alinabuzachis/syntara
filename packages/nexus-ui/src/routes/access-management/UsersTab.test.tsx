@@ -76,7 +76,8 @@ describe('UsersTab Component', () => {
       id: 'u1',
       username: 'admin',
       email: 'admin@example.com',
-      full_name: 'Admin User',
+      first_name: 'Admin',
+      last_name: 'User',
       is_enabled: true,
       is_builtin: true,
       auth_type: 'local' as const,
@@ -89,7 +90,8 @@ describe('UsersTab Component', () => {
       id: 'u2',
       username: 'jdoe',
       email: 'jdoe@nexus.local',
-      full_name: 'John Doe',
+      first_name: 'John',
+      last_name: 'Doe',
       is_enabled: true,
       auth_type: 'federated' as const,
       auth_sources: ['AAP', 'Azure AD'],
@@ -101,7 +103,8 @@ describe('UsersTab Component', () => {
       id: 'u3',
       username: 'viewer1',
       email: 'viewer@nexus.local',
-      full_name: 'View Only',
+      first_name: 'View',
+      last_name: 'Only',
       is_enabled: false,
       auth_type: 'local' as const,
       auth_sources: ['Local'],
@@ -368,7 +371,8 @@ describe('UsersTab Component', () => {
                 id: 'u-no-sources',
                 username: 'nosources',
                 email: 'no@nexus.local',
-                full_name: 'No Sources',
+                first_name: 'No',
+                last_name: 'Sources',
                 is_enabled: true,
                 last_login: null,
                 created_at: '2024-01-01T00:00:00Z',
@@ -947,7 +951,7 @@ describe('UsersTab Component', () => {
         expect(lastCall).toBeDefined()
         const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
           ?.query
-        expect(queryParams).toHaveProperty('sort', 'full_name')
+        expect(queryParams).toHaveProperty('sort', 'first_name')
       })
     })
 

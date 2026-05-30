@@ -36,8 +36,8 @@ vi.mock('./UserIdentitiesPanel.module.css', () => ({ default: {} }))
 
 const mockUsers = {
   resources: [
-    { id: 'user-1', username: 'alice', email: 'alice@example.com', full_name: 'Alice Smith' },
-    { id: 'user-2', username: 'bob', email: 'bob@example.com', full_name: 'Bob Jones' },
+    { id: 'user-1', username: 'alice', email: 'alice@example.com', first_name: 'Alice', last_name: 'Smith' },
+    { id: 'user-2', username: 'bob', email: 'bob@example.com', first_name: 'Bob', last_name: 'Jones' },
   ],
 }
 

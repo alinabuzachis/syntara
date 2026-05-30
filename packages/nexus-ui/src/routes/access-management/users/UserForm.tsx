@@ -16,6 +16,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { detachPromise } from '../../../utils/detachPromise'
 import { userFormSchema, userCreateSchema, type UserFormData } from '../userFormSchema'
 
+import { userDisplayName } from './userDisplayName'
 import { UserFormFields } from './UserFormFields'
 import { UserNotFoundState } from './UserNotFoundState'
 import { useUserFormData } from './useUserFormData'
@@ -73,13 +74,13 @@ function userFormBreadcrumbTrail(
   isEdit: boolean,
   pageTitle: string,
   userId: string | undefined,
-  user: { full_name: string | null; username: string } | undefined
+  user: { first_name: string; last_name?: string | null; username: string } | undefined
 ): AppBreadcrumbItem[] {
   if (!isEdit) {
     return breadcrumbsCreateUser()
   }
   const userBasePath = userId ? AppRoute.AccessManagement.UserDetail.replace(':userId', userId) : undefined
-  const displayName = user ? (user.full_name ?? user.username) : undefined
+  const displayName = user ? userDisplayName(user) || user.username : undefined
   if (displayName && userBasePath) {
     return breadcrumbsEditUser(displayName, userBasePath)
   }

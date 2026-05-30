@@ -336,10 +336,18 @@ export function UserClaimMappingFields({
       />
       <ClaimField
         control={control}
-        name="claimMapping.fullName"
-        label="Full name claim"
-        hint="IdP claim for the display name (e.g. name, displayName)"
-        options={buildOptions('full_name', claimsSupported, claimAliases)}
+        name="claimMapping.firstName"
+        label="First name claim"
+        hint="IdP claim for the first name (e.g. given_name, givenName)"
+        options={buildOptions('first_name', claimsSupported, claimAliases)}
+        isReadOnly={isReadOnly}
+      />
+      <ClaimField
+        control={control}
+        name="claimMapping.lastName"
+        label="Last name claim"
+        hint="IdP claim for the last name (e.g. family_name, familyName)"
+        options={buildOptions('last_name', claimsSupported, claimAliases)}
         isReadOnly={isReadOnly}
       />
     </>

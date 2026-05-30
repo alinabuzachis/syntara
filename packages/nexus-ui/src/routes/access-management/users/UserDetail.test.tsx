@@ -88,7 +88,8 @@ const mockUser = {
   id: VALID_USER_ID,
   username: 'jdoe',
   email: 'jdoe@nexus.local',
-  full_name: 'John Doe',
+  first_name: 'John',
+  last_name: 'Doe',
   is_enabled: true,
   auth_type: 'local' as const,
   last_login: '2026-03-28T09:15:00Z',
@@ -292,11 +293,11 @@ describe('UserDetail', () => {
       expect(screen.getByText('Created')).toBeInTheDocument()
     })
 
-    it('falls back to username in heading when full_name is null', () => {
+    it('falls back to username in heading when first_name is null', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
-            data: { ...mockUser, full_name: null },
+            data: { ...mockUser, first_name: null, last_name: null },
             isPending: false,
             isError: false,
             error: null,

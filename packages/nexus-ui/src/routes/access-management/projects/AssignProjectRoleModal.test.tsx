@@ -112,8 +112,8 @@ const mockRoles = [
 ]
 
 const mockUsers = [
-  { id: 'u1', username: 'alice' },
-  { id: 'u2', username: 'bob' },
+  { id: 'u1', username: 'alice', email: 'alice@test.com', first_name: 'Alice' },
+  { id: 'u2', username: 'bob', email: 'bob@test.com', first_name: 'Bob' },
 ]
 
 const mockGroups = [

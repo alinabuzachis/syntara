@@ -6,7 +6,8 @@ const claimMappingSchema = z.object({
   subject: z.string().min(1, 'Subject claim is required'),
   email: z.string().min(1, 'Email claim is required'),
   username: z.string().min(1, 'Username claim is required'),
-  fullName: z.string().min(1, 'Full name claim is required'),
+  firstName: z.string().min(1, 'First name claim is required'),
+  lastName: z.string().min(1, 'Last name claim is required'),
   groups: z.string().nullable(),
 })
 
@@ -131,7 +132,8 @@ export const identityProviderDefaults: IdentityProviderFormData = {
     subject: 'sub',
     email: 'email',
     username: 'preferred_username',
-    fullName: 'name',
+    firstName: 'given_name',
+    lastName: 'family_name',
     groups: null,
   },
   groupMapping: null,

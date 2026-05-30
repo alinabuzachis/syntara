@@ -381,10 +381,15 @@ export interface components {
        */
       email?: string | null
       /**
-       * Full Name
-       * @description User's display name
+       * First Name
+       * @description User's first name
        */
-      full_name: string
+      first_name: string
+      /**
+       * Last Name
+       * @description User's last name
+       */
+      last_name?: string | null
       /**
        * Password
        * Format: password
@@ -416,10 +421,15 @@ export interface components {
        */
       username?: string | null
       /**
-       * Full Name
-       * @description Update display name
+       * First Name
+       * @description Update first name
        */
-      full_name?: string | null
+      first_name?: string | null
+      /**
+       * Last Name
+       * @description Update last name
+       */
+      last_name?: string | null
       /**
        * Email
        * @description Update email address
@@ -458,8 +468,10 @@ export interface components {
       username: string
       /** Email */
       email?: string | null
-      /** Full Name */
-      full_name: string
+      /** First Name */
+      first_name: string
+      /** Last Name */
+      last_name?: string | null
       /** Is Enabled */
       is_enabled: boolean
       /**
@@ -751,8 +763,10 @@ export interface components {
       username: string
       /** Email */
       email?: string | null
-      /** Full Name */
-      full_name: string
+      /** First Name */
+      first_name: string
+      /** Last Name */
+      last_name?: string | null
       /** Is Enabled */
       is_enabled: boolean
       /**
@@ -1359,7 +1373,8 @@ export interface operations {
         include_total?: components['parameters']['includeTotalParam']
         /** @description Filter by username (username=exact, username[contains]=substring, username[starts_with]=prefix) */
         username?: string | null
-        full_name?: string | null
+        first_name?: string | null
+        last_name?: string | null
         auth_type?: components['schemas']['AuthType'] | null
         auth_source?: string | null
       }

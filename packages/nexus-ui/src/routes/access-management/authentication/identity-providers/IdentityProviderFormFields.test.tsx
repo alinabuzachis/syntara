@@ -144,7 +144,8 @@ describe('IdentityProviderFormFields', () => {
     expect(screen.getByText('Subject claim')).toBeInTheDocument()
     expect(screen.getByText('Email claim')).toBeInTheDocument()
     expect(screen.getByText('Username claim')).toBeInTheDocument()
-    expect(screen.getByText('Full name claim')).toBeInTheDocument()
+    expect(screen.getByText('First name claim')).toBeInTheDocument()
+    expect(screen.getByText('Last name claim')).toBeInTheDocument()
   })
 
   it('shows Next button on first step', () => {

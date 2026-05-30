@@ -4,7 +4,8 @@ export type ClaimMappingField =
   | 'claimMapping.subject'
   | 'claimMapping.email'
   | 'claimMapping.username'
-  | 'claimMapping.fullName'
+  | 'claimMapping.firstName'
+  | 'claimMapping.lastName'
   | 'claimMapping.groups'
 
 const CLAIM_FIELD_MAPPINGS: {
@@ -15,7 +16,8 @@ const CLAIM_FIELD_MAPPINGS: {
   { key: 'sub', formField: 'claimMapping.subject', formKey: 'subject' },
   { key: 'email', formField: 'claimMapping.email', formKey: 'email' },
   { key: 'username', formField: 'claimMapping.username', formKey: 'username' },
-  { key: 'full_name', formField: 'claimMapping.fullName', formKey: 'fullName' },
+  { key: 'first_name', formField: 'claimMapping.firstName', formKey: 'firstName' },
+  { key: 'last_name', formField: 'claimMapping.lastName', formKey: 'lastName' },
   { key: 'groups', formField: 'claimMapping.groups', formKey: 'groups' },
 ]
 
