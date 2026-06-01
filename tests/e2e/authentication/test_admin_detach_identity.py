@@ -130,11 +130,13 @@ class TestAdminDetachIdentity:
         )
         assert attach_resp.status_code == HTTPStatus.CREATED
 
-        # Verify user A now has 2 identities and refresh token still works
+        # Verify user A now has 2 identities
         user_a_identities_before_resp = nexus_api.users.list_identities(user_id=user_a_id)
         assert user_a_identities_before_resp.parsed is not None
         assert len(user_a_identities_before_resp.parsed.resources) == 2
 
+        # Re-authenticate user A (sessions were revoked by the attach operation)
+        user_a_refresh_client = _oidc_refresh_client(nexus_api, nexus_base_url, provider.id, username_a, password_a)
         assert refresh_sync(client=user_a_refresh_client).status_code == HTTPStatus.OK
 
         # Admin disconnects the attached identity

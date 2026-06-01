@@ -148,8 +148,8 @@ Sessions are soft-revoked (`revoked_at` is set) when:
 | **Account deletion** | All sessions for user | User is soft-deleted via `DELETE /users/{id}` |
 | **Logout** | Single session | User logs out via `POST /auth/logout` (revokes current session only) |
 | **Provider deletion** | All sessions for provider | Identity provider is deleted — uses `ix_refresh_sessions_idp_id` index |
-| **Identity re-association** | All sessions for source user | Identity moved to different user via `POST /auth/users/{user_id}/identities` |
-| **Identity deletion** | All sessions for user | Identity detached via `DELETE /auth/users/{user_id}/identities/{identity_id}` |
+| **Identity re-association** | All sessions for both source and target users | Identity moved to different user via `POST /auth/users/{user_id}/identities`. Token version incremented for both users |
+| **Identity deletion** | All sessions for user | Identity detached via `DELETE /auth/users/{user_id}/identities/{identity_id}`. Token version incremented |
 
 Stateless access tokens cannot be individually revoked. However, the `StaleTokenMiddleware` rejects requests from disabled users within ~5 seconds of the disable action (via the same TTL-cached DB query used for stale token detection). See [Disabled User Enforcement](#disabled-user-enforcement).
 
@@ -416,6 +416,8 @@ Admin changes user's account (groups, profile, etc.) — or user logs out
 | `PUT /users/{id}/groups` | User's group memberships replaced |
 | `PATCH /users/{id}` | User profile updated (name, email, enabled status, password) |
 | `DELETE /users/{id}` | User soft-deleted (next refresh fails → auto-logout) |
+| `POST /auth/users/{user_id}/identities` | Identity attached — token version incremented for both source and target users |
+| `DELETE /auth/users/{user_id}/identities/{identity_id}` | Identity detached |
 | `POST /auth/logout` | User logs out (refresh session also revoked → forced re-authentication) |
 
 #### Backend components
@@ -995,7 +997,7 @@ A `CHECK` constraint on the `users` table enforces this invariant:
 OR (auth_type = 'federated' AND password_hash IS NULL)
 ```
 
-**Local-to-federated conversion:** Non-builtin local users can link an identity provider. When they do, the user is permanently converted to federated: `auth_type` is set to `'federated'`, `password_hash` is cleared, and all sessions are revoked. This is a one-way conversion — federated users cannot set a password. Built-in users (e.g., the seeded admin) cannot link identity providers.
+**Local-to-federated conversion:** Non-builtin local users can link an identity provider. When they do, the user is permanently converted to federated: `auth_type` is set to `'federated'`, `password_hash` is cleared, all sessions are revoked, and the user's `token_version` is incremented to immediately invalidate any outstanding access tokens. This is a one-way conversion — federated users cannot set a password. Built-in users (e.g., the seeded admin) cannot link identity providers.
 
 **Enforcement points:**
 
@@ -1027,8 +1029,8 @@ If the identity `(issuer, sub)` is already linked to another account, the flow r
 ### Identity Lifecycle
 
 - **last_used_at** — updated on each OIDC login and on initial link, tracked per identity
-- **Disconnect** — users can disconnect their own identities (unless it's their only sign-in method and they have no password)
-- **Attach/Detach** — admins can manually move identities between users via the Attach Identity modal
+- **Disconnect** — users can disconnect their own identities (unless it's their only sign-in method and they have no password). All sessions are revoked and `token_version` is incremented
+- **Attach/Detach** — admins can manually move identities between users via the Attach Identity modal. On attach, sessions are revoked and `token_version` is incremented for both source and target users. On detach, sessions are revoked and `token_version` is incremented for the affected user
 - **Provider deletion** — deleting an identity provider bulk-deletes all linked user identities and revokes active sessions authenticated via that provider (indexed by provider ID for efficient lookup)
 - **User disabled/deleted** — disabling or soft-deleting a user immediately revokes all their active sessions (see [Session Revocation](#session-revocation))
 

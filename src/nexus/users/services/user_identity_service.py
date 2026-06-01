@@ -161,6 +161,7 @@ class UserIdentityService:
 
         await self.session.delete(identity)
         await self.session.flush()
+        await store.increment_token_version(user_id)
         logger.info("Deleted user identity", identity_id=str(identity_id), force=force)
 
     async def attach_identity(self, identity_id: UUID, target_user_id: UUID) -> UserIdentityRead:
@@ -224,9 +225,22 @@ class UserIdentityService:
         self.session.add(identity)
 
         if target_user.auth_type == AuthType.LOCAL:
+            # _convert_to_federated handles revoke + increment for the target user
             await self._convert_to_federated(target_user)
+        else:
+            # Target is already FEDERATED — revoke and increment here
+            target_revoked_count = await store.revoke_all_for_user(target_user_id)
+            await store.increment_token_version(target_user_id)
+            logger.info(
+                "Revoked sessions for target user during identity attach",
+                target_user_id=str(target_user_id),
+                identity_id=str(identity_id),
+                revoked_count=target_revoked_count,
+            )
 
         await self.session.flush()
+
+        await store.increment_token_version(source_user_id)
 
         logger.info(
             "Attached identity to user",
@@ -254,6 +268,7 @@ class UserIdentityService:
 
         store = create_session_store(self.session)
         revoked = await store.revoke_all_for_user(user.id)
+        await store.increment_token_version(user.id)
         logger.info(
             "Converted local user to federated",
             user_id=str(user.id),

@@ -108,9 +108,9 @@ class TestAdminAttachIdentity:
         assert user_a_details_resp.parsed.username == user_a_username
         assert user_a_details_resp.parsed.auth_type == AuthType.FEDERATED
 
+        # Target user's sessions are revoked after identity attach
         user_b_profile_resp = user_b_api.authentication.get_current_user()
-        assert user_b_profile_resp.status_code == HTTPStatus.OK
-        assert user_b_profile_resp.parsed is not None
+        assert user_b_profile_resp.status_code == HTTPStatus.UNAUTHORIZED
 
     def test_admin_moves_identity_to_local_user_converts_to_federated(
         self,

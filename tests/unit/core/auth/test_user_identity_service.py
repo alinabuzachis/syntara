@@ -119,12 +119,17 @@ class TestDeleteIdentity:
         remaining_result.all.return_value = [identity, other_identity]
         session.exec.side_effect = [identity_result, remaining_result]
 
+        mock_store = AsyncMock()
+        mock_store.revoke_all_for_user.return_value = 0
+
         service = UserIdentityService(session)
-        with patch(_PATCH_SESSION_STORE, return_value=AsyncMock()):
+        with patch(_PATCH_SESSION_STORE, return_value=mock_store):
             await service.delete_identity(identity.id)
 
         session.delete.assert_called_once_with(identity)
         session.flush.assert_called()
+        mock_store.revoke_all_for_user.assert_called_once_with(identity.user_id)
+        mock_store.increment_token_version.assert_called_once_with(identity.user_id)
 
     @pytest.mark.asyncio
     async def test_raises_when_identity_not_found(self) -> None:
@@ -384,6 +389,7 @@ class TestCreateIdentity:
         assert user.auth_type == AuthType.FEDERATED
         assert user.password_hash is None
         mock_store.revoke_all_for_user.assert_called_once_with(user_id)
+        mock_store.increment_token_version.assert_called_once_with(user_id)
 
 
 @pytest.mark.usefixtures("mock_session_store")
@@ -405,14 +411,25 @@ class TestAttachIdentity:
         target_result.one_or_none.return_value = target_user
         session.exec.side_effect = [identity_join_result, target_result]
 
+        mock_store = AsyncMock()
+        mock_store.revoke_all_for_user.return_value = 0
+
         service = UserIdentityService(session)
-        with patch(_PATCH_SESSION_STORE, return_value=AsyncMock()):
+        with patch(_PATCH_SESSION_STORE, return_value=mock_store):
             result = await service.attach_identity(identity.id, target_user_id)
 
         assert result.user_id == target_user_id
         assert result.provider_name == "Azure"
         session.flush.assert_called_once()
         session.commit.assert_not_called()
+        # Sessions revoked for both source and target users
+        assert mock_store.revoke_all_for_user.call_count == 2
+        mock_store.revoke_all_for_user.assert_any_call(source_user_id)
+        mock_store.revoke_all_for_user.assert_any_call(target_user_id)
+        # Token versions incremented for both users
+        assert mock_store.increment_token_version.call_count == 2
+        mock_store.increment_token_version.assert_any_call(source_user_id)
+        mock_store.increment_token_version.assert_any_call(target_user_id)
 
     @pytest.mark.asyncio
     async def test_rejects_attach_to_builtin_user(self) -> None:
@@ -462,8 +479,10 @@ class TestAttachIdentity:
         assert result.user_id == target_user_id
         assert target_user.auth_type == AuthType.FEDERATED
         assert target_user.password_hash is None
-        # revoke_all_for_user should be called for both source user and conversion
+        # revoke_all_for_user: source user + _convert_to_federated (target)
         assert mock_store.revoke_all_for_user.call_count == 2
+        # Token versions: source (attach_identity) + target (_convert_to_federated)
+        assert mock_store.increment_token_version.call_count == 2
 
     @pytest.mark.asyncio
     async def test_raises_when_identity_not_found(self) -> None:
@@ -514,3 +533,53 @@ class TestAttachIdentity:
 
         # Source user should not be soft-deleted — preserved for audit
         session.delete.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_revokes_target_user_sessions(self) -> None:
+        """Should revoke target user sessions so they re-authenticate with updated identity."""
+        source_user_id = uuid4()
+        target_user_id = uuid4()
+        identity = _make_identity(user_id=source_user_id)
+        target_user = _make_user(user_id=target_user_id, auth_type=AuthType.FEDERATED)
+
+        session = AsyncMock()
+        identity_join_result = MagicMock()
+        identity_join_result.one_or_none.return_value = (identity, "Azure")
+        target_result = MagicMock()
+        target_result.one_or_none.return_value = target_user
+        session.exec.side_effect = [identity_join_result, target_result]
+
+        mock_store = AsyncMock()
+        mock_store.revoke_all_for_user.return_value = 3
+
+        service = UserIdentityService(session)
+        with patch(_PATCH_SESSION_STORE, return_value=mock_store):
+            await service.attach_identity(identity.id, target_user_id)
+
+        mock_store.revoke_all_for_user.assert_any_call(target_user_id)
+
+    @pytest.mark.asyncio
+    async def test_increments_token_version_for_both_users(self) -> None:
+        """Should increment token_version for both source and target users."""
+        source_user_id = uuid4()
+        target_user_id = uuid4()
+        identity = _make_identity(user_id=source_user_id)
+        target_user = _make_user(user_id=target_user_id, auth_type=AuthType.FEDERATED)
+
+        session = AsyncMock()
+        identity_join_result = MagicMock()
+        identity_join_result.one_or_none.return_value = (identity, "Azure")
+        target_result = MagicMock()
+        target_result.one_or_none.return_value = target_user
+        session.exec.side_effect = [identity_join_result, target_result]
+
+        mock_store = AsyncMock()
+        mock_store.revoke_all_for_user.return_value = 0
+
+        service = UserIdentityService(session)
+        with patch(_PATCH_SESSION_STORE, return_value=mock_store):
+            await service.attach_identity(identity.id, target_user_id)
+
+        assert mock_store.increment_token_version.call_count == 2
+        mock_store.increment_token_version.assert_any_call(source_user_id)
+        mock_store.increment_token_version.assert_any_call(target_user_id)
