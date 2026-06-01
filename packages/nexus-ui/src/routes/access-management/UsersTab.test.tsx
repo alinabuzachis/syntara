@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { authFetchClient } from '../../client'
+import { adminClient, authFetchClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 
@@ -14,6 +14,10 @@ import { UsersTab } from './UsersTab'
 // Mock dependencies
 vi.mock('../../client', () => ({
   usersClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  adminClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
@@ -182,6 +186,11 @@ describe('UsersTab Component', () => {
       variables: undefined,
       status: 'idle',
       isPaused: false,
+    } as never)
+
+    vi.mocked(adminClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
     } as never)
   })
 

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { identityProvidersClient } from '../../../client'
+import { adminClient, identityProvidersClient } from '../../../client'
 import { useCanI } from '../../../hooks/useCanI'
 import { AlertProvider } from '../../../providers/alerts'
 
@@ -15,6 +15,13 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  adminClient: {
+    useMutation: vi.fn().mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+  },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../hooks/useCanI', () => ({
@@ -50,6 +57,10 @@ function setupEmptyProviders() {
   } as never)
   vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
     mutate: vi.fn(),
+  } as never)
+  vi.mocked(adminClient.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
   } as never)
 }
 

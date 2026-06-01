@@ -15,6 +15,7 @@ import { RolesTab } from '../access/RolesTab'
 
 import { GroupsTab } from './GroupsTab'
 import { ProjectsTab } from './ProjectsTab'
+import { TokenRevocationTab } from './token-revocation/TokenRevocation'
 import { useAccessManagementPermissions } from './useAccessManagementPermissions'
 import { UsersTab } from './UsersTab'
 
@@ -26,12 +27,20 @@ const allTabs = [
   { path: AppRoute.AccessManagement.Roles, label: 'Roles', component: RolesTab },
   { path: AppRoute.AccessManagement.Assignments, label: 'Assignments', component: AssignmentsTab },
   { path: AppRoute.AccessManagement.CanI, label: 'Can I?', component: CanITab },
+  { path: AppRoute.AccessManagement.TokenRevocation, label: 'Token Revocation', component: TokenRevocationTab },
 ]
 
 export function AccessManagement() {
   const [location, navigate] = useLocation()
-  const { canReadUsers, canReadGroups, canReadProjects, canReadAssignments, canAccessPage, isLoading } =
-    useAccessManagementPermissions()
+  const {
+    canReadUsers,
+    canReadGroups,
+    canReadProjects,
+    canReadAssignments,
+    canReadTokenRevocation,
+    canAccessPage,
+    isLoading,
+  } = useAccessManagementPermissions()
 
   const tabs = useMemo(() => {
     if (isLoading) return allTabs
@@ -40,9 +49,10 @@ export function AccessManagement() {
     if (!canReadGroups) hiddenPaths.add(AppRoute.AccessManagement.Groups)
     if (!canReadProjects) hiddenPaths.add(AppRoute.AccessManagement.Projects)
     if (!canReadAssignments) hiddenPaths.add(AppRoute.AccessManagement.Assignments)
+    if (!canReadTokenRevocation) hiddenPaths.add(AppRoute.AccessManagement.TokenRevocation)
     if (hiddenPaths.size === 0) return allTabs
     return allTabs.filter((tab) => !hiddenPaths.has(tab.path))
-  }, [canReadUsers, canReadGroups, canReadProjects, canReadAssignments, isLoading])
+  }, [canReadUsers, canReadGroups, canReadProjects, canReadAssignments, canReadTokenRevocation, isLoading])
 
   const defaultTab = tabs[0]
 

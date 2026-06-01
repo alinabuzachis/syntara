@@ -44,9 +44,8 @@ export type PageEntry = {
 }
 
 async function applyNameFilter(page: Page, value: string) {
-  const nameFilter = page.getByPlaceholder('Filter by name')
-  await nameFilter.fill(value)
-  await nameFilter.press('Enter')
+  await page.getByPlaceholder('Filter by name').fill(value)
+  await page.getByPlaceholder('Filter by name').press('Enter')
 }
 
 // ---------------------------------------------------------------------------
@@ -563,6 +562,30 @@ export const pages: PageEntry[] = [
         .first()
         .click()
       await expect(page.getByText('Event Message').first()).toBeVisible()
+    },
+  },
+
+  // ── Token Revocation ────────────────────────────────────────────────────
+  {
+    section: 'access-management/token-revocation',
+    name: 'token-revocation',
+    path: AppRoute.AccessManagement.TokenRevocation,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Token Revocation' })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/token-revocation',
+    name: 'token-revocation-confirm-dialog',
+    path: AppRoute.AccessManagement.TokenRevocation,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Token Revocation' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Revoke all tokens' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
     },
   },
 

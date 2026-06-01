@@ -60,7 +60,13 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
         typeLabel: metadata.label,
       }}
     >
-      <StandardNodeHeader icon={iconNode} title={props.data.name} subtitle={metadata.label} expandable menuActions={menuActions} />
+      <StandardNodeHeader
+        icon={iconNode}
+        title={props.data.name}
+        subtitle={metadata.label}
+        expandable
+        menuActions={menuActions}
+      />
       <Flex justifyContent={{ default: 'justifyContentFlexStart' }} style={{ overflow: 'hidden' }}>
         <NodeBody>
           <NxDetailList data-testid="converge-node-details">

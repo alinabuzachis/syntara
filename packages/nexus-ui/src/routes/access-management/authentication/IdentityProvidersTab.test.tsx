@@ -6,7 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 import { navigate } from 'wouter/use-browser-location'
 
-import { identityProvidersClient } from '../../../client'
+import { adminClient, identityProvidersClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 
 import { IdentityProvidersTab } from './IdentityProvidersTab'
@@ -26,6 +26,10 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  adminClient: {
+    useMutation: vi.fn(),
+  },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 let currentSearchParams = new URLSearchParams()
@@ -72,6 +76,10 @@ function setupProviders(providers = [mockProvider]) {
   vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
     mutate: vi.fn(),
   } as never)
+  vi.mocked(adminClient.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  } as never)
 }
 
 function setupEmptyProviders() {
@@ -82,6 +90,10 @@ describe('IdentityProvidersTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     currentSearchParams = new URLSearchParams()
+    vi.mocked(adminClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as never)
   })
 
   describe('loading state', () => {
@@ -424,6 +436,69 @@ describe('IdentityProvidersTab', () => {
       expect(navigate).toHaveBeenCalledWith(
         '/system-administration/authentication/identity-providers/provider-1/group-mapping'
       )
+    })
+
+    it('opens revoke confirmation dialog when revoke action is clicked', async () => {
+      const user = userEvent.setup()
+      setupProviders()
+      render(<IdentityProvidersTab />, { wrapper })
+
+      const actionsButton = screen.getByRole('button', { name: /Kebab toggle/ })
+      await user.click(actionsButton)
+      await user.click(screen.getByText('Revoke tokens'))
+
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText('Revoke identity provider tokens?')).toBeInTheDocument()
+      expect(within(dialog).getByText(/will be revoked/)).toBeInTheDocument()
+      expect(within(dialog).getByText('Azure AD')).toBeInTheDocument()
+    })
+
+    it('closes revoke dialog when cancel is clicked', async () => {
+      const user = userEvent.setup()
+      setupProviders()
+      render(<IdentityProvidersTab />, { wrapper })
+
+      const actionsButton = screen.getByRole('button', { name: /Kebab toggle/ })
+      await user.click(actionsButton)
+      await user.click(screen.getByText('Revoke tokens'))
+
+      await user.click(screen.getByText('Cancel'))
+
+      expect(screen.queryByText('Revoke identity provider tokens?')).not.toBeInTheDocument()
+    })
+
+    it('calls revoke mutation when confirmed', async () => {
+      const mockRevokeMutate = vi.fn()
+      const user = userEvent.setup()
+
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+        data: { resources: [mockProvider], total: 1 },
+        isLoading: false,
+        isError: false,
+        error: null,
+        isPending: false,
+        refetch: vi.fn(),
+      } as never)
+      vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
+        mutate: vi.fn(),
+      } as never)
+      vi.mocked(adminClient.useMutation).mockReturnValue({
+        mutate: mockRevokeMutate,
+        isPending: false,
+      } as never)
+
+      render(<IdentityProvidersTab />, { wrapper })
+
+      const actionsButton = screen.getByRole('button', { name: /Kebab toggle/ })
+      await user.click(actionsButton)
+      await user.click(screen.getByText('Revoke tokens'))
+
+      const dialog = screen.getByRole('dialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Revoke tokens' }))
+
+      expect(mockRevokeMutate).toHaveBeenCalled()
+      const callArgs = mockRevokeMutate.mock.calls[0]
+      expect(callArgs[0]).toEqual({ params: { path: { idp_name: 'Azure AD' } } })
     })
   })
 

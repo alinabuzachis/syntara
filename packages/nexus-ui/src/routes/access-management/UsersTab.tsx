@@ -1,16 +1,6 @@
 import type { User } from '@ansible/nexus-contracts'
-import {
-  Button,
-  Content,
-  ContentVariants,
-  Flex,
-  FlexItem,
-  Label,
-  Stack,
-  StackItem,
-  Truncate,
-} from '@patternfly/react-core'
-import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { Button, Content, ContentVariants, Flex, FlexItem, Stack, StackItem, Truncate } from '@patternfly/react-core'
+import { RhUiAddIcon, RhUiBanIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
@@ -21,6 +11,7 @@ import { flexCenteredBothAxes } from '../../app/flexCenteredBothAxes'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
+import { NxLabel } from '../../components/labels/NxLabel'
 import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
 import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
@@ -41,6 +32,7 @@ import { AUTH_SOURCE_LOCAL } from './adminConstants'
 import { BuiltInAdminCard } from './BuiltInAdminCard'
 import { DisabledBadge } from './DisabledBadge'
 import { useAdminToggle } from './useAdminToggle'
+import { useRevokeUserTokens } from './useRevokeUserTokens'
 import { getAuthSourceFilterDefinition } from './userFilters'
 import { userDisplayName } from './users/userDisplayName'
 
@@ -82,11 +74,15 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   getAuthSourceFilterDefinition(),
 ]
 
-function getRowActions(user: User, onDelete: (user: User) => void): IAction[] {
+function getRowActions(user: User, onDelete: (user: User) => void, onRevoke: (user: User) => void): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
       onClick: () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', user.id)),
+    },
+    {
+      title: <IconLabel icon={<RhUiBanIcon />}>Revoke tokens</IconLabel>,
+      onClick: () => onRevoke(user),
     },
     { isSeparator: true },
     {
@@ -108,16 +104,17 @@ export function UsersTab() {
     getFooterProps,
   } = useCursorPagination()
 
+  const { revokeDialog, handleRevoke } = useRevokeUserTokens()
+
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
     initialDirection: 'asc',
   })
 
-  const sortParam = useMemo(() => {
+  const finalQueryParams = useMemo(() => {
     const field = SORT_FIELDS[activeSortIndex] ?? 'username'
-    return sortDirection === 'desc' ? `-${field}` : field
-  }, [activeSortIndex, sortDirection])
-
-  const finalQueryParams = useMemo(() => ({ ...queryParams, sort: sortParam }), [queryParams, sortParam])
+    const sort = sortDirection === 'desc' ? `-${field}` : field
+    return { ...queryParams, sort }
+  }, [activeSortIndex, sortDirection, queryParams])
 
   const query = accessClient.useQuery('get', '/users', { params: { query: finalQueryParams } })
   const data = query.data
@@ -240,16 +237,16 @@ export function UsersTab() {
                     <Flex gap={{ default: 'gapXs' }} flexWrap={{ default: 'wrap' }}>
                       {(user.auth_sources ?? [AUTH_SOURCE_LOCAL]).map((source) => (
                         <FlexItem key={source}>
-                          <Label isCompact color={source === AUTH_SOURCE_LOCAL ? 'grey' : 'blue'}>
-                            {source}
-                          </Label>
+                          <NxLabel color={source === AUTH_SOURCE_LOCAL ? 'grey' : 'blue'}>{source}</NxLabel>
                         </FlexItem>
                       ))}
                     </Flex>
                   </Td>
                   <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
                   <Td isActionCell>
-                    {!user.is_builtin && <ActionsColumn items={getRowActions(user, deleteDialog.open)} />}
+                    {!user.is_builtin && (
+                      <ActionsColumn items={getRowActions(user, deleteDialog.open, revokeDialog.open)} />
+                    )}
                   </Td>
                 </Tr>
               ))}
@@ -281,6 +278,18 @@ export function UsersTab() {
       >
         Disabling the built-in administrator account will immediately end your current session. You will need to sign in
         with another admin account to re-enable it.
+      </NxConfirmationDialog>
+      <NxConfirmationDialog
+        isOpen={revokeDialog.isOpen}
+        onClose={revokeDialog.close}
+        onConfirm={handleRevoke}
+        title="Revoke user tokens?"
+        confirmLabel="Revoke tokens"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+      >
+        All tokens for <strong>{revokeDialog.item?.username}</strong> will be revoked. The user will be signed out and
+        must sign in again.
       </NxConfirmationDialog>
     </>
   )

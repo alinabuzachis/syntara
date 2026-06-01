@@ -11,14 +11,15 @@ import {
   Switch,
   Truncate,
 } from '@patternfly/react-core'
-import { PlusIcon, RhUiEditIcon, RhUiSecurityIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiBanIcon, RhUiEditIcon, RhUiSecurityIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useReducer } from 'react'
+import { useCallback, useMemo } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
-import { identityProvidersClient } from '../../../client'
+import { adminClient, identityProvidersClient } from '../../../client'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
@@ -28,7 +29,10 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
+import { useDialogState } from '../../../hooks/useDialogState'
+import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
+import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { detachPromise } from '../../../utils/detachPromise'
 
@@ -41,25 +45,11 @@ const SORT_FIELDS = ['name', 'issuer_url', 'client_id', 'enabled'] as const
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
-type DeleteDialogState = {
-  deleteDialogOpen: boolean
-  providerToDelete: IdentityProvider | null
-}
-
-type DeleteDialogAction = { type: 'OPEN_DELETE_DIALOG'; payload: IdentityProvider } | { type: 'CLOSE_DELETE_DIALOG' }
-
-function deleteDialogReducer(state: DeleteDialogState, action: DeleteDialogAction): DeleteDialogState {
-  switch (action.type) {
-    case 'OPEN_DELETE_DIALOG':
-      return { providerToDelete: action.payload, deleteDialogOpen: true }
-    case 'CLOSE_DELETE_DIALOG':
-      return { deleteDialogOpen: false, providerToDelete: null }
-    default:
-      return state
-  }
-}
-
-function getRowActions(provider: IdentityProvider, onDelete: (provider: IdentityProvider) => void): IAction[] {
+function getRowActions(
+  provider: IdentityProvider,
+  onDelete: (provider: IdentityProvider) => void,
+  onRevoke: (provider: IdentityProvider) => void
+): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiEditIcon />}>Edit provider</IconLabel>,
@@ -77,6 +67,10 @@ function getRowActions(provider: IdentityProvider, onDelete: (provider: Identity
         navigate(`${providerDetailPath(provider.id)}/group-mapping`)
       },
     },
+    {
+      title: <IconLabel icon={<RhUiBanIcon />}>Revoke tokens</IconLabel>,
+      onClick: () => onRevoke(provider),
+    },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
@@ -93,7 +87,7 @@ function AddProviderButton() {
   return (
     <Button
       variant="primary"
-      icon={<PlusIcon />}
+      icon={<RhUiAddIcon />}
       onClick={() => navigate(AppRoute.SystemAdministration.Authentication.AddIdentityProvider)}
     >
       Add OIDC provider
@@ -108,12 +102,27 @@ function providerDetailPath(providerId: string): string {
   )
 }
 
+function NoProvidersEmptyState() {
+  return (
+    <EmptyState headingLevel="h2" titleText="No identity providers configured" icon={RhUiSecurityIcon}>
+      <EmptyStateBody>
+        Configure an external identity provider to enable single sign-on for your organization. OIDC (OpenID Connect) is
+        the recommended protocol.
+      </EmptyStateBody>
+      <EmptyStateFooter>
+        <EmptyStateActions>
+          <AddProviderButton />
+        </EmptyStateActions>
+      </EmptyStateFooter>
+    </EmptyState>
+  )
+}
+
 export function IdentityProvidersTab() {
-  const [deleteState, dispatch] = useReducer(deleteDialogReducer, {
-    deleteDialogOpen: false,
-    providerToDelete: null,
-  })
-  const { deleteDialogOpen, providerToDelete } = deleteState
+  const deleteDialog = useDialogState<IdentityProvider>()
+  const revokeDialog = useDialogState<IdentityProvider>()
+  const { showSuccess } = useAlerts()
+  const handleMutationError = useMutationErrorHandler()
 
   const { cursor, filters, hasActiveFilters, queryParams, handleFilterChange, getFooterProps } = useCursorPagination()
 
@@ -141,6 +150,7 @@ export function IdentityProvidersTab() {
   })
 
   const providers = query.data?.resources ?? []
+  const refetch = useCallback(() => detachPromise(query.refetch()), [query])
 
   const { mutate: deleteProvider } = identityProvidersClient.useMutation('delete', '/identity_providers/{provider_id}')
 
@@ -153,11 +163,32 @@ export function IdentityProvidersTab() {
     buildParams: (provider: IdentityProvider) => ({ params: { path: { provider_id: provider.id! } } }),
     entityLabel: 'identity provider',
     getItemName: (provider: IdentityProvider) => provider.name ?? '',
-    onSuccess: () => {
-      detachPromise(query.refetch())
-    },
-    onSettled: () => dispatch({ type: 'CLOSE_DELETE_DIALOG' }),
+    onSuccess: refetch,
+    onSettled: deleteDialog.close,
   })
+
+  const { mutate: revokeIdpTokens } = adminClient.useMutation('post', '/admin/revocation/identity-providers/{idp_name}')
+
+  const handleRevoke = () => {
+    if (!revokeDialog.item) return
+    const idpName = revokeDialog.item.name ?? ''
+    revokeIdpTokens(
+      { params: { path: { idp_name: idpName } } },
+      {
+        onSuccess: (data) => {
+          showSuccess({
+            title: 'Tokens revoked',
+            description: data.message,
+          })
+        },
+        onError: handleMutationError({
+          title: 'Failed to revoke tokens',
+          context: `Identity provider "${idpName}"`,
+        }),
+        onSettled: revokeDialog.close,
+      }
+    )
+  }
 
   const queryState = useQueryState(query, {
     title: 'Error loading identity providers',
@@ -166,19 +197,7 @@ export function IdentityProvidersTab() {
   if (queryState) return queryState
 
   if (providers.length === 0 && !cursor && !hasActiveFilters) {
-    return (
-      <EmptyState headingLevel="h2" titleText="No identity providers configured" icon={RhUiSecurityIcon}>
-        <EmptyStateBody>
-          Configure an external identity provider to enable single sign-on for your organization. OIDC (OpenID Connect)
-          is the recommended protocol.
-        </EmptyStateBody>
-        <EmptyStateFooter>
-          <EmptyStateActions>
-            <AddProviderButton />
-          </EmptyStateActions>
-        </EmptyStateFooter>
-      </EmptyState>
-    )
+    return <NoProvidersEmptyState />
   }
 
   return (
@@ -251,9 +270,7 @@ export function IdentityProvidersTab() {
                   />
                 </Td>
                 <Td isActionCell>
-                  <ActionsColumn
-                    items={getRowActions(provider, (p) => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: p }))}
-                  />
+                  <ActionsColumn items={getRowActions(provider, deleteDialog.open, revokeDialog.open)} />
                 </Td>
               </Tr>
             ))}
@@ -261,10 +278,10 @@ export function IdentityProvidersTab() {
         </NxScrollableTableContainer>
       )}
       <IdentityProviderDeleteDialog
-        isOpen={deleteDialogOpen}
-        providerName={providerToDelete?.name ?? ''}
-        onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
-        onConfirm={() => handleDelete(providerToDelete)}
+        isOpen={deleteDialog.isOpen}
+        providerName={deleteDialog.item?.name ?? ''}
+        onClose={deleteDialog.close}
+        onConfirm={() => handleDelete(deleteDialog.item)}
       />
       <DisableIdentityProviderDialog
         provider={disableDialog.item}
@@ -272,6 +289,18 @@ export function IdentityProvidersTab() {
         onConfirm={handleConfirmDisable}
         onClose={disableDialog.close}
       />
+      <NxConfirmationDialog
+        isOpen={revokeDialog.isOpen}
+        onClose={revokeDialog.close}
+        onConfirm={handleRevoke}
+        title="Revoke identity provider tokens?"
+        confirmLabel="Revoke tokens"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+      >
+        All tokens for users authenticated via <strong>{revokeDialog.item?.name}</strong> will be revoked. Affected
+        users will be signed out and must sign in again.
+      </NxConfirmationDialog>
     </NxPanelContentStack>
   )
 }

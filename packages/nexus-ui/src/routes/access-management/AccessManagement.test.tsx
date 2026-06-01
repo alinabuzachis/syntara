@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AppRoute } from '../../app/AppRoute'
-import { usersClient } from '../../client'
+import { adminClient, usersClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 import { accessClient, accessFetchClient } from '../access/accessClient'
 
@@ -39,6 +39,12 @@ vi.mock('../../client', () => ({
   usersClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+  adminClient: {
+    useMutation: vi.fn().mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
   },
   authMiddleware: { onRequest: vi.fn() },
 }))
@@ -80,6 +86,10 @@ describe('AccessManagement', () => {
       mutate: vi.fn(),
       isPending: false,
     } as never)
+    vi.mocked(adminClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as never)
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
     wouterLocation.path = AppRoute.AccessManagement.Users
     mockNavigate.mockClear()
@@ -109,6 +119,21 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Can I?' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Token Revocation' })).toBeInTheDocument()
+  })
+
+  it('hides Token Revocation tab when user lacks token-revocation:read permission', async () => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+      const { body } = options as { body: { resource_type: string } }
+      if (body.resource_type === 'admin:revocation') return Promise.resolve({ data: { allowed: false } } as never)
+      return Promise.resolve({ data: { allowed: true } } as never)
+    })
+    await renderAndSettle(<AccessManagement />)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'Token Revocation' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
   })
 
   it('does not render Identity Providers or Claim Mappings tabs', async () => {

@@ -1,4 +1,5 @@
 import * as AAPAPI from './aap-api.js'
+import * as AdminAPI from './admin-api.js'
 import * as ApprovalsAPI from './approvals-api.js'
 import * as AuditAPI from './audit-api.js'
 import * as AuthAPI from './auth-api.js'
@@ -20,6 +21,7 @@ import * as WorkflowAPI from './workflow-api.js'
 
 export {
   AAPAPI,
+  AdminAPI,
   ApprovalsAPI,
   AuditAPI,
   AuthAPI,

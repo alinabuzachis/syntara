@@ -80,9 +80,13 @@ async function openNodeKebabMenu(app: import('@playwright/test').Page, nodeText:
   await layoutCanvas(app)
   const node = app.locator('.react-flow__node').filter({ hasText: nodeText })
   await expect(node).toBeVisible({ timeout: 15_000 })
-  // Single-click expands the node to reveal kebab; use the chevron area
-  const expandToggle = node.getByRole('button').first()
-  await expandToggle.click()
+
+  // Ensure node is expanded so the kebab is reachable
+  const expandToggle = node.getByTestId('node-expand-toggle')
+  if ((await expandToggle.count()) > 0) {
+    await expandToggle.click()
+  }
+
   const kebabButton = node.getByLabel('Step actions menu')
   await expect(kebabButton).toBeVisible({ timeout: 10_000 })
   await kebabButton.click()

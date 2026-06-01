@@ -3,10 +3,10 @@ import type { Edge, Node } from '@xyflow/react'
 import { parseTriggerIndex } from './triggerNodeIds'
 
 export type AncestorNode = {
-  id: string;
-  name: string;
-  type?: string;
-  portTowardTarget?: string;
+  id: string
+  name: string
+  type?: string
+  portTowardTarget?: string
 }
 
 type ParentInfo = { sourceId: string; sourceHandle?: string }

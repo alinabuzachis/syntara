@@ -200,6 +200,11 @@ export const NAV_ITEMS: TNavigationItem[] = [
             hidden: true,
           },
           {
+            label: 'Token Revocation',
+            path: AppRoute.AccessManagement.TokenRevocation,
+            element: <AccessManagement />,
+          },
+          {
             label: 'Group Detail',
             path: AppRoute.AccessManagement.GroupDetail,
             element: <GroupDetail />,

@@ -22,6 +22,7 @@ import { executions } from './resources/executions'
 import { activityExecutions } from './resources/activityExecutions'
 import { approvals } from './resources/approvals'
 import { settings, settingsCategories } from './resources/settings'
+import { revocationState } from './resources/revocation'
 import { identityProviders, type IdentityProvider } from './resources/identityProviders'
 import { validateGroupJmespathExpression } from './utils/jmespathValidation'
 import { users, userIdentities, type UserRead, type UserIdentityRead } from './resources/users'
@@ -1373,24 +1374,6 @@ export const handlers = [
     return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
   }),
 
-  http.get('/api/v1/users_directory', ({ request }) => {
-    const url = new URL(request.url)
-    const cursor = url.searchParams.get('cursor')
-    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
-    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
-    const includeTotal = url.searchParams.get('include_total') === 'true'
-    const usernameFilter = url.searchParams.get('username[contains]')
-
-    let resources = users.map((u) => ({ id: u.id, username: u.username }))
-
-    if (usernameFilter) {
-      const searchTerm = usernameFilter.toLowerCase()
-      resources = resources.filter((u) => u.username.toLowerCase().includes(searchTerm))
-    }
-
-    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
-  }),
-
   http.post('/api/v1/users', async ({ request }) => {
     const body = (await request.json()) as {
       username?: string
@@ -1729,24 +1712,6 @@ export const handlers = [
     if (usernameContains) {
       const searchTerm = usernameContains.toLowerCase()
       resources = resources.filter((u) => u.username.toLowerCase().includes(searchTerm))
-    }
-
-    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
-  }),
-
-  http.get('/api/v1/groups_directory', ({ request }) => {
-    const url = new URL(request.url)
-    const cursor = url.searchParams.get('cursor')
-    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
-    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
-    const includeTotal = url.searchParams.get('include_total') === 'true'
-
-    let resources = groups.map((g) => ({ id: g.id, name: g.name }))
-
-    const nameContains = url.searchParams.get('name[contains]')
-    if (nameContains) {
-      const searchTerm = nameContains.toLowerCase()
-      resources = resources.filter((g) => g.name.toLowerCase().includes(searchTerm))
     }
 
     return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
@@ -3672,6 +3637,51 @@ export const handlers = [
       denial_reason: allowed ? '' : `Insufficient permissions for ${resourceType}:${action}`,
       denied_by: allowed ? '' : 'authorization-service',
     })
+  }),
+
+  // ── Admin: Token Revocation ──────────────────────────────────────────
+
+  http.get('/api/v1/admin/revocation', () => {
+    return HttpResponse.json({
+      revoked_before: revocationState.revoked_before,
+      updated_at: revocationState.updated_at,
+    })
+  }),
+
+  http.post('/api/v1/admin/revocation', () => {
+    const now = new Date().toISOString()
+    revocationState.revoked_before = now
+    revocationState.updated_at = now
+    return HttpResponse.json({ message: 'All tokens have been revoked.' })
+  }),
+
+  http.post('/api/v1/admin/revocation/users/:username', ({ params }) => {
+    const username = params.username as string
+    const user = users.find((u) => u.username === username)
+    if (!user) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: `User "${username}" not found.` },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json({ message: `Tokens for user "${username}" have been revoked.` })
+  }),
+
+  http.post('/api/v1/admin/revocation/identity-providers/:idp_name', ({ params }) => {
+    const idpName = params.idp_name as string
+    const provider = identityProviders.find((p) => p.name === idpName)
+    if (!provider) {
+      return HttpResponse.json(
+        {
+          type: 'about:blank',
+          title: 'Not Found',
+          status: 404,
+          detail: `Identity provider "${idpName}" not found.`,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json({ message: `Tokens for identity provider "${idpName}" have been revoked.` })
   }),
 
   http.post('/api/v1/authz/who_can', async ({ request }) => {

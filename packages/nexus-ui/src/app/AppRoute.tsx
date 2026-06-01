@@ -58,6 +58,7 @@ export const AppRoute = {
     Assignments: '/system-administration/access-management/assignments',
     CanI: '/system-administration/access-management/can-i',
     CanIMode: '/system-administration/access-management/can-i/:mode',
+    TokenRevocation: '/system-administration/access-management/token-revocation',
   },
   Auth: {
     TestSignInCallback: '/auth/test-signin-callback',
