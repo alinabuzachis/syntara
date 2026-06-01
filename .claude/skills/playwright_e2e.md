@@ -8,12 +8,14 @@ Your goal is to author comprehensive, production-grade end-to-end tests using Pl
 
 ### Existing Test Infrastructure
 
-| Component  | Location                                     |
-| ---------- | -------------------------------------------- |
-| Config     | `packages/nexus-ui/playwright.config.ts`     |
-| Test files | `packages/nexus-ui/e2e/*.spec.ts`            |
-| Fixtures   | `packages/nexus-ui/e2e/fixtures.ts`          |
-| Helpers    | `packages/nexus-ui/e2e/helpers/workflows.ts` |
+| Component     | Location                                     |
+| ------------- | -------------------------------------------- |
+| Config        | `packages/nexus-ui/playwright.config.ts`     |
+| Test files    | `packages/nexus-ui/e2e/*.spec.ts`            |
+| Fixtures      | `packages/nexus-ui/e2e/fixtures.ts`          |
+| Helpers       | `packages/nexus-ui/e2e/helpers/workflows.ts` |
+| Utils (API)   | `packages/nexus-ui/e2e/utils/api.ts`         |
+| Utils (Mocks) | `packages/nexus-ui/e2e/utils/mockData.ts`    |
 
 ### Key Conventions (extracted from existing tests)
 
@@ -548,11 +550,23 @@ This ensures tests work against both mock API (with seed data) and real backend 
 
 ---
 
+### Existing API Utilities (`e2e/utils/`)
+
+#### `utils/api.ts` — Authentication & Resource Helpers
+
+Core functions: `getAuthToken()`, `apiRequest()`, `ensureProject()`. Plus CRUD helpers for credentials, groups, and identity providers (create/delete/list/find variants). Used by 20+ test files for API-based setup/teardown.
+
+#### `utils/mockData.ts` — Route Interception & Mock Data
+
+Helpers: `fulfill()`, `mockUser()`, `mockUserIdentities()`, `mockAuthMe()`, `mockAuthProviders()`, `mockUsersList()`, `mockUserGroups()`. Plus mock fixtures for users, identities, providers, and audit events. Used by user identity and auth tests.
+
+---
+
 ### Resource Utility Pattern (Recommended for Real Backend)
 
 For faster test setup/teardown when running against a real backend, create API-based resource utilities in `packages/nexus-ui/e2e/utils/`.
 
-**This directory doesn't exist yet — create it when needed:**
+**Add new resource-specific helpers alongside the existing utilities:**
 
 ```typescript
 // packages/nexus-ui/e2e/utils/workflows.ts
