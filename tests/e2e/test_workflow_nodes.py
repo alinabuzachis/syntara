@@ -7,73 +7,15 @@ Run with:
     APP_BASE_URL=http://localhost:8000 make test-e2e
 """
 
-import time
 from typing import Any
-from uuid import UUID
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import (
-    ExecutionCreate,
-    ExecutionRead,
-    WorkflowCreate,
-    WorkflowUpdate,
-)
 from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
-POLL_INTERVAL = 1
-POLL_TIMEOUT = 20
+from tests.e2e.helpers import create_and_run_workflow
+
 AGENTIC_POLL_TIMEOUT = 120
-
-_TERMINAL_STATUSES = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
-
-
-def _poll_execution(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> ExecutionRead:
-    """Poll until execution reaches a terminal state, returning the final ExecutionRead."""
-    elapsed = 0
-    while elapsed < timeout:
-        time.sleep(POLL_INTERVAL)
-        elapsed += POLL_INTERVAL
-        response = api.executions.get(execution_id=UUID(exec_id), include="activities")
-        assert response.is_success, f"Failed to get execution {exec_id}"
-        assert response.parsed is not None, f"Failed to get execution {exec_id}"
-        execution: ExecutionRead = response.parsed
-        if execution.status in _TERMINAL_STATUSES:
-            return execution
-    pytest.fail(f"Execution {exec_id} did not finish within {timeout}s")
-
-
-def _create_and_run_workflow(
-    api: NexusApiRegistry, name: str, definition: dict[str, Any], timeout: int = POLL_TIMEOUT
-) -> ExecutionRead:
-    """Create (or update) a workflow, execute it, and return the completed ExecutionRead."""
-    list_response = api.workflows.list(additional_params={"name": name})
-    assert list_response.is_success, "Failed to list workflows"
-    assert list_response.parsed is not None, "Failed to list workflows"
-    existing = [w for w in list_response.parsed.resources if w.name == name]
-
-    if existing:
-        wf_id = existing[0].id
-        api.workflows.update(
-            workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=WorkflowDefinition.from_dict(definition))
-        )
-    else:
-        create_response = api.workflows.create(
-            body=WorkflowCreate(
-                name=name,
-                description=f"E2E test: {name}",
-                workflow_definition=WorkflowDefinition.from_dict(definition),
-            )
-        )
-        assert create_response.is_success, f"Failed to create workflow {name}"
-        assert create_response.parsed is not None, f"Failed to create workflow {name}"
-        wf_id = create_response.parsed.id
-
-    exec_response = api.executions.create(body=ExecutionCreate(workflow_id=wf_id))
-    assert exec_response.is_success, f"Failed to start execution for {name}"
-    assert exec_response.parsed is not None, f"Failed to start execution for {name}"
-    return _poll_execution(api, str(exec_response.parsed.id), timeout=timeout)
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +26,7 @@ def _create_and_run_workflow(
 @pytest.mark.e2e
 def test_script_node_bash(nexus_api: NexusApiRegistry):
     """A bash script node executes and the workflow completes."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-script-bash",
         {
@@ -117,7 +59,7 @@ def test_script_node_bash(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_script_node_python(nexus_api: NexusApiRegistry):
     """A python script node executes and the workflow completes."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-script-python",
         {
@@ -154,7 +96,7 @@ def test_script_node_python(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_http_request_node(nexus_api: NexusApiRegistry, worker_base_url: str):
     """An HTTP request node calls an endpoint and the workflow completes."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-http-request",
         {
@@ -191,7 +133,7 @@ def test_http_request_node(nexus_api: NexusApiRegistry, worker_base_url: str):
 @pytest.mark.e2e
 def test_condition_true_branch(nexus_api: NexusApiRegistry):
     """A condition that evaluates to true routes to the true branch only."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-condition-true",
         {
@@ -239,7 +181,7 @@ def test_condition_true_branch(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_condition_false_branch(nexus_api: NexusApiRegistry):
     """A condition that evaluates to false routes to the false branch only."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-condition-false",
         {
@@ -292,7 +234,7 @@ def test_condition_false_branch(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_loop_for_each(nexus_api: NexusApiRegistry):
     """A for_each loop iterates over items and executes the body for each."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-loop-foreach",
         {
@@ -340,7 +282,7 @@ def test_loop_for_each(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_parallel_paths_with_converge(nexus_api: NexusApiRegistry):
     """Two parallel script nodes converge before a final node executes."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-parallel-converge",
         {
@@ -401,7 +343,7 @@ def test_parallel_paths_with_converge(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_multi_node_workflow(nexus_api: NexusApiRegistry):
     """A workflow combining script, condition, parallel paths, and converge."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-multi-node",
         {
@@ -479,7 +421,7 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str):
     """A script node feeds into an agentic node."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-script-to-agentic",
         {
@@ -529,7 +471,7 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
 @pytest.mark.e2e
 def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str):
     """An agentic node feeds into a script node."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-agentic-to-script",
         {
@@ -581,7 +523,7 @@ def test_loop_with_agentic_body(
     nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str
 ):
     """A loop iterates with an agentic node as the loop body."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-loop-agentic",
         {
@@ -634,7 +576,7 @@ def test_http_request_then_agentic(
     nexus_api: NexusApiRegistry, worker_base_url: str, llm_credential_id: str, llm_model: str
 ):
     """An HTTP request node feeds into an agentic node."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-http-to-agentic",
         {
@@ -730,7 +672,7 @@ def _switch_workflow_definition(cases: list[dict[str, str]], default_port: str =
 @pytest.mark.e2e
 def test_switch_first_case_matches(nexus_api: NexusApiRegistry):
     """Switch routes to first matching case, other cases and default are skipped."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-first-case",
         _switch_workflow_definition(
@@ -758,7 +700,7 @@ def test_switch_first_case_matches(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_second_case_matches(nexus_api: NexusApiRegistry):
     """Switch skips first case (false), routes to second case (true)."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-second-case",
         _switch_workflow_definition(
@@ -780,7 +722,7 @@ def test_switch_second_case_matches(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_default_fallback(nexus_api: NexusApiRegistry):
     """Switch routes to default when no case matches."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-default",
         _switch_workflow_definition(
@@ -802,7 +744,7 @@ def test_switch_default_fallback(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_3_case_routing(nexus_api: NexusApiRegistry):
     """Switch with 3 cases routes to the first matching case; later cases and default are skipped."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-3-case",
         _switch_workflow_definition(
@@ -826,7 +768,7 @@ def test_switch_3_case_routing(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_single_case_with_default(nexus_api: NexusApiRegistry):
     """Switch with one case + default works correctly."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-single-case",
         _switch_workflow_definition(
@@ -846,7 +788,7 @@ def test_switch_single_case_with_default(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_numeric_comparison(nexus_api: NexusApiRegistry):
     """Switch evaluates numeric comparison operators correctly."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-numeric",
         _switch_workflow_definition(
@@ -867,7 +809,7 @@ def test_switch_numeric_comparison(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_negation(nexus_api: NexusApiRegistry):
     """Switch evaluates not() expressions correctly."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-negation",
         _switch_workflow_definition(
@@ -886,7 +828,7 @@ def test_switch_negation(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_skipped_branches_have_activity_records(nexus_api: NexusApiRegistry):
     """Skipped branches have ActivityExecution records with correct status and null timing."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-skipped",
         _switch_workflow_definition(
@@ -915,7 +857,7 @@ def test_switch_skipped_branches_have_activity_records(nexus_api: NexusApiRegist
 @pytest.mark.e2e
 def test_switch_in_operator(nexus_api: NexusApiRegistry):
     """Switch evaluates 'in' operator correctly."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-in-operator",
         _switch_workflow_definition(
@@ -936,7 +878,7 @@ def test_switch_in_operator(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
     """Switch with empty cases array fails the workflow."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-empty-cases",
         {
@@ -977,7 +919,7 @@ def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
 @pytest.mark.e2e
 def test_switch_after_script_node(nexus_api: NexusApiRegistry):
     """Switch reads upstream node output via namespace injection."""
-    result = _create_and_run_workflow(
+    result = create_and_run_workflow(
         nexus_api,
         "e2e-switch-after-script",
         {

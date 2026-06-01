@@ -21,6 +21,10 @@ from click.testing import Result
 from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
+from nexus_api_client.models import (
+    WorkflowCreate,
+    WorkflowRead,
+)
 from nexus_api_client.models.access_token_response import AccessTokenResponse
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
@@ -32,8 +36,6 @@ from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.models.user_read import UserRead
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_read import WorkflowRead
 from nexus_api_client.types import Response
 from typer.testing import CliRunner
 
