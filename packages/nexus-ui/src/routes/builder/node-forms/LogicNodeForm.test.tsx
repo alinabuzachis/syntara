@@ -181,6 +181,20 @@ describe('LogicNodeForm', () => {
       })
     })
 
+    it("defaults converge strategy to 'all' when initialData has undefined strategy", () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.CONVERGE,
+            name: 'Converge Node',
+          }}
+        />
+      )
+
+      expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
+    })
+
     it('defaults loop type to while when not provided', () => {
       renderWithHeader(
         <LogicNodeForm

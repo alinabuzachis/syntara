@@ -107,7 +107,7 @@ export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: 
 
   // Handle Converge node
   if (logicType === ActivityTypeEnum.CONVERGE) {
-    const convergeData: Partial<ConvergeFormData> = {
+    const convergeSource = {
       name: initialData?.name,
       strategy: initialData?.strategy,
       timeoutEnabled: initialData?.timeoutEnabled,
@@ -118,7 +118,10 @@ export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: 
       timeout: initialData?.timeout,
       onTimeout: initialData?.onTimeout,
       requiredPathCount: initialData?.requiredPathCount,
-    }
+    } satisfies Partial<ConvergeFormData>
+    const convergeData: Partial<ConvergeFormData> = Object.fromEntries(
+      Object.entries(convergeSource).filter(([, v]) => v !== undefined)
+    )
 
     const handleConvergeSubmit = (data: ConvergeFormData) => {
       onSubmit({

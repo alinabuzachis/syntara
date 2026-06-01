@@ -12,16 +12,35 @@
 
 import { type Page } from '@playwright/test'
 
-import { expect } from '../fixtures'
+import { expect, toAppUrl } from '../fixtures'
 
-import { addNodePanel, closeNodeEditorPanel, fillCodeEditor } from './workflows'
+import { addNodePanel, buildUniqueName, closeNodeEditorPanel, fillCodeEditor } from './workflows'
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+/** Select a category then a subtype within the add-node panel. */
+async function selectCategoryAndType(page: Page, category: string, subtype: string) {
+  const panel = addNodePanel(page)
+  await panel.getByRole('button', { name: category, exact: true }).click()
+  const subtypeBtn = panel.getByRole('button', { name: subtype, exact: true })
+  await expect(subtypeBtn).toBeVisible({ timeout: 5_000 })
+  await subtypeBtn.click()
+}
+
+/** Select a direct (non-category) button in the add-node panel. */
+async function selectDirectNodeType(page: Page, label: string | RegExp) {
+  const panel = addNodePanel(page)
+  await panel.getByRole('button', { name: label }).click()
+}
+
+// ---------------------------------------------------------------------------
+// Trigger
+// ---------------------------------------------------------------------------
+
 /** Click "Add connected step" button on an edge and wait for the add-node panel to appear. */
-async function openAddNodePanel(page: Page) {
+export async function openAddNodePanel(page: Page) {
   const layoutButton = page.getByRole('button', { name: 'Layout' })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
@@ -43,25 +62,6 @@ async function openAddNodePanel(page: Page) {
     }
   }
 }
-
-/** Select a category then a subtype within the add-node panel. */
-async function selectCategoryAndType(page: Page, category: string, subtype: string) {
-  const panel = addNodePanel(page)
-  await panel.getByRole('button', { name: category, exact: true }).click()
-  const subtypeBtn = panel.getByRole('button', { name: subtype, exact: true })
-  await expect(subtypeBtn).toBeVisible({ timeout: 5_000 })
-  await subtypeBtn.click()
-}
-
-/** Select a direct (non-category) button in the add-node panel. */
-async function selectDirectNodeType(page: Page, label: string | RegExp) {
-  const panel = addNodePanel(page)
-  await panel.getByRole('button', { name: label }).click()
-}
-
-// ---------------------------------------------------------------------------
-// Trigger
-// ---------------------------------------------------------------------------
 
 /** Add a manual trigger. Must be called on a fresh /workflow-builder/new page. */
 export async function addManualTrigger(page: Page, name = 'Manual trigger') {
@@ -281,6 +281,18 @@ export async function addLoopNodeWithBody(page: Page, name: string, items = '${t
   await closeNodeEditorPanel(page)
 }
 
+/**
+ * Navigate to a new workflow, add trigger + condition, and open the converge form.
+ * Used by validation-only tests that don't need to save the workflow.
+ */
+export async function openConvergeFormOnNewWorkflow(page: Page) {
+  await page.goto(toAppUrl('/workflow-builder/new'))
+  await addManualTrigger(page, 'Manual trigger')
+  await addConditionNodeWithBranch(page, 'Condition', 'true')
+  await openAddNodePanel(page)
+  await selectCategoryAndType(page, 'Logic', 'Converge')
+}
+
 /** Add a converge node (v2 type: "converge"). */
 export async function addConvergeNode(page: Page, name: string) {
   await openAddNodePanel(page)
@@ -288,4 +300,160 @@ export async function addConvergeNode(page: Page, name: string) {
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
+}
+
+/**
+ * Add a converge node with 'all' strategy (wait for all branches).
+ * V2 type: "converge", strategy: "all"
+ */
+export async function addConvergeNodeWithAllStrategy(page: Page, name: string) {
+  await openAddNodePanel(page)
+  await selectCategoryAndType(page, 'Logic', 'Converge')
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+  // Strategy defaults to 'all', so no need to change it
+  await page.getByRole('button', { name: 'Save and close' }).click()
+  await closeNodeEditorPanel(page)
+}
+
+/**
+ * Add a converge node with 'any' strategy (wait for N of M branches).
+ * V2 type: "converge", strategy: "any", requiredPathCount: number
+ */
+export async function addConvergeNodeWithAnyStrategy(page: Page, name: string, requiredPathCount: number) {
+  await openAddNodePanel(page)
+  await selectCategoryAndType(page, 'Logic', 'Converge')
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+
+  // Select 'any' strategy
+  await page.getByRole('combobox', { name: /Continue when criteria/i }).selectOption('any')
+
+  // Fill required path count
+  const requiredPathCountInput = page.getByRole('spinbutton', {
+    name: /Required number of branches before continuing/i,
+  })
+  await expect(requiredPathCountInput).toBeVisible()
+  await requiredPathCountInput.fill(String(requiredPathCount))
+
+  await page.getByRole('button', { name: 'Save and close' }).click()
+  await closeNodeEditorPanel(page)
+}
+
+/**
+ * Add a converge node with timeout configuration.
+ * V2 type: "converge", timeout: number (seconds), onTimeout: "fail" | "continue"
+ */
+export async function addConvergeNodeWithTimeout(
+  page: Page,
+  name: string,
+  timeoutConfig: {
+    seconds?: number
+    minutes?: number
+    hours?: number
+    days?: number
+    action: 'fail' | 'continue'
+    strategy?: 'all' | 'any'
+    requiredPathCount?: number
+  }
+) {
+  await openAddNodePanel(page)
+  await selectCategoryAndType(page, 'Logic', 'Converge')
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+
+  // Set strategy if provided
+  if (timeoutConfig.strategy === 'any' && timeoutConfig.requiredPathCount !== undefined) {
+    await page.getByRole('combobox', { name: /Continue when criteria/i }).selectOption('any')
+    const requiredPathCountInput = page.getByRole('spinbutton', {
+      name: /Required number of branches before continuing/i,
+    })
+    await expect(requiredPathCountInput).toBeVisible()
+    await requiredPathCountInput.fill(String(timeoutConfig.requiredPathCount))
+  }
+
+  // Enable timeout
+  await page.getByRole('switch', { name: /Timeout/i }).click({ force: true })
+
+  // Fill timeout units
+  if (timeoutConfig.seconds !== undefined) {
+    await page.getByLabel(/Second\(s\)/i).fill(String(timeoutConfig.seconds))
+  }
+  if (timeoutConfig.minutes !== undefined) {
+    await page.getByLabel(/Minute\(s\)/i).fill(String(timeoutConfig.minutes))
+  }
+  if (timeoutConfig.hours !== undefined) {
+    await page.getByLabel(/Hour\(s\)/i).fill(String(timeoutConfig.hours))
+  }
+  if (timeoutConfig.days !== undefined) {
+    await page.getByLabel(/Day\(s\)/i).fill(String(timeoutConfig.days))
+  }
+
+  // Select timeout action
+  // The timeout action is a PatternFly Select component with custom toggle
+  const timeoutActionButton = page.getByRole('button', { name: /Fail|Continue with partial data/i })
+  await expect(timeoutActionButton).toBeVisible()
+  await timeoutActionButton.click()
+
+  const actionOption =
+    timeoutConfig.action === 'fail'
+      ? page.getByRole('option', { name: 'Fail' })
+      : page.getByRole('option', { name: 'Continue with partial data' })
+  await expect(actionOption).toBeVisible()
+  await actionOption.click()
+
+  await page.getByRole('button', { name: 'Save and close' }).click()
+  await closeNodeEditorPanel(page)
+}
+
+/**
+ * Create a workflow with trigger and condition node (2 branches), ready for converge node testing.
+ * Returns the unique workflow name.
+ */
+export async function createWorkflowWithBranchesForConverge(page: Page): Promise<string> {
+  const workflowName = buildUniqueName('converge-test')
+
+  // Start on /workflow-builder/new
+  await page.goto(toAppUrl('/workflow-builder/new'))
+
+  // Add manual trigger
+  await addManualTrigger(page, 'Manual trigger')
+
+  // Add condition node with branch (creates 2 branches: true and false)
+  await addConditionNodeWithBranch(page, 'Condition', 'true')
+
+  return workflowName
+}
+
+/**
+ * Verify converge node configuration in saved V2 workflow payload.
+ * Uses snake_case field names as they appear in the API payload.
+ */
+export function expectConvergeNodeConfig(
+  nodes: Array<{ id: string; type: string; config: Record<string, unknown> }>,
+  expected: {
+    strategy: 'all' | 'any'
+    n_required?: number
+    timeout?: number
+    on_timeout?: 'fail' | 'continue'
+  }
+) {
+  const convergeNode = nodes.find((n) => n.type === 'converge')
+  expect(convergeNode).toBeDefined()
+  expect(convergeNode?.config.strategy).toBe(expected.strategy)
+
+  if (expected.n_required !== undefined) {
+    expect(convergeNode?.config.n_required).toBe(expected.n_required)
+  } else {
+    expect(convergeNode?.config.n_required).toBeUndefined()
+  }
+
+  if (expected.timeout !== undefined) {
+    expect(convergeNode?.config.timeout).toBe(expected.timeout)
+  } else {
+    expect(convergeNode?.config.timeout).toBeUndefined()
+  }
+
+  if (expected.on_timeout !== undefined) {
+    expect(convergeNode?.config.on_timeout).toBe(expected.on_timeout)
+  } else {
+    expect(convergeNode?.config.on_timeout).toBeUndefined()
+  }
 }

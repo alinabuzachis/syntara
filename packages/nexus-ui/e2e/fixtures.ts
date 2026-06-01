@@ -1,4 +1,4 @@
-import { expect, test as base, type Page } from '@playwright/test'
+import { expect, test as base, type Page, type Request } from '@playwright/test'
 
 const processEnv: Record<string, string | undefined> = (
   process as unknown as { env: Record<string, string | undefined> }
@@ -75,4 +75,4 @@ export const test = base.extend<{ app: Page; auditorApp: Page; viewerApp: Page }
   },
 })
 
-export { expect }
+export { expect, type Page, type Request }
