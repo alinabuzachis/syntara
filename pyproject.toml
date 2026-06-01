@@ -223,6 +223,11 @@ disallow_incomplete_defs = false
 check_untyped_defs = false
 
 [[tool.mypy.overrides]]
+# Settings() calls in these tests omit secret_encryption_key (injected via autouse fixture)
+module = ["tests.unit.core.config.*", "tests.unit.metrics.test_config"]
+disable_error_code = ["call-arg"]
+
+[[tool.mypy.overrides]]
 module = "asyncpg.*"
 ignore_missing_imports = true
 

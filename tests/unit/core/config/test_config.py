@@ -473,7 +473,7 @@ class TestLoggingSettings:
 
         try:
             # _env_file=None skips .env file loading (pydantic-settings feature)
-            settings = Settings(_env_file=None)  # type: ignore[call-arg]
+            settings = Settings(_env_file=None)
             assert settings.fallback_log_level == "INFO"
         finally:
             get_settings.cache_clear()
@@ -514,7 +514,7 @@ class TestTemporalSettings:
 
         try:
             # _env_file=None skips .env file loading (pydantic-settings feature)
-            settings = Settings(_env_file=None)  # type: ignore[call-arg]
+            settings = Settings(_env_file=None)
             assert settings.temporal_address == "localhost:7233"
             assert settings.temporal_namespace == "default"
             assert settings.task_queue == "nexus-workflow-queue"

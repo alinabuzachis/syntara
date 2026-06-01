@@ -115,6 +115,7 @@ _check-dependency-binaries: _check-uv
 define run-tests
 @PODMAN_SOCK="$(PODMAN_SOCK)" POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
+	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
 	./tools/scripts/run-with-testcontainers.sh --label "🧪 Running tests" -- \
 	uv run pytest $(1)
 endef
@@ -205,6 +206,7 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/ -v)
 else
 	@echo "🧪 Running end to end tests..."
+	APP_SECRET_ENCRYPTION_KEY_PATH=$${APP_SECRET_ENCRYPTION_KEY_PATH:-.secrets/encryption-key} \
 	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/ -v
 endif
@@ -244,8 +246,8 @@ db-seed-all: check-deps ## Run all database seeders including dev samples
 .PHONY: dev
 dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
-	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
-	@uv run alembic -c alembic_audit.ini upgrade head
+	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key uv run alembic upgrade head
+	@APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key uv run alembic -c alembic_audit.ini upgrade head
 	@$(MAKE) db-seed
 	@echo "✅ Migrations and seeding complete"
 	@echo "🚀 Starting Nexus API server..."
@@ -255,6 +257,7 @@ dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	@echo ""
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
 	APP_JWT_BACKUP_KEYS='[{"key_id":"nexus-backup","key_path":".secrets/jwt-backup.pem"}]' \
+	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
 	uv run python -m nexus.api.main
 
 
@@ -397,7 +400,7 @@ generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creato
 
 .PHONY: _ensure-secrets
 _ensure-secrets:
-	@if [ ! -f .secrets/jwt-primary.pem ] || [ ! -f .secrets/jwt-backup.pem ] || [ ! -f .secrets/admin-password ] || [ ! -f .secrets/db-encryption-key ]; then \
+	@if [ ! -f .secrets/jwt-primary.pem ] || [ ! -f .secrets/jwt-backup.pem ] || [ ! -f .secrets/admin-password ] || [ ! -f .secrets/encryption-key ]; then \
 		echo "🔐 Generating secrets..."; \
 		./tools/generate_secrets.sh; \
 	fi
@@ -515,9 +518,10 @@ api-spec-validation: ## Validate syntax of OpenAPI and AsyncAPI spec files
 	@uv run python tools/ci/validate_api_specs.py
 
 .PHONY: api-spec-drift
-api-spec-drift: ## Check that committed openapi.yaml matches the generated spec (VERBOSITY=-v/-vv/-vvv)
+api-spec-drift: _ensure-secrets ## Check that committed openapi.yaml matches the generated spec (VERBOSITY=-v/-vv/-vvv)
 	@echo "🔍 Checking OpenAPI spec is up to date..."
-	@uv run python tools/export_openapi.py 2>/dev/null | uv run python tools/ci/check_openapi_spec.py $(OPENAPI_SPEC) $(VERBOSITY)
+	@APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
+		uv run python tools/export_openapi.py 2>/dev/null | uv run python tools/ci/check_openapi_spec.py $(OPENAPI_SPEC) $(VERBOSITY)
 
 .PHONY: api-spec-bundle
 api-spec-bundle: ## Bundle all domain sub-specs into a single merged openapi.yaml (no external $refs)
@@ -649,6 +653,7 @@ typecheck-pyrefly: ## Run type checking with pyrefly (~3s, used in pre-commit)
 .PHONY: check-migrations
 check-migrations: _ensure-secrets ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (uses testcontainers)
 	@PODMAN_SOCK="$(PODMAN_SOCK)" POSTGRES_IMAGE="$(POSTGRES_IMAGE)" APP_ADMIN_PASSWORD_PATH=.secrets/admin-password \
+		APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
 		./tools/scripts/run-with-testcontainers.sh --label "🔍 Checking migrations" -- \
 		uv run python tools/ci/check_migrations.py
 

@@ -20,7 +20,7 @@ import warnings
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 from uuid import UUID
 
 from pydantic import Field, HttpUrl, SecretStr, computed_field, field_validator, model_validator
@@ -1451,22 +1451,47 @@ class CredentialEncryptionSettings(BaseSettings):
     """Credential encryption configuration.
 
     Controls encryption of credential field values at rest using AES-256-GCM.
-    A default insecure key is used for dev/test. Set APP_SECRET_ENCRYPTION_KEY
-    to a secure random 64-character hex value in production.
+
+    Provide the key via one of:
+      - APP_SECRET_ENCRYPTION_KEY: 64-character hex string (32 bytes) directly
+      - APP_SECRET_ENCRYPTION_KEY_PATH: path to a file containing the hex key
+
+    When both are set, the file path takes precedence.
 
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
     secret_encryption_key: SecretStr = Field(
-        default=SecretStr("0" * 64),
-        description="64-character hex string (32 bytes) for AES-256-GCM secret encryption. "
-        "MUST be set to a secure random value in production.",
+        description="64-character hex string (32 bytes) for AES-256-GCM secret encryption.",
     )
+
+    secret_encryption_key_path: str | None = Field(
+        default=None,
+        description="Path to a file containing the 64-character hex encryption key. "
+        "Takes precedence over secret_encryption_key when both are set.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_encryption_key(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Resolve the encryption key from path or direct value; reject if neither is set."""
+        path = data.get("secret_encryption_key_path")
+        if path is not None:
+            key_file = Path(path)
+            if not key_file.is_file():
+                msg = f"secret_encryption_key_path points to a file that does not exist: {path}"
+                raise SafeValueError(msg)
+            try:
+                data["secret_encryption_key"] = key_file.read_text().strip()
+            except OSError as e:
+                msg = f"Failed to read secret_encryption_key_path {path}: {e}"
+                raise SafeValueError(msg) from e
+        return data
 
     @field_validator("secret_encryption_key")
     @classmethod
     def validate_encryption_key(cls, v: SecretStr) -> SecretStr:
-        """Validate that the encryption key is a valid 64-character hex string."""
+        """Validate that the encryption key is a valid, non-default 64-character hex string."""
         key_value = v.get_secret_value()
         expected_hex_length = 64  # 32 bytes = 64 hex chars
         if len(key_value) != expected_hex_length:
@@ -1477,6 +1502,14 @@ class CredentialEncryptionSettings(BaseSettings):
         except ValueError as e:
             msg = "secret_encryption_key must be a valid hex string"
             raise SafeValueError(msg) from e
+        if key_value == "0" * expected_hex_length:
+            msg = (
+                "secret_encryption_key cannot be the all-zeros default. "
+                "Generate a secure key with:\n"
+                "  openssl rand -hex 32\n"
+                '  python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+            raise SafeValueError(msg)
         return v
 
 
@@ -1619,4 +1652,4 @@ def get_settings() -> Settings:
         Clear cache in tests if needed: get_settings.cache_clear()
 
     """
-    return Settings()
+    return Settings()  # type: ignore[call-arg]  # secret_encryption_key populated from env

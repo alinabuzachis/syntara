@@ -184,6 +184,7 @@ jobs:
         run: make test-e2e
         env:
           APP_BASE_URL: http://localhost:8000
+          APP_SECRET_ENCRYPTION_KEY_PATH: ${{ github.workspace }}/aap-dev/src/nexus/.secrets/encryption-key
           APP_WORKER_BASE_URL: http://myaap-ao-api:8000
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SEGMENT_SERVER_URL: http://localhost:9999

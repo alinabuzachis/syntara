@@ -23,6 +23,15 @@ if _registry is None:
     del _init_app
 
 
+TEST_ENCRYPTION_KEY = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+
+@pytest.fixture(autouse=True)
+def _set_encryption_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provide a valid encryption key for all unit tests via env var."""
+    monkeypatch.setenv("APP_SECRET_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY)
+
+
 @pytest.fixture(autouse=True)
 def _reset_opa_cache() -> Generator[None, None, None]:
     """Disable OPA cache between unit tests to prevent cross-test pollution."""

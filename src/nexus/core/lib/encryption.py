@@ -39,6 +39,9 @@ def key_from_string(hex_key: str) -> bytes:
     if len(key_bytes) != KEY_SIZE:
         msg = f"Encryption key must be {KEY_SIZE} bytes ({KEY_SIZE * 2} hex chars), got {len(key_bytes)}"
         raise ValueError(msg)
+    if key_bytes == b"\x00" * KEY_SIZE:
+        msg = "Refusing to use the insecure all-zeros encryption key"
+        raise ValueError(msg)
     return key_bytes
 
 

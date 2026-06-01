@@ -132,6 +132,16 @@ main() {
         info "  Password file: $SECRETS_DIR/admin-password"
     fi
 
+    # Generate encryption key file
+    if [[ -f "$SECRETS_DIR/encryption-key" ]] && [[ "$force" != true ]]; then
+        info "Encryption key already exists, skipping (use --force to regenerate)"
+    else
+        info "Generating encryption key..."
+        openssl rand -hex 32 > "$SECRETS_DIR/encryption-key"
+        chmod 600 "$SECRETS_DIR/encryption-key"
+        info "  Encryption key: $SECRETS_DIR/encryption-key"
+    fi
+
     # Prevent permissions issues once secrets are mounted to nexus containers
     chmod -R +r "${SECRETS_DIR}"
 
@@ -141,7 +151,7 @@ main() {
     info "  APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem"
     info "  APP_JWT_BACKUP_KEYS='[{\"key_id\":\"nexus-backup\",\"key_path\":\"/run/secrets/jwt-backup.pem\"}]'"
     info "  APP_ADMIN_PASSWORD_PATH=/run/secrets/admin-password"
-    info "  APP_DB_ENCRYPTION_KEY_PATH=/run/secrets/db-encryption-key"
+    info "  APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key"
     info ""
     info "Bootstrap admin password saved to: $SECRETS_DIR/admin-password"
 }

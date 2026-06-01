@@ -98,6 +98,52 @@ Access the value explicitly:
 password = settings.cache_password.get_secret_value()
 ```
 
+### Sensitive Settings with Path-Based Loading
+
+For encryption keys and other high-value secrets, support loading from a file path as well as a direct env var. The file path takes precedence when both are set.
+
+```python
+class CredentialEncryptionSettings(BaseSettings):
+    secret_encryption_key: SecretStr = Field(
+        description="64-character hex string (32 bytes) for AES-256-GCM encryption.",
+    )
+
+    secret_encryption_key_path: str | None = Field(
+        default=None,
+        description="Path to a file containing the hex key. Takes precedence over direct value.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_encryption_key_from_path(cls, data: dict[str, Any]) -> dict[str, Any]:
+        path = data.get("secret_encryption_key_path")
+        if path is None:
+            return data
+        key_file = Path(path)
+        if not key_file.is_file():
+            raise SafeValueError(f"... file does not exist: {path}")
+        data["secret_encryption_key"] = key_file.read_text().strip()
+        return data
+```
+
+**Rules for sensitive settings:**
+
+- **No insecure defaults.** Encryption keys, signing keys, and auth tokens must be required fields with no default value. A startup failure is better than silent insecurity.
+- **Reject known-bad values.** Validators must explicitly reject placeholder values (e.g., all-zeros keys) with an error message that includes generation instructions.
+- **Support `_PATH` suffix.** Follow the existing pattern: `APP_SECRET_ENCRYPTION_KEY_PATH`, `APP_JWT_PRIVATE_KEY_PATH`, `APP_ADMIN_PASSWORD_PATH`. File-based loading avoids exposing secrets in process listings and environment dumps.
+- **Defense-in-depth.** The consuming function (e.g., `key_from_string()`) should also reject insecure values, even though the validator already prevents them.
+
+Generate keys for local development:
+
+```bash
+# Generates .secrets/encryption-key, JWT keys, admin password
+make secrets-generate
+
+# Or manually:
+openssl rand -hex 32
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
 ### Computed Fields
 
 Use `@computed_field` for values derived from other settings:

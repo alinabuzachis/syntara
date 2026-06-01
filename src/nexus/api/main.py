@@ -122,14 +122,6 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     # Watch for runtime log level changes and start polling
     runtime_settings.start_watching()
 
-    # Warn if using the insecure default credential encryption key
-    _default_encryption_key = "0" * 64
-    if settings.secret_encryption_key.get_secret_value() == _default_encryption_key:
-        logger.warning(
-            "Using default credential encryption key — set APP_SECRET_ENCRYPTION_KEY "
-            "to a secure random value for production deployments"
-        )
-
     # Discover and register all routers automatically
     if settings.router_discovery_enabled:
         discover_and_register_routers(
