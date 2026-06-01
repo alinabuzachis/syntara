@@ -444,11 +444,8 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
         }
       />
       <NxPageBody>
-        <NxPanel
-          isFullHeight
-          isScrollable
-          panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--lg)' } }}
-        >
+        {/* hasNoPadding: PF Wizard applies its own lg padding on __main-body; Panel padding would double it. */}
+        <NxPanel isFullHeight isScrollable hasNoPadding>
           <form id="identity-provider-form" onSubmit={handleSubmit(onSubmit)} hidden />
           <IdentityProviderFormFields
             control={control}

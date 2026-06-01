@@ -514,6 +514,18 @@ export const pages: PageEntry[] = [
   },
   {
     section: 'authentication',
+    name: 'identity-provider-add-claim-mapping',
+    path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Claim mapping' }).click()
+      await expect(page.getByRole('heading', { name: 'Claim mapping' })).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
     name: 'identity-provider-add-template-dropdown',
     path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
     waitFor: async (page) => {
