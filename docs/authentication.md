@@ -155,9 +155,9 @@ Stateless access tokens cannot be individually revoked. However, the `StaleToken
 
 ### Global Token Revocation
 
-In an emergency (e.g., suspected key compromise, bulk account takeover, or compliance-mandated session termination), an administrator can invalidate **all** tokens issued before a given point in time using the admin CLI.
+In an emergency (e.g., suspected key compromise, bulk account takeover, or compliance-mandated session termination), an administrator can invalidate **all** tokens issued before a given point in time using either the admin CLI or the REST API.
 
-#### Usage
+#### CLI Usage
 
 ```bash
 # Interactive — prompts for confirmation
@@ -167,18 +167,34 @@ uv run python -m nexus.admin revoke-all-sessions
 uv run python -m nexus.admin revoke-all-sessions --yes
 ```
 
-The command writes the current UTC time to the `global_revocation_timestamp` singleton table. All tokens whose `iat` (issued-at) claim precedes this timestamp are rejected.
+#### API Usage
 
-#### Options
+```
+POST /api/v1/admin/revocation
+Authorization: Bearer <admin-token>
+```
+
+Returns `200` with the revocation timestamp. Requires the `admin` role.
+
+To read the current revocation timestamp:
+
+```
+GET /api/v1/admin/revocation
+Authorization: Bearer <token>
+```
+
+Returns `200` with `revoked_before` and `updated_at` (both `null` if no revocation has been performed). Accessible to `admin` and `auditor` roles.
+
+#### CLI Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--yes` | `false` | Skip the confirmation prompt |
 
-#### What happens when the command runs
+#### What happens when revocation runs
 
 1. The `revoked_before` column in the `global_revocation_timestamp` table is updated to the current UTC time. If no row exists yet, the singleton row is inserted.
-2. An audit event (`global_revocation`) is emitted with the actor name and timestamp.
+2. An audit event (`global_revocation`) is emitted with the actor name, source (`cli` or `api`), and timestamp.
 
 #### How enforcement works
 
@@ -201,18 +217,14 @@ Two audit events are emitted:
 
 | Event | When | Fields |
 |-------|------|--------|
-| `global_revocation` | Admin runs the CLI command | `actor_username`, `actor_source` (`cli`), `revocation_timestamp` |
+| `global_revocation` | Admin triggers revocation (CLI or API) | `actor_username`, `actor_source` (`cli` or `api`), `revocation_timestamp` |
 | `global_revocation_reject` | A token is rejected | `user_id`, `username`, `token_type` (`access` or `refresh`), `token_issued_at`, `revocation_timestamp` |
-
-#### Protection from API modification
-
-The revocation timestamp is stored in a dedicated database table (`global_revocation_timestamp`) and **cannot** be modified via the REST API. Only the admin CLI can set this value.
 
 ### User Session Revocation
 
 An administrator can revoke all active sessions for a specific user without affecting other users. This is useful for incident response (e.g., compromised account) or administrative actions (e.g., revoking access for a departing employee).
 
-#### Usage
+#### CLI Usage
 
 ```bash
 # Interactive — prompts for confirmation
@@ -222,14 +234,23 @@ uv run python -m nexus.admin revoke-user-sessions --username alice
 uv run python -m nexus.admin revoke-user-sessions --username alice --yes
 ```
 
-#### Options
+#### API Usage
+
+```
+POST /api/v1/admin/revocation/users/{username}
+Authorization: Bearer <admin-token>
+```
+
+Returns `200` with `message` and `sessions_revoked`. Returns `404` if the user does not exist. Requires the `admin` role.
+
+#### CLI Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--username` | *(required)* | Username of the user whose sessions should be revoked (case-insensitive) |
 | `--yes` | `false` | Skip the confirmation prompt |
 
-#### What happens when the command runs
+#### What happens when revocation runs
 
 1. The user is looked up by username in the database (case-insensitive, non-deleted users only).
 2. All refresh token sessions for the user are deleted from the session store via `revoke_all_for_user()`.
@@ -240,7 +261,7 @@ uv run python -m nexus.admin revoke-user-sessions --username alice --yes
 
 An administrator can revoke all active sessions that were authenticated via a specific identity provider. This is useful when an IdP is compromised, misconfigured, or being decommissioned — without needing to delete the provider itself.
 
-#### Usage
+#### CLI Usage
 
 ```bash
 # Interactive — prompts for confirmation
@@ -250,14 +271,23 @@ uv run python -m nexus.admin revoke-idp-sessions --idp-name "Corporate Okta"
 uv run python -m nexus.admin revoke-idp-sessions --idp-name "Corporate Okta" --yes
 ```
 
-#### Options
+#### API Usage
+
+```
+POST /api/v1/admin/revocation/identity-providers/{idp_name}
+Authorization: Bearer <admin-token>
+```
+
+Returns `200` with `message` and `sessions_revoked`. Returns `404` if the identity provider does not exist. Requires the `admin` role.
+
+#### CLI Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--idp-name` | *(required)* | Name of the identity provider whose sessions should be revoked |
 | `--yes` | `false` | Skip the confirmation prompt |
 
-#### What happens when the command runs
+#### What happens when revocation runs
 
 1. The identity provider is looked up by name in the database (non-deleted providers only).
 2. All refresh token sessions authenticated via this provider are deleted from the session store using the `idp_sessions:<provider_id>` secondary index.
@@ -267,13 +297,13 @@ Users who authenticated via this provider will need to re-authenticate. Sessions
 
 ### Revocation Audit Trail
 
-All CLI revocation commands emit audit events:
+All revocation operations (CLI and API) emit audit events. The `actor_source` field distinguishes the origin (`cli` or `api`).
 
-| Command | Event | Fields |
-|---------|-------|--------|
-| `revoke-all-sessions` | `global_token_revocation` | `actor_username`, `actor_source`, `revocation_timestamp` |
-| `revoke-user-sessions` | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`user`), `target_identifier`, `sessions_revoked` |
-| `revoke-idp-sessions` | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`idp`), `target_identifier`, `sessions_revoked` |
+| Operation | Event | Fields |
+|-----------|-------|--------|
+| Revoke all sessions | `global_token_revocation` | `actor_username`, `actor_source`, `revocation_timestamp` |
+| Revoke user sessions | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`user`), `target_identifier`, `sessions_revoked` |
+| Revoke IdP sessions | `session_revocation` | `actor_username`, `actor_source`, `target_type` (`idp`), `target_identifier`, `sessions_revoked` |
 
 ### Account Management (`ao-admin`)
 

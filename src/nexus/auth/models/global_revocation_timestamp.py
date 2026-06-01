@@ -49,6 +49,10 @@ class GlobalRevocationTimestamp(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("now()")},
         description="When the revocation timestamp was last changed",
     )
+    updated_by: str | None = Field(
+        default=None,
+        description="Username of the actor who last set the revocation timestamp",
+    )
     is_singleton: bool = Field(
         default=True,
         sa_column=Column(

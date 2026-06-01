@@ -18,7 +18,6 @@ import argparse
 import asyncio
 import os
 import sys
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -72,58 +71,25 @@ async def _revoke_all_tokens(actor: str) -> None:
     _register_audit_handlers()
     _init_audit_writer()
 
-    from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
-    from nexus.auth.models.global_revocation_timestamp import GlobalRevocationTimestamp  # noqa: PLC0415
+    from nexus.admin.services import set_global_revocation_timestamp  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
 
-    now = datetime.now(UTC)
-    timestamp_str = now.isoformat()
-
-    from sqlalchemy import update as sa_update  # noqa: PLC0415
-
     async with AsyncSessionLocal() as session:
-        stmt = (
-            sa_update(GlobalRevocationTimestamp)
-            .where(GlobalRevocationTimestamp.id == 1)  # type: ignore[arg-type]
-            .values(revoked_before=now, updated_at=now)
+        now = await set_global_revocation_timestamp(
+            session,
+            actor_username=actor,
+            actor_source="cli",
         )
-        result = await session.exec(stmt)
-        if result.rowcount == 0:
-            # Row doesn't exist yet — insert the singleton
-            from sqlmodel import select  # noqa: PLC0415
-
-            existing = (await session.exec(select(GlobalRevocationTimestamp))).one_or_none()
-            if existing is None:
-                session.add(GlobalRevocationTimestamp(id=1, revoked_before=now, updated_at=now))
         await session.commit()
-
-        logger.info(
-            "Global revocation timestamp set",
-            timestamp=timestamp_str,
-            actor=actor,
-        )
-
-        # Emit audit event inside the session scope so a crash between
-        # commit and dispatch does not silently lose the audit record.
-        from nexus.auth.audit.global_revocation import GlobalRevocationEvent  # noqa: PLC0415
-
-        try:
-            AuditEventDispatcher.dispatch(
-                GlobalRevocationEvent(
-                    actor_username=actor,
-                    actor_source="cli",
-                    revocation_timestamp=timestamp_str,
-                )
-            )
-        except Exception:
-            logger.exception(
-                "Audit dispatch failed for global revocation",
-                timestamp=timestamp_str,
-                actor=actor,
-            )
 
     await _drain_audit_writer()
 
+    timestamp_str = now.isoformat()
+    logger.info(
+        "Global revocation timestamp set",
+        timestamp=timestamp_str,
+        actor=actor,
+    )
     print(  # noqa: T201
         f"Global revocation timestamp set to {timestamp_str}\n"
         f"All tokens issued before this time are now invalid.\n"
@@ -136,65 +102,33 @@ async def _revoke_user_sessions(username: str, actor: str) -> None:
     _register_audit_handlers()
     _init_audit_writer()
 
-    # Look up the user by username (case-insensitive)
-    from sqlmodel import select  # noqa: PLC0415
-
-    from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
-    from nexus.auth.audit.session_revocation import SessionRevocationEvent  # noqa: PLC0415
-    from nexus.auth.session import create_session_store  # noqa: PLC0415
+    from nexus.admin.services import find_user_by_username, revoke_user_sessions  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
-    from nexus.core.models import User  # noqa: PLC0415
 
     async with AsyncSessionLocal() as session:
-        result = await session.exec(
-            select(User).filter(
-                User.username == username.lower(),  # type: ignore[arg-type]
-                User.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-        )
-        user = result.one_or_none()
+        user = await find_user_by_username(session, username)
 
         if not user:
             print(f"ERROR: User '{username}' not found.")  # noqa: T201
             sys.exit(1)
 
-        # Revoke all sessions and increment token version
-        store = create_session_store(session)
-        revoked_count = await store.revoke_all_for_user(user.id)
-        await store.increment_token_version(user.id)
-        await session.commit()
-
-        logger.info(
-            "Revoked all sessions for user",
-            username=user.username,
-            user_id=str(user.id),
-            sessions_revoked=revoked_count,
-            actor=actor,
+        revoked_count = await revoke_user_sessions(
+            session,
+            user,
+            actor_username=actor,
+            actor_source="cli",
         )
-
-        # Emit audit event inside the session scope so a crash between
-        # commit and dispatch does not silently lose the audit record.
-        try:
-            AuditEventDispatcher.dispatch(
-                SessionRevocationEvent(
-                    actor_username=actor,
-                    actor_source="cli",
-                    target_type="user",
-                    target_identifier=user.username,
-                    sessions_revoked=revoked_count,
-                )
-            )
-        except Exception:
-            logger.exception(
-                "Audit dispatch failed for user session revocation",
-                username=user.username,
-                user_id=str(user.id),
-                sessions_revoked=revoked_count,
-                actor=actor,
-            )
+        await session.commit()
 
     await _drain_audit_writer()
 
+    logger.info(
+        "Revoked all sessions for user",
+        username=user.username,
+        user_id=str(user.id),
+        sessions_revoked=revoked_count,
+        actor=actor,
+    )
     print(  # noqa: T201
         f"Revoked {revoked_count} session(s) for user '{user.username}'.\n"
         f"The user will need to re-authenticate.\n"
@@ -207,64 +141,34 @@ async def _revoke_idp_sessions(idp_name: str, actor: str) -> None:
     _register_audit_handlers()
     _init_audit_writer()
 
-    # Look up the identity provider by name
-    from sqlmodel import select  # noqa: PLC0415
-
-    from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
-    from nexus.auth.audit.session_revocation import SessionRevocationEvent  # noqa: PLC0415
-    from nexus.auth.session import create_session_store  # noqa: PLC0415
+    from nexus.admin.services import find_idp_by_name, revoke_idp_sessions  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
-    from nexus.identity_providers.models.identity_provider import IdentityProvider  # noqa: PLC0415
 
     async with AsyncSessionLocal() as session:
-        result = await session.exec(
-            select(IdentityProvider).filter(
-                IdentityProvider.name == idp_name,  # type: ignore[arg-type]
-                IdentityProvider.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-        )
-        provider = result.one_or_none()
+        provider = await find_idp_by_name(session, idp_name)
 
         if not provider:
             print(f"ERROR: Identity provider '{idp_name}' not found.")  # noqa: T201
             sys.exit(1)
 
-        # Revoke all sessions for this IdP
-        store = create_session_store(session)
-        revoked_count = await store.revoke_by_idp(str(provider.id))
-        await session.commit()
-
-        logger.info(
-            "Revoked all sessions for identity provider",
+        revoked_count = await revoke_idp_sessions(
+            session,
+            provider.id,
             idp_name=provider.name,
-            idp_id=str(provider.id),
-            sessions_revoked=revoked_count,
-            actor=actor,
+            actor_username=actor,
+            actor_source="cli",
         )
-
-        # Emit audit event inside the session scope so a crash between
-        # commit and dispatch does not silently lose the audit record.
-        try:
-            AuditEventDispatcher.dispatch(
-                SessionRevocationEvent(
-                    actor_username=actor,
-                    actor_source="cli",
-                    target_type="idp",
-                    target_identifier=provider.name,
-                    sessions_revoked=revoked_count,
-                )
-            )
-        except Exception:
-            logger.exception(
-                "Audit dispatch failed for IdP session revocation",
-                idp_name=provider.name,
-                idp_id=str(provider.id),
-                sessions_revoked=revoked_count,
-                actor=actor,
-            )
+        await session.commit()
 
     await _drain_audit_writer()
 
+    logger.info(
+        "Revoked all sessions for identity provider",
+        idp_name=provider.name,
+        idp_id=str(provider.id),
+        sessions_revoked=revoked_count,
+        actor=actor,
+    )
     print(  # noqa: T201
         f"Revoked {revoked_count} session(s) for identity provider '{provider.name}'.\n"
         f"Users who authenticated via this provider will need to re-authenticate.\n"

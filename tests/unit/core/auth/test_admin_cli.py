@@ -43,11 +43,16 @@ class TestRevokeAllTokens:
 
     @pytest.mark.asyncio
     async def test_sets_global_revocation_timestamp(self) -> None:
-        """Should update the GlobalRevocationTimestamp row and emit audit event."""
+        """Should call set_global_revocation_timestamp and commit."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
         mock_session = _mock_db_session(rowcount=1)
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -55,35 +60,29 @@ class TestRevokeAllTokens:
                     __aexit__=AsyncMock(return_value=False),
                 ),
             ),
-            patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
+            patch(
+                "nexus.admin.services.set_global_revocation_timestamp",
+                new_callable=AsyncMock,
+                return_value=now,
+            ) as mock_set,
         ):
             await _revoke_all_tokens(actor="admin-cli")
 
-        mock_session.exec.assert_called_once()
+        mock_set.assert_called_once_with(mock_session, actor_username="admin-cli", actor_source="cli")
         mock_session.commit.assert_called_once()
-        mock_dispatcher.dispatch.assert_called_once()
-
-        event = mock_dispatcher.dispatch.call_args[0][0]
-        assert event.actor_username == "admin-cli"
-        assert event.actor_source == "cli"
-        assert event.revocation_timestamp is not None
 
     @pytest.mark.asyncio
     async def test_inserts_singleton_when_no_row_exists(self) -> None:
-        """Should insert the singleton row when the table is empty."""
-        mock_update_result = MagicMock()
-        mock_update_result.rowcount = 0
+        """Should delegate to set_global_revocation_timestamp which handles upsert."""
+        from datetime import UTC, datetime
 
-        mock_select_result = MagicMock()
-        mock_select_result.one_or_none.return_value = None
-
-        mock_session = AsyncMock()
-        mock_session.exec = AsyncMock(side_effect=[mock_update_result, mock_select_result])
-        mock_session.add = MagicMock()
-        mock_session.commit = AsyncMock()
+        now = datetime.now(UTC)
+        mock_session = _mock_db_session(rowcount=0)
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -91,21 +90,28 @@ class TestRevokeAllTokens:
                     __aexit__=AsyncMock(return_value=False),
                 ),
             ),
-            patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
+            patch(
+                "nexus.admin.services.set_global_revocation_timestamp",
+                new_callable=AsyncMock,
+                return_value=now,
+            ) as mock_set,
         ):
             await _revoke_all_tokens(actor="admin-cli")
 
-        mock_session.add.assert_called_once()
+        mock_set.assert_called_once()
         mock_session.commit.assert_called_once()
-        mock_dispatcher.dispatch.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_custom_actor_recorded(self) -> None:
-        """Should use the custom actor name in the audit event."""
+        """Should pass the custom actor name to set_global_revocation_timestamp."""
+        from datetime import UTC, datetime
+
         mock_session = _mock_db_session(rowcount=1)
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -113,12 +119,15 @@ class TestRevokeAllTokens:
                     __aexit__=AsyncMock(return_value=False),
                 ),
             ),
-            patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
+            patch(
+                "nexus.admin.services.set_global_revocation_timestamp",
+                new_callable=AsyncMock,
+                return_value=datetime.now(UTC),
+            ) as mock_set,
         ):
             await _revoke_all_tokens(actor="security-team@corp.com")
 
-        event = mock_dispatcher.dispatch.call_args[0][0]
-        assert event.actor_username == "security-team@corp.com"
+        mock_set.assert_called_once_with(mock_session, actor_username="security-team@corp.com", actor_source="cli")
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +154,8 @@ class TestRevokeUserSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -152,8 +163,8 @@ class TestRevokeUserSessions:
                     __aexit__=AsyncMock(return_value=False),
                 ),
             ),
-            patch("nexus.auth.session.create_session_store", return_value=mock_store),
-            patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
+            patch("nexus.admin.services.create_session_store", return_value=mock_store),
+            patch("nexus.admin.services.AuditEventDispatcher") as mock_dispatcher,
         ):
             await _revoke_user_sessions(username="alice", actor="admin-cli")
 
@@ -178,6 +189,8 @@ class TestRevokeUserSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -205,6 +218,8 @@ class TestRevokeUserSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -212,8 +227,8 @@ class TestRevokeUserSessions:
                     __aexit__=AsyncMock(return_value=False),
                 ),
             ),
-            patch("nexus.auth.session.create_session_store", return_value=mock_store),
-            patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
+            patch("nexus.admin.services.create_session_store", return_value=mock_store),
+            patch("nexus.admin.services.AuditEventDispatcher") as mock_dispatcher,
         ):
             await _revoke_user_sessions(username="alice", actor="security-team@corp.com")
 
@@ -244,6 +259,8 @@ class TestRevokeIdpSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -251,8 +268,8 @@ class TestRevokeIdpSessions:
                     __aexit__=AsyncMock(return_value=False),
                 ),
             ),
-            patch("nexus.auth.session.create_session_store", return_value=mock_store),
-            patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
+            patch("nexus.admin.services.create_session_store", return_value=mock_store),
+            patch("nexus.admin.services.AuditEventDispatcher") as mock_dispatcher,
         ):
             await _revoke_idp_sessions(idp_name="Corporate Okta", actor="admin-cli")
 
@@ -276,6 +293,8 @@ class TestRevokeIdpSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -302,6 +321,8 @@ class TestRevokeIdpSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
+            patch("nexus.admin.__main__._init_audit_writer"),
+            patch("nexus.admin.__main__._drain_audit_writer", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -309,8 +330,8 @@ class TestRevokeIdpSessions:
                     __aexit__=AsyncMock(return_value=False),
                 ),
             ),
-            patch("nexus.auth.session.create_session_store", return_value=mock_store),
-            patch("nexus.audit.dispatcher.AuditEventDispatcher") as mock_dispatcher,
+            patch("nexus.admin.services.create_session_store", return_value=mock_store),
+            patch("nexus.admin.services.AuditEventDispatcher") as mock_dispatcher,
         ):
             await _revoke_idp_sessions(idp_name="Corporate Okta", actor="ops@example.com")
 

@@ -9,6 +9,7 @@ from ..client import AuthenticatedClient
 
 if TYPE_CHECKING:
     from .aap import AapApi
+    from .admin import AdminApi
     from .approvals import ApprovalsApi
     from .audit_events import AuditEventsApi
     from .authentication import AuthenticationApi
@@ -46,6 +47,12 @@ class NexusApiRegistry:
         from .aap import AapApi
 
         return AapApi(client=self._client)
+
+    @cached_property
+    def admin(self) -> AdminApi:
+        from .admin import AdminApi
+
+        return AdminApi(client=self._client)
 
     @cached_property
     def approvals(self) -> ApprovalsApi:

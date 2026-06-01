@@ -256,7 +256,7 @@ class TestRoleBoundaries:
 
         # All auditor-specific actions should be read-only
         for action_str in auditor_actions:
-            _, action_verb = action_str.split(":", 1)
+            action_verb = action_str.rsplit(":", 1)[-1]
             assert action_verb == "read", f"Auditor has non-read action: {action_str}"
 
 
