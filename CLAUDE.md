@@ -63,46 +63,40 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 - **Leave files no worse than you found them**: If you touch a file, avoid increasing its warning count. When practical, reduce nearby warnings as part of the change.
 - **Refactor instead of suppressing**: Prefer clearer control flow, smaller functions, extracted helpers, and stronger types over disabling rules.
 - **Validate before finishing**: After substantive edits, run the relevant lint/type-check commands for the affected package and fix any issues introduced by the change.
-- **No nested ternary operators**: ESLint enforces `sonarjs/no-nested-conditional` (Sonar typescript:S3358), aligned with SonarCloud. Prefer `if`/`else`, early returns, or precomputed values instead of `a ? b : c ? d : e`. The full list of enforced readability rules is in [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md).
-- **No `void` operator**: Do not use JavaScript's unary `void` (for example `void promise()` or `void someFn()`). It is easy to misread, is flagged by Sonar (S3735), and is forbidden by ESLint `no-void`. For promises you intentionally do not await, use `detachPromise(...)` from `packages/nexus-ui/src/utils/detachPromise.ts` (wraps with `Promise.resolve` so mocks that return `undefined` are safe) or `await` / `return` the promise when the caller should handle errors. This is separate from TypeScript's `void` return type (e.g. `function cleanup(): void`).
+- **Use `detachPromise(...)` for fire-and-forget promises**: Import from `packages/nexus-ui/src/utils/detachPromise.ts`. The unary `void` operator is forbidden by ESLint `no-void`.
 
 ### Common PR Mistakes — Quick Checklist
 
 **CRITICAL: Address ALL of these before opening a PR. For detailed examples, see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md).**
 
-1. **No raw `fetch()`** — use typed API clients (`workflowClient`, `credentialsClient`, etc.)
-2. **`useQueryState` object form** — always pass `{ title, onRetry }` with `detachPromise(query.refetch())`, never bare string
-3. **No unsafe `as` casts on API responses** — use typed client responses or type guards
-4. **`vitest-axe` test for every new component** — at least one `toHaveNoViolations()`
-5. **`userEvent` over `fireEvent`** — full browser event sequence, use `userEvent.setup()`
-6. **Accessible queries first** — `getByRole` > `getByLabelText` > `getByText` > `getByTestId`; never `querySelector`
-7. **`NxErrorState` component** — never raw error markup; pass raw error object + `onRetry`
-8. **Zod + react-hook-form** — never manual `useState` per field; use `zodResolver`
-9. **Reset `defaultValues` in edit modals** — `reset()` in `useEffect` keyed on `[isOpen, item]`
-10. **Extract shared patterns** — use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`, `useCursorPagination`
-11. **UI PRs must include screenshots** or screen recordings showing key states
-12. **New API endpoints need mock handlers** in `packages/nexus-mock-api/src/handlers.ts`
-13. **Use enum constants** from `@ansible/nexus-contracts` — never string literals for discriminators
-14. **Never compare display strings in logic** — compare API values or enum constants, not translatable labels
-15. **Use PF6 design tokens** — never hardcoded `px` for spacing/colors; use `var(--pf-t--global--*)`
-16. **No unary `void` operator** — use `detachPromise(...)` for intentionally unawaited promises; `void` is forbidden by ESLint `no-void`
-17. **No nested ternary operators** — use `if`/`else` or intermediate variables; ESLint `sonarjs/no-nested-conditional` (Sonar S3358)
-18. **No nested React components (Sonar S6478)** — do not declare components inside another component; for PatternFly `toggle` / similar props use a **module-scoped** child component and pass data as props (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §18)
-19. **`showSuccess`/`showError` object parameter** — pass `{ title, description? }`, not positional args; use sentence case for alert titles (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §19)
-20. **No raw HTML for text** — use PF `Content`, `HelperText`, `Label`, or `Title` instead of raw `<span>`/`<p>`/`<div>` for text content; use PF `List` / `ListItem` instead of raw `<ul>`/`<ol>`/`<li>` (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §20; `nexus/prefer-pf-text-components` and `nexus/prefer-pf-list-components` in ESLint)
-    20a. **`NxLabel` for system labels, `NxUserTag` for user-authored tags** — use `NxLabel` (filled, compact by default) for all system-generated labels: statuses, categories, metadata badges, counts, and filter chips. Use `NxUserTag` (outline, compact by default) only for user-authored content such as workflow tags or user-entered values. Never use PF `Label` directly.
-21. **`useMemo` for derived data in hooks** — wrap computed maps/arrays/filtered lists from query results in `useMemo` to avoid new references on every render (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §21)
-22. **New hooks need test files** — every new `use*.ts` hook must have a dedicated `use*.test.ts(x)` with coverage, not just indirect coverage from a component test
-23. **No unnecessary `useEffect`** — never use `useEffect` to compute derived state, chain state updates, or handle user events; use event handlers, `useMemo`, or inline calculations instead ([React docs](https://react.dev/learn/you-might-not-need-an-effect), [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §23)
-24. **Cascading form field resets belong in `onChange`** — when one field change should reset another, put the `setValue()` calls in the field's `onChange` handler, not in a `useEffect` watching the field value
-25. **E2E tests must be self-contained** — every E2E test must create ALL resources it needs and delete ALL created resources in a `try-finally` block; no `test.skip()` for missing seed data (see [`.claude/skills/playwright_e2e.md`](.claude/skills/playwright_e2e.md))
-26. **Use `isPending` from mutation hooks** — never use `formState.isSubmitting` (it only covers the synchronous `handleSubmit` wrapper, not the async mutation lifecycle); use `isPending` from `useMutation` instead
-27. **Use `RhUi*` icons for action buttons** — never use PatternFly icons like `PlusCircleIcon` directly; use `RhUiAddIcon`, `RhUiDuplicate`, etc. from `@patternfly/react-icons`
-28. **CSS module classes over inline style objects** — prefer `.module.css` classes over `style={{ ... }}` props; CSS modules are more DOM-efficient, cacheable, and keep styles co-located
-29. **No mutable counters in `.map()`** — do not use `let` counters inside `.map()` or `.forEach()`; pre-compute indices immutably or use the callback's index parameter
-30. **`aria-label` only on interactive/widget/landmark elements** — do not put `aria-label` on generic `<span>` or `<div>`; use it on buttons, inputs, `role="region"`, images, or landmarks
-31. **`eslint-disable` comments must include a reason** — every suppression needs a `-- reason` comment explaining why the rule cannot be followed; no unexplained suppressions
-32. **Conditional hook execution uses wrapper components** — hooks must be called unconditionally per React rules; if a hook's result is used conditionally, extract to a wrapper component that is conditionally rendered (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §29)
+Items enforced by ESLint at error level are omitted -- ESLint is the source of truth for those. The items below cover patterns ESLint cannot catch:
+
+1. **No unsafe `as` casts on API responses** -- use typed client responses or type guards
+2. **`vitest-axe` test for every new component** -- at least one `toHaveNoViolations()`
+3. **`NxErrorState` component** -- never raw error markup; pass raw error object + `onRetry`
+4. **Zod + react-hook-form** -- never manual `useState` per field; use `zodResolver`
+5. **Reset `defaultValues` in edit modals** -- `reset()` in `useEffect` keyed on `[isOpen, item]`
+6. **Extract shared patterns** -- use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`, `useCursorPagination`
+7. **UI PRs must include screenshots** or screen recordings showing key states
+8. **New API endpoints need mock handlers** in `packages/nexus-mock-api/src/handlers.ts`
+9. **Use enum constants** from `@ansible/nexus-contracts` -- never string literals for discriminators
+10. **Never compare display strings in logic** -- compare API values or enum constants, not translatable labels
+11. **No nested React components (Sonar S6478)** -- do not declare components inside another component; for PatternFly `toggle` / similar props use a **module-scoped** child component and pass data as props (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §18)
+12. **`NxLabel` for system labels, `NxUserTag` for user-authored tags** -- use `NxLabel` (filled, compact by default) for all system-generated labels: statuses, categories, metadata badges, counts, and filter chips. Use `NxUserTag` (outline, compact by default) only for user-authored content such as workflow tags or user-entered values. Never use PF `Label` directly.
+13. **`useMemo` for derived data in hooks** -- wrap computed maps/arrays/filtered lists from query results in `useMemo` to avoid new references on every render (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §21)
+14. **New hooks need test files** -- every new `use*.ts` hook must have a dedicated `use*.test.ts(x)` with coverage, not just indirect coverage from a component test
+15. **No unnecessary `useEffect`** -- never use `useEffect` to compute derived state, chain state updates, or handle user events; use event handlers, `useMemo`, or inline calculations instead ([React docs](https://react.dev/learn/you-might-not-need-an-effect), [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §23)
+16. **Cascading form field resets belong in `onChange`** -- when one field change should reset another, put the `setValue()` calls in the field's `onChange` handler, not in a `useEffect` watching the field value
+17. **E2E tests must be self-contained** -- every E2E test must create ALL resources it needs and delete ALL created resources in a `try-finally` block; no `test.skip()` for missing seed data (see [`.claude/skills/playwright_e2e.md`](.claude/skills/playwright_e2e.md))
+18. **Use `isPending` from mutation hooks** -- never use `formState.isSubmitting` (it only covers the synchronous `handleSubmit` wrapper, not the async mutation lifecycle); use `isPending` from `useMutation` instead
+19. **Use `RhUi*` icons for action buttons** -- never use PatternFly icons like `PlusCircleIcon` directly; use `RhUiAddIcon`, `RhUiDuplicate`, etc. from `@patternfly/react-icons`
+20. **CSS module classes over inline style objects** -- prefer `.module.css` classes over `style={{ ... }}` props; CSS modules are more DOM-efficient, cacheable, and keep styles co-located
+21. **No mutable counters in `.map()`** -- do not use `let` counters inside `.map()` or `.forEach()`; pre-compute indices immutably or use the callback's index parameter
+22. **`aria-label` only on interactive/widget/landmark elements** -- do not put `aria-label` on generic `<span>` or `<div>`; use it on buttons, inputs, `role="region"`, images, or landmarks
+23. **Never use `eslint-disable`** -- do not add `eslint-disable` or `eslint-disable-next-line` to new or modified code. Every rule catches a real problem; fix the code so the rule passes. Pre-existing suppressions are tech debt being cleaned up. See [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §28
+24. **Conditional hook execution uses wrapper components** -- hooks must be called unconditionally per React rules; if a hook's result is used conditionally, extract to a wrapper component that is conditionally rendered (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §29)
+25. **Leverage existing libraries before custom code** -- all async server state must use TanStack Query (`useQuery`/`useMutation`/`useQueries`), not manual `useEffect` + `useState` + `fetch`; forms must use react-hook-form + Zod; styling must use PatternFly + CSS modules. Do not reimplement what the tech stack already provides (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §30)
+26. **No `// TODO` comments in shipped code** -- deferred work belongs in Jira, not buried in source. If a follow-up is needed, create a ticket and reference it inline (e.g., `// Inline type until AAP-12345`). See [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) §31
 
 ### Feature Preservation Rules
 

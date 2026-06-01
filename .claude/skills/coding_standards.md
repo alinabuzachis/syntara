@@ -10,6 +10,31 @@ See [`./library_references.md`](./library_references.md) for `llms.txt` URLs and
 
 ---
 
+## Prefer Library and Native Browser APIs Over Custom Code
+
+Before writing custom utilities, hooks, or helpers, check whether the library or the browser platform already provides the functionality. Re-implementing what already exists creates maintenance burden, misses edge cases, and confuses contributors who expect the standard API.
+
+**Libraries first:**
+
+- **TanStack Query** provides `select`, `placeholderData`, `enabled`, `retry`, `staleTime` -- do not re-implement data transformation, caching, or conditional fetching with custom hooks wrapping `useEffect` + `useState`
+- **react-hook-form** provides `useFieldArray`, `useWatch`, `setValue`, `reset` -- do not manage dynamic form arrays or field dependencies with manual state
+- **Zod** provides `.transform()`, `.refine()`, `.superRefine()`, `.pipe()` -- do not post-process validated data with separate transformation functions
+- **PatternFly** provides layout components (Stack, Flex, Grid), form components, and design tokens -- do not build custom equivalents
+
+**Native browser APIs** when no library covers the need:
+
+- `structuredClone()` instead of manual deep copy or JSON round-trips
+- `URLSearchParams` instead of manual query string parsing
+- `AbortController` instead of custom cancellation logic
+- `URL` constructor instead of string concatenation for URLs
+- `crypto.getRandomValues()` + a wrapper instead of Math.random() for IDs
+
+**Caveat -- verify browser API availability in all deployment contexts.** Some Web APIs are restricted to secure contexts (HTTPS or localhost). For example, `crypto.randomUUID()` is unavailable over plain HTTP and causes a runtime crash. The project uses `generateUUID()` from `src/utils/generateUUID.ts` which wraps `crypto.getRandomValues()` (available in all contexts). When using a native API, check [MDN's "Secure context: required" badge](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) and verify the app works over both HTTP and HTTPS.
+
+When reviewing code, flag any pattern that duplicates what a dependency or browser API already exposes. If unsure whether a library covers a use case, check [`./library_references.md`](./library_references.md) and fetch the `llms.txt` URL for that library.
+
+---
+
 ## 1. Always Use Typed API Clients — Never Raw `fetch()`
 
 Every API endpoint has a type-safe client generated from OpenAPI contracts. Raw `fetch()` bypasses auth middleware (token refresh, 401 retry), error interceptors, base URL configuration, and TypeScript type safety.
@@ -389,7 +414,7 @@ Result: Use PatternFly Modal component or extend existing app component
 
 ### Code Readability Enforcement (ESLint)
 
-ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `error` -- CI will block violations. **New code must respect these limits.**
+ESLint enforces readability, type safety, and code quality rules at `error` level. CI will block violations. See `packages/nexus-ui/eslint.config.js` for the full list of rules and thresholds.
 
 ### Zero New Warnings Policy
 
@@ -397,64 +422,9 @@ ESLint enforces readability constraints that keep functions small, files focused
 
 - **New files**: Zero warnings. Follow the rule as documented.
 - **Modified files**: Do not increase the warning count. When practical, fix nearby warnings as part of the change.
-- **Never suppress without a reason**: If you must add `eslint-disable`, document why (see [coding_standards.md section 28](#28-eslint-disable-comments-must-include-a-reason)).
+- **Never suppress without a reason**: If you must add `eslint-disable`, document why.
 
-Rules currently at `warn` that must still be followed in new code include: `testing-library/prefer-user-event`, `testing-library/no-node-access`, `testing-library/no-container`, `react-you-might-not-need-an-effect/*`, and custom `nexus/*` rules. These will be promoted to `error` once existing violations are resolved.
-
-These thresholds are based on industry standards (Code Complete, SonarQube, BiomeJS):
-
-| Rule                     | Limit              | Purpose & Research Basis                                                 |
-| ------------------------ | ------------------ | ------------------------------------------------------------------------ |
-| `max-lines`              | 500 lines/file     | One responsibility per file                                              |
-| `max-lines-per-function` | 200 lines/function | Maintainability degrades beyond ~200 lines (Code Complete, SonarQube)    |
-| `complexity`             | 20 (cyclomatic)    | Balanced threshold used by many enterprise configs; catches complex code |
-| `max-depth`              | 4 levels           | Use early returns, not pyramids                                          |
-| `max-params`             | 5 parameters       | Use a typed options object for 6+ params                                 |
-| `max-nested-callbacks`   | 4 levels           | Flatten with named functions or async/await                              |
-
-Additional code quality rules (enforced as `error` — CI will block violations):
-
-| Rule                                             | What it enforces                                                          |
-| ------------------------------------------------ | ------------------------------------------------------------------------- |
-| `eqeqeq`                                         | Use `===`/`!==` instead of `==`/`!=` (null comparisons exempt)            |
-| `no-void`                                        | Disallow the unary `void` operator (readability / Sonar S3735)            |
-| `no-restricted-exports`                          | Prefer named exports over `export default` for refactorability            |
-| `@typescript-eslint/prefer-optional-chain`       | Use `a?.b?.c` instead of `a && a.b && a.b.c`                              |
-| `@typescript-eslint/prefer-nullish-coalescing`   | Use `??` instead of `\|\|` to avoid bugs with `0`/`''`                    |
-| `@typescript-eslint/require-array-sort-compare`  | Require a compare function for `Array.sort()`                             |
-| `@typescript-eslint/switch-exhaustiveness-check` | Ensure all union/enum cases are handled in switch statements              |
-| `@typescript-eslint/prefer-includes`             | Use `.includes()` instead of `.indexOf() !== -1`                          |
-| `react-hooks/exhaustive-deps`                    | Require all dependencies in React hook dependency arrays                  |
-| `react/jsx-no-useless-fragment`                  | Remove unnecessary `<>{child}</>` wrappers                                |
-| `react/no-array-index-key`                       | Avoid using array index as React `key` prop                               |
-| `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                                 |
-| `sonarjs/no-nested-conditional`                  | Prevent nested ternaries (Sonar typescript:S3358; aligns with SonarCloud) |
-| `unicorn/consistent-template-literal-escape`     | Consistent `\${` escaping in template literals                            |
-| `unicorn/no-useless-iterator-to-array`           | Flag unnecessary `.toArray()` on iterators                                |
-| `unicorn/prefer-simple-condition-first`          | Put simple conditions before complex ones in `&&` chains                  |
-| `unicorn/switch-case-break-position`             | Consistent `break` placement inside switch cases                          |
-| `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                               |
-| `import-x/no-self-import`                        | Catch accidental self-imports                                             |
-
-Type-safe linting rules (enforced as `error` — CI will block violations):
-
-The ESLint config extends `tseslint.configs.recommendedTypeChecked`, which enables type-aware rules that catch bugs string-based linting cannot.
-
-| Rule                                               | What it catches                                     |
-| -------------------------------------------------- | --------------------------------------------------- |
-| `@typescript-eslint/no-unsafe-argument`            | Passing `any`-typed values as function arguments    |
-| `@typescript-eslint/no-unsafe-assignment`          | Assigning `any` to a typed variable                 |
-| `@typescript-eslint/no-unsafe-call`                | Calling a value typed as `any`                      |
-| `@typescript-eslint/no-unsafe-member-access`       | Accessing members on `any`-typed values             |
-| `@typescript-eslint/no-unsafe-return`              | Returning `any` from a typed function               |
-| `@typescript-eslint/await-thenable`                | `await`-ing a non-Promise value                     |
-| `@typescript-eslint/require-await`                 | `async` functions that never `await`                |
-| `@typescript-eslint/unbound-method`                | Passing class methods as callbacks without binding  |
-| `@typescript-eslint/no-base-to-string`             | Objects without meaningful `.toString()` in strings |
-| `@typescript-eslint/restrict-template-expressions` | Only safe types in template literals                |
-| `@typescript-eslint/only-throw-error`              | Only `Error` objects in `throw` statements          |
-
-Blank lines and comments are excluded from counts. Test files are exempt from size limits and complexity.
+Rules currently at `warn` that must still be followed in new code include: `testing-library/no-container`, `react-you-might-not-need-an-effect/*`, and `no-restricted-imports` (icon migration). These will be promoted to `error` once existing violations are resolved.
 
 ### Refactoring Strategies When Limits Are Hit
 
@@ -802,7 +772,7 @@ The `NxErrorState` component automatically shows a retry button for retryable er
 
 ## 12. `NxConfirmationDialog` — Never Inline Modal Boilerplate
 
-Use `NxConfirmationDialog` for all confirmation prompts. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
+Use `NxConfirmationDialog` for all confirmation prompts. Never use raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`. ESLint rule `nexus/prefer-confirmation-dialog` (error) catches raw destructive Modal patterns automatically; the guidance below teaches the correct tier selection and content patterns.
 
 > **Check Storybook first:** Before implementing any confirmation dialog, call the Storybook MCP `get-documentation` tool with id `"components-dialogs-nxconfirmationdialog"`. The stories are the primary source of truth for tier selection, correct prop usage, title format, body copy, checkbox labels, and button labels — and take precedence over the static examples below.
 
@@ -910,22 +880,9 @@ const {
 
 ---
 
-## 15. Stable React context provider values (Sonar)
+## 15. Stable React context provider values
 
-Do not pass a **fresh object or array literal** as `value` to `React.createContext().Provider` when that value is assembled from stable callbacks or data. A new identity every render forces unnecessary work in `useContext` consumers.
-
-Prefer `useMemo` (with an accurate dependency list) or split stable callbacks from changing data so the context contract stays intentional.
-
-`packages/nexus-ui/eslint.config.js` enables **`react/jsx-no-constructed-context-values`** for the whole UI package so inline object/array `value`s on context providers fail CI the same way as other React lint rules.
-
-```typescript
-// ❌ BAD — new object every render
-<MyContext.Provider value={{ foo, bar }}>
-
-// ✅ GOOD — stable reference when deps are stable
-const value = useMemo(() => ({ foo, bar }), [foo, bar])
-<MyContext.Provider value={value}>
-```
+Enforced by ESLint rule `react/jsx-no-constructed-context-values` at error level. Wrap context `value` props in `useMemo`.
 
 ---
 
@@ -1010,42 +967,17 @@ Sonar’s docs also allow factories in props whose names match **`render*`** (an
 
 ---
 
-## 19. `showSuccess` / `showError` — Object Parameter and Sentence Case
+## 19. `showSuccess` / `showError` — Sentence Case
 
-The alert context methods accept a single object with `title` and an optional `description`. The **title** renders as the bold heading of the toast alert. The optional **description** provides extra detail below it.
-
-```typescript
-// ❌ BAD — positional arguments (easy to swap, hard to read)
-showError('Failed to create workflow', getErrorMessage(error))
-showSuccess('Workflow created successfully')
-
-// ❌ BAD — title case instead of sentence case
-showSuccess({ title: 'Workflow Created Successfully' })
-
-// ✅ GOOD — named fields, sentence case
-showSuccess({ title: 'Workflow created successfully' })
-showError({ title: 'Failed to create workflow', description: getErrorMessage(error) })
-```
-
-**Rules:**
-
-1. **Always pass an object** — `{ title }` or `{ title, description }`, never positional args
-2. **Use sentence case** for alert titles — “Workflow created successfully”, not “Workflow Created Successfully”
-3. **Description is optional** — only add it when extra context (e.g., the raw error message) is useful
-
-The same rules apply to `showWarning` and `showInfo`.
+The object parameter form (`{ title, description? }`) is enforced by ESLint `no-restricted-syntax` at error level. Use **sentence case** for alert titles (“Workflow created successfully”, not “Workflow Created Successfully”). The same applies to `showWarning` and `showInfo`.
 
 ---
 
-## 20. No Raw HTML Elements for Text Content — Use PatternFly Components
+## 20. No Raw HTML Elements for Text Content
 
-Never use raw `<span>`, `<p>`, or `<div>` for text content when a PatternFly component exists. Use PF `Content`, `HelperText`, `Label`, or `Title` instead -- they pick up design tokens for font size, color, and spacing automatically.
+Enforced by ESLint rules `nexus/prefer-pf-text-components` and `nexus/prefer-pf-list-components` at error level. Use PF `Content`, `HelperText`, `Label`, `Title` instead of raw `<span>`/`<p>`/`<div>`, and PF `List`/`ListItem` instead of raw `<ul>`/`<ol>`/`<li>`.
 
-For UI lists, use PF `List` and `ListItem` instead of raw `<ul>`, `<ol>`, or `<li>`. ESLint enforces this via `nexus/prefer-pf-text-components` (text elements) and `nexus/prefer-pf-list-components` (list elements) in `packages/nexus-ui/eslint.config.js`.
-
-**PF Content automatic margin:** PF6 `<Content>` adds automatic margin when rendered as `<p>`, `<small>`, or other block elements. When Content is inside a Flex row, popover header, or other tight layout context, reset it with `margin: 0` via a CSS module class. This is a [documented PF6 behavior](https://www.patternfly.org/components/content), not a bug. Prefer a CSS module class over inline `style={{ margin: 0 }}`.
-
-See [`.claude/skills/patternfly-ux-design-system.md`](patternfly-ux-design-system.md) -- section 13 "No Raw HTML for Text Content" for the full component mapping table and code examples.
+**PF Content automatic margin:** PF6 `<Content>` adds automatic margin when rendered as `<p>`, `<small>`, or other block elements. When Content is inside a Flex row, popover header, or other tight layout context, reset it with `margin: 0` via a CSS module class. Prefer a CSS module class over inline `style={{ margin: 0 }}`.
 
 ---
 
@@ -1288,22 +1220,38 @@ Do not add `aria-label` to non-interactive elements like `<span>` or `<div>`. As
 
 ---
 
-## 28. `eslint-disable` Comments Must Include a Reason
+## 28. Never Use `eslint-disable` -- Fix the Code Instead
 
-Every `eslint-disable-next-line` or `eslint-disable` comment must include a reason explaining **why** the rule is being suppressed. Fix the underlying issue rather than suppressing when possible. Suppressions without reasons are not allowed.
+**Do not add `eslint-disable`, `eslint-disable-next-line`, or `eslint-disable-line` comments to new or modified code.** Every lint rule exists to catch a real problem. The correct response to a lint violation is to fix the code so the rule passes, not to silence the rule.
+
+This applies to **all** rules without exception: `jsx-a11y/*`, `react-hooks/*`, `testing-library/*`, `@typescript-eslint/*`, `sonarjs/*`, and every other configured rule.
 
 ```typescript
-// ❌ BAD — no explanation
+// ❌ BAD — suppressing instead of fixing
 // eslint-disable-next-line testing-library/no-node-access
 const wrapper = container.querySelector('.pf-v6-c-file-upload')
 
-// ✅ GOOD — documented reason
-// eslint-disable-next-line testing-library/no-node-access -- PF FileUpload renders no accessible role on the wrapper div
-const wrapper = container.querySelector('.pf-v6-c-file-upload')
+// ❌ BAD — suppressing an a11y rule introduces real accessibility bugs
+// eslint-disable-next-line jsx-a11y/no-static-element-interactions -- prevent toggle
+<div onClick={handleClick}>
 
-// ✅ BEST — fix the a11y problem instead of suppressing
+// ❌ BAD — suppressing type safety rules hides real type errors
+// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+return mockStore()
+
+// ✅ GOOD — fix the code so the rule passes
 const wrapper = screen.getByRole('group', { name: 'File upload' })
+<button type="button" onClick={handleClick}>
+return mockStore() as ReturnType<typeof createStore>
 ```
+
+**When a lint rule fires:**
+
+1. **Understand what the rule protects** (accessibility, type safety, testing quality, code complexity)
+2. **Fix the code**: restructure markup, use semantic HTML, add proper types, extract functions, use PatternFly components
+3. **If the violation is in a third-party component** (e.g., PatternFly renders no accessible role), file an upstream issue and find a workaround that does not suppress the rule (e.g., use a different query, wrap in a labeled container)
+
+**Pre-existing suppressions** in the codebase are technical debt being cleaned up. Do not add new ones. When modifying a file that already has suppressions, remove them if the fix is straightforward.
 
 ---
 
@@ -1354,3 +1302,123 @@ function UserFormFields({ isEdit, control }: Props) {
   )
 }
 ```
+
+---
+
+## 30. Leverage Existing Libraries Before Writing Custom Code
+
+**Always use the project's established libraries for their intended purpose.** Do not reimplement functionality that an installed library already provides. Manual reimplementations lose caching, deduplication, retry, DevTools integration, and consistency with the rest of the codebase.
+
+**Always prefer browser-native APIs over custom utilities.** The browser already provides well-tested, zero-dependency solutions for many common tasks. Use them before reaching for a library or writing custom code.
+
+### The Tech Stack Contract
+
+| Concern                      | Use this                                                       | Not this                                     |
+| ---------------------------- | -------------------------------------------------------------- | -------------------------------------------- |
+| **Server state (queries)**   | TanStack Query `useQuery` / `useQueries` via typed API clients | Manual `useEffect` + `useState` + `fetch`    |
+| **Server state (mutations)** | TanStack Query `useMutation` via typed API clients             | Manual `useEffect` + `Promise` chains        |
+| **Form state**               | `react-hook-form` + Zod `zodResolver`                          | Manual `useState` per field                  |
+| **Client state (global)**    | Zustand stores (workflow builder)                              | React Context with manual reducers           |
+| **Styling**                  | PatternFly components + PF6 design tokens + CSS modules        | Inline style objects, raw HTML, hardcoded px |
+| **API calls**                | Typed clients from `client.tsx`                                | Raw `fetch()`                                |
+| **Error handling**           | `useQueryState`, `useMutationErrorHandler`, `NxErrorState`     | Ad-hoc try/catch with custom JSX             |
+| **Pagination**               | `useCursorPagination`                                          | Manual cursor/filter/queryParams state       |
+| **Dialogs**                  | `NxConfirmationDialog` + `useDialogState`                      | Raw `Modal` + manual open/close state        |
+
+### Browser-Native APIs First
+
+Before writing a utility function, check if a browser API already does it:
+
+| Task                          | Use this browser API                               | Not this                                                |
+| ----------------------------- | -------------------------------------------------- | ------------------------------------------------------- |
+| **Parse/build query strings** | `URLSearchParams`                                  | Manual string splitting/joining                         |
+| **Deep clone objects**        | `structuredClone()`                                | JSON.parse(JSON.stringify()) or hand-rolled clone       |
+| **Cancel async work**         | `AbortController` + `AbortSignal`                  | Manual `cancelled` flags                                |
+| **Debounce/throttle**         | `requestAnimationFrame`, `setTimeout` with cleanup | Custom debounce utility (unless shared across 3+ files) |
+| **Unique IDs**                | `crypto.randomUUID()`                              | Custom ID generators                                    |
+| **Check array membership**    | `Set.has()`                                        | `Array.includes()` in hot paths (see §17)               |
+| **Format dates for display**  | Project `dateUtils.ts` (wraps `date-fns`)          | Raw `Date.toLocaleString()` or manual formatting        |
+
+### Why This Matters
+
+When a library is in the dependency tree and the codebase uses it everywhere else, a hand-rolled alternative:
+
+1. **Loses features for free** -- TanStack Query gives caching, deduplication, retry, stale-while-revalidate, and DevTools. A `useEffect` + `useState` hook gets none of these.
+2. **Creates two patterns** -- Future contributors must learn and maintain both the standard approach and the custom one.
+3. **Blocks composition** -- TanStack Query consumers can invalidate permission caches after role changes (`queryClient.invalidateQueries`). A manual hook cannot participate in this flow.
+
+### Decision Process
+
+Before writing a new hook or utility:
+
+1. **Check the tech stack table above** -- is there a library that covers this concern?
+2. **Search the codebase** -- has someone already solved this? (`grep -r "useQuery\|useMutation\|useForm" src/hooks/`)
+3. **Check `src/hooks/`** -- reusable hooks live here; extend before duplicating
+4. **Only then** write custom code, and document _why_ the standard tool doesn't fit
+
+### Example: Permission Checking
+
+```typescript
+// ❌ BAD - manual useEffect + useState for an API call (loses caching, dedup, retry)
+function useCanI(action: string, resourceType: string) {
+  const [allowed, setAllowed] = useState(false)
+  const [isChecking, setIsChecking] = useState(true)
+  useEffect(() => {
+    let cancelled = false
+    fetchClient
+      .POST('/authz/can_i', { body: { action, resource_type: resourceType } })
+      .then(({ data }) => {
+        if (!cancelled) setAllowed(data?.allowed === true)
+      })
+      .finally(() => {
+        if (!cancelled) setIsChecking(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [action, resourceType])
+  return { allowed, isChecking }
+}
+
+// ✅ GOOD - TanStack Query handles caching, dedup, retry, and DevTools
+function useCanI(action: string, resourceType: string) {
+  const query = useQuery({
+    queryKey: ['can_i', action, resourceType],
+    queryFn: () =>
+      fetchClient.POST('/authz/can_i', {
+        body: { action, resource_type: resourceType },
+      }),
+    select: (res) => res.data?.allowed === true,
+  })
+  return { allowed: query.data ?? false, isChecking: query.isLoading }
+}
+```
+
+---
+
+## 31. No `// TODO` Comments in Shipped Code
+
+Do not ship `// TODO`, `// FIXME`, `// HACK`, or `// XXX` comments in PRs. These represent deferred work that should be tracked in Jira, not buried in source code where it is invisible to project management and will rot.
+
+```typescript
+// ❌ BAD — deferred work hidden in code
+// TODO: Replace with generated type once switch schema is added to the OpenAPI spec bundle
+export type SwitchConfig = { cases: Array<{ label: string }> }
+
+// ✅ GOOD — use the best type available now, track the follow-up in Jira
+/** Switch node configuration. Uses inline type until the OpenAPI spec includes the switch schema (AAP-XXXXX). */
+export type SwitchConfig = { cases: Array<{ label: string }> }
+```
+
+**Why:**
+
+- TODOs in code are invisible to sprint planning and backlog grooming
+- They accumulate silently and never get addressed
+- They signal incomplete work shipping to production
+- They make it unclear whether the PR is actually done
+
+**What to do instead:**
+
+1. If the work is needed before the PR can ship, do it now
+2. If the work is a genuine follow-up, create a Jira ticket and reference it in a brief inline comment (e.g., `// Inline type until AAP-12345 adds generated schema`)
+3. If the work is aspirational ("it would be nice to..."), do not add a comment at all

@@ -82,42 +82,57 @@ Check whether the changes follow:
 
 ### 3a. Recurring Issues Checklist (MANDATORY)
 
-**Run through every item in CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-32).** That checklist is the single source of truth. Below are review-specific verification tips:
+**Run through every item in CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-26).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
 
-| Search for...                                           | Flags violation of checklist item...                                         |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `fetch(` in changed files                               | #1 — raw fetch (pre-auth exceptions OK)                                      |
-| `useQueryState` with bare string arg                    | #2 — missing `{ title, onRetry }` object form                                |
-| `void query.` / `void .*refetch` patterns               | #2 — use `detachPromise(query.refetch())`, not `void`                        |
-| `as` casts on API responses                             | #3 — unsafe casts (flag for contract fix, not more casts)                    |
-| New component without `toHaveNoViolations()`            | #4 — missing vitest-axe test                                                 |
-| `fireEvent` in test files                               | #5 — should use `userEvent.setup()`                                          |
-| `getByTestId`, `querySelector` in tests                 | #6 — should use `getByRole` / `getByLabelText`                               |
-| Raw error JSX (`<span>Error`, `<p>Error`, `<div>Error`) | #7 — should use `ErrorState` component                                       |
-| Manual `useState` per form field                        | #8 — should use Zod + react-hook-form                                        |
-| `useForm` with `defaultValues` in modals                | #9 — verify `reset()` in `useEffect([isOpen, item])`                         |
-| Copy-pasted dialogs or action handlers                  | #10 — extract to shared component/hook                                       |
-| String literals for type discriminators                 | #13 — use enum constants from `@ansible/nexus-contracts`                     |
-| Display strings in conditionals                         | #14 — compare API values, not translatable labels                            |
-| Hardcoded `px` for spacing/colors                       | #15 — use PF6 design tokens `var(--pf-t--global--*)`                         |
-| `void` used as operator in `.ts`/`.tsx`                 | #16 — use `detachPromise(...)`, not unary `void`                             |
-| Native `<button>`, `<p>`, `<h1>`-`<h6>`, `<a>`, etc.    | #20 — use PF6 components (see HTML → PF6 mapping below)                      |
-| New route in `AppRoute.tsx` without registry entry      | Add to `e2e/visual-regression/page-registry.ts` (see `VISUAL_REGRESSION.md`) |
-| `showSuccess('title', 'desc')` positional args          | #19 — use object form: `showSuccess({ title, description })`                 |
-| Title Case in alert titles                              | #19 — use sentence case: "Workflow created", not "Created"                   |
-| Raw `<span>` / `<p>` / `<div>` for text content         | #20 — use PF `Content`, `HelperText`, `Label`, or `Title`                    |
-| Derived data without `useMemo` in custom hooks          | #21 — wrap computed maps/arrays in `useMemo`                                 |
-| New `use*.ts` hook without `use*.test.ts(x)`            | #22 — every new hook needs a dedicated test file                             |
-| `useEffect` + `setState` for derived/computed values    | #23 — compute during render or use `useMemo`                                 |
-| `useEffect` + `setValue` watching form fields           | #24 -- move cascading resets to field's `onChange` handler                   |
-| Inline style objects (`style={{ ... }}`)                | #28 -- refactor to CSS module classes                                        |
-| `let` counter inside `.map()`                           | #29 -- pre-compute indices immutably                                         |
-| `aria-label` on `<span>` / `<div>`                      | #30 -- only use on interactive elements, widgets, landmarks, images          |
-| `eslint-disable` without a reason comment               | #31 -- every suppression must document why                                   |
-| Hook called unconditionally but used conditionally      | #32 -- extract to a conditionally-rendered wrapper component                 |
-| `formState.isSubmitting` for loading state              | #26 -- use `isPending` from mutation hooks                                   |
-| `PlusCircleIcon` or non-`RhUi*` icons                   | #27 -- use `RhUiAddIcon`, `RhUiDuplicate`, etc.                              |
-| Hardcoded colors in CSS modules                         | #15 -- ESLint can't catch these; review CSS module files manually            |
+| Search for...                                            | Flags violation of checklist item...                                         |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `as` casts on API responses                              | #1 -- unsafe casts (flag for contract fix, not more casts)                   |
+| New component without `toHaveNoViolations()`             | #2 -- missing vitest-axe test                                                |
+| Raw error JSX (`<span>Error`, `<p>Error`, `<div>Error`)  | #3 -- should use `NxErrorState` component                                    |
+| Manual `useState` per form field                         | #4 -- should use Zod + react-hook-form                                       |
+| `useForm` with `defaultValues` in modals                 | #5 -- verify `reset()` in `useEffect([isOpen, item])`                        |
+| Copy-pasted dialogs or action handlers                   | #6 -- extract to shared component/hook                                       |
+| String literals for type discriminators                  | #9 -- use enum constants from `@ansible/nexus-contracts`                     |
+| Display strings in conditionals                          | #10 -- compare API values, not translatable labels                           |
+| New route in `AppRoute.tsx` without registry entry       | Add to `e2e/visual-regression/page-registry.ts` (see `VISUAL_REGRESSION.md`) |
+| Title Case in alert titles                               | Use sentence case: "Workflow created", not "Created"                         |
+| Derived data without `useMemo` in custom hooks           | #13 -- wrap computed maps/arrays in `useMemo`                                |
+| New `use*.ts` hook without `use*.test.ts(x)`             | #14 -- every new hook needs a dedicated test file                            |
+| `useEffect` + `setState` for derived/computed values     | #15 -- compute during render or use `useMemo`                                |
+| `useEffect` + `setValue` watching form fields            | #16 -- move cascading resets to field's `onChange` handler                   |
+| `formState.isSubmitting` for loading state               | #18 -- use `isPending` from mutation hooks                                   |
+| `PlusCircleIcon` or non-`RhUi*` icons                    | #19 -- use `RhUiAddIcon`, `RhUiDuplicate`, etc.                              |
+| Inline style objects (`style={{ ... }}`)                 | #20 -- refactor to CSS module classes                                        |
+| `let` counter inside `.map()`                            | #21 -- pre-compute indices immutably                                         |
+| `aria-label` on `<span>` / `<div>`                       | #22 -- only use on interactive elements, widgets, landmarks, images          |
+| Any `eslint-disable` or `eslint-disable-next-line`       | #23 -- never suppress rules; fix the code so it passes                       |
+| Hook called unconditionally but used conditionally       | #24 -- extract to a conditionally-rendered wrapper component                 |
+| `useEffect` + `useState` for API calls                   | #25 -- use TanStack Query (`useQuery`/`useMutation`/`useQueries`)            |
+| Manual `Promise.all` + cancellation for parallel fetches | #25 -- use `useQueries` from TanStack Query                                  |
+| `// TODO` / `// FIXME` / `// HACK` / `// XXX`            | #26 -- track deferred work in Jira, not code comments                        |
+| Hardcoded colors in CSS modules                          | ESLint can't catch these; review CSS module files manually                   |
+
+### 3b. Rule Bypass Checks (BLOCKING -- do not approve if any are found)
+
+AI agents and contributors sometimes bypass rules instead of fixing the underlying issue. The following patterns are **merge blockers** -- request changes immediately if any appear in the diff.
+
+**How to scan:** Run these searches against the PR diff. Any match in new or modified lines (not pre-existing context) must be resolved before approval.
+
+```bash
+# Run against the PR diff to find bypass attempts
+git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE 'eslint-disable|@ts-ignore|@ts-expect-error|TODO|FIXME|HACK|XXX|enabled:\s*false'
+```
+
+| Pattern in diff                                               | Why it blocks                                                                                          | What to do instead                                                                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `eslint-disable` / `eslint-disable-next-line`                 | Suppresses a rule instead of fixing the code. The rule catches a real problem.                         | Fix the code so the rule passes. If genuinely unfixable, the reviewer (not the author) decides whether a suppression is warranted. |
+| `@ts-ignore` / `@ts-expect-error`                             | Suppresses a TypeScript error instead of fixing the type. Hides real bugs.                             | Fix the type, add a type guard, or update the contract.                                                                            |
+| `// TODO` / `// FIXME` / `// HACK` / `// XXX`                 | Deferred work buried in source. Invisible to sprint planning and never addressed.                      | Create a Jira ticket and reference it inline: `// Workaround until AAP-12345 adds the endpoint`.                                   |
+| `rules: { 'rule-name': { enabled: false } }` in axe config    | Disables an accessibility rule to make a test pass instead of fixing the a11y bug.                     | Fix the component so it passes the axe rule. Only disable with a linked upstream PatternFly issue proving a false positive.        |
+| `useEffect` + `useState` for data that TanStack Query handles | Re-implements caching, dedup, retry, and error handling that `useQuery`/`useMutation` already provide. | Use the library API. See coding_standards.md "Prefer Library and Native Browser APIs Over Custom Code".                            |
+| Custom deep copy, URL parsing, UUID generation                | Re-implements what `structuredClone`, `URLSearchParams`, `generateUUID` already provide.               | Use the native API or existing project utility.                                                                                    |
+
+**Pre-existing suppressions:** If a suppression appears in the diff context but was not added by the PR (no `+` prefix), ignore it. Only flag new additions.
 
 **Also check these review-specific items:**
 
@@ -125,6 +140,7 @@ Check whether the changes follow:
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | **UI PRs include screenshots**           | PRs changing visible UI must include screenshots or recordings of key states                             |
 | **New API endpoints have mock handlers** | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged                |
+| **`useQueryState` object form**          | Verify `useQueryState(query, { title, onRetry })` -- not bare string form (see coding_standards.md §2)   |
 | **Error handling consistency**           | Verify `useQueryState` / `useMutationErrorHandler` -- no ad-hoc try/catch with custom error display      |
 | **userEvent regressions**                | Check if PR replaces existing `userEvent` calls with `fireEvent` -- that is a regression                 |
 | **Unreachable dead code in tests**       | Look for nested `it()` blocks inside other `it()` blocks (after `return` statements)                     |
@@ -162,7 +178,7 @@ Ask:
 Examples:
 
 - Use typed API clients (`workflowClient`, `credentialsClient`, `authClient`) instead of raw `fetch()`
-- Use `ErrorState` component instead of custom error markup
+- Use `NxErrorState` component instead of custom error markup
 - Use `useQueryState` with `onRetry` instead of manual loading/error state management
 - Use `useFormMutationErrorHandler` instead of manual 422 error parsing
 - Use `getErrorMessage()` / `isConflictError()` from `apiErrors.ts` instead of manual error field checks
@@ -173,6 +189,8 @@ Examples:
 - Use `useDialogState` instead of manual `useState` pairs for dialog open/close
 - Use `useMemo` for derived data (maps, sorted arrays) in custom hooks instead of recomputing on every render
 - Use PF `Content` / `HelperText` / `Title` instead of raw `<span>` / `<p>` / `<div>` for text content
+- Use TanStack Query `useQuery`/`useQueries` instead of manual `useEffect` + `useState` for API calls (loses caching, dedup, retry, DevTools)
+- Use TanStack Query `useMutation` instead of manual `useEffect` + `Promise` chains for mutations
 - Use URLSearchParams instead of manual query parsing
 - Use structuredClone instead of manual deep copy
 - Use AbortController instead of custom cancellation logic
@@ -267,6 +285,9 @@ When reviewing your own implementation before committing, verify these gates pas
 4. Prettier formatting applied (`npm run format:check`)
 5. WCAG 2.1 AA accessibility standards met
 6. UI verified in browser for all states (loaded, empty, error, success)
+7. Zero `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, or `// TODO` in new code
+8. Zero disabled axe rules in test files
+9. No re-implemented library functionality (TanStack Query, react-hook-form, Zod, PatternFly)
 
 ### Independent Review (High-Risk Changes)
 

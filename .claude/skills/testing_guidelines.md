@@ -167,35 +167,7 @@ Does the component use browser-specific APIs?
 
 ## Testing Rules (Mandatory)
 
-### 1. Always Use `userEvent` — Never `fireEvent`
-
-`userEvent` fires the full browser event sequence (focus, keydown, input, keyup, blur). `fireEvent` dispatches a single synthetic event. Always use `userEvent.setup()`.
-
-```typescript
-// ❌ BAD: Single synthetic event, unrealistic
-fireEvent.change(input, { target: { value: 'new value' } })
-fireEvent.click(button)
-
-// ✅ GOOD: Full event sequence, realistic browser behavior
-const user = userEvent.setup()
-await user.clear(input)
-await user.type(input, 'new value')
-await user.click(button)
-```
-
-**Exception -- `fireEvent.submit`:** `userEvent` has no `.submit()` method. `fireEvent.submit(form)` is acceptable for programmatic form submission, but prefer clicking the submit button to simulate real user behavior:
-
-```typescript
-// ✅ ACCEPTABLE — when no submit button exists
-fireEvent.submit(screen.getByRole('form'))
-
-// ✅ PREFERRED — simulates real user behavior
-await user.click(screen.getByRole('button', { name: 'Save' }))
-```
-
-**Never regress from `userEvent` to `fireEvent`:** When modifying an existing test file, do not replace `userEvent` calls with `fireEvent`. If a PR introduces `fireEvent` where `userEvent` previously existed, that is a regression.
-
-### 2. Use Accessible Queries — Never `getByTestId` or `querySelector` as First Choice
+### 1. Use Accessible Queries
 
 Follow Testing Library query priority:
 
@@ -206,10 +178,6 @@ Follow Testing Library query priority:
 5. `getByTestId` — last resort when no accessible query works
 
 ```typescript
-// ❌ BAD: DOM queries bypass accessibility semantics
-container.querySelectorAll('.pf-v6-c-switch input')
-screen.getByTestId('loading-state')
-
 // ✅ GOOD: Accessible queries verify real user experience
 screen.getByRole('switch', { name: 'Enabled' })
 screen.getByRole('button', { name: 'Submit' })
@@ -238,7 +206,7 @@ const projectSelect = screen.getByLabelText('Credential project')
 expect(within(projectSelect).getByRole('option', { name: 'Project Alpha' })).toBeInTheDocument()
 ```
 
-### 3. Every New Component Must Have a `vitest-axe` Test
+### 2. Every New Component Must Have a `vitest-axe` Test
 
 Include at least one `toHaveNoViolations()` test. Test multiple states for thorough coverage.
 
@@ -271,7 +239,7 @@ it('has no accessibility violations when rows are expanded', async () => {
 
 **Important**: vitest-axe requires `jsdom` as the test environment (not happy-dom).
 
-### 4. Every New Custom Hook Must Have a Dedicated Test File
+### 3. Every New Custom Hook Must Have a Dedicated Test File
 
 New reusable hooks (`use*.ts`) must have a corresponding `use*.test.ts(x)` file — not just indirect coverage from a component test. Hook tests should cover:
 
@@ -305,11 +273,11 @@ it('returns debounced value after delay', async () => {
 
 This ensures the 80% coverage threshold is met on the hook file independently, and prevents regressions when the consuming component changes.
 
-### 5. Unnecessary `useEffect` in Hooks
+### 4. Unnecessary `useEffect` in Hooks
 
 The ESLint plugin `eslint-plugin-react-you-might-not-need-an-effect` (configured at `warn` level) catches most unnecessary `useEffect` patterns automatically. See [coding_standards.md §23](coding_standards.md) for details.
 
-### 6. Isolate the Field Under Test in Validation Tests
+### 5. Isolate the Field Under Test in Validation Tests
 
 When testing that a specific field shows a required validation error, fill in all _other_ required fields first. Otherwise the assertion may pass today but break if field validation order changes.
 
@@ -327,7 +295,7 @@ await user.click(screen.getByRole('button', { name: 'Create' }))
 await screen.findByText('Project is required')
 ```
 
-### 7. Assert Element Absence Explicitly
+### 6. Assert Element Absence Explicitly
 
 When verifying that a UI element is hidden in a certain state, assert its absence explicitly with `queryByRole` / `queryByText`. Do not assume its absence is implied by other assertions.
 
@@ -340,7 +308,7 @@ expect(screen.getByText('No credentials')).toBeInTheDocument()
 expect(screen.queryByRole('button', { name: 'Create credential' })).not.toBeInTheDocument()
 ```
 
-### 8. Typed Mock Functions
+### 7. Typed Mock Functions
 
 Use generic type parameters on `vi.fn()` instead of double-casting (`vi.fn() as unknown as Type`). This keeps type safety without losing readability.
 
@@ -352,13 +320,13 @@ const setError = vi.fn() as unknown as UseFormSetError<FormData>
 const setError = vi.fn<UseFormSetError<FormData>>()
 ```
 
-### 9. Test Names Must Be Accurate, Unique, and Current
+### 8. Test Names Must Be Accurate, Unique, and Current
 
 - **No duplicate test names** within the same describe block -- `vitest` may silently skip or overwrite one. **Enforced by ESLint:** `vitest/no-identical-title` (error).
 - **No misleading names** -- if a test is called "verifies icon rotation" but only checks the icon renders, rename it to match what it actually asserts
 - **Update names when behavior changes** -- when the implementation changes (e.g., from inference-based to backend-driven status), update test names to reflect the new behavior source
 
-### 10. Extract Shared Test Data
+### 9. Extract Shared Test Data
 
 When the same test data object appears in 3+ test cases within a describe block, extract it to a shared function or constant at the top of the block. This prevents copy-paste drift and reduces maintenance burden.
 
@@ -375,7 +343,7 @@ it('test A', () => { const workflow = buildTestWorkflow() })
 it('test B', () => { const workflow = buildTestWorkflow({ name: 'custom' }) })
 ```
 
-### 11. Negative Assertions Must Be Meaningful
+### 10. Negative Assertions Must Be Meaningful
 
 Do not assert that something is absent when the test setup never could have created it. Such assertions pass vacuously and provide no regression safety.
 

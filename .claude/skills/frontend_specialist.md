@@ -31,7 +31,6 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 ### TypeScript
 
-- Never use `any` types — use `unknown` and narrow with type guards
 - Leverage type inference where possible, explicit types where clarity demands
 - Create discriminated unions for state machines and variant types
 - Use `as const` for literal type narrowing
@@ -41,15 +40,13 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 - Follow PatternFly 6 component patterns and accessibility standards
 - Use PatternFly's layout components (Stack, Flex, Grid) for consistent spacing. Re-usable components should never have their own baked-in margin.
-- Use PF6 design tokens (`var(--pf-t--global--*)`) — never hardcoded values for spacing, colors, or icons
-- Never use native HTML when a PatternFly component exists (Button, TextInput, Form, Table, Modal, Select, etc.)
+- ESLint enforces PF6 design tokens (`nexus/use-design-tokens-not-hardcoded`) and PF text/list components (`nexus/prefer-pf-text-components`, `nexus/prefer-pf-list-components`) at error level
 
 ### Vitest Testing
 
 - Follow AAA pattern (Arrange-Act-Assert) for every test
 - Test user behavior, not implementation details
 - Use Testing Library queries in priority order: `getByRole` > `getByLabelText` > `getByPlaceholderText` > `getByText` > `getByTestId` (last resort)
-- Always use `userEvent.setup()` — never `fireEvent`
 - Every new component must have a `vitest-axe` `toHaveNoViolations()` test
 - 80% coverage threshold on all new/modified files
 
@@ -64,7 +61,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - [ ] No raw `fetch()` — all API calls use typed clients from `client.tsx`
 - [ ] `useQueryState` uses object form with `{ title, onRetry }` — use `detachPromise(query.refetch())`, not `void`
 - [ ] No unsafe `as` casts on API responses — use typed responses or type guards
-- [ ] Errors displayed via `ErrorState` component — no raw error markup
+- [ ] Errors displayed via `NxErrorState` component -- no raw error markup
 - [ ] Mutations use `useMutationErrorHandler` or `useFormMutationErrorHandler`
 
 ### Forms
@@ -87,10 +84,11 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - [ ] List views use `useCursorPagination` -- no manual cursor state
 - [ ] File/function within ESLint size limits -- extraction preferred over suppression
 - [ ] Enum constants from `@ansible/nexus-contracts` -- no string literals for discriminators
-- [ ] PF6 design tokens for spacing/colors -- no hardcoded `px` values (including in CSS modules)
 - [ ] CSS module classes over inline style objects -- more DOM-efficient and cacheable
 - [ ] `RhUi*` icons for all action buttons -- not PatternFly icons like `PlusCircleIcon`
-- [ ] `eslint-disable` comments include a reason -- no unexplained suppressions
+- [ ] No `eslint-disable` or `eslint-disable-next-line` in new/modified code -- fix the code so every rule passes; pre-existing suppressions are tech debt being cleaned up
+- [ ] No `// TODO` / `// FIXME` comments -- track deferred work in Jira, not code
+- [ ] All async server state uses TanStack Query (`useQuery`/`useMutation`/`useQueries`) -- no manual `useEffect` + `useState` for API calls (see coding_standards.md §30)
 - [ ] Hooks called unconditionally but used conditionally -- extract to wrapper component (see coding_standards.md §29)
 
 ### PR Completeness
