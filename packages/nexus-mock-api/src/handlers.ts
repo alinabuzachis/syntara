@@ -1037,6 +1037,16 @@ export const handlers = [
       })
     }
 
+    if (username === 'user') {
+      return HttpResponse.json({
+        id: 'us3r0000-0000-0000-0000-000000000000',
+        username: 'user',
+        email: 'user@nexus.local',
+        groups: ['authenticated'],
+        rp_logout_enabled: rpLogoutEnabled,
+      })
+    }
+
     return HttpResponse.json({
       id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       username: 'demo',
@@ -3629,6 +3639,23 @@ export const handlers = [
       if (readableResources.has(resourceType)) {
         allowed = action === 'read'
       } else {
+        allowed = false
+      }
+    } else if (username === 'user') {
+      const readableResources = new Set([
+        'workflow',
+        'execution',
+        'approval',
+        'credential',
+        'user',
+        'group',
+        'role',
+        'policy',
+        'authz',
+      ])
+      if (WRITE_ACTIONS.has(action)) {
+        allowed = false
+      } else if (!readableResources.has(resourceType)) {
         allowed = false
       }
     } else if (username === 'auditor') {

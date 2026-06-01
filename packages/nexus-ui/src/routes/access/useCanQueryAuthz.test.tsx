@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { accessFetchClient } from './accessClient'
 import { useCanQueryAuthz } from './useCanQueryAuthz'
@@ -15,6 +17,13 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+function createWrapper() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  )
+}
+
 describe('useCanQueryAuthz', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -25,7 +34,7 @@ describe('useCanQueryAuthz', () => {
       data: { allowed: true },
     })
 
-    const { result } = renderHook(() => useCanQueryAuthz())
+    const { result } = renderHook(() => useCanQueryAuthz(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(result.current).toEqual({ canQuery: true, isChecking: false })
@@ -41,7 +50,7 @@ describe('useCanQueryAuthz', () => {
       data: { allowed: false },
     })
 
-    const { result } = renderHook(() => useCanQueryAuthz())
+    const { result } = renderHook(() => useCanQueryAuthz(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(result.current).toEqual({ canQuery: false, isChecking: false })
@@ -53,7 +62,7 @@ describe('useCanQueryAuthz', () => {
       data: undefined,
     })
 
-    const { result } = renderHook(() => useCanQueryAuthz())
+    const { result } = renderHook(() => useCanQueryAuthz(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(result.current).toEqual({ canQuery: false, isChecking: false })
@@ -63,38 +72,19 @@ describe('useCanQueryAuthz', () => {
   it('returns isChecking true while the request is in flight', () => {
     vi.mocked(accessFetchClient.POST).mockReturnValue(new Promise(() => {}))
 
-    const { result } = renderHook(() => useCanQueryAuthz())
+    const { result } = renderHook(() => useCanQueryAuthz(), { wrapper: createWrapper() })
 
     expect(result.current).toEqual({ canQuery: false, isChecking: true })
   })
 
-  it('sets isChecking false on network error', async () => {
+  it('returns canQuery false on network error', async () => {
     vi.mocked(accessFetchClient.POST).mockRejectedValue(new Error('Network error'))
 
-    const { result } = renderHook(() => useCanQueryAuthz())
+    const { result } = renderHook(() => useCanQueryAuthz(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(result.current).toEqual({ canQuery: false, isChecking: false })
+      expect(result.current.isChecking).toBe(false)
     })
-  })
-
-  it('does not update state after unmount', async () => {
-    let resolve: (value: unknown) => void
-    vi.mocked(accessFetchClient.POST).mockReturnValue(
-      new Promise((r) => {
-        resolve = r
-      })
-    )
-
-    const { result, unmount } = renderHook(() => useCanQueryAuthz())
-
-    unmount()
-
-    resolve!({ data: { allowed: true } })
-    await vi.waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalled()
-    })
-
-    expect(result.current).toEqual({ canQuery: false, isChecking: true })
+    expect(result.current.canQuery).toBe(false)
   })
 })

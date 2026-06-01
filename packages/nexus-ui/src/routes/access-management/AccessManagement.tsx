@@ -30,16 +30,19 @@ const allTabs = [
 
 export function AccessManagement() {
   const [location, navigate] = useLocation()
-  const { canReadUsers, canReadGroups, canAccessPage, isLoading } = useAccessManagementPermissions()
+  const { canReadUsers, canReadGroups, canReadProjects, canReadAssignments, canAccessPage, isLoading } =
+    useAccessManagementPermissions()
 
   const tabs = useMemo(() => {
     if (isLoading) return allTabs
     const hiddenPaths = new Set<string>()
     if (!canReadUsers) hiddenPaths.add(AppRoute.AccessManagement.Users)
     if (!canReadGroups) hiddenPaths.add(AppRoute.AccessManagement.Groups)
+    if (!canReadProjects) hiddenPaths.add(AppRoute.AccessManagement.Projects)
+    if (!canReadAssignments) hiddenPaths.add(AppRoute.AccessManagement.Assignments)
     if (hiddenPaths.size === 0) return allTabs
     return allTabs.filter((tab) => !hiddenPaths.has(tab.path))
-  }, [canReadUsers, canReadGroups, isLoading])
+  }, [canReadUsers, canReadGroups, canReadProjects, canReadAssignments, isLoading])
 
   const defaultTab = tabs[0]
 

@@ -192,6 +192,56 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
   })
 
+  it('hides Projects tab when user lacks project:read permission', async () => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+      const { body } = options as { body: { resource_type: string } }
+      if (body.resource_type === 'project') return Promise.resolve({ data: { allowed: false } } as never)
+      return Promise.resolve({ data: { allowed: true } } as never)
+    })
+    await renderAndSettle(<AccessManagement />)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'Projects' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
+  })
+
+  it('hides Assignments tab when user lacks role-assignment:read permission', async () => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+      const { body } = options as { body: { resource_type: string } }
+      if (body.resource_type === 'role-assignment') return Promise.resolve({ data: { allowed: false } } as never)
+      return Promise.resolve({ data: { allowed: true } } as never)
+    })
+    await renderAndSettle(<AccessManagement />)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'Assignments' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
+  })
+
+  it('always shows Roles, Policies, and Can I? tabs even when most permissions are denied', async () => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+      const { body } = options as { body: { resource_type: string } }
+      if (['user', 'group', 'project'].includes(body.resource_type)) {
+        return Promise.resolve({ data: { allowed: false } } as never)
+      }
+      return Promise.resolve({ data: { allowed: true } } as never)
+    })
+    wouterLocation.path = AppRoute.AccessManagement.Policies
+    await renderAndSettle(<AccessManagement />)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'Users' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('tab', { name: 'Policies' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Can I?' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Groups' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Projects' })).not.toBeInTheDocument()
+  })
+
   it('redirects to first allowed tab when navigating to a restricted path', async () => {
     vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
       const { body } = options as { body: { resource_type: string } }
@@ -203,6 +253,20 @@ describe('AccessManagement', () => {
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Groups, { replace: true })
+    })
+  })
+
+  it('redirects from hidden Projects tab to first allowed tab', async () => {
+    vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
+      const { body } = options as { body: { resource_type: string } }
+      if (body.resource_type === 'project') return Promise.resolve({ data: { allowed: false } } as never)
+      return Promise.resolve({ data: { allowed: true } } as never)
+    })
+    wouterLocation.path = AppRoute.AccessManagement.Projects
+    await renderAndSettle(<AccessManagement />)
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(AppRoute.AccessManagement.Users, { replace: true })
     })
   })
 

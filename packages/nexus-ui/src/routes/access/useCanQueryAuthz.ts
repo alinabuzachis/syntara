@@ -1,8 +1,4 @@
-import { useEffect, useState } from 'react'
-
-import { detachPromise } from '../../utils/detachPromise'
-
-import { accessFetchClient } from './accessClient'
+import { useCanI } from '../../hooks/useCanI'
 
 /**
  * Checks whether the current user has permission to query authz
@@ -13,34 +9,6 @@ import { accessFetchClient } from './accessClient'
  * - `canQuery` is the resolved permission (`false` until check completes)
  */
 export function useCanQueryAuthz(): { canQuery: boolean; isChecking: boolean } {
-  const [canQuery, setCanQuery] = useState(false)
-  const [isChecking, setIsChecking] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-
-    detachPromise(
-      accessFetchClient
-        .POST('/authz/can_i', {
-          body: { action: 'query', resource_type: 'authz' },
-        })
-        .then(({ data }) => {
-          if (!cancelled) {
-            setCanQuery(data?.allowed ?? false)
-            setIsChecking(false)
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setIsChecking(false)
-          }
-        })
-    )
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  return { canQuery, isChecking }
+  const { allowed, isChecking } = useCanI('query', 'authz')
+  return { canQuery: allowed, isChecking }
 }
