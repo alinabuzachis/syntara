@@ -9,6 +9,8 @@ Tests complete MCP provider workflow including:
 
 import os
 import time
+from http import HTTPStatus
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -16,6 +18,7 @@ from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import MCPConfiguration, ToolProviderCreate
 from nexus_api_client.models.provider_status import ProviderStatus
 from nexus_api_client.models.tool_status import ToolStatus
+from nexus_api_client.types import Response
 
 from tests.e2e.conftest import unique_name
 
@@ -23,6 +26,25 @@ pytestmark = pytest.mark.e2e
 
 MCP_PORT = os.environ.get("MCP_PORT", "8765")
 MCP_PROVIDER_URL = os.environ.get("MCP_BASE_URL", f"http://mcp-server:{MCP_PORT}/mcp")
+
+
+def _validate_provider(
+    nexus_api: NexusApiRegistry,
+    provider_id: UUID,
+    *,
+    timeout: float = 10.0,
+    interval: float = 0.5,
+) -> Response[Any]:
+    """Call validate, retrying on 404 until the provider is findable."""
+    deadline = time.monotonic() + timeout
+    while True:
+        resp = nexus_api.tool_manager.validate_tool_provider(provider_id=provider_id)
+        if resp.status_code != HTTPStatus.NOT_FOUND:
+            return resp
+        if time.monotonic() >= deadline:
+            msg = f"Provider {provider_id} still returns 404 after {timeout}s"
+            raise AssertionError(msg)
+        time.sleep(interval)
 
 
 def _wait_for_provider_status(
@@ -126,7 +148,7 @@ class TestMCPProviderIntegration:
         provider_id = create_resp.parsed.id
         assert create_resp.parsed.status == ProviderStatus.VALIDATING
 
-        validate_resp = nexus_api.tool_manager.validate_tool_provider(provider_id=provider_id)
+        validate_resp = _validate_provider(nexus_api, provider_id)
         assert validate_resp.is_success
         assert validate_resp.parsed is not None
         assert validate_resp.parsed.valid is False
@@ -169,7 +191,7 @@ class TestMCPProviderIntegration:
             provider_id = create_resp.parsed.id
             assert create_resp.parsed.status == ProviderStatus.VALIDATING
 
-            validate_resp = nexus_api.tool_manager.validate_tool_provider(provider_id=provider_id)
+            validate_resp = _validate_provider(nexus_api, provider_id)
             assert validate_resp.is_success
             assert validate_resp.parsed is not None
             assert validate_resp.parsed.valid is False
@@ -204,7 +226,7 @@ class TestMCPProviderIntegration:
             provider_id = create_resp.parsed.id
             assert create_resp.parsed.status == ProviderStatus.VALIDATING
 
-            validate_resp = nexus_api.tool_manager.validate_tool_provider(provider_id=provider_id)
+            validate_resp = _validate_provider(nexus_api, provider_id)
             assert validate_resp.is_success
             assert validate_resp.parsed is not None
             assert validate_resp.parsed.valid is False

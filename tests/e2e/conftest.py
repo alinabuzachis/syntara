@@ -26,6 +26,7 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.mcp_configuration import MCPConfiguration
+from nexus_api_client.models.provider_status import ProviderStatus
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
@@ -83,8 +84,18 @@ class _AutoRefreshAuth(httpx.Auth):
         self._last_refresh = time.monotonic()
 
     def _refresh(self) -> None:
-        self.token = _generate_e2e_token(self._base_url)
-        self._last_refresh = time.monotonic()
+        # Retry login on transient 401s that can occur when parallel xdist
+        # workers modify auth/OIDC configuration mid-run.
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                self.token = _generate_e2e_token(self._base_url)
+                self._last_refresh = time.monotonic()
+                return
+            except RuntimeError as exc:
+                last_exc = exc
+                time.sleep(2 * (attempt + 1))
+        raise last_exc  # type: ignore[misc]
 
     def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
         if time.monotonic() - self._last_refresh > _TOKEN_REFRESH_INTERVAL:
@@ -328,6 +339,18 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
     assert validate_resp.is_success, f"MCP provider validation request failed: {validate_resp.content!r}"
     assert validate_resp.parsed is not None
     assert validate_resp.parsed.valid is True, f"MCP provider validation failed: {validate_resp.parsed.error}"
+
+    # Wait for the provider to reach AVAILABLE before refreshing.
+    # With xdist, another worker may have already started validation;
+    # refreshing a VALIDATING provider returns TOOL_REFRESH_ERROR.
+    deadline = time.monotonic() + 30.0
+    while True:
+        provider = nexus_api.tool_manager.get_tool_provider(provider_id=pid).assert_and_get()
+        if provider.status == ProviderStatus.AVAILABLE:
+            break
+        if time.monotonic() >= deadline:
+            pytest.fail(f"MCP provider {pid} stuck in {provider.status} after 30s")
+        time.sleep(0.5)
 
     refresh_resp = nexus_api.tool_manager.refresh_tool_provider(provider_id=pid)
     assert refresh_resp.is_success, f"MCP provider refresh failed: {refresh_resp.content!r}"
