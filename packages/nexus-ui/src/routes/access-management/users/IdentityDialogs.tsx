@@ -1,15 +1,19 @@
 import {
-  Button,
   Content,
-  ContentVariants,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
   List,
   ListItem,
+  MenuToggle,
+  type MenuToggleElement,
 } from '@patternfly/react-core'
-import { PluggedIcon } from '@patternfly/react-icons'
+import { RhUiEllipsisVerticalFillIcon, RhUiLinkBrokenIcon, RhUiLinkIcon } from '@patternfly/react-icons'
+import { useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
@@ -126,43 +130,93 @@ export function IdentityDialogs({
   )
 }
 
-export function ConnectAction({
-  isSelf,
-  isLocalUser,
-  providerName,
-  authorizeUrl,
-  onConvert,
-}: Readonly<{
+type ConnectedKebabProps = {
+  kind: 'connected'
+  isLastIdentity: boolean
+  isDetaching: boolean
+  onDisconnect: () => void
+}
+
+type DisconnectedKebabProps = {
+  kind: 'disconnected'
   isSelf: boolean
   isLocalUser: boolean
   providerName: string
   authorizeUrl: string
-  onConvert: (provider: ConvertProviderInfo) => void
-}>) {
-  if (!isSelf) {
-    return (
-      <Content component={ContentVariants.p} style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
-        —
-      </Content>
-    )
-  }
+  onConvert: (info: ConvertProviderInfo) => void
+}
 
-  if (isLocalUser) {
-    return (
-      <Button
-        variant="secondary"
-        size="sm"
-        icon={<PluggedIcon />}
-        onClick={() => onConvert({ name: providerName, authorizeUrl })}
+export type IdentityKebabProps = ConnectedKebabProps | DisconnectedKebabProps
+
+function IdentityKebabToggle({
+  toggleRef,
+  onClick,
+  isExpanded,
+}: Readonly<{
+  toggleRef: React.Ref<MenuToggleElement>
+  onClick: () => void
+  isExpanded: boolean
+}>) {
+  return (
+    <MenuToggle ref={toggleRef} variant="plain" onClick={onClick} isExpanded={isExpanded} aria-label="Identity actions">
+      <RhUiEllipsisVerticalFillIcon />
+    </MenuToggle>
+  )
+}
+
+export function IdentityActionsKebab(props: Readonly<IdentityKebabProps>) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  let actionItem: React.ReactNode
+
+  if (props.kind === 'connected') {
+    const { isLastIdentity, isDetaching, onDisconnect } = props
+    actionItem = (
+      <DropdownItem
+        isDanger
+        icon={<RhUiLinkBrokenIcon />}
+        isAriaDisabled={isLastIdentity || isDetaching}
+        tooltipProps={isLastIdentity ? { content: 'Cannot disconnect the only sign-in method' } : undefined}
+        onClick={() => {
+          onDisconnect()
+          setIsOpen(false)
+        }}
+      >
+        Disconnect
+      </DropdownItem>
+    )
+  } else {
+    const { isSelf, isLocalUser, providerName, authorizeUrl, onConvert } = props
+    const handleConnect = () => {
+      if (isLocalUser) {
+        onConvert({ name: providerName, authorizeUrl })
+      } else {
+        globalThis.location.href = authorizeUrl
+      }
+      setIsOpen(false)
+    }
+    actionItem = (
+      <DropdownItem
+        icon={<RhUiLinkIcon />}
+        isAriaDisabled={!isSelf}
+        tooltipProps={!isSelf ? { content: 'Only the user can connect their own identity' } : undefined}
+        onClick={isSelf ? handleConnect : undefined}
       >
         Connect
-      </Button>
+      </DropdownItem>
     )
   }
 
   return (
-    <Button variant="secondary" size="sm" icon={<PluggedIcon />} component="a" href={authorizeUrl}>
-      Connect
-    </Button>
+    <Dropdown
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
+      toggle={(toggleRef) => (
+        <IdentityKebabToggle toggleRef={toggleRef} onClick={() => setIsOpen((o) => !o)} isExpanded={isOpen} />
+      )}
+      popperProps={{ position: 'right' }}
+    >
+      <DropdownList>{actionItem}</DropdownList>
+    </Dropdown>
   )
 }

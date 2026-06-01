@@ -8,7 +8,7 @@ import { axe } from 'vitest-axe'
 import { usersClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 
-import { ConnectAction, IdentityDialogs, type ConvertProviderInfo } from './IdentityDialogs'
+import { IdentityActionsKebab, IdentityDialogs, type ConvertProviderInfo } from './IdentityDialogs'
 import type { UserIdentity } from './identityUtils'
 
 // ---------------------------------------------------------------------------
@@ -225,11 +225,12 @@ describe('IdentityDialogs', () => {
 })
 
 // ---------------------------------------------------------------------------
-// ConnectAction
+// IdentityActionsKebab
 // ---------------------------------------------------------------------------
 
-describe('ConnectAction', () => {
-  const defaultConnectProps = {
+describe('IdentityActionsKebab', () => {
+  const defaultDisconnectedProps = {
+    kind: 'disconnected' as const,
     isSelf: true,
     isLocalUser: false,
     providerName: 'GitHub',
@@ -237,65 +238,105 @@ describe('ConnectAction', () => {
     onConvert: vi.fn(),
   }
 
-  function renderConnectAction(overrides: Partial<typeof defaultConnectProps> = {}) {
-    const props = { ...defaultConnectProps, onConvert: vi.fn(), ...overrides }
-    return { ...render(<ConnectAction {...props} />), props }
+  const defaultConnectedProps = {
+    kind: 'connected' as const,
+    isLastIdentity: false,
+    isDetaching: false,
+    onDisconnect: vi.fn(),
+  }
+
+  function renderKebab(props: Parameters<typeof IdentityActionsKebab>[0]) {
+    return render(<IdentityActionsKebab {...props} />)
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('renders a dash when not viewing own profile', () => {
-    renderConnectAction({ isSelf: false })
-
-    expect(screen.getByText('—')).toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  it('always renders the kebab toggle', () => {
+    renderKebab({ ...defaultDisconnectedProps, isSelf: false })
+    expect(screen.getByRole('button', { name: 'Identity actions' })).toBeInTheDocument()
   })
 
-  it('renders a button that triggers onConvert for local users', async () => {
-    const user = userEvent.setup()
-    const { props } = renderConnectAction({ isSelf: true, isLocalUser: true })
+  describe('disconnected row', () => {
+    it('shows disabled Connect with tooltip when not self', async () => {
+      const user = userEvent.setup()
+      renderKebab({ ...defaultDisconnectedProps, isSelf: false })
 
-    const button = screen.getByRole('button', { name: 'Connect' })
-    expect(button).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
 
-    await user.click(button)
+      const connectItem = screen.getByRole('menuitem', { name: 'Connect' })
+      expect(connectItem).toHaveAttribute('aria-disabled', 'true')
+    })
 
-    expect(props.onConvert).toHaveBeenCalledTimes(1)
-    expect(props.onConvert).toHaveBeenCalledWith({
-      name: 'GitHub',
-      authorizeUrl: '/oidc/authorize?provider_id=gh-1&flow=link',
+    it('calls onConvert when self and local user clicks Connect', async () => {
+      const user = userEvent.setup()
+      const onConvert = vi.fn()
+      renderKebab({ ...defaultDisconnectedProps, isSelf: true, isLocalUser: true, onConvert })
+
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+      await user.click(screen.getByRole('menuitem', { name: 'Connect' }))
+
+      expect(onConvert).toHaveBeenCalledWith({
+        name: 'GitHub',
+        authorizeUrl: '/oidc/authorize?provider_id=gh-1&flow=link',
+      })
+    })
+
+    it('does not call onConvert when self and federated user clicks Connect', async () => {
+      const user = userEvent.setup()
+      const onConvert = vi.fn()
+
+      renderKebab({ ...defaultDisconnectedProps, isSelf: true, isLocalUser: false, onConvert })
+
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+      await user.click(screen.getByRole('menuitem', { name: 'Connect' }))
+
+      // Federated users navigate directly; the local-user conversion dialog is not triggered
+      expect(onConvert).not.toHaveBeenCalled()
     })
   })
 
-  it('renders a link for federated users', () => {
-    renderConnectAction({ isSelf: true, isLocalUser: false })
+  describe('connected row', () => {
+    it('shows enabled Disconnect when not last identity', async () => {
+      const user = userEvent.setup()
+      renderKebab(defaultConnectedProps)
 
-    const link = screen.getByRole('link', { name: 'Connect' })
-    expect(link).toBeInTheDocument()
-    expect(link).toHaveAttribute('href', '/oidc/authorize?provider_id=gh-1&flow=link')
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+
+      const disconnectItem = screen.getByRole('menuitem', { name: 'Disconnect' })
+      expect(disconnectItem).not.toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('calls onDisconnect when Disconnect is clicked', async () => {
+      const user = userEvent.setup()
+      const onDisconnect = vi.fn()
+      renderKebab({ ...defaultConnectedProps, onDisconnect })
+
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
+
+      expect(onDisconnect).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows disabled Disconnect with tooltip when last identity', async () => {
+      const user = userEvent.setup()
+      renderKebab({ ...defaultConnectedProps, isLastIdentity: true })
+
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+
+      const disconnectItem = screen.getByRole('menuitem', { name: 'Disconnect' })
+      expect(disconnectItem).toHaveAttribute('aria-disabled', 'true')
+    })
   })
 
-  it('has no accessibility violations for non-self view', async () => {
-    const { container } = renderConnectAction({ isSelf: false })
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
+  it('has no accessibility violations (disconnected, admin view)', async () => {
+    const { container } = renderKebab({ ...defaultDisconnectedProps, isSelf: false })
+    expect(await axe(container)).toHaveNoViolations()
   })
 
-  it('has no accessibility violations for local user button', async () => {
-    const { container } = renderConnectAction({ isSelf: true, isLocalUser: true })
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-
-  it('has no accessibility violations for federated user link', async () => {
-    const { container } = renderConnectAction({ isSelf: true, isLocalUser: false })
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
+  it('has no accessibility violations (connected)', async () => {
+    const { container } = renderKebab(defaultConnectedProps)
+    expect(await axe(container)).toHaveNoViolations()
   })
 })

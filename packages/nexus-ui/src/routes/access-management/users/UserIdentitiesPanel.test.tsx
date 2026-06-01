@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, renderHook, screen, act, waitFor } from '@testing-library/react'
+import { render, renderHook, screen, act, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { usersClient } from '../../../client'
+import { identityProvidersClient, usersClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 
 import { useDetachIdentity } from './useDetachIdentity'
@@ -19,6 +19,9 @@ vi.mock('../../../client', () => ({
   usersClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+  identityProvidersClient: {
+    useQuery: vi.fn(),
   },
   OIDC_AUTHORIZE_PATH: '/api/v1/auth/oidc/authorize',
 }))
@@ -94,6 +97,19 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const mockMutate = vi.fn()
 
+const mockFullProviders = [
+  {
+    id: 'provider-1',
+    name: 'Azure',
+    configuration: { issuer_url: 'https://login.example.com', client_id: 'client-1' },
+  },
+  {
+    id: 'provider-2',
+    name: 'Okta',
+    configuration: { issuer_url: 'https://auth.other.com', client_id: 'client-2' },
+  },
+]
+
 function setupMocks(identities: unknown[] = [], queryOverrides: Record<string, unknown> = {}) {
   vi.mocked(usersClient.useQuery).mockReturnValue({
     data: { resources: identities, next: null, prev: null, total: identities.length },
@@ -107,6 +123,13 @@ function setupMocks(identities: unknown[] = [], queryOverrides: Record<string, u
   vi.mocked(usersClient.useMutation).mockReturnValue({
     mutate: mockMutate,
     isPending: false,
+  } as never)
+
+  vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+    data: { resources: mockFullProviders, next: null, prev: null },
+    isPending: false,
+    isError: false,
+    error: null,
   } as never)
 }
 
@@ -123,6 +146,12 @@ describe('UserIdentitiesPanel', () => {
     mockMutate.mockClear()
     mockAttachIdentityModal.mockClear()
     mockUseAuthProviders.mockReturnValue({ providers: [], isLoading: false })
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+      data: { resources: mockFullProviders, next: null, prev: null },
+      isPending: false,
+      isError: false,
+      error: null,
+    } as never)
   })
 
   // ---- Empty state --------------------------------------------------------
@@ -154,8 +183,26 @@ describe('UserIdentitiesPanel', () => {
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
       expect(screen.getByRole('columnheader', { name: /Provider/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Status/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Issuer URL/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Linked/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Last authenticated/i })).toBeInTheDocument()
+    })
+
+    it('shows "Connected" label for linked identities', () => {
+      setupMocks(mockIdentities)
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      expect(screen.getByText('Connected')).toBeInTheDocument()
+    })
+
+    it('shows issuer URL for linked identities', () => {
+      setupMocks(mockIdentities)
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      expect(screen.getByText('https://login.example.com')).toBeInTheDocument()
     })
 
     it('renders provider name as a link', () => {
@@ -197,8 +244,8 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButtons[0])
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
 
       expect(screen.getByText('Disconnect identity?')).toBeInTheDocument()
       expect(screen.getByText(/Disconnecting will remove sign-in access for this identity/)).toBeInTheDocument()
@@ -212,12 +259,9 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButtons[0])
-
-      // Click Disconnect in modal (last button with that name)
-      const allButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(allButtons[allButtons.length - 1])
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
+      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
 
       expect(mockMutate).toHaveBeenCalledTimes(1)
       const callArgs = mockMutate.mock.calls[0]
@@ -232,13 +276,12 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButtons[0])
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
 
       expect(screen.getByText('Disconnect identity?')).toBeInTheDocument()
 
-      const cancelButton = screen.getByRole('button', { name: 'Cancel' })
-      await user.click(cancelButton)
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
         expect(screen.queryByText('Disconnect identity?')).not.toBeInTheDocument()
@@ -264,10 +307,9 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButtons[0])
-      const allButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(allButtons[allButtons.length - 1])
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
+      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
 
       const callbacks = mockMutate.mock.calls[0][1] as {
         onSuccess: () => void
@@ -290,10 +332,9 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButtons[0])
-      const allButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(allButtons[allButtons.length - 1])
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
+      await user.click(screen.getByRole('button', { name: 'Disconnect' }))
 
       const callbacks = mockMutate.mock.calls[0][1] as {
         onError: () => void
@@ -346,66 +387,30 @@ describe('UserIdentitiesPanel', () => {
     })
   })
 
-  // ---- Expandable rows ----------------------------------------------------
-
-  describe('Expandable rows', () => {
-    it('expands a row to show issuer and subject details', async () => {
-      const user = userEvent.setup()
-      setupMocks(mockIdentities)
-
-      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
-
-      // Click the expand toggle button
-      const expandButton = screen.getAllByRole('button').find((btn) => btn.hasAttribute('aria-expanded'))
-      expect(expandButton).toBeDefined()
-      await user.click(expandButton!)
-
-      // The issuer and subject should now be visible in the expanded content
-      expect(screen.getByText('Issuer')).toBeInTheDocument()
-      expect(screen.getByText('Subject')).toBeInTheDocument()
-    })
-
-    it('collapses an expanded row on second toggle', async () => {
-      const user = userEvent.setup()
-      setupMocks(mockIdentities)
-
-      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
-
-      const expandButton = screen.getAllByRole('button').find((btn) => btn.hasAttribute('aria-expanded'))
-      expect(expandButton).toBeDefined()
-
-      // Expand
-      await user.click(expandButton!)
-      // Collapse
-      await user.click(expandButton!)
-
-      // Row should be collapsed — the tbody should not have expanded state
-      // The issuer/subject are still in DOM but the parent Tbody isExpanded=false
-      // Just verify no error occurs
-    })
-  })
-
   // ---- Last identity protection -------------------------------------------
 
   describe('Last identity protection', () => {
-    it('disables Disconnect button when it is the only identity and user has no password', () => {
+    it('disables Disconnect menuitem when it is the only identity and user has no password', async () => {
+      const user = userEvent.setup()
       setupMocks(mockIdentities) // single identity, isLocalUser defaults to false
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButton = screen.getByRole('button', { name: 'Disconnect' })
-      expect(disconnectButton).toHaveAttribute('aria-disabled', 'true')
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+      expect(screen.getByRole('menuitem', { name: 'Disconnect' })).toHaveAttribute('aria-disabled', 'true')
     })
 
-    it('renders aria-disabled Disconnect button with tooltip wrapper for last identity without password', () => {
+    it('shows aria-disabled Disconnect menuitem with tooltip for last identity without password', async () => {
+      const user = userEvent.setup()
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButton = screen.getByRole('button', { name: 'Disconnect' })
-      // PF6 Tooltip wraps the button; the button itself is aria-disabled
-      expect(disconnectButton).toHaveAttribute('aria-disabled', 'true')
-      // The button should not be clickable (no onClick fires the modal)
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+      const disconnectItem = screen.getByRole('menuitem', { name: 'Disconnect' })
+      expect(disconnectItem).toHaveAttribute('aria-disabled', 'true')
+      // Clicking the disabled item should not open the confirmation modal
+      await user.click(disconnectItem)
       expect(screen.queryByText('Disconnect identity?')).not.toBeInTheDocument()
     })
 
@@ -420,24 +425,24 @@ describe('UserIdentitiesPanel', () => {
       ).toBeInTheDocument()
     })
 
-    it('enables Disconnect button when there are multiple identities', () => {
+    it('enables Disconnect menuitem when there are multiple identities', async () => {
+      const user = userEvent.setup()
       setupMocks(twoIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      disconnectButtons.forEach((btn) => {
-        expect(btn).not.toHaveAttribute('aria-disabled', 'true')
-      })
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      expect(screen.getByRole('menuitem', { name: 'Disconnect' })).not.toHaveAttribute('aria-disabled', 'true')
     })
 
-    it('enables Disconnect for the only identity when hasPassword is true (password fallback exists)', () => {
+    it('enables Disconnect for the only identity when hasPassword is true (password fallback exists)', async () => {
+      const user = userEvent.setup()
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={true} />, { wrapper })
 
-      const disconnectButton = screen.getByRole('button', { name: 'Disconnect' })
-      expect(disconnectButton).not.toHaveAttribute('aria-disabled', 'true')
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+      expect(screen.getByRole('menuitem', { name: 'Disconnect' })).not.toHaveAttribute('aria-disabled', 'true')
     })
   })
 
@@ -449,14 +454,15 @@ describe('UserIdentitiesPanel', () => {
       { id: 'provider-3', name: 'GitHub', provider_type: 'oidc' },
     ]
 
-    it('shows Connect buttons for local non-builtin users', () => {
+    it('shows Connect menuitems for local non-builtin users', () => {
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks([])
 
       render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" isLocalUser hasPassword={true} />, { wrapper })
 
       expect(screen.queryByRole('heading', { name: 'Built-in user' })).not.toBeInTheDocument()
-      expect(screen.getAllByRole('button', { name: /Connect/i })).toHaveLength(2)
+      // Each unlinked provider has a kebab toggle; 2 providers = 2 kebabs
+      expect(screen.getAllByRole('button', { name: 'Identity actions' })).toHaveLength(2)
     })
 
     it('opens conversion warning dialog when local user clicks Connect', async () => {
@@ -466,8 +472,8 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" isLocalUser hasPassword={true} />, { wrapper })
 
-      const connectButtons = screen.getAllByRole('button', { name: /Connect/i })
-      await user.click(connectButtons[0])
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Connect' }))
 
       expect(screen.getByText('Link identity provider?')).toBeInTheDocument()
       expect(screen.getByText(/Your password will be permanently removed/)).toBeInTheDocument()
@@ -481,8 +487,8 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" isLocalUser hasPassword={true} />, { wrapper })
 
-      const connectButtons = screen.getAllByRole('button', { name: /Connect/i })
-      await user.click(connectButtons[0])
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[0])
+      await user.click(screen.getByRole('menuitem', { name: 'Connect' }))
 
       const confirmButton = screen.getByRole('button', { name: 'Convert and link' })
       expect(confirmButton).toBeDisabled()
@@ -493,14 +499,18 @@ describe('UserIdentitiesPanel', () => {
       expect(confirmButton).toBeEnabled()
     })
 
-    it('does not show conversion dialog for federated users', () => {
+    it('does not show conversion dialog for federated users', async () => {
+      const user = userEvent.setup()
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword={false} />, { wrapper })
 
-      // Federated user sees a link, not a button-with-dialog
-      expect(screen.getByRole('link', { name: /Connect/i })).toBeInTheDocument()
+      // Connected row is first; disconnected (unlinked) GitHub row is second
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[1])
+      const connectItem = screen.getByRole('menuitem', { name: 'Connect' })
+      expect(connectItem).not.toHaveAttribute('aria-disabled', 'true')
+      await user.click(connectItem)
       expect(screen.queryByText('Link identity provider?')).not.toBeInTheDocument()
     })
 
@@ -562,25 +572,29 @@ describe('UserIdentitiesPanel', () => {
       expect(screen.getByRole('button', { name: 'GitHub' })).toBeInTheDocument()
     })
 
-    it('shows Connect button for unlinked providers when viewing own profile', () => {
+    it('shows enabled Connect menuitem for unlinked providers when viewing own profile', async () => {
+      const user = userEvent.setup()
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword={false} />, { wrapper })
 
-      expect(screen.getByRole('link', { name: /Connect/i })).toBeInTheDocument()
+      // Connected row is first; disconnected GitHub row is second
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[1])
+      expect(screen.getByRole('menuitem', { name: 'Connect' })).not.toHaveAttribute('aria-disabled', 'true')
     })
 
-    it('shows dash instead of Connect button for unlinked providers when viewing another user', () => {
+    it('shows disabled Connect menuitem for unlinked providers when viewing another user', async () => {
+      const user = userEvent.setup()
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" currentUserId="other-user" hasPassword={false} />, { wrapper })
 
-      // Should not have a Connect link
       expect(screen.queryByRole('link', { name: /Connect/i })).not.toBeInTheDocument()
-      // Should show dash
-      expect(screen.getByText('—')).toBeInTheDocument()
+      // Connected row is first; disconnected GitHub row is second
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[1])
+      expect(screen.getByRole('menuitem', { name: 'Connect' })).toHaveAttribute('aria-disabled', 'true')
     })
 
     it('renders table when only unlinked providers exist (no identities)', () => {
@@ -591,23 +605,140 @@ describe('UserIdentitiesPanel', () => {
 
       // Should show the table, not the empty state
       expect(screen.queryByRole('heading', { name: 'No identity providers configured' })).not.toBeInTheDocument()
-      // Both providers are unlinked so there are two "Not connected" texts
-      expect(screen.getAllByText('Not connected')).toHaveLength(2)
+      // Both providers are unlinked so there are two "Not connected" labels
+      const notConnectedLabels = screen.getAllByText('Not connected')
+      expect(notConnectedLabels).toHaveLength(2)
+    })
+
+    it('shows issuer URL from full provider data for unlinked providers', () => {
+      const mockProvidersFull = [{ id: 'provider-3', name: 'GitHub', provider_type: 'oidc' }]
+      mockUseAuthProviders.mockReturnValue({ providers: mockProvidersFull, isLoading: false })
+      setupMocks([])
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+        data: {
+          resources: [
+            { id: 'provider-3', name: 'GitHub', configuration: { issuer_url: 'https://github.com/login/oauth' } },
+          ],
+          next: null,
+          prev: null,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+      } as never)
+
+      render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword={false} />, { wrapper })
+
+      expect(screen.getByText('https://github.com/login/oauth')).toBeInTheDocument()
+    })
+  })
+
+  // ---- Default sort order -------------------------------------------------
+
+  describe('Default sort order', () => {
+    it('renders Connected rows before Not connected rows by default', () => {
+      const mockProviders = [{ id: 'provider-3', name: 'GitHub', provider_type: 'oidc' }]
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks(mockIdentities) // Azure linked (Connected), GitHub unlinked (Not connected)
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      const connectedLabel = screen.getByText('Connected')
+      const notConnectedLabel = screen.getByText('Not connected')
+
+      // Connected should appear before Not connected in document order
+      expect(connectedLabel.compareDocumentPosition(notConnectedLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+  })
+
+  // ---- Dash empty states for unlinked rows --------------------------------
+
+  describe('Unlinked row empty states', () => {
+    it('shows dash in Linked and Last authenticated columns for unlinked providers', () => {
+      const mockProviders = [{ id: 'provider-3', name: 'GitHub', provider_type: 'oidc' }]
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks([])
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      const cells = screen.getAllByRole('cell')
+      const linkedCell = cells.find((cell) => cell.getAttribute('data-label') === 'Linked')
+      const lastAuthCell = cells.find((cell) => cell.getAttribute('data-label') === 'Last authenticated')
+
+      expect(linkedCell).toHaveTextContent('-')
+      expect(lastAuthCell).toHaveTextContent('-')
+    })
+  })
+
+  // ---- Filter on unified list ---------------------------------------------
+
+  describe('Filter', () => {
+    it('renders all rows initially with no filter active', () => {
+      const mockProviders = [{ id: 'provider-3', name: 'GitHub', provider_type: 'oidc' }]
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks(twoIdentities) // Azure + Okta connected; GitHub unlinked
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Azure' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Okta' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'GitHub' })).toBeInTheDocument()
+    })
+  })
+
+  // ---- identityProvidersClient resilience ---------------------------------
+
+  describe('identityProvidersClient resilience', () => {
+    it('still renders when identityProvidersClient query errors', () => {
+      const mockProviders = [{ id: 'provider-3', name: 'GitHub', provider_type: 'oidc' }]
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks([])
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
+        data: undefined,
+        isPending: false,
+        isError: true,
+        error: new Error('Network error'),
+      } as never)
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      // Panel still renders with an empty issuer URL for unlinked rows
+      expect(screen.getByRole('button', { name: 'GitHub' })).toBeInTheDocument()
+      expect(screen.getByText('Not connected')).toBeInTheDocument()
+    })
+
+    it('shows empty issuer URL when provider is not found in full provider list', () => {
+      const mockProviders = [{ id: 'provider-unknown', name: 'Unknown Provider', provider_type: 'oidc' }]
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks([]) // mockFullProviders has provider-1 and provider-2, not provider-unknown
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      // Renders without crashing; Issuer URL cell will be empty (Truncate content="")
+      const rows = screen.getAllByRole('row')
+      const dataRow = rows[1] // first data row after header
+      const issuerCell = within(dataRow)
+        .getAllByRole('cell')
+        .find((cell) => cell.getAttribute('data-label') === 'Issuer URL')
+      expect(issuerCell).toBeDefined()
+      expect(issuerCell).toHaveTextContent('')
     })
   })
 
   // ---- isSelf / currentUserId ---------------------------------------------
 
   describe('currentUserId matching', () => {
-    it('treats userId === currentUserId as self (isSelf = true)', () => {
+    it('treats userId === currentUserId as self (isSelf = true)', async () => {
+      const user = userEvent.setup()
       const mockProviders = [{ id: 'provider-3', name: 'GitHub', provider_type: 'oidc' }]
       mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
       setupMocks([])
 
       render(<UserIdentitiesPanel userId="user-1" currentUserId="user-1" hasPassword={false} />, { wrapper })
 
-      // Self users see a Connect link for unlinked providers
-      expect(screen.getByRole('link', { name: /Connect/i })).toBeInTheDocument()
+      // Self users see an enabled Connect menuitem for unlinked providers
+      await user.click(screen.getByRole('button', { name: 'Identity actions' }))
+      expect(screen.getByRole('menuitem', { name: 'Connect' })).not.toHaveAttribute('aria-disabled', 'true')
     })
 
     it('treats different userId and currentUserId as not self', () => {
@@ -749,9 +880,9 @@ describe('UserIdentitiesPanel', () => {
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      // Click Disconnect on the second identity (Okta)
-      const disconnectButtons = screen.getAllByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButtons[1])
+      // Open the second row's kebab (Okta) and click Disconnect
+      await user.click(screen.getAllByRole('button', { name: 'Identity actions' })[1])
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
 
       // Modal should show Okta identity details
       expect(screen.getByText('Disconnect identity?')).toBeInTheDocument()

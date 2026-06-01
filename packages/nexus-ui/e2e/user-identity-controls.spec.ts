@@ -22,6 +22,7 @@ import {
   mockUser,
   mockAuthMe,
   mockAuthProviders,
+  mockIdentityProviders,
 } from './utils/mockData'
 
 test.describe('User Detail — Identity Controls (UI-24)', () => {
@@ -46,7 +47,7 @@ test.describe('User Detail — Identity Controls (UI-24)', () => {
     // never mounted. not.toBeAttached() asserts DOM non-presence, which is
     // stronger than not.toBeVisible() (which also passes for hidden-but-present elements).
     await expect(app.getByRole('button', { name: 'Attach identity' })).not.toBeAttached()
-    await expect(app.getByRole('button', { name: 'Connect' })).not.toBeAttached()
+    await expect(app.getByRole('button', { name: 'Identity actions' })).not.toBeAttached()
   })
 
   /**
@@ -57,18 +58,23 @@ test.describe('User Detail — Identity Controls (UI-24)', () => {
   test('non-builtin local user — Connect controls visible with conversion warning', async ({ app }) => {
     await mockUserIdentities(app, NON_BUILTIN_USER_ID)
     await mockUser(app, NON_BUILTIN_USER_ID, nonBuiltinUserResponse)
-    // auth/me id matches the page user so isSelf=true — ConnectAction renders the
-    // "Connect" button instead of a dash (which appears when an admin views another user).
+    // auth/me id matches the page user so isSelf=true — the kebab menu's Connect
+    // item is enabled (vs. disabled when an admin views another user).
     await mockAuthMe(app, nonBuiltinUserResponse)
     await mockAuthProviders(app, oneProviderResponse)
+    await mockIdentityProviders(app)
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${NON_BUILTIN_USER_ID}/identities`))
 
-    const connectButton = app.getByRole('button', { name: 'Connect' })
-    await expect(connectButton).toBeVisible({ timeout: 15_000 })
+    const kebabButton = app.getByRole('button', { name: 'Identity actions' })
+    await expect(kebabButton).toBeVisible({ timeout: 15_000 })
 
-    // Clicking Connect opens the conversion warning dialog (isLocalUser=true triggers it)
-    await connectButton.click()
+    // Status column shows "Not connected" for the unlinked provider
+    await expect(app.getByText('Not connected')).toBeVisible()
+
+    // Open the kebab menu and click Connect to trigger the conversion warning dialog (isLocalUser=true)
+    await kebabButton.click()
+    await app.getByRole('menuitem', { name: 'Connect' }).click()
     await expect(app.getByRole('dialog', { name: 'Link identity provider?' })).toBeVisible()
     await expect(app.getByText('Your password will be permanently removed')).toBeVisible()
     await expect(app.getByRole('button', { name: 'Convert and link' })).toBeVisible()

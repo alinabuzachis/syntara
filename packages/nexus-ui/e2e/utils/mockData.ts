@@ -292,3 +292,44 @@ export const mockAuthAuditEvents = {
   prev: null,
   total: 3,
 }
+
+// ---------------------------------------------------------------------------
+// Identity providers full-detail fixtures (for /identity_providers/ endpoint)
+// ---------------------------------------------------------------------------
+
+export const identityProvidersFullResponse = {
+  resources: [
+    {
+      id: PROVIDER_ID_1,
+      name: 'Corporate SSO',
+      enabled: true,
+      configuration: {
+        provider_type: 'oidc',
+        issuer_url: 'https://sso.example.com',
+        client_id: 'client-corp-sso',
+        redirect_uri: 'https://nexus.example.com/callback',
+      },
+    },
+    {
+      id: PROVIDER_ID_2,
+      name: 'Keycloak',
+      enabled: true,
+      configuration: {
+        provider_type: 'oidc',
+        issuer_url: 'https://keycloak.example.com/realms/nexus',
+        client_id: 'client-keycloak',
+        redirect_uri: 'https://nexus.example.com/callback',
+      },
+    },
+  ],
+  next: null,
+  prev: null,
+}
+
+/** Mocks GET /identity_providers/ (the authenticated full-detail endpoint). */
+export async function mockIdentityProviders(
+  app: Page,
+  response: unknown = identityProvidersFullResponse
+): Promise<void> {
+  await app.route('**/api/v1/identity_providers/', (route) => route.fulfill(fulfill(response)))
+}

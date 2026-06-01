@@ -1,27 +1,16 @@
-import {
-  Button,
-  Content,
-  DescriptionList,
-  DescriptionListDescription,
-  DescriptionListGroup,
-  DescriptionListTerm,
-  EmptyState,
-  EmptyStateBody,
-  Flex,
-  FlexItem,
-  StackItem,
-  Tooltip,
-} from '@patternfly/react-core'
-import { RhUiKeyIcon, RhUiLinkIcon, UnpluggedIcon } from '@patternfly/react-icons'
-import { ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useCallback, useEffect, useState } from 'react'
+import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
+import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
+import { RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
+import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { resolveLinkError } from '../../../app/authErrorMessages'
 import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
+import type { AuthProvider } from '../../../app/useAuthProviders'
 import { useAuthProviders } from '../../../app/useAuthProviders'
-import { OIDC_AUTHORIZE_PATH, usersClient } from '../../../client'
+import { OIDC_AUTHORIZE_PATH, identityProvidersClient, usersClient } from '../../../client'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
@@ -37,16 +26,29 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 
-import { ConnectAction, IdentityDialogs, type ConvertProviderInfo } from './IdentityDialogs'
+import { IdentityActionsKebab, IdentityDialogs, type ConvertProviderInfo } from './IdentityDialogs'
 import type { UserIdentity } from './identityUtils'
 import { applyLocalFilters, useLocalFilterState } from './identityUtils'
 
-function getIdentitySortKey(sortIndex: number, identity: UserIdentity): string {
-  return (
-    [identity.provider_name, identity.created_at, identity.last_used_at ?? ''][sortIndex] ??
-    identity.provider_name ??
-    ''
-  )
+type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
+
+type IdentityTableRow =
+  | { kind: 'connected'; identity: UserIdentity }
+  | { kind: 'disconnected'; provider: AuthProvider; issuerUrl: string }
+
+function getIdentitySortKey(sortIndex: number, row: IdentityTableRow): string {
+  if (row.kind === 'connected') {
+    const keys = [
+      row.identity.provider_name ?? '',
+      '0',
+      row.identity.issuer,
+      row.identity.created_at,
+      row.identity.last_used_at ?? '',
+    ]
+    return keys[sortIndex] ?? ''
+  }
+  const keys = [row.provider.name, '1', row.issuerUrl, '', '']
+  return keys[sortIndex] ?? ''
 }
 
 const identityFilterDefs: FilterFieldDefinition[] = [
@@ -99,74 +101,80 @@ function ProviderLink({ name, providerId }: { name: string; providerId: string }
   )
 }
 
-function IdentityRow({
+function ConnectedIdentityRow({
   identity,
-  rowIndex,
-  isExpanded,
   isLastIdentity,
   isDetaching,
-  onToggle,
   onDisconnect,
 }: {
   identity: UserIdentity
-  rowIndex: number
-  isExpanded: boolean
   isLastIdentity: boolean
   isDetaching: boolean
-  onToggle: () => void
   onDisconnect: () => void
 }) {
   return (
-    <Tbody isExpanded={isExpanded}>
-      <Tr>
-        <Td expand={{ rowIndex, isExpanded, onToggle }} />
-        <Td dataLabel="Provider">
-          <ProviderLink name={identity.provider_name ?? ''} providerId={identity.identity_provider_id} />
-        </Td>
-        <Td dataLabel="Linked">{formatDateTime(identity.created_at)}</Td>
-        <Td dataLabel="Last authenticated">{identity.last_used_at ? formatDateTime(identity.last_used_at) : '-'}</Td>
-        <Td isActionCell>
-          {isLastIdentity ? (
-            <Tooltip content="Cannot disconnect the only sign-in method">
-              <Button variant="secondary" isDanger size="sm" icon={<UnpluggedIcon />} isAriaDisabled>
-                Disconnect
-              </Button>
-            </Tooltip>
-          ) : (
-            <Button
-              variant="secondary"
-              isDanger
-              size="sm"
-              icon={<UnpluggedIcon />}
-              onClick={onDisconnect}
-              isDisabled={isDetaching}
-            >
-              Disconnect
-            </Button>
-          )}
-        </Td>
-      </Tr>
-      <Tr isExpanded={isExpanded}>
-        <Td colSpan={5}>
-          <ExpandableRowContent>
-            <DescriptionList isHorizontal isCompact>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Issuer</DescriptionListTerm>
-                <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-                  {identity.issuer}
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Subject</DescriptionListTerm>
-                <DescriptionListDescription style={{ wordBreak: 'break-all' }}>
-                  {identity.subject}
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-            </DescriptionList>
-          </ExpandableRowContent>
-        </Td>
-      </Tr>
-    </Tbody>
+    <Tr>
+      <Td dataLabel="Provider">
+        <ProviderLink name={identity.provider_name ?? ''} providerId={identity.identity_provider_id} />
+      </Td>
+      <Td dataLabel="Status">
+        <Label color="green">Connected</Label>
+      </Td>
+      <Td dataLabel="Issuer URL">
+        <Truncate content={identity.issuer} />
+      </Td>
+      <Td dataLabel="Linked">{formatDateTime(identity.created_at)}</Td>
+      <Td dataLabel="Last authenticated">{identity.last_used_at ? formatDateTime(identity.last_used_at) : '-'}</Td>
+      <Td isActionCell>
+        <IdentityActionsKebab
+          kind="connected"
+          isLastIdentity={isLastIdentity}
+          isDetaching={isDetaching}
+          onDisconnect={onDisconnect}
+        />
+      </Td>
+    </Tr>
+  )
+}
+
+function DisconnectedIdentityRow({
+  provider,
+  issuerUrl,
+  isSelf,
+  isLocalUser,
+  onConvert,
+}: {
+  provider: AuthProvider
+  issuerUrl: string
+  isSelf: boolean
+  isLocalUser: boolean
+  onConvert: (info: ConvertProviderInfo) => void
+}) {
+  const authorizeUrl = `${OIDC_AUTHORIZE_PATH}?provider_id=${encodeURIComponent(provider.id)}&flow=link&redirect_to=${encodeURIComponent(globalThis.location.pathname)}`
+  return (
+    <Tr>
+      <Td dataLabel="Provider">
+        <ProviderLink name={provider.name} providerId={provider.id} />
+      </Td>
+      <Td dataLabel="Status">
+        <Label color="grey">Not connected</Label>
+      </Td>
+      <Td dataLabel="Issuer URL">
+        <Truncate content={issuerUrl} />
+      </Td>
+      <Td dataLabel="Linked">-</Td>
+      <Td dataLabel="Last authenticated">-</Td>
+      <Td isActionCell>
+        <IdentityActionsKebab
+          kind="disconnected"
+          isSelf={isSelf}
+          isLocalUser={isLocalUser}
+          providerName={provider.name}
+          authorizeUrl={authorizeUrl}
+          onConvert={onConvert}
+        />
+      </Td>
+    </Tr>
   )
 }
 
@@ -248,7 +256,6 @@ export function UserIdentitiesPanel({
   const [isAttachOpen, setIsAttachOpen] = useState(false)
   const [identityToDetach, setIdentityToDetach] = useState<UserIdentity | null>(null)
   const [convertProvider, setConvertProvider] = useState<ConvertProviderInfo | null>(null)
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange } = useIdentityPagination()
   const { providers, isLoading: isProvidersLoading } = useAuthProviders()
   const isSelf = userId === currentUserId
@@ -261,21 +268,40 @@ export function UserIdentitiesPanel({
     { refetchOnWindowFocus: 'always' }
   )
 
-  const identities = query.data?.resources ?? []
+  const identitiesQuery = identityProvidersClient.useQuery('get', '/identity_providers/', {})
+
+  const identities = useMemo(() => query.data?.resources ?? [], [query.data])
+  const fullProviders = useMemo<IdentityProvider[]>(() => identitiesQuery.data?.resources ?? [], [identitiesQuery.data])
 
   const { mutate: detachIdentity, isPending: isDetaching } = usersClient.useMutation(
     'delete',
     '/users/{user_id}/identities/{identity_id}'
   )
 
-  const filteredIdentities = applyLocalFilters(identities, identitiesFilter.filters, (identity, key) => {
-    if (key === 'provider_name') return identity.provider_name ?? ''
+  const linkedProviderIds = useMemo(() => new Set(identities.map((i) => i.identity_provider_id)), [identities])
+  const unlinkedProviders = useMemo(
+    () => providers.filter((p) => !linkedProviderIds.has(p.id)),
+    [providers, linkedProviderIds]
+  )
+
+  const allRows = useMemo((): IdentityTableRow[] => {
+    const connected: IdentityTableRow[] = identities.map((identity) => ({ kind: 'connected', identity }))
+    const disconnected: IdentityTableRow[] = unlinkedProviders.map((provider) => {
+      const fullProvider = fullProviders.find((p) => p.id === provider.id)
+      return { kind: 'disconnected', provider, issuerUrl: fullProvider?.configuration?.issuer_url ?? '' }
+    })
+    return [...connected, ...disconnected]
+  }, [identities, unlinkedProviders, fullProviders])
+
+  const filteredRows = applyLocalFilters(allRows, identitiesFilter.filters, (row, key) => {
+    if (key === 'provider_name') {
+      return row.kind === 'connected' ? (row.identity.provider_name ?? '') : row.provider.name
+    }
     return ''
   })
 
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({ initialSortIndex: 0, initialDirection: 'asc' })
-
-  const sortedIdentities = sortData(filteredIdentities, (i) => getIdentitySortKey(activeSortIndex, i))
+  const { activeSortIndex, getSortParams, sortData } = useTableSort({ initialSortIndex: 1, initialDirection: 'asc' })
+  const sortedRows = sortData(filteredRows, (row) => getIdentitySortKey(activeSortIndex, row))
 
   const queryState = useQueryState(query, {
     title: 'Error loading identities',
@@ -300,10 +326,8 @@ export function UserIdentitiesPanel({
     )
   }
 
-  // Providers the user hasn't linked yet
-  const unlinkedProviders = providers.filter((p) => !identities.some((i) => i.identity_provider_id === p.id))
-
   const hasActiveFilters = identitiesFilter.filters.length > 0
+  const showTable = identities.length > 0 || (!isBuiltinUser && unlinkedProviders.length > 0) || hasActiveFilters
 
   const dialogs = renderIdentityDialogs({
     isAttachOpen,
@@ -317,8 +341,6 @@ export function UserIdentitiesPanel({
     convertProvider,
     onCloseConvert: () => setConvertProvider(null),
   })
-
-  const showTable = identities.length > 0 || (!isBuiltinUser && unlinkedProviders.length > 0) || hasActiveFilters
 
   if (isBuiltinUser && identities.length === 0) {
     return (
@@ -368,19 +390,18 @@ export function UserIdentitiesPanel({
           )}
         </Flex>
       </StackItem>
-      {sortedIdentities.length === 0 && unlinkedProviders.length === 0 ? (
+      {sortedRows.length === 0 ? (
         <StackItem isFilled style={flexCenteredBothAxes}>
           <NxEmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
         </StackItem>
       ) : (
         <NxScrollableTableContainer
           aria-label="User identities table"
-          isExpandable
           footer={{
             page,
             perPage,
-            total: sortedIdentities.length,
-            hasNext: page * perPage < sortedIdentities.length,
+            total: sortedRows.length,
+            hasNext: page * perPage < sortedRows.length,
             onPrev: () => setPage((p) => Math.max(1, p - 1)),
             onNext: () => setPage((p) => p + 1),
             onPerPageChange: handlePerPageChange,
@@ -388,64 +409,39 @@ export function UserIdentitiesPanel({
         >
           <Thead>
             <Tr>
-              {identities.length > 0 && <Th screenReaderText="Expand" />}
               <Th sort={getSortParams(0)}>Provider</Th>
-              <Th sort={getSortParams(1)}>Linked</Th>
-              <Th sort={getSortParams(2)}>Last authenticated</Th>
+              <Th sort={getSortParams(1)}>Status</Th>
+              <Th sort={getSortParams(2)}>Issuer URL</Th>
+              <Th sort={getSortParams(3)}>Linked</Th>
+              <Th sort={getSortParams(4)}>Last authenticated</Th>
               <Th screenReaderText="Actions" />
             </Tr>
           </Thead>
-          {sortedIdentities.slice((page - 1) * perPage, page * perPage).map((identity, rowIndex) => (
-            <IdentityRow
-              key={identity.id}
-              identity={identity}
-              rowIndex={rowIndex}
-              isExpanded={expandedIds.has(identity.id)}
-              isLastIdentity={identities.length === 1 && !hasPassword}
-              isDetaching={isDetaching}
-              onToggle={() =>
-                setExpandedIds((prev) => {
-                  const next = new Set(prev)
-                  if (next.has(identity.id)) next.delete(identity.id)
-                  else next.add(identity.id)
-                  return next
-                })
-              }
-              onDisconnect={() => setIdentityToDetach(identity)}
-            />
-          ))}
-          {!isBuiltinUser && (
-            <Tbody>
-              {unlinkedProviders.map((provider) => {
-                const authorizeUrl = `${OIDC_AUTHORIZE_PATH}?provider_id=${encodeURIComponent(provider.id)}&flow=link&redirect_to=${encodeURIComponent(globalThis.location.pathname)}`
+          <Tbody>
+            {sortedRows.slice((page - 1) * perPage, page * perPage).map((row) => {
+              if (row.kind === 'connected') {
                 return (
-                  <Tr key={`unlinked-${provider.id}`}>
-                    {identities.length > 0 && <Td />}
-                    <Td dataLabel="Provider">
-                      <ProviderLink name={provider.name} providerId={provider.id} />
-                    </Td>
-                    <Td dataLabel="Linked" colSpan={2}>
-                      <Content
-                        component="small"
-                        style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
-                      >
-                        Not connected
-                      </Content>
-                    </Td>
-                    <Td isActionCell>
-                      <ConnectAction
-                        isSelf={isSelf}
-                        isLocalUser={isLocalUser}
-                        providerName={provider.name}
-                        authorizeUrl={authorizeUrl}
-                        onConvert={setConvertProvider}
-                      />
-                    </Td>
-                  </Tr>
+                  <ConnectedIdentityRow
+                    key={row.identity.id}
+                    identity={row.identity}
+                    isLastIdentity={identities.length === 1 && !hasPassword}
+                    isDetaching={isDetaching}
+                    onDisconnect={() => setIdentityToDetach(row.identity)}
+                  />
                 )
-              })}
-            </Tbody>
-          )}
+              }
+              return (
+                <DisconnectedIdentityRow
+                  key={`unlinked-${row.provider.id}`}
+                  provider={row.provider}
+                  issuerUrl={row.issuerUrl}
+                  isSelf={isSelf}
+                  isLocalUser={isLocalUser}
+                  onConvert={setConvertProvider}
+                />
+              )
+            })}
+          </Tbody>
         </NxScrollableTableContainer>
       )}
       {dialogs}

@@ -51,11 +51,12 @@ test.describe('Connect Flow (UI-20)', () => {
     await expect(unlinkedRow).toBeVisible()
     await expect(unlinkedRow.getByText('Not connected')).toBeVisible()
 
-    // Connect link is visible for the unlinked provider (federated user → rendered as <a>)
-    const connectLink = unlinkedRow.getByRole('link', { name: 'Connect' })
-    await expect(connectLink).toBeVisible()
-    await expect(connectLink).toHaveAttribute('href', /provider_id=provider-keycloak-1/)
-    await expect(connectLink).toHaveAttribute('href', /flow=link/)
+    // Connect action is available in the kebab menu for the unlinked provider
+    const kebabButton = unlinkedRow.getByRole('button', { name: 'Identity actions' })
+    await kebabButton.click()
+    const connectItem = app.getByRole('menuitem', { name: 'Connect' })
+    await expect(connectItem).toBeVisible()
+    await expect(connectItem).not.toHaveAttribute('aria-disabled', 'true')
   })
 })
 
@@ -88,9 +89,10 @@ test.describe('Disconnect Flow (UI-21)', () => {
     await expect(app.getByRole('row').filter({ hasText: 'Corporate SSO' })).toBeVisible({ timeout: 15_000 })
     await expect(app.getByRole('row').filter({ hasText: 'Keycloak' })).toBeVisible()
 
-    // Click Disconnect on the Keycloak identity row
+    // Open the kebab menu on the Keycloak row and click Disconnect
     const keycloakRow = app.getByRole('row').filter({ hasText: 'Keycloak' })
-    await keycloakRow.getByRole('button', { name: 'Disconnect' }).click()
+    await keycloakRow.getByRole('button', { name: 'Identity actions' }).click()
+    await app.getByRole('menuitem', { name: 'Disconnect' }).click()
 
     // Confirmation dialog with identity details
     const dialog = app.getByRole('dialog', { name: 'Disconnect identity?' })
@@ -125,13 +127,15 @@ test.describe('Last Identity Block (UI-22)', () => {
     // The linked identity is visible
     await expect(app.getByRole('row').filter({ hasText: 'Corporate SSO' })).toBeVisible({ timeout: 15_000 })
 
-    // Disconnect button is present but aria-disabled
-    const disconnectButton = app.getByRole('button', { name: 'Disconnect' })
-    await expect(disconnectButton).toBeVisible()
-    await expect(disconnectButton).toHaveAttribute('aria-disabled', 'true')
+    // Open the kebab menu — Disconnect item is present but aria-disabled
+    const kebabButton = app.getByRole('button', { name: 'Identity actions' })
+    await kebabButton.click()
+    const disconnectItem = app.getByRole('menuitem', { name: 'Disconnect' })
+    await expect(disconnectItem).toBeVisible()
+    await expect(disconnectItem).toHaveAttribute('aria-disabled', 'true')
 
     // Tooltip explains why disconnect is blocked
-    await disconnectButton.hover()
+    await disconnectItem.hover()
     await expect(app.getByText('Cannot disconnect the only sign-in method')).toBeVisible()
   })
 })

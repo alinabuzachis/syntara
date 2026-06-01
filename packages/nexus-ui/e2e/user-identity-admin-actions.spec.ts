@@ -27,6 +27,7 @@ import {
   mockAuthProviders,
   mockUsersList,
   mockUserGroups,
+  mockIdentityProviders,
 } from './utils/mockData'
 
 test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
@@ -60,6 +61,7 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
     await mockUsersList(app, usersListResponse)
     await mockAuthMe(app, builtinUserResponse)
     await mockAuthProviders(app, oneProviderResponse)
+    await mockIdentityProviders(app)
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${NON_BUILTIN_USER_ID}/identities`))
 
@@ -87,9 +89,11 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
     // Click Attach
     await dialog.getByRole('button', { name: 'Attach' }).click()
 
-    // Success alert and identity now appears in User B's table
+    // Success alert and identity now appears in User B's table with Connected status
     await expect(app.getByRole('heading', { name: 'Identity attached' })).toBeVisible({ timeout: 10_000 })
     await expect(app.getByRole('gridcell', { name: /Corporate SSO/ })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByText('Connected')).toBeVisible()
+    await expect(app.getByText('https://sso.example.com')).toBeVisible()
   })
 
   /**
@@ -114,14 +118,18 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
     await mockUser(app, NON_BUILTIN_USER_ID, nonBuiltinUserResponse)
     await mockAuthMe(app, builtinUserResponse)
     await mockAuthProviders(app, oneProviderResponse)
+    await mockIdentityProviders(app)
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${NON_BUILTIN_USER_ID}/identities`))
 
-    // Identity is visible in the table
+    // Identity is visible in the table with Connected status
     await expect(app.getByRole('gridcell', { name: /Corporate SSO/ })).toBeVisible({ timeout: 15_000 })
+    await expect(app.getByText('Connected')).toBeVisible()
+    await expect(app.getByText('https://sso.example.com')).toBeVisible()
 
-    // Click Disconnect on the identity row
-    await app.getByRole('button', { name: 'Disconnect' }).click()
+    // Open the kebab menu on the identity row and click Disconnect
+    await app.getByRole('button', { name: 'Identity actions' }).click()
+    await app.getByRole('menuitem', { name: 'Disconnect' }).click()
 
     // Confirmation dialog
     const dialog = app.getByRole('dialog', { name: 'Disconnect identity?' })
@@ -133,9 +141,9 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
     // Confirm disconnect
     await dialog.getByRole('button', { name: 'Disconnect' }).click()
 
-    // Success alert and identity removed
+    // Success alert, identity removed, provider now shows as Not connected
     await expect(app.getByText('Identity disconnected')).toBeVisible({ timeout: 10_000 })
-    await expect(app.getByRole('button', { name: 'Disconnect' })).not.toBeAttached()
+    // The Status column now shows a "Not connected" Label for the unlinked provider
     await expect(app.getByText('Not connected')).toBeVisible()
   })
 })
