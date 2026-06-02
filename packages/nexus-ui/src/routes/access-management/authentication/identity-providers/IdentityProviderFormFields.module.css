@@ -1,0 +1,3 @@
+.formMaxWidth {
+  max-width: var(--nexus-form-max-width);
+}

@@ -7,6 +7,8 @@
 :root {
   --pf-t--custom--color--redhat-logo: #e00;
 
+  --nexus-form-max-width: 600px;
+
   /* Solid chroma centers: nested color-mix() of --pf-t--color--* to hug legacy RGB */
   --nexus-deep-space-chroma-left: color-mix(
     in srgb,

@@ -6,12 +6,15 @@ import {
   Form,
   FormGroup,
   FormHelperText,
+  FormSection,
   HelperText,
   HelperTextItem,
   MenuToggle,
   Select,
   SelectList,
   SelectOption,
+  Stack,
+  StackItem,
   Switch,
   TextInput,
   Title,
@@ -31,9 +34,11 @@ import { detachPromise } from '../../../../utils/detachPromise'
 
 import { UserClaimMappingFields } from './ClaimMappingFields'
 import { ConnectionFields } from './ConnectionFields'
-import { FieldErrorMessage, FieldHelpPopover, HintOrError } from './formFieldHelpers'
+import { FieldErrorMessage, FieldHelpPopover } from './formFieldHelpers'
+import styles from './IdentityProviderFormFields.module.css'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 import { IdpTypeKey, IDP_TYPE_OPTIONS, IDP_TYPE_PRESETS } from './idpTypePresets'
+import { JmespathExpressionField } from './JmespathExpressionField'
 
 function getScopesHelperText(hasError: unknown, isPresetTemplate: boolean): string | undefined {
   if (hasError) return undefined
@@ -345,49 +350,6 @@ function AapRoleMappingField({ control }: Readonly<{ control: Control<IdentityPr
   )
 }
 
-function JmespathExpressionField({
-  control,
-  idpType,
-}: Readonly<{ control: Control<IdentityProviderFormData>; idpType?: string | null }>) {
-  const defaultExpression = idpType ? (IDP_TYPE_PRESETS[idpType]?.groupMappingExpression ?? null) : null
-
-  return (
-    <Controller
-      name="groupMapping.jmespathExpression"
-      control={control}
-      render={({ field, fieldState }) => {
-        const currentValue = field.value ?? 'groups[*]'
-        const showReset = defaultExpression && currentValue !== defaultExpression
-
-        return (
-          <FormGroup label="Group extraction expression" fieldId="jmespath-expression">
-            <TextInput
-              id="jmespath-expression"
-              placeholder="groups[*]"
-              validated={fieldState.error ? 'error' : 'default'}
-              {...field}
-              value={currentValue}
-            />
-            <HintOrError
-              error={fieldState.error}
-              hint="JMESPath expression to extract group values from the ID token. Pre-filled by provider template selection."
-            />
-            {showReset && (
-              <Button
-                variant="link"
-                onClick={() => field.onChange(defaultExpression)}
-                style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}
-              >
-                Reset to default for {IDP_TYPE_PRESETS[idpType ?? '']?.label ?? 'this provider'}
-              </Button>
-            )}
-          </FormGroup>
-        )
-      }}
-    />
-  )
-}
-
 export type TestResultData = {
   claimsSupported?: string[] | null
   claimAliases?: Record<string, string[]> | null
@@ -435,93 +397,112 @@ export function IdentityProviderFormFields({
   return (
     <Wizard isVisitRequired={false} footer={<WizardNavFooter trigger={trigger} />}>
       <WizardStep name="Provider configuration" id="provider-config">
-        <Title headingLevel="h2" size="lg" style={{ marginBottom: 'var(--pf-t--global--spacer--lg)' }}>
-          Provider configuration
-        </Title>
-        <Form style={{ maxWidth: '600px' }}>
-          <IdpTypeField control={control} onTypeChange={handleIdpTypeChange} />
+        <Stack hasGutter>
+          <StackItem>
+            <Title headingLevel="h2" size="lg">
+              Provider configuration
+            </Title>
+          </StackItem>
+          <StackItem>
+            <Form className={styles.formMaxWidth}>
+              <FormSection title="General" titleElement="h3">
+                <IdpTypeField control={control} onTypeChange={handleIdpTypeChange} />
 
-          <Controller
-            name="name"
-            control={control}
-            render={({ field, fieldState }) => (
-              <FormGroup
-                label="Provider name"
-                fieldId="provider-name"
-                isRequired
-                labelHelp={<FieldHelpPopover helpText="A unique display name for this identity provider." />}
-              >
-                <TextInput
-                  id="provider-name"
-                  placeholder="Enter provider name"
-                  validated={fieldState.error ? 'error' : 'default'}
-                  {...field}
+                <Controller
+                  name="name"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <FormGroup
+                      label="Provider name"
+                      fieldId="provider-name"
+                      isRequired
+                      labelHelp={<FieldHelpPopover helpText="A unique display name for this identity provider." />}
+                    >
+                      <TextInput
+                        id="provider-name"
+                        placeholder="Enter provider name"
+                        validated={fieldState.error ? 'error' : 'default'}
+                        {...field}
+                      />
+                      <FieldErrorMessage error={fieldState.error} />
+                    </FormGroup>
+                  )}
                 />
-                <FieldErrorMessage error={fieldState.error} />
-              </FormGroup>
-            )}
-          />
 
-          <Controller
-            name="enabled"
-            control={control}
-            render={({ field }) => (
-              <FormGroup label="Enable provider" fieldId="provider-enabled">
-                <Switch
-                  id="provider-enabled"
-                  label="Enabled"
-                  hasCheckIcon
-                  isChecked={field.value}
-                  onChange={(_event, checked) => field.onChange(checked)}
+                <Controller
+                  name="enabled"
+                  control={control}
+                  render={({ field }) => (
+                    <FormGroup label="Enable provider" fieldId="provider-enabled">
+                      <Switch
+                        id="provider-enabled"
+                        label="Enabled"
+                        hasCheckIcon
+                        isChecked={field.value}
+                        onChange={(_event, checked) => field.onChange(checked)}
+                      />
+                    </FormGroup>
+                  )}
                 />
-              </FormGroup>
-            )}
-          />
+              </FormSection>
 
-          <ConnectionFields control={control} autoDiscovery={autoDiscovery} isEdit={isEdit} />
+              <FormSection title="Connection" titleElement="h3">
+                <ConnectionFields control={control} autoDiscovery={autoDiscovery} isEdit={isEdit} />
 
-          <FormGroup
-            label="Redirect URI"
-            fieldId="redirect-uri"
-            labelHelp={
-              <FieldHelpPopover helpText="Copy this value into your identity provider's OAuth app configuration as the allowed redirect URI." />
-            }
-          >
-            <ClipboardCopy isReadOnly>{OIDC_REDIRECT_URI}</ClipboardCopy>
-          </FormGroup>
+                {onTestConnection && (
+                  <FormGroup fieldId="test-connection">
+                    <Button
+                      variant="secondary"
+                      onClick={() => detachPromise(onTestConnection())}
+                      isLoading={isTesting}
+                      isDisabled={isTesting}
+                    >
+                      Test connection
+                    </Button>
+                  </FormGroup>
+                )}
+              </FormSection>
 
-          <ScopesField control={control} isPresetTemplate={isPresetTemplate} />
-          <AllowAllAuthenticatedField control={control} />
-          {idpType === IdpTypeKey.AAP && <AapRoleMappingField control={control} />}
-          <RpInitiatedLogoutField control={control} />
-          {onTestConnection && (
-            <FormGroup fieldId="test-connection">
-              <Button
-                variant="secondary"
-                onClick={() => detachPromise(onTestConnection())}
-                isLoading={isTesting}
-                isDisabled={isTesting}
-              >
-                Test connection
-              </Button>
-            </FormGroup>
-          )}
-        </Form>
+              <FormSection title="Options" titleElement="h3">
+                <FormGroup
+                  label="Redirect URI"
+                  fieldId="redirect-uri"
+                  labelHelp={
+                    <FieldHelpPopover helpText="Copy this value into your identity provider's OAuth app configuration as the allowed redirect URI." />
+                  }
+                >
+                  <ClipboardCopy isReadOnly>{OIDC_REDIRECT_URI}</ClipboardCopy>
+                </FormGroup>
+
+                <ScopesField control={control} isPresetTemplate={isPresetTemplate} />
+                <AllowAllAuthenticatedField control={control} />
+                {idpType === IdpTypeKey.AAP && <AapRoleMappingField control={control} />}
+                <RpInitiatedLogoutField control={control} />
+              </FormSection>
+            </Form>
+          </StackItem>
+        </Stack>
       </WizardStep>
 
       <WizardStep name="Claim mapping" id="claim-mapping">
-        <Title headingLevel="h2" size="lg" style={{ marginBottom: 'var(--pf-t--global--spacer--lg)' }}>
-          Claim mapping
-        </Title>
-        <Form style={{ maxWidth: '600px' }}>
-          <UserClaimMappingFields
-            control={control}
-            claimsSupported={claimsSupported}
-            claimAliases={claimAliases}
-            isReadOnly={isPresetTemplate}
-          />
-          <JmespathExpressionField control={control} idpType={idpType} />
-        </Form>
+        <Stack hasGutter>
+          <StackItem>
+            <Title headingLevel="h2" size="lg">
+              Claim mapping
+            </Title>
+          </StackItem>
+          <StackItem>
+            <Form className={styles.formMaxWidth}>
+              <UserClaimMappingFields
+                control={control}
+                claimsSupported={claimsSupported}
+                claimAliases={claimAliases}
+                isReadOnly={isPresetTemplate}
+              />
+              <JmespathExpressionField control={control} idpType={idpType} />
+            </Form>
+          </StackItem>
+        </Stack>
       </WizardStep>
     </Wizard>
   )
