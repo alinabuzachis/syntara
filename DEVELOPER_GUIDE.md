@@ -47,6 +47,9 @@ cd nexus-ui
 # Install dependencies
 npm ci
 
+# Set up git hooks (Husky) — required because ignore-scripts is enabled in .npmrc
+npm run prepare
+
 # Start development environment
 npm start
 ```

@@ -29,6 +29,9 @@ cd nexus-ui
 
 # Install dependencies
 npm ci
+
+# Set up git hooks (Husky)
+npm run prepare
 ```
 
 ### Development Server

@@ -47,6 +47,9 @@ The guide includes copy-ready prompt templates, a workflow diagram, and worked e
 # Install dependencies
 npm ci
 
+# Set up git hooks (Husky) — required because ignore-scripts is enabled in .npmrc
+npm run prepare
+
 # Start development services
 npm start
 ```
