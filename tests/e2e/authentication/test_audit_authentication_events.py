@@ -47,6 +47,25 @@ _METHOD_PASSWORD = "password"  # noqa: S105
 _METHOD_OIDC = "oidc"
 
 
+def _event_matches(
+    event: AuditEventRead,
+    *,
+    event_status: EventStatus | None,
+    structured_data: dict[str, str] | None,
+    exclude_ids: set[str] | None,
+) -> bool:
+    """Check whether a single audit event matches all client-side filters."""
+    if exclude_ids and str(event.id) in exclude_ids:
+        return False
+    if event_status is not None and event.event_status != event_status:
+        return False
+    if structured_data:
+        props = event.structured_data.additional_properties
+        if not all(props.get(k) == v for k, v in structured_data.items()):
+            return False
+    return True
+
+
 def _find_audit_event(
     api: NexusApiRegistry,
     event_action: str,
@@ -55,6 +74,7 @@ def _find_audit_event(
     event_status: EventStatus | None = None,
     actor_username: str | None = None,
     structured_data: dict[str, str] | None = None,
+    exclude_ids: set[str] | None = None,
     timeout: float = _AUDIT_POLL_TIMEOUT,
 ) -> AuditEventRead | None:
     """Poll the audit API until an event matching all criteria appears, or timeout."""
@@ -80,13 +100,10 @@ def _find_audit_event(
             continue
 
         for event in resp.parsed.resources:
-            if event_status is not None and event.event_status != event_status:
-                continue
-            if structured_data:
-                props = event.structured_data.additional_properties
-                if not all(props.get(k) == v for k, v in structured_data.items()):
-                    continue
-            return cast("AuditEventRead", event)
+            if _event_matches(
+                event, event_status=event_status, structured_data=structured_data, exclude_ids=exclude_ids
+            ):
+                return cast("AuditEventRead", event)
     return None
 
 
@@ -177,6 +194,7 @@ class TestAuditAuthenticationEvents:
                 event_status=EventStatus.ERROR,
                 actor_username=username,
                 structured_data={"method": _METHOD_PASSWORD},
+                exclude_ids={str(bad_creds_event.id)},
             )
             assert disabled_event is not None, f"No disabled-login audit event for {username}"
             assert disabled_event.event_severity in (EventSeverity.WARNING, EventSeverity.ERROR)

@@ -42,6 +42,30 @@ from typer.testing import CliRunner
 logger = logging.getLogger(__name__)
 
 
+_API_HEALTH_TIMEOUT = 15.0
+
+
+@pytest.fixture(autouse=True)
+def _wait_for_api(nexus_api: NexusApiRegistry) -> None:
+    """Wait for the API to be healthy before each test.
+
+    The database can become temporarily unreachable in the KinD CI cluster,
+    causing cascading 500s. This fixture ensures the API is responsive before
+    each test starts, absorbing any recovery window from prior tests.
+    """
+    deadline = time.monotonic() + _API_HEALTH_TIMEOUT
+    while True:
+        try:
+            resp = nexus_api.settings.list(limit=1)
+            if resp.status_code == HTTPStatus.OK:
+                return
+        except Exception:
+            pass
+        if time.monotonic() >= deadline:
+            pytest.fail(f"API not healthy after {_API_HEALTH_TIMEOUT}s")
+        time.sleep(0.5)
+
+
 def unique_name(base: str) -> str:
     """Generate a unique resource name to avoid conflicts across E2E test runs."""
     return f"{base}-{uuid4().hex[:8]}"

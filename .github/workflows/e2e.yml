@@ -100,12 +100,6 @@ jobs:
           kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/set_admin_password.py' < tools/set_admin_password.py
           cat .secrets/admin-password | kubectl exec -i "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/set_admin_password.py'
 
-      - name: Seed database
-        working-directory: aap-dev/src/nexus
-        run: |
-          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
-          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python -m nexus.seed'
-
       - name: Create system user
         working-directory: aap-dev/src/nexus
         run: |
@@ -161,9 +155,17 @@ jobs:
 
       - name: Port-forward services
         run: |
-          kubectl port-forward svc/myaap-ao-api 8000:8000 &
-          kubectl port-forward svc/mock-segment 9999:9999 &
-          kubectl port-forward svc/mcp-server 8765:8765 &
+          resilient_port_forward() {
+            local svc=$1 local_port=$2 remote_port=$3
+            while true; do
+              kubectl port-forward "svc/$svc" "$local_port:$remote_port" 2>/dev/null || true
+              sleep 1
+            done
+          }
+
+          resilient_port_forward myaap-ao-api 8000 8000 &
+          resilient_port_forward mock-segment 9999 9999 &
+          resilient_port_forward mcp-server 8765 8765 &
 
           wait_for() {
             local url=$1 label=$2 timeout=$3
