@@ -517,6 +517,10 @@ api-spec-validation: ## Validate syntax of OpenAPI and AsyncAPI spec files
 	@echo "🔍 Validating API specifications..."
 	@uv run python tools/ci/validate_api_specs.py
 
+.PHONY: verify-test-structure
+verify-test-structure: ## Verify test directory structure matches source code domains
+	@uv run python tools/ci/verify_test_structure.py
+
 .PHONY: api-spec-drift
 api-spec-drift: _ensure-secrets ## Check that committed openapi.yaml matches the generated spec (VERBOSITY=-v/-vv/-vvv)
 	@echo "🔍 Checking OpenAPI spec is up to date..."

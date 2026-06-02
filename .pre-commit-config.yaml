@@ -120,6 +120,14 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: verify-test-structure
+        name: verify test structure matches source domains
+        entry: make
+        args: [verify-test-structure]
+        language: system
+        pass_filenames: false
+        files: ^(tests/|src/nexus/)
+
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
     hooks:
