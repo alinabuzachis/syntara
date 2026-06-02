@@ -1,13 +1,14 @@
 """Shared fixtures for Nexus E2E tests.
 
 The core live-deployment fixtures (nexus_base_url, auth_headers,
-nexus_client, nexus_api) are defined in the root tests/conftest.py and
-inherited automatically.  This file adds e2e-specific fixtures.
+nexus_client, nexus_api) are defined in this file and inherited by E2E tests.
+This file adds e2e-specific fixtures and session helpers.
 """
 
 import logging
 import os
 import secrets
+import string
 import time
 from collections.abc import Callable, Generator
 from http import HTTPStatus
@@ -20,7 +21,10 @@ import pytest
 from click.testing import Result
 from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
+from nexus_api_client.api.authentication.get_current_user import sync_detailed as get_user_sync
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
+from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models import (
     WorkflowCreate,
     WorkflowRead,
@@ -28,6 +32,8 @@ from nexus_api_client.models import (
 from nexus_api_client.models.access_token_response import AccessTokenResponse
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
+from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
+from nexus_api_client.models.error_data import ErrorData
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.provider_status import ProviderStatus
@@ -39,7 +45,13 @@ from nexus_api_client.models.user_read import UserRead
 from nexus_api_client.types import Response
 from typer.testing import CliRunner
 
+from nexus.core.models.user_schemas import UserCreate as UserCreateSchema
+
 logger = logging.getLogger(__name__)
+
+REFRESH_COOKIE_NAME = "ao_refresh_token"
+CSRF_COOKIE_NAME = "ao_csrf_token"
+CSRF_HEADER_NAME = "X-CSRF-Token"
 
 pytest_plugins = ["tests.e2e.fixtures.factories"]
 
@@ -73,16 +85,30 @@ def unique_name(base: str) -> str:
     return f"{base}-{uuid4().hex[:8]}"
 
 
+_MIN_TEST_PASSWORD_LENGTH = 14
+_SAFE_TEST_PASSWORD_PUNCTUATION = "!@#$%^&*(),.?-_"  # noqa: S105
+
+
 def generate_test_password() -> str:
-    """Return a random password that always satisfies the server's complexity rules.
+    """Return a random password that satisfies server complexity rules for E2E tests."""
+    password_chars = [
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.digits),
+        secrets.choice(_SAFE_TEST_PASSWORD_PUNCTUATION),
+    ]
+    all_chars = string.ascii_letters + string.digits + _SAFE_TEST_PASSWORD_PUNCTUATION
+    extra_count = _MIN_TEST_PASSWORD_LENGTH - len(password_chars)
+    password_chars.extend(secrets.choice(all_chars) for _ in range(extra_count))
+    password_list = list(password_chars)
+    secrets.SystemRandom().shuffle(password_list)
+    password = "".join(password_list)
+    UserCreateSchema(username="password-check", first_name="Password", password=password)
+    return password
 
-    Uses a fixed prefix that covers uppercase, lowercase, digit, and special char,
-    then appends random hex so each call produces a unique value.
-    """
-    return f"Test@Pass1{secrets.token_hex(8)}"
 
-
-def _admin_password() -> str:
+def admin_password() -> str:
+    """Return the built-in admin password from the configured secrets file."""
     password_path = Path(os.environ.get("APP_ADMIN_PASSWORD_PATH", ".secrets/admin-password"))
     if not password_path.exists():
         msg = f"Admin password file not found: {password_path}. Run 'make secrets-generate'."
@@ -94,6 +120,113 @@ def _admin_password() -> str:
         raise RuntimeError(msg)
 
     return password
+
+
+def _require_session_cookies(cookies: dict[str, str]) -> None:
+    missing = [name for name in (REFRESH_COOKIE_NAME, CSRF_COOKIE_NAME) if name not in cookies]
+    if missing:
+        msg = f"Session cookies missing required keys: {', '.join(missing)}"
+        raise RuntimeError(msg)
+
+
+def local_login_session(
+    base_url: str,
+    username: str,
+    password: str,
+) -> tuple[str, dict[str, str]]:
+    """Log in via POST /auth/login and return (access_token, refresh cookies)."""
+    response = httpx.post(
+        f"{base_url}/api/v1/auth/login",
+        json={"username": username, "password": password},
+        verify=False,  # noqa: S501
+        timeout=30,
+    )
+    if response.status_code != HTTPStatus.OK:
+        msg = f"Login failed for {username}: {response.status_code} {response.text!r}"
+        raise RuntimeError(msg)
+    access_token: str = response.json()["access_token"]
+    cookies = dict(response.cookies)
+    _require_session_cookies(cookies)
+    return access_token, cookies
+
+
+def _csrf_headers_from_client(client: Client) -> dict[str, str]:
+    csrf_resp = csrf_token_sync(client=client)
+    if csrf_resp.status_code != HTTPStatus.OK or not isinstance(csrf_resp.parsed, CsrfTokenResponse):
+        msg = f"CSRF token fetch failed: {csrf_resp.status_code} {csrf_resp.content!r}"
+        raise RuntimeError(msg)
+    return {CSRF_HEADER_NAME: csrf_resp.parsed.csrf_token}
+
+
+def csrf_headers_for_cookies(base_url: str, cookies: dict[str, str]) -> dict[str, str]:
+    """Return X-CSRF-Token header derived from the session CSRF cookie."""
+    _require_session_cookies(cookies)
+    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=False)
+    return _csrf_headers_from_client(client)
+
+
+def client_with_csrf_cookies(base_url: str, cookies: dict[str, str]) -> Client:
+    """Return an API client with session cookies and X-CSRF-Token for cookie-auth endpoints."""
+    _require_session_cookies(cookies)
+    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=False)
+    return client.with_headers(_csrf_headers_from_client(client))
+
+
+def refresh_with_cookies(
+    base_url: str,
+    cookies: dict[str, str],
+) -> Response[AccessTokenResponse | Any | ErrorData]:
+    """Call POST /auth/refresh using refresh and CSRF cookies plus X-CSRF-Token."""
+    return refresh_sync(client=client_with_csrf_cookies(base_url, cookies))
+
+
+def logout_with_session(
+    base_url: str,
+    access_token: str,
+    cookies: dict[str, str],
+) -> httpx.Response:
+    """Call POST /auth/logout with Bearer token, session cookies, and X-CSRF-Token."""
+    headers = {"Authorization": f"Bearer {access_token}", **csrf_headers_for_cookies(base_url, cookies)}
+    return httpx.post(
+        f"{base_url}/api/v1/auth/logout",
+        headers=headers,
+        cookies=cookies,
+        verify=False,  # noqa: S501
+        timeout=30,
+    )
+
+
+def get_current_user_with_token(
+    base_url: str,
+    access_token: str,
+) -> Response[Any | ErrorData | UserInfo]:
+    """Call GET /auth/me with a Bearer access token."""
+    client = AuthenticatedClient(base_url=f"{base_url}/api/v1", token=access_token, verify_ssl=False)
+    return get_user_sync(client=client)
+
+
+def assert_refresh_succeeds(base_url: str, cookies: dict[str, str]) -> AccessTokenResponse:
+    """Refresh must return 200 with an access token."""
+    resp = refresh_with_cookies(base_url, cookies)
+    assert resp.status_code == HTTPStatus.OK, f"Expected refresh 200, got {resp.status_code}: {resp.content!r}"
+    assert isinstance(resp.parsed, AccessTokenResponse)
+    return resp.parsed
+
+
+def assert_refresh_unauthorized(base_url: str, cookies: dict[str, str]) -> None:
+    """Refresh must return 401 when the session is revoked."""
+    resp = refresh_with_cookies(base_url, cookies)
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED, (
+        f"Expected refresh 401, got {resp.status_code}: {resp.content!r}"
+    )
+
+
+def logout_response_body(response: httpx.Response) -> dict[str, Any]:
+    """Parse logout JSON body."""
+    assert response.status_code == HTTPStatus.OK, f"Expected logout 200, got {response.status_code}: {response.text!r}"
+    body: dict[str, Any] = response.json()
+    assert body.get("detail") == "Successfully logged out"
+    return body
 
 
 _TOKEN_REFRESH_INTERVAL = 300  # Re-authenticate after 5 minutes (token lifetime is 15 min)
@@ -170,7 +303,7 @@ def api_for(base_url: str, username: str, password: str) -> NexusApiRegistry:
 
 def _generate_e2e_token(base_url: str) -> str:
     """Obtain a JWT access token for e2e tests via POST /auth/login."""
-    password = _admin_password()
+    password = admin_password()
     return _login(base_url, "admin", password)
 
 
@@ -182,7 +315,7 @@ def local_user_login(
 ) -> Response[Any]:
     """Login local user in Unauthenticated client. By default, login built-in admin."""
     resolved_username = username or "admin"
-    resolved_password = password if password else _admin_password()
+    resolved_password = password if password else admin_password()
     unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
     return login_sync(client=unauthenticated, body=LoginRequest(username=resolved_username, password=resolved_password))
 
@@ -222,8 +355,25 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 
 @pytest.fixture(scope="session")
 def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
-    """Return a NexusApiRegistry bound to the authenticated test client."""
+    """Return a NexusApiRegistry bound to the session-scoped authenticated client.
+
+    Uses ``nexus_client``, which refreshes the admin JWT via ``_AutoRefreshAuth`` on
+    expiry or 401. Authentication E2E tests that revoke user/IdP sessions should use
+    this fixture for admin API calls; those revocations do not invalidate unrelated
+    admin tokens.
+    """
     return NexusApiRegistry(nexus_client)
+
+
+@pytest.fixture(scope="session")
+def unauthenticated_client(nexus_base_url: str) -> Client:
+    """Return an unauthenticated Nexus API client for login flows and public endpoints.
+
+    SSL verification is disabled for E2E tests (localhost/test environment with
+    self-signed certs). This is acceptable for test code but should NEVER be
+    used in production.
+    """
+    return Client(base_url=f"{nexus_base_url}/api/v1", verify_ssl=False)
 
 
 @pytest.fixture(autouse=True)
@@ -400,12 +550,6 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
     assert refresh_resp.is_success, f"MCP provider refresh failed: {refresh_resp.content!r}"
 
     return provider_id
-
-
-@pytest.fixture(scope="session")
-def unauthenticated_client(nexus_base_url: str) -> Client:
-    """Return an unauthenticated Nexus API client for testing public endpoints."""
-    return Client(base_url=f"{nexus_base_url}/api/v1", verify_ssl=False)
 
 
 @pytest.fixture(scope="session")

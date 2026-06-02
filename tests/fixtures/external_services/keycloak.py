@@ -206,6 +206,8 @@ def keycloak_oidc_config(
     *,
     auto_discovery: bool = True,
     pass_token_endpoint: bool = False,
+    enable_rp_initiated_logout: bool = False,
+    end_session_endpoint: str | None = None,
 ) -> OIDCConfiguration:
     """Keycloak OIDC Configuration for IdP creation."""
     keycloak_config: OIDCConfiguration = OIDCConfiguration(
@@ -221,6 +223,8 @@ def keycloak_oidc_config(
                 nexus_group_id=admins_group_id,
             )
         ],
+        enable_rp_initiated_logout=enable_rp_initiated_logout,
+        end_session_endpoint=end_session_endpoint,
     )
 
     if not auto_discovery:

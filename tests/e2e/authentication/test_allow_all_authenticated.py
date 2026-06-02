@@ -20,11 +20,7 @@ import pytest
 
 pytest.importorskip("external_services")
 
-from nexus_api_client import Client
-from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
-from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
-from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.oidc_group_mapping_entry import OIDCGroupMappingEntry
 
 from tests.e2e.authentication.group_mapping_helpers import (
@@ -33,6 +29,7 @@ from tests.e2e.authentication.group_mapping_helpers import (
     set_allow_all_authenticated,
     user_group_names,
 )
+from tests.e2e.conftest import refresh_with_cookies
 from tests.fixtures.external_services.keycloak_groups import add_keycloak_user_to_group
 from tests.fixtures.external_services.oidc_login import (
     assert_oidc_login_denied,
@@ -197,16 +194,6 @@ class TestAPI25AllowAllToggleBehavior:
         )
         assert auth_error == _NO_GROUP_MATCH_CODE
 
-        csrf_client = Client(
-            base_url=f"{nexus_base_url}/api/v1",
-            cookies=refresh_cookies,
-            verify_ssl=False,
-        )
-        csrf_resp = csrf_token_sync(client=csrf_client)
-        assert csrf_resp.status_code == HTTPStatus.OK
-        assert isinstance(csrf_resp.parsed, CsrfTokenResponse)
-
-        refresh_client = csrf_client.with_headers({"X-CSRF-Token": csrf_resp.parsed.csrf_token})
-        refresh_resp = refresh_sync(client=refresh_client)
+        refresh_resp = refresh_with_cookies(nexus_base_url, refresh_cookies)
         assert refresh_resp.status_code == HTTPStatus.OK
         assert isinstance(refresh_resp.parsed, AccessTokenResponse)

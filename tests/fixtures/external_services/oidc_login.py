@@ -10,15 +10,14 @@ from uuid import UUID, uuid4
 
 import httpx
 from bs4 import BeautifulSoup
-from nexus_api_client import AuthenticatedClient, Client
+from nexus_api_client import AuthenticatedClient
 from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
-from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
-from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
 from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
 from nexus_api_client.models.oidc_configuration import OIDCConfiguration
+
+from tests.e2e.conftest import refresh_with_cookies
 
 logger = logging.getLogger(__name__)
 
@@ -220,14 +219,7 @@ def create_oidc_login_session(
         "ao_refresh_token": cookie_match.group(1),
         "ao_csrf_token": csrf_match.group(1),
     }
-    csrf_client = Client(base_url=f"{nexus_base_url}/api/v1", cookies=cookies, verify_ssl=False)
-    csrf_resp = csrf_token_sync(client=csrf_client)
-    if csrf_resp.status_code != HTTPStatus.OK or not isinstance(csrf_resp.parsed, CsrfTokenResponse):
-        msg = "Unable to obtain CSRF form token."
-        raise RuntimeError(msg)
-
-    refresh_client = csrf_client.with_headers({"X-CSRF-Token": csrf_resp.parsed.csrf_token})
-    refresh_resp = refresh_sync(client=refresh_client)
+    refresh_resp = refresh_with_cookies(nexus_base_url, cookies)
     if refresh_resp.status_code != HTTPStatus.OK:
         msg = "Unable to login with OIDC authorization."
         raise RuntimeError(msg)

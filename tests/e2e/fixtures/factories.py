@@ -36,7 +36,7 @@ from nexus_api_client.models.sub_resource_role_assignment_create import SubResou
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
-from tests.e2e.conftest import _admin_password, _login, generate_test_password, unique_name
+from tests.e2e.conftest import _login, admin_password, generate_test_password, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
 
 if TYPE_CHECKING:
@@ -274,7 +274,7 @@ def admin_api(nexus_base_url: str) -> NexusApiRegistry:
     """Admin API registry with a fresh JWT per test module."""
     from tests.e2e.conftest import _make_client
 
-    token = _login(nexus_base_url, "admin", _admin_password())
+    token = _login(nexus_base_url, "admin", admin_password())
     return NexusApiRegistry(_make_client(nexus_base_url, token))
 
 
