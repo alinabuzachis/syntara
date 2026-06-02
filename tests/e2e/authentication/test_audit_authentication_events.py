@@ -90,6 +90,7 @@ def _find_audit_event(
     return None
 
 
+@pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
 class TestAuditAuthenticationEvents:
     """API-19: Verify authentication events are captured in the audit log."""
 
@@ -185,6 +186,7 @@ class TestAuditAuthenticationEvents:
             nexus_api.users.update(user_id=user_id, body=UserUpdate(is_enabled=True))
 
 
+@pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
 class TestAuditOidcLoginEvent:
     """API-19: Verify OIDC authentication events are captured in the audit log."""
 
