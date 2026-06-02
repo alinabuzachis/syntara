@@ -10,7 +10,7 @@ Run with:
 """
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
@@ -22,6 +22,9 @@ from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
+
+if TYPE_CHECKING:
+    from nexus_api_client import AuthenticatedClient
 
 pytestmark = pytest.mark.e2e
 
@@ -118,6 +121,7 @@ def workflow_id(nexus_api: NexusApiRegistry) -> str:
 @pytest.fixture(scope="module")
 def completed_execution(
     nexus_api: NexusApiRegistry,
+    nexus_client: "AuthenticatedClient",
     workflow_id: str,
     segment_server_url: str,
 ) -> dict[str, Any]:
@@ -130,8 +134,9 @@ def completed_execution(
     """
     rid = new_request_id()
 
-    rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
-    exec_data = rid_api.executions.create(
+    tagged_client = nexus_client.with_headers({"X-Request-Id": rid})
+    tagged_api = NexusApiRegistry(tagged_client)
+    exec_data = tagged_api.executions.create(
         body=ExecutionCreate(workflow_id=UUID(workflow_id)),
     ).assert_and_get()
     exec_id = str(exec_data.id)

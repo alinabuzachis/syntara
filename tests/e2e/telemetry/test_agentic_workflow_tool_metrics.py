@@ -14,16 +14,19 @@ Run with:
 
 import time
 from collections.abc import Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
+
+if TYPE_CHECKING:
+    from nexus_api_client import AuthenticatedClient
 
 WORKFLOW_NAME_PREFIX = "e2e-agentic-tool-metrics"
 POLL_INTERVAL = 5
@@ -67,17 +70,13 @@ def _workflow_definition(credential_id: str, model: str) -> WorkflowDefinition:
 
 
 def _get_metrics(
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
+    nexus_client: "AuthenticatedClient",
     path: str,
     **kwargs: object,
 ) -> dict[str, Any]:
     """Fetch tool metrics endpoints."""
-    r = httpx.get(
-        f"{nexus_base_url}/api/v1{path}",
-        headers=auth_headers,
-        **kwargs,  # type: ignore[arg-type]
-    )
+    client = nexus_client.get_httpx_client()
+    r = client.get(path, **kwargs)  # type: ignore[arg-type]
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
 
@@ -134,8 +133,7 @@ def workflow_id(
 @pytest.fixture(scope="module")
 def completed_execution(
     nexus_api: NexusApiRegistry,
-    nexus_base_url: str,
-    auth_headers: dict[str, str],
+    nexus_client: "AuthenticatedClient",
     workflow_id: str,
     segment_server_url: str,
 ) -> dict[str, Any]:
@@ -146,17 +144,13 @@ def completed_execution(
     """
     rid = new_request_id()
 
-    # Create execution via raw httpx to pass X-Request-Id
-    headers = {**auth_headers, "X-Request-Id": rid, "Content-Type": "application/json"}
-    r = httpx.post(
-        f"{nexus_base_url}/api/v1/executions",
-        json={"workflow_id": workflow_id},
-        headers=headers,
-        timeout=10,
+    tagged_client = nexus_client.with_headers({"X-Request-Id": rid})
+    tagged_api = NexusApiRegistry(tagged_client)
+    response = tagged_api.executions.create(
+        body=ExecutionCreate(workflow_id=UUID(workflow_id)),
     )
-    r.raise_for_status()
-    exec_data = r.json()
-    exec_id = exec_data["id"]
+    exec_data = response.assert_and_get()
+    exec_id = str(exec_data.id)
 
     execution = _poll_execution(nexus_api, exec_id)
     assert execution.status == "completed", f"Execution failed: {getattr(execution, 'error_details', None)}"
@@ -185,12 +179,11 @@ class TestToolMetricsDB:
 
     def test_tool_summary_incremented(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_client: "AuthenticatedClient",
         completed_execution: dict[str, Any],
     ) -> None:
         """DB tool summary (UsageCounter) must be incremented after tool call."""
-        summaries = _get_metrics(nexus_base_url, auth_headers, "/tool_manager/metrics/tools")["resources"]
+        summaries = _get_metrics(nexus_client, "/tool_manager/metrics/tools")["resources"]
         by_name = {t["namespaced_name"]: t for t in summaries}
 
         greeting = by_name.get("mcp::get_greeting")
@@ -200,14 +193,11 @@ class TestToolMetricsDB:
 
     def test_tool_execution_record_created(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_client: "AuthenticatedClient",
         completed_execution: dict[str, Any],
     ) -> None:
         """A DB tool execution record must be created with correct fields."""
-        executions = _get_metrics(
-            nexus_base_url, auth_headers, "/tool_manager/metrics/executions", params={"limit": 5}
-        )["resources"]
+        executions = _get_metrics(nexus_client, "/tool_manager/metrics/executions", params={"limit": 5})["resources"]
 
         assert len(executions) >= 1, "No tool execution records in DB"
         latest = executions[0]
@@ -216,12 +206,11 @@ class TestToolMetricsDB:
 
     def test_tool_metrics_summary_fields(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_client: "AuthenticatedClient",
         completed_execution: dict[str, Any],
     ) -> None:
         """Tool metrics summary response must have all expected fields."""
-        summaries = _get_metrics(nexus_base_url, auth_headers, "/tool_manager/metrics/tools")["resources"]
+        summaries = _get_metrics(nexus_client, "/tool_manager/metrics/tools")["resources"]
 
         for summary in summaries:
             assert "namespaced_name" in summary
@@ -242,14 +231,11 @@ class TestToolMetricsDB:
 
     def test_tool_execution_record_fields(
         self,
-        nexus_base_url: str,
-        auth_headers: dict[str, str],
+        nexus_client: "AuthenticatedClient",
         completed_execution: dict[str, Any],
     ) -> None:
         """Tool execution records must have all expected fields."""
-        executions = _get_metrics(
-            nexus_base_url, auth_headers, "/tool_manager/metrics/executions", params={"limit": 5}
-        )["resources"]
+        executions = _get_metrics(nexus_client, "/tool_manager/metrics/executions", params={"limit": 5})["resources"]
 
         for ex in executions:
             assert "id" in ex

@@ -9,7 +9,7 @@ Run with:
 """
 
 from collections.abc import Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -19,6 +19,9 @@ from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
+
+if TYPE_CHECKING:
+    from nexus_api_client import AuthenticatedClient
 
 pytestmark = pytest.mark.e2e
 
@@ -63,15 +66,16 @@ WORKFLOW_DEFINITION_V2: WorkflowDefinition = WorkflowDefinition.from_dict(
 
 @pytest.fixture(scope="module")
 def created_workflow(
-    nexus_api: NexusApiRegistry,
+    nexus_client: "AuthenticatedClient",
     segment_server_url: str,
 ) -> dict[str, Any]:
     """Create a new workflow with X-Request-Id and capture the version event."""
     rid = new_request_id()
     workflow_name = f"e2e-version-telemetry-{uuid4().hex[:8]}"
 
-    rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
-    data = rid_api.workflows.create(
+    tagged_client = nexus_client.with_headers({"X-Request-Id": rid})
+    tagged_api = NexusApiRegistry(tagged_client)
+    data = tagged_api.workflows.create(
         body=WorkflowCreate(
             name=workflow_name,
             description="E2E telemetry test: workflow version event",
@@ -96,7 +100,7 @@ def created_workflow(
 
 @pytest.fixture(scope="module")
 def updated_workflow(
-    nexus_api: NexusApiRegistry,
+    nexus_client: "AuthenticatedClient",
     segment_server_url: str,
     created_workflow: dict[str, Any],
 ) -> dict[str, Any]:
@@ -104,10 +108,13 @@ def updated_workflow(
     rid = new_request_id()
     workflow_id = created_workflow["workflow_id"]
 
-    rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
-    rid_api.workflows.update(
+    tagged_client = nexus_client.with_headers({"X-Request-Id": rid})
+    tagged_api = NexusApiRegistry(tagged_client)
+    tagged_api.workflows.update(
         workflow_id=UUID(workflow_id),
-        body=WorkflowUpdate(workflow_definition=WORKFLOW_DEFINITION_V2),
+        body=WorkflowUpdate(
+            workflow_definition=WORKFLOW_DEFINITION_V2,
+        ),
     ).assert_and_get()
 
     events = get_captured_events(
@@ -196,7 +203,7 @@ class TestNoEventOnUnchangedDefinition:
 
     def test_no_event_on_same_definition(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_client: "AuthenticatedClient",
         segment_server_url: str,
         updated_workflow: dict[str, Any],
     ) -> None:
@@ -204,10 +211,13 @@ class TestNoEventOnUnchangedDefinition:
         rid = new_request_id()
         workflow_id = updated_workflow["workflow_id"]
 
-        rid_api = NexusApiRegistry(nexus_api._client.with_headers({"X-Request-Id": rid}))
-        rid_api.workflows.update(
+        tagged_client = nexus_client.with_headers({"X-Request-Id": rid})
+        tagged_api = NexusApiRegistry(tagged_client)
+        tagged_api.workflows.update(
             workflow_id=UUID(workflow_id),
-            body=WorkflowUpdate(workflow_definition=WORKFLOW_DEFINITION_V2),
+            body=WorkflowUpdate(
+                workflow_definition=WORKFLOW_DEFINITION_V2,
+            ),
         ).assert_and_get()
 
         events = get_captured_events(
