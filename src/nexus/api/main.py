@@ -306,7 +306,8 @@ app.add_middleware(AuditMiddleware, fastapi_app=app)
 # Import exception modules so @fastapi_exception decorators populate the registry
 import nexus.aap.exceptions  # noqa: E402
 import nexus.core.storage_exceptions  # noqa: E402
-import nexus.credentials.exceptions  # noqa: E402, F401
+import nexus.credentials.exceptions  # noqa: E402
+import nexus.integrations.exceptions  # noqa: E402, F401
 
 # Register decorated exceptions automatically
 register_exceptions(app)

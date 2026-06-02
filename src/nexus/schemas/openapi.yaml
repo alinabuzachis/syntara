@@ -43,6 +43,8 @@ tags:
     description: Example operations
   - name: Files
     description: File upload and management operations for agent context
+  - name: Integrations
+    description: Integration management
   - name: InternalMetrics
   - name: Invocation
     description: Agent invocation operations
@@ -8653,6 +8655,638 @@ paths:
                 retryable: true
       tags:
         - IdentityProviders
+      security:
+        - bearerAuth: []
+  /integrations:
+    get:
+      summary: List Integrations
+      description: List integrations with filtering and pagination.
+      operationId: list_integrations
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: read
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
+        - name: sort
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
+        - name: integration_type
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/IntegrationType'
+              - type: 'null'
+            title: Integration Type
+          description: Filter by integration type
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/IntegrationStatus'
+              - type: 'null'
+            title: Status
+          description: Filter by integration status
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            description: Filter by enabled status
+            title: Enabled
+          description: Filter by enabled status
+        - name: scope
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/IntegrationScope'
+              - type: 'null'
+            title: Scope
+          description: Filter by visibility scope
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationListResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    post:
+      summary: Create Integration
+      description: Create a new integration.
+      operationId: create_integration
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /integrations/{integration_id}:
+    get:
+      summary: Get Integration
+      description: Get an integration by ID.
+      operationId: get_integration
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: read
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    patch:
+      summary: Update Integration
+      description: Update an integration.
+      operationId: update_integration
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+    delete:
+      summary: Delete Integration
+      description: Delete an integration.
+      operationId: delete_integration
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: delete
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
       security:
         - bearerAuth: []
   /_internal/metrics/summary:
@@ -25538,6 +26172,382 @@ components:
           type: boolean
           default: false
           title: End Session Endpoint Supported
+    IntegrationType:
+      type: string
+      enum:
+        - mcp_server
+        - llm_provider
+        - aap_gateway
+      title: IntegrationType
+      description: Type of external integration.
+    IntegrationStatus:
+      type: string
+      enum:
+        - validating
+        - available
+        - error
+      title: IntegrationStatus
+      description: Current status of an integration.
+    IntegrationScope:
+      type: string
+      enum:
+        - global
+        - project
+      title: IntegrationScope
+      description: Visibility scope of an integration.
+    IntegrationListResponse:
+      title: IntegrationListResponse
+      description: Paginated list response for integrations.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/IntegrationRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+    IntegrationCreate:
+      description: Schema for creating a new integration.
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Human-readable name for the integration
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the integration
+        integration_type:
+          $ref: '#/components/schemas/IntegrationType'
+          description: Type of external integration
+        configuration:
+          oneOf:
+            - $ref: '#/components/schemas/MCPServerConfiguration'
+            - $ref: '#/components/schemas/LLMProviderConfiguration'
+            - $ref: '#/components/schemas/AAPGatewayConfiguration'
+          title: Configuration
+          description: Integration-specific configuration
+          discriminator:
+            propertyName: integration_type
+            mapping:
+              aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
+              llm_provider: '#/components/schemas/LLMProviderConfiguration'
+              mcp_server: '#/components/schemas/MCPServerConfiguration'
+        management_credential_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Management Credential Id
+          description: Optional credential for admin operations
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Whether the integration is active
+          default: true
+        scope:
+          $ref: '#/components/schemas/IntegrationScope'
+          description: 'Visibility scope: global or project'
+          default: global
+        labels:
+          additionalProperties:
+            type: string
+          type: object
+          title: Labels
+          description: Key-value labels
+      required:
+        - name
+        - integration_type
+        - configuration
+      title: IntegrationCreate
+      type: object
+    IntegrationPatch:
+      description: Schema for partially updating an integration (user-facing).
+      additionalProperties: false
+      properties:
+        name:
+          anyOf:
+            - type: string
+              maxLength: 255
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the integration
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the integration
+        configuration:
+          anyOf:
+            - oneOf:
+                - $ref: '#/components/schemas/MCPServerConfiguration'
+                - $ref: '#/components/schemas/LLMProviderConfiguration'
+                - $ref: '#/components/schemas/AAPGatewayConfiguration'
+              discriminator:
+                propertyName: integration_type
+                mapping:
+                  aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
+                  llm_provider: '#/components/schemas/LLMProviderConfiguration'
+                  mcp_server: '#/components/schemas/MCPServerConfiguration'
+            - type: 'null'
+          title: Configuration
+          description: Integration-specific configuration
+        management_credential_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Management Credential Id
+          description: Optional credential for admin operations
+        enabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enabled
+          description: Whether the integration is active
+        scope:
+          anyOf:
+            - $ref: '#/components/schemas/IntegrationScope'
+            - type: 'null'
+          description: 'Visibility scope: global or project'
+        labels:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Labels
+          description: Key-value labels
+      title: IntegrationPatch
+      type: object
+    IntegrationRead:
+      description: Schema for integration API responses.
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Created By
+          description: User who created the resource
+          example: 770e8400-e29b-41d4-a716-446655440000
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Updated By
+          description: User who last updated the resource
+          example: 880e8400-e29b-41d4-a716-446655440000
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          readOnly: true
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+          example: '2025-10-09T14:00:00Z'
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Deleted By
+          description: User who performed the soft delete
+          example: 660e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable name for the resource
+          example: Authentication Service
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the resource
+          example: Handles user authentication and authorization workflows
+        integration_type:
+          $ref: '#/components/schemas/IntegrationType'
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+        status:
+          $ref: '#/components/schemas/IntegrationStatus'
+          default: validating
+        scope:
+          $ref: '#/components/schemas/IntegrationScope'
+          default: global
+        configuration:
+          oneOf:
+            - $ref: '#/components/schemas/MCPServerConfiguration'
+            - $ref: '#/components/schemas/LLMProviderConfiguration'
+            - $ref: '#/components/schemas/AAPGatewayConfiguration'
+          title: Configuration
+          description: Integration-specific configuration
+          discriminator:
+            propertyName: integration_type
+            mapping:
+              aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
+              llm_provider: '#/components/schemas/LLMProviderConfiguration'
+              mcp_server: '#/components/schemas/MCPServerConfiguration'
+        management_credential_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Management Credential Id
+        validation_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Validation Error
+      required:
+        - created_by
+        - name
+        - integration_type
+        - configuration
+      type: object
+      title: IntegrationRead
+    MCPServerConfiguration:
+      description: Configuration for MCP (Model Context Protocol) server integrations.
+      additionalProperties: false
+      properties:
+        integration_type:
+          type: string
+          const: mcp_server
+          default: mcp_server
+          title: Integration Type
+        base_url:
+          type: string
+          format: uri
+          title: Base Url
+          description: Base URL for the MCP server
+      required:
+        - base_url
+      title: MCPServerConfiguration
+      type: object
+    LLMProviderConfiguration:
+      description: Configuration for LLM provider integrations (OpenAI-compatible endpoints).
+      additionalProperties: false
+      properties:
+        integration_type:
+          type: string
+          const: llm_provider
+          default: llm_provider
+          title: Integration Type
+        base_url:
+          type: string
+          format: uri
+          title: Base Url
+          description: Base URL for the LLM provider API
+        provider_hint:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Provider Hint
+          description: Hint indicating the LLM provider backend (e.g. openai, azure, ollama)
+      required:
+        - base_url
+      title: LLMProviderConfiguration
+      type: object
+    AAPGatewayConfiguration:
+      description: Configuration for Ansible Automation Platform Gateway integrations.
+      additionalProperties: false
+      properties:
+        integration_type:
+          type: string
+          const: aap_gateway
+          default: aap_gateway
+          title: Integration Type
+        gateway_url:
+          type: string
+          format: uri
+          title: Gateway Url
+          description: URL of the AAP Gateway
+        insecure_skip_tls_verify:
+          type: boolean
+          title: Insecure Skip Tls Verify
+          description: Disable TLS certificate verification. Insecure; do not enable in production.
+          default: false
+      required:
+        - gateway_url
+      title: AAPGatewayConfiguration
+      type: object
     ComponentKPISummary:
       properties:
         component:

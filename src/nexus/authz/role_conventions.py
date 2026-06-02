@@ -93,6 +93,11 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("credential", "create", roles=("admin",)),
     PolicyInfo("credential", "update", roles=("admin",)),
     PolicyInfo("credential", "delete", roles=("admin",)),
+    # integrations
+    PolicyInfo("integration", "read", roles=("admin", "auditor")),
+    PolicyInfo("integration", "create", roles=("admin",)),
+    PolicyInfo("integration", "update", roles=("admin",)),
+    PolicyInfo("integration", "delete", roles=("admin",)),
     # workflows
     PolicyInfo("workflow", "read", roles=("admin", "auditor")),
     PolicyInfo("workflow", "create", roles=("admin",)),
@@ -170,6 +175,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("workflow", "delete", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("execution", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("execution", "run", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("integration", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("credential", "create", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("credential", "read", scope="project", roles=("project-admin", "project-user", "project-auditor")),
     PolicyInfo("credential", "update", scope="project", roles=("project-admin", "project-user")),

@@ -79,10 +79,25 @@ class IntegrationService(BaseService):
         except IntegrityError as e:
             await self._handle_integrity_error(e, data.name)
 
-    async def get_integration(self, integration_id: UUID) -> IntegrationRead:
-        """Get an integration by ID."""
+    async def get_integration(
+        self,
+        integration_id: UUID,
+        *,
+        allowed_projects: AllowedProjectsResult | None = None,
+    ) -> IntegrationRead:
+        """Get an integration by ID, optionally enforcing project-scoped visibility."""
         integration = await self._get_or_raise(integration_id)
+        if allowed_projects is not None:
+            await self._enforce_visibility(integration, allowed_projects)
         return IntegrationRead.model_validate(integration)
+
+    async def _enforce_visibility(self, integration: Integration, allowed_projects: AllowedProjectsResult) -> None:
+        """Raise IntegrationNotFoundError if the integration is not visible to the caller."""
+        if allowed_projects.all_projects:
+            return
+        visible_ids = await self._resolve_visible_integration_ids(allowed_projects)
+        if visible_ids is not None and integration.id not in set(visible_ids):
+            raise IntegrationNotFoundError(integration.id)
 
     async def list_integrations(
         self,
@@ -126,21 +141,28 @@ class IntegrationService(BaseService):
             Integration.scope == IntegrationScope.GLOBAL,
             Integration.deleted_at.is_(None),  # type: ignore[union-attr]
         )
-        global_result = await self.session.exec(global_query)
-        visible_ids: set[UUID] = set(global_result.all())
 
-        if allowed_projects.project_ids:
-            assignment_query = select(IntegrationProjectAssignment.integration_id).where(
-                col(IntegrationProjectAssignment.project_id).in_(allowed_projects.project_ids),
-            )
-            assignment_result = await self.session.exec(assignment_query)
-            visible_ids |= set(assignment_result.all())
+        if not allowed_projects.project_ids:
+            result = await self.session.exec(global_query)
+            return list(result.all())
 
-        return list(visible_ids)
+        assignment_query = select(IntegrationProjectAssignment.integration_id).where(
+            col(IntegrationProjectAssignment.project_id).in_(allowed_projects.project_ids),
+        )
+
+        union_result = await self.session.execute(global_query.union(assignment_query))
+        return list(union_result.scalars().all())
 
     async def patch_integration(self, integration_id: UUID, data: IntegrationPatch) -> IntegrationRead:
         """Apply partial updates to an integration."""
         integration = await self._get_or_raise(integration_id)
+
+        if data.configuration is not None and data.configuration.integration_type != integration.integration_type.value:
+            msg = (
+                f"configuration.integration_type '{data.configuration.integration_type}' "
+                f"does not match integration type '{integration.integration_type.value}'"
+            )
+            raise ValueError(msg)
 
         integration_name = data.name if data.name is not None else integration.name
 

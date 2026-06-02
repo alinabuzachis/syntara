@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .groups import GroupsApi
     from .groups_directory import GroupsDirectoryApi
     from .identity_providers import IdentityProvidersApi
+    from .integrations import IntegrationsApi
     from .internal_metrics import InternalMetricsApi
     from .invocation import InvocationApi
     from .policies import PoliciesApi
@@ -119,6 +120,12 @@ class NexusApiRegistry:
         from .identity_providers import IdentityProvidersApi
 
         return IdentityProvidersApi(client=self._client)
+
+    @cached_property
+    def integrations(self) -> IntegrationsApi:
+        from .integrations import IntegrationsApi
+
+        return IntegrationsApi(client=self._client)
 
     @cached_property
     def internal_metrics(self) -> InternalMetricsApi:

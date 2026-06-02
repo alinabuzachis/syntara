@@ -151,6 +151,54 @@ class TestGetIntegration:
         with pytest.raises(IntegrationNotFoundError):
             await integration_service.get_integration(created.id)
 
+    @pytest.mark.asyncio
+    async def test_get_global_visible_to_restricted_caller(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        from nexus.authz.engine import AllowedProjectsResult
+
+        created = await integration_service.create_integration(
+            _mcp_create(name="Global Visible", scope=IntegrationScope.GLOBAL)
+        )
+        restricted = AllowedProjectsResult(all_projects=False, project_ids=[])
+        result = await integration_service.get_integration(created.id, allowed_projects=restricted)
+        assert result.id == created.id
+
+    @pytest.mark.asyncio
+    async def test_get_project_scoped_visible_when_assigned(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        from nexus.authz.engine import AllowedProjectsResult
+        from nexus.authz.models import Project
+
+        project = Project(name="visibility-project")
+        test_db_session.add(project)
+        await test_db_session.flush()
+
+        created = await integration_service.create_integration(
+            _mcp_create(name="Assigned", scope=IntegrationScope.PROJECT)
+        )
+        test_db_session.add(IntegrationProjectAssignment(integration_id=created.id, project_id=project.id))
+        await test_db_session.flush()
+
+        allowed = AllowedProjectsResult(all_projects=False, project_ids=[project.id])
+        result = await integration_service.get_integration(created.id, allowed_projects=allowed)
+        assert result.id == created.id
+
+    @pytest.mark.asyncio
+    async def test_get_project_scoped_not_visible_when_unassigned(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        from nexus.authz.engine import AllowedProjectsResult
+
+        created = await integration_service.create_integration(
+            _mcp_create(name="Unassigned", scope=IntegrationScope.PROJECT)
+        )
+        restricted = AllowedProjectsResult(all_projects=False, project_ids=[])
+
+        with pytest.raises(IntegrationNotFoundError):
+            await integration_service.get_integration(created.id, allowed_projects=restricted)
+
 
 class TestListIntegrations:
     """Tests for IntegrationService.list_integrations."""
@@ -304,6 +352,30 @@ class TestPatchIntegration:
 
         with pytest.raises(IntegrationNameConflictError):
             await integration_service.patch_integration(second.id, IntegrationPatch(name="First"))
+
+    @pytest.mark.asyncio
+    async def test_patch_configuration_type_mismatch_raises(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        created = await integration_service.create_integration(_mcp_create())
+        patch = IntegrationPatch(
+            configuration={"integration_type": "llm_provider", "base_url": "https://api.openai.com"},
+        )
+
+        with pytest.raises(ValueError, match="does not match integration type"):
+            await integration_service.patch_integration(created.id, patch)
+
+    @pytest.mark.asyncio
+    async def test_patch_configuration_matching_type_succeeds(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        created = await integration_service.create_integration(_mcp_create())
+        patch = IntegrationPatch(
+            configuration={"integration_type": "mcp_server", "base_url": "https://updated.example.com"},
+        )
+
+        result = await integration_service.patch_integration(created.id, patch)
+        assert result.configuration.base_url == "https://updated.example.com"  # type: ignore[union-attr]
 
     @pytest.mark.asyncio
     async def test_patch_not_found_raises(
