@@ -5,7 +5,9 @@
   "description": "Execute AI agent tasks with optional tool selection and structured output",
   "configSchema": {
     "type": "object",
-    "required": ["prompt"],
+    "required": [
+      "prompt"
+    ],
     "properties": {
       "agent": {
         "type": "string",
@@ -20,14 +22,22 @@
       "model": {
         "type": "string",
         "description": "LLM model to use",
-        "examples": ["gpt-4", "claude-3-opus", "gemini-pro"]
+        "examples": [
+          "gpt-4",
+          "claude-3-opus",
+          "gemini-pro"
+        ]
       },
       "credential_id": {
         "$ref": "../common-definitions.schema.json#/$defs/credential_id"
       },
       "tool_selection_strategy": {
         "type": "string",
-        "enum": ["ALL", "NONE", "SELECTED"],
+        "enum": [
+          "ALL",
+          "NONE",
+          "SELECTED"
+        ],
         "default": "NONE",
         "description": "Strategy for tool selection: ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)"
       },
@@ -54,10 +64,17 @@
               },
               "priority": {
                 "type": "string",
-                "enum": ["low", "medium", "high"]
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
               }
             },
-            "required": ["summary", "priority"]
+            "required": [
+              "summary",
+              "priority"
+            ]
           }
         ]
       },
@@ -73,20 +90,29 @@
       {
         "if": {
           "properties": {
-            "tool_selection_strategy": { "const": "SELECTED" }
+            "tool_selection_strategy": {
+              "const": "SELECTED"
+            }
           }
         },
         "then": {
-          "required": ["tool_selections"]
+          "required": [
+            "tool_selections"
+          ]
         },
         "else": {
           "not": {
-            "required": ["tool_selections"]
+            "required": [
+              "tool_selections"
+            ]
           }
         }
       }
     ],
     "additionalProperties": true
+  },
+  "settingSchema": {
+    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
   },
   "resultSchema": {
     "description": "Result structure available after agent execution",
@@ -94,7 +120,10 @@
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "output"],
+        "required": [
+          "status",
+          "output"
+        ],
         "properties": {
           "status": {
             "type": "string",
@@ -136,7 +165,10 @@
                 },
                 "status": {
                   "type": "string",
-                  "enum": ["success", "failed"],
+                  "enum": [
+                    "success",
+                    "failed"
+                  ],
                   "description": "Whether the tool call succeeded"
                 }
               }
@@ -148,7 +180,12 @@
             "properties": {
               "fallback_strategy_used": {
                 "type": "string",
-                "enum": ["native", "pydantic", "structured_parser", "none"],
+                "enum": [
+                  "native",
+                  "pydantic",
+                  "structured_parser",
+                  "none"
+                ],
                 "description": "Which strategy was used for structured output generation. 'native': LLM provider's native structured output. 'pydantic': Pydantic validation/coercion fallback. 'structured_parser': output parsed with structured parser fallback. 'none': response_schema was not defined."
               }
             },

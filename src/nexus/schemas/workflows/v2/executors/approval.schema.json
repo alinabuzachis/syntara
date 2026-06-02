@@ -9,11 +9,32 @@
       "credential_id": {
         "$ref": "../common-definitions.schema.json#/$defs/credential_id"
       },
-      "approver_timeout": {
+      "fallback_decision": {
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject"
+        ],
+        "default": "reject",
+        "description": "Decision to apply when the approval cannot complete for any reason and continue_on_failure is true. Defaults to 'reject'."
+      }
+    },
+    "additionalProperties": false
+  },
+  "settingSchema": {
+    "type": "object",
+    "properties": {
+      "continue_on_failure": {
+        "type": "boolean",
+        "description": "When true and the approval cannot complete for any reason (timeout or send failure after retries), the workflow proceeds using fallback_decision from config. Inherits from global settings when absent."
+      },
+      "timeout": {
         "type": "integer",
-        "description": "Time limit in seconds for approver to respond. If the timeout expires, the decision is set to 'expired' and the workflow follows the rejection path. If not set, waits indefinitely until approved, rejected, or workflow is cancelled.",
         "minimum": 1,
-        "examples": [604800, 86400, 3600]
+        "description": "Activity timeout in seconds. Falls back to the global timeout setting if not specified."
+      },
+      "retry_policy": {
+        "$ref": "../common-definitions.schema.json#/$defs/retry_policy"
       }
     },
     "additionalProperties": false
@@ -24,7 +45,12 @@
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "approver", "decision", "timestamp"],
+        "required": [
+          "status",
+          "approver",
+          "decision",
+          "timestamp"
+        ],
         "properties": {
           "status": {
             "type": "string",
@@ -37,7 +63,12 @@
           },
           "decision": {
             "type": "string",
-            "enum": ["approved", "rejected", "expired", "cancelled"],
+            "enum": [
+              "approved",
+              "rejected",
+              "expired",
+              "cancelled"
+            ],
             "description": "Detailed decision outcome"
           },
           "timestamp": {

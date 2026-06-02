@@ -109,12 +109,13 @@ nodes:
       created: "${result.created}"
       started: "${result.started}"
       finished: "${result.finished}"
-    retry_policy:
-      max_attempts: 3
-      backoff: exponential
-      initial_interval: 5
-      max_interval: 60
-    timeout: 1800
+    settings:
+      timeout: 1800
+      retry_policy:
+        max_retries: 3
+        initial_interval: 5
+        max_interval: 60
+        backoff_coefficient: 2.0
 
   - id: display_results
     type: script

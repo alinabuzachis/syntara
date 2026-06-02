@@ -326,11 +326,6 @@ async def execute_script_activity(
     from .output_mapping import apply_output_mapping  # noqa: PLC0415
 
     try:
-        # Inject live timeout from runtime settings if not specified
-        if "timeout" not in input_config:
-            cache = get_runtime_settings()
-            input_config["timeout"] = await cache.get_int("workflow_engine.script_timeout_seconds")
-
         # Validate config via Pydantic model
         try:
             config = ScriptExecutorConfig.model_validate(input_config)
@@ -342,7 +337,10 @@ async def execute_script_activity(
         language = config.language.value
         code = config.code
         environment = dict(config.environment)
-        timeout = config.timeout
+
+        # TODO(engine-wiring): use node.settings.timeout when non-None.  # noqa: TD003
+        cache = get_runtime_settings()
+        timeout = await cache.get_int("workflow_engine.script_timeout_seconds", default=300)
 
         # Inject TEMPORAL_ATTEMPT for retry-aware scripts
         attempt_number = activity.info().attempt

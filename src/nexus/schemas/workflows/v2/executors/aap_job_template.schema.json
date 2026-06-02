@@ -88,7 +88,10 @@
       "job_type": {
         "type": "string",
         "description": "Job type override: 'run' or 'check' (dry run)",
-        "enum": ["run", "check"]
+        "enum": [
+          "run",
+          "check"
+        ]
       },
       "forks": {
         "type": "integer",
@@ -106,7 +109,7 @@
       },
       "execution_environment": {
         "type": "string",
-        "description": "Execution environment override (deferred — requires ID resolution)"
+        "description": "Execution environment override (deferred \u2014 requires ID resolution)"
       },
       "instance_group_id": {
         "type": "integer",
@@ -128,31 +131,47 @@
     },
     "anyOf": [
       {
-        "required": ["job_template_id"]
+        "required": [
+          "job_template_id"
+        ]
       },
       {
-        "required": ["job_template_name", "organization_name"]
+        "required": [
+          "job_template_name",
+          "organization_name"
+        ]
       }
     ],
     "allOf": [
       {
         "if": {
-          "required": ["inventory_name"]
+          "required": [
+            "inventory_name"
+          ]
         },
         "then": {
-          "required": ["organization_name"]
+          "required": [
+            "organization_name"
+          ]
         }
       },
       {
         "if": {
-          "required": ["instance_group_name"]
+          "required": [
+            "instance_group_name"
+          ]
         },
         "then": {
-          "required": ["organization_name"]
+          "required": [
+            "organization_name"
+          ]
         }
       }
     ],
     "additionalProperties": false
+  },
+  "settingSchema": {
+    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
   },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
@@ -160,7 +179,14 @@
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "job_id", "job_status", "created", "started", "finished"],
+        "required": [
+          "status",
+          "job_id",
+          "job_status",
+          "created",
+          "started",
+          "finished"
+        ],
         "properties": {
           "status": {
             "type": "string",

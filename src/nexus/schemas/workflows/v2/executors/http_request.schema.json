@@ -5,11 +5,20 @@
   "description": "Make HTTP API calls",
   "configSchema": {
     "type": "object",
-    "required": ["method", "url"],
+    "required": [
+      "method",
+      "url"
+    ],
     "properties": {
       "method": {
         "type": "string",
-        "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "PATCH",
+          "DELETE"
+        ],
         "description": "HTTP method"
       },
       "url": {
@@ -34,20 +43,36 @@
         "description": "URL query parameters (values support templating)",
         "additionalProperties": {
           "oneOf": [
-            {"type": "string"},
-            {"type": "number"},
-            {"type": "boolean"},
-            {"type": "null"}
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
       "body": {
         "description": "Request body (supports templating). Can be object (serialized as JSON), string (sent as-is), array, or null.",
         "oneOf": [
-          {"type": "object"},
-          {"type": "string"},
-          {"type": "array"},
-          {"type": "null"}
+          {
+            "type": "object"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
         ]
       },
       "credential_id": {
@@ -56,11 +81,18 @@
       "authentication": {
         "type": "object",
         "description": "Authentication configuration",
-        "required": ["type"],
+        "required": [
+          "type"
+        ],
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["basic", "bearer", "api_key", "oauth2"],
+            "enum": [
+              "basic",
+              "bearer",
+              "api_key",
+              "oauth2"
+            ],
             "description": "Authentication type"
           },
           "credentials": {
@@ -73,13 +105,22 @@
     },
     "additionalProperties": false
   },
+  "settingSchema": {
+    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
+  },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
     "oneOf": [
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "status_code", "body", "headers", "elapsed"],
+        "required": [
+          "status",
+          "status_code",
+          "body",
+          "headers",
+          "elapsed"
+        ],
         "properties": {
           "status": {
             "type": "string",

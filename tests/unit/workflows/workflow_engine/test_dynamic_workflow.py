@@ -244,11 +244,11 @@ class TestFanInConverge:
         assert "converge_node" in pending
 
     def test_handle_converge_wait_starts_timeout_handler(self) -> None:
-        """A converge node with a timeout config should start a background handler."""
+        """A converge node with a timeout setting should start a background handler."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
         converge_node = graph.get_node("converge_node")
-        converge_node.config["timeout"] = 10
+        converge_node.settings.timeout = 10
 
         loop = asyncio.new_event_loop()
         try:
@@ -263,7 +263,7 @@ class TestFanInConverge:
         wf = _make_workflow()
         graph = _build_fanin_graph()
         converge_node = graph.get_node("converge_node")
-        converge_node.config["timeout"] = 10
+        converge_node.settings.timeout = 10
 
         loop = asyncio.new_event_loop()
         try:

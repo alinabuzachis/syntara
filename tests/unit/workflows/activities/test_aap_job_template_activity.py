@@ -439,6 +439,7 @@ class TestAAPJobTemplateTimeout:
         mock_heartbeat: object,
         mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
+        override_runtime_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
         """Test job execution timeout is enforced during polling."""
@@ -462,12 +463,12 @@ class TestAAPJobTemplateTimeout:
 
         with (
             override_settings(**aap_settings_overrides),
+            override_runtime_settings({"workflow_engine.aap_timeout_seconds": 10}),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=running_response),
             patch("time.time", side_effect=mock_time),
         ):
-            # Configure timeout of 10 seconds
-            activity_config = build_activity_config(job_template_id=42, timeout=10)
+            activity_config = build_activity_config(job_template_id=42)
 
             with pytest.raises(ApplicationError) as exc_info:
                 await execute_aap_job_template_activity(activity_config, None)
@@ -515,25 +516,6 @@ class TestAAPJobTemplateTimeout:
             # Job should complete successfully
             assert result["output"]["job_status"] == "successful"
             assert result["output"]["job_id"] == 123
-
-    @pytest.mark.asyncio
-    async def test_timeout_config_field_validation(self) -> None:
-        """Test timeout field validation in config."""
-        # Valid timeout
-        config = build_config(job_template_id=42, timeout=3600)
-        assert config.timeout == 3600
-
-        # Custom timeout
-        config = build_config(job_template_id=42, timeout=7200)
-        assert config.timeout == 7200
-
-        # Timeout must be >= 1
-        with pytest.raises(ValidationError):
-            build_config(job_template_id=42, timeout=0)
-
-        # Timeout must be positive
-        with pytest.raises(ValidationError):
-            build_config(job_template_id=42, timeout=-100)
 
 
 class TestAAPJobTemplateAuthentication:

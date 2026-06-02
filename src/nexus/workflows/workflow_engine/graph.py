@@ -7,10 +7,17 @@ graph operations to a pluggable backend implementation.
 from typing import Any
 
 from nexus.workflows.workflow_engine.graph_backend import IGraphBackend, InMemoryGraphBackend
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeSettings
 
 
 class ActivityNode:
     """Domain object representing an activity node in the workflow."""
+
+    id: str
+    type: str
+    config: dict[str, Any]
+    outputs: dict[str, str] | None
+    settings: NodeSettings
 
     def __init__(
         self,
@@ -18,20 +25,14 @@ class ActivityNode:
         node_type: str,
         config: dict[str, Any],
         outputs: dict[str, str] | None = None,
+        settings: NodeSettings | None = None,
     ) -> None:
-        """Initialize an activity node.
-
-        Args:
-            node_id: Unique node identifier
-            node_type: Type of the activity node
-            config: Node configuration dictionary
-            outputs: Output extraction mapping (optional)
-
-        """
+        """Initialize an activity node."""
         self.id = node_id
         self.type = node_type
         self.config = config
-        self.outputs = outputs  # Output extraction mapping (optional)
+        self.outputs = outputs
+        self.settings = settings if settings is not None else NodeSettings()
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ActivityNode":
@@ -41,6 +42,7 @@ class ActivityNode:
             node_type=data["type"],
             config=data.get("config", {}),
             outputs=data.get("outputs"),
+            settings=NodeSettings(**(data.get("settings") or {})),
         )
 
     def to_dict(self) -> dict[str, Any]:

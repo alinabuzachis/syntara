@@ -134,10 +134,8 @@ def test_converge_timeout_continue(nexus_api: NexusApiRegistry):
                     "id": "converge_node",
                     "name": "Converge with timeout",
                     "type": "converge",
-                    "config": {
-                        "timeout": 1,
-                        "on_timeout": "continue",
-                    },
+                    "config": {"on_timeout": "continue"},
+                    "settings": {"timeout": 1},
                 },
                 {
                     "id": "final_action",
@@ -291,10 +289,8 @@ def test_converge_timeout_fail_and_skip_downstream(nexus_api: NexusApiRegistry):
                     "id": "converge_node",
                     "name": "Converge with fail on timeout",
                     "type": "converge",
-                    "config": {
-                        "timeout": 1,
-                        "on_timeout": "fail",
-                    },
+                    "config": {"on_timeout": "fail"},
+                    "settings": {"timeout": 1},
                 },
                 {
                     "id": "downstream_action",
@@ -370,10 +366,8 @@ def test_converge_timeout_with_partial_completions(nexus_api: NexusApiRegistry):
                     "id": "converge_node",
                     "name": "Converge",
                     "type": "converge",
-                    "config": {
-                        "timeout": 1,
-                        "on_timeout": "continue",
-                    },
+                    "config": {"on_timeout": "continue"},
+                    "settings": {"timeout": 1},
                 },
                 {
                     "id": "final_action",
@@ -437,10 +431,8 @@ def test_converge_no_timeout_when_all_complete(nexus_api: NexusApiRegistry):
                     "id": "converge_node",
                     "name": "Converge with long timeout",
                     "type": "converge",
-                    "config": {
-                        "timeout": 1,
-                        "on_timeout": "fail",
-                    },
+                    "config": {"on_timeout": "fail"},
+                    "settings": {"timeout": 1},
                 },
                 {
                     "id": "final_action",

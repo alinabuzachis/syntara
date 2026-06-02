@@ -18,7 +18,7 @@ with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
-    from nexus.workflows.workflow_engine.constants import DEFAULT_AAP_TIMEOUT_SECONDS
+    from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS
     from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
     from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
@@ -41,16 +41,6 @@ ALLOWED_TRIGGER_TYPES: set[str] = {
     ActivityName.MANUAL_TRIGGER,
     ActivityName.WEBHOOK_TRIGGER,
 }
-
-# Temporal start-to-close safety ceiling for activities that don't specify a timeout.
-# Each node type has its own configurable timeout in Settings; this is only the
-# Temporal-level fallback to prevent activities from running indefinitely.
-DEFAULT_ACTIVITY_TIMEOUT_SECONDS = 30
-
-# Fallback for agentic activities. The runtime setting
-# workflow_engine.agentic_timeout_seconds overrides this via
-# resolved_config["timeout"] when present.
-DEFAULT_AGENTIC_TIMEOUT_SECONDS = 300
 
 # Marker value for pre-resolved node inputs in test executions
 PRE_RESOLVED_MARKER = "__pre_resolved"
@@ -464,17 +454,11 @@ class NexusWorkflow:
         """Handle a converge node that is waiting for predecessors, optionally starting a timeout."""
         workflow.logger.info(f"Converge node {node_id} waiting for predecessors to complete")
 
-        converge_timeout = successor.config.get("timeout")
+        converge_timeout = successor.settings.timeout
         if converge_timeout is None or node_id in self._timeout_tasks:
             return
 
-        try:
-            timeout_seconds = float(converge_timeout)
-        except (ValueError, TypeError):
-            workflow.logger.warning(
-                f"Invalid converge timeout value for {node_id}: {converge_timeout!r}, skipping timeout"
-            )
-            return
+        timeout_seconds = float(converge_timeout)
         workflow.logger.info(f"Starting converge timeout for {node_id}: {timeout_seconds}s")
 
         self._timeout_tasks[node_id] = asyncio.create_task(
@@ -865,16 +849,20 @@ class NexusWorkflow:
 
         workflow.logger.info(f"Cleared {len(loop_body_nodes)} loop body nodes from tracking for loop {loop_id}")
 
-    # Mapping from node type to (activity_name, default_timeout_seconds).
+    # Seconds added to start_to_close_timeout above the operational deadline so the
+    # activity's internal timeout always fires before Temporal cancels the attempt.
+    _TEMPORAL_MARGIN: ClassVar[int] = 10
+
+    # Mapping from node type to activity name.
     # Approval is NOT in this map — it needs custom args and routing logic.
-    _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, tuple[str, int]]] = {
-        NodeType.AAP_JOB_TEMPLATE: (ActivityName.AAP_JOB_TEMPLATE, DEFAULT_AAP_TIMEOUT_SECONDS),
-        NodeType.AAP_WORKFLOW_JOB_TEMPLATE: (ActivityName.AAP_WORKFLOW_JOB_TEMPLATE, DEFAULT_AAP_TIMEOUT_SECONDS),
-        NodeType.HTTP_REQUEST: (ActivityName.HTTP_REQUEST, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
-        NodeType.SCRIPT: (ActivityName.SCRIPT, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
-        NodeType.CONDITION: (ActivityName.CONDITION, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
-        NodeType.SWITCH: (ActivityName.SWITCH, DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
-        NodeType.AGENTIC: (ActivityName.AGENTIC, DEFAULT_AGENTIC_TIMEOUT_SECONDS),
+    _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, str]] = {
+        NodeType.AAP_JOB_TEMPLATE: ActivityName.AAP_JOB_TEMPLATE,
+        NodeType.AAP_WORKFLOW_JOB_TEMPLATE: ActivityName.AAP_WORKFLOW_JOB_TEMPLATE,
+        NodeType.HTTP_REQUEST: ActivityName.HTTP_REQUEST,
+        NodeType.SCRIPT: ActivityName.SCRIPT,
+        NodeType.CONDITION: ActivityName.CONDITION,
+        NodeType.SWITCH: ActivityName.SWITCH,
+        NodeType.AGENTIC: ActivityName.AGENTIC,
     }
 
     async def _execute_executor_node(
@@ -883,28 +871,13 @@ class NexusWorkflow:
         node_type: str,
         resolved_config: dict[str, Any],
         outputs: dict[str, str] | None,
-        timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+        timeout_seconds: int,
         extra_args: list[Any] | None = None,
     ) -> dict[str, Any]:
-        """Execute an executor node via the activity map.
-
-        Args:
-            node_id: Node ID
-            node_type: Node type
-            resolved_config: Resolved configuration
-            outputs: Output mapping configuration
-            timeout_seconds: Activity timeout in seconds (default: DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
-            extra_args: Additional positional args appended after [resolved_config, outputs]
-
-        Returns:
-            Activity result with output and optional control data
-
-        """
-        entry = self._EXECUTOR_ACTIVITY_MAP.get(node_type)
-        if not entry:
+        """Execute an executor node via the activity map."""
+        activity_name = self._EXECUTOR_ACTIVITY_MAP.get(node_type)
+        if not activity_name:
             return {"output": {"status": "skipped", "reason": f"Unknown executor type: {node_type}"}}
-
-        activity_name, _ = entry
         args: list[Any] = [resolved_config, outputs]
         if extra_args:
             args.extend(extra_args)
@@ -954,7 +927,7 @@ class NexusWorkflow:
             ActivityName.WAIT,
             args=[resolved_config, outputs],
             activity_id=node_id,
-            start_to_close_timeout=timedelta(seconds=total_seconds + DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+            start_to_close_timeout=timedelta(seconds=total_seconds + self._TEMPORAL_MARGIN),
         )
 
         # Step 2: Durable sleep — survives restarts, no worker resources consumed
@@ -1063,18 +1036,8 @@ class NexusWorkflow:
                 "config": first_rejected.config,
             }
 
-        # Compute timeout_at as ISO string (or None)
-        timeout_seconds = resolved_config.get("approver_timeout")
-        timeout_at = None
-        if timeout_seconds is not None:
-            try:
-                timeout_at = (workflow.now() + timedelta(seconds=timeout_seconds)).isoformat()
-            except (ValueError, TypeError):
-                workflow.logger.warning(
-                    "Invalid approver_timeout value %s for node %s, skipping timeout",
-                    timeout_seconds,
-                    node.id,
-                )
+        approval_timeout = node.settings.timeout or self._get_default_timeout(NodeType.APPROVAL)
+        timeout_at = (workflow.now() + timedelta(seconds=approval_timeout)).isoformat()
 
         return [
             self.execution_id,
@@ -1234,6 +1197,22 @@ class NexusWorkflow:
         max_iterations = loop_config.get("max_iterations")
         return DoWhileLoopState(condition=condition, max_iterations=max_iterations)
 
+    @staticmethod
+    def _get_default_timeout(node_type: str) -> int:
+        """Return the catalog-mirrored default timeout (seconds) for a node type.
+
+        TODO: Replace hardcoded mirrors with a live catalog lookup (AAP-75595).
+        """
+        _defaults: dict[str, int] = {
+            NodeType.SCRIPT: 300,  # workflow_engine.script_timeout_seconds
+            NodeType.HTTP_REQUEST: 30,  # workflow_engine.http_request_timeout_seconds
+            NodeType.AAP_JOB_TEMPLATE: 3600,  # workflow_engine.aap_timeout_seconds
+            NodeType.AAP_WORKFLOW_JOB_TEMPLATE: 3600,
+            NodeType.AGENTIC: 300,  # workflow_engine.agentic_timeout_seconds
+            NodeType.APPROVAL: 86400,  # workflow_engine.approval_timeout_seconds
+        }
+        return _defaults.get(node_type, DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
+
     async def _execute_node(
         self,
         node: ActivityNode,
@@ -1285,8 +1264,9 @@ class NexusWorkflow:
             # For all other nodes: standard resolution (Tier 1)
             resolved_config = self._resolve_node_config(node)
 
-        _, default_timeout = self._EXECUTOR_ACTIVITY_MAP.get(node_type, (None, DEFAULT_ACTIVITY_TIMEOUT_SECONDS))
-        timeout_seconds = cast("int", resolved_config.get("timeout", default_timeout))
+        timeout_seconds = (
+            node.settings.timeout if node.settings.timeout is not None else self._get_default_timeout(node_type)
+        )
         self.node_inputs[node.id] = copy.deepcopy(resolved_config)
 
         result = await self._dispatch_node(node, resolved_config, graph, timeout_seconds)
@@ -1380,14 +1360,19 @@ class NexusWorkflow:
         """
         node_id = node.id
         approval_args = self._prepare_approval_args(node, graph, resolved_config)
+        # Approval uses async completion: start_to_close_timeout must cover the full
+        # human decision window, not just the API call to create the request.
+        # The margin lets the approval service send its signal right at the deadline
+        # without racing our Temporal timeout.
+        approval_window = node.settings.timeout or self._get_default_timeout(NodeType.APPROVAL)
+        approval_start_to_close = approval_window + self._TEMPORAL_MARGIN
         result = cast(
             "dict[str, Any]",
             await workflow.execute_activity(
                 ActivityName.APPROVAL,
                 args=approval_args,
                 activity_id=node_id,
-                # TODO(AAP-71386): Derive timeout from approver_timeout config  # noqa: TD003
-                start_to_close_timeout=timedelta(hours=24),
+                start_to_close_timeout=timedelta(seconds=approval_start_to_close),
             ),
         )
         raw = result.get("output", {})
@@ -1434,12 +1419,23 @@ class NexusWorkflow:
             extra_args = None
             if node_type == NodeType.AGENTIC:
                 extra_args = [self.execution_id, self.request_id]
+            # Add a margin above the internal timeout for activity types that enforce
+            # their own deadline (script, http_request, AAP polling), so Temporal's
+            # start_to_close_timeout never fires before the activity exits cleanly.
+            _with_margin = {
+                NodeType.SCRIPT,
+                NodeType.HTTP_REQUEST,
+                NodeType.AAP_JOB_TEMPLATE,
+                NodeType.AAP_WORKFLOW_JOB_TEMPLATE,
+                NodeType.AGENTIC,
+            }
+            temporal_timeout = timeout_seconds + self._TEMPORAL_MARGIN if node_type in _with_margin else timeout_seconds
             return await self._execute_executor_node(
                 node_id,
                 node_type,
                 resolved_config,
                 node.outputs,
-                timeout_seconds=timeout_seconds,
+                timeout_seconds=temporal_timeout,
                 extra_args=extra_args,
             )
         if node_type == NodeType.APPROVAL:

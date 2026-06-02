@@ -597,7 +597,7 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         description=(
             "Safety limit that prevents runaway loop execution inside "
             "workflows. If a loop node exceeds this number of iterations, "
-            "the workflow engine terminates it and the workflow fails."
+            "the workflow engine terminates it and the activity fails."
         ),
         helper_text="Minimum 1",
         group=WorkflowEngineGroup.EXECUTION,
@@ -665,6 +665,142 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         helper_text="Minimum 1 second. Default: 2,592,000 (30 days).",
         group=WorkflowEngineGroup.EXECUTION,
         validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.aap_timeout_seconds",
+        name="AAP timeout (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=3600,
+        description=(
+            "Maximum execution time for AAP job template and workflow job "
+            "template activities within a workflow. If an AAP job exceeds "
+            "this timeout, the activity is terminated and fails."
+        ),
+        helper_text="Minimum 1 second. Default: 3600 (1 hour).",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.approval_timeout_seconds",
+        name="Approval timeout (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=86400,
+        description=(
+            "Maximum time the workflow engine waits for an approval decision. "
+            "If no approval or rejection is received within this period, the "
+            "approval activity times out and fails."
+        ),
+        helper_text="Minimum 1 second. Default: 86400 (24 hours).",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.http_request_timeout_seconds",
+        name="HTTP request timeout (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=30,
+        description=(
+            "Maximum execution time for HTTP request activities within a "
+            "workflow. If an HTTP request does not complete within this "
+            "period, the activity is terminated and fails."
+        ),
+        helper_text="Minimum 1 second. Default: 30 seconds.",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.converge_timeout_seconds",
+        name="Converge timeout (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=86400,
+        description=(
+            "Maximum time a converge node waits for all incoming branches "
+            "to complete. When this timeout fires, the converge node stops "
+            "waiting and the workflow continues according to the node's "
+            "continue_on_failure setting."
+        ),
+        helper_text="Minimum 1 second. Default: 86400 (24 hours).",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.continue_on_failure",
+        name="Continue on failure (default)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.BOOLEAN,
+        default_value=False,
+        description=(
+            "Default continue-on-failure behavior for all nodes that support "
+            "it (executor nodes, loop, converge, approval). When true, "
+            "downstream nodes continue executing even if this node fails. "
+            "Per-node settings override this default."
+        ),
+        helper_text="Default: false. Per-node setting takes priority.",
+        group=WorkflowEngineGroup.EXECUTION,
+    ),
+    SettingDefinition(
+        key="workflow_engine.retry_max_retries",
+        name="Default retry max retries",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=3,
+        description=(
+            "Default number of retries after the initial attempt for nodes "
+            "with retry_policy enabled. 0 disables retries. Applies to "
+            "executor and approval nodes when no per-node retry_policy is set."
+        ),
+        helper_text="Minimum 0. Default: 3.",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 0},
+    ),
+    SettingDefinition(
+        key="workflow_engine.retry_initial_interval",
+        name="Default retry initial interval (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=1,
+        description=(
+            "Default initial wait time in seconds before the first retry. "
+            "Subsequent retries scale this up by backoff_coefficient "
+            "(exponential) or keep it fixed (fixed backoff)."
+        ),
+        helper_text="Minimum 1 second. Default: 1 second.",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.retry_max_interval",
+        name="Default retry max interval (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=60,
+        description=(
+            "Default maximum wait time in seconds between retries. "
+            "Caps the exponential growth so retries never wait longer "
+            "than this value regardless of backoff_coefficient."
+        ),
+        helper_text="Minimum 1 second. Default: 60 seconds.",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.retry_backoff_coefficient",
+        name="Default retry backoff coefficient",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.FLOAT,
+        default_value=2.0,
+        description=(
+            "Default multiplier applied to the retry interval on each "
+            "attempt when using exponential backoff. A coefficient of 2.0 "
+            "doubles the wait time each retry until max_interval is reached."
+        ),
+        helper_text="Minimum 1.0. Default: 2.0.",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1.0},
     ),
     # Authentication — Local login
     SettingDefinition(

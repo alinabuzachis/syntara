@@ -242,32 +242,6 @@ class TestAgenticActivityTimeoutConfiguration:
 
         mock_agent_client.invoke_agent_async.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_rejects_timeout_below_minimum(self) -> None:
-        """Test that timeout values below minimum (1s) are rejected."""
-        input_config = {
-            "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
-            "timeout": 0,
-        }
-
-        with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(input_config, None)
-        assert exc_info.value.type == "ConfigError"
-
-    @pytest.mark.asyncio
-    async def test_rejects_timeout_above_maximum(self) -> None:
-        """Test that timeout values above maximum (3600s) are rejected."""
-        input_config = {
-            "prompt": "Test prompt",
-            "model": "claude-3-5-sonnet-20241022",
-            "timeout": 4000,
-        }
-
-        with pytest.raises(ApplicationError) as exc_info:
-            await execute_agentic_activity(input_config, None)
-        assert exc_info.value.type == "ConfigError"
-
 
 class TestAgenticActivityInputEdgeCases:
     """Test edge cases in input handling."""

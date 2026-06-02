@@ -5,11 +5,17 @@
   "description": "Execute scripts in various languages (TEMPORARY - added for initial testing)",
   "configSchema": {
     "type": "object",
-    "required": ["language", "code"],
+    "required": [
+      "language",
+      "code"
+    ],
     "properties": {
       "language": {
         "type": "string",
-        "enum": ["python", "bash"],
+        "enum": [
+          "python",
+          "bash"
+        ],
         "description": "Script language/runtime"
       },
       "code": {
@@ -30,13 +36,21 @@
     },
     "additionalProperties": false
   },
+  "settingSchema": {
+    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
+  },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
     "oneOf": [
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "return_code", "stdout", "stderr"],
+        "required": [
+          "status",
+          "return_code",
+          "stdout",
+          "stderr"
+        ],
         "properties": {
           "status": {
             "type": "string",

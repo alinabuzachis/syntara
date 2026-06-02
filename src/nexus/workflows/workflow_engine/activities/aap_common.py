@@ -732,10 +732,8 @@ async def poll_until_complete(
     status_url = f"{base_url}/api/controller/v2/{job_type}/{job_id}/"
     auth_param = basic_auth or httpx.USE_CLIENT_DEFAULT
 
-    # Margin must exceed poll_interval so the internal timeout fires before
-    # Temporal's start_to_close_timeout even in the worst case (check passes
-    # just before the margin, then we sleep a full poll_interval).
-    margin = math.ceil(poll_interval) + 2
+    # Margin accounts for one final sleep after the last passing check.
+    margin = math.ceil(poll_interval)
     effective_timeout = max(timeout_seconds - margin, 1)
 
     while True:

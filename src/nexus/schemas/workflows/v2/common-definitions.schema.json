@@ -42,48 +42,64 @@
     },
     "retry_policy": {
       "type": "object",
-      "description": "Retry configuration for failed node execution",
+      "description": "Retry configuration for failed node execution. Only applies to executor and approval nodes. Unset fields inherit from global settings. Set max_retries to 0 to explicitly disable retry.",
       "properties": {
-        "max_attempts": {
+        "max_retries": {
           "type": "integer",
-          "description": "Maximum number of retry attempts",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 3
-        },
-        "backoff": {
-          "type": "string",
-          "enum": ["fixed", "exponential", "linear"],
-          "description": "Backoff strategy between retries",
-          "default": "exponential"
+          "description": "Number of retries after the initial attempt. 0 = no retry. Inherits from global settings when absent.",
+          "minimum": 0
         },
         "initial_interval": {
           "type": "integer",
-          "description": "Initial retry interval in seconds",
-          "minimum": 1,
-          "default": 1
+          "description": "Initial retry interval in seconds. Inherits from global settings when absent.",
+          "minimum": 1
         },
         "max_interval": {
           "type": "integer",
-          "description": "Maximum retry interval in seconds",
+          "description": "Maximum retry interval in seconds. Inherits from global settings when absent.",
           "minimum": 1
         },
-        "multiplier": {
+        "backoff_coefficient": {
           "type": "number",
-          "description": "Backoff multiplier for exponential strategy",
-          "minimum": 1,
-          "maximum": 10,
-          "default": 2
+          "description": "Multiplier applied to the interval after each retry. 1.0 = fixed interval (no growth). Values above 1.0 give exponential backoff. Inherits from global settings when absent.",
+          "minimum": 1.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "nodeSettings": {
+      "type": "object",
+      "description": "Engine-level settings that control how the workflow engine runs a node.",
+      "properties": {
+        "continue_on_failure": {
+          "type": "boolean",
+          "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
         },
-        "retryable_errors": {
-          "type": "array",
-          "description": "HTTP status codes or exit codes that should trigger retry (whitelist approach)",
-          "items": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 599
-          },
-          "default": [408, 429, 500, 502, 503, 504]
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout in seconds."
+        },
+        "retry_policy": {
+          "$ref": "#/$defs/retry_policy"
+        }
+      },
+      "additionalProperties": false
+    },
+    "executorSettings": {
+      "type": "object",
+      "description": "Engine-level settings for executor nodes (script, http_request, agentic, AAP job/workflow template).",
+      "properties": {
+        "continue_on_failure": {
+          "$ref": "#/$defs/nodeSettings/properties/continue_on_failure"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Activity execution timeout in seconds. Falls back to the global timeout setting if not specified."
+        },
+        "retry_policy": {
+          "$ref": "#/$defs/retry_policy"
         }
       },
       "additionalProperties": false

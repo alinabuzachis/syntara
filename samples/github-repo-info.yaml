@@ -37,7 +37,8 @@ nodes:
       open_issues: "${result.body.open_issues_count}"
       created_at: "${result.body.created_at}"
       updated_at: "${result.body.updated_at}"
-    timeout: 30
+    settings:
+      timeout: 30
 
   - id: fetch_languages
     type: http_request
@@ -50,7 +51,8 @@ nodes:
         User-Agent: Nexus-Workflow-Engine
     outputs:
       languages: "${result.body}"
-    timeout: 30
+    settings:
+      timeout: 30
 
   - id: analyze_repo
     type: script
@@ -123,7 +125,8 @@ nodes:
       report: "${result.stdout_json}"
       summary: "${result.stdout_json.summary}"
       popularity_score: "${result.stdout_json.statistics.popularity_score}"
-    timeout: 60
+    settings:
+      timeout: 60
 edges:
   - from: trigger_manual
     to: fetch_repo

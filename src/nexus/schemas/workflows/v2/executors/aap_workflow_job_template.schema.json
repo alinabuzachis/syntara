@@ -76,23 +76,35 @@
     },
     "anyOf": [
       {
-        "required": ["workflow_job_template_id"]
+        "required": [
+          "workflow_job_template_id"
+        ]
       },
       {
-        "required": ["workflow_job_template_name", "organization_name"]
+        "required": [
+          "workflow_job_template_name",
+          "organization_name"
+        ]
       }
     ],
     "allOf": [
       {
         "if": {
-          "required": ["inventory_name"]
+          "required": [
+            "inventory_name"
+          ]
         },
         "then": {
-          "required": ["organization_name"]
+          "required": [
+            "organization_name"
+          ]
         }
       }
     ],
     "additionalProperties": false
+  },
+  "settingSchema": {
+    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
   },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
@@ -100,7 +112,13 @@
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "workflow_job_id", "created", "started", "finished"],
+        "required": [
+          "status",
+          "workflow_job_id",
+          "created",
+          "started",
+          "finished"
+        ],
         "properties": {
           "status": {
             "type": "string",

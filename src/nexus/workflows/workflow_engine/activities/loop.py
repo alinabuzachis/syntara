@@ -94,7 +94,7 @@ async def loop(
         max_iterations = input_config.get("max_iterations")
         if max_iterations is None:
             cache = get_runtime_settings()
-            max_iterations = await cache.get_int("workflow_engine.max_loop_iterations")
+            max_iterations = await cache.get_int("workflow_engine.max_loop_iterations", default=1000)
 
         # First iteration always executes (do-while semantic)
         if current_index == 0 or (condition_result is True and current_index < max_iterations):

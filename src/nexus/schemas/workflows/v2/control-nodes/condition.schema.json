@@ -5,7 +5,9 @@
   "description": "Binary conditional branching (if/then/else)",
   "configSchema": {
     "type": "object",
-    "required": ["condition"],
+    "required": [
+      "condition"
+    ],
     "properties": {
       "condition": {
         "type": "string",
@@ -20,13 +22,22 @@
     },
     "additionalProperties": false
   },
+  "settingSchema": {
+    "type": "object",
+    "description": "Condition nodes have no user-configurable settings. A fixed internal timeout applies.",
+    "properties": {},
+    "additionalProperties": false
+  },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
     "oneOf": [
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "evaluated_result"],
+        "required": [
+          "status",
+          "evaluated_result"
+        ],
         "properties": {
           "status": {
             "type": "string",

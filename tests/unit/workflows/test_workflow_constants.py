@@ -41,7 +41,7 @@ class TestConstantsModuleLoading:
         from nexus.workflows.workflow_engine import constants
 
         expected_constants = [
-            "DEFAULT_AAP_TIMEOUT_SECONDS",
+            "DEFAULT_ACTIVITY_TIMEOUT_SECONDS",
             "AGENT_ORCHESTRATOR_BASE_URL",
             "SYSTEM_USER_ID",
             "SCRIPT_CLEANUP_TERMINATE_TIMEOUT",

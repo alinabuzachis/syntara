@@ -1284,10 +1284,11 @@ async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[W
     logger.info("Starting test worker on queue: %s", task_queue)
 
     # Activities like execute_script_activity call get_runtime_settings()
-    # which requires the SettingsCache singleton to be initialised.
+    # which requires a real SettingsCache singleton. Always install FakeSettingsCache
+    # here so a leaked mock from another test in the same xdist worker cannot
+    # interfere (the guard `if original is None` was insufficient).
     original = _settings_mod._runtime_settings
-    if original is None:
-        _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
+    _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
 
     try:
         async with Worker(

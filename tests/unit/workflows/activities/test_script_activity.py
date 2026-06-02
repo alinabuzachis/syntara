@@ -632,30 +632,6 @@ class TestPydanticConfigValidation:
         assert exc_info.value.type == "ConfigError"
 
     @pytest.mark.asyncio
-    async def test_negative_timeout_raises_config_error(self) -> None:
-        """Negative timeout violates ge=1 constraint."""
-        input_config = {"language": "bash", "code": "echo hi", "timeout": -1}
-        with pytest.raises(ApplicationError) as exc_info:
-            await execute_script_activity(input_config, None)
-        assert exc_info.value.type == "ConfigError"
-
-    @pytest.mark.asyncio
-    async def test_zero_timeout_raises_config_error(self) -> None:
-        """Zero timeout violates ge=1 constraint."""
-        input_config = {"language": "bash", "code": "echo hi", "timeout": 0}
-        with pytest.raises(ApplicationError) as exc_info:
-            await execute_script_activity(input_config, None)
-        assert exc_info.value.type == "ConfigError"
-
-    @pytest.mark.asyncio
-    async def test_timeout_exceeding_3600_raises_config_error(self) -> None:
-        """Timeout > 3600 violates le=3600 constraint."""
-        input_config = {"language": "bash", "code": "echo hi", "timeout": 7200}
-        with pytest.raises(ApplicationError) as exc_info:
-            await execute_script_activity(input_config, None)
-        assert exc_info.value.type == "ConfigError"
-
-    @pytest.mark.asyncio
     async def test_invalid_language_raises_config_error(self) -> None:
         """Non-enum language value is rejected by Pydantic."""
         input_config = {"language": "ruby", "code": "puts 'hello'"}

@@ -17,7 +17,6 @@ from pydantic.functional_validators import ModelWrapValidatorHandler
 from nexus.core.constants import WebhookLimits
 from nexus.core.exceptions import SafeValueError
 from nexus.workflows.json_schema_validation import validate_json_schema_definition
-from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
 # Template expression pattern - matches ${...} expressions
@@ -176,26 +175,40 @@ class AuthenticationType(str, Enum):
     OAUTH2 = "oauth2"
 
 
+# Node-level settings models
+
+
+class RetryPolicyConfig(BaseModel):
+    """Retry policy for a node. Only applies to executor and approval nodes.
+
+    All fields default to None — the engine merges with global catalog values
+    (workflow_engine.retry_*) for any unset field. Set max_retries=0 to
+    explicitly disable retry, overriding global defaults.
+    """
+
+    max_retries: int | None = Field(default=None, ge=0, description="Retries after initial attempt. 0 = no retry.")
+    initial_interval: int | None = Field(default=None, ge=1, description="Initial retry interval in seconds.")
+    max_interval: int | None = Field(default=None, ge=1, description="Maximum retry interval in seconds.")
+    backoff_coefficient: float | None = Field(
+        default=None, ge=1.0, description="Multiplier per retry. 1.0 = fixed, >1.0 = exponential."
+    )
+
+
+class NodeSettings(BaseModel):
+    """Engine-level settings that apply to any node type."""
+
+    continue_on_failure: bool | None = None
+    timeout: int | None = Field(default=None, ge=1)
+    retry_policy: RetryPolicyConfig | None = None
+
+
 # Executor configuration models
 class ScriptExecutorConfig(TemplateAwareBaseModel):
-    """Configuration for script executor.
-
-    Attributes:
-        language: Script language (bash or python)
-        code: Script code to execute
-        environment: Optional environment variables for script execution
-        timeout: Timeout for script execution in seconds (runtime setting: workflow_engine.script_timeout_seconds)
-
-    """
+    """Configuration for script executor."""
 
     language: ScriptLanguage
     code: str = Field(min_length=1, description="Script code to execute")
     environment: dict[str, str] = Field(default_factory=dict, description="Environment variables")
-    timeout: int = Field(
-        ge=1,
-        le=3600,
-        description="Timeout in seconds (runtime setting: workflow_engine.script_timeout_seconds)",
-    )
 
 
 class Authentication(TemplateAwareBaseModel):
@@ -221,7 +234,6 @@ class APIExecutorConfig(TemplateAwareBaseModel):
         default=None,
         description="Nexus credential UUID for authentication. Takes priority over authentication field.",
     )
-    timeout: int | None = Field(default=None, ge=1, description="Timeout in seconds")
 
     @field_validator("url")
     @classmethod
@@ -237,16 +249,7 @@ class APIExecutorConfig(TemplateAwareBaseModel):
 
 
 class AgenticExecutorConfig(TemplateAwareBaseModel, populate_by_name=True):
-    """Configuration for agentic executor.
-
-    Attributes:
-        prompt: The prompt template for the agent
-        agent: Optional agent identifier for routing
-        model: Optional model identifier
-        timeout: Timeout in seconds (runtime setting: workflow_engine.agentic_timeout_seconds)
-        file_ids: List of file IDs to include as context for the agent (max 10)
-
-    """
+    """Configuration for agentic executor."""
 
     prompt: str = Field(description="Prompt template for the agent")
     agent: str | None = None
@@ -254,11 +257,6 @@ class AgenticExecutorConfig(TemplateAwareBaseModel, populate_by_name=True):
     credential_id: str | None = Field(
         default=None,
         description="Nexus credential UUID for LLM provider authentication",
-    )
-    timeout: int = Field(
-        ge=1,
-        le=3600,
-        description="Timeout in seconds (runtime setting: workflow_engine.agentic_timeout_seconds)",
     )
     file_ids: list[str] = Field(
         default_factory=list,
@@ -393,13 +391,6 @@ class AAPResourceReferenceMixin(BaseModel):
             "New labels that don't exist in AAP will be created automatically. "
             "Note: Labels are APPENDED to template defaults, not replaced."
         ),
-    )
-
-    # Execution settings
-    timeout: int = Field(
-        default=constants.DEFAULT_AAP_TIMEOUT_SECONDS,
-        ge=1,
-        description="Timeout for execution in seconds (default from APP_AAP_TIMEOUT_SECONDS)",
     )
 
     def _validate_id_or_name_reference(

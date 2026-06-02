@@ -96,6 +96,8 @@ nodes:
   config:
     language: bash
     code: {script}
+  settings:
+    timeout: 1
 edges:
 - from: trigger_manual
   to: {activity_id}

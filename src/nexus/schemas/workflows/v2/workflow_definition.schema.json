@@ -111,14 +111,9 @@
             }
           ]
         },
-        "retry_policy": {
-          "$ref": "common-definitions.schema.json#/$defs/retry_policy",
-          "description": "Node-specific retry policy. If not specified, defaults to unlimited retries with exponential backoff until timeout is reached."
-        },
-        "timeout": {
-          "type": "integer",
-          "description": "Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used.",
-          "minimum": 1
+        "settings": {
+          "$ref": "common-definitions.schema.json#/$defs/nodeSettings",
+          "description": "Engine-level execution settings (timeout, retry policy, continue-on-failure). Optional — defaults to all-default values when omitted. Not all settings apply to all node types."
         },
         "position": {
           "type": "object",

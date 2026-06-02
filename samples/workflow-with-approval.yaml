@@ -54,7 +54,7 @@ nodes:
   - id: review_deployment
     type: approval
     name: Review Deployment Plan
-    config:
+    settings:
       timeout: 3600
 
   - id: execute_deployment

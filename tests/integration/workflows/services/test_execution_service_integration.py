@@ -61,6 +61,8 @@ nodes:
   config:
     language: bash
     code: echo "Integration test successful"
+  settings:
+    timeout: 1
 edges:
 - from: trigger_manual
   to: test_task
@@ -101,6 +103,8 @@ nodes:
   config:
     language: bash
     code: echo "Custom ID test"
+  settings:
+    timeout: 1
 edges:
 - from: trigger_manual
   to: task1
@@ -138,6 +142,8 @@ nodes:
   config:
     language: bash
     code: echo "Hello, $INPUT_NAME!"
+  settings:
+    timeout: 1
 edges:
 - from: trigger_manual
   to: use_input
@@ -173,6 +179,8 @@ nodes:
   config:
     language: bash
     code: echo "test"
+  settings:
+    timeout: 1
 edges: []
 """
         workflow_def = yaml.safe_load(invalid_workflow_yaml)
@@ -200,6 +208,8 @@ nodes:
     code: |
       sleep 1
       echo "Done"
+  settings:
+    timeout: 1
 edges:
 - from: trigger_manual
   to: slow_task
@@ -246,6 +256,8 @@ nodes:
     code: |
       sleep 10
       echo "This should not complete"
+  settings:
+    timeout: 1
 edges:
 - from: trigger_manual
   to: long_task
@@ -314,6 +326,8 @@ nodes:
   config:
     language: bash
     code: echo "Factory test"
+  settings:
+    timeout: 1
 edges:
 - from: trigger_manual
   to: task1

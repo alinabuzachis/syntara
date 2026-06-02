@@ -307,38 +307,23 @@ class TestScriptNodeConfig:
 
     def test_valid_python_script(self) -> None:
         """Python script with code and language is valid."""
-        config = ScriptExecutorConfig(timeout=300, language=ScriptLanguage.PYTHON, code="print('hi')")
+        config = ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="print('hi')")
         assert config.language == ScriptLanguage.PYTHON
         assert config.code == "print('hi')"
 
     def test_valid_bash_script(self) -> None:
         """Bash script is a valid language option."""
-        config = ScriptExecutorConfig(timeout=300, language=ScriptLanguage.BASH, code="echo hi")
+        config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo hi")
         assert config.language == ScriptLanguage.BASH
 
     def test_rejects_empty_code(self) -> None:
         """Script node requires non-empty code."""
         with pytest.raises(ValidationError, match="code"):
-            ScriptExecutorConfig(timeout=300, language=ScriptLanguage.PYTHON, code="")
-
-    def test_default_timeout(self) -> None:
-        """Script config has a default timeout."""
-        config = ScriptExecutorConfig(timeout=300, language=ScriptLanguage.PYTHON, code="x=1")
-        assert config.timeout >= 1
-
-    def test_rejects_timeout_below_minimum(self) -> None:
-        """Timeout must be >= 1."""
-        with pytest.raises(ValidationError, match="timeout"):
-            ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="x=1", timeout=0)
-
-    def test_rejects_timeout_above_maximum(self) -> None:
-        """Timeout must be <= 3600."""
-        with pytest.raises(ValidationError, match="timeout"):
-            ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="x=1", timeout=3601)
+            ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="")
 
     def test_template_expression_bypasses_validation(self) -> None:
         """Template expressions like ${input.code} bypass field validation."""
-        config = ScriptExecutorConfig(timeout=300, language=ScriptLanguage.PYTHON, code="${input.code}")
+        config = ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="${input.code}")
         assert config.code == "${input.code}"
 
 
@@ -375,34 +360,29 @@ class TestAgenticExecutorConfig:
 
     def test_valid_agentic_config(self) -> None:
         """Agentic config with prompt is valid."""
-        config = AgenticExecutorConfig(timeout=300, prompt="Analyze this data")
+        config = AgenticExecutorConfig(prompt="Analyze this data")
         assert config.prompt == "Analyze this data"
 
     def test_optional_agent_and_model(self) -> None:
         """Agent and model fields are optional."""
-        config = AgenticExecutorConfig(timeout=300, prompt="Do something")
+        config = AgenticExecutorConfig(prompt="Do something")
         assert config.agent is None
         assert config.model is None
 
     def test_rejects_null_bytes_in_prompt(self) -> None:
         """Prompt with null bytes is rejected for security."""
         with pytest.raises((ValidationError, SafeValueError)):
-            AgenticExecutorConfig(timeout=300, prompt="bad\0prompt")
+            AgenticExecutorConfig(prompt="bad\0prompt")
 
     def test_file_ids_must_be_valid_uuids(self) -> None:
         """File IDs must be valid UUID format."""
         with pytest.raises((ValidationError, SafeValueError)):
-            AgenticExecutorConfig(timeout=300, prompt="test", file_ids=["not-a-uuid"])
+            AgenticExecutorConfig(prompt="test", file_ids=["not-a-uuid"])
 
     def test_file_ids_with_template_allowed(self) -> None:
         """Template expressions in file_ids bypass UUID validation."""
-        config = AgenticExecutorConfig(timeout=300, prompt="test", file_ids=["${input.file_id}"])
+        config = AgenticExecutorConfig(prompt="test", file_ids=["${input.file_id}"])
         assert config.file_ids == ["${input.file_id}"]
-
-    def test_default_timeout(self) -> None:
-        """Agentic config has a default timeout."""
-        config = AgenticExecutorConfig(timeout=300, prompt="test")
-        assert config.timeout >= 1
 
 
 class TestAAPJobTemplateConfig:

@@ -10,7 +10,10 @@
     "properties": {
       "strategy": {
         "type": "string",
-        "enum": ["all", "any"],
+        "enum": [
+          "all",
+          "any"
+        ],
         "description": "Convergence strategy: 'all' waits for all branches, 'any' waits for n_required branches",
         "default": "all"
       },
@@ -18,20 +21,37 @@
         "type": "integer",
         "minimum": 1,
         "description": "Number of branches required before convergence (only used when strategy is 'any')"
-      },
-      "on_timeout": {
-        "type": "string",
-        "enum": ["continue", "fail"],
-        "description": "Action to take if timeout is reached before convergence condition is met",
-        "default": "fail"
       }
     },
     "if": {
-      "properties": { "strategy": { "const": "any" } },
-      "required": ["strategy"]
+      "properties": {
+        "strategy": {
+          "const": "any"
+        }
+      },
+      "required": [
+        "strategy"
+      ]
     },
     "then": {
-      "required": ["n_required"]
+      "required": [
+        "n_required"
+      ]
+    },
+    "additionalProperties": false
+  },
+  "settingSchema": {
+    "type": "object",
+    "properties": {
+      "timeout": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Branch wait duration in seconds. Falls back to the global timeout setting if not specified."
+      },
+      "continue_on_failure": {
+        "type": "boolean",
+        "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
+      }
     },
     "additionalProperties": false
   },
@@ -41,7 +61,12 @@
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "branch_count", "completed_count", "completed_branch_node_ids"],
+        "required": [
+          "status",
+          "branch_count",
+          "completed_count",
+          "completed_branch_node_ids"
+        ],
         "properties": {
           "status": {
             "type": "string",

@@ -17,8 +17,7 @@ def _ensure_runtime_settings() -> Generator[None, None, None]:
     import nexus.settings.cache.settings_cache as _settings_mod
 
     original = _settings_mod._runtime_settings
-    if original is None:
-        _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
+    _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
     try:
         yield
     finally:

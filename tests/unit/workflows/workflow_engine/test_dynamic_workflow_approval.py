@@ -6,7 +6,7 @@ Tests cover:
 """
 
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,7 +15,7 @@ from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeSettings
 
 
 @pytest.fixture(autouse=True)
@@ -64,7 +64,7 @@ def _build_approval_graph(*, with_predecessor: bool = True, with_successor: bool
         {
             "id": "approval",
             "type": "approval",
-            "config": {"name": "Review Deployment", "approver_timeout": 3600},
+            "config": {"name": "Review Deployment"},
         },
     )
 
@@ -179,7 +179,7 @@ class TestPrepareApprovalArgs:
         resolver.set_namespace("trigger", {"env": "production"})
         wf = _make_workflow(execution_id="exec-456", resolver=resolver)
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review Deployment", "approver_timeout": 3600})
+        node = ActivityNode("approval", "approval", {"name": "Review Deployment"})
 
         args = wf._prepare_approval_args(node, graph, node.config)
 
@@ -238,11 +238,11 @@ class TestPrepareApprovalArgs:
         ctx = args[4]
         assert ctx["inputs"] == {}
 
-    def test_timeout_at_computed_from_config(self) -> None:
-        """timeout_at is ISO string when approver_timeout is set."""
+    def test_timeout_at_computed_from_settings(self) -> None:
+        """timeout_at is ISO string when settings.timeout is set."""
         wf = _make_workflow()
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review", "approver_timeout": 3600})
+        node = ActivityNode("approval", "approval", {"name": "Review"}, settings=NodeSettings(timeout=3600))
 
         args = wf._prepare_approval_args(node, graph, node.config)
 
@@ -252,15 +252,19 @@ class TestPrepareApprovalArgs:
         assert parsed.year == 2026
         assert parsed.hour == 13  # 12:00 + 1 hour
 
-    def test_timeout_at_none_when_not_configured(self) -> None:
-        """timeout_at is None when approver_timeout is not in config."""
+    def test_timeout_at_defaults_to_catalog_value_when_not_configured(self) -> None:
+        """timeout_at falls back to the catalog default (86400s) when approver_timeout is absent."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
         args = wf._prepare_approval_args(node, graph, node.config)
 
-        assert args[5] is None
+        timeout_at = args[5]
+        assert timeout_at is not None
+        parsed = datetime.fromisoformat(timeout_at)
+        mock_now = datetime(2026, 4, 10, 12, 0, 0, tzinfo=UTC)
+        assert parsed == mock_now + timedelta(seconds=86400)
 
     def test_next_step_rejected_always_none(self) -> None:
         """next_step_rejected is None (port-based routing not yet implemented)."""

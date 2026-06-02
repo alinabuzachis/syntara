@@ -5,7 +5,9 @@
   "description": "Multi-case expression-based branching",
   "configSchema": {
     "type": "object",
-    "required": ["cases"],
+    "required": [
+      "cases"
+    ],
     "properties": {
       "cases": {
         "type": "array",
@@ -13,7 +15,11 @@
         "minItems": 1,
         "items": {
           "type": "object",
-          "required": ["port", "label", "condition"],
+          "required": [
+            "port",
+            "label",
+            "condition"
+          ],
           "properties": {
             "port": {
               "type": "string",
@@ -46,13 +52,22 @@
     },
     "additionalProperties": false
   },
+  "settingSchema": {
+    "type": "object",
+    "description": "Switch nodes have no user-configurable settings. A fixed internal timeout applies.",
+    "properties": {},
+    "additionalProperties": false
+  },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
     "oneOf": [
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "matched_port"],
+        "required": [
+          "status",
+          "matched_port"
+        ],
         "properties": {
           "status": {
             "type": "string",

@@ -5,12 +5,17 @@
   "description": "Iterate over collections or conditions (for_each/do_while)",
   "configSchema": {
     "type": "object",
-    "required": ["type"],
+    "required": [
+      "type"
+    ],
     "oneOf": [
       {
         "title": "for_each Loop",
         "type": "object",
-        "required": ["type", "items"],
+        "required": [
+          "type",
+          "items"
+        ],
         "properties": {
           "type": {
             "const": "for_each"
@@ -24,6 +29,11 @@
               "${previous_node.items}",
               "[\"server1\", \"server2\", \"server3\"]"
             ]
+          },
+          "max_iterations": {
+            "type": "integer",
+            "description": "Maximum number of items to process. The node fails with an error if this limit is reached. Falls back to the system-configured default if not specified.",
+            "minimum": 1
           }
         },
         "additionalProperties": false
@@ -31,7 +41,10 @@
       {
         "title": "do_while Loop",
         "type": "object",
-        "required": ["type", "condition"],
+        "required": [
+          "type",
+          "condition"
+        ],
         "properties": {
           "type": {
             "const": "do_while"
@@ -47,15 +60,23 @@
           },
           "max_iterations": {
             "type": "integer",
-            "description": "Maximum number of iterations (safety limit)",
-            "minimum": 1,
-            "maximum": 10000,
-            "default": 1000
+            "description": "Maximum number of iterations. The node fails with an error if this limit is reached while the condition is still true. Falls back to the system-configured default if not specified.",
+            "minimum": 1
           }
         },
         "additionalProperties": false
       }
     ]
+  },
+  "settingSchema": {
+    "type": "object",
+    "properties": {
+      "continue_on_failure": {
+        "type": "boolean",
+        "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
+      }
+    },
+    "additionalProperties": false
   },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
@@ -63,7 +84,10 @@
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status", "iteration_count"],
+        "required": [
+          "status",
+          "iteration_count"
+        ],
         "properties": {
           "status": {
             "type": "string",
@@ -84,13 +108,33 @@
             },
             "examples": [
               {
-                "patch_server.status": ["running", "stopped", "running"],
-                "patch_server.hostname": ["server1.example.com", "server2.example.com", "server3.example.com"],
-                "patch_server.patch_count": [5, 12, 3]
+                "patch_server.status": [
+                  "running",
+                  "stopped",
+                  "running"
+                ],
+                "patch_server.hostname": [
+                  "server1.example.com",
+                  "server2.example.com",
+                  "server3.example.com"
+                ],
+                "patch_server.patch_count": [
+                  5,
+                  12,
+                  3
+                ]
               },
               {
-                "run_job.job_id": [12345, 12346, 12347],
-                "run_job.success": [true, false, true]
+                "run_job.job_id": [
+                  12345,
+                  12346,
+                  12347
+                ],
+                "run_job.success": [
+                  true,
+                  false,
+                  true
+                ]
               }
             ]
           }

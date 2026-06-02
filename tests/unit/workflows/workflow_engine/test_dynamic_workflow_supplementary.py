@@ -9,7 +9,7 @@ Covers gaps not addressed by the DEV tests:
 - _loop_body_complete: empty body and nested-loop-still-iterating edge cases
 - _clear_loop_body: non-dict results, multiple-iteration accumulation
 - get_skipped_nodes: includes failed-downstream nodes
-- per-node timeout: config.timeout overrides DEFAULT_ACTIVITY_TIMEOUT_SECONDS
+- per-node timeout: settings.timeout overrides the per-type catalog default
 """
 
 import asyncio
@@ -21,10 +21,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
-from nexus.workflows.workflow_engine.constants import DEFAULT_AAP_TIMEOUT_SECONDS
-from nexus.workflows.workflow_engine.dynamic_workflow import DEFAULT_ACTIVITY_TIMEOUT_SECONDS, NexusWorkflow
+from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeSettings, NodeType
 
 
 @pytest.fixture(autouse=True)
@@ -174,6 +174,7 @@ class TestExecuteExecutorNodeUnknownType:
             node_type="totally_unknown",
             resolved_config={"some": "config"},
             outputs=None,
+            timeout_seconds=30,
         )
         assert result["output"]["status"] == "skipped"
         assert "Unknown executor type" in result["output"]["reason"]
@@ -582,33 +583,41 @@ class TestGetActivityOutputEdgeCases:
         assert result["version"] == 2
 
 
+_TEMPORAL_MARGIN = NexusWorkflow._TEMPORAL_MARGIN
+
+
 class TestPerNodeTimeout:
-    """Test that config.timeout overrides DEFAULT_ACTIVITY_TIMEOUT_SECONDS."""
+    """Test that settings.timeout overrides the per-type catalog default."""
 
     @pytest.mark.asyncio
     async def test_custom_timeout_passed_to_executor_node(
         self,
         _mock_temporal_workflow: MagicMock,  # noqa: PT019
     ) -> None:
-        """A node with config.timeout=60 should use 60s instead of the default."""
+        """settings.timeout=60 on a script node → Temporal gets 60 + margin."""
         _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
 
         wf = _make_workflow()
-        node = ActivityNode(node_id="node_custom", node_type="script", config={"timeout": 60, "script": "echo hello"})
+        node = ActivityNode(
+            node_id="node_custom",
+            node_type="script",
+            config={"script": "echo hello"},
+            settings=NodeSettings(timeout=60),
+        )
         graph = _build_chain_graph()
 
         await wf._execute_node(node=node, graph=graph)
 
         _mock_temporal_workflow.execute_activity.assert_called_once()
         call_kwargs = _mock_temporal_workflow.execute_activity.call_args
-        assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=60)
+        assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=60 + _TEMPORAL_MARGIN)
 
     @pytest.mark.asyncio
     async def test_default_timeout_used_when_not_specified(
         self,
         _mock_temporal_workflow: MagicMock,  # noqa: PT019
     ) -> None:
-        """A node without config.timeout should use DEFAULT_ACTIVITY_TIMEOUT_SECONDS."""
+        """Script node with no settings.timeout → catalog default + margin."""
         _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
 
         wf = _make_workflow()
@@ -619,31 +628,15 @@ class TestPerNodeTimeout:
 
         _mock_temporal_workflow.execute_activity.assert_called_once()
         call_kwargs = _mock_temporal_workflow.execute_activity.call_args
-        assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
-
-    @pytest.mark.asyncio
-    async def test_timeout_preserved_in_config_for_activity(
-        self,
-        _mock_temporal_workflow: MagicMock,  # noqa: PT019
-    ) -> None:
-        """The timeout key should remain in resolved_config (not popped)."""
-        _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
-
-        wf = _make_workflow()
-        node = ActivityNode(node_id="node_keep", node_type="script", config={"timeout": 90, "script": "echo hello"})
-        graph = _build_chain_graph()
-
-        await wf._execute_node(node=node, graph=graph)
-
-        # Verify timeout is still in the stored node_inputs (config wasn't mutated)
-        assert wf.node_inputs["node_keep"]["timeout"] == 90
+        expected = NexusWorkflow._get_default_timeout(NodeType.SCRIPT) + _TEMPORAL_MARGIN
+        assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=expected)
 
     @pytest.mark.asyncio
     async def test_aap_job_template_uses_aap_default_timeout(
         self,
         _mock_temporal_workflow: MagicMock,  # noqa: PT019
     ) -> None:
-        """An aap_job_template node without config.timeout should use DEFAULT_AAP_TIMEOUT_SECONDS."""
+        """AAP node with no settings.timeout → catalog default + margin."""
         _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
 
         wf = _make_workflow()
@@ -654,4 +647,5 @@ class TestPerNodeTimeout:
 
         _mock_temporal_workflow.execute_activity.assert_called_once()
         call_kwargs = _mock_temporal_workflow.execute_activity.call_args
-        assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=DEFAULT_AAP_TIMEOUT_SECONDS)
+        expected = NexusWorkflow._get_default_timeout(NodeType.AAP_JOB_TEMPLATE) + _TEMPORAL_MARGIN
+        assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=expected)
