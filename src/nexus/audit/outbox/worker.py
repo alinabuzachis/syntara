@@ -255,7 +255,7 @@ class AuditOutboxWorker(PeriodicWorker):
         """
         try:
             outbox_record = AuditOutboxRecord(
-                event_source=AuditEventSource.CRUD_EVENT,
+                event_source=AuditEventSource.BUSINESS_EVENT,
                 event_payload=event.model_dump(mode="json"),
             )
             session.add(outbox_record)

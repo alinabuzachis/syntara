@@ -182,6 +182,35 @@ class TestAuditEventWriterWrite:
             assert record.event_category == "system_operation"
 
     @pytest.mark.asyncio
+    async def test_write_creates_outbox_record_with_business_event_source(
+        self, test_session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Test that write_to_outbox creates an outbox record with event_source=BUSINESS_EVENT."""
+        worker = AuditOutboxWorker(
+            name="audit-outbox-worker",
+            interval_seconds=1,
+            session_factory=test_session_factory,
+            audit_session_factory=test_session_factory,
+            audit_callback=publish_outbox_events,
+            coordinate=True,
+        )
+        event = _make_event()
+
+        # Use a session from the test fixture and call write_to_outbox
+        async with test_session_factory() as session:
+            # Convert AsyncSession to sync Session for the synchronous write_to_outbox
+            worker.write_to_outbox(event, session.sync_session)
+            await session.commit()
+
+        # Verify outbox record was created with correct event_source before publish
+        async with test_session_factory() as session:
+            result = await session.exec(select(AuditOutboxRecord))
+            outbox_records = result.all()
+            assert len(outbox_records) == 1
+            assert outbox_records[0].event_source == AuditEventSource.BUSINESS_EVENT
+            assert outbox_records[0].event_payload == event.model_dump(mode="json")
+
+    @pytest.mark.asyncio
     async def test_write_handles_database_error(self) -> None:
         """Test that _write logs exceptions instead of raising."""
         mock_session = AsyncMock()
