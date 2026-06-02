@@ -413,6 +413,15 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     "identity-provider:update:any",
     "identity-provider:delete:any",
     "identity-provider:test:any",
+    # Integration management — CRUD follows same authz path as credentials
+    "integration:create:any",
+    "integration:read:any",
+    "integration:read:project",
+    "integration:update:any",
+    "integration:delete:any",
+    # Admin revocation — admin-only endpoints
+    "admin:revocation:read:any",
+    "admin:revocation:execute:any",
     # Settings (write) — read tested e2e
     "setting:write:any",
     # Authz query
