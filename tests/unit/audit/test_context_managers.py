@@ -198,15 +198,18 @@ class TestActorContext:
 class TestActorContextSystemUserClassification:
     """Test system user classification in actor_context context manager."""
 
-    async def test_system_user_classified_as_system_actor(self, user_factory: Callable[..., Awaitable["User"]]) -> None:
+    async def test_system_user_classified_as_system_actor(self) -> None:
         """Test that user with id == settings.system_user_id is classified as SYSTEM in actor_context."""
         from nexus.core.config.base import get_settings
 
         settings = get_settings()
-        system_user = await user_factory(
+        system_user = User(
+            id=settings.system_user_id,
             username="system_user",
             email="system@example.com",
-            id=settings.system_user_id,
+            first_name="System",
+            last_name="User",
+            password_hash="not-a-real-hash",  # noqa: S106
         )
 
         with actor_context(actor=system_user):
@@ -247,17 +250,18 @@ class TestAuditContextSystemUserClassification:
         AuditEventDispatcher.reset()
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    async def test_system_user_classified_as_system_actor(
-        self, mock_emit: Mock, user_factory: Callable[..., Awaitable["User"]]
-    ) -> None:
+    async def test_system_user_classified_as_system_actor(self, mock_emit: Mock) -> None:
         """Test that user with id == settings.system_user_id is classified as SYSTEM in audit_context."""
         from nexus.core.config.base import get_settings
 
         settings = get_settings()
-        system_user = await user_factory(
+        system_user = User(
+            id=settings.system_user_id,
             username="system_user",
             email="system@example.com",
-            id=settings.system_user_id,
+            first_name="System",
+            last_name="User",
+            password_hash="not-a-real-hash",  # noqa: S106
         )
 
         with audit_context(

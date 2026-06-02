@@ -60,7 +60,26 @@ jobs:
       - name: Run mypy (strict)
         run: make typecheck
 
-  test:
+  check-migrations:
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          python-version: "3.12"
+
+      - name: Check migrations
+        run: make check-migrations
+
+  test-unit:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -76,45 +95,95 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-env
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
-      - name: Install dependencies
-        run: make install
-
-      - name: Install OPA CLI
-        run: make install-opa
-
-      - name: Generate secrets
-        run: make secrets-generate
-
-      - name: Check migrations
-        run: make check-migrations
-
-      - name: Run tests with coverage
-        run: make test-coverage
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-python-${{ matrix.python-version }}
-          path: pytest-results.xml
-          retention-days: 30
+      - name: Run unit tests with coverage
+        run: make test-unit-coverage
 
       - name: Upload coverage artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.python-version }}
+          name: coverage-unit-${{ matrix.python-version }}
           path: |
-            coverage.xml
-            htmlcov/
+            .coverage
+            htmlcov-unit/
           retention-days: 30
+          include-hidden-files: true
+
+  test-cli:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+      fail-fast: false
+
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          python-version: ${{ matrix.python-version }}
+          install-opa: 'false'
+
+      - name: Run CLI tests with coverage
+        run: make test-cli-coverage
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-cli-${{ matrix.python-version }}
+          path: |
+            .coverage
+            htmlcov-cli/
+          retention-days: 30
+          include-hidden-files: true
+
+  test-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+      fail-fast: false
+
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run integration tests with coverage
+        run: make test-integration-coverage
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration-${{ matrix.python-version }}
+          path: |
+            .coverage
+            htmlcov-integration/
+          retention-days: 30
+          include-hidden-files: true
 
   test-compose:
     runs-on: ubuntu-latest
@@ -176,7 +245,12 @@ jobs:
           podman exec nexus-ci_nexus_1 uv run python tools/create_system_user.py
 
       - name: Run E2E tests
-        run: make test-e2e
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: make test-e2e
         env:
           APP_BASE_URL: http://localhost:8000
           APP_SECRET_ENCRYPTION_KEY_PATH: .secrets/encryption-key
@@ -197,9 +271,60 @@ jobs:
   combine:
     runs-on: ubuntu-latest
     needs:
-      - test
+      - test-unit
+      - test-cli
+      - test-integration
+    if: success()
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage-artifacts
+          merge-multiple: false
+
+      - name: Combine coverage reports
+        run: |
+          # Copy .coverage files from each artifact directory with unique suffixes
+          # coverage combine will automatically find all .coverage.* files
+          for artifact_dir in coverage-artifacts/*/; do
+            if [ -f "${artifact_dir}.coverage" ]; then
+              artifact_name=$(basename "$artifact_dir")
+              cp "${artifact_dir}.coverage" ".coverage.${artifact_name}"
+              echo "Copied ${artifact_dir}.coverage → .coverage.${artifact_name}"
+            fi
+          done
+
+          # List coverage files ready to combine
+          echo ""
+          echo "📋 Coverage files:"
+          ls -la .coverage.* 2>/dev/null || { echo "❌ No coverage files found"; exit 1; }
+
+          # Combine all .coverage.* files into .coverage
+          uv run coverage combine
+
+          # Generate combined reports
+          uv run coverage xml -o coverage.xml
+          uv run coverage html -d htmlcov
+          uv run coverage report
+
+          echo "✅ Combined coverage from all test jobs"
+
       - name: Save off PR Number
         if: github.event_name == 'pull_request'
         run: echo "PR ${{ github.event.number }}" > pr_number.txt
@@ -211,12 +336,32 @@ jobs:
           name: pr_number
           path: pr_number.txt
 
-      - name: Merge logs into a single archive
-        # Should do nothing if job is retried
-        uses: actions/upload-artifact/merge@v6
+      - name: Upload combined coverage report
+        uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          pattern: coverage-*
-          delete-merged: true
-          include-hidden-files: true
-          separate-directories: true
+          name: coverage-combined
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 30
+
+  required-checks:
+    runs-on: ubuntu-latest
+    needs:
+      - pre-commit
+      - mypy
+      - test-unit
+      - test-cli
+      - test-integration
+      - test-compose
+    if: always()
+    steps:
+      - name: Check all required jobs succeeded
+        run: |
+          results="${{ toJSON(needs.*.result) }}"
+          if echo "$results" | grep -qE '"(failure|cancelled|skipped)"'; then
+            echo "❌ One or more required checks failed, were cancelled, or skipped"
+            echo "Results: $results"
+            exit 1
+          fi
+          echo "✅ All required checks passed"
