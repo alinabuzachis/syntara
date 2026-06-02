@@ -2,8 +2,8 @@
 
 Read operations are served by :meth:`BaseService.list_resources` using the
 :class:`AuditEventConvertMixin` for ``AuditEventRecord`` → ``AuditEventRead``
-conversion.  Write operations are handled by
-:mod:`nexus.audit.services.writer`.
+conversion.  Write operations are handled by the transactional outbox pattern
+(:mod:`nexus.audit.outbox`).
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ class AuditEventService(BaseService):
 
     Methods inherited from ``BaseService`` (notably ``list_resources``)
     handle request-scoped read operations.  Write operations are handled by
-    :class:`~nexus.audit.services.writer.AuditEventWriter`.
+    the transactional outbox pattern (:mod:`nexus.audit.outbox`).
     """
 
     def __init__(self, session: AsyncSession, user: User) -> None:

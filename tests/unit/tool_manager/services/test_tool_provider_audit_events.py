@@ -57,7 +57,6 @@ class TestToolProviderServiceAuditEvents:
             ToolProviderValidationHandler,
         )
 
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 ToolProviderCreateEvent: ToolProviderCreateHandler(),
@@ -67,10 +66,6 @@ class TestToolProviderServiceAuditEvents:
                 ToolProviderRefreshEvent: ToolProviderRefreshHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset dispatcher after each test."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")

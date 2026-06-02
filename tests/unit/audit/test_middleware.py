@@ -142,11 +142,7 @@ class TestAuditMiddlewareBasic:
     """Basic audit middleware functionality."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_filters_routes_with_context_id_params(self) -> None:
         """Middleware pre-filters routes to only those with context ID path params."""
@@ -221,11 +217,7 @@ class TestAuditMiddlewareQueryParams:
     """Query parameter parsing and logging."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_logs_query_parameters(self) -> None:
@@ -319,11 +311,7 @@ class TestAuditMiddlewareExclusions:
     """Excluded paths and non-HTTP scopes are not logged."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("path", sorted(EXCLUDED_PATHS))
@@ -396,11 +384,7 @@ class TestAuditMiddlewareUserContext:
     """User information is logged when available."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_logs_user_information(self, test_user: User, create_jwt_for_user: Callable[[User], str]) -> None:
@@ -621,11 +605,7 @@ class TestAuditMiddlewareResponse:
     """Response completion is logged with status code."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_logs_status_code_from_response(self) -> None:
@@ -880,11 +860,7 @@ class TestAuditMiddlewareSourceComponent:
     """request_completed uses the resolved endpoint module as source_component."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_source_component_from_endpoint(self) -> None:
@@ -940,11 +916,7 @@ class TestAuditMiddlewareContextIds:
     """Context IDs (workflow, execution, activity) are resolved from the request."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_workflow_id_from_path_params(self) -> None:
@@ -1145,11 +1117,7 @@ class TestAuditMiddlewareSanitization:
     """Path normalization, control character stripping, and length capping."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_path_normalized_before_logging(self) -> None:
@@ -1320,11 +1288,7 @@ class TestAuditMiddlewareErrorResilience:
     """Audit event emission failures do not crash requests."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_request_succeeds_when_emit_raises(self) -> None:
@@ -1372,11 +1336,7 @@ class TestAuditMiddlewareRequestId:
     """Tests for X-Request-Id header extraction and ContextVar propagation."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_valid_request_id_sets_context_var(self) -> None:
@@ -1482,11 +1442,7 @@ class TestAuditMiddlewareContentLength:
     """Tests for Content-Length header extraction and request_payload_size logging."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_content_length_valid(self) -> None:

@@ -38,12 +38,7 @@ class TestFileManagerAuditEvents:
             FilesUploadedHandler,
         )
 
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FilesUploadedEvent: FilesUploadedHandler()})
-
-    def teardown_method(self) -> None:
-        """Reset dispatcher after each test."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -174,12 +169,7 @@ class TestDocumentConversionServiceAuditEvents:
             FileConvertedHandler,
         )
 
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FileConvertedEvent: FileConvertedHandler()})
-
-    def teardown_method(self) -> None:
-        """Reset dispatcher after each test."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")

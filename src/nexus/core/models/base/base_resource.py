@@ -6,6 +6,7 @@ system-managed metadata fields (id, timestamps, labels) for all API resources.
 
 from abc import ABC
 from datetime import UTC, datetime
+from enum import Enum
 from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
@@ -18,6 +19,23 @@ from sqlmodel import DateTime, Field, SQLModel
 
 from nexus.core.constants import ValidationMessages
 from nexus.core.exceptions import SafeValueError
+
+
+class AuditLevel(str, Enum):
+    """Audit trail granularity for SQLModel resources.
+
+    Controls what data is captured in the automatic CRUD audit trail:
+
+    - FULL: Capture all mapped columns (default for most models)
+    - META: Capture only metadata fields (id, timestamps, labels) + model-specific fields
+            defined in __auditable_fields__. Use for models with sensitive data like Credential.
+    - NONE: Skip auditing entirely (use for recursive audit tables like AuditEventRecord)
+
+    """
+
+    FULL = "full"
+    META = "meta"
+    NONE = "none"
 
 
 def _utc_now() -> datetime:
@@ -124,6 +142,15 @@ class BaseResource(SQLModel, ABC):
         "created_at",
         "updated_at",
     ]
+
+    # Audit trail configuration
+    # Set to AuditLevel.NONE to disable auditing, AuditLevel.META to audit only metadata
+    __auditable__: ClassVar[AuditLevel] = AuditLevel.FULL
+
+    # Meta-only audit fields (used when __auditable__ = AuditLevel.META)
+    # Include BaseResource standard fields (id, timestamps, labels) plus model-specific safe fields.
+    # Example for Credential: ["id", "created_at", "updated_at", "labels", "name", "credential_type_id", "enabled"]
+    __auditable_fields__: ClassVar[list[str]] = []
 
     FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
         "id": {"readOnly": True, "example": "550e8400-e29b-41d4-a716-446655440000"},

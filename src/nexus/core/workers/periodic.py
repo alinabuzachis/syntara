@@ -161,7 +161,7 @@ class PeriodicWorker:
             return
 
         self._task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
+        with contextlib.suppress(BaseException):
             await self._task
         self._task = None
 

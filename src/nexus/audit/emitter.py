@@ -8,13 +8,18 @@ from typing import TYPE_CHECKING, NamedTuple
 import structlog
 
 from nexus.audit.models.audit_event import ActorType, AuditEvent
-from nexus.audit.sanitization import EventSanitizer, redact_by_partial_key, redact_email
+from nexus.audit.otel_logging import AUDIT_LOGGER_NAME
+from nexus.audit.outbox.worker import get_outbox_worker
+from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
+from nexus.core.config.base import get_settings
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-audit_logger = structlog.stdlib.get_logger("nexus.audit")
+    from sqlalchemy.orm import Session
+
+audit_logger = structlog.stdlib.get_logger(AUDIT_LOGGER_NAME)
 
 # Operational logger for diagnostics when audit emission itself fails.
 # Deliberately separate from ``audit_logger`` so failure notices don't
@@ -42,44 +47,22 @@ execution_id_context_var: ContextVar[UUID | None] = ContextVar("execution_id", d
 request_id_context_var: ContextVar[UUID | None] = ContextVar("request_id", default=None)
 
 
-# Fixed sanitizer with comprehensive PII detectors
-_sanitizer = EventSanitizer(
-    detectors=[
-        redact_by_partial_key(
-            [
-                "password",
-                "secret",
-                "token",
-                "_key",
-                "key_",
-                "auth",
-                "credential",
-                "credentials",
-                "session",
-                "cookie",
-                "jwt",
-                "bearer",
-                "authorization_code",
-                "certificate",
-                "cert",
-                "pem",
-                "oauth",
-                "authentication",
-            ]
-        ),
-        redact_email,
-    ]
-)
+def emit_audit_event(event: AuditEvent, session: Session | None = None) -> None:
+    """Emit structured audit log entry to stdout and outbox with automatic context injection.
 
-
-def emit_audit_event(event: AuditEvent) -> None:
-    """Emit structured audit log entry to stdout with automatic context injection.
+    Args:
+        event: The audit event to emit
+        session: Optional Session for transactional outbox write.
+                If provided, the event is written to the outbox in the same
+                transaction as the caller's business logic (guaranteeing
+                at-least-once delivery).
 
     Fail-safe: any exception raised during context injection, sanitisation,
-    payload enforcement, or the underlying log call is caught and reported
-    via the operational logger. Audit capture must never fail the business
-    operation it is instrumenting — callers can rely on this function
+    payload enforcement, or the underlying log/outbox write is caught and
+    reported via the operational logger. Audit capture must never fail the
+    business operation it is instrumenting — callers can rely on this function
     not to raise.
+
     """
     try:
         # Inject current context if not already set
@@ -106,10 +89,10 @@ def emit_audit_event(event: AuditEvent) -> None:
             event.structured_data.request_id = str(_request_id)
 
         # Sanitize and enforce payload limits before emitting
-        event.structured_data = _sanitizer.sanitize(event.structured_data)
+        event.structured_data = sanitizer.sanitize(event.structured_data)
         event.structured_data = enforce_payload_limit(event.structured_data, DEFAULT_MAX_PAYLOAD_BYTES)
 
-        _do_emit_audit_event(event)
+        _do_emit_audit_event(event, session)
     except Exception:
         logger.exception(
             "Audit event emission failed — event dropped",
@@ -119,15 +102,26 @@ def emit_audit_event(event: AuditEvent) -> None:
         )
 
 
-def _do_emit_audit_event(event: AuditEvent) -> None:
+def _do_emit_audit_event(event: AuditEvent, session: Session | None = None) -> None:
+    """Emit audit event to structured logs and outbox.
+
+    Args:
+        event: The audit event to emit (already sanitized and size-enforced)
+        session: Optional Session for transactional outbox write.
+                If provided, writes the outbox record to the session (caller must commit).
+                This guarantees atomic write with business logic changes.
+                If None, creates a background task to write to outbox with a new session.
+
+    """
+    # Check if auditing is globally enabled
+    settings = get_settings()
+    if not settings.auditing_enabled:
+        return
+
     # Emit as structured log entry for downstream log aggregation.
-    # Alternative implementations could emit the AuditEvent to OTEL etc.
     event_dict = event.model_dump(mode="json")
     audit_logger.info("audit_event", **event_dict)
 
-    # Enqueue for database persistence via the audit event writer (non-blocking).
-    from nexus.audit.services.writer import get_audit_writer  # noqa: PLC0415
-
-    writer = get_audit_writer()
-    if writer is not None:
-        writer.enqueue(event)
+    # Write to outbox table for guaranteed delivery
+    outbox_worker = get_outbox_worker()
+    outbox_worker.write_to_outbox(event, session)

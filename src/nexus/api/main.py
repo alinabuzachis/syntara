@@ -21,10 +21,9 @@ from temporalio.service import RPCError
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
 import nexus.identity_providers.exceptions
 from nexus.api.constants import API_V1_PATH_PREFIX
-from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.lifecycle import start_audit_components, stop_audit_components
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.registration import discover_and_register_all_handlers
-from nexus.audit.services.writer import init_audit_writer
 from nexus.auth.middleware import StaleTokenMiddleware
 from nexus.auth.session.cleanup import get_session_cleanup_worker
 from nexus.authz.exceptions import (  # noqa: F401
@@ -36,7 +35,7 @@ from nexus.authz.exceptions import (  # noqa: F401
 )
 from nexus.authz.opa_client import OPAClient
 from nexus.core.config.base import get_settings
-from nexus.core.database.audit_session import AuditSessionLocal, audit_engine
+from nexus.core.database.audit_session import audit_engine
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
     generic_exception_handler,
@@ -102,8 +101,12 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
 
     Returns a dict of resources needed for shutdown.
     """
-    settings = get_settings()
+    # Initialise Audit framework first to ensure all Audit Events are captured
+    discover_and_register_all_handlers()
+    start_audit_components()
 
+    # Initialise Settings
+    settings = get_settings()
     await _check_settings_catalog()
 
     # Initialize the process-wide settings cache
@@ -165,8 +168,6 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         maxsize=settings.opa_cache_maxsize,
     )
 
-    discover_and_register_all_handlers()
-
     # Initialize telemetry (reads installation ID from database)
     await initialize_telemetry()
 
@@ -190,16 +191,10 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     session_cleanup_worker = get_session_cleanup_worker()
     session_cleanup_worker.start()
 
-    # Initialize audit event database persistence
-    audit_writer = init_audit_writer(session_factory=AuditSessionLocal)
-    app.state.audit_writer = audit_writer
-    logger.info("Audit event writer initialized")
-
     periodic_collector.start()
     logger.info("Periodic analytics collector started")
 
     return {
-        "audit_writer": audit_writer,
         "opa_client": opa_client,
         "lifecycle_manager": lifecycle_manager,
         "periodic_collector": periodic_collector,
@@ -213,10 +208,6 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
 
 async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     """Clean up application resources during shutdown."""
-    # Wait for in-flight audit writes to complete
-    await resources["audit_writer"].drain()
-    logger.info("Audit event writer drained")
-
     await resources["queue_depth_poller"].stop()
     await resources["session_cleanup_worker"].stop()
     await resources["metrics_cleanup_worker"].stop()
@@ -235,14 +226,14 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
 
     await resources["opa_client"].stop()
 
+    # Flush audit components last to ensure all events are captured
+    await stop_audit_components()
+
     await audit_engine.dispose()
     logger.info("Audit database engine disposed")
 
     await engine.dispose()
     logger.info("Database engine disposed")
-
-    AuditEventDispatcher.reset()
-    logger.info("Audit dispatcher reset")
 
     lock_file = _get_lock_file_path()
     try:

@@ -2,7 +2,7 @@
 
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -51,9 +51,10 @@ async def test_list_audit_events_success(
     audit_events_factory: AuditEventsFactory,
 ) -> None:
     """Test successful listing of audit events."""
-    await audit_events_factory.create_events(count=3)
+    _uuid: str = str(uuid4())
+    await audit_events_factory.create_events(count=3, event_action_prefix=_uuid)
 
-    response = await auth_client_as_admin.get(AUDIT_URL)
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_action[contains]={_uuid}")
 
     assert response.status_code == 200
     data = response.json()
@@ -65,7 +66,7 @@ async def test_list_audit_events_success(
 @pytest.mark.asyncio
 async def test_list_audit_events_empty(auth_client_as_admin: AsyncClient) -> None:
     """Test listing returns an empty result set when no events exist."""
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?include_total=true")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?include_total=true&event_action[contains]={uuid4()!s}")
 
     assert response.status_code == 200
     data = response.json()
@@ -80,10 +81,11 @@ async def test_list_audit_events_response_schema(
     test_user: User,
 ) -> None:
     """Test response contains expected pagination and resource fields."""
+    _uuid: str = str(uuid4())
     await audit_events_factory.create_event(
         event_category="security_event",
         event_severity="warning",
-        event_action="login_failed",
+        event_action=_uuid,
         actor_id=test_user.id,
         actor_type="user",
         actor_username=test_user.username,
@@ -91,7 +93,7 @@ async def test_list_audit_events_response_schema(
         event_message="Invalid credentials",
     )
 
-    response = await auth_client_as_admin.get(AUDIT_URL)
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_action[contains]={_uuid}")
 
     assert response.status_code == 200
     data = response.json()
@@ -115,7 +117,7 @@ async def test_list_audit_events_response_schema(
         assert field in event
     assert event["event_category"] == "security_event"
     assert event["event_severity"] == "warning"
-    assert event["event_action"] == "login_failed"
+    assert event["event_action"] == str(_uuid)
     assert event["actor_id"] == str(test_user.id)
     assert event["actor_type"] == "user"
     assert event["actor_username"] == test_user.username
@@ -129,9 +131,10 @@ async def test_list_audit_events_with_include_total(
     audit_events_factory: AuditEventsFactory,
 ) -> None:
     """Test listing audit events with total count."""
-    await audit_events_factory.create_events(count=5)
+    _uuid: UUID = uuid4()
+    await audit_events_factory.create_events(count=5, event_action_prefix=str(_uuid))
 
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?include_total=true")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?include_total=true&event_action[contains]={_uuid!s}")
 
     assert response.status_code == 200
     assert response.json()["total"] == 5
@@ -162,15 +165,17 @@ async def test_list_audit_events_filter_by_event_category(
     audit_events_factory: AuditEventsFactory,
 ) -> None:
     """Test filtering by event_category returns only matching events."""
-    await audit_events_factory.create_event(event_category="user_action")
-    await audit_events_factory.create_event(event_category="system_operation")
-    await audit_events_factory.create_event(event_category="user_action")
+    _uuid: str = str(uuid4())
+    await audit_events_factory.create_event(event_category="user_action", event_action=_uuid)
+    await audit_events_factory.create_event(event_category="system_operation", event_action=_uuid)
+    await audit_events_factory.create_event(event_category="user_action", event_action=_uuid)
 
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_category=user_action")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_category=user_action&event_action={_uuid}")
 
     assert response.status_code == 200
     data = response.json()
     assert len(data["resources"]) == 2
+    assert all(r["event_action"] == _uuid for r in data["resources"])
     assert all(r["event_category"] == "user_action" for r in data["resources"])
 
 
@@ -180,11 +185,12 @@ async def test_list_audit_events_filter_by_event_severity(
     audit_events_factory: AuditEventsFactory,
 ) -> None:
     """Test filtering by event_severity returns only matching events."""
-    await audit_events_factory.create_event(event_severity="info")
-    await audit_events_factory.create_event(event_severity="warning")
-    await audit_events_factory.create_event(event_severity="error")
+    _uuid: str = str(uuid4())
+    await audit_events_factory.create_event(event_severity="info", event_action=_uuid)
+    await audit_events_factory.create_event(event_severity="warning", event_action=_uuid)
+    await audit_events_factory.create_event(event_severity="error", event_action=_uuid)
 
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_severity=error")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_severity=error&event_action={_uuid}")
 
     assert response.status_code == 200
     data = response.json()
@@ -198,11 +204,12 @@ async def test_list_audit_events_filter_by_event_status(
     audit_events_factory: AuditEventsFactory,
 ) -> None:
     """Test filtering by event_status returns only matching events."""
-    await audit_events_factory.create_event(event_status="success")
-    await audit_events_factory.create_event(event_status="error")
-    await audit_events_factory.create_event(event_status="success")
+    _uuid: str = str(uuid4())
+    await audit_events_factory.create_event(event_status="success", event_action=_uuid)
+    await audit_events_factory.create_event(event_status="error", event_action=_uuid)
+    await audit_events_factory.create_event(event_status="success", event_action=_uuid)
 
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_status=success")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_status=success&event_action[contains]={_uuid}")
 
     assert response.status_code == 200
     data = response.json()
@@ -434,10 +441,11 @@ async def test_list_audit_events_sort_by_event_status(
     audit_events_factory: AuditEventsFactory,
 ) -> None:
     """Test sort by event_status ascending."""
+    _uuid: str = str(uuid4())
     for status in ("success", "error", "success"):
-        await audit_events_factory.create_event(event_status=status)
+        await audit_events_factory.create_event(event_status=status, event_action=_uuid)
 
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?sort=event_status")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?event_action={_uuid}&sort=event_status")
 
     assert response.status_code == 200
     statuses = [r["event_status"] for r in response.json()["resources"]]
@@ -453,7 +461,7 @@ async def test_list_audit_events_sort_by_actor_type(
     for actor_type in ("user", "system", "service"):
         await audit_events_factory.create_event(actor_type=actor_type)
 
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?sort=actor_type")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?sort=actor_type&event_action[contains]=action")
 
     assert response.status_code == 200
     actor_types = [r["actor_type"] for r in response.json()["resources"]]
@@ -466,10 +474,11 @@ async def test_list_audit_events_sort_by_resource_name(
     audit_events_factory: AuditEventsFactory,
 ) -> None:
     """Test sort by resource_name ascending."""
+    _uuid: str = str(uuid4())
     for name in ("workflow-z", "workflow-a", "workflow-m"):
-        await audit_events_factory.create_event(resource_name=name)
+        await audit_events_factory.create_event(resource_name=name, event_action=_uuid)
 
-    response = await auth_client_as_admin.get(f"{AUDIT_URL}?sort=resource_name")
+    response = await auth_client_as_admin.get(f"{AUDIT_URL}?sort=resource_name&event_action[contains]={_uuid}")
 
     assert response.status_code == 200
     resource_names = [r["resource_name"] for r in response.json()["resources"]]
@@ -492,21 +501,23 @@ async def test_list_audit_events_paginate_filtered_and_sorted(
     increasing ``created_at`` values, then pages through the filtered set in
     ascending ``created_at`` order using cursor-based pagination.
     """
+    _uuid: str = str(uuid4())
     base = datetime(2025, 3, 1, tzinfo=UTC)
     for i in range(10):
         await audit_events_factory.create_event(
             event_category="user_action",
-            event_action=f"target_{i}",
+            event_action=_uuid,
             created_at=base + timedelta(minutes=i),
         )
     for i in range(5):
         await audit_events_factory.create_event(
             event_category="system_operation",
-            event_action=f"other_{i}",
+            event_action=_uuid,
             created_at=base + timedelta(hours=1, minutes=i),
         )
 
     base_params = {
+        "event_action": _uuid,
         "event_category": "user_action",
         "sort": "created_at",
         "limit": "4",
@@ -648,9 +659,10 @@ async def test_list_audit_events_allowed_for_auditor(
     """Test that a user with the auditor role can list audit events."""
     await make_auditor(test_db_session, test_user)
 
-    await audit_events_factory.create_events(count=2)
+    _uuid: str = str(uuid4())
+    await audit_events_factory.create_events(count=2, event_action_prefix=_uuid)
 
-    response = await auth_client.get(AUDIT_URL)
+    response = await auth_client.get(f"{AUDIT_URL}?event_action[contains]={_uuid}")
 
     assert response.status_code == 200
     data = response.json()

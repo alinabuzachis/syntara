@@ -28,10 +28,11 @@
 
 The audit framework provides **comprehensive, type-safe event tracking** for capturing system activities, user actions, and operational events across the Nexus platform. It follows an event-driven architecture with:
 
-- **Automatic persistence** to dedicated audit database
+- **Guaranteed delivery** via transactional outbox pattern
+- **Automatic CRUD capture** via PostgreSQL database triggers
 - **PII sanitization** and payload size enforcement
 - **Flexible actor detection** with 6-level priority cascade
-- **Multiple instrumentation methods** (decorators, context managers, middleware, domain events)
+- **Multiple instrumentation methods** (decorators, context managers, middleware, domain events, database triggers)
 - **Fail-safe execution** that never breaks business operations
 
 ### Core Components
@@ -40,9 +41,10 @@ The audit framework provides **comprehensive, type-safe event tracking** for cap
 graph TB
     subgraph "Event Sources"
         A1[Domain Events]
-        A2[@audit Decorator]
+        A2[audit Decorator]
         A3[audit_context Manager]
         A4[AuditMiddleware]
+        A5[Database Triggers<br/>CRUD Operations]
     end
 
     subgraph "Event Processing"
@@ -56,21 +58,28 @@ graph TB
         C2[Payload Truncation<br/>10KB Limit]
     end
 
-    subgraph "Persistence"
+    subgraph "Transactional Outbox"
         D1[Structured Logs<br/>stdout]
-        D2[AuditEventWriter<br/>Fire-and-forget DB]
+        D2[audit_outbox Table<br/>Atomic Commit]
+        D3[AuditOutboxWorker<br/>Background Publisher]
+        D4[audit_events Table<br/>Audit Database]
+        D5[OTEL Collector<br/>CRUD Events]
     end
 
     A1 --> B1
     A2 --> B1
     A3 --> B1
     A4 --> B1
+    A5 --> D2
     B1 --> B2
     B2 --> B3
     B3 --> C1
     C1 --> C2
     C2 --> D1
     C2 --> D2
+    D2 --> D3
+    D3 --> D4
+    D3 --> D5
 ```
 
 #### Component Descriptions
@@ -79,10 +88,13 @@ graph TB
 |-----------|---------|----------|
 | **AuditEvent** | In-memory event envelope | `audit/models/audit_event.py` |
 | **AuditEventRecord** | PostgreSQL table model | `audit/models/audit_event_record.py` |
+| **AuditOutboxRecord** | Transactional outbox table | `audit/outbox/models.py` |
+| **AuditTableMetadata** | Audit configuration per table | `audit/outbox/models.py` |
+| **AuditEventSource** | Event routing enum (BUSINESS_EVENT, CRUD_EVENT) | `audit/outbox/models.py` |
 | **AuditContextData** | Universal structured data (extra=allow) | `audit/models/structured_data.py` |
 | **AuditEventDispatcher** | Type-based event router | `audit/dispatcher.py` |
 | **AuditEventHandler** | Domain event → AuditEvent mapper | `audit/handler.py` |
-| **emit_audit_event** | Central emission point | `audit/emitter.py` |
+| **emit_audit_event** | Central emission point, writes to outbox | `audit/emitter.py` |
 | **@audit** | Function decorator | `audit/decorators.py` |
 | **FunctionExecutionEvent** | Domain event for @audit | `audit/events/function_execution.py` |
 | **FunctionExecutionHandler** | Maps FunctionExecutionEvent → AuditEvent | `audit/events/function_execution.py` |
@@ -92,9 +104,12 @@ graph TB
 | **AuditMiddleware** | HTTP request tracking | `audit/middleware.py` |
 | **HTTPRequestEvent** | Domain event for HTTP requests | `audit/events/http_request.py` |
 | **HTTPRequestHandler** | Maps HTTPRequestEvent → AuditEvent | `audit/events/http_request.py` |
+| **audit_crud_operation()** | PostgreSQL trigger function for CRUD capture | Migration `bd82aa297b0e` |
+| **set_audit_context()** | Before-flush hook, propagates context to Postgres | `core/database/session.py` |
 | **EventSanitizer** | PII redaction | `audit/sanitization.py` |
-| **AuditEventWriter** | Async DB persistence | `audit/services/writer.py` |
+| **AuditOutboxWorker** | Background outbox publisher | `audit/outbox/worker.py` |
 | **AuditEventService** | Read-only query service | `audit/services/audit_event_service.py` |
+| **seed_audit_metadata()** | Audit metadata seeder (populates audit_table_metadata and attaches triggers) | `audit/seed.py` |
 
 ### Data Models
 
@@ -119,6 +134,8 @@ erDiagram
         ActorType actor_type
         string actor_username
         string source_component
+        string resource_urn "RFC 8141 URN, validated"
+        string resource_name "Human-readable name"
         UUID workflow_id FK
         string activity_id
         UUID execution_id FK
@@ -137,6 +154,8 @@ erDiagram
         ActorType actor_type
         string actor_username
         string source_component
+        string resource_urn "RFC 8141 URN, validated"
+        string resource_name "Human-readable name"
         UUID workflow_id FK
         string activity_id
         UUID execution_id FK
@@ -152,7 +171,11 @@ erDiagram
     }
 ```
 
-**Note on `AuditContextData`:**  
+**Note on `AuditEvent` fields:**
+
+**`resource_urn`**: RFC 8141 compliant URN (format: `urn:<nid>:<nss>`). The field includes a Pydantic validator that checks URN format. Invalid URNs are logged as warnings and set to `None` (fail-safe behavior - audit emission never fails due to invalid URN format). PostgreSQL triggers automatically build URNs for CRUD events using the pattern `urn:nexus:<ModelName>:<uuid>`.
+
+**`AuditContextData`:**  
 All audit events use the same structured data type (`AuditContextData`) with `model_config = {"extra": "allow"}`. This allows handlers to include domain-specific fields alongside the base fields (`data_type`, `error_type`, `error_message`).
 
 The `data_type` field is a string that identifies the event source for UI/frontend purposes:
@@ -234,8 +257,8 @@ sequenceDiagram
     participant Sanitizer as EventSanitizer
     participant Truncator as Payload Truncation
     participant Logger as Structured Logger
-    participant Writer as AuditEventWriter
-    participant DB as Audit Database
+    participant Outbox as audit_outbox Table
+    participant Txn as Business Transaction
 
     Code->>Code: Create domain event<br/>(FunctionExecutionEvent,<br/>AuditContextEvent,<br/>HTTPRequestEvent, etc.)
     Code->>Dispatcher: dispatch(domain_event)
@@ -248,7 +271,7 @@ sequenceDiagram
     Handler->>Handler: Build AuditContextData<br/>with data_type + extra fields
     Handler-->>Dispatcher: return AuditEvent
 
-    Dispatcher->>Emitter: emit_audit_event(AuditEvent)
+    Dispatcher->>Emitter: emit_audit_event(AuditEvent, session)
 
     Note over Emitter: Inject context vars<br/>(actor_id, workflow_id, etc.)
 
@@ -266,15 +289,210 @@ sequenceDiagram
     Emitter->>Logger: logger.info("audit_event", **event_dict)
     Logger-->>Logger: Write to stdout
 
-    Emitter->>Writer: enqueue(event)
-    Writer-->>Writer: create_task(_write(event))
-    Note over Writer: Fire-and-forget<br/>Non-blocking
+    Emitter->>Outbox: session.add(AuditOutboxRecord)
+    Note over Emitter,Outbox: Written within business transaction<br/>Guaranteed atomic commit
 
-    Writer->>DB: INSERT audit_event_record
-    DB-->>Writer: Success/Error (logged)
+    Txn->>Txn: COMMIT
+    Note over Txn: Both business data<br/>AND audit event<br/>committed atomically
 
     Note over Code: Business logic continues<br/>Audit never blocks
 ```
+
+#### Transactional Outbox Architecture
+
+This diagram shows the complete audit event flow from two different sources through the transactional outbox pattern to the audit database:
+
+```mermaid
+sequenceDiagram
+    participant Source1 as Explicit Event Sources<br/>(Middleware, @audit, audit_context, DomainEvents)
+    participant Source2 as PostgreSQL Triggers<br/>(CRUD Operations)
+    participant Dispatcher as AuditEventDispatcher
+    participant Handler as AuditEventHandler
+    participant Emitter as emit_audit_event()
+    participant BeforeFlush as set_audit_context()<br/>(before_flush hook)
+    participant Session as Database Session
+    participant Outbox as audit_outbox Table
+    participant BusinessDB as Business Database
+    participant Worker as AuditOutboxWorker<br/>(Background)
+    participant AuditDB as audit_events Table<br/>(Audit Database)
+    participant OTEL as OTEL Collector<br/>(CRUD Events)
+
+    rect rgb(230, 240, 250)
+        Note over Source1,Emitter: Explicit Event Path (BUSINESS_EVENT)
+        Source1->>Dispatcher: dispatch(domain_event)
+        Dispatcher->>Handler: handle(domain_event)
+        Handler->>Handler: Map to AuditEvent
+        Handler-->>Dispatcher: return AuditEvent
+        Dispatcher->>Emitter: emit_audit_event(event, session)
+        Emitter->>Emitter: Inject context, sanitize, truncate
+        Emitter->>Session: session.add(AuditOutboxRecord)<br/>event_source=BUSINESS_EVENT
+    end
+
+    rect rgb(240, 250, 230)
+        Note over Source2,BeforeFlush: CRUD Event Path (CRUD_EVENT)
+        Session->>BeforeFlush: Before flush hook
+        BeforeFlush->>BeforeFlush: Read actor/workflow context<br/>from ContextVars
+        BeforeFlush->>Session: SET LOCAL app.actor_id = '...'<br/>SET LOCAL app.workflow_id = '...'
+        Note over Session: Context propagated<br/>to Postgres session
+    end
+
+    rect rgb(255, 250, 240)
+        Note over Session,BusinessDB: Transactional Outbox (Atomic Commit)
+        Session->>BusinessDB: FLUSH changes
+        BusinessDB->>Source2: AFTER INSERT/UPDATE/DELETE triggers fire
+        Source2->>Source2: audit_crud_operation() function<br/>reads app.actor_id, app.workflow_id
+        Source2->>Source2: Build AuditEvent JSON<br/>with changes/resource_data
+        Source2->>Outbox: INSERT INTO audit_outbox<br/>event_source=CRUD_EVENT
+        Session->>BusinessDB: COMMIT
+        Note over BusinessDB: Business data,<br/>business audit events,<br/>AND CRUD audit events<br/>all committed atomically
+    end
+
+    rect rgb(250, 240, 255)
+        Note over Worker,OTEL: Background Publishing (Guaranteed Delivery)
+        Worker->>Worker: Poll every N seconds
+        Worker->>Outbox: SELECT * FROM audit_outbox<br/>FOR UPDATE SKIP LOCKED
+        Outbox-->>Worker: Unpublished events
+
+        Worker->>Worker: Separate by event_source
+
+        Worker->>AuditDB: INSERT BUSINESS_EVENTs<br/>INTO audit_events
+        AuditDB-->>Worker: Success
+
+        Worker->>OTEL: Export CRUD_EVENTs<br/>to OTEL Collector
+        OTEL-->>Worker: Success
+
+        Worker->>Outbox: DELETE FROM audit_outbox
+        Note over Worker: Events published<br/>Outbox cleaned up
+    end
+
+    Note over Source1,OTEL: Guarantees:<br/>✓ At-least-once delivery (survives crashes)<br/>✓ Atomic commit (business + audit)<br/>✓ No blocking (async worker)<br/>✓ Complete coverage (CRUD + explicit events)<br/>✓ Dual routing (business → audit DB, CRUD → OTEL)
+```
+
+**Key architectural properties:**
+
+1. **Transactional Outbox**: Audit events are written to `audit_outbox` within the same database transaction as business data, guaranteeing atomicity. If the transaction rolls back, both business changes and audit events are discarded together.
+
+2. **Dual Event Paths**:
+   - **Explicit events** (middleware, decorators, domain events) → dispatcher/handler pipeline → `emit_audit_event()` → outbox with `event_source=BUSINESS_EVENT`
+   - **CRUD events** (database mutations) → PostgreSQL triggers → outbox with `event_source=CRUD_EVENT` (bypasses dispatcher/handler)
+
+3. **Context Propagation**: The `set_audit_context()` before-flush hook reads actor/workflow context from ContextVars and writes them as Postgres session variables (`SET LOCAL app.actor_id`, etc.) so triggers can access them.
+
+4. **Automatic CRUD Capture**: PostgreSQL triggers (`audit_crud_operation()`) observe all INSERT/UPDATE/DELETE operations on auditable tables without requiring developers to manually instrument code, guaranteeing audit trail completeness.
+
+5. **Dual Routing**: The background worker routes events by `event_source`:
+   - `BUSINESS_EVENT` → `audit_events` table (separate audit database)
+   - `CRUD_EVENT` → OTEL Collector (for external observability platforms)
+
+6. **Guaranteed Delivery**: The background worker polls the outbox and publishes to destinations. Events survive process crashes between business commit and audit publication.
+
+7. **Non-Blocking**: Business transactions never wait for audit database writes or OTEL export. The worker processes events asynchronously in the background.
+
+#### Trigger-Based CRUD Audit System
+
+The automatic CRUD audit trail is implemented using **PostgreSQL triggers** that fire on INSERT/UPDATE/DELETE operations and write directly to the `audit_outbox` table.
+
+**Architecture Components:**
+
+1. **AuditTableMetadata Table**
+   - Stores audit configuration for each table (populated by seeder, not migration)
+   - Fields: `table_name`, `model_name`, `audit_level`, `auditable_fields`
+   - Allows the trigger function to determine if a table should be audited
+   - **Clean-slate approach:** Seeder deletes all existing records and triggers, then recreates from current models
+   - This ensures removed models don't leave orphaned metadata or triggers
+
+2. **AuditLevel Enum** (on Python models)
+   ```python
+   class AuditLevel(str, Enum):
+       FULL = "full"   # Capture all columns
+       META = "meta"   # Capture only metadata fields + __auditable_fields__
+       NONE = "none"   # Skip auditing entirely
+   ```
+
+3. **Model Configuration** (class variables on SQLModel)
+   ```python
+   from nexus.core.models.base.base_resource import AuditLevel, BaseResource
+
+   class Credential(BaseResource, table=True):
+       # Audit trail: metadata only (no secret_id to prevent exposure)
+       __auditable__: ClassVar[AuditLevel] = AuditLevel.META
+       __auditable_fields__: ClassVar[list[str]] = [
+           "name",
+           "description",
+           "credential_type_id",
+           "enabled",
+           "project_id",
+       ]
+   ```
+
+4. **audit_crud_operation() Trigger Function**
+   - Generic trigger attached to all auditable tables
+   - Reads audit configuration from `audit_table_metadata`
+   - Reads actor/workflow context from Postgres session variables (set by `set_audit_context()` hook)
+   - Builds AuditEvent JSON with operation-specific payload:
+     - **INSERT**: captures `resource_data` (full snapshot or metadata-only)
+     - **UPDATE**: captures `changes` (field-by-field diff, old → new)
+     - **DELETE**: captures `resource_data` (snapshot before deletion)
+   - Writes to `audit_outbox` with `event_source=CRUD_EVENT`
+   - **Never raises** - catches all exceptions and logs warnings to prevent breaking business transactions
+
+5. **set_audit_context() Before-Flush Hook**
+   - Executes before SQLAlchemy flushes changes to database
+   - Reads actor/workflow/execution/activity context from ContextVars
+   - Propagates context to Postgres session variables using `SET LOCAL`:
+     ```sql
+     SET LOCAL app.actor_id = 'uuid';
+     SET LOCAL app.actor_username = 'username';
+     SET LOCAL app.actor_type = 'user';
+     SET LOCAL app.workflow_id = 'uuid';
+     SET LOCAL app.execution_id = 'uuid';
+     SET LOCAL app.activity_id = 'string';
+     ```
+   - Session variables are transaction-scoped and auto-clear on COMMIT/ROLLBACK
+
+**Trigger Lifecycle:**
+
+```mermaid
+sequenceDiagram
+    participant App as Application Code
+    participant Session as SQLAlchemy Session
+    participant Hook as set_audit_context()<br/>(before_flush)
+    participant PG as PostgreSQL
+    participant Trigger as audit_crud_operation()
+    participant Meta as audit_table_metadata
+    participant Outbox as audit_outbox
+
+    App->>Session: user.name = "new_name"
+    App->>Session: session.commit()
+
+    Session->>Hook: Fire before_flush event
+    Hook->>Hook: Read actor_context_var,<br/>workflow_id_context_var,<br/>execution_id_context_var,<br/>activity_id_context_var
+    Hook->>PG: SET LOCAL app.actor_id = '...'<br/>SET LOCAL app.actor_username = '...'<br/>SET LOCAL app.actor_type = '...'<br/>SET LOCAL app.workflow_id = '...'<br/>SET LOCAL app.execution_id = '...'<br/>SET LOCAL app.activity_id = '...'
+
+    Session->>PG: FLUSH UPDATE user SET name = '...'
+
+    PG->>Trigger: AFTER UPDATE trigger fires
+    Trigger->>Meta: SELECT model_name, audit_level, auditable_fields<br/>FROM audit_table_metadata<br/>WHERE table_name = 'user'
+    Meta-->>Trigger: model_name='User', audit_level='full', fields=NULL
+
+    Trigger->>PG: SELECT current_setting('app.actor_id', true)::uuid<br/>SELECT current_setting('app.actor_username', true)<br/>SELECT current_setting('app.actor_type', true)
+    PG-->>Trigger: actor_id='...', actor_username='...', actor_type='user'
+
+    Trigger->>Trigger: Build changes JSON:<br/>{"name": {"old": "alice", "new": "new_name"}}
+    Trigger->>Trigger: Build AuditEvent JSON with:<br/>- event_id (gen_random_uuid())<br/>- resource_urn (urn:nexus:User:uuid)<br/>- resource_name (if 'name' field exists)<br/>- actor fields from session vars<br/>- workflow/execution/activity IDs
+
+    Trigger->>Outbox: INSERT INTO audit_outbox<br/>(event_source='crud_event', event_payload=...)
+
+    PG->>Session: COMMIT (all changes atomic)
+```
+
+**Key Properties:**
+
+- **Zero instrumentation**: No code changes needed in business logic - triggers fire automatically
+- **Selective capture**: `AuditLevel.META` mode captures only safe fields (e.g., exclude `secret_id` from Credential)
+- **Context-aware**: Triggers access actor/workflow context via Postgres session variables
+- **Fail-safe**: Trigger exceptions are caught and logged, never break business transactions
+- **Atomic**: CRUD audit events written in same transaction as business data
 
 #### Actor Context Propagation
 
@@ -420,10 +638,12 @@ with audit_context(
 
 **Features:**
 - Emits 1 event per HTTP request via `HTTPRequestEvent` → `HTTPRequestHandler` → `AuditEventDispatcher`
-- Captures method, path, status code, query params, user context
+- Captures method, path, status code, query params, response time, request payload size, user context
 - Sets event severity based on status code (5xx=ERROR, 4xx=WARNING, 2xx/3xx=INFO)
-- Excludes health/metrics endpoints (see `EXCLUDED_PATHS`)
+- Excludes health/metrics endpoints (see `EXCLUDED_PATHS` in `nexus.api.constants`)
 - Propagates `X-Request-Id` header via context var
+- **Unverified JWT decode for audit logging:** Extracts actor information from JWT without signature verification for performance (crypto overhead eliminated). If token is forged, endpoint authentication will reject it with 401, and the audit log still captures the failed attempt. This avoids double-authentication overhead (middleware + endpoint).
+- **Context ID resolution:** Matches request path against FastAPI routes to extract `workflow_id`, `execution_id`, `activity_id` from URL path parameters **before** routing occurs, making these IDs available to route handlers via context variables.
 
 **No manual usage required** - automatically registered in FastAPI app middleware stack.
 
@@ -538,23 +758,84 @@ The audit framework provides **four cascading layers** of instrumentation, each 
 
 ```mermaid
 graph LR
-    A[1. Middleware<br/>Zero Intrusion] --> B[2. @audit<br/>Minimal Intrusion]
-    B --> C[3. audit_context<br/>Moderate Intrusion]
-    C --> D[4. DomainEvents<br/>High Intrusion]
+    A[0. Database Triggers<br/>Zero Intrusion] --> B[1. Middleware<br/>Zero Intrusion]
+    B --> C[2. @audit<br/>Minimal Intrusion]
+    C --> D[3. audit_context<br/>Moderate Intrusion]
+    D --> E[4. DomainEvents<br/>High Intrusion]
 ```
 
-Each layer can coexist — a single HTTP request may generate events from **all four layers** (see [Auth Domain Example](#3-example-auth-domain-implementation) where login generates 4 audit events).
+Each layer can coexist — a single HTTP request may generate events from **all five layers** (database trigger for CRUD + middleware + decorator + domain events). See [Auth Domain Example](#3-example-auth-domain-implementation) where login generates multiple audit events from different layers.
 
 #### Layer Comparison
 
 | Layer | Code Changes | Developer Burden | Semantic Richness | When to Use |
 |-------|-------------|------------------|-------------------|-------------|
+| **0. Database Triggers** | None (model config only) | Set `__auditable__` class var | CRUD metadata (changes, snapshots) | Automatic - covers all database mutations |
 | **1. Middleware** | None | None (automatic) | HTTP metadata only | Always active - no choice needed |
 | **2. @audit** | One line decorator | Configure parameters | Function-level execution | Track important function calls without business context |
 | **3. audit_context** | Wrap blocks with `with` | Provide context data | Operation-level with custom fields | Track complex operations spanning multiple functions |
 | **4. DomainEvents** | Define events, handlers, dispatch calls | Architectural decisions | Business semantics | Capture business-meaningful events (login failures, state transitions) |
 
 #### Layer Details
+
+##### 0. Database Triggers (Zero Intrusion)
+
+**What it captures:**
+- INSERT/UPDATE/DELETE operations on all auditable tables
+- Field-level changes (old value → new value for UPDATE)
+- Full resource snapshots (for INSERT/DELETE)
+- Actor context (from Postgres session variables set by before-flush hook)
+
+**Pros:**
+- ✅ Zero code changes (only model config)
+- ✅ Automatic coverage of all database mutations
+- ✅ Selective field capture (FULL vs META mode)
+- ✅ Guaranteed capture (triggers can't be forgotten)
+- ✅ Routed to OTEL Collector for external observability
+
+**Cons:**
+- ❌ No business semantics (just CRUD metadata)
+- ❌ Cannot classify error types (business vs technical)
+- ❌ Requires model annotation (`__auditable__`, `__auditable_fields__`)
+
+**Example use-case:**
+```python
+# Set on model class - no other code needed
+from nexus.core.models.base.base_resource import AuditLevel, BaseResource
+
+class Credential(BaseResource, table=True):
+    __auditable__: ClassVar[AuditLevel] = AuditLevel.META
+    __auditable_fields__: ClassVar[list[str]] = [
+        "name",
+        "description",
+        "credential_type_id",
+        "enabled",
+    ]
+    # Trigger automatically captures changes to these fields
+```
+
+**When to use:**
+- Automatic - triggers fire for all models with `__auditable__ != AuditLevel.NONE`
+- Use `AuditLevel.META` for sensitive models (e.g., Credential) to exclude secret fields
+- Use `AuditLevel.FULL` for most models to capture complete snapshots
+
+**Seeder Workflow (Critical):**
+After running migrations, you **must** run the audit seeder to populate metadata and attach triggers:
+
+```bash
+# After alembic upgrade head
+uv run python -m nexus.seed --only audit
+```
+
+The seeder:
+1. Checks if `audit_table_metadata` table exists (skips gracefully if not)
+2. Deletes **all** existing metadata records and drops **all** audit triggers
+3. Discovers all SQLModel tables from `nexus.core.database.migrations.models.ALL_MODELS`
+4. Filters to `BaseResource` subclasses with `__auditable__ != AuditLevel.NONE`
+5. Inserts fresh metadata records for each auditable table
+6. Creates `audit_trigger_<table>` for each auditable table
+
+This **clean-slate approach** ensures removed models don't leave orphaned metadata/triggers. The seeder is idempotent and safe to run multiple times.
 
 ##### 1. Middleware (Zero Intrusion)
 
@@ -775,7 +1056,10 @@ async def login(body: LoginRequest) -> AccessTokenResponse:
 
 ```mermaid
 graph TD
-    Start[Need to audit something?] --> Q1{HTTP request already?}
+    Start[Need to audit something?] --> Q0{Database mutation?}
+    Q0 -->|Yes| A0[Database Triggers<br/>✓ Automatic CRUD capture]
+    Q0 -->|No| Q1{HTTP request already?}
+
     Q1 -->|Yes| A1[Middleware handles it<br/>✓ Done]
     Q1 -->|No| Q2{Need business semantics?}
 
@@ -788,9 +1072,13 @@ graph TD
 
 #### Layering Example: Login Request
 
-For a single login request, you may see **all four layers** fire:
+For a single login request, you may see **all five layers** fire:
 
 ```python
+# Layer 0: Database Trigger - CRUD capture
+# Automatically fires when session.create() inserts RefreshSession row
+# → event_action="refreshsession_create", changes={...}, event_source=CRUD_EVENT
+
 # Layer 4: DomainEvent - Business semantics
 AuditEventDispatcher.dispatch(
     LoginAttemptEvent(user_id=user.id, error_type=LoginErrorReason.BAD_PASSWORD)
@@ -806,7 +1094,7 @@ async def login(body: LoginRequest): ...
 # → event_action="request_completed", method=POST, path=/api/v1/auth/login, status=401
 ```
 
-**Result:** 3 audit events for one failed login, each providing different semantic layers.
+**Result:** 4 audit events for one failed login, each providing different semantic layers (CRUD, business, function, HTTP).
 
 
 ---
@@ -949,10 +1237,11 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
 ### Complete Audit Trail
 
 For a successful login:
-1. `session_created` — SessionLifecycleEvent (event_status=SUCCESS)
-2. `login` — LoginAttemptEvent (event_status=SUCCESS, error_type=None)
-3. `login` — @audit decorator via FunctionExecutionEvent (event_status=SUCCESS, event_category=SECURITY_EVENT)
-4. `request_completed` — AuditMiddleware
+1. `refreshsession_create` — Database trigger (event_source=CRUD_EVENT, captures RefreshSession INSERT)
+2. `session_created` — SessionLifecycleEvent (event_status=SUCCESS)
+3. `login` — LoginAttemptEvent (event_status=SUCCESS, error_type=None)
+4. `login` — @audit decorator via FunctionExecutionEvent (event_status=SUCCESS, event_category=SECURITY_EVENT)
+5. `request_completed` — AuditMiddleware
 
 For a failed login (bad password):
 1. `login` — LoginAttemptEvent (event_status=ERROR, error_type=LoginErrorReason.BAD_PASSWORD)
@@ -967,13 +1256,18 @@ For a failed login (bad password):
 
 The Nexus audit framework provides:
 
-✅ **Unified event architecture** - All instrumentation methods (@audit, audit_context, AuditMiddleware) use AuditEventDispatcher pattern  
+✅ **Guaranteed delivery** - Transactional outbox pattern ensures audit events survive process crashes  
+✅ **Automatic CRUD capture** - PostgreSQL triggers track all database mutations without manual instrumentation  
+✅ **Dual event paths** - Explicit events via dispatcher/handler pipeline, CRUD events via triggers (bypasses dispatcher)  
+✅ **Dual routing** - Business events → audit DB, CRUD events → OTEL Collector  
+✅ **Context propagation** - `set_audit_context()` hook propagates actor/workflow context to Postgres session variables  
+✅ **Selective auditing** - `AuditLevel.FULL` (all fields), `AuditLevel.META` (metadata only), `AuditLevel.NONE` (skip)  
 ✅ **Universal structured data** - Single `AuditContextData` type with `extra="allow"` for all audit events  
 ✅ **Type-safe domain events** - Strongly typed domain events mapped to normalized AuditEvent via handlers  
-✅ **Multiple instrumentation methods** - Decorators, context managers, middleware, and custom domain events  
+✅ **Multiple instrumentation methods** - Database triggers, decorators, context managers, middleware, and custom domain events  
 ✅ **Automatic PII sanitization** and payload size enforcement (10KB limit)  
 ✅ **Fail-safe execution** that never blocks business operations  
-✅ **Multi-layer coverage** - Domain semantics, function execution, and HTTP request tracking  
+✅ **Multi-layer coverage** - CRUD operations, domain semantics, function execution, and HTTP request tracking  
 ✅ **Auto-discovery** of handlers with zero-configuration  
 
 **For new domains:** Follow the step-by-step integration guide to add domain-specific audit events.

@@ -3,6 +3,7 @@
 from typing import Any, ClassVar
 
 import structlog
+from sqlalchemy.orm import Session
 
 from nexus.audit.emitter import emit_audit_event
 from nexus.audit.handler import AuditEventHandler
@@ -45,14 +46,22 @@ class AuditEventDispatcher:
                 handler_list.append(handler)
 
     @staticmethod
-    def dispatch(event: object) -> None:
+    def dispatch(event: object, session: Session | None = None) -> None:
         """Route *event* to its handlers and emit any resulting AuditEvents.
+
+        Args:
+            event: The audit event to emit
+            session: Optional Session for transactional outbox write.
+                    If provided, the event is written to the outbox in the same
+                    transaction as the caller's business logic (guaranteeing
+                    at-least-once delivery).
 
         Never raises. Two distinct failure modes are logged separately
         so ops can tell them apart:
 
         - ``warning``: no handler is registered for this event type.
         - ``exception``: a handler raised while processing the event (traceback captured).
+
         """
         handlers = AuditEventDispatcher._registry.get(type(event))
         if not handlers:
@@ -66,7 +75,7 @@ class AuditEventDispatcher:
             try:
                 audit_event = handler.handle(event)
                 if audit_event is not None:
-                    emit_audit_event(audit_event)
+                    emit_audit_event(audit_event, session)
             except Exception:
                 logger.exception(
                     "Audit handler raised — event dropped",
@@ -75,6 +84,6 @@ class AuditEventDispatcher:
                 )
 
     @staticmethod
-    def reset() -> None:
+    def _reset() -> None:
         """Clear the registry (for testing only)."""
         AuditEventDispatcher._registry = {}

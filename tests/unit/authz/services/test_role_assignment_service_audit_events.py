@@ -29,11 +29,7 @@ class TestRoleAssignmentServiceAssignAuditEvents:
     """Tests for audit event emission from RoleAssignmentService.assign()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({RoleAssignmentEvent: RoleAssignmentHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -184,11 +180,7 @@ class TestRoleAssignmentServiceRevokeAuditEvents:
     """Tests for audit event emission from RoleAssignmentService.revoke()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({RoleAssignmentEvent: RoleAssignmentHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")

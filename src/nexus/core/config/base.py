@@ -21,6 +21,7 @@ from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Self
+from urllib.parse import urlparse
 from uuid import UUID
 
 from pydantic import Field, HttpUrl, SecretStr, computed_field, field_validator, model_validator
@@ -462,6 +463,24 @@ class AuditDatabaseSettings(BaseSettings):
     audit_db_ssl_key: str | None = Field(
         default=None,
         description="Path to client private key file (for mutual TLS)",
+    )
+
+    auditing_enabled: bool = Field(
+        default=True,
+        description="Enable or disable the audit system globally",
+    )
+
+    audit_outbox_poll_interval_seconds: float = Field(
+        default=5.0,
+        description="Seconds between audit outbox worker cycles (publishes events to audit database)",
+        gt=0,
+    )
+
+    audit_outbox_batch_size: int = Field(
+        default=100,
+        description="Maximum number of audit events to process per outbox worker cycle",
+        gt=0,
+        le=1000,
     )
 
     @field_validator("audit_db_ssl_mode")
@@ -1020,6 +1039,94 @@ class LoggingSettings(BaseSettings):
         default="json",
         description="Log output format (json, text)",
     )
+
+
+class OpenTelemetrySettings(BaseSettings):
+    """OpenTelemetry configuration settings.
+
+    Configures OpenTelemetry exporters for logs, traces, and metrics.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    otel_enabled: bool = Field(
+        default=False,
+        description="Enable OpenTelemetry exporters",
+    )
+
+    otel_service_name: str = Field(
+        default="nexus",
+        description="Service name for OpenTelemetry resource attributes",
+    )
+
+    otel_endpoint: str = Field(
+        default="http://localhost:4318/v1/logs",
+        description="OTLP HTTP endpoint for logs (use http:// for insecure, https:// for TLS)",
+    )
+
+    otel_api_key: SecretStr | None = Field(
+        default=None,
+        description="API key for OTLP endpoint authentication (sent as Bearer token)",
+    )
+
+    otel_auth_header_name: str = Field(
+        default="Authorization",
+        description="HTTP header name for API key authentication",
+    )
+
+    otel_client_cert_file: str | None = Field(
+        default=None,
+        description="Path to client certificate file for mTLS authentication",
+    )
+
+    otel_client_key_file: str | None = Field(
+        default=None,
+        description="Path to client private key file for mTLS authentication",
+    )
+
+    otel_ca_cert_file: str | None = Field(
+        default=None,
+        description="Path to CA certificate file for server verification",
+    )
+
+    @field_validator("otel_endpoint")
+    @classmethod
+    def validate_otel_endpoint_security(cls, v: str) -> str:
+        """Validate that remote OTLP endpoints use HTTPS to prevent plaintext transmission of audit logs.
+
+        Allows HTTP only for localhost endpoints (development/testing).
+        Remote endpoints must use HTTPS to ensure audit data confidentiality.
+
+        Security: Uses URL parsing to prevent bypass attacks like http://localhost.evil.com
+        """
+        parsed = urlparse(v)
+
+        # HTTPS is always allowed
+        if parsed.scheme == "https":
+            return v
+
+        # HTTP is only allowed for localhost/loopback addresses
+        if parsed.scheme == "http":
+            # Allowed local hostnames and IPs
+            allowed_local = ("localhost", "127.0.0.1", "::1", "[::1]")
+
+            if parsed.hostname in allowed_local:
+                return v
+
+            # Reject remote HTTP endpoints
+            msg = (
+                "Remote OTLP endpoints must use HTTPS to prevent plaintext transmission of audit logs. "
+                f"Invalid endpoint: {v}. Use https:// for remote endpoints, or http://localhost / "
+                "http://127.0.0.1 / http://[::1] for local development."
+            )
+            raise ValueError(msg)
+
+        # Reject unsupported schemes
+        msg = (
+            f"Unsupported URL scheme '{parsed.scheme}' in OTLP endpoint: {v}. "
+            "Use https:// for remote endpoints or http://localhost for local development."
+        )
+        raise ValueError(msg)
 
 
 # =============================================================================
@@ -1582,6 +1689,7 @@ class Settings(
     TelemetrySettings,
     MetricsSettings,
     AuthzSettings,
+    OpenTelemetrySettings,
 ):
     """Application-wide settings.
 

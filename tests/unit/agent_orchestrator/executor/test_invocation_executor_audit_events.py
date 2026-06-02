@@ -59,17 +59,12 @@ class TestInvocationExecutorLifecycleEvents:
 
     def setup_method(self) -> None:
         """Register audit event handlers for InvocationExecutor tests."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 InvocationLifecycleEvent: InvocationLifecycleHandler(),
                 FunctionExecutionEvent: FunctionExecutionHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     async def _execute_invocation(
         self,

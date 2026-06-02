@@ -55,6 +55,8 @@ class AuditEventListResponse(ResourcesResponse[AuditEventRead]):
 class AuditEventListParams(BaseListParams):
     """Query parameters for listing audit events."""
 
+    limit: int = Field(default=20, gt=0, le=500, description="Maximum number of results per page")
+
     event_category: EventCategory | None = Field(
         default=None,
         description="Filter by event category",

@@ -121,16 +121,11 @@ class TestToolDiscoveryEventDispatch:
 
     def setup_method(self) -> None:
         """Register audit event handlers."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 ToolDiscoveryEvent: ToolDiscoveryHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_synchronize_emits_started_and_completed_events(

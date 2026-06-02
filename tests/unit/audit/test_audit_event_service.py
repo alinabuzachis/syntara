@@ -2,9 +2,9 @@
 
 import itertools
 import logging
+from uuid import uuid4
 
 import pytest
-from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.models.audit_event_record import AuditEventRecord
@@ -13,13 +13,6 @@ from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.services.audit_event_service import AuditEventService
 from nexus.core.models import User
 from tests.helpers.audit import AuditEventsFactory
-
-
-async def _count_existing_events(session: AsyncSession) -> int:
-    """Return the number of audit events already in the database (e.g. from seeding)."""
-    result = await session.exec(select(func.count()).select_from(AuditEventRecord))
-    return result.one()
-
 
 # ------------------------------------------------------------------ #
 # Read operations (instance-level, DB-backed)
@@ -37,30 +30,30 @@ class TestAuditEventServiceList:
         audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test listing returns inserted audit events."""
-        baseline = await _count_existing_events(test_db_session)
-        await audit_events_factory.create_events(count=3)
+        _uuid: str = str(uuid4())
+        await audit_events_factory.create_events(count=3, event_action_prefix=_uuid)
 
         service = AuditEventService(test_db_session, test_user)
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
-            limit=baseline + 3,
+            query_params_items=[("event_action[contains]", _uuid)],
         )
 
-        assert len(response.resources) == baseline + 3
+        assert len(response.resources) == 3
 
     @pytest.mark.asyncio
     async def test_list_empty_table(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Test listing with no additional events returns only baseline."""
-        baseline = await _count_existing_events(test_db_session)
+        _uuid: str = str(uuid4())
         service = AuditEventService(test_db_session, test_user)
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
-            limit=baseline + 10,
+            query_params_items=[("event_action[contains]", _uuid)],
         )
 
-        assert len(response.resources) == baseline
+        assert len(response.resources) == 0
 
     @pytest.mark.asyncio
     async def test_list_respects_limit(
@@ -89,19 +82,20 @@ class TestAuditEventServiceList:
         audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test that include_total returns total count."""
-        baseline = await _count_existing_events(test_db_session)
-        await audit_events_factory.create_events(count=4)
+        _uuid: str = str(uuid4())
+        await audit_events_factory.create_events(count=4, event_action_prefix=_uuid)
 
         service = AuditEventService(test_db_session, test_user)
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
+            query_params_items=[("event_action[contains]", _uuid)],
             limit=2,
             include_total=True,
         )
 
         assert len(response.resources) == 2
-        assert response.total == baseline + 4
+        assert response.total == 4
 
     @pytest.mark.asyncio
     async def test_list_cursor_pagination(
@@ -111,9 +105,8 @@ class TestAuditEventServiceList:
         audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test cursor-based pagination returns next page."""
-        baseline = await _count_existing_events(test_db_session)
-        await audit_events_factory.create_events(count=5)
-        total = baseline + 5
+        _uuid: str = str(uuid4())
+        await audit_events_factory.create_events(count=5, event_action_prefix=_uuid)
 
         service = AuditEventService(test_db_session, test_user)
 
@@ -124,6 +117,7 @@ class TestAuditEventServiceList:
             page = await service.list_resources(
                 model=AuditEventRecord,
                 response_type=AuditEventListResponse,
+                query_params_items=[("event_action[contains]", _uuid)],
                 limit=3,
                 cursor=cursor,
             )
@@ -134,7 +128,7 @@ class TestAuditEventServiceList:
             if cursor is None:
                 break
 
-        assert len(all_ids) == total
+        assert len(all_ids) == 5
 
     @pytest.mark.asyncio
     async def test_list_cursor_pagination_forward_and_backward(
@@ -149,11 +143,10 @@ class TestAuditEventServiceList:
         the next cursor is still present (allowing forward pagination again)
         while the prev cursor is None (indicating we're at the start).
         """
-        baseline = await _count_existing_events(test_db_session)
         # Need enough events so we have multiple pages even with baseline.
         # Create 7 fresh events; total = baseline + 7.
-        await audit_events_factory.create_events(count=7)
-        total = baseline + 7
+        _uuid: str = str(uuid4())
+        await audit_events_factory.create_events(count=7, event_action_prefix=_uuid)
 
         service = AuditEventService(test_db_session, test_user)
 
@@ -164,6 +157,7 @@ class TestAuditEventServiceList:
             page = await service.list_resources(
                 model=AuditEventRecord,
                 response_type=AuditEventListResponse,
+                query_params_items=[("event_action[contains]", _uuid)],
                 limit=2,
                 cursor=cursor,
             )
@@ -174,7 +168,7 @@ class TestAuditEventServiceList:
 
         # Verify total coverage
         all_ids = {r.id for p in pages for r in p.resources}
-        assert len(all_ids) == total
+        assert len(all_ids) == 7
 
         # Last page should have no next
         assert pages[-1].next is None
@@ -186,6 +180,7 @@ class TestAuditEventServiceList:
             back_page = await service.list_resources(
                 model=AuditEventRecord,
                 response_type=AuditEventListResponse,
+                query_params_items=[("event_action[contains]", _uuid)],
                 limit=2,
                 cursor=cursor,
             )
@@ -341,10 +336,11 @@ class TestAuditEventServiceList:
         """Test filtering events by inclusive ``created_at`` range via bracket operators."""
         from datetime import UTC, datetime, timedelta
 
+        _uuid: str = str(uuid4())
         base = datetime(2025, 6, 1, tzinfo=UTC)
         for i in range(5):
             await audit_events_factory.create_event(
-                event_action=f"action_{i}",
+                event_action=_uuid,
                 created_at=base + timedelta(days=i),
             )
 
@@ -356,7 +352,11 @@ class TestAuditEventServiceList:
         response = await service.list_resources(
             model=AuditEventRecord,
             response_type=AuditEventListResponse,
-            query_params_items=[("created_at[gte]", window_from), ("created_at[lte]", window_to)],
+            query_params_items=[
+                ("event_action", _uuid),
+                ("created_at[gte]", window_from),
+                ("created_at[lte]", window_to),
+            ],
         )
 
         assert len(response.resources) == 3

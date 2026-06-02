@@ -150,7 +150,8 @@ class TestEnableUser:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
+            patch("nexus.ao_admin.__main__.stop_audit_components", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -181,7 +182,8 @@ class TestEnableUser:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
+            patch("nexus.ao_admin.__main__.stop_audit_components", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -200,7 +202,7 @@ class TestEnableUser:
         mock_session = _mock_session_returning(None)
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -218,7 +220,7 @@ class TestEnableUser:
         mock_session = _mock_session_returning(mock_user)
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -240,7 +242,8 @@ class TestEnableUser:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
+            patch("nexus.ao_admin.__main__.stop_audit_components", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -273,7 +276,8 @@ class TestResetPassword:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
+            patch("nexus.ao_admin.__main__.stop_audit_components", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -301,7 +305,7 @@ class TestResetPassword:
         mock_session = _mock_session_returning(None)
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -319,7 +323,7 @@ class TestResetPassword:
         mock_session = _mock_session_returning(mock_user)
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),
@@ -341,7 +345,8 @@ class TestResetPassword:
         mock_store.increment_token_version = AsyncMock()
 
         with (
-            patch("nexus.ao_admin.__main__._init_audit"),
+            patch("nexus.ao_admin.__main__.start_audit_components"),
+            patch("nexus.ao_admin.__main__.stop_audit_components", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=_session_factory(mock_session),

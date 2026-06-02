@@ -29,6 +29,7 @@ from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
+from nexus.audit.sanitization import REDACTED
 
 
 def _make_agent_state(**overrides: object) -> AgentState:
@@ -56,7 +57,6 @@ class TestGenericAgentExecutionEvents:
 
     def setup_method(self) -> None:
         """Register audit event handlers for GenericAgent tests."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 AgentExecutionEvent: AgentExecutionHandler(),
@@ -64,10 +64,6 @@ class TestGenericAgentExecutionEvents:
                 FunctionExecutionEvent: FunctionExecutionHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_execute_emits_started_and_completed_events(self) -> None:
@@ -113,7 +109,7 @@ class TestGenericAgentExecutionEvents:
         assert execution_events[0].event_status == EventStatus.SUCCESS
         assert execution_events[0].structured_data.status == "started"  # type: ignore[attr-defined]
         assert execution_events[0].structured_data.agent_type == "generic_agent"  # type: ignore[attr-defined]
-        assert execution_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+        assert execution_events[0].structured_data.session_id == REDACTED  # type: ignore[attr-defined]
         assert execution_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
         assert execution_events[0].execution_id == execution_id
         assert execution_events[0].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
@@ -162,16 +158,11 @@ class TestGenericAgentLLMInteractionEvents:
 
     def setup_method(self) -> None:
         """Register audit event handlers for LLM interaction tests."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 LLMInteractionEvent: LLMInteractionHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_execute_standard_emits_success_event(self) -> None:

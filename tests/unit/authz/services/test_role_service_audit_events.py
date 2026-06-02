@@ -28,11 +28,7 @@ class TestRoleServiceCreateAuditEvents:
     """Tests for audit event emission from RoleService.create_role()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({RoleLifecycleEvent: RoleLifecycleHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -130,11 +126,7 @@ class TestRoleServiceUpdateAuditEvents:
     """Tests for audit event emission from RoleService.update_role()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({RoleLifecycleEvent: RoleLifecycleHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -182,11 +174,7 @@ class TestRoleServiceDeleteAuditEvents:
     """Tests for audit event emission from RoleService.delete_role()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({RoleLifecycleEvent: RoleLifecycleHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")

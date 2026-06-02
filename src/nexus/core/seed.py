@@ -180,6 +180,7 @@ def _resolve_with_deps(names: set[str]) -> list[SeederRegistration]:
 
 def _register_all() -> None:
     """Register all known seeders."""
+    from nexus.audit.seed import seed_audit_metadata  # noqa: PLC0415
     from nexus.authz.seed import seed_groups_project_admin  # noqa: PLC0415
     from nexus.credentials.lib.preseed import preseed_credential_types  # noqa: PLC0415
     from nexus.settings.seeder import seed_settings_with_session  # noqa: PLC0415
@@ -204,6 +205,13 @@ def _register_all() -> None:
             name="authz",
             func=seed_groups_project_admin,
             description="Seed built-in groups, default project, and admin user",
+        )
+    )
+    _register(
+        SeederRegistration(
+            name="audit_metadata",
+            func=seed_audit_metadata,
+            description="Populate audit_table_metadata and create audit triggers",
         )
     )
     _register(

@@ -2,10 +2,12 @@
 
 from collections.abc import AsyncGenerator
 from typing import Any
+from uuid import UUID
 
-from sqlalchemy import inspect
+import structlog
+from sqlalchemy import event, inspect, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import Query
+from sqlalchemy.orm import Query, Session
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.config.base import get_settings
@@ -19,6 +21,9 @@ _ssl_connect_args = build_ssl_connect_args(
     ssl_cert=settings.db_ssl_cert,
     ssl_key=settings.db_ssl_key,
 )
+
+logger = structlog.stdlib.get_logger(__name__)
+
 
 # Create async engine with connection pooling
 engine = create_async_engine(
@@ -39,6 +44,75 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
     autocommit=False,
 )
+
+
+def register_sqlalchemy_events() -> None:
+    """Register SQLAlchemy event listeners for audit context propagation.
+
+    Attaches the before_flush listener to automatically set audit context
+    (actor, workflow IDs) as Postgres session variables before database
+    operations are flushed to the database.
+    """
+    target = AsyncSession.sync_session_class
+
+    # Register each handler only if not already registered (idempotency)
+    if not event.contains(target, "before_flush", set_audit_context):
+        event.listen(target, "before_flush", set_audit_context)
+
+
+def set_audit_context(session: Session, _flush_context: object, _instances: object) -> None:
+    """Set transaction-scoped Postgres variables for audit triggers.
+
+    Called by the before_flush event listener. Reads actor and workflow context
+    from ContextVars (set by middleware or actor_context) and propagates them
+    to Postgres as session variables.
+
+    Variables are transaction-scoped via SET LOCAL and automatically
+    cleared on COMMIT or ROLLBACK.
+
+    Note: SET LOCAL does not support bind parameters, so values are
+    directly interpolated. String values are escaped by doubling single
+    quotes per PostgreSQL string literal rules. UUIDs are validated format.
+    """
+    # Import here to avoid circular dependency between session and audit modules
+    from nexus.audit.emitter import (  # noqa: PLC0415
+        activity_id_context_var,
+        actor_context_var,
+        execution_id_context_var,
+        workflow_id_context_var,
+    )
+
+    actor = actor_context_var.get()
+    workflow_id = workflow_id_context_var.get()
+    execution_id = execution_id_context_var.get()
+    activity_id = activity_id_context_var.get()
+
+    # Build SET LOCAL commands with proper string escaping
+    # UUIDs are validated format, strings escape single quotes by doubling them
+    if actor and actor.actor_id:
+        session.execute(text(f"SET LOCAL app.actor_id = '{actor.actor_id}'"))
+    if actor and actor.actor_username:
+        # Escape single quotes in username (PostgreSQL string literal escaping)
+        escaped_username = actor.actor_username.replace("'", "''")
+        session.execute(text(f"SET LOCAL app.actor_username = '{escaped_username}'"))
+    if actor and actor.actor_type:
+        session.execute(text(f"SET LOCAL app.actor_type = '{actor.actor_type.value}'"))
+    if workflow_id:
+        try:
+            uuid_str = str(UUID(str(workflow_id)))
+            session.execute(text(f"SET LOCAL app.workflow_id = '{uuid_str}'"))
+        except (TypeError, ValueError):
+            logger.warning("Unable to set workflow_id in Postgres session. Invalid UUID.")
+    if execution_id:
+        try:
+            uuid_str = str(UUID(str(execution_id)))
+            session.execute(text(f"SET LOCAL app.execution_id = '{uuid_str}'"))
+        except (TypeError, ValueError):
+            logger.warning("Unable to set execution_id in Postgres session. Invalid UUID.")
+    if activity_id:
+        # Escape single quotes in activity_id (PostgreSQL string literal escaping)
+        escaped_activity_id = activity_id.replace("'", "''")
+        session.execute(text(f"SET LOCAL app.activity_id = '{escaped_activity_id}'"))
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -114,3 +188,6 @@ def apply_soft_delete_filter(query: Query[Any]) -> Query[Any]:
 # Note: Automatic soft-delete filtering via event listeners is disabled for AsyncSession
 # as the 'do_orm_execute' event is not available. Instead, we explicitly filter
 # soft-deleted records in API endpoints using .filter(Model.deleted_at.is_(None))
+
+# Register audit context event listener at module load time
+register_sqlalchemy_events()

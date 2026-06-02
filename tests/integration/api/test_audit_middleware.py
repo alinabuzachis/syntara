@@ -9,10 +9,12 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
-from nexus.audit.services.writer import get_audit_writer
+from nexus.audit.outbox.worker import get_outbox_worker
 from nexus.core.models.user import User
 
 AUDIT_URL = "/api/v1/audit"
@@ -27,6 +29,7 @@ def ensure_http_request_handler_registered() -> None:
 @pytest.mark.asyncio
 async def test_middleware_extracts_path_params(
     base_client: AsyncClient,
+    test_db_session_factory: async_sessionmaker[AsyncSession],
     admin_user: User,
     create_jwt_for_user: Callable[[User], str],
 ) -> None:
@@ -55,21 +58,37 @@ async def test_middleware_extracts_path_params(
     # The request should fail (no such execution)
     assert response.status_code == 404
 
-    # Drain the audit writer to ensure all events have been written to the database
-    _audit_writer = get_audit_writer()
-    assert _audit_writer is not None
-    await _audit_writer.drain()
+    # Flush all pending AuditEventRecord writes
+    await get_outbox_worker().drain()
 
     # Query the audit endpoint to retrieve the emitted event
-    audit_response = await base_client.get(AUDIT_URL, headers=auth_headers)
+    # Filter by actor_id and execution_id to narrow down results
+    query_params = f"?actor_id={admin_user.id}&execution_id={execution_id}&limit=100"
+    audit_response = await base_client.get(AUDIT_URL + query_params, headers=auth_headers)
     assert audit_response.status_code == 200
 
     audit_data = audit_response.json()
-    # Should have 1 event: the POST to signal
-    assert len(audit_data["resources"]) == 1
+    events = audit_data["resources"]
+
+    # Find the specific POST event for our signal endpoint
+    post_event = None
+    for event in events:
+        if (
+            event.get("event_action") == "request_completed"
+            and event.get("execution_id") == str(execution_id)
+            and event.get("activity_id") == activity_id
+            and event.get("actor_id") == str(admin_user.id)
+        ):
+            post_event = event
+            break
+
+    assert post_event is not None, (
+        f"No request_completed event found for execution_id={execution_id}, "
+        f"activity_id={activity_id}, actor_id={admin_user.id}. "
+        f"Found {len(events)} events total."
+    )
 
     # Verify the audit event has the correct context IDs from the URL
-    post_event = audit_data["resources"][0]
     assert post_event["actor_id"] == str(admin_user.id)
     assert post_event["actor_username"] == admin_user.username
     assert post_event["actor_type"] == "user"
@@ -103,10 +122,8 @@ async def test_middleware_captures_request_id_in_structured_data(
     response = await base_client.get(f"{AUDIT_URL}?sort=-created_at", headers=headers)
     assert response.status_code == 200
 
-    # Drain the audit writer to ensure all events have been written to the database
-    _audit_writer = get_audit_writer()
-    assert _audit_writer is not None
-    await _audit_writer.drain()
+    # Flush all pending AuditEventRecord writes
+    await get_outbox_worker().drain()
 
     # Query the audit endpoint again to retrieve the audit event for the previous GET
     audit_response = await base_client.get(AUDIT_URL, headers=headers)

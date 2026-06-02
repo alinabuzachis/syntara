@@ -7,6 +7,7 @@ from nexus.audit.events.function_execution import FunctionExecutionEvent, Functi
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.sanitization import REDACTED
 from nexus.core.models.user import User
 
 
@@ -186,7 +187,7 @@ class TestFunctionExecutionHandler:
             source_component="auth.service",
             actor_context=AuditActorContext(),  # SYSTEM actor
             event_severity=EventSeverity.WARNING,
-            function_args={"token": "[REDACTED]"},
+            function_args={"token": REDACTED},
             function_result={"valid": True, "expires_soon": True},
             error_type=None,
             error_message=None,

@@ -61,11 +61,7 @@ class TestAuditEventDispatcher:
     """Tests for AuditEventDispatcher.dispatch() logic."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({_DispatchEvent: _DispatchHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_dispatches_to_matching_handler(self) -> None:
         """dispatch() finds the correct handler and calls emit_audit_event."""
@@ -87,7 +83,7 @@ class TestAuditEventDispatcher:
 
     def test_unknown_event_type_logs_warning(self) -> None:
         """dispatch() logs a warning for unhandled event types."""
-        AuditEventDispatcher.reset()
+        AuditEventDispatcher._reset()
 
         with patch("nexus.audit.dispatcher.logger") as mock_logger:
             AuditEventDispatcher.dispatch(_UnknownEvent())
@@ -96,7 +92,7 @@ class TestAuditEventDispatcher:
 
     def test_handler_raises_logs_exception_and_does_not_propagate(self) -> None:
         """When a handler.handle() raises, dispatch logs and swallows the error."""
-        AuditEventDispatcher.reset()
+        AuditEventDispatcher._reset()
 
         class _RaisingHandler(AuditEventHandler["_DispatchEvent"]):
             def handle(self, event: "_DispatchEvent") -> AuditEvent:
@@ -116,7 +112,6 @@ class TestAuditEventDispatcher:
 
     def test_multiple_handlers_for_same_event_type(self) -> None:
         """dispatch() invokes all registered handlers for an event type."""
-        AuditEventDispatcher.reset()
         side_effect_handler = _SideEffectHandler()
         AuditEventDispatcher.register({_DispatchEvent: _DispatchHandler()})
         AuditEventDispatcher.register({_DispatchEvent: side_effect_handler})
@@ -131,7 +126,8 @@ class TestAuditEventDispatcher:
 
     def test_side_effect_only_handler_skips_emit(self) -> None:
         """Handlers returning None do not trigger emit_audit_event."""
-        AuditEventDispatcher.reset()
+        AuditEventDispatcher._reset()
+
         side_effect_handler = _SideEffectHandler()
         AuditEventDispatcher.register({_DispatchEvent: side_effect_handler})
 
@@ -144,12 +140,6 @@ class TestAuditEventDispatcher:
 
 class TestDispatcherLifecycle:
     """Tests for register/reset lifecycle."""
-
-    def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_register_merges_across_calls(self) -> None:
         """register() adds handlers without clearing previous registrations."""
@@ -167,7 +157,7 @@ class TestDispatcherLifecycle:
     def test_reset_clears_registry(self) -> None:
         """reset() empties the registry so subsequent dispatches find nothing."""
         AuditEventDispatcher.register({_DispatchEvent: _DispatchHandler()})
-        AuditEventDispatcher.reset()
+        AuditEventDispatcher._reset()
 
         with patch("nexus.audit.dispatcher.emit_audit_event") as mock_emit:
             AuditEventDispatcher.dispatch(_DispatchEvent(message="after reset"))

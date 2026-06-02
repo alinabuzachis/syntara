@@ -48,7 +48,7 @@ paths:
           description: Maximum number of results per page
           schema:
             type: integer
-            maximum: 100
+            maximum: 500
             exclusiveMinimum: 0
             default: 20
             title: Limit

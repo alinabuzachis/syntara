@@ -49,16 +49,11 @@ class TestAsyncToolInvocationEventDispatch:
 
     def setup_method(self) -> None:
         """Register audit event handlers."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 ToolInvocationEvent: ToolInvocationHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_async_wrapper_emits_started_and_completed_events(self) -> None:
@@ -212,16 +207,11 @@ class TestSyncToolInvocationEventDispatch:
 
     def setup_method(self) -> None:
         """Register audit event handlers."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 ToolInvocationEvent: ToolInvocationHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     def test_sync_wrapper_emits_started_and_completed_events(self) -> None:
         """Successful sync tool execution emits STARTED and COMPLETED events."""

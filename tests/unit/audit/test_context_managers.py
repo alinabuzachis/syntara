@@ -29,6 +29,7 @@ from nexus.audit.models.audit_event import (
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.sanitization import REDACTED
 from nexus.core.models.user import User
 
 
@@ -36,13 +37,9 @@ class TestActorContext:
     """Test the actor_context context manager."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
         )
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     async def test_actor_context_sets_and_resets_context_variables(self, test_user: User) -> None:
         """Test that actor_context properly sets and resets context variables."""
@@ -243,11 +240,7 @@ class TestAuditContextSystemUserClassification:
     """Test system user classification in audit_context context manager."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({AuditContextEvent: AuditContextHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_system_user_classified_as_system_actor(self, mock_emit: Mock) -> None:
@@ -312,13 +305,9 @@ class TestAuditContext:
     """Test the audit_context context manager."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
         )
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_audit_context_success_emits_audit_event(self, mock_emit: Mock, test_user: User) -> None:
@@ -695,13 +684,9 @@ class TestContextManagersWithTrackEventDecorator:
     """Test context managers working with @audit decorator."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
         )
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_actor_context_with_audit_decorator(self, mock_emit: Mock, test_user: User) -> None:
@@ -867,13 +852,9 @@ class TestActorContextSanitizationAndTruncation:
     """Test that events emitted within actor_context have sanitized and truncated payloads."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
         )
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_actor_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock, test_user: User) -> None:
@@ -894,7 +875,7 @@ class TestActorContextSanitizationAndTruncation:
 
         # Secret field should be redacted by the sanitizer
         assert isinstance(function_data.function_args, dict)
-        assert function_data.function_args["api_secret"] == "[REDACTED]"  # noqa: S105
+        assert function_data.function_args["api_secret"] == REDACTED
         # Non-sensitive field should be preserved
         assert function_data.function_args["name"] == "alice"
 
@@ -924,13 +905,9 @@ class TestAuditContextSanitizationAndTruncation:
     """Test that events emitted by audit_context have sanitized and truncated payloads."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
         )
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     async def test_audit_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock, test_user: User) -> None:
@@ -953,7 +930,7 @@ class TestAuditContextSanitizationAndTruncation:
 
         structured_dict = emitted_event.structured_data.model_dump()
         # Password field should be redacted by the sanitizer
-        assert structured_dict["user_password"] == "[REDACTED]"  # noqa: S105
+        assert structured_dict["user_password"] == REDACTED
         # Non-sensitive field should be preserved
         assert structured_dict["username"] == "alice"
 
@@ -1006,7 +983,7 @@ class TestAuditContextSanitizationAndTruncation:
 
         structured_dict = emitted_event.structured_data.model_dump()
         # Sensitive credential field should be redacted by the sanitizer
-        assert structured_dict[sensitive_field_name] == "[REDACTED]"
+        assert structured_dict[sensitive_field_name] == REDACTED
         # Non-sensitive field should be preserved
         assert structured_dict["username"] == "alice"
         # Original sensitive value should not appear anywhere in the structured data

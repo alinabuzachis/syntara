@@ -25,65 +25,13 @@ from sqlmodel import select
 
 from nexus.agent_orchestrator.models import InvocationStatus
 from nexus.audit.models.audit_event_record import AuditEventRecord
+from nexus.audit.outbox.worker import get_outbox_worker
 from nexus.core.models import User
 from tests.helpers.invocations import wait_for_invocation_execution
 
 
-@pytest.mark.asyncio
-async def test_successful_invocation_emits_complete_audit_trail(
-    test_db_session: AsyncSession,
-    auth_client_with_tool_aware_mocked_llm: AsyncClient,
-    test_user: User,
-) -> None:
-    """Successful invocation emits all expected audit events with consistent identifiers."""
-    from uuid import uuid4
-
-    # Generate unique request_id for this test to isolate audit events
-    request_id = uuid4()
-
-    # Create invocation via API with X-Request-Id header
-    response = await auth_client_with_tool_aware_mocked_llm.post(
-        "/api/v1/invocations",
-        json={
-            "prompt": "Please help me with a simple task that doesn't require tools",
-            "session_id": "test-audit-trail-session-1",
-        },
-        headers={"X-Request-Id": str(request_id)},
-    )
-
-    assert response.status_code == 202
-    invocation_data = response.json()
-    invocation_id = invocation_data["id"]
-
-    # Wait for invocation to complete
-    async with wait_for_invocation_execution(auth_client_with_tool_aware_mocked_llm, invocation_id) as invocation:
-        assert invocation is not None
-        assert invocation["status"] == InvocationStatus.COMPLETED
-
-    # Query audit_events table by request_id for precise matching
-    # All events emitted during this request will have the same request_id
-    stmt = select(AuditEventRecord).where(
-        AuditEventRecord.structured_data["request_id"].astext == str(request_id)  # type: ignore[index]
-    )
-    result = await test_db_session.execute(stmt)
-    audit_events = list(result.scalars().all())
-
-    # Verify exact event count: 16 total events for simple prompt without tools
-    # Breakdown: request_completed (1), invocation lifecycle (2), agents (4),
-    # context planning (4), context integration (1), tool discovery (2),
-    # llm_call (1), orchestrate (1)
-    assert len(audit_events) == 16, (
-        f"Should have exactly 16 audit events for request_id {request_id}, got {len(audit_events)}"
-    )
-
-    # Categorize events by action for detailed verification
-    events_by_action: dict[str, list[AuditEventRecord]] = {}
-    for event in audit_events:
-        action = event.event_action
-        if action not in events_by_action:
-            events_by_action[action] = []
-        events_by_action[action].append(event)
-
+def _verify_event_counts_by_action(events_by_action: dict[str, list[AuditEventRecord]]) -> None:
+    """Verify all expected event types exist with correct counts."""
     # Verify HTTP request_completed event
     assert "request_completed" in events_by_action, "Missing request_completed event"
     assert len(events_by_action["request_completed"]) == 1, "Should have exactly 1 HTTP request event"
@@ -128,36 +76,102 @@ async def test_successful_invocation_emits_complete_audit_trail(
     assert "llm_call" in events_by_action, "Missing llm_call events"
     assert len(events_by_action["llm_call"]) == 1, "Should have 1 llm_call event"
 
-    # Verify all events have consistent request_id, session_id, and invocation_id
-    # Note: Filter out events that don't have session_id in structured_data:
-    # - orchestrate: session_id is in structured_data.function_args.session_id (captured by @audit decorator)
-    # - request_completed: HTTP middleware doesn't capture payload fields like session_id
-    events_with_context = [e for e in audit_events if e.event_action not in ("orchestrate", "request_completed")]
+
+def _verify_consistent_identifiers(events: list[AuditEventRecord], request_id: str, invocation_id: str) -> None:
+    """Verify all events have consistent request_id, session_id, and invocation_id."""
+    # Filter out events that don't have session_id in structured_data
+    events_with_context = [e for e in events if e.event_action not in ("orchestrate", "request_completed")]
 
     for event in events_with_context:
         # request_id should match
-        assert event.structured_data.request_id == str(request_id), (  # type: ignore[attr-defined]
-            f"Event {event.id} has incorrect request_id"
-        )
+        assert event.structured_data.request_id == request_id, f"Event {event.id} has incorrect request_id"  # type: ignore[attr-defined]
         # session_id should be redacted in structured_data
         assert event.structured_data.session_id == "[REDACTED]", f"Event {event.id} has incorrect session_id"  # type: ignore[attr-defined]
         # invocation_id should match
-        assert event.structured_data.invocation_id == str(invocation_id), (  # type: ignore[attr-defined]
-            f"Event {event.id} has incorrect invocation_id"
-        )
+        assert event.structured_data.invocation_id == invocation_id, f"Event {event.id} has incorrect invocation_id"  # type: ignore[attr-defined]
         # resource_urn should follow correct format for invocation events
         assert event.resource_urn == f"urn:nexus:invocation:{invocation_id}", (
             f"Event {event.id} has incorrect resource_urn"
         )
 
-    # Verify all events have actor_id/actor_username
-    for event in audit_events:
+
+def _verify_actor_fields(events: list[AuditEventRecord], test_user: User) -> None:
+    """Verify all events have actor_id/actor_username."""
+    for event in events:
         assert event.actor_id is not None, f"Event {event.id} missing actor_id"
         assert event.actor_username is not None, f"Event {event.id} missing actor_username"
         # Most events should have the test user as actor
         # (some system events might have system actor, but at least some should have test_user)
         if event.actor_id == test_user.id:
             assert event.actor_username == test_user.username
+
+
+@pytest.mark.asyncio
+async def test_successful_invocation_emits_complete_audit_trail(
+    test_db_session: AsyncSession,
+    auth_client_with_tool_aware_mocked_llm: AsyncClient,
+    test_user: User,
+) -> None:
+    """Successful invocation emits all expected audit events with consistent identifiers."""
+    from uuid import uuid4
+
+    # Generate unique request_id for this test to isolate audit events
+    request_id = uuid4()
+
+    # Create invocation via API with X-Request-Id header
+    response = await auth_client_with_tool_aware_mocked_llm.post(
+        "/api/v1/invocations",
+        json={
+            "prompt": "Please help me with a simple task that doesn't require tools",
+            "session_id": "test-audit-trail-session-1",
+        },
+        headers={"X-Request-Id": str(request_id)},
+    )
+
+    assert response.status_code == 202
+    invocation_data = response.json()
+    invocation_id = invocation_data["id"]
+
+    # Wait for invocation to complete
+    async with wait_for_invocation_execution(auth_client_with_tool_aware_mocked_llm, invocation_id) as invocation:
+        assert invocation is not None
+        assert invocation["status"] == InvocationStatus.COMPLETED
+
+    # Flush all pending AuditEventRecord writes
+    await get_outbox_worker().drain()
+
+    # Query audit_events table by request_id for precise matching
+    # All events emitted during this request will have the same request_id
+    stmt = select(AuditEventRecord).where(
+        AuditEventRecord.structured_data["request_id"].astext == str(request_id)  # type: ignore[index]
+    )
+    result = await test_db_session.execute(stmt)
+    audit_events = list(result.scalars().all())
+
+    # Verify exact event count: 16 total events for simple prompt without tools
+    # Breakdown: request_completed (1), invocation lifecycle (2), agents (4),
+    # context planning (4), context integration (1), tool discovery (2),
+    # llm_call (1), orchestrate (1)
+    assert len(audit_events) == 16, (
+        f"Should have exactly 16 audit events for request_id {request_id}, got {len(audit_events)}"
+    )
+
+    # Categorize events by action for detailed verification
+    events_by_action: dict[str, list[AuditEventRecord]] = {}
+    for event in audit_events:
+        action = event.event_action
+        if action not in events_by_action:
+            events_by_action[action] = []
+        events_by_action[action].append(event)
+
+    # Verify expected event types and counts
+    _verify_event_counts_by_action(events_by_action)
+
+    # Verify all events have consistent request_id, session_id, and invocation_id
+    _verify_consistent_identifiers(audit_events, str(request_id), str(invocation_id))
+
+    # Verify all events have actor_id/actor_username
+    _verify_actor_fields(audit_events, test_user)
 
     # Verify event categories - all should be valid EventCategory values
     for event in audit_events:
@@ -194,6 +208,9 @@ async def test_invocation_with_tool_call_emits_tool_invocation_events(
     async with wait_for_invocation_execution(auth_client_with_tool_aware_mocked_llm, invocation_id) as invocation:
         assert invocation is not None
         assert invocation["status"] == InvocationStatus.COMPLETED
+
+    # Flush all pending AuditEventRecord writes
+    await get_outbox_worker().drain()
 
     # Query all audit_events for this request by request_id
     stmt = select(AuditEventRecord).where(
@@ -283,6 +300,9 @@ async def test_failed_invocation_emits_error_events(
             # Invocation should have failed
             assert invocation["status"] == InvocationStatus.FAILED
 
+    # Flush all pending AuditEventRecord writes
+    await get_outbox_worker().drain()
+
     # Query audit events by request_id
     stmt = select(AuditEventRecord).where(
         AuditEventRecord.structured_data["request_id"].astext == str(request_id)  # type: ignore[index]
@@ -367,6 +387,9 @@ async def test_audit_event_timestamps_are_sequential(
     # Wait for completion
     async with wait_for_invocation_execution(auth_client_with_tool_aware_mocked_llm, invocation_id) as invocation:
         assert invocation is not None
+
+    # Flush all pending AuditEventRecord writes
+    await get_outbox_worker().drain()
 
     # Query audit events by request_id ordered by created_at
     stmt = (

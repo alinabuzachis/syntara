@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Annotated
 
 import typer
 
+from nexus.audit.lifecycle import start_audit_components, stop_audit_components
+
 if TYPE_CHECKING:
     from nexus.auth.audit.account_management import AccountEnableEvent, PasswordResetEvent
     from nexus.core.models.user import User
@@ -89,28 +91,6 @@ def _validate_password(password: str) -> tuple[bool, str | None]:
     return True, None
 
 
-def _init_audit() -> None:
-    """Bootstrap audit infrastructure for CLI usage."""
-    import nexus.auth.audit  # noqa: PLC0415
-    from nexus.audit.discovery import discover_handlers  # noqa: PLC0415
-    from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
-    from nexus.audit.services.writer import get_audit_writer, init_audit_writer  # noqa: PLC0415
-    from nexus.core.database.audit_session import AuditSessionLocal  # noqa: PLC0415
-
-    AuditEventDispatcher.register(discover_handlers(nexus.auth.audit))
-    if get_audit_writer() is None:
-        init_audit_writer(session_factory=AuditSessionLocal)
-
-
-async def _drain_audit_writer() -> None:
-    """Block until all in-flight audit writes have completed."""
-    from nexus.audit.services.writer import get_audit_writer  # noqa: PLC0415
-
-    writer = get_audit_writer()
-    if writer is not None:
-        await writer.drain()
-
-
 async def _lookup_local_user(username: str) -> User:
     """Look up a non-deleted user by username. Exits on failure."""
     from sqlmodel import select  # noqa: PLC0415
@@ -157,13 +137,13 @@ async def _revoke_sessions_and_dispatch(
     except Exception:  # noqa: BLE001
         typer.echo("WARNING: Audit event could not be recorded.", err=True)
 
-    await _drain_audit_writer()
+    await stop_audit_components()
 
 
 async def _enable_user_async(username: str, actor: str) -> None:
     """Re-enable a disabled user account."""
     _quiet_logging()
-    _init_audit()
+    start_audit_components()
 
     from nexus.auth.audit.account_management import AccountEnableEvent  # noqa: PLC0415
     from nexus.core.models.user import AuthType  # noqa: PLC0415
@@ -198,7 +178,7 @@ async def _enable_user_async(username: str, actor: str) -> None:
 async def _reset_password_async(username: str, new_password: str, actor: str) -> None:
     """Reset the password for a local user account."""
     _quiet_logging()
-    _init_audit()
+    start_audit_components()
 
     from nexus.auth.audit.account_management import PasswordResetEvent  # noqa: PLC0415
     from nexus.auth.passwords import hash_password  # noqa: PLC0415

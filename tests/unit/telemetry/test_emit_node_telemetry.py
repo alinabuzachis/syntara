@@ -35,11 +35,7 @@ class TestEmitActivityTelemetry:
     """Tests for node execution telemetry emitted via emit_activities."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({NodeExecutedEvent: NodeExecutedTelemetryHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @patch("nexus.telemetry.handlers.node_execution.get_telemetry_registry")
     def test_emits_for_completed_activity(self, mock_get_registry: MagicMock) -> None:

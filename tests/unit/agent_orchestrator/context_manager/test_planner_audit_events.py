@@ -36,17 +36,12 @@ class TestContextPlanningEventDispatch:
 
     def setup_method(self) -> None:
         """Register audit event handlers."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 ContextPlanningEvent: ContextPlanningHandler(),
                 CancellationEvent: CancellationHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     @pytest.fixture(autouse=True)
     def _mock_runtime_settings(  # type: ignore[misc]
@@ -495,17 +490,12 @@ class TestCancellationEventDispatch:
 
     def setup_method(self) -> None:
         """Register audit event handlers."""
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 CancellationEvent: CancellationHandler(),
                 ContextPlanningEvent: ContextPlanningHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        """Reset audit event dispatcher after tests."""
-        AuditEventDispatcher.reset()
 
     @pytest.fixture(autouse=True)
     def _mock_runtime_settings(  # type: ignore[misc]

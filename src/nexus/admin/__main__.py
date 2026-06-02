@@ -20,6 +20,8 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
+from nexus.audit.lifecycle import start_audit_components, stop_audit_components
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -48,28 +50,10 @@ def _register_audit_handlers() -> None:
     AuditEventDispatcher.register(auth_audit_registry)
 
 
-def _init_audit_writer() -> None:
-    """Initialise the audit event writer so CLI audit events are persisted to the audit DB."""
-    from nexus.audit.services.writer import get_audit_writer, init_audit_writer  # noqa: PLC0415
-    from nexus.core.database.audit_session import AuditSessionLocal  # noqa: PLC0415
-
-    if get_audit_writer() is None:
-        init_audit_writer(session_factory=AuditSessionLocal)
-
-
-async def _drain_audit_writer() -> None:
-    """Block until all in-flight audit writes have completed."""
-    from nexus.audit.services.writer import get_audit_writer  # noqa: PLC0415
-
-    writer = get_audit_writer()
-    if writer is not None:
-        await writer.drain()
-
-
 async def _revoke_all_tokens(actor: str) -> None:
     """Set the global revocation timestamp and emit an audit event."""
     _register_audit_handlers()
-    _init_audit_writer()
+    start_audit_components()
 
     from nexus.admin.services import set_global_revocation_timestamp  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
@@ -82,7 +66,7 @@ async def _revoke_all_tokens(actor: str) -> None:
         )
         await session.commit()
 
-    await _drain_audit_writer()
+    await stop_audit_components()
 
     timestamp_str = now.isoformat()
     logger.info(
@@ -100,7 +84,7 @@ async def _revoke_all_tokens(actor: str) -> None:
 async def _revoke_user_sessions(username: str, actor: str) -> None:
     """Revoke all sessions for a specific user."""
     _register_audit_handlers()
-    _init_audit_writer()
+    start_audit_components()
 
     from nexus.admin.services import find_user_by_username, revoke_user_sessions  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
@@ -120,7 +104,7 @@ async def _revoke_user_sessions(username: str, actor: str) -> None:
         )
         await session.commit()
 
-    await _drain_audit_writer()
+    await stop_audit_components()
 
     logger.info(
         "Revoked all sessions for user",
@@ -139,7 +123,7 @@ async def _revoke_user_sessions(username: str, actor: str) -> None:
 async def _revoke_idp_sessions(idp_name: str, actor: str) -> None:
     """Revoke all sessions authenticated via a specific identity provider."""
     _register_audit_handlers()
-    _init_audit_writer()
+    start_audit_components()
 
     from nexus.admin.services import find_idp_by_name, revoke_idp_sessions  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
@@ -160,7 +144,7 @@ async def _revoke_idp_sessions(idp_name: str, actor: str) -> None:
         )
         await session.commit()
 
-    await _drain_audit_writer()
+    await stop_audit_components()
 
     logger.info(
         "Revoked all sessions for identity provider",

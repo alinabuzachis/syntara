@@ -7,6 +7,7 @@ from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.orm import Session
 
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -14,6 +15,7 @@ from nexus.audit.emitter import AuditActorContext
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.sanitization import REDACTED
 from nexus.core.models.user import User
 
 
@@ -64,11 +66,7 @@ class TestTrackEventDecorator:
     """Test the audit decorator functionality."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_audit_basic_decoration(self) -> None:
         """Test basic function decoration and execution."""
@@ -525,11 +523,7 @@ class TestTrackEventEdgeCases:
     """Test edge cases and error conditions for audit decorator."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_audit_multiple_decorators(self) -> None:
         """Test function with multiple audit decorators."""
@@ -643,7 +637,7 @@ class TestTrackEventEdgeCases:
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
             assert function_data.function_args is not None
-            assert function_data.function_args["password"] == "[REDACTED]"  # noqa: S105
+            assert function_data.function_args["password"] == REDACTED
             assert function_data.function_args["username"] == "testuser"
 
     async def test_audit_async_function_with_result_capture(self) -> None:
@@ -851,7 +845,7 @@ class TestTrackEventEdgeCases:
 
         events_captured = []
 
-        def capture_event(event_obj: AuditEvent) -> None:
+        def capture_event(event_obj: AuditEvent, _: Session | None = None) -> None:
             events_captured.append((event_obj.event_action, "emitted"))
 
         @audit(EventCategory.USER_ACTION)
@@ -1010,11 +1004,7 @@ class TestTrackEventSanitizationAndTruncation:
     """Test that emitted audit events from @audit have sanitized and truncated payloads."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_audit_emitted_event_has_sanitized_payload(self) -> None:
         """Test that sensitive data in captured arguments is redacted in the emitted event."""
@@ -1033,7 +1023,7 @@ class TestTrackEventSanitizationAndTruncation:
 
             # Password field should be redacted by the sanitizer
             assert isinstance(function_data.function_args, dict)
-            assert function_data.function_args["user_password"] == "[REDACTED]"  # noqa: S105
+            assert function_data.function_args["user_password"] == REDACTED
             # Non-sensitive field should be preserved
             assert function_data.function_args["username"] == "alice"
 
@@ -1062,11 +1052,7 @@ class TestEventSeverity:
     """Test event severity override functionality."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_audit_default_severity_info(self) -> None:
         """Test that the default event severity is INFO."""
@@ -1219,11 +1205,7 @@ class TestTrackEventAttemptingEvent:
     """Tests for event emission timing."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     def test_single_event_emitted_on_success(self) -> None:
         """Only one event is emitted on successful function completion."""

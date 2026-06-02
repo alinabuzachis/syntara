@@ -4,13 +4,11 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Literal
+from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
 
-import nexus.audit.services.writer as writer_module
 from nexus.audit.context_managers import actor_context
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -19,12 +17,13 @@ from nexus.audit.models.audit_event import EventCategory
 from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.audit.models.schemas import AuditEventListResponse
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.audit.outbox.worker import get_outbox_worker
 from nexus.audit.services.audit_event_service import AuditEventService
-from nexus.audit.services.writer import AuditEventWriter
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable
+    from collections.abc import Callable
 
+    from sqlalchemy.ext.asyncio import async_sessionmaker
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from nexus.core.models import User
@@ -72,38 +71,6 @@ def _tracked_raises(reason: str) -> None:
 
 
 # ------------------------------------------------------------------ #
-# Fixtures
-# ------------------------------------------------------------------ #
-
-
-@pytest_asyncio.fixture
-async def audit_writer(test_db_session: AsyncSession) -> AsyncGenerator[AuditEventWriter, None]:
-    """Install a real AuditEventWriter that writes through ``test_db_session``.
-
-    The writer normally owns its session lifecycle (``async with factory() as
-    session``), but here we hand it a factory that yields the test's shared
-    session without closing it, so the service's subsequent reads see the
-    writer's committed rows on the same session.
-    """
-
-    @asynccontextmanager
-    async def shared_session() -> AsyncGenerator[AsyncSession, None]:
-        yield test_db_session
-
-    previous = writer_module._writer
-    writer = AuditEventWriter(shared_session)  # type: ignore[arg-type]
-    writer_module._writer = writer
-    try:
-        yield writer
-    finally:
-        try:
-            await writer.drain()
-        except Exception:
-            pass
-        writer_module._writer = previous
-
-
-# ------------------------------------------------------------------ #
 # Test
 # ------------------------------------------------------------------ #
 
@@ -112,11 +79,7 @@ class TestAuditEndToEnd:
     """End-to-end audit event lifecycle tests."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -189,26 +152,32 @@ class TestAuditEndToEnd:
         call: Callable[[], Any],
         mode: RunMode,
         expected: dict[str, Any],
-        audit_writer: AuditEventWriter,
-        test_db_session: AsyncSession,
+        test_db_session_factory: async_sessionmaker[AsyncSession],
         test_user: User,
     ) -> None:
         """@audit -> writer -> DB -> AuditEventService, with typed structured_data."""
-        with actor_context(actor=test_user):
+        with (
+            actor_context(actor=test_user),
+            patch("nexus.audit.outbox.worker.AsyncSessionLocal", test_db_session_factory),
+            patch("nexus.audit.outbox.worker.AuditSessionLocal", test_db_session_factory),
+        ):
             if mode == "error":
                 with pytest.raises(ValueError):
                     call()
             else:
                 call()
 
-        await audit_writer.drain()
+            # Flush all pending AuditEventRecord writes
+            await get_outbox_worker().drain()
 
-        service = AuditEventService(test_db_session, test_user)
-        response = await service.list_resources(
-            model=AuditEventRecord,
-            response_type=AuditEventListResponse,
-            limit=200,
-        )
+        async with test_db_session_factory() as session:
+            service = AuditEventService(session, test_user)
+            response = await service.list_resources(
+                model=AuditEventRecord,
+                response_type=AuditEventListResponse,
+                query_params_items=[("event_action", expected.get("event_action", ""))],
+                limit=10,
+            )
 
         # Filter to the event we just created (there may be pre-existing events)
         matching = [r for r in response.resources if r.event_action == expected["event_action"]]

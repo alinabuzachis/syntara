@@ -52,7 +52,15 @@ async def _truncate_all_tables(engine: AsyncEngine) -> None:
 
 
 @pytest_asyncio.fixture
-async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+async def test_db_session_factory(test_db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    """Create an async session factory from the test database engine."""
+    return async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@pytest_asyncio.fixture
+async def test_db_session(
+    test_db_engine: AsyncEngine, test_db_session_factory: async_sessionmaker[AsyncSession]
+) -> AsyncGenerator[AsyncSession, None]:
     """Create an integration test database session with real commits.
 
     Integration tests need data visible across multiple connections (API
@@ -61,13 +69,7 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
     """
     await _truncate_all_tables(test_db_engine)
 
-    session_factory = async_sessionmaker(
-        test_db_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
-    session = session_factory()
+    session = test_db_session_factory()
     try:
         yield session
         if session.is_active:

@@ -34,6 +34,7 @@ These existing documents define core standards and should be consulted first:
 | [OpenAPI Spec Management](openapi-spec-management.md) | Sub-spec layout, bundling, drift detection, CI checks, AsyncAPI conventions |
 | [Static Analysis](static-analysis.md) | Dead code detection (Vulture), import cycle detection (pyan3), CI checks, allowlists |
 | [Formatting](formatting.md) | Pre-commit as single source of truth, tool inventory, generated file cleanup, adding formatters |
+| [Locks](locks.md) | Thread safety, lock types, best practices, state machines, protected counters, testing |
 | [Questions](questions.md) | Open questions, inconsistencies, areas needing investigation |
 
 ### Tooling Configuration (enforces standards)

@@ -1,6 +1,7 @@
 """Unit tests for AuditEvent model."""
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -103,25 +104,30 @@ class TestAuditEventResourceUrnValidation:
         input_urn: Any,  # noqa: ANN401
         expected_urn: str | None,
         expected_log_fragment: str | None,
-        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test resource_urn RFC 8141 validation with various inputs."""
-        # Create event with the input URN (or omit if None and testing omission)
-        event = AuditEvent(
-            event_category=EventCategory.USER_ACTION,
-            event_action="test",
-            source_component="test",
-            resource_urn=input_urn if input_urn is not None else None,
-            event_message="test",
-            structured_data=AuditContextData(data_type="test"),
-        )
+        with patch("nexus.audit.models.audit_event.logger") as mock_logger:
+            # Create event with the input URN (or omit if None and testing omission)
+            event = AuditEvent(
+                event_category=EventCategory.USER_ACTION,
+                event_action="test",
+                source_component="test",
+                resource_urn=input_urn if input_urn is not None else None,
+                event_message="test",
+                structured_data=AuditContextData(data_type="test"),
+            )
 
-        # Verify the URN is set to the expected value
-        assert event.resource_urn == expected_urn
+            # Verify the URN is set to the expected value
+            assert event.resource_urn == expected_urn
 
-        # Verify expected log message if provided
-        if expected_log_fragment:
-            assert expected_log_fragment in caplog.text
+            # Verify expected log message if provided
+            if expected_log_fragment:
+                # Check that logger.warning was called
+                assert mock_logger.warning.called
+                # Get the first positional argument (the log message)
+                call_args = mock_logger.warning.call_args
+                log_message = call_args[0][0] if call_args[0] else ""
+                assert expected_log_fragment in log_message
 
     def test_resource_urn_max_length_validation(self) -> None:
         """Test that resource_urn exceeding 1024 characters raises ValidationError."""

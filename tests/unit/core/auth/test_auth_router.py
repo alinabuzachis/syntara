@@ -1261,7 +1261,6 @@ class TestLoginAuditEvents:
             SessionLifecycleHandler,
         )
 
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 LoginAttemptEvent: LoginAttemptHandler(),
@@ -1269,9 +1268,6 @@ class TestLoginAuditEvents:
                 FunctionExecutionEvent: FunctionExecutionHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings())
@@ -1393,7 +1389,6 @@ class TestOIDCAuditEvents:
         from nexus.auth.audit.session_lifecycle import SessionLifecycleEvent, SessionLifecycleHandler
         from nexus.auth.audit.user_login import UserLoginEvent, UserLoginHandler
 
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register(
             {
                 OIDCFlowEvent: OIDCFlowHandler(),
@@ -1403,9 +1398,6 @@ class TestOIDCAuditEvents:
                 FunctionExecutionEvent: FunctionExecutionHandler(),
             }
         )
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     async def test_authorize_oidc_error_emits_event_with_error_type(self) -> None:

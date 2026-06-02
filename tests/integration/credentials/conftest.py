@@ -2,7 +2,6 @@
 
 from uuid import uuid4
 
-import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -11,8 +10,8 @@ from nexus.authz.models import Project
 from nexus.credentials.models.credential_type import CredentialType
 
 
-@pytest.fixture
-def test_session_factory(test_db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+@pytest_asyncio.fixture(scope="session")
+async def test_session_factory(test_db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     """Create a session factory for credential rotation tests.
 
     The rotate_keys module uses a module-level _session_factory that needs to be

@@ -14,7 +14,7 @@ from sqlmodel import Field
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base.base_resource import BaseResource
+from nexus.core.models.base.base_resource import AuditLevel, BaseResource
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 
 
@@ -31,6 +31,9 @@ class AuditEventRecord(BaseResource, table=True):
     """
 
     __tablename__ = "audit_events"
+
+    # Disable CRUD auditing to prevent recursion (audit events shouldn't audit themselves)
+    __auditable__: ClassVar[AuditLevel] = AuditLevel.NONE
 
     # -- Core identification ---------------------------------------------------
     event_category: EventCategory = Field(

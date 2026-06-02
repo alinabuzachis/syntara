@@ -28,11 +28,7 @@ class TestPolicyServiceCreateAuditEvents:
     """Tests for audit event emission from PolicyService.create_policy()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({PolicyLifecycleEvent: PolicyLifecycleHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -138,11 +134,7 @@ class TestPolicyServiceUpdateAuditEvents:
     """Tests for audit event emission from PolicyService.update_policy()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({PolicyLifecycleEvent: PolicyLifecycleHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -190,11 +182,7 @@ class TestPolicyServiceDeleteAuditEvents:
     """Tests for audit event emission from PolicyService.delete_policy()."""
 
     def setup_method(self) -> None:
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({PolicyLifecycleEvent: PolicyLifecycleHandler()})
-
-    def teardown_method(self) -> None:
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")

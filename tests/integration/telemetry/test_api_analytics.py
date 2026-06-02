@@ -19,8 +19,6 @@ from nexus.audit.middleware import AuditMiddleware
 from nexus.telemetry.handlers.api_call import APICallTelemetryHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
-
     from nexus.telemetry.events.api_call import APICallEvent
 
 
@@ -66,12 +64,10 @@ def mock_registry() -> MagicMock:
 
 
 @pytest.fixture
-def test_app() -> Generator[FastAPI]:
+def test_app() -> FastAPI:
     """Return a FastAPI test app with audit middleware and telemetry handler."""
-    AuditEventDispatcher.reset()
     AuditEventDispatcher.register({HTTPRequestEvent: APICallTelemetryHandler()})
-    yield _create_test_app()
-    AuditEventDispatcher.reset()
+    return _create_test_app()
 
 
 class TestEndToEndMiddleware:

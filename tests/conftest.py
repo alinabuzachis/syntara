@@ -643,7 +643,18 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
 
 
 @pytest_asyncio.fixture(scope="session")
-async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: None) -> AsyncGenerator[FastAPI, None]:
+async def test_session_factory(test_db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    """Create an async session factory from the test database engine."""
+    return async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@pytest_asyncio.fixture(scope="session")
+async def session_app(
+    worker_id: str,
+    test_db_engine: AsyncEngine,
+    test_cache: None,
+    test_session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncGenerator[FastAPI, None]:
     """Create a session-scoped app with routers discovered once per worker.
 
     This fixture performs router discovery once when the worker starts,
@@ -658,12 +669,12 @@ async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: N
         worker_id: pytest-xdist worker ID
         test_db_engine: Test database engine from testcontainers
         test_cache: fixture that ensures the cache is ready
+        test_session_factory: Test database session factory
 
     Yields:
         FastAPI application with routers registered
 
     """
-    test_session_factory = async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
     # Mock OPA client so the lifespan health check passes without a running OPA server.
     # Individual tests use their own OPA mocks (e.g. CLI-based evaluation).
     mock_opa_client = AsyncMock()
@@ -681,7 +692,8 @@ async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: N
         patch("nexus.core.database.audit_session.audit_engine", test_db_engine),
         patch("nexus.core.database.audit_session.AuditSessionLocal", test_session_factory),
         patch("nexus.api.main.audit_engine", test_db_engine),
-        patch("nexus.api.main.AuditSessionLocal", test_session_factory),
+        patch("nexus.audit.outbox.worker.AsyncSessionLocal", test_session_factory),
+        patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory),
         patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
     ):
         # Seed all required data before app startup (normally done post-migration
@@ -901,6 +913,22 @@ async def user_factory(
 async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
     """Create test user with default attributes."""
     return await user_factory()
+
+
+@pytest_asyncio.fixture
+async def system_user(test_db_session: AsyncSession, user_factory: Callable[..., Awaitable["User"]]) -> "User":
+    """Get or create system user with default attributes."""
+    settings = get_settings()
+
+    async with test_db_session:
+        system_user = await test_db_session.get(User, settings.system_user_id)
+        if system_user is None:
+            system_user = await user_factory(
+                username="system",
+                email="system@example.com",
+                id=settings.system_user_id,
+            )
+    return system_user
 
 
 @pytest_asyncio.fixture
@@ -1170,7 +1198,8 @@ def sync_test_client(
             patch("nexus.core.database.audit_session.audit_engine", test_db_engine),
             patch("nexus.core.database.audit_session.AuditSessionLocal", session_factory),
             patch("nexus.api.main.audit_engine", test_db_engine),
-            patch("nexus.api.main.AuditSessionLocal", session_factory),
+            patch("nexus.audit.outbox.worker.AsyncSessionLocal", session_factory),
+            patch("nexus.audit.outbox.worker.AuditSessionLocal", session_factory),
             patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
         ):
             client = TestClient(app)
@@ -1909,24 +1938,33 @@ async def jwt_client_with_provider_factory(
 
 
 @pytest_asyncio.fixture
-async def admin_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
-    """Create admin user with username 'admin'.
+async def admin_user(test_db_session: AsyncSession, user_factory: Callable[..., Awaitable["User"]]) -> "User":
+    """Get or create admin user with username 'admin'.
 
     This is the built-in admin user that has special self-disable restrictions.
 
     Args:
+        test_db_session: Test database session
         user_factory: Factory for creating users
 
     Returns:
         User: Admin user instance
 
     """
-    return await user_factory(
-        username="admin",
-        email="admin@example.com",
-        first_name="Admin",
-        last_name="User",
-    )
+    async with test_db_session:
+        query = select(User).filter(
+            User.username == "admin"  # type: ignore[arg-type]
+        )
+        result = await test_db_session.exec(query)
+        admin_user = result.one_or_none()
+        if admin_user is None:
+            admin_user = await user_factory(
+                username="admin",
+                email="admin@example.com",
+                first_name="Admin",
+                last_name="User",
+            )
+        return admin_user
 
 
 @pytest_asyncio.fixture

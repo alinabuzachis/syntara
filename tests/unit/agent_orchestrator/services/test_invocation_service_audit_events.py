@@ -15,6 +15,7 @@ from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.agent_orchestrator.services.invocation_service import InvocationService
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
+from nexus.audit.sanitization import REDACTED
 from nexus.core.models import User
 from nexus.files.models import FileMetadata
 
@@ -32,12 +33,7 @@ class TestInvocationServiceCreateAuditEvents:
             InvocationCreatedHandler,
         )
 
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({InvocationCreatedEvent: InvocationCreatedHandler()})
-
-    def teardown_method(self) -> None:
-        """Reset dispatcher after each test."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -80,7 +76,7 @@ class TestInvocationServiceCreateAuditEvents:
         # Verify structured data
         assert event.structured_data.invocation_id == str(invocation.id)  # type: ignore[attr-defined]
         # session_id is redacted by PII sanitizer (contains "session" keyword)
-        assert event.structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
+        assert event.structured_data.session_id == REDACTED  # type: ignore[attr-defined]
         assert event.structured_data.file_ids == []  # type: ignore[attr-defined]
         assert event.structured_data.error_type is None
         assert event.structured_data.error_message is None
@@ -229,12 +225,7 @@ class TestInvocationServiceCancelAuditEvents:
             InvocationCancelledHandler,
         )
 
-        AuditEventDispatcher.reset()
         AuditEventDispatcher.register({InvocationCancelledEvent: InvocationCancelledHandler()})
-
-    def teardown_method(self) -> None:
-        """Reset dispatcher after each test."""
-        AuditEventDispatcher.reset()
 
     @pytest.mark.asyncio
     @patch("nexus.audit.emitter._do_emit_audit_event")

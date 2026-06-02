@@ -11,6 +11,12 @@ from uuid import UUID, uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.approvals.audit.approval import (
+    ApprovalDecidedEvent,
+    ApprovalDecidedHandler,
+    ApprovalRequestedEvent,
+    ApprovalRequestedHandler,
+)
 from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
 from nexus.approvals.models import (
     ActivitySummary,
@@ -25,6 +31,7 @@ from nexus.approvals.models import (
     WorkflowContext,
 )
 from nexus.approvals.services.approval_service import ApprovalService
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.models import User
 from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.workflow import ExecutionsFactory
@@ -32,6 +39,14 @@ from tests.helpers.workflow import ExecutionsFactory
 
 class TestApprovalServiceBase:
     """Base test class with helper methods for ApprovalService tests."""
+
+    def setup_method(self) -> None:
+        AuditEventDispatcher.register(
+            {
+                ApprovalRequestedEvent: ApprovalRequestedHandler(),
+                ApprovalDecidedEvent: ApprovalDecidedHandler(),
+            }
+        )
 
     def _create_test_service(self, session: AsyncSession, user: User) -> ApprovalService:
         """Create ApprovalService instance for testing."""

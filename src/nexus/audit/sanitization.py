@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+REDACTED = "[REDACTED]"
+
 # PII Detector Interface
 PIIDetector = Callable[[Any, str], Any | None]
 
@@ -14,49 +16,126 @@ PIIDetector = Callable[[Any, str], Any | None]
 # Uses word boundaries and proper validation while being aggressive for security
 EMAIL_PATTERN = re.compile(r"\b[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
 
+# Regex to split on uppercase letters while preserving the uppercase letter with the following word
+# Handles: camelCase, PascalCase, ALL_CAPS sequences
+CAMEL_CASE_PATTERN = re.compile(r"([A-Z]+(?=[A-Z][a-z]|\b)|[A-Z][a-z]+|[a-z]+|[0-9]+)")
 
-def redact_by_partial_key(patterns: list[str]) -> PIIDetector:
-    """Create a detector that redacts values based on partial key matching with word boundaries.
+
+def redact_by_partial_key(patterns: list[str]) -> PIIDetector:  # noqa: C901
+    """Create a detector that redacts values based on partial key matching with delimiter boundaries.
 
     This detector checks if any of the provided patterns appear in the key name
-    with underscore word boundaries (case-insensitive). This prevents trivial bypass
-    of exact-match redaction while avoiding false positives from substring matching.
+    bounded by common delimiters: underscore (_), hyphen (-), or dot (.).
+    Matching is case-insensitive. This prevents trivial bypass of exact-match
+    redaction while avoiding false positives from substring matching.
 
-    Security Note: Matches patterns with underscore boundaries like:
-    - password -> user_password, password_, _password, _password_
-    - secret -> api_secret_, _secret, client_secret, _secret_key
-    - token -> _auth_token, access_token_, _token_, token_value
+    Security Note: Matches patterns with delimiter boundaries like:
+    - password -> user_password, api-password, config.password, _password_, password_hash
+    - secret -> api_secret, client-secret, db.secret, _secret_key
+    - token -> auth_token, access-token, session.token, _token_
 
     Does NOT match patterns within words (e.g., 'password' won't match 'passwords123').
+
+    Supported delimiters: underscore (_), hyphen (-), dot (.)
 
     Args:
         patterns: List of sensitive terms to match within key names
 
     Returns:
-        PIIDetector function that redacts values for keys containing any pattern with boundaries
+        PIIDetector function that redacts values for keys containing any pattern with delimiter boundaries
 
     """
     patterns_lower = tuple(p.lower() for p in patterns)
+    # Delimiters that act as word boundaries
+    delimiters = {"_", "-", "."}
+
+    def _matches_with_delimiter(key_lower: str, pattern: str, delim: str) -> bool:
+        """Check if pattern matches with given delimiter as boundary."""
+        # Determine if pattern has delimiters at start/end
+        has_start_delim = pattern.startswith(delim)
+        has_end_delim = pattern.endswith(delim)
+
+        # Prefix check: pattern<delim>*
+        if not has_end_delim:
+            if key_lower.startswith(pattern + delim):
+                return True
+        elif key_lower.startswith(pattern):
+            return True
+
+        # Suffix check: *<delim>pattern
+        if not has_start_delim:
+            if key_lower.endswith(delim + pattern):
+                return True
+        elif key_lower.endswith(pattern):
+            return True
+
+        # Middle check: *<delim>pattern<delim>*
+        if not has_start_delim and not has_end_delim:
+            middle = delim + pattern + delim
+        elif has_start_delim and not has_end_delim:
+            middle = pattern + delim
+        elif not has_start_delim and has_end_delim:
+            middle = delim + pattern
+        else:
+            middle = pattern
+
+        return middle in key_lower
 
     def detector(_: Any, key: str) -> Any | None:  # noqa: ANN401
         key_lower = key.lower()
 
         for pattern in patterns_lower:
-            # Check for pattern with underscore boundaries or at start/end of key
-            # Handle patterns that already include underscores to avoid double-underscore issues
+            # Exact match
+            if key_lower == pattern:
+                return REDACTED
 
-            # Determine prefix and suffix for boundary checks
-            start_check = pattern + ("" if pattern.endswith("_") else "_")
-            end_check = ("" if pattern.startswith("_") else "_") + pattern
-            middle_check = ("" if pattern.startswith("_") else "_") + pattern + ("" if pattern.endswith("_") else "_")
+            # Check each delimiter type for boundary matches
+            for delim in delimiters:
+                if _matches_with_delimiter(key_lower, pattern, delim):
+                    return REDACTED
 
-            if (
-                key_lower == pattern  # exact match
-                or key_lower.startswith(start_check)  # pattern_* (don't add _ if pattern already ends with _)
-                or key_lower.endswith(end_check)  # *_pattern (don't add _ if pattern already starts with _)
-                or (middle_check in key_lower)  # *_pattern_* (smart underscore handling)
-            ):
-                return "[REDACTED]"
+        return None
+
+    return detector
+
+
+def redact_by_camel_case_key(patterns: list[str]) -> PIIDetector:
+    """Create a detector that redacts values based on camelCase key matching.
+
+    This detector splits camelCase keys into words (at uppercase transitions) and
+    checks if any word matches a sensitive pattern. This prevents bypass via camelCase
+    naming conventions commonly used in external APIs (OpenAI, OIDC, etc.).
+
+    Security Note: Matches patterns within camelCase keys like:
+    - password -> userPassword, adminPassword, passwordHash
+    - secret -> apiSecret, clientSecret, secretKey
+    - token -> authToken, accessToken, refreshToken, tokenValue
+
+    Handles both camelCase (starts lowercase) and PascalCase (starts uppercase).
+
+    Does NOT match patterns within individual words (e.g., 'pass' won't match 'userPassport').
+
+    Args:
+        patterns: List of sensitive terms to match within camelCase key names
+
+    Returns:
+        PIIDetector function that redacts values for keys containing any pattern in camelCase words
+
+    """
+    patterns_lower = tuple(p.lower() for p in patterns)
+
+    def detector(_: Any, key: str) -> Any | None:  # noqa: ANN401
+        # Split camelCase/PascalCase into words using regex
+        # This handles: userPassword -> ['user', 'Password']
+        #              PASSWORD -> ['PASSWORD']
+        #              userPASSWORD -> ['user', 'PASSWORD']
+        #              XMLParser -> ['XML', 'Parser']
+        words = [word.lower() for word in CAMEL_CASE_PATTERN.findall(key)]
+
+        # Check if any extracted word matches a pattern
+        for word in words:
+            if word in patterns_lower:
+                return REDACTED
 
         return None
 
@@ -184,3 +263,37 @@ class EventSanitizer:
             return data
 
         return data.model_copy(update=updates)
+
+
+# Fixed sanitizer with comprehensive PII detectors
+# Patterns list shared between delimiter-based and camelCase detectors
+_CREDENTIAL_PATTERNS = [
+    "password",
+    "secret",
+    "token",
+    "key",
+    "auth",
+    "credential",
+    "credentials",
+    "session",
+    "cookie",
+    "jwt",
+    "bearer",
+    "authorization",
+    "certificate",
+    "cert",
+    "pem",
+    "oauth",
+    "authentication",
+]
+
+sanitizer = EventSanitizer(
+    detectors=[
+        # Delimiter-based matching: snake_case, kebab-case, dot.notation
+        redact_by_partial_key(_CREDENTIAL_PATTERNS),
+        # CamelCase matching: userPassword, apiSecret, clientSecret
+        redact_by_camel_case_key(_CREDENTIAL_PATTERNS),
+        # Email detection
+        redact_email,
+    ]
+)

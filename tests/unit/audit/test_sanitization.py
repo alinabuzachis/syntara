@@ -8,8 +8,10 @@ from pydantic import BaseModel
 
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import (
+    REDACTED,
     EventSanitizer,
     PIIDetector,
+    redact_by_camel_case_key,
     redact_by_partial_key,
     redact_email,
 )
@@ -22,65 +24,65 @@ class TestRedactByKey:
         """Test that exact matches are redacted."""
         detector = redact_by_partial_key(["password", "secret", "token"])
 
-        assert detector("sensitive_data", "password") == "[REDACTED]"
-        assert detector("sensitive_data", "secret") == "[REDACTED]"
-        assert detector("sensitive_data", "token") == "[REDACTED]"
+        assert detector("sensitive_data", "password") == REDACTED
+        assert detector("sensitive_data", "secret") == REDACTED
+        assert detector("sensitive_data", "token") == REDACTED
 
     def test_redacts_underscore_prefixed_patterns(self) -> None:
         """Test that underscore-prefixed patterns are redacted."""
         detector = redact_by_partial_key(["password", "secret", "token"])
 
-        assert detector("sensitive_data", "_password") == "[REDACTED]"
-        assert detector("sensitive_data", "_secret") == "[REDACTED]"
-        assert detector("sensitive_data", "_token") == "[REDACTED]"
+        assert detector("sensitive_data", "_password") == REDACTED
+        assert detector("sensitive_data", "_secret") == REDACTED
+        assert detector("sensitive_data", "_token") == REDACTED
 
     def test_redacts_underscore_suffixed_patterns(self) -> None:
         """Test that underscore-suffixed patterns are redacted."""
         detector = redact_by_partial_key(["password", "secret", "token"])
 
-        assert detector("sensitive_data", "password_") == "[REDACTED]"
-        assert detector("sensitive_data", "secret_") == "[REDACTED]"
-        assert detector("sensitive_data", "token_") == "[REDACTED]"
+        assert detector("sensitive_data", "password_") == REDACTED
+        assert detector("sensitive_data", "secret_") == REDACTED
+        assert detector("sensitive_data", "token_") == REDACTED
 
     def test_redacts_underscore_bounded_patterns(self) -> None:
         """Test that underscore-bounded patterns are redacted."""
         detector = redact_by_partial_key(["password", "secret", "token"])
 
-        assert detector("sensitive_data", "user_password_hash") == "[REDACTED]"
-        assert detector("sensitive_data", "api_secret_key") == "[REDACTED]"
-        assert detector("sensitive_data", "auth_token_store") == "[REDACTED]"
+        assert detector("sensitive_data", "user_password_hash") == REDACTED
+        assert detector("sensitive_data", "api_secret_key") == REDACTED
+        assert detector("sensitive_data", "auth_token_store") == REDACTED
 
     def test_redacts_variations_with_underscores(self) -> None:
         """Test that various underscore patterns are redacted."""
         detector = redact_by_partial_key(["password", "key", "auth"])
 
         # Prefix variations
-        assert detector("sensitive", "user_password") == "[REDACTED]"
-        assert detector("sensitive", "admin_password") == "[REDACTED]"
-        assert detector("sensitive", "api_key") == "[REDACTED]"
-        assert detector("sensitive", "encryption_key") == "[REDACTED]"
-        assert detector("sensitive", "basic_auth") == "[REDACTED]"
+        assert detector("sensitive", "user_password") == REDACTED
+        assert detector("sensitive", "admin_password") == REDACTED
+        assert detector("sensitive", "api_key") == REDACTED
+        assert detector("sensitive", "encryption_key") == REDACTED
+        assert detector("sensitive", "basic_auth") == REDACTED
 
         # Suffix variations
-        assert detector("sensitive", "password_hash") == "[REDACTED]"
-        assert detector("sensitive", "password_store") == "[REDACTED]"
-        assert detector("sensitive", "key_") == "[REDACTED]"
-        assert detector("sensitive", "auth_") == "[REDACTED]"
+        assert detector("sensitive", "password_hash") == REDACTED
+        assert detector("sensitive", "password_store") == REDACTED
+        assert detector("sensitive", "key_") == REDACTED
+        assert detector("sensitive", "auth_") == REDACTED
 
         # Both prefix and suffix
-        assert detector("sensitive", "_password_") == "[REDACTED]"
-        assert detector("sensitive", "_key_store") == "[REDACTED]"
-        assert detector("sensitive", "user_auth_token") == "[REDACTED]"
+        assert detector("sensitive", "_password_") == REDACTED
+        assert detector("sensitive", "_key_store") == REDACTED
+        assert detector("sensitive", "user_auth_token") == REDACTED
 
     def test_case_insensitive_matching(self) -> None:
         """Test that matching is case insensitive."""
         detector = redact_by_partial_key(["password", "secret"])
 
-        assert detector("sensitive", "PASSWORD") == "[REDACTED]"
-        assert detector("sensitive", "Password") == "[REDACTED]"
-        assert detector("sensitive", "user_PASSWORD") == "[REDACTED]"
-        assert detector("sensitive", "API_SECRET") == "[REDACTED]"
-        assert detector("sensitive", "_Secret_") == "[REDACTED]"
+        assert detector("sensitive", "PASSWORD") == REDACTED
+        assert detector("sensitive", "Password") == REDACTED
+        assert detector("sensitive", "user_PASSWORD") == REDACTED
+        assert detector("sensitive", "API_SECRET") == REDACTED
+        assert detector("sensitive", "_Secret_") == REDACTED
 
     def test_ignores_patterns_within_words(self) -> None:
         """Test that patterns within words (no underscore boundaries) are not matched."""
@@ -108,14 +110,14 @@ class TestRedactByKey:
         detector = redact_by_partial_key(["password", "secret", "token", "key"])
 
         # Common bypass variations that would evade exact matching
-        assert detector("sensitive", "user_password") == "[REDACTED]"
-        assert detector("sensitive", "api_secret") == "[REDACTED]"
-        assert detector("sensitive", "auth_token") == "[REDACTED]"
-        assert detector("sensitive", "encryption_key") == "[REDACTED]"
-        assert detector("sensitive", "client_secret") == "[REDACTED]"
-        assert detector("sensitive", "access_token") == "[REDACTED]"
-        assert detector("sensitive", "private_key") == "[REDACTED]"
-        assert detector("sensitive", "session_secret") == "[REDACTED]"
+        assert detector("sensitive", "user_password") == REDACTED
+        assert detector("sensitive", "api_secret") == REDACTED
+        assert detector("sensitive", "auth_token") == REDACTED
+        assert detector("sensitive", "encryption_key") == REDACTED
+        assert detector("sensitive", "client_secret") == REDACTED
+        assert detector("sensitive", "access_token") == REDACTED
+        assert detector("sensitive", "private_key") == REDACTED
+        assert detector("sensitive", "session_secret") == REDACTED
 
     def test_empty_patterns(self) -> None:
         """Test behavior with empty patterns list."""
@@ -123,6 +125,184 @@ class TestRedactByKey:
 
         assert detector("some_data", "password") is None
         assert detector("some_data", "user_password") is None
+
+
+class TestRedactByKeyKebabCaseAndDotNotation:
+    """Test redact_by_partial_key with kebab-case and dot-notation support."""
+
+    def test_redacts_kebab_case_patterns(self) -> None:
+        """Test that kebab-case patterns are redacted."""
+        detector = redact_by_partial_key(["password", "secret", "token"])
+
+        assert detector("sensitive_data", "api-password") == REDACTED
+        assert detector("sensitive_data", "client-secret") == REDACTED
+        assert detector("sensitive_data", "auth-token") == REDACTED
+        assert detector("sensitive_data", "user-password-hash") == REDACTED
+
+    def test_redacts_dot_notation_patterns(self) -> None:
+        """Test that dot-notation patterns are redacted."""
+        detector = redact_by_partial_key(["password", "secret", "token"])
+
+        assert detector("sensitive_data", "config.password") == REDACTED
+        assert detector("sensitive_data", "db.secret") == REDACTED
+        assert detector("sensitive_data", "session.token") == REDACTED
+        assert detector("sensitive_data", "auth.password.hash") == REDACTED
+
+    def test_redacts_mixed_delimiter_patterns(self) -> None:
+        """Test that mixed delimiter patterns are redacted."""
+        detector = redact_by_partial_key(["password", "secret", "key"])
+
+        # Mix of underscores, hyphens, and dots
+        assert detector("sensitive", "user_password") == REDACTED
+        assert detector("sensitive", "api-secret") == REDACTED
+        assert detector("sensitive", "config.key") == REDACTED
+        assert detector("sensitive", "db-password") == REDACTED
+        assert detector("sensitive", "auth.secret") == REDACTED
+
+    def test_handles_multiple_delimiters_in_same_key(self) -> None:
+        """Test keys with multiple different delimiters."""
+        detector = redact_by_partial_key(["password", "secret"])
+
+        assert detector("sensitive", "user_api-password") == REDACTED
+        assert detector("sensitive", "config.db_secret") == REDACTED
+        assert detector("sensitive", "auth-service.password") == REDACTED
+
+    def test_ignores_kebab_case_non_matches(self) -> None:
+        """Test that non-matching kebab-case keys are not redacted."""
+        detector = redact_by_partial_key(["password", "secret"])
+
+        assert detector("data", "user-name") is None
+        assert detector("data", "api-endpoint") is None
+        assert detector("data", "auth-header") is None
+
+    def test_ignores_dot_notation_non_matches(self) -> None:
+        """Test that non-matching dot-notation keys are not redacted."""
+        detector = redact_by_partial_key(["password", "secret"])
+
+        assert detector("data", "config.debug") is None
+        assert detector("data", "db.host") is None
+        assert detector("data", "service.name") is None
+
+
+class TestRedactByCamelCaseKey:
+    """Test the redact_by_camel_case_key detector function."""
+
+    def test_redacts_camel_case_patterns(self) -> None:
+        """Test that camelCase patterns are redacted."""
+        detector = redact_by_camel_case_key(["password", "secret", "token"])
+
+        assert detector("sensitive_data", "userPassword") == REDACTED
+        assert detector("sensitive_data", "apiSecret") == REDACTED
+        assert detector("sensitive_data", "authToken") == REDACTED
+        assert detector("sensitive_data", "clientSecret") == REDACTED
+        assert detector("sensitive_data", "accessToken") == REDACTED
+
+    def test_redacts_pascal_case_patterns(self) -> None:
+        """Test that PascalCase patterns are redacted."""
+        detector = redact_by_camel_case_key(["password", "secret", "token"])
+
+        assert detector("sensitive_data", "UserPassword") == REDACTED
+        assert detector("sensitive_data", "ApiSecret") == REDACTED
+        assert detector("sensitive_data", "AuthToken") == REDACTED
+
+    def test_redacts_multi_word_camel_case(self) -> None:
+        """Test that multi-word camelCase patterns are redacted."""
+        detector = redact_by_camel_case_key(["password", "secret", "key"])
+
+        assert detector("sensitive", "userPasswordHash") == REDACTED
+        assert detector("sensitive", "apiSecretKey") == REDACTED
+        assert detector("sensitive", "encryptionKeyValue") == REDACTED
+        assert detector("sensitive", "adminPasswordReset") == REDACTED
+
+    def test_matches_pattern_anywhere_in_camel_case(self) -> None:
+        """Test that pattern matches anywhere in the camelCase key."""
+        detector = redact_by_camel_case_key(["password", "token", "auth"])
+
+        # Pattern at start
+        assert detector("sensitive", "passwordHash") == REDACTED
+        assert detector("sensitive", "tokenValue") == REDACTED
+
+        # Pattern in middle
+        assert detector("sensitive", "userPasswordHash") == REDACTED
+        assert detector("sensitive", "apiTokenStore") == REDACTED
+
+        # Pattern at end
+        assert detector("sensitive", "userPassword") == REDACTED
+        assert detector("sensitive", "bearerToken") == REDACTED
+        assert detector("sensitive", "basicAuth") == REDACTED
+
+    def test_case_insensitive_matching(self) -> None:
+        """Test that camelCase matching is case insensitive."""
+        detector = redact_by_camel_case_key(["password", "secret"])
+
+        assert detector("sensitive", "userPassword") == REDACTED
+        assert detector("sensitive", "userPASSWORD") == REDACTED
+        assert detector("sensitive", "apiSecret") == REDACTED
+        assert detector("sensitive", "apiSECRET") == REDACTED
+
+    def test_ignores_non_matching_camel_case_keys(self) -> None:
+        """Test that non-matching camelCase keys are not redacted."""
+        detector = redact_by_camel_case_key(["password", "secret"])
+
+        assert detector("data", "userName") is None
+        assert detector("data", "userId") is None
+        assert detector("data", "apiEndpoint") is None
+        assert detector("data", "configValue") is None
+
+    def test_does_not_match_partial_words(self) -> None:
+        """Test that patterns don't match as substrings within camelCase words."""
+        detector = redact_by_camel_case_key(["pass", "key", "auth"])
+
+        # "pass" should not match "Passport", "key" should not match "Keyboard", etc.
+        assert detector("data", "userPassport") is None
+        assert detector("data", "keyboardLayout") is None
+        assert detector("data", "authorName") is None
+
+    def test_handles_single_word_keys(self) -> None:
+        """Test that single-word keys (no camelCase) are handled correctly."""
+        detector = redact_by_camel_case_key(["password", "secret"])
+
+        # Exact match (all lowercase)
+        assert detector("sensitive", "password") == REDACTED
+        assert detector("sensitive", "secret") == REDACTED
+
+        # Non-match
+        assert detector("data", "username") is None
+        assert detector("data", "config") is None
+
+    def test_real_world_oidc_patterns(self) -> None:
+        """Test real-world OIDC/OAuth camelCase patterns."""
+        detector = redact_by_camel_case_key(["secret", "token", "key"])
+
+        # Common OIDC/OAuth field names
+        assert detector("sensitive", "clientSecret") == REDACTED
+        assert detector("sensitive", "accessToken") == REDACTED
+        assert detector("sensitive", "refreshToken") == REDACTED
+        assert detector("sensitive", "idToken") == REDACTED
+        assert detector("sensitive", "apiKey") == REDACTED
+
+    def test_real_world_llm_api_patterns(self) -> None:
+        """Test real-world LLM API response patterns."""
+        detector = redact_by_camel_case_key(["key", "token", "auth"])
+
+        # Common LLM API field names (OpenAI, Anthropic conventions)
+        assert detector("sensitive", "apiKey") == REDACTED
+        assert detector("sensitive", "authToken") == REDACTED
+        assert detector("sensitive", "accessKey") == REDACTED
+
+    def test_empty_key_handling(self) -> None:
+        """Test handling of empty keys."""
+        detector = redact_by_camel_case_key(["password"])
+
+        assert detector("value", "") is None
+
+    def test_all_uppercase_key(self) -> None:
+        """Test handling of all-uppercase keys (no camelCase)."""
+        detector = redact_by_camel_case_key(["password"])
+
+        # All uppercase should be treated as single word
+        assert detector("value", "PASSWORD") == REDACTED
+        assert detector("value", "SECRET") is None  # Pattern not in list
 
 
 class TestRedactEmail:
@@ -201,10 +381,10 @@ class TestEventSanitizer:
         sanitizer = EventSanitizer(detectors=[detector])
 
         # Should apply detectors to primitives (exact match and partial)
-        assert sanitizer._apply_detectors("value", "secret") == "[REDACTED]"
+        assert sanitizer._apply_detectors("value", "secret") == REDACTED
         assert sanitizer._apply_detectors("value", "normal_key") == "value"
-        assert sanitizer._apply_detectors(123, "secret") == "[REDACTED]"
-        assert sanitizer._apply_detectors(None, "secret") == "[REDACTED]"
+        assert sanitizer._apply_detectors(123, "secret") == REDACTED
+        assert sanitizer._apply_detectors(None, "secret") == REDACTED
 
     def test_sanitize_audit_data_base(self) -> None:
         """Test sanitization of AuditContextData objects."""
@@ -229,7 +409,7 @@ class TestEventSanitizer:
         sanitized_data = sanitizer.sanitize(data)
         assert sanitized_data.error_message == "[EMAIL_REDACTED]"
         # Extra fields should be sanitized too
-        assert sanitized_data.password_field == "[REDACTED]"  # noqa: S105
+        assert sanitized_data.password_field == REDACTED
         assert sanitized_data.email_field == "[EMAIL_REDACTED]"
         assert sanitized_data.normal_field == "normal_data"
 
@@ -247,7 +427,7 @@ class TestEventSanitizer:
         assert sanitized_data.function_args is not None
         assert isinstance(sanitized_data.function_args, dict)
         assert sanitized_data.function_args["user"]["name"] == "John"
-        assert sanitized_data.function_args["user"]["credentials"]["secret_key"] == "[REDACTED]"  # noqa: S105
+        assert sanitized_data.function_args["user"]["credentials"]["secret_key"] == REDACTED
         assert sanitized_data.function_result is not None
         assert sanitized_data.function_result["config"]["debug"] is True
 
@@ -321,7 +501,7 @@ class TestEventSanitizer:
         assert isinstance(sanitized_data.function_args, dict)
         user_data = sanitized_data.function_args["user_data"]
         assert user_data["username"] == "john"
-        assert user_data["password"] == "[REDACTED]"  # noqa: S105
+        assert user_data["password"] == REDACTED
         assert user_data["email"] == "[EMAIL_REDACTED]"
 
     def test_bytes_handling_in_audit_data(self) -> None:
@@ -456,7 +636,7 @@ class TestEdgeCases:
         sanitized_data1 = sanitizer.sanitize(data1)
         assert sanitized_data1.function_args is not None
         assert isinstance(sanitized_data1.function_args, dict)
-        assert sanitized_data1.function_args["secret_key"] == "[REDACTED]"  # noqa: S105
+        assert sanitized_data1.function_args["secret_key"] == REDACTED
 
         data2 = AuditContextData(data_type="test", function_args={"normal_key": None})
         sanitized_data2 = sanitizer.sanitize(data2)
@@ -486,7 +666,7 @@ class TestEdgeCases:
         sanitized_data = sanitizer.sanitize(data)
         assert sanitized_data.function_args is not None
         assert isinstance(sanitized_data.function_args, dict)
-        assert sanitized_data.function_args["level1"]["level2"]["level3"]["level4"]["secret"] == "[REDACTED]"  # noqa: S105
+        assert sanitized_data.function_args["level1"]["level2"]["level3"]["level4"]["secret"] == REDACTED
 
     def test_mixed_type_lists_in_audit_data(self) -> None:
         """Test lists with mixed types in audit data."""

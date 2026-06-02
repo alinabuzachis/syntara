@@ -9,7 +9,6 @@ import pytest
 from nexus.audit.emitter import (
     AuditActorContext,
     _do_emit_audit_event,
-    _sanitizer,
     activity_id_context_var,
     actor_context_var,
     emit_audit_event,
@@ -19,8 +18,7 @@ from nexus.audit.emitter import (
 )
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
-from nexus.audit.sanitization import EventSanitizer
-from nexus.audit.services.writer import AuditEventWriter
+from nexus.audit.sanitization import REDACTED, EventSanitizer, sanitizer
 from nexus.core.models.user import User
 
 
@@ -29,9 +27,9 @@ class TestEventCaptureSanitizerConfiguration:
 
     def test_default_sanitizer_exists(self) -> None:
         """Test that sanitizer is properly configured at bootstrap."""
-        assert _sanitizer is not None
-        assert isinstance(_sanitizer, EventSanitizer)
-        assert len(_sanitizer.detectors) > 0
+        assert sanitizer is not None
+        assert isinstance(sanitizer, EventSanitizer)
+        assert len(sanitizer.detectors) > 0
 
 
 class TestEventCaptureEmitAuditEvent:
@@ -185,7 +183,7 @@ class TestEventCaptureEmitAuditEvent:
         assert isinstance(context_data, AuditContextData)
 
         assert context_data.username == "testuser"  # type: ignore[attr-defined]
-        assert context_data.password == "[REDACTED]"  # type: ignore[attr-defined]  # Should be sanitized  # noqa: S105
+        assert context_data.password == REDACTED  # type: ignore[attr-defined]  # Should be sanitized
         assert context_data.email == "[EMAIL_REDACTED]"  # type: ignore[attr-defined]  # Should be sanitized
         assert context_data.normal_data == "safe_value"  # type: ignore[attr-defined]
 
@@ -233,21 +231,21 @@ class TestEventCaptureEmitAuditEvent:
         context_data = event_obj.structured_data
         assert isinstance(context_data, AuditContextData)
 
-        assert context_data.password == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
-        assert context_data.secret == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
-        assert context_data.token == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
-        assert context_data.api_key == "[REDACTED]"  # type: ignore[attr-defined]
-        assert context_data.auth == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.password == REDACTED  # type: ignore[attr-defined]
+        assert context_data.secret == REDACTED  # type: ignore[attr-defined]
+        assert context_data.token == REDACTED  # type: ignore[attr-defined]
+        assert context_data.api_key == REDACTED  # type: ignore[attr-defined]
+        assert context_data.auth == REDACTED  # type: ignore[attr-defined]
 
-        assert context_data.credential == "[REDACTED]"  # type: ignore[attr-defined]
-        assert context_data.private_key == "[REDACTED]"  # type: ignore[attr-defined]
-        assert context_data.session == "[REDACTED]"  # type: ignore[attr-defined]
-        assert context_data.cookie == "[REDACTED]"  # type: ignore[attr-defined]
-        assert context_data.jwt == "[REDACTED]"  # type: ignore[attr-defined]
-        assert context_data.bearer == "[REDACTED]"  # type: ignore[attr-defined]
-        assert context_data.client_secret == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
-        assert context_data.access_token == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
-        assert context_data.refresh_token == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+        assert context_data.credential == REDACTED  # type: ignore[attr-defined]
+        assert context_data.private_key == REDACTED  # type: ignore[attr-defined]
+        assert context_data.session == REDACTED  # type: ignore[attr-defined]
+        assert context_data.cookie == REDACTED  # type: ignore[attr-defined]
+        assert context_data.jwt == REDACTED  # type: ignore[attr-defined]
+        assert context_data.bearer == REDACTED  # type: ignore[attr-defined]
+        assert context_data.client_secret == REDACTED  # type: ignore[attr-defined]
+        assert context_data.access_token == REDACTED  # type: ignore[attr-defined]
+        assert context_data.refresh_token == REDACTED  # type: ignore[attr-defined]
 
         # Safe data should remain unchanged
         assert context_data.username == "testuser"  # type: ignore[attr-defined]
@@ -257,7 +255,6 @@ class TestEventCaptureEmitAuditEvent:
         ("field_name", "field_value", "expected_result", "test_description"),
         [
             # Safe fields that should NOT be redacted
-            ("key", "database.timeout", "database.timeout", "legitimate standalone key usage"),
             ("keyspace", "redis.namespace", "redis.namespace", "legitimate keyspace usage"),
             ("keymap", "user.mappings", "user.mappings", "legitimate keymap usage"),
             ("keyboard", "en-US", "en-US", "legitimate keyboard usage"),
@@ -265,74 +262,74 @@ class TestEventCaptureEmitAuditEvent:
             ("value", "30000", "30000", "legitimate value"),
             ("configuration", "app_config", "app_config", "legitimate configuration"),
             ("endpoint", "/api/v1/users", "/api/v1/users", "legitimate endpoint"),
-            # Redaction patterns from emitter.py L#26-44 that SHOULD be redacted
             # password patterns
-            ("password", "secret123", "[REDACTED]", "direct password match"),
-            ("user_password", "userpass456", "[REDACTED]", "password with prefix"),
-            ("admin_password", "adminpass789", "[REDACTED]", "password with prefix"),
+            ("password", "secret123", REDACTED, "direct password match"),
+            ("user_password", "userpass456", REDACTED, "password with prefix"),
+            ("admin_password", "adminpass789", REDACTED, "password with prefix"),
             # secret patterns
-            ("secret", "topsecret", "[REDACTED]", "direct secret match"),
-            ("client_secret", "oauth_secret_123", "[REDACTED]", "secret with prefix"),
-            ("app_secret", "application_secret", "[REDACTED]", "secret with prefix"),
+            ("secret", "topsecret", REDACTED, "direct secret match"),
+            ("client_secret", "oauth_secret_123", REDACTED, "secret with prefix"),
+            ("app_secret", "application_secret", REDACTED, "secret with prefix"),
             # token patterns
-            ("token", "abc123token", "[REDACTED]", "direct token match"),
-            ("auth_token", "bearer_token_456", "[REDACTED]", "token with prefix"),
-            ("access_token", "oauth_access_789", "[REDACTED]", "token with prefix"),
+            ("token", "abc123token", REDACTED, "direct token match"),
+            ("auth_token", "bearer_token_456", REDACTED, "token with prefix"),
+            ("access_token", "oauth_access_789", REDACTED, "token with prefix"),
             # _key patterns (ends with _key)
-            ("config_key", "app.settings.debug", "[REDACTED]", "_key pattern ending"),
-            ("lookup_key", "user.preferences.theme", "[REDACTED]", "_key pattern ending"),
-            ("database_key", "db_connection_key", "[REDACTED]", "_key pattern ending"),
-            ("api_key", "sk-123abc", "[REDACTED]", "_key pattern ending"),
-            ("private_key", "-----BEGIN RSA PRIVATE KEY-----", "[REDACTED]", "_key pattern ending"),
-            ("public_key", "-----BEGIN PUBLIC KEY-----", "[REDACTED]", "_key pattern ending"),
-            ("encryption_key", "aes256_encryption_key", "[REDACTED]", "_key pattern ending"),
-            ("signing_key", "rsa_signing_key", "[REDACTED]", "_key pattern ending"),
-            ("access_key", "AKIA1234567890", "[REDACTED]", "_key pattern ending"),
-            ("ssh_key", "ssh-rsa AAAAB3NzaC1yc2E...", "[REDACTED]", "_key pattern ending"),
+            ("key", "database.timeout", REDACTED, "standalone key usage"),
+            ("config_key", "app.settings.debug", REDACTED, "_key pattern ending"),
+            ("lookup_key", "user.preferences.theme", REDACTED, "_key pattern ending"),
+            ("database_key", "db_connection_key", REDACTED, "_key pattern ending"),
+            ("api_key", "sk-123abc", REDACTED, "_key pattern ending"),
+            ("private_key", "-----BEGIN RSA PRIVATE KEY-----", REDACTED, "_key pattern ending"),
+            ("public_key", "-----BEGIN PUBLIC KEY-----", REDACTED, "_key pattern ending"),
+            ("encryption_key", "aes256_encryption_key", REDACTED, "_key pattern ending"),
+            ("signing_key", "rsa_signing_key", REDACTED, "_key pattern ending"),
+            ("access_key", "AKIA1234567890", REDACTED, "_key pattern ending"),
+            ("ssh_key", "ssh-rsa AAAAB3NzaC1yc2E...", REDACTED, "_key pattern ending"),
             # key_ patterns (starts with key_)
-            ("key_value", "some_key_value", "[REDACTED]", "key_ pattern starting"),
-            ("key_store", "redis_key_store", "[REDACTED]", "key_ pattern starting"),
-            ("key_manager", "key_management_service", "[REDACTED]", "key_ pattern starting"),
+            ("key_value", "some_key_value", REDACTED, "key_ pattern starting"),
+            ("key_store", "redis_key_store", REDACTED, "key_ pattern starting"),
+            ("key_manager", "key_management_service", REDACTED, "key_ pattern starting"),
             # auth patterns
-            ("auth", "basic_auth_string", "[REDACTED]", "direct auth match"),
-            ("oauth", "oauth_token_data", "[REDACTED]", "direct oauth match"),
-            ("authentication", "auth_header_data", "[REDACTED]", "direct authentication match"),
+            ("auth", "basic_auth_string", REDACTED, "direct auth match"),
+            ("oauth", "oauth_token_data", REDACTED, "direct oauth match"),
+            ("authentication", "auth_header_data", REDACTED, "direct authentication match"),
             # credential patterns
-            ("credential", "user_credentials", "[REDACTED]", "direct credential match"),
-            ("credentials", "login_credentials", "[REDACTED]", "direct credentials match"),
-            ("user_credential", "account_credential", "[REDACTED]", "credential with prefix"),
+            ("credential", "user_credentials", REDACTED, "direct credential match"),
+            ("credentials", "login_credentials", REDACTED, "direct credentials match"),
+            ("user_credential", "account_credential", REDACTED, "credential with prefix"),
             # session patterns
-            ("session", "session_id_12345", "[REDACTED]", "direct session match"),
-            ("session_id", "sess_abcdef123456", "[REDACTED]", "session with suffix"),
-            ("user_session", "active_session_token", "[REDACTED]", "session with prefix"),
+            ("session", "session_id_12345", REDACTED, "direct session match"),
+            ("session_id", "sess_abcdef123456", REDACTED, "session with suffix"),
+            ("user_session", "active_session_token", REDACTED, "session with prefix"),
             # cookie patterns
-            ("cookie", "sessioncookie=value", "[REDACTED]", "direct cookie match"),
-            ("auth_cookie", "authentication_cookie", "[REDACTED]", "cookie with prefix"),
-            ("session_cookie", "session_cookie_data", "[REDACTED]", "cookie with prefix"),
+            ("cookie", "sessioncookie=value", REDACTED, "direct cookie match"),
+            ("auth_cookie", "authentication_cookie", REDACTED, "cookie with prefix"),
+            ("session_cookie", "session_cookie_data", REDACTED, "cookie with prefix"),
             # jwt patterns
-            ("jwt", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", "[REDACTED]", "direct jwt match"),
-            ("jwt_token", "jwt_bearer_token", "[REDACTED]", "jwt with suffix"),
-            ("access_jwt", "access_jwt_token", "[REDACTED]", "jwt with prefix"),
+            ("jwt", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", REDACTED, "direct jwt match"),
+            ("jwt_token", "jwt_bearer_token", REDACTED, "jwt with suffix"),
+            ("access_jwt", "access_jwt_token", REDACTED, "jwt with prefix"),
             # bearer patterns
-            ("bearer", "Bearer token_value", "[REDACTED]", "direct bearer match"),
-            ("bearer_token", "Bearer abc123", "[REDACTED]", "bearer with suffix"),
-            ("authorization_bearer", "Bearer xyz789", "[REDACTED]", "bearer with prefix"),
+            ("bearer", "Bearer token_value", REDACTED, "direct bearer match"),
+            ("bearer_token", "Bearer abc123", REDACTED, "bearer with suffix"),
+            ("authorization_bearer", "Bearer xyz789", REDACTED, "bearer with prefix"),
             # authorization_code patterns
-            ("authorization_code", "auth_code_123456", "[REDACTED]", "direct authorization_code match"),
-            ("oauth_authorization_code", "oauth_code_789", "[REDACTED]", "authorization_code with prefix"),
-            ("auth_code", "authorization_code_abc", "[REDACTED]", "auth pattern match"),
+            ("authorization_code", "auth_code_123456", REDACTED, "direct authorization_code match"),
+            ("oauth_authorization_code", "oauth_code_789", REDACTED, "authorization_code with prefix"),
+            ("auth_code", "authorization_code_abc", REDACTED, "auth pattern match"),
             # certificate patterns
-            ("certificate", "-----BEGIN CERTIFICATE-----", "[REDACTED]", "direct certificate match"),
-            ("ssl_certificate", "x509_certificate_data", "[REDACTED]", "certificate with prefix"),
-            ("client_certificate", "client_cert_data", "[REDACTED]", "certificate with prefix"),
+            ("certificate", "-----BEGIN CERTIFICATE-----", REDACTED, "direct certificate match"),
+            ("ssl_certificate", "x509_certificate_data", REDACTED, "certificate with prefix"),
+            ("client_certificate", "client_cert_data", REDACTED, "certificate with prefix"),
             # cert patterns
-            ("cert", "certificate_content", "[REDACTED]", "direct cert match"),
-            ("ssl_cert", "ssl_certificate", "[REDACTED]", "cert with prefix"),
-            ("client_cert", "client_certificate_data", "[REDACTED]", "cert with prefix"),
+            ("cert", "certificate_content", REDACTED, "direct cert match"),
+            ("ssl_cert", "ssl_certificate", REDACTED, "cert with prefix"),
+            ("client_cert", "client_certificate_data", REDACTED, "cert with prefix"),
             # pem patterns
-            ("pem", "-----BEGIN PRIVATE KEY-----", "[REDACTED]", "direct pem match"),
-            ("pem_file", "certificate.pem_content", "[REDACTED]", "pem with suffix"),
-            ("ssl_pem", "ssl_certificate_pem", "[REDACTED]", "pem with prefix"),
+            ("pem", "-----BEGIN PRIVATE KEY-----", REDACTED, "direct pem match"),
+            ("pem_file", "certificate.pem_content", REDACTED, "pem with suffix"),
+            ("ssl_pem", "ssl_certificate_pem", REDACTED, "pem with prefix"),
         ],
     )
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -417,7 +414,7 @@ class TestEventCaptureEmitAuditEvent:
         assert user_info["username"] == "testuser"
         assert user_info["email"] == "[EMAIL_REDACTED]"
         assert user_info["preferences"]["theme"] == "dark"
-        assert user_info["preferences"]["api_token"] == "[REDACTED]"  # noqa: S105
+        assert user_info["preferences"]["api_token"] == REDACTED
         request_data = context_data.request_data  # type: ignore[attr-defined]
         assert request_data["method"] == "POST"
         response_data = context_data.response_data  # type: ignore[attr-defined]
@@ -675,7 +672,7 @@ class TestEventCaptureIntegration:
             context_data = event_obj.structured_data
             assert isinstance(context_data, AuditContextData)
             assert context_data.query == "What is the weather?"  # type: ignore[attr-defined]
-            assert context_data.password == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+            assert context_data.password == REDACTED  # type: ignore[attr-defined]
             assert context_data.user_email == "[EMAIL_REDACTED]"  # type: ignore[attr-defined]
 
             # Verify event_id was generated
@@ -714,44 +711,3 @@ class TestEventCaptureIntegration:
             context_data = event_obj.structured_data
             assert isinstance(context_data, AuditContextData)
             assert context_data.index == i  # type: ignore[attr-defined]
-
-
-class TestWriterIntegration:
-    """Test audit event writer integration in _do_emit_audit_event."""
-
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_calls_writer_enqueue(self, mock_logger: Mock) -> None:
-        """Test that _do_emit_audit_event calls writer.enqueue."""
-        event = AuditEvent(
-            event_category=EventCategory.USER_ACTION,
-            event_action="test_write",
-            actor_type=ActorType.USER,
-            source_component="test",
-            event_message="Test",
-            structured_data=AuditContextData(data_type="test"),
-        )
-
-        mock_writer = Mock(spec=AuditEventWriter)
-        with patch("nexus.audit.services.writer.get_audit_writer", return_value=mock_writer):
-            _do_emit_audit_event(event)
-
-        mock_writer.enqueue.assert_called_once_with(event)
-        # Also verify structured logging still happens
-        mock_logger.info.assert_called_once()
-
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_skips_persist_when_writer_not_initialized(self, mock_logger: Mock) -> None:
-        """Test that _do_emit_audit_event works when writer is not initialized."""
-        event = AuditEvent(
-            event_category=EventCategory.SYSTEM_OPERATION,
-            event_action="no_writer",
-            source_component="test",
-            event_message="No writer",
-            structured_data=AuditContextData(data_type="test"),
-        )
-
-        with patch("nexus.audit.services.writer.get_audit_writer", return_value=None):
-            _do_emit_audit_event(event)
-
-        # Structured logging should still work
-        mock_logger.info.assert_called_once()

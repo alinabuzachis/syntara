@@ -180,5 +180,4 @@ class TestTelemetryOverhead:
             assert overhead_pct < 5.0, f"Telemetry overhead {overhead_pct:.2f}% exceeds 5% threshold"
             logger.info("  PASS: telemetry overhead is within 5%% budget")
         finally:
-            AuditEventDispatcher.reset()
             registry.get_client().shutdown()

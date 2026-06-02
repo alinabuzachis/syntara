@@ -12,6 +12,7 @@ from uuid import UUID
 from sqlalchemy import Index
 from sqlmodel import Field, Relationship, SQLModel
 
+from nexus.core.models.base.base_resource import AuditLevel
 from nexus.core.models.base.named import NamedResource
 from nexus.core.models.base.user_owned import UserOwnedResource
 from nexus.core.models.pagination import ResourcesResponse
@@ -80,6 +81,18 @@ class Credential(NamedResource, UserOwnedResource, table=True):
             ]
         )
     )
+
+    # Audit trail: metadata only (no secret_id to prevent exposure in audit logs)
+    __auditable__: ClassVar[AuditLevel] = AuditLevel.META
+    __auditable_fields__: ClassVar[list[str]] = [
+        "name",
+        "description",
+        "credential_type_id",
+        "enabled",
+        "project_id",
+        "created_by",
+        "updated_by",
+    ]
 
 
 class CredentialCreate(SQLModel):
