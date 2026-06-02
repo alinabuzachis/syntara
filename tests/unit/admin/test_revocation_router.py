@@ -228,7 +228,7 @@ class TestRevokeUserSessions:
 
 
 class TestRevokeIdpSessions:
-    """Tests for the POST /admin/revocation/identity-providers/{idp_name} endpoint."""
+    """Tests for the POST /admin/revocation/identity_providers/{idp_name} endpoint."""
 
     async def test_revokes_sessions_for_existing_idp(
         self,
@@ -253,7 +253,7 @@ class TestRevokeIdpSessions:
 
         with patch("nexus.admin.services.AuditEventDispatcher"):
             response = await auth_client.post(
-                f"/api/v1/admin/revocation/identity-providers/{provider.name}",
+                f"/api/v1/admin/revocation/identity_providers/{provider.name}",
             )
 
         assert response.status_code == 200
@@ -291,7 +291,7 @@ class TestRevokeIdpSessions:
             mock_create.return_value = mock_store
 
             response = await auth_client.post(
-                f"/api/v1/admin/revocation/identity-providers/{provider.name}",
+                f"/api/v1/admin/revocation/identity_providers/{provider.name}",
             )
 
         assert response.status_code == 200
@@ -304,7 +304,7 @@ class TestRevokeIdpSessions:
         auth_client: AsyncClient,
     ) -> None:
         response = await auth_client.post(
-            "/api/v1/admin/revocation/identity-providers/Nonexistent Provider",
+            "/api/v1/admin/revocation/identity_providers/Nonexistent Provider",
         )
         assert response.status_code == 404
 
@@ -331,13 +331,13 @@ class TestRevokeIdpSessions:
         await test_db_session.commit()
 
         response = await auth_client.post(
-            "/api/v1/admin/revocation/identity-providers/Deleted IDP",
+            "/api/v1/admin/revocation/identity_providers/Deleted IDP",
         )
         assert response.status_code == 404
 
     async def test_unauthenticated_returns_401(self, base_client: AsyncClient) -> None:
         response = await base_client.post(
-            "/api/v1/admin/revocation/identity-providers/SomeProvider",
+            "/api/v1/admin/revocation/identity_providers/SomeProvider",
         )
         assert response.status_code == 401
 
@@ -364,7 +364,7 @@ class TestRevokeIdpSessions:
 
         with patch("nexus.admin.services.AuditEventDispatcher") as mock_dispatcher:
             await auth_client.post(
-                f"/api/v1/admin/revocation/identity-providers/{provider.name}",
+                f"/api/v1/admin/revocation/identity_providers/{provider.name}",
             )
 
         event = mock_dispatcher.dispatch.call_args[0][0]
@@ -396,7 +396,7 @@ class TestRevokeIdpSessions:
         with patch("nexus.admin.services.AuditEventDispatcher") as mock_dispatcher:
             mock_dispatcher.dispatch.side_effect = RuntimeError("audit broken")
             response = await auth_client.post(
-                f"/api/v1/admin/revocation/identity-providers/{provider.name}",
+                f"/api/v1/admin/revocation/identity_providers/{provider.name}",
             )
 
         assert response.status_code == 200

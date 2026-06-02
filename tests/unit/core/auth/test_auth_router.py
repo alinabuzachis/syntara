@@ -517,7 +517,7 @@ class TestGetRefreshTokenDependency:
 
 
 class TestGetCsrfTokenEndpoint:
-    """Tests for the POST /auth/csrf-token endpoint."""
+    """Tests for the POST /auth/csrf_token endpoint."""
 
     @pytest.mark.asyncio
     async def test_returns_csrf_form_token(self) -> None:

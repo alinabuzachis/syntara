@@ -67,7 +67,7 @@ Cookie-authenticated endpoints (`POST /auth/refresh`, `POST /auth/logout`) are p
 ### How it works
 
 1. **Login / OIDC callback** — the server generates a cryptographically random seed, stores it in the `ao_csrf_token` `HttpOnly` cookie, and derives a form token via `HMAC-SHA256(server_secret, seed)`.
-2. **SPA obtains the form token** — after login or OIDC redirect, the SPA calls `POST /api/v1/auth/csrf-token`. The server reads the seed from the cookie, recomputes the HMAC, and returns the form token in the response body. The SPA stores it in memory.
+2. **SPA obtains the form token** — after login or OIDC redirect, the SPA calls `POST /api/v1/auth/csrf_token`. The server reads the seed from the cookie, recomputes the HMAC, and returns the form token in the response body. The SPA stores it in memory.
 3. **Subsequent requests** — the SPA sends the form token in the `X-CSRF-Token` header on state-changing requests (refresh, logout).
 4. **Validation** — the server reads the seed from the `ao_csrf_token` cookie, recomputes the expected form token, and compares it to the header value using `hmac.compare_digest` (timing-safe).
 
@@ -274,7 +274,7 @@ uv run python -m nexus.admin revoke-idp-sessions --idp-name "Corporate Okta" --y
 #### API Usage
 
 ```
-POST /api/v1/admin/revocation/identity-providers/{idp_name}
+POST /api/v1/admin/revocation/identity_providers/{idp_name}
 Authorization: Bearer <admin-token>
 ```
 

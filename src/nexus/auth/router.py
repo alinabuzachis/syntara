@@ -298,7 +298,7 @@ async def login(
 
 
 @router.post(
-    "/csrf-token",
+    "/csrf_token",
     operation_id="get_csrf_token",
     summary="Get CSRF form token",
     description="""

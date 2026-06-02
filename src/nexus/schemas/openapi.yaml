@@ -1792,7 +1792,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /admin/revocation/identity-providers/{idp_name}:
+  /admin/revocation/identity_providers/{idp_name}:
     post:
       summary: Revoke sessions for an identity provider
       description: Revoke all active sessions authenticated via a specific identity provider. Users who authenticated via this provider will need to re-authenticate.
@@ -2934,7 +2934,7 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-  /auth/csrf-token:
+  /auth/csrf_token:
     post:
       summary: Get CSRF form token
       description: |
