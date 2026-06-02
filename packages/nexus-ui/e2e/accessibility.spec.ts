@@ -2,8 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { type Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
-
-const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] as const
+import { WCAG_TAGS } from './fixtures/accessibility'
 
 async function expectNoA11yViolations(page: Page) {
   const results = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze()

@@ -14,10 +14,9 @@
 import AxeBuilder from '@axe-core/playwright'
 
 import { test, expect } from './fixtures'
+import { WCAG_TAGS } from './fixtures/accessibility'
 import { BUILT_IN_ADMIN_USER_INFO } from './fixtures/mock-users'
 import { goToLoginPage } from './helpers/login'
-
-const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] as const
 
 test.describe('Login form error handling', () => {
   test.use({ storageState: { cookies: [], origins: [] } })

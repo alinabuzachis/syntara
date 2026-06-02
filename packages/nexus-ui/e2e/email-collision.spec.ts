@@ -14,10 +14,9 @@
 import AxeBuilder from '@axe-core/playwright'
 
 import { test, expect } from './fixtures'
+import { WCAG_TAGS } from './fixtures/accessibility'
 import { AAP_AUTH_PROVIDER, KEYCLOAK_AUTH_PROVIDER } from './fixtures/mock-oidc-idps'
 import { goToLoginPage } from './helpers/login'
-
-const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] as const
 
 const PROVIDERS = [KEYCLOAK_AUTH_PROVIDER, AAP_AUTH_PROVIDER]
 
