@@ -92,11 +92,18 @@ export const builderInteractivePages: PageEntry[] = [
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      const loopNode = page.getByTestId('rf__node-process_items')
-      await loopNode.click({ force: true })
+      // Click the Loop node heading inside the canvas to select it reliably.
+      // Using getByTestId('rf__node-process_items') with force:true was flaky
+      // because the click could land on a child script node when React Flow
+      // layout hadn't settled.
+      const canvas = page.locator('.react-flow')
+      const loopHeading = canvas.getByRole('heading', { name: 'Loop', level: 2 }).first()
+      await loopHeading.click()
       await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
         timeout: 15_000,
       })
+      // Verify the loop form loaded (not a child node's form)
+      await expect(page.getByLabel('Type', { exact: true })).toHaveValue(/while|forEach/)
     },
   },
   {
