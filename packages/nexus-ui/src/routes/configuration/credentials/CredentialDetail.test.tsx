@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
+import { accessFetchClient } from '../../access/accessClient'
 
 import CredentialDetail from './CredentialDetail'
 
@@ -62,6 +63,10 @@ vi.mock('../../../client', () => ({
 vi.mock('wouter', () => ({
   useLocation: () => [`/configuration/credentials/${wouterMock.credentialId ?? ''}`, mockNavigate],
   useParams: () => mockUseParams(),
+}))
+
+vi.mock('../../access/accessClient', () => ({
+  accessFetchClient: { POST: vi.fn() },
 }))
 
 vi.mock('../../access/useAllProjects', () => ({
@@ -176,8 +181,10 @@ describe('CredentialDetail', () => {
     wouterMock.credentialId = '1'
     disableCredentialHookMock.reset()
     vi.clearAllMocks()
+    queryClient.clear()
     mockMutate = vi.fn()
     mockUseParams.mockReturnValue({ credentialId: '1' })
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
 
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery())
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -186,8 +193,11 @@ describe('CredentialDetail', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = render(<CredentialDetail />, { wrapper })
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
+    let results: Awaited<ReturnType<typeof axe>>
+    await act(async () => {
+      results = await axe(container)
+    })
+    expect(results!).toHaveNoViolations()
   })
 
   it('renders credential name in page header as primary title', () => {
@@ -382,12 +392,11 @@ describe('CredentialDetail', () => {
     expect(screen.getByText('Disabled')).toBeInTheDocument()
   })
 
-  it('renders Workflows tab with badge', () => {
+  it('renders Workflows tab with badge', async () => {
     render(<CredentialDetail />, { wrapper })
 
-    const workflowsTab = screen.getByRole('tab', { name: /Workflows/ })
+    const workflowsTab = await screen.findByRole('tab', { name: /Workflows/ })
     expect(workflowsTab).toBeInTheDocument()
-    // Tab has a badge showing workflow count (may be multiple badges in the UI)
     const badges = screen.getAllByText('0')
     expect(badges.length).toBeGreaterThan(0)
   })
@@ -399,9 +408,10 @@ describe('CredentialDetail', () => {
     expect(screen.queryByRole('tab', { name: /User Access/ })).not.toBeInTheDocument()
   })
 
-  it('renders only Details and Workflows tabs', () => {
+  it('renders only Details and Workflows tabs', async () => {
     render(<CredentialDetail />, { wrapper })
 
+    await screen.findByRole('tab', { name: /Workflows/ })
     const tabs = screen.getAllByRole('tab')
     expect(tabs).toHaveLength(2)
     expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
@@ -412,7 +422,7 @@ describe('CredentialDetail', () => {
     const user = userEvent.setup()
     render(<CredentialDetail />, { wrapper })
 
-    await user.click(screen.getByRole('tab', { name: /Workflows/ }))
+    await user.click(await screen.findByRole('tab', { name: /Workflows/ }))
 
     expect(mockNavigate).toHaveBeenCalledWith('/configuration/credentials/1/workflows')
   })
@@ -623,13 +633,14 @@ describe('CredentialDetail', () => {
     expect(screen.getByText('Failed to load type')).toBeInTheDocument()
   })
 
-  it('renders workflow count in details when greater than zero', () => {
+  it('renders workflow count in details when greater than zero', async () => {
     const credWithWorkflows = { ...mockCredential, workflow_count: 4 }
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithWorkflows))
 
     render(<CredentialDetail />, { wrapper })
 
-    expect(screen.getByRole('tab', { name: /Workflows/ })).toHaveTextContent('4')
+    const workflowsTab = await screen.findByRole('tab', { name: /Workflows/ })
+    expect(workflowsTab).toHaveTextContent('4')
     expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
     const countCells = screen.getAllByText('4')
     expect(countCells.length).toBeGreaterThanOrEqual(1)
@@ -725,16 +736,36 @@ describe('CredentialDetail', () => {
     expect(workflowLabels.length).toBeGreaterThan(0)
   })
 
-  it('renders workflow count as badge on Workflows tab when greater than zero', () => {
+  it('renders workflow count as badge on Workflows tab when greater than zero', async () => {
     const credWithCount = { ...mockCredential, workflow_count: 5 }
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(credWithCount as never))
 
     render(<CredentialDetail />, { wrapper })
 
-    // Badge on the Workflows tab shows the count
-    const workflowsTab = screen.getByRole('tab', { name: /Workflows/ })
+    const workflowsTab = await screen.findByRole('tab', { name: /Workflows/ })
     expect(workflowsTab).toBeInTheDocument()
     const badges = screen.getAllByText('5')
     expect(badges.length).toBeGreaterThan(0)
+  })
+
+  describe('Permission-based tab gating', () => {
+    it('hides Workflows tab when workflow:read is denied', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+      render(<CredentialDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.queryByRole('tab', { name: /Workflows/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    })
+
+    it('shows Workflows tab when workflow:read is granted', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+      render(<CredentialDetail />, { wrapper })
+
+      expect(await screen.findByRole('tab', { name: /Workflows/ })).toBeInTheDocument()
+    })
   })
 })

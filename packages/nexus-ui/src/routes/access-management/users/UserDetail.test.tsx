@@ -252,8 +252,8 @@ describe('computeRoleAssignmentCount', () => {
 
 describe('UserDetail', () => {
   beforeEach(() => {
-    mockAuthQuery.mockReturnValue({ data: undefined, isPending: false, isError: false, error: null })
-    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+    mockAuthQuery.mockReturnValue({ data: { id: 'me-id' }, isPending: false, isError: false, error: null })
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
     queryClient.clear()
     mockNavigate.mockClear()
     mockSetLocation.mockClear()
@@ -1330,9 +1330,89 @@ describe('UserDetail', () => {
       })
 
       const { container } = render(<UserDetail />, { wrapper })
+      let results: Awaited<ReturnType<typeof axe>>
+      await act(async () => {
+        results = await axe(container)
+      })
+      expect(results!).toHaveNoViolations()
+    })
+  })
 
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
+  describe('Permission-based tab gating', () => {
+    function mockCanI(permissions: Record<string, boolean>) {
+      vi.mocked(accessFetchClient.POST).mockImplementation((_path, opts) => {
+        const body = (opts as { body?: { resource_type?: string } })?.body
+        const resourceType = body?.resource_type ?? ''
+        const allowed = permissions[resourceType] ?? true
+        return Promise.resolve({ data: { allowed } } as never)
+      })
+    }
+
+    it('hides Groups tab when group:read is denied', async () => {
+      mockCanI({ group: false })
+      render(<UserDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.queryByRole('tab', { name: /Groups/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Identities/ })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Assignments/ })).toBeInTheDocument()
+    })
+
+    it('hides Identities tab when user_identity:read is denied', async () => {
+      mockCanI({ user_identity: false })
+      render(<UserDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.queryByRole('tab', { name: /Identities/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Groups/ })).toBeInTheDocument()
+    })
+
+    it('hides Assignments tab when role-assignment:read is denied', async () => {
+      mockCanI({ 'role-assignment': false })
+      render(<UserDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Groups/ })).toBeInTheDocument()
+    })
+
+    it('shows Identities tab via self-permission when viewing own profile', async () => {
+      mockAuthQuery.mockReturnValue({
+        data: { id: VALID_USER_ID },
+        isPending: false,
+        isError: false,
+        error: null,
+      })
+      mockCanI({ user_identity: false, 'role-assignment': false })
+      render(<UserDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.getByRole('tab', { name: /Identities/ })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Assignments/ })).toBeInTheDocument()
+    })
+
+    it('always shows Details tab regardless of permissions', async () => {
+      mockCanI({ group: false, user_identity: false, 'role-assignment': false })
+      render(<UserDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
     })
   })
 })

@@ -58,9 +58,11 @@ type GroupMappingTabProps = {
   groupMapping: GroupMappingConfig | null | undefined
   onSaved: () => void
   editMappingTrigger?: number
+  /** When true, editing controls are hidden (user has read but not update permission). */
+  readOnly?: boolean
 }
 
-// eslint-disable-next-line max-lines-per-function
+// eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- large component with readOnly branching for permission gating
 export function GroupMappingTab({
   providerId,
   idpType,
@@ -68,6 +70,7 @@ export function GroupMappingTab({
   groupMapping,
   onSaved,
   editMappingTrigger,
+  readOnly = false,
 }: Readonly<GroupMappingTabProps>) {
   const defaultExpression = idpType ? (IDP_TYPE_PRESETS[idpType]?.groupMappingExpression ?? null) : null
   const [entries, setEntries] = useState<GroupMappingEntry[]>(() => toFormEntries(groupMapping))
@@ -199,20 +202,34 @@ export function GroupMappingTab({
   if (!hasEntries && !signInAlert && !isEditing) {
     return (
       <EmptyMappingState
-        onTestSignIn={() => {
-          setIsEditing(true)
-          openTestSignIn()
-        }}
-        onAddManually={() => {
-          setIsEditing(true)
-          setEntries([{ key: nextKey(), idpGroupValue: '', nexusGroupId: '' }])
-        }}
+        onTestSignIn={
+          readOnly
+            ? undefined
+            : () => {
+                setIsEditing(true)
+                openTestSignIn()
+              }
+        }
+        onAddManually={
+          readOnly
+            ? undefined
+            : () => {
+                setIsEditing(true)
+                setEntries([{ key: nextKey(), idpGroupValue: '', nexusGroupId: '' }])
+              }
+        }
       />
     )
   }
 
-  if (!isEditing) {
-    return <ReadOnlyView entries={entries} nexusGroups={nexusGroups} onEditMapping={() => setIsEditing(true)} />
+  if (!isEditing || readOnly) {
+    return (
+      <ReadOnlyView
+        entries={entries}
+        nexusGroups={nexusGroups}
+        onEditMapping={readOnly ? undefined : () => setIsEditing(true)}
+      />
+    )
   }
 
   return (

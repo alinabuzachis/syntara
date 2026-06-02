@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
-import { accessClient } from '../../access/accessClient'
+import { accessClient, accessFetchClient } from '../../access/accessClient'
 
 import { GroupDetail } from './GroupDetail'
 
@@ -22,6 +22,9 @@ vi.mock('../../access/accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+  accessFetchClient: {
+    POST: vi.fn(),
   },
 }))
 
@@ -204,6 +207,7 @@ describe('GroupDetail', () => {
     mockSetLocation.mockClear()
     mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}`
     mockUseParams.mockReturnValue({ groupId: VALID_GROUP_ID })
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
     mockSuccessQueries()
   })
 
@@ -675,9 +679,11 @@ describe('GroupDetail', () => {
       })
 
       const { container } = render(<GroupDetail />, { wrapper })
-
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
+      let results: Awaited<ReturnType<typeof axe>>
+      await act(async () => {
+        results = await axe(container)
+      })
+      expect(results!).toHaveNoViolations()
     })
 
     it('has no accessibility violations for built-in group state', async () => {
@@ -691,6 +697,52 @@ describe('GroupDetail', () => {
         })
       })
       expect(results!).toHaveNoViolations()
+    })
+  })
+
+  describe('Permission-based tab gating', () => {
+    function mockCanI(permissions: Record<string, boolean>) {
+      vi.mocked(accessFetchClient.POST).mockImplementation((_path, opts) => {
+        const body = (opts as { body?: { resource_type?: string } })?.body
+        const resourceType = body?.resource_type ?? ''
+        const allowed = permissions[resourceType] ?? true
+        return Promise.resolve({ data: { allowed } } as never)
+      })
+    }
+
+    it('hides Members tab when group:read is denied', async () => {
+      mockCanI({ group: false })
+      render(<GroupDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.queryByRole('tab', { name: /Members/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
+    })
+
+    it('hides Assignments tab when role-assignment:read is denied', async () => {
+      mockCanI({ 'role-assignment': false })
+      render(<GroupDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Members/ })).toBeInTheDocument()
+    })
+
+    it('always shows Details tab regardless of permissions', async () => {
+      mockCanI({ group: false, 'role-assignment': false })
+      render(<GroupDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
     })
   })
 })

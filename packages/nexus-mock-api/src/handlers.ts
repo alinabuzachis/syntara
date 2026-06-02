@@ -3547,6 +3547,7 @@ export const handlers = [
         role_assignment: ['assign', 'read', 'revoke'],
         setting: ['read', 'write'],
         user: ['create', 'delete', 'read', 'update'],
+        user_identity: ['create', 'delete', 'read'],
         workflow: ['create', 'delete', 'read', 'update'],
       },
     })
@@ -3625,6 +3626,22 @@ export const handlers = [
       }
     } else if (username === 'auditor') {
       if (WRITE_ACTIONS.has(action)) {
+        allowed = false
+      } else if (resourceType === 'user_identity') {
+        allowed = false
+      }
+    } else if (username === 'user') {
+      const deniedResources = new Set([
+        'project',
+        'role-assignment',
+        'setting',
+        'identity-provider',
+        'audit',
+        'user_identity',
+      ])
+      if (WRITE_ACTIONS.has(action)) {
+        allowed = false
+      } else if (deniedResources.has(resourceType)) {
         allowed = false
       }
     }

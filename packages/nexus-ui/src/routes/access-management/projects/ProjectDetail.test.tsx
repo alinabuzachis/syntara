@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
-import { accessClient } from '../../access/accessClient'
+import { accessClient, accessFetchClient } from '../../access/accessClient'
 
 import { ProjectDetail } from './ProjectDetail'
 
@@ -14,6 +14,9 @@ vi.mock('../../access/accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+  accessFetchClient: {
+    POST: vi.fn(),
   },
 }))
 
@@ -94,20 +97,25 @@ describe('ProjectDetail', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    queryClient.clear()
     mockRefetch.mockResolvedValue({})
     mockDetailTab.mockReturnValue(['details', mockGoToTab])
     mockUseParams.mockReturnValue({ projectId: 'proj-1' })
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
     setupMocks()
   })
 
   it('has no accessibility violations', async () => {
     const { container } = render(<ProjectDetail />, { wrapper })
-    // PF6 Tabs generates aria-controls referencing tab panel IDs that jsdom
-    // does not render (lazy panels), causing a false-positive violation.
-    const results = await axe(container, {
-      rules: { 'aria-valid-attr-value': { enabled: false } },
+    let results: Awaited<ReturnType<typeof axe>>
+    await act(async () => {
+      // PF6 Tabs generates aria-controls referencing tab panel IDs that jsdom
+      // does not render (lazy panels), causing a false-positive violation.
+      results = await axe(container, {
+        rules: { 'aria-valid-attr-value': { enabled: false } },
+      })
     })
-    expect(results).toHaveNoViolations()
+    expect(results!).toHaveNoViolations()
   })
 
   it('renders project name as heading', () => {
@@ -351,5 +359,30 @@ describe('ProjectDetail', () => {
     render(<ProjectDetail />, { wrapper })
 
     expect(screen.getByText('Default')).toBeInTheDocument()
+  })
+
+  describe('Permission-based tab gating', () => {
+    it('hides Assignments tab when role-assignment:read is denied', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+      render(<ProjectDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
+    })
+
+    it('shows Assignments tab when role-assignment:read is granted', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+      render(<ProjectDetail />, { wrapper })
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      expect(screen.getByRole('tab', { name: /Assignments/ })).toBeInTheDocument()
+    })
   })
 })

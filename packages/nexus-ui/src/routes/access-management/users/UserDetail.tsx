@@ -14,6 +14,7 @@ import {
   TabTitleText,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
+import { useMemo } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -41,6 +42,7 @@ import { userDisplayName } from './userDisplayName'
 import { UserGroupsPanel } from './UserGroupsPanel'
 import { UserIdentitiesPanel } from './UserIdentitiesPanel'
 import { UserNotFoundState } from './UserNotFoundState'
+import { useUserDetailPermissions } from './useUserDetailPermissions'
 
 function useUserDetailData(userId: string | undefined) {
   const isValidId = !!userId && isValidUUID(userId)
@@ -180,7 +182,7 @@ function UserDetailsTab({
 }
 
 type UserTab = 'details' | 'groups' | 'identities' | 'roles'
-const USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
+const ALL_USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
 
 export function UserDetail() {
   const { userId } = useParams<{ userId: string }>()
@@ -188,6 +190,22 @@ export function UserDetail() {
   const [activeTab] = useUrlTab<UserTab>(basePath)
 
   const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
+  const {
+    canReadGroups,
+    canReadIdentities,
+    canReadAssignments,
+    isLoading: permissionsLoading,
+  } = useUserDetailPermissions(userId)
+
+  const validTabs = useMemo(() => {
+    if (permissionsLoading) return ALL_USER_TABS
+    const hidden = new Set<UserTab>()
+    if (!canReadGroups) hidden.add('groups')
+    if (!canReadIdentities) hidden.add('identities')
+    if (!canReadAssignments) hidden.add('roles')
+    if (hidden.size === 0) return ALL_USER_TABS
+    return ALL_USER_TABS.filter((tab) => !hidden.has(tab))
+  }, [canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading])
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
   const navigateEdit = () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? ''))
@@ -246,39 +264,45 @@ export function UserDetail() {
         }
       />
       <StackItem style={{ flexShrink: 0 }}>
-        <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={USER_TABS} aria-label="User details">
+        <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="User details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-          <Tab
-            eventKey="groups"
-            title={
-              <TabTitleText>
-                Groups <Badge isRead>{groupCount}</Badge>
-              </TabTitleText>
-            }
-          />
-          <Tab
-            eventKey="identities"
-            title={
-              <TabTitleText>
-                Identities <Badge isRead>{identitiesData.length}</Badge>
-              </TabTitleText>
-            }
-          />
-          <Tab
-            eventKey="roles"
-            title={
-              <TabTitleText>
-                Assignments <Badge isRead>{roleAssignmentCount}</Badge>
-              </TabTitleText>
-            }
-          />
+          {validTabs.includes('groups') && (
+            <Tab
+              eventKey="groups"
+              title={
+                <TabTitleText>
+                  Groups <Badge isRead>{groupCount}</Badge>
+                </TabTitleText>
+              }
+            />
+          )}
+          {validTabs.includes('identities') && (
+            <Tab
+              eventKey="identities"
+              title={
+                <TabTitleText>
+                  Identities <Badge isRead>{identitiesData.length}</Badge>
+                </TabTitleText>
+              }
+            />
+          )}
+          {validTabs.includes('roles') && (
+            <Tab
+              eventKey="roles"
+              title={
+                <TabTitleText>
+                  Assignments <Badge isRead>{roleAssignmentCount}</Badge>
+                </TabTitleText>
+              }
+            />
+          )}
         </NxUrlTabs>
       </StackItem>
       <NxPageBody>
         <NxPanel isFullHeight>
           {activeTab === 'details' && <UserDetailsTab user={userData} identities={identitiesData} />}
-          {activeTab === 'groups' && <UserGroupsPanel userId={userId ?? ''} />}
-          {activeTab === 'identities' && (
+          {activeTab === 'groups' && validTabs.includes('groups') && <UserGroupsPanel userId={userId ?? ''} />}
+          {activeTab === 'identities' && validTabs.includes('identities') && (
             <UserIdentitiesPanel
               userId={userId ?? ''}
               currentUserId={currentUserId}
@@ -287,7 +311,9 @@ export function UserDetail() {
               hasPassword={userData.auth_type === AUTH_TYPE_LOCAL}
             />
           )}
-          {activeTab === 'roles' && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}
+          {activeTab === 'roles' && validTabs.includes('roles') && (
+            <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />
+          )}
         </NxPanel>
       </NxPageBody>
     </NxPage>

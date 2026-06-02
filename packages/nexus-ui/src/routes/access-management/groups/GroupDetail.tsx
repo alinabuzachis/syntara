@@ -36,6 +36,7 @@ import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 
 import { GroupMembersPanel } from './GroupMembersPanel'
 import { GroupNotFoundState } from './GroupNotFoundState'
+import { useGroupDetailPermissions } from './useGroupDetailPermissions'
 
 function GroupDetailsTab({ group }: Readonly<{ group: Group }>) {
   return (
@@ -67,23 +68,27 @@ function GroupDetailsTab({ group }: Readonly<{ group: Group }>) {
 
 function GroupTabBar({
   basePath,
-  isAuthenticated,
+  showMembers,
+  showAssignments,
   memberCount,
   roleAssignmentCount,
 }: Readonly<{
   basePath: string
-  isAuthenticated: boolean
+  showMembers: boolean
+  showAssignments: boolean
   memberCount: number
   roleAssignmentCount: number
 }>) {
-  const validTabs = useMemo(
-    () => (isAuthenticated ? ['details', 'roles'] : ['details', 'members', 'roles']),
-    [isAuthenticated]
-  )
+  const validTabs = useMemo(() => {
+    const tabs: string[] = ['details']
+    if (showMembers) tabs.push('members')
+    if (showAssignments) tabs.push('roles')
+    return tabs
+  }, [showMembers, showAssignments])
   return (
     <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Group details">
       <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-      {!isAuthenticated && (
+      {showMembers && (
         <Tab
           eventKey="members"
           title={
@@ -93,14 +98,16 @@ function GroupTabBar({
           }
         />
       )}
-      <Tab
-        eventKey="roles"
-        title={
-          <TabTitleText>
-            Assignments <Badge isRead>{roleAssignmentCount}</Badge>
-          </TabTitleText>
-        }
-      />
+      {showAssignments && (
+        <Tab
+          eventKey="roles"
+          title={
+            <TabTitleText>
+              Assignments <Badge isRead>{roleAssignmentCount}</Badge>
+            </TabTitleText>
+          }
+        />
+      )}
     </NxUrlTabs>
   )
 }
@@ -109,22 +116,26 @@ function GroupTabContent({
   group,
   groupId,
   activeTab,
-  isAuthenticated,
+  showMembers,
+  showAssignments,
   onMembersChange,
 }: Readonly<{
   group: Group
   groupId: string
   activeTab: string
-  isAuthenticated: boolean
+  showMembers: boolean
+  showAssignments: boolean
   onMembersChange: () => void
 }>) {
   return (
     <>
       {activeTab === 'details' && <GroupDetailsTab group={group} />}
-      {activeTab === 'members' && !isAuthenticated && (
+      {activeTab === 'members' && showMembers && (
         <GroupMembersPanel groupId={groupId} onMembershipChange={onMembersChange} />
       )}
-      {activeTab === 'roles' && <RoleAssignmentsPanel principalType="group" principalId={groupId} />}
+      {activeTab === 'roles' && showAssignments && (
+        <RoleAssignmentsPanel principalType="group" principalId={groupId} />
+      )}
     </>
   )
 }
@@ -168,6 +179,10 @@ export function GroupDetail() {
   const [editModalOpen, setEditModalOpen] = useState(false)
 
   const { groupQuery, membersQuery, isAuthenticated, memberCount, roleAssignmentCount } = useGroupQueries(groupId)
+  const { canReadMembers, canReadAssignments, isLoading: permissionsLoading } = useGroupDetailPermissions()
+
+  const showMembers = !isAuthenticated && (permissionsLoading || canReadMembers)
+  const showAssignments = permissionsLoading || canReadAssignments
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Groups)
 
@@ -221,7 +236,8 @@ export function GroupDetail() {
       <StackItem style={{ flexShrink: 0 }}>
         <GroupTabBar
           basePath={basePath}
-          isAuthenticated={isAuthenticated}
+          showMembers={showMembers}
+          showAssignments={showAssignments}
           memberCount={memberCount}
           roleAssignmentCount={roleAssignmentCount}
         />
@@ -232,7 +248,8 @@ export function GroupDetail() {
             group={groupData as Group}
             groupId={groupId ?? ''}
             activeTab={activeTab}
-            isAuthenticated={isAuthenticated}
+            showMembers={showMembers}
+            showAssignments={showAssignments}
             onMembersChange={() => {
               detachPromise(membersQuery.refetch())
             }}

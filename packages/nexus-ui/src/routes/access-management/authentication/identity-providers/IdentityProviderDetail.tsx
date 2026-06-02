@@ -38,6 +38,7 @@ import { NxPanel } from '../../../../components/layout/NxPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../../components/tabs/NxUrlTabs'
+import { useCanI } from '../../../../hooks/useCanI'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../../hooks/useUrlTab'
 import { getErrorStatus } from '../../../../utils/apiErrors'
@@ -156,6 +157,7 @@ type TabContentProps = {
   groupMappingConfig: GroupMappingConfig | null
   onSaved: () => void
   editMappingTrigger: number
+  readOnly: boolean
 }
 
 function TabContent({
@@ -167,6 +169,7 @@ function TabContent({
   groupMappingConfig,
   onSaved,
   editMappingTrigger,
+  readOnly,
 }: Readonly<TabContentProps>) {
   if (activeTab === 'group-mapping' && providerConfig) {
     return (
@@ -177,6 +180,7 @@ function TabContent({
         groupMapping={groupMappingConfig}
         onSaved={onSaved}
         editMappingTrigger={editMappingTrigger}
+        readOnly={readOnly}
       />
     )
   }
@@ -230,6 +234,7 @@ export function IdentityProviderDetail() {
   const isValidId = !!providerId && isValidUUID(providerId)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editMappingTrigger, setEditMappingTrigger] = useState(0)
+  const { allowed: canUpdate } = useCanI('update', 'identity-provider')
 
   const idpDetailBasePath = AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
     ':providerId',
@@ -378,6 +383,7 @@ export function IdentityProviderDetail() {
             groupMappingConfig={groupMappingConfig}
             onSaved={() => detachPromise(refetchProvider())}
             editMappingTrigger={editMappingTrigger}
+            readOnly={!canUpdate}
           />
         </NxPanel>
       </NxPageBody>

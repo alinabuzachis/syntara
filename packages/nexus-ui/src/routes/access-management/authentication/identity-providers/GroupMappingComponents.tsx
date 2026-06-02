@@ -16,7 +16,7 @@ import {
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
-import { PlusIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiEditIcon } from '@patternfly/react-icons'
 import { Table, Tbody } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
@@ -52,27 +52,35 @@ const READ_ONLY_EMPTY_FILTER_STATE_STYLE = {
 } as const
 
 export type EmptyMappingStateProps = {
-  onTestSignIn: () => void
-  onAddManually: () => void
+  /** When undefined, the button is hidden (read-only mode). */
+  onTestSignIn?: () => void
+  /** When undefined, the button is hidden (read-only mode). */
+  onAddManually?: () => void
 }
 
 export function EmptyMappingState({ onTestSignIn, onAddManually }: Readonly<EmptyMappingStateProps>) {
   return (
     <EmptyState headingLevel="h2" titleText="No group mappings configured" variant="lg">
       <EmptyStateBody>
-        Group mappings automatically assign users to Nexus groups based on their identity provider groups. Discover
-        groups from your IdP, or add mappings manually.
+        Group mappings automatically assign users to Nexus groups based on their identity provider groups.
+        {(onTestSignIn ?? onAddManually) && ' Discover groups from your IdP, or add mappings manually.'}
       </EmptyStateBody>
-      <EmptyStateFooter>
-        <EmptyStateActions>
-          <Button variant="primary" onClick={onTestSignIn}>
-            Discover groups
-          </Button>
-          <Button variant="secondary" onClick={onAddManually} icon={<PlusIcon />}>
-            Add manually
-          </Button>
-        </EmptyStateActions>
-      </EmptyStateFooter>
+      {(onTestSignIn ?? onAddManually) && (
+        <EmptyStateFooter>
+          <EmptyStateActions>
+            {onTestSignIn && (
+              <Button variant="primary" onClick={onTestSignIn}>
+                Discover groups
+              </Button>
+            )}
+            {onAddManually && (
+              <Button variant="secondary" onClick={onAddManually} icon={<RhUiAddIcon />}>
+                Add manually
+              </Button>
+            )}
+          </EmptyStateActions>
+        </EmptyStateFooter>
+      )}
     </EmptyState>
   )
 }
@@ -193,7 +201,7 @@ export function MappingTable({
       {!isReadOnly && (
         <Button
           variant="link"
-          icon={<PlusIcon />}
+          icon={<RhUiAddIcon />}
           onClick={onAdd}
           style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}
         >
@@ -218,7 +226,8 @@ type GroupMappingReadOnlyToolbarProps = {
   filters: FilterConfig[]
   onFilterChange: (next: FilterConfig[]) => void
   clearAllFilters: () => void
-  onEditMapping: () => void
+  /** When undefined, the "Edit mapping" button is hidden (read-only mode). */
+  onEditMapping?: () => void
 }
 
 function GroupMappingReadOnlyToolbar({
@@ -237,9 +246,11 @@ function GroupMappingReadOnlyToolbar({
         showClearAll
         clearAllFilters={clearAllFilters}
         toolbarEnd={
-          <Button variant="primary" icon={<RhUiEditIcon />} onClick={onEditMapping}>
-            Edit mapping
-          </Button>
+          onEditMapping ? (
+            <Button variant="primary" icon={<RhUiEditIcon />} onClick={onEditMapping}>
+              Edit mapping
+            </Button>
+          ) : undefined
         }
       />
     </StackItem>
@@ -249,7 +260,8 @@ function GroupMappingReadOnlyToolbar({
 export type ReadOnlyViewProps = {
   entries: GroupMappingEntry[]
   nexusGroups: NexusGroup[]
-  onEditMapping: () => void
+  /** When undefined, the "Edit mapping" button is hidden (read-only mode). */
+  onEditMapping?: () => void
 }
 
 export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<ReadOnlyViewProps>) {

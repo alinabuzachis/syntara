@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { identityProvidersClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
+import { accessFetchClient } from '../../../access/accessClient'
 
 import { IdentityProviderDetail } from './IdentityProviderDetail'
 import { IdpTypeKey } from './idpTypePresets'
@@ -16,8 +17,16 @@ type MutationCallbacks = {
   onError?: (error: Error) => void
 }
 
+vi.mock('../../../access/accessClient', () => ({
+  accessFetchClient: { POST: vi.fn() },
+}))
+
 vi.mock('./GroupMappingTab', () => ({
-  GroupMappingTab: () => <div data-testid="group-mapping-tab">Group Mapping Content</div>,
+  GroupMappingTab: (props: { readOnly?: boolean }) => (
+    <div data-testid="group-mapping-tab" data-readonly={String(props.readOnly ?? false)}>
+      Group Mapping Content
+    </div>
+  ),
 }))
 
 vi.mock('../../../../client', async (importOriginal) => {
@@ -94,6 +103,7 @@ describe('IdentityProviderDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(identityProvidersClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
     mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`
   })
 
@@ -265,8 +275,11 @@ describe('IdentityProviderDetail', () => {
     )
 
     const { container } = render(<IdentityProviderDetail />, { wrapper: createWrapper() })
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
+    let results: Awaited<ReturnType<typeof axe>>
+    await act(async () => {
+      results = await axe(container)
+    })
+    expect(results!).toHaveNoViolations()
   })
 
   it('renders nothing when providerData is undefined and no error', () => {
@@ -849,5 +862,47 @@ describe('IdentityProviderDetail', () => {
     // With no mapping entries, badge count is 0 (no badge shown)
     const groupMappingTab = screen.getByRole('tab', { name: /group mapping/i })
     expect(groupMappingTab).toBeInTheDocument()
+  })
+
+  describe('Permission-based read-only mode', () => {
+    it('passes readOnly=false when user has identity-provider:update', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+      const providerWithMapping = {
+        ...mockProvider,
+        configuration: {
+          ...mockProvider.configuration,
+          group_mapping_entries: [{ idp_group: 'devs', nexus_group_id: 'g1' }],
+        },
+      }
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: providerWithMapping }))
+      mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
+
+      render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        const tab = screen.getByTestId('group-mapping-tab')
+        expect(tab).toHaveAttribute('data-readonly', 'false')
+      })
+    })
+
+    it('passes readOnly=true when user lacks identity-provider:update', async () => {
+      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+      const providerWithMapping = {
+        ...mockProvider,
+        configuration: {
+          ...mockProvider.configuration,
+          group_mapping_entries: [{ idp_group: 'devs', nexus_group_id: 'g1' }],
+        },
+      }
+      vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn({ data: providerWithMapping }))
+      mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
+
+      render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        const tab = screen.getByTestId('group-mapping-tab')
+        expect(tab).toHaveAttribute('data-readonly', 'true')
+      })
+    })
   })
 })

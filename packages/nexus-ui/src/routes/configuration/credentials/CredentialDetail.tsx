@@ -28,11 +28,13 @@ import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DisableCredentialDialog } from './DisableCredentialDialog'
 import { CredentialFormModal } from './form/CredentialFormModal'
 import type { FieldDefinition } from './form/DynamicFieldRenderer'
+import { useCredentialDetailPermissions } from './useCredentialDetailPermissions'
 import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 import { UserTimestamp } from './UserTimestamp'
 
 type CredentialTab = 'details' | 'workflows'
+const ALL_CREDENTIAL_TABS: CredentialTab[] = ['details', 'workflows']
 
 // eslint-disable-next-line max-lines-per-function
 export default function CredentialDetail() {
@@ -40,6 +42,13 @@ export default function CredentialDetail() {
   const [, navigate] = useLocation()
   const credentialBasePath = AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId ?? '')
   const [activeTab] = useUrlTab<CredentialTab>(credentialBasePath)
+  const { canReadWorkflows, isLoading: permissionsLoading } = useCredentialDetailPermissions()
+
+  const validTabs = useMemo(() => {
+    if (permissionsLoading) return ALL_CREDENTIAL_TABS.filter((tab) => tab !== 'workflows')
+    if (canReadWorkflows) return ALL_CREDENTIAL_TABS
+    return ALL_CREDENTIAL_TABS.filter((tab) => tab !== 'workflows')
+  }, [canReadWorkflows, permissionsLoading])
   const [editModalOpen, setEditModalOpen] = useState(false)
   const {
     credentialToDelete,
@@ -233,7 +242,7 @@ export default function CredentialDetail() {
           <NxUrlTabs
             basePath={credentialBasePath}
             defaultTab="details"
-            validTabs={['details', 'workflows']}
+            validTabs={validTabs}
             aria-label="Credential details"
           >
             <Tab eventKey="details" title="Details">
@@ -295,16 +304,18 @@ export default function CredentialDetail() {
               </Stack>
             </Tab>
 
-            <Tab
-              eventKey="workflows"
-              title={
-                <>
-                  Workflows <Badge isRead>{credential.workflow_count ?? 0}</Badge>
-                </>
-              }
-            >
-              <CredentialWorkflowsTab credentialId={credential.id} />
-            </Tab>
+            {validTabs.includes('workflows') && (
+              <Tab
+                eventKey="workflows"
+                title={
+                  <>
+                    Workflows <Badge isRead>{credential.workflow_count ?? 0}</Badge>
+                  </>
+                }
+              >
+                <CredentialWorkflowsTab credentialId={credential.id} />
+              </Tab>
+            )}
           </NxUrlTabs>
         </NxPanel>
       </NxPageBody>
