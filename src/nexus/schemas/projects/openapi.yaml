@@ -654,6 +654,15 @@ paths:
               - type: 'null'
             title: Scope
           description: Filter by scope
+        - name: policy_name
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Policy Name
+          description: Filter by policy name
       responses:
         "200":
           description: Successful Response

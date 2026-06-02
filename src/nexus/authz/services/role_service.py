@@ -1,11 +1,15 @@
 """Role service for CRUD operations."""
 
 from collections.abc import Iterable
+from typing import Any
 from uuid import UUID
 
 import structlog
+from sqlalchemy import Select, cast, text, type_coerce
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.audit.role_lifecycle import RoleLifecycleEvent
@@ -25,10 +29,12 @@ from nexus.authz.schemas import RoleListResponse, RoleRead
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services.base import BaseService
-from nexus.core.utils.filters import matches_query_param
+from nexus.core.utils.filters import Filter, matches_query_param
 from nexus.core.utils.sorting import sort_merged_resources
 
 logger = structlog.stdlib.get_logger(__name__)
+
+SelectRole = Select[tuple[Role]] | SelectOfScalar[tuple[Role]]
 
 
 def _builtin_role_to_read(name: str) -> RoleRead:
@@ -57,6 +63,29 @@ class RoleService(BaseService):
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize with database session and current user."""
         super().__init__(session, user)
+
+    @staticmethod
+    def _get_special_field_handlers() -> dict[str, Any]:
+        """Return special field handlers for JSONB policy_name filtering."""
+
+        def handle_policy_name(
+            query: SelectRole,
+            filter_obj: Filter,
+            _model: type[Role],
+        ) -> SelectRole:
+            if filter_obj.operator.value == "eq":
+                col = cast(Role.policy_names, JSONB)
+                return query.filter(col.op("@>")(type_coerce([filter_obj.value], JSONB)))
+            if filter_obj.operator.value == "contains":
+                return query.filter(
+                    text(
+                        "EXISTS (SELECT 1 FROM jsonb_array_elements_text(policy_names) AS elem"
+                        " WHERE elem ILIKE :pattern)"
+                    ).params(pattern=f"%{filter_obj.value}%")
+                )
+            return query
+
+        return {"policy_name": handle_policy_name}
 
     async def to_role_read(self, role: Role) -> RoleRead:
         """Convert a Role model to a RoleRead schema."""
@@ -187,6 +216,7 @@ class RoleService(BaseService):
                 sort=db_sort,
                 query_params_items=query_params_items,
                 include_total=include_total,
+                special_field_handlers=self._get_special_field_handlers(),
             )
             if not needs_db:
                 db_response.resources = []
@@ -222,6 +252,7 @@ class RoleService(BaseService):
             sort=db_sort,
             query_params_items=query_params_items,
             include_total=include_total,
+            special_field_handlers=self._get_special_field_handlers(),
         )
         if not db_response.next and remaining_builtins:
             slots = limit - len(db_response.resources)
@@ -267,6 +298,7 @@ class RoleService(BaseService):
                         limit=1,
                         query_params_items=query_params_items,
                         include_total=True,
+                        special_field_handlers=self._get_special_field_handlers(),
                     )
                     total = (db_count_resp.total or 0) + len(all_builtins)
                 return RoleListResponse(resources=page, next=nxt, total=total)
@@ -523,6 +555,14 @@ class RoleService(BaseService):
         )
 
     @staticmethod
+    def _matches_policy_name_filter(
+        role_policies: list[str],
+        query_params: dict[str, str],
+    ) -> bool:
+        """Check if any of the role's policies match the policy_name filter."""
+        return any(matches_query_param(policy, "policy_name", query_params) for policy in role_policies)
+
+    @staticmethod
     def _filter_builtin_roles(
         query_params: dict[str, str],
         scope_filter: str | None = None,
@@ -533,6 +573,8 @@ class RoleService(BaseService):
         effective_scope = scope_filter
         if not effective_scope and query_params.get("project_id"):
             effective_scope = "project"
+
+        has_policy_filter = any(k == "policy_name" or k.startswith("policy_name[") for k in query_params)
 
         reads = []
         for r in BUILTIN_ROLES:
@@ -546,5 +588,9 @@ class RoleService(BaseService):
                 continue
             if not matches_query_param(r.name, "name", query_params):
                 continue
+            if has_policy_filter:
+                role_policies = builtin_role_policy_names(r.name)
+                if not RoleService._matches_policy_name_filter(role_policies, query_params):
+                    continue
             reads.append(_builtin_role_to_read(r.name))
         return reads

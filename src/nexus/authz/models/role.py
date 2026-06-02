@@ -35,6 +35,7 @@ class Role(BaseResource, table=True):
         "is_builtin",
         "project_id",
         "scope",
+        "policy_name",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [

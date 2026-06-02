@@ -21,6 +21,7 @@ def _get_kwargs(
     is_builtin: bool | None | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
     scope: None | str | Unset = UNSET,
+    policy_name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -74,6 +75,13 @@ def _get_kwargs(
     else:
         json_scope = scope
     params["scope"] = json_scope
+
+    json_policy_name: None | str | Unset
+    if isinstance(policy_name, Unset):
+        json_policy_name = UNSET
+    else:
+        json_policy_name = policy_name
+    params["policy_name"] = json_policy_name
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -159,6 +167,7 @@ def sync_detailed(
     is_builtin: bool | None | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
     scope: None | str | Unset = UNSET,
+    policy_name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | RoleListResponse]:
     """List Roles
@@ -174,6 +183,7 @@ def sync_detailed(
         is_builtin (bool | None | Unset):
         project_id (None | Unset | UUID):
         scope (None | str | Unset):
+        policy_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -192,6 +202,7 @@ def sync_detailed(
         is_builtin=is_builtin,
         project_id=project_id,
         scope=scope,
+        policy_name=policy_name,
         additional_params=additional_params,
     )
 
@@ -213,6 +224,7 @@ def sync(
     is_builtin: bool | None | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
     scope: None | str | Unset = UNSET,
+    policy_name: None | str | Unset = UNSET,
 ) -> ErrorData | RoleListResponse | None:
     """List Roles
 
@@ -227,6 +239,7 @@ def sync(
         is_builtin (bool | None | Unset):
         project_id (None | Unset | UUID):
         scope (None | str | Unset):
+        policy_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -246,6 +259,7 @@ def sync(
         is_builtin=is_builtin,
         project_id=project_id,
         scope=scope,
+        policy_name=policy_name,
     ).parsed
 
 
@@ -260,6 +274,7 @@ async def asyncio_detailed(
     is_builtin: bool | None | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
     scope: None | str | Unset = UNSET,
+    policy_name: None | str | Unset = UNSET,
 ) -> Response[ErrorData | RoleListResponse]:
     """List Roles
 
@@ -274,6 +289,7 @@ async def asyncio_detailed(
         is_builtin (bool | None | Unset):
         project_id (None | Unset | UUID):
         scope (None | str | Unset):
+        policy_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -292,6 +308,7 @@ async def asyncio_detailed(
         is_builtin=is_builtin,
         project_id=project_id,
         scope=scope,
+        policy_name=policy_name,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -310,6 +327,7 @@ async def asyncio(
     is_builtin: bool | None | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
     scope: None | str | Unset = UNSET,
+    policy_name: None | str | Unset = UNSET,
 ) -> ErrorData | RoleListResponse | None:
     """List Roles
 
@@ -324,6 +342,7 @@ async def asyncio(
         is_builtin (bool | None | Unset):
         project_id (None | Unset | UUID):
         scope (None | str | Unset):
+        policy_name (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -344,5 +363,6 @@ async def asyncio(
             is_builtin=is_builtin,
             project_id=project_id,
             scope=scope,
+            policy_name=policy_name,
         )
     ).parsed

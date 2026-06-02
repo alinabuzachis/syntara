@@ -172,3 +172,4 @@ class RoleListParams(BaseListParams):
     is_builtin: bool | None = Field(default=None, description="Filter by builtin status")
     project_id: UUID | None = Field(default=None, description="Filter by project scope")
     scope: str | None = Field(default=None, description="Filter by role scope (system or project)")
+    policy_name: str | None = Field(default=None, description="Filter by policy name")

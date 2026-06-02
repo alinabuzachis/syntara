@@ -273,6 +273,70 @@ async def test_regular_user_cannot_delete_role(
 
 
 # ============================================================================
+# Policy Name Filter
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_roles_filter_by_policy_name(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Filter roles by policy_name returns only roles containing that policy."""
+    await _make_admin(test_db_session, test_user)
+
+    # Create a role with specific policies
+    response = await auth_client.post(
+        "/api/v1/roles",
+        json={
+            "name": "filter-test-role",
+            "description": "Role for policy_name filter test",
+            "policies": ["workflow:read:any", "execution:read:any"],
+        },
+    )
+    assert response.status_code == 201
+
+    # Filter by exact policy name — should include the new role
+    response = await auth_client.get("/api/v1/roles", params={"policy_name": "workflow:read:any"})
+    assert response.status_code == 200
+    names = [r["name"] for r in response.json()["resources"]]
+    assert "filter-test-role" in names
+
+    # Filter by a policy not in the role — should exclude it
+    response = await auth_client.get("/api/v1/roles", params={"policy_name": "nonexistent-policy"})
+    assert response.status_code == 200
+    names = [r["name"] for r in response.json()["resources"]]
+    assert "filter-test-role" not in names
+
+
+@pytest.mark.asyncio
+async def test_list_roles_filter_by_policy_name_contains(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Filter roles by policy_name[contains] returns roles with matching policies."""
+    await _make_admin(test_db_session, test_user)
+
+    response = await auth_client.post(
+        "/api/v1/roles",
+        json={
+            "name": "contains-filter-role",
+            "description": "Role for contains filter test",
+            "policies": ["workflow:read:any", "execution:read:any"],
+        },
+    )
+    assert response.status_code == 201
+
+    # Contains filter should match substring
+    response = await auth_client.get("/api/v1/roles", params={"policy_name[contains]": "workflow"})
+    assert response.status_code == 200
+    names = [r["name"] for r in response.json()["resources"]]
+    assert "contains-filter-role" in names
+
+
+# ============================================================================
 # Not Found
 # ============================================================================
 
