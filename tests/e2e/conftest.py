@@ -41,6 +41,8 @@ from typer.testing import CliRunner
 
 logger = logging.getLogger(__name__)
 
+pytest_plugins = ["tests.e2e.fixtures.factories"]
+
 
 _API_HEALTH_TIMEOUT = 15.0
 
@@ -148,6 +150,22 @@ def _login(base_url: str, username: str, password: str) -> str:
         msg = f"Login failed for {username}: {resp.status_code} {resp.content!r}"
         raise RuntimeError(msg)
     return resp.parsed.access_token
+
+
+def _make_client(base_url: str, token: str) -> AuthenticatedClient:
+    """Create an authenticated API client for the given base URL and token."""
+    return AuthenticatedClient(
+        base_url=f"{base_url}/api/v1",
+        token=token,
+        verify_ssl=False,
+        timeout=httpx.Timeout(60.0),
+    )
+
+
+def api_for(base_url: str, username: str, password: str) -> NexusApiRegistry:
+    """Return a ``NexusApiRegistry`` authenticated as the given user."""
+    token = _login(base_url, username, password)
+    return NexusApiRegistry(_make_client(base_url, token))
 
 
 def _generate_e2e_token(base_url: str) -> str:
