@@ -99,7 +99,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/auth/csrf-token': {
+  '/auth/csrf_token': {
     parameters: {
       query?: never
       header?: never

@@ -993,7 +993,7 @@ export const handlers = [
   }),
 
   // CSRF token — return a mock form token
-  http.post('/api/v1/auth/csrf-token', () => {
+  http.post('/api/v1/auth/csrf_token', () => {
     return HttpResponse.json({ csrf_token: 'mock-csrf-form-token' })
   }),
 
@@ -3684,7 +3684,7 @@ export const handlers = [
     return HttpResponse.json({ message: `Tokens for user "${username}" have been revoked.` })
   }),
 
-  http.post('/api/v1/admin/revocation/identity-providers/:idp_name', ({ params }) => {
+  http.post('/api/v1/admin/revocation/identity_providers/:idp_name', ({ params }) => {
     const idpName = params.idp_name as string
     const provider = identityProviders.find((p) => p.name === idpName)
     if (!provider) {

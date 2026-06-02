@@ -167,7 +167,7 @@ export function IdentityProvidersTab() {
     onSettled: deleteDialog.close,
   })
 
-  const { mutate: revokeIdpTokens } = adminClient.useMutation('post', '/admin/revocation/identity-providers/{idp_name}')
+  const { mutate: revokeIdpTokens } = adminClient.useMutation('post', '/admin/revocation/identity_providers/{idp_name}')
 
   const handleRevoke = () => {
     if (!revokeDialog.item) return

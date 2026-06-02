@@ -52,7 +52,7 @@ type AuthStore = AuthState & AuthActions
 const AUTH_LOGIN_URL = '/api/v1/auth/login'
 const AUTH_REFRESH_URL = '/api/v1/auth/refresh'
 const AUTH_LOGOUT_URL = '/api/v1/auth/logout'
-const AUTH_CSRF_TOKEN_URL = '/api/v1/auth/csrf-token'
+const AUTH_CSRF_TOKEN_URL = '/api/v1/auth/csrf_token'
 
 /** Refresh the token 30 seconds before it actually expires */
 const EXPIRY_BUFFER_MS = 30_000

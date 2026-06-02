@@ -25,7 +25,7 @@ type GoToLoginPageOptions = {
 export async function goToLoginPage(page: Page, options: GoToLoginPageOptions = {}): Promise<void> {
   const { providers = [], authError } = options
 
-  await page.route('**/api/v1/auth/csrf-token', (route) =>
+  await page.route('**/api/v1/auth/csrf_token', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
