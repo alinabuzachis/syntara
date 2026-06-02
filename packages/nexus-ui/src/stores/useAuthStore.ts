@@ -57,6 +57,9 @@ const AUTH_CSRF_TOKEN_URL = '/api/v1/auth/csrf-token'
 /** Refresh the token 30 seconds before it actually expires */
 const EXPIRY_BUFFER_MS = 30_000
 
+/** Background timer fires 60s before expiry — well ahead of EXPIRY_BUFFER_MS so the refresh completes in time */
+const PROACTIVE_REFRESH_BUFFER_MS = 60_000
+
 const INITIAL_STATE: AuthState = {
   accessToken: null,
   expiresAt: null,
@@ -215,7 +218,11 @@ function parseUsernameFromJwt(token: string): string | null {
   }
 }
 
-function applyTokenResponse(set: (partial: Partial<AuthState>) => void, data: LoginResponse): void {
+function applyTokenResponse(
+  set: (partial: Partial<AuthState>) => void,
+  data: LoginResponse,
+  refreshFn: () => Promise<void>
+): void {
   set({
     accessToken: data.access_token,
     expiresAt: Date.now() + data.expires_in * 1000,
@@ -224,6 +231,7 @@ function applyTokenResponse(set: (partial: Partial<AuthState>) => void, data: Lo
     error: null,
     username: parseUsernameFromJwt(data.access_token),
   })
+  scheduleRefresh(data.expires_in, refreshFn)
 }
 
 // ============================================================================
@@ -233,6 +241,27 @@ function applyTokenResponse(set: (partial: Partial<AuthState>) => void, data: Lo
 /** In-flight refresh promise used to deduplicate concurrent refresh calls */
 let refreshPromise: Promise<void> | null = null
 
+/** Background timer that proactively refreshes the token before it expires */
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleRefresh(expiresInSeconds: number, refreshFn: () => Promise<void>): void {
+  clearScheduledRefresh()
+  const delay = Math.max(expiresInSeconds * 1000 - PROACTIVE_REFRESH_BUFFER_MS, 10_000)
+  refreshTimer = setTimeout(() => {
+    refreshFn().catch(() => {
+      // eslint-disable-next-line no-console -- generic message only; detailed errors stay server-side
+      console.error('Background token refresh failed')
+    })
+  }, delay)
+}
+
+function clearScheduledRefresh(): void {
+  if (refreshTimer !== null) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+}
+
 export const useAuthStore = create<AuthStore>((set, get) => ({
   ...INITIAL_STATE,
 
@@ -240,7 +269,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ isRefreshing: true, error: null })
     try {
       const data = await postAuth(AUTH_LOGIN_URL, credentials)
-      applyTokenResponse(set, data)
+      applyTokenResponse(set, data, () => get().refresh())
       const csrfToken = await fetchCsrfToken()
       set({ csrfToken })
     } catch (err) {
@@ -285,7 +314,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         if (get().logoutCount !== refreshEpoch) {
           return
         }
-        applyTokenResponse(set, data)
+        applyTokenResponse(set, data, () => get().refresh())
       } catch (err) {
         if (get().logoutCount !== refreshEpoch) {
           return
@@ -312,6 +341,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   logout: async () => {
     const { accessToken, csrfToken, logoutCount } = get()
+    clearScheduledRefresh()
     // Drop any in-flight refresh waiters — otherwise AppLogin bootstrap can await this forever and
     // never leave the loading state. Stale refresh completions are ignored via `logoutCount` / epoch.
     refreshPromise = null
@@ -357,10 +387,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   clearAuth: () => {
+    clearScheduledRefresh()
     set({ ...INITIAL_STATE })
   },
 
   reset: () => {
+    clearScheduledRefresh()
     refreshPromise = null
     set({ ...INITIAL_STATE })
   },
@@ -377,5 +409,13 @@ export const selectIsRefreshing = (state: AuthStore) => state.isRefreshing
 // Exported for testing
 // ============================================================================
 
-export { isTokenExpired, AUTH_LOGIN_URL, AUTH_REFRESH_URL, AUTH_LOGOUT_URL, AUTH_CSRF_TOKEN_URL, EXPIRY_BUFFER_MS }
+export {
+  isTokenExpired,
+  AUTH_LOGIN_URL,
+  AUTH_REFRESH_URL,
+  AUTH_LOGOUT_URL,
+  AUTH_CSRF_TOKEN_URL,
+  EXPIRY_BUFFER_MS,
+  clearScheduledRefresh,
+}
 export type { LoginCredentials, LoginResponse, AuthState, AuthStore }

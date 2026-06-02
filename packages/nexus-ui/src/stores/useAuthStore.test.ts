@@ -8,6 +8,7 @@ import {
   AUTH_REFRESH_URL,
   AUTH_LOGOUT_URL,
   AUTH_CSRF_TOKEN_URL,
+  clearScheduledRefresh,
 } from './useAuthStore'
 
 // Mock fetch globally
@@ -499,6 +500,123 @@ describe('useAuthStore', () => {
       expect(state.csrfToken).toBeNull()
       expect(state.isAuthenticated).toBe(false)
       expect(mockFetch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('background refresh timer', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      clearScheduledRefresh()
+      vi.useRealTimers()
+    })
+
+    it('schedules a background refresh after login', async () => {
+      mockLoginSuccess({ expires_in: 300 })
+
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      mockFetch.mockClear()
+
+      mockFetchSuccess(createTokenResponse({ access_token: 'timer-refreshed' }))
+
+      // expires_in=300s, timer fires at 300s - 60s = 240s
+      await vi.advanceTimersByTimeAsync(240_000)
+
+      expect(mockFetch).toHaveBeenCalledWith(AUTH_REFRESH_URL, expect.objectContaining({ method: 'POST' }))
+      expect(useAuthStore.getState().accessToken).toBe('timer-refreshed')
+    })
+
+    it('schedules a background refresh after token refresh', async () => {
+      mockLoginSuccess({ expires_in: 300 })
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      // Manual refresh
+      mockFetchSuccess(createTokenResponse({ access_token: 'first-refresh', expires_in: 300 }))
+      await useAuthStore.getState().refresh()
+      mockFetch.mockClear()
+
+      // Timer should be rescheduled after the manual refresh
+      mockFetchSuccess(createTokenResponse({ access_token: 'timer-refresh-2' }))
+      await vi.advanceTimersByTimeAsync(240_000)
+
+      expect(useAuthStore.getState().accessToken).toBe('timer-refresh-2')
+    })
+
+    it('uses minimum 10 second delay for short-lived tokens', async () => {
+      mockLoginSuccess({ expires_in: 5 })
+
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      mockFetchSuccess(createTokenResponse({ access_token: 'short-token-refresh' }))
+
+      // Should not fire before 10s
+      await vi.advanceTimersByTimeAsync(9_000)
+      expect(mockFetch).not.toHaveBeenCalled()
+
+      // Should fire at 10s (minimum delay)
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(mockFetch).toHaveBeenCalled()
+    })
+
+    it('clears timer on logout', async () => {
+      mockLoginSuccess({ expires_in: 300 })
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ detail: 'logged out' }),
+      })
+      await useAuthStore.getState().logout()
+      mockFetch.mockClear()
+
+      // Timer should not fire after logout
+      vi.advanceTimersByTime(300_000)
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('clears timer on clearAuth', async () => {
+      mockLoginSuccess({ expires_in: 300 })
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      useAuthStore.getState().clearAuth()
+
+      // Timer should not fire after clearAuth
+      vi.advanceTimersByTime(300_000)
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('clears timer on reset', async () => {
+      mockLoginSuccess({ expires_in: 300 })
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      useAuthStore.getState().reset()
+
+      // Timer should not fire after reset
+      vi.advanceTimersByTime(300_000)
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('does not throw when timer-triggered refresh fails', async () => {
+      mockLoginSuccess({ expires_in: 300 })
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+      mockFetch.mockClear()
+
+      // Refresh will fail — scheduleRefresh logs the error but doesn't throw
+      mockFetchError('Token expired', 401)
+
+      await vi.advanceTimersByTimeAsync(240_000)
+
+      expect(mockFetch).toHaveBeenCalled()
     })
   })
 })
