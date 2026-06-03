@@ -84,6 +84,7 @@ done
 echo "✅ API server is ready"
 
 echo "🔧 Creating system user..."
+APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
 uv run python tools/create_system_user.py
 
 SEGMENT_SERVER_URL="http://localhost:${SEGMENT_SERVER_PORT}" \
