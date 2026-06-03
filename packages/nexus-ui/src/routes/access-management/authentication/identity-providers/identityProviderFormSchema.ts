@@ -8,7 +8,6 @@ const claimMappingSchema = z.object({
   username: z.string().min(1, 'Username claim is required'),
   firstName: z.string().min(1, 'First name claim is required'),
   lastName: z.string().min(1, 'Last name claim is required'),
-  groups: z.string().nullable(),
 })
 
 const groupMappingEntrySchema = z.object({
@@ -134,7 +133,6 @@ export const identityProviderDefaults: IdentityProviderFormData = {
     username: 'preferred_username',
     firstName: 'given_name',
     lastName: 'family_name',
-    groups: null,
   },
   groupMapping: null,
   allowAllAuthenticated: false,

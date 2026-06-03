@@ -130,8 +130,6 @@ export interface components {
        * @default family_name
        */
       last_name?: string
-      /** Groups */
-      groups?: string | null
     }
     /**
      * OIDCGroupMappingEntry
@@ -612,19 +610,19 @@ export interface components {
        * Platform Admin Username
        * @description AAP platform admin username (required when using basic auth)
        */
-      admin_username?: string
+      admin_username?: string | null
       /**
        * Platform Admin Password
        * Format: password
        * @description AAP platform admin password (used only for setup, never stored)
        */
-      admin_password?: string
+      admin_password?: string | null
       /**
        * Personal Access Token
        * Format: password
        * @description AAP personal access token (alternative to username/password, never stored)
        */
-      personal_access_token?: string
+      personal_access_token?: string | null
       /**
        * Insecure Skip TLS Verify
        * @description Skip TLS certificate verification for the AAP connection
