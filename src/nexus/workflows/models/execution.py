@@ -48,12 +48,20 @@ class ExecutionStatus(str, Enum):
     RUNNING = "running"
     PAUSED = "paused"
     COMPLETED = "completed"
+    COMPLETED_WITH_ERRORS = "completed_with_errors"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
 
 # Terminal execution statuses (execution has finished)
-TERMINAL_EXECUTION_STATUSES = frozenset({ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED})
+TERMINAL_EXECUTION_STATUSES = frozenset(
+    {
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED_WITH_ERRORS,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.CANCELLED,
+    }
+)
 
 
 class Execution(UserOwnedResource, SoftDeletableResource, table=True):

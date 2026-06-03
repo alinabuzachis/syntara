@@ -20,6 +20,7 @@ from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
+from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -50,6 +51,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    init_workflow_runtime(wf)
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
     return wf
@@ -275,15 +277,17 @@ class TestFanInConverge:
             first_task.cancel()
             loop.close()
 
-    def test_handle_converge_wait_no_timeout_config(self) -> None:
-        """A converge node without timeout config should not start a handler."""
+    def test_handle_converge_wait_always_starts_handler(self) -> None:
+        """A converge node always starts a timeout handler, falling back to the catalog default."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
         converge_node = graph.get_node("converge_node")
 
-        wf._handle_converge_wait("converge_node", converge_node, graph, {})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.asyncio.create_task") as mock_create_task:
+            mock_create_task.return_value = MagicMock()
+            wf._handle_converge_wait("converge_node", converge_node, graph, {})
 
-        assert "converge_node" not in wf._timeout_tasks
+        assert "converge_node" in wf._timeout_tasks
 
     def test_process_pending_tasks_runs_timed_out_converge_node(self) -> None:
         """Main loop should schedule and execute converge nodes flagged by timeout handlers."""
@@ -740,3 +744,42 @@ class TestErrorHandlingDownstreamSkipping:
         graph = _build_linear_graph()
         wf._mark_remaining_unreachable_nodes(graph)
         assert "node_b" in wf.skipped_nodes
+
+
+class TestBuildResultStatus:
+    """_build_result reports the correct workflow status."""
+
+    def test_completed_when_no_failures(self) -> None:
+        wf = _make_workflow()
+        wf.resolver.set_namespace("trigger", {})
+        result = wf._build_result("exec-1", include_node_results=False)
+        assert result["status"] == "completed"
+
+    def test_failed_when_unhandled_failure(self) -> None:
+        wf = _make_workflow(failed_nodes={"node_a": "boom"})
+        wf._has_unhandled_failure = True
+        wf.resolver.set_namespace("trigger", {})
+        wf.resolver.set_namespace("node_a", {"status": "failed", "error": "boom"})
+        result = wf._build_result("exec-1", include_node_results=False)
+        assert result["status"] == "failed"
+
+    def test_completed_with_errors_when_cof_handled_failure(self) -> None:
+        """Node failed with continue_on_failure=True: status is completed_with_errors, not completed."""
+        wf = _make_workflow(failed_nodes={"node_b": "Script exited with code 1"})
+        # _has_unhandled_failure is False because cof=True consumed the failure
+        wf._has_unhandled_failure = False
+        wf.resolver.set_namespace("trigger", {})
+        wf.resolver.set_namespace("node_b", {"status": "failed", "error": "Script exited with code 1"})
+        wf.resolver.set_namespace("node_c", {"result": "ok"})
+        result = wf._build_result("exec-1", include_node_results=False)
+        assert result["status"] == "completed_with_errors"
+        assert result["failed_activities"] == {"node_b": "Script exited with code 1"}
+
+    def test_completed_with_errors_when_last_node_fails_with_cof(self) -> None:
+        """Last node fails with cof=True: still completed_with_errors (no successors to skip)."""
+        wf = _make_workflow(failed_nodes={"node_c": "timeout"})
+        wf._has_unhandled_failure = False
+        wf.resolver.set_namespace("trigger", {})
+        wf.resolver.set_namespace("node_c", {"status": "failed", "error": "timeout"})
+        result = wf._build_result("exec-1", include_node_results=False)
+        assert result["status"] == "completed_with_errors"

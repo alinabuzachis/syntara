@@ -78,6 +78,7 @@ class ActivityName(StrEnum):
     CREDENTIAL_RESOLUTION = "resolve_workflow_credentials"
     ACTIVITY_MONITORING = "register_activity_monitoring"
     COMPLETE_WAIT = "complete_wait"
+    FETCH_RUNTIME_SETTINGS = "fetch_workflow_runtime_settings"
 
 
 # Enums
@@ -155,6 +156,7 @@ class WorkflowTerminalStatus(str, Enum):
     """Terminal workflow execution statuses for telemetry events."""
 
     COMPLETED = "completed"
+    COMPLETED_WITH_ERRORS = "completed_with_errors"
     FAILED = "failed"
     CANCELLED = "cancelled"
 

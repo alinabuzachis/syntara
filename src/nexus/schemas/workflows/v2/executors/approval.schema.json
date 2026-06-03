@@ -17,6 +17,11 @@
         ],
         "default": "reject",
         "description": "Decision to apply when the approval cannot complete for any reason and continue_on_failure is true. Defaults to 'reject'."
+      },
+      "decision_window": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "How long (in seconds) the approver has to respond before the approval expires. Falls back to the system-configured default if not specified."
       }
     },
     "additionalProperties": false
@@ -26,12 +31,7 @@
     "properties": {
       "continue_on_failure": {
         "type": "boolean",
-        "description": "When true and the approval cannot complete for any reason (timeout or send failure after retries), the workflow proceeds using fallback_decision from config. Inherits from global settings when absent."
-      },
-      "timeout": {
-        "type": "integer",
-        "minimum": 1,
-        "description": "Activity timeout in seconds. Falls back to the global timeout setting if not specified."
+        "description": "When true and the approval cannot complete for any reason (decision window expired or send failure after retries), the workflow proceeds using fallback_decision from config. Inherits from global settings when absent."
       },
       "retry_policy": {
         "$ref": "../common-definitions.schema.json#/$defs/retry_policy"

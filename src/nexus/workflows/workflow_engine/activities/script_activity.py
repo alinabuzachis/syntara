@@ -16,7 +16,6 @@ from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
 from nexus.core.exceptions import SafeValueError
-from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ScriptExecutorConfig
 
@@ -338,9 +337,7 @@ async def execute_script_activity(
         code = config.code
         environment = dict(config.environment)
 
-        # TODO(engine-wiring): use node.settings.timeout when non-None.  # noqa: TD003
-        cache = get_runtime_settings()
-        timeout = await cache.get_int("workflow_engine.script_timeout_seconds", default=300)
+        timeout = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 300))
 
         # Inject TEMPORAL_ATTEMPT for retry-aware scripts
         attempt_number = activity.info().attempt

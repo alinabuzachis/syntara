@@ -24,6 +24,7 @@ from nexus.workflows.workflow_engine.graph import WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 from nexus.workflows.workflow_engine.models.workflow_definition import ForEachLoopState
 from nexus.workflows.workflow_engine.utils.credential_scrubber import REDACTED
+from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -54,6 +55,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    init_workflow_runtime(wf)
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
     return wf

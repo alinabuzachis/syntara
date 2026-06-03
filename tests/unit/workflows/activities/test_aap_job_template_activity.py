@@ -20,6 +20,7 @@ import pytest
 from pydantic import SecretStr, ValidationError
 from temporalio.exceptions import ApplicationError
 
+from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     execute_aap_job_template_activity,
 )
@@ -463,12 +464,12 @@ class TestAAPJobTemplateTimeout:
 
         with (
             override_settings(**aap_settings_overrides),
-            override_runtime_settings({"workflow_engine.aap_timeout_seconds": 10}),
             patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
             patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=running_response),
             patch("time.time", side_effect=mock_time),
         ):
             activity_config = build_activity_config(job_template_id=42)
+            activity_config[constants.ENGINE_TIMEOUT_SECONDS_KEY] = 10
 
             with pytest.raises(ApplicationError) as exc_info:
                 await execute_aap_job_template_activity(activity_config, None)

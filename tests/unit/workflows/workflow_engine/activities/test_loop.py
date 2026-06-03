@@ -1,16 +1,11 @@
 """Tests for loop activity (for_each and do_while)."""
 
 from typing import Any
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from temporalio.exceptions import ApplicationError
 
-from nexus.settings.catalog import SETTINGS_CATALOG
 from nexus.workflows.workflow_engine.activities.loop import loop
-
-_catalog = {s.key: s.default_value for s in SETTINGS_CATALOG}
-_DEFAULT_MAX_LOOP = int(_catalog["workflow_engine.max_loop_iterations"])  # type: ignore[arg-type]
 
 # ---------------------------------------------------------------------------
 # for_each loop
@@ -111,7 +106,6 @@ class TestDoWhileConditionTrue:
             "type": "do_while",
             "current_index": 1,
             "condition_result": True,
-            "max_iterations": 10,
         }
         result = await loop(config, None, {})
         assert result["control"]["next_port"] == "iterate"
@@ -127,38 +121,11 @@ class TestDoWhileConditionFalse:
             "type": "do_while",
             "current_index": 1,
             "condition_result": False,
-            "max_iterations": 10,
         }
         iteration_results: dict[str, list[Any]] = {"collected": [1]}
         result = await loop(config, None, iteration_results)
         assert result["control"]["next_port"] == "complete"
         assert result["output"]["iteration_results"] == iteration_results
-
-
-class TestDoWhileMaxIterations:
-    """do_while loop: max iterations reached."""
-
-    @pytest.mark.asyncio
-    async def test_max_iterations_completes(self) -> None:
-        config: dict[str, Any] = {
-            "type": "do_while",
-            "current_index": 5,
-            "condition_result": True,
-            "max_iterations": 5,
-        }
-        result = await loop(config, None, {})
-        assert result["control"]["next_port"] == "complete"
-
-    @pytest.mark.asyncio
-    async def test_below_max_continues(self) -> None:
-        config: dict[str, Any] = {
-            "type": "do_while",
-            "current_index": 4,
-            "condition_result": True,
-            "max_iterations": 5,
-        }
-        result = await loop(config, None, {})
-        assert result["control"]["next_port"] == "iterate"
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +167,6 @@ class TestLoopControlData:
             "type": "do_while",
             "current_index": 2,
             "condition_result": True,
-            "max_iterations": 10,
         }
         result = await loop(config, None, {})
         ctrl = result["control"]
@@ -248,38 +214,6 @@ class TestLoopConfigDefaults:
         assert result["control"]["current_item"] == "x"
         assert result["control"]["next_index"] == 1
 
-    @pytest.mark.asyncio
-    async def test_do_while_default_max_iterations_from_catalog(self) -> None:
-        mock_cache = AsyncMock()
-        mock_cache.get_int.return_value = _DEFAULT_MAX_LOOP
-        with patch(
-            "nexus.workflows.workflow_engine.activities.loop.get_runtime_settings",
-            return_value=mock_cache,
-        ):
-            config: dict[str, Any] = {
-                "type": "do_while",
-                "current_index": _DEFAULT_MAX_LOOP - 1,
-                "condition_result": True,
-            }
-            result = await loop(config, None, {})
-            assert result["control"]["next_port"] == "iterate"
-
-    @pytest.mark.asyncio
-    async def test_do_while_at_default_max_completes(self) -> None:
-        mock_cache = AsyncMock()
-        mock_cache.get_int.return_value = _DEFAULT_MAX_LOOP
-        with patch(
-            "nexus.workflows.workflow_engine.activities.loop.get_runtime_settings",
-            return_value=mock_cache,
-        ):
-            config: dict[str, Any] = {
-                "type": "do_while",
-                "current_index": _DEFAULT_MAX_LOOP,
-                "condition_result": True,
-            }
-            result = await loop(config, None, {})
-            assert result["control"]["next_port"] == "complete"
-
 
 class TestDoWhileIterationResults:
     """do_while iteration results behavior mirrors for_each."""
@@ -300,7 +234,6 @@ class TestDoWhileIterationResults:
             "type": "do_while",
             "current_index": 2,
             "condition_result": False,
-            "max_iterations": 10,
         }
         iteration_results: dict[str, list[Any]] = {"collected": [1, 2]}
         result = await loop(config, None, iteration_results)
@@ -312,7 +245,6 @@ class TestDoWhileIterationResults:
             "type": "do_while",
             "current_index": 3,
             "condition_result": True,
-            "max_iterations": 10,
         }
         result = await loop(config, None, {})
         assert result["output"]["iteration_count"] == 3

@@ -22,6 +22,7 @@ from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
+from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -53,6 +54,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    init_workflow_runtime(wf)
     wf.pre_resolved_outputs = pre_resolved_outputs if pre_resolved_outputs is not None else {}
     wf.stop_after_nodes = stop_after_nodes if stop_after_nodes is not None else set()
     wf.execution_id = "test-exec-id"

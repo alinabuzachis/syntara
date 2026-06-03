@@ -97,10 +97,15 @@ async def _restore_settings(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_restore_settings", "_scoped_runtime_cache")
-async def test_loop_activity_reads_live_max_iterations(
+async def test_loop_activity_routes_on_condition_not_max_iterations(
     test_db_session: AsyncSession,
 ) -> None:
-    """Loop activity reads max_loop_iterations from DB via cache."""
+    """Loop activity routes on condition_result only; max_iterations is enforced by the workflow.
+
+    max_loop_iterations enforcement was moved from the loop activity into the workflow engine
+    so that it can raise ApplicationError before the activity is called. The activity itself
+    now only cares about condition_result.
+    """
     from nexus.workflows.workflow_engine.activities.loop import loop
 
     await _set_int_setting(
@@ -111,7 +116,8 @@ async def test_loop_activity_reads_live_max_iterations(
         name="Max loop iterations",
     )
 
-    # At index 49, condition true — should iterate (49 < 50)
+    # Activity routes based on condition_result regardless of current_index vs max_iterations.
+    # At index 49, condition true — iterate
     config = {
         "type": "do_while",
         "current_index": 49,
@@ -120,8 +126,13 @@ async def test_loop_activity_reads_live_max_iterations(
     result = await loop(config, None, {})
     assert result["control"]["next_port"] == "iterate"
 
-    # At index 50, condition true — should complete (50 >= 50)
+    # At index 50, condition true — still iterate (cap enforcement is in the workflow, not here)
     config["current_index"] = 50
+    result = await loop(config, None, {})
+    assert result["control"]["next_port"] == "iterate"
+
+    # At index 50, condition false — complete (normal condition-based exit)
+    config["condition_result"] = False
     result = await loop(config, None, {})
     assert result["control"]["next_port"] == "complete"
 

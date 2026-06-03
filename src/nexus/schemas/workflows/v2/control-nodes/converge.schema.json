@@ -21,6 +21,11 @@
         "type": "integer",
         "minimum": 1,
         "description": "Number of branches required before convergence (only used when strategy is 'any')"
+      },
+      "wait_duration": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "How long (in seconds) to wait for branches to arrive before timing out. Falls back to the system-configured default if not specified."
       }
     },
     "if": {
@@ -43,14 +48,9 @@
   "settingSchema": {
     "type": "object",
     "properties": {
-      "timeout": {
-        "type": "integer",
-        "minimum": 1,
-        "description": "Branch wait duration in seconds. Falls back to the global timeout setting if not specified."
-      },
       "continue_on_failure": {
         "type": "boolean",
-        "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
+        "description": "When true and the wait_duration expires before all required branches arrive, the converge proceeds with whatever branches have completed. Inherits from global settings when absent."
       }
     },
     "additionalProperties": false

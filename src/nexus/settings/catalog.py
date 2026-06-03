@@ -682,15 +682,15 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         validation_schema={"min": 1},
     ),
     SettingDefinition(
-        key="workflow_engine.approval_timeout_seconds",
-        name="Approval timeout (seconds)",
+        key="workflow_engine.approval_decision_window_seconds",
+        name="Approval decision window (seconds)",
         category=SettingCategory.WORKFLOW_EXECUTION,
         value_type=SettingValueType.INTEGER,
         default_value=86400,
         description=(
-            "Maximum time the workflow engine waits for an approval decision. "
-            "If no approval or rejection is received within this period, the "
-            "approval activity times out and fails."
+            "Default time window (in seconds) the approver has to respond to an approval request. "
+            "Can be overridden per node via the decision_window config field. "
+            "If no decision is received within this period, the approval expires."
         ),
         helper_text="Minimum 1 second. Default: 86400 (24 hours).",
         group=WorkflowEngineGroup.EXECUTION,
@@ -712,16 +712,16 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         validation_schema={"min": 1},
     ),
     SettingDefinition(
-        key="workflow_engine.converge_timeout_seconds",
-        name="Converge timeout (seconds)",
+        key="workflow_engine.converge_wait_duration_seconds",
+        name="Converge wait duration (seconds)",
         category=SettingCategory.WORKFLOW_EXECUTION,
         value_type=SettingValueType.INTEGER,
         default_value=86400,
         description=(
-            "Maximum time a converge node waits for all incoming branches "
-            "to complete. When this timeout fires, the converge node stops "
-            "waiting and the workflow continues according to the node's "
-            "continue_on_failure setting."
+            "Default time (in seconds) a converge node waits for incoming branches to arrive. "
+            "Can be overridden per node via the wait_duration config field. "
+            "When this duration expires, the converge node stops waiting and the workflow "
+            "continues according to the node's continue_on_failure setting."
         ),
         helper_text="Minimum 1 second. Default: 86400 (24 hours).",
         group=WorkflowEngineGroup.EXECUTION,

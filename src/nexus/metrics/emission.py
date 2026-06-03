@@ -150,7 +150,7 @@ def _emit_workflow(
 
     with _workflow_completion_lock:
         _workflow_completion_counts[1] += 1
-        if execution.status == ExecutionStatus.COMPLETED:
+        if execution.status in (ExecutionStatus.COMPLETED, ExecutionStatus.COMPLETED_WITH_ERRORS):
             _workflow_completion_counts[0] += 1
         completion_rate = _workflow_completion_counts[0] / _workflow_completion_counts[1]
     recorder.record(

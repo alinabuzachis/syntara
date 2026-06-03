@@ -19,12 +19,20 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
-from nexus.workflows.workflow_engine.models.workflow_definition import NodeSettings, NodeType
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    DoWhileLoopState,
+    ForEachLoopState,
+    NodeSettings,
+    NodeType,
+)
+from nexus.workflows.workflow_engine.node_settings_resolver import get_default_timeout
+from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -55,6 +63,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    init_workflow_runtime(wf)
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
     return wf
@@ -169,8 +178,9 @@ class TestExecuteExecutorNodeUnknownType:
     async def test_unknown_executor_type_returns_skipped(self) -> None:
         """An unknown executor type should return a skipped result."""
         wf = _make_workflow()
+        node = ActivityNode("bad_node", "totally_unknown", {})
         result = await wf._execute_executor_node(
-            node_id="bad_node",
+            node=node,
             node_type="totally_unknown",
             resolved_config={"some": "config"},
             outputs=None,
@@ -628,7 +638,7 @@ class TestPerNodeTimeout:
 
         _mock_temporal_workflow.execute_activity.assert_called_once()
         call_kwargs = _mock_temporal_workflow.execute_activity.call_args
-        expected = NexusWorkflow._get_default_timeout(NodeType.SCRIPT) + _TEMPORAL_MARGIN
+        expected = get_default_timeout(NodeType.SCRIPT, wf._runtime_settings) + _TEMPORAL_MARGIN
         assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=expected)
 
     @pytest.mark.asyncio
@@ -647,5 +657,98 @@ class TestPerNodeTimeout:
 
         _mock_temporal_workflow.execute_activity.assert_called_once()
         call_kwargs = _mock_temporal_workflow.execute_activity.call_args
-        expected = NexusWorkflow._get_default_timeout(NodeType.AAP_JOB_TEMPLATE) + _TEMPORAL_MARGIN
+        expected = get_default_timeout(NodeType.AAP_JOB_TEMPLATE, wf._runtime_settings) + _TEMPORAL_MARGIN
         assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=expected)
+
+
+class TestLoopMaxIterationsEnforcement:
+    """max_iterations raises ApplicationError in the workflow before the activity is called.
+
+    Node config takes priority over the runtime setting. Both for_each and do_while
+    raise ApplicationError (MaxIterationsError) — do_while only when the condition is
+    still True (loop wants to keep running), not on a natural condition=False exit.
+    """
+
+    @pytest.mark.asyncio
+    async def test_for_each_raises_when_node_config_max_iterations_exceeded(self) -> None:
+        wf = _make_workflow()
+        node = ActivityNode(
+            node_id="loop_1",
+            node_type="loop",
+            config={"type": "for_each", "items": ["a", "b", "c"], "max_iterations": 2},
+        )
+        wf.loop_state["loop_1"] = ForEachLoopState(items=["a", "b", "c"], current_index=2)
+        wf.loop_iteration_results["loop_1"] = {}
+
+        with pytest.raises(ApplicationError) as exc_info:
+            await wf._execute_loop_node("loop_1", node, node.config)
+
+        assert exc_info.value.type == "MaxIterationsError"
+        assert "exceeded max_iterations (2)" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_for_each_raises_using_runtime_setting_when_no_node_config(self) -> None:
+        wf = _make_workflow()
+        wf._runtime_settings["workflow_engine.max_loop_iterations"] = 3
+        node = ActivityNode(
+            node_id="loop_1",
+            node_type="loop",
+            config={"type": "for_each", "items": ["a", "b", "c", "d"]},
+        )
+        wf.loop_state["loop_1"] = ForEachLoopState(items=["a", "b", "c", "d"], current_index=3)
+        wf.loop_iteration_results["loop_1"] = {}
+
+        with pytest.raises(ApplicationError) as exc_info:
+            await wf._execute_loop_node("loop_1", node, node.config)
+
+        assert exc_info.value.type == "MaxIterationsError"
+        assert "exceeded max_iterations (3)" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_do_while_raises_when_condition_true_and_max_iterations_exceeded(self) -> None:
+        wf = _make_workflow()
+        node = ActivityNode(
+            node_id="loop_1",
+            node_type="loop",
+            config={"type": "do_while", "condition": "${converged}", "max_iterations": 5},
+        )
+        wf.loop_state["loop_1"] = DoWhileLoopState(condition="${converged}", max_iterations=5, current_index=5)
+        wf.loop_iteration_results["loop_1"] = {}
+
+        with (
+            patch(
+                "nexus.workflows.workflow_engine.dynamic_workflow.safe_eval_with_namespace",
+                return_value=True,
+            ),
+            pytest.raises(ApplicationError) as exc_info,
+        ):
+            await wf._execute_loop_node("loop_1", node, node.config)
+
+        assert exc_info.value.type == "MaxIterationsError"
+        assert "exceeded max_iterations (5)" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_do_while_does_not_raise_when_condition_false_at_max_iterations(
+        self,
+        _mock_temporal_workflow: MagicMock,  # noqa: PT019
+    ) -> None:
+        """Condition became False exactly at max_iterations — natural exit, not an error."""
+        _mock_temporal_workflow.execute_activity = AsyncMock(
+            return_value={"output": {}, "control": {"next_port": "complete", "next_index": 5}}
+        )
+        wf = _make_workflow()
+        node = ActivityNode(
+            node_id="loop_1",
+            node_type="loop",
+            config={"type": "do_while", "condition": "${converged}", "max_iterations": 5},
+        )
+        wf.loop_state["loop_1"] = DoWhileLoopState(condition="${converged}", max_iterations=5, current_index=5)
+        wf.loop_iteration_results["loop_1"] = {}
+
+        with patch(
+            "nexus.workflows.workflow_engine.dynamic_workflow.safe_eval_with_namespace",
+            return_value=False,
+        ):
+            result = await wf._execute_loop_node("loop_1", node, node.config)
+
+        assert result["control"]["next_port"] == "complete"
