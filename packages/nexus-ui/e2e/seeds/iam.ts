@@ -50,7 +50,7 @@ export async function createUserViaApi(
       token,
       data: {
         username: options.username,
-        email: `${options.username}@e2e.test`,
+        email: `${options.username}@example.com`,
         first_name: `E2E ${options.username}`,
         password: 'e2e-test-password-123!',
       },

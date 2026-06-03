@@ -331,8 +331,10 @@ This is why adding a new canvas step type is usually just "create a new `registe
 
 **App root**: `packages/nexus-ui/src/app/App.tsx`
 
-- Creates a single `QueryClient` for server state
+- Imports the singleton `QueryClient` from `src/queryClient.ts` and provides it via `QueryClientProvider`
 - Renders the global layout and mounts `AppRouter`
+
+> The `QueryClient` is defined in `src/queryClient.ts` (not inline in `App.tsx`) so that `useAuthStore` can import it directly to call `queryClient.clear()` on logout, session expiry, and auth middleware failures — preventing stale permission cache from leaking across user sessions.
 
 ---
 

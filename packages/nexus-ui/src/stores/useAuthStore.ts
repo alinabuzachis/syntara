@@ -8,6 +8,8 @@
 
 import { create } from 'zustand'
 
+import { queryClient } from '../queryClient'
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -323,6 +325,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           ...INITIAL_STATE,
           error: err instanceof Error ? err.message : String(err),
         })
+        // Prevent stale permission/data cache from leaking to the next user session
+        queryClient.clear()
         throw err
       } finally {
         if (refreshPromise === inFlightRefresh.promise) {
@@ -355,6 +359,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     // Always clear local state, even if the server call failed
     set({ ...INITIAL_STATE, logoutCount: logoutCount + 1 })
+    // Prevent stale permission/data cache from leaking to the next user session
+    queryClient.clear()
 
     if (error) {
       throw error
@@ -389,6 +395,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   clearAuth: () => {
     clearScheduledRefresh()
     set({ ...INITIAL_STATE })
+    // Prevent stale permission/data cache from leaking to the next user session
+    queryClient.clear()
   },
 
   reset: () => {

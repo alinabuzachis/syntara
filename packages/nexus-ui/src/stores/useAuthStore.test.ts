@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { queryClient } from '../queryClient'
+
 import {
   useAuthStore,
   isTokenExpired,
@@ -51,6 +53,8 @@ describe('useAuthStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useAuthStore.getState().reset()
+    // Ensure no cached permission/data state leaks between tests
+    queryClient.clear()
   })
 
   afterEach(() => {
@@ -617,6 +621,63 @@ describe('useAuthStore', () => {
       await vi.advanceTimersByTimeAsync(240_000)
 
       expect(mockFetch).toHaveBeenCalled()
+    })
+  })
+
+  describe('query cache invalidation', () => {
+    const SEED_QUERY_KEY = ['authz', 'can_i', { action: 'read', resource_type: 'workflow' }]
+    const SEED_DATA = { data: { allowed: true } }
+
+    function seedCache() {
+      queryClient.setQueryData(SEED_QUERY_KEY, SEED_DATA)
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+    }
+
+    it('logout() clears the query cache', async () => {
+      seedCache()
+      mockLoginSuccess()
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+      })
+      await useAuthStore.getState().logout()
+
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    })
+
+    it('clearAuth() clears the query cache', () => {
+      seedCache()
+
+      useAuthStore.getState().clearAuth()
+
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    })
+
+    it('refresh() failure clears the query cache', async () => {
+      seedCache()
+      // Simulate CSRF fetch succeeding but refresh failing
+      mockFetchSuccess({ csrf_token: 'test-csrf' })
+      mockFetchError('Token expired', 401)
+
+      await expect(useAuthStore.getState().refresh()).rejects.toThrow('Token expired')
+
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    })
+
+    it('login() failure does NOT clear the query cache', async () => {
+      // Login failure should not clear the cache — the user has no prior session
+      // to leak, and clearing here would evict unrelated cached data unnecessarily
+      seedCache()
+      mockFetchError('Invalid credentials', 401)
+
+      await expect(
+        useAuthStore.getState().login({ username: 'admin', password: 'wrong' })
+      ).rejects.toThrow('Invalid credentials')
+
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
     })
   })
 })
