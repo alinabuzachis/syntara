@@ -32,7 +32,6 @@ from nexus.core.models.group import Group, user_groups
 logger = structlog.stdlib.get_logger(__name__)
 
 BOOTSTRAP_ADMIN_USERNAME = "admin"
-BOOTSTRAP_ADMIN_EMAIL = "admin@example.com"
 BOOTSTRAP_ADMIN_FULL_NAME = "Administrator"
 ADMINS_GROUP_NAME = "admins"
 
@@ -53,7 +52,6 @@ async def set_admin_password(password: str) -> None:
             admin = User(
                 id=uuid4(),
                 username=BOOTSTRAP_ADMIN_USERNAME,
-                email=BOOTSTRAP_ADMIN_EMAIL,
                 full_name=BOOTSTRAP_ADMIN_FULL_NAME,
                 password_hash=password_hash,
                 is_enabled=True,

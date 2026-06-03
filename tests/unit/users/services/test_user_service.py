@@ -57,7 +57,6 @@ async def _get_or_create_builtin_admin(session: AsyncSession) -> User:
     user = User(
         id=uuid4(),
         username="admin",
-        email="admin@example.com",
         first_name="Admin",
         password_hash=hash_password("adminpassword"),
         is_builtin=True,

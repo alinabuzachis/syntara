@@ -1961,7 +1961,6 @@ async def admin_user(test_db_session: AsyncSession, user_factory: Callable[..., 
         if admin_user is None:
             admin_user = await user_factory(
                 username="admin",
-                email="admin@example.com",
                 first_name="Admin",
                 last_name="User",
             )

@@ -206,7 +206,6 @@ async def _seed_assignments_and_admin(
         admin_user = User(
             id=uuid4(),
             username="admin",
-            email="admin@example.com",
             first_name="Administrator",
             is_enabled=True,
             is_builtin=True,
