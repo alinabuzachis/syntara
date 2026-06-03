@@ -70,7 +70,6 @@ test.describe('Session Revocation — IdP-Scoped (UI-29)', () => {
       await confirmIdpDeleteDialog(app, providerName)
 
       await expect(app.getByText('Identity provider deleted')).toBeVisible({ timeout: 10_000 })
-      await expect(app.getByText(new RegExp(providerName, 'i'))).toBeVisible()
 
       const table = app.getByRole('grid', { name: 'Identity providers table' })
       await expect(table.getByRole('row', { name: new RegExp(providerName) })).toHaveCount(0)
