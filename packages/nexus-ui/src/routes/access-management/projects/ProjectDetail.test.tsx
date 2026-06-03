@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -366,11 +366,9 @@ describe('ProjectDetail', () => {
       vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
       render(<ProjectDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
       })
-
-      expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
     })
 
@@ -378,11 +376,9 @@ describe('ProjectDetail', () => {
       vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
       render(<ProjectDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Assignments/ })).toBeInTheDocument()
       })
-
-      expect(screen.getByRole('tab', { name: /Assignments/ })).toBeInTheDocument()
     })
   })
 })
