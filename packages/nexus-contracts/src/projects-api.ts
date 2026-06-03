@@ -1603,6 +1603,8 @@ export interface operations {
         is_builtin?: boolean | null
         /** @description Filter by scope */
         scope?: string | null
+        /** @description Filter by policy name */
+        policy_name?: string | null
       }
       header?: never
       path: {

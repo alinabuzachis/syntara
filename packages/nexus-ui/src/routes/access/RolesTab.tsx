@@ -30,6 +30,7 @@ import { detachPromise } from '../../utils/detachPromise'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
+import { POLICY_NAME_FILTER_DEF } from './builtinFilterDefinitions'
 import { EditRoleDialog } from './EditRoleDialog'
 import { buildAccessApiQueryParams, buildProjectFilterDefs, ROLE_SCOPE_OPTIONS } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
@@ -60,6 +61,7 @@ const BASE_FILTER_FIELD_DEFS = [
     options: [],
     placeholder: 'Filter by project',
   },
+  POLICY_NAME_FILTER_DEF,
   {
     key: 'type',
     label: 'Type',

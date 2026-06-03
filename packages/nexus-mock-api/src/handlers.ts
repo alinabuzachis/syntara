@@ -203,6 +203,13 @@ function validateCredentialId(url: URL): ReturnType<typeof HttpResponse.json> | 
   return null
 }
 
+function filterByPolicyName<T extends { policies: string[] }>(items: T[], url: URL): T[] {
+  const term = url.searchParams.get('policy_name[contains]')
+  if (!term) return items
+  const lower = term.toLowerCase()
+  return items.filter((r) => r.policies.some((p) => p.toLowerCase().includes(lower)))
+}
+
 function createExecutionNotFoundResponse(executionId: string, subPath?: string) {
   const instance = subPath ? `/api/v1/executions/${executionId}/${subPath}` : `/api/v1/executions/${executionId}`
   return HttpResponse.json(
@@ -2889,7 +2896,9 @@ export const handlers = [
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
     const projectId = params.project_id as string
-    const filtered = mockRoles.filter((r) => r.project_id === projectId)
+    let filtered = mockRoles.filter((r) => r.project_id === projectId)
+
+    filtered = filterByPolicyName(filtered, url)
 
     return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
   }),
@@ -3166,6 +3175,8 @@ export const handlers = [
       const builtin = isBuiltin === 'true'
       filtered = filtered.filter((r) => r.is_builtin === builtin)
     }
+
+    filtered = filterByPolicyName(filtered, url)
 
     const sort = url.searchParams.get('sort')
     if (sort) {
