@@ -36,13 +36,6 @@ def _all_names(result) -> list[str]:
     return [r.name for r in result.resources]
 
 
-def _collect_all_pages(pages) -> list[str]:
-    names: list[str] = []
-    for page in pages:
-        names.extend(r.name for r in page.resources)
-    return names
-
-
 async def _create_db_roles(
     svc: RoleService,
     count: int,
