@@ -207,7 +207,7 @@ function AppLoginForm() {
     loginError,
     loginErrorField,
     isLoggingIn,
-    loginButtonLabel: hasProviders ? 'Log in as administrator' : 'Log in',
+    loginButtonLabel: 'Log in',
     onChangeUsername: setUsername,
     onChangePassword: setPassword,
     onClearError: clearError,

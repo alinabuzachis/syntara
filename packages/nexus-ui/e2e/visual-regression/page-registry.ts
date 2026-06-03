@@ -757,7 +757,7 @@ export const loginPages: PageEntry[] = [
       }
       // Submit with username but no password to trigger client-side validation error
       await page.getByLabel('Username').fill('admin')
-      await page.getByRole('button', { name: 'Log in as administrator' }).click()
+      await page.getByRole('button', { name: 'Log in', exact: true }).click()
       await expect(page.getByText('Enter your password')).toBeVisible()
     },
   },

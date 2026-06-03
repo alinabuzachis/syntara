@@ -168,7 +168,7 @@ test.describe('Disable Built-in Admin — Flow and State Update', () => {
 
     await page.getByLabel('Username').fill('admin')
     await page.getByRole('textbox', { name: 'Password' }).fill('coffee')
-    await page.getByRole('button', { name: 'Log in as administrator' }).click()
+    await page.getByRole('button', { name: 'Log in', exact: true }).click()
     await expect(page.getByText('Authentication failed')).toBeVisible()
   })
 })
