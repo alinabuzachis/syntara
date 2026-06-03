@@ -301,6 +301,7 @@ async def set_user_groups(
     operation_id="create_user_role_assignment",
     response_description="Role assignment created",
 )
+@audit(EventCategory.SECURITY_EVENT, event_action="user_role_assign", capture_args={"user_id"})
 async def create_user_role_assignment(
     user_id: UUID,
     body: SubResourceRoleAssignmentCreate,
@@ -358,6 +359,7 @@ async def list_user_role_assignments(
     operation_id="delete_user_role_assignment",
     response_description="Assignment removed",
 )
+@audit(EventCategory.SECURITY_EVENT, event_action="user_role_revoke", capture_args={"user_id", "assignment_id"})
 async def delete_user_role_assignment(
     user_id: UUID,
     assignment_id: UUID,
