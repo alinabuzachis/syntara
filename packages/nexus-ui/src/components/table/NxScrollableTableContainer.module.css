@@ -36,8 +36,7 @@
 .footer {
   flex: 0 0 auto;
   width: 100%;
-  border-top: var(--pf-t--global--border--width--divider--default) solid
-    var(--pf-t--global--border--color--default);
+  border-top: var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default);
   padding-bottom: var(--pf-t--global--spacer--sm);
 }
 

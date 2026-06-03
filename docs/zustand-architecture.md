@@ -806,11 +806,11 @@ function ChatComponent() {
 packages/nexus-ui/src/stores/useAuthStore.ts
 ```
 
-| Purpose                     | Description                                                                                                                                       |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Token management            | Access token storage, refresh, and expiry tracking                                                                                                |
-| Session lifecycle           | Login, logout, and session persistence                                                                                                            |
-| Auth middleware integration | Provides tokens to API client `authMiddleware`                                                                                                    |
+| Purpose                     | Description                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Token management            | Access token storage, refresh, and expiry tracking                                                                                               |
+| Session lifecycle           | Login, logout, and session persistence                                                                                                           |
+| Auth middleware integration | Provides tokens to API client `authMiddleware`                                                                                                   |
 | Query cache invalidation    | Calls `queryClient.clear()` on `logout()`, `clearAuth()`, and `refresh()` failure — prevents stale permission cache leaking across user sessions |
 
 ### Project Store (`useProjectStore`)

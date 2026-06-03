@@ -673,9 +673,9 @@ describe('useAuthStore', () => {
       seedCache()
       mockFetchError('Invalid credentials', 401)
 
-      await expect(
-        useAuthStore.getState().login({ username: 'admin', password: 'wrong' })
-      ).rejects.toThrow('Invalid credentials')
+      await expect(useAuthStore.getState().login({ username: 'admin', password: 'wrong' })).rejects.toThrow(
+        'Invalid credentials'
+      )
 
       expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
     })

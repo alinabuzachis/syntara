@@ -18,10 +18,7 @@ export const VISUAL_REGRESSION_CLOCK = '2026-06-15T10:00:00Z'
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: [
-    ...(useWebServer ? [] : ['**/visual-regression/**']),
-    '**/credential-types.spec.ts',
-  ],
+  testIgnore: [...(useWebServer ? [] : ['**/visual-regression/**']), '**/credential-types.spec.ts'],
   fullyParallel: true,
   workers: process.env.CI ? 3 : undefined,
   timeout: 60_000,

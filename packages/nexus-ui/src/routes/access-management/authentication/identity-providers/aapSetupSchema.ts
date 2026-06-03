@@ -6,10 +6,7 @@ type AuthMethod = (typeof authMethods)[number]
 export const aapSetupSchema = z
   .object({
     aap_url: z.string().min(1, 'AAP URL is required').url('Must be a valid URL'),
-    organization: z
-      .string()
-      .min(1, 'Organization is required')
-      .max(64, 'Organization must be 64 characters or fewer'),
+    organization: z.string().min(1, 'Organization is required').max(64, 'Organization must be 64 characters or fewer'),
     auth_method: z.enum(authMethods),
     admin_username: z.string().max(150, 'Username must be 150 characters or fewer'),
     admin_password: z.string(),
