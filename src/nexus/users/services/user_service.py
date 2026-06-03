@@ -66,8 +66,6 @@ class UsersService(BaseService):
     including CRUD operations and duplicate handling.
     """
 
-    ADMIN_USERNAME = "admin"
-
     def __init__(self, session: AsyncSession, user: User) -> None:
         """Initialize UsersService with database session and user context."""
         super().__init__(session, user, convert_resource_mixin=UserConvertResourceMixin())
