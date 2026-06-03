@@ -587,7 +587,7 @@ export const handlers = [
         { status: 404 }
       )
     }
-    const body = (await request.request.json()) as { publish_name?: string | null; description?: string | null }
+    const body = (await request.request.json()) as { publish_name?: string | null; change_description?: string | null }
     const version = parseInt(String(request.params.version), 10)
     if (isNaN(version) || version < 1) {
       return HttpResponse.json(
@@ -618,6 +618,7 @@ export const handlers = [
     mutableWorkflow.updated_at = new Date().toISOString()
     const versionObj = mutableWorkflow.version as Record<string, unknown>
     versionObj.publish_name = body?.publish_name ?? null
+    versionObj.change_description = body?.change_description ?? null
     versionObj.status = WorkflowVersionStatusEnum.PUBLISHED
     return HttpResponse.json(mutableWorkflow)
   }),

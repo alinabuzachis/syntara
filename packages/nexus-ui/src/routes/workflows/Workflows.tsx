@@ -231,7 +231,7 @@ export default function Workflows() {
     publishWorkflow(
       {
         params: { path: { workflow_id: workflow.id, version: workflow.current_version } },
-        body: { publish_name: publishName ?? null, description: description ?? null },
+        body: { publish_name: publishName ?? null, change_description: description ?? null },
       },
       {
         onSuccess: () => {

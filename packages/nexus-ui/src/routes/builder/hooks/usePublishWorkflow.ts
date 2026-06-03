@@ -29,7 +29,7 @@ export function usePublishWorkflow(workflowId: string | null, currentVersion: nu
       publishMutation(
         {
           params: { path: { workflow_id: workflowId, version: currentVersion } },
-          body: { publish_name: publishName ?? null, description: description ?? null },
+          body: { publish_name: publishName ?? null, change_description: description ?? null },
         },
         {
           onSuccess: () => {

@@ -1527,7 +1527,7 @@ export interface operations {
           /** @description Human-readable name for the published version */
           publish_name?: string | null
           /** @description Description of changes in this published version */
-          description?: string | null
+          change_description?: string | null
         }
       }
     }
