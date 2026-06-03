@@ -8555,6 +8555,117 @@ paths:
         - IdentityProviders
       security:
         - bearerAuth: []
+  /identity_providers/setup_aap_oidc:
+    post:
+      summary: Setup AAP OIDC Provider
+      description: 'Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity provider with AAP defaults.'
+      operationId: setup_aap_oidc_provider
+      x-app-permission:
+        resource: identity-provider
+        action: create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AAPOIDCSetupRequest'
+      responses:
+        '201':
+          description: AAP OIDC provider created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityProviderResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      tags:
+        - IdentityProviders
+      security:
+        - bearerAuth: []
   /identity_providers/test:
     post:
       summary: Test Identity Provider
@@ -26190,6 +26301,53 @@ components:
           type: boolean
           default: false
           title: End Session Endpoint Supported
+    AAPOIDCSetupRequest:
+      type: object
+      title: AAPOIDCSetupRequest
+      description: Request body for push-button AAP OIDC identity provider setup.
+      required:
+        - aap_url
+      additionalProperties: false
+      properties:
+        aap_url:
+          type: string
+          minLength: 1
+          title: AAP URL
+          description: AAP base URL (e.g., https://aap.example.com)
+        organization:
+          type: string
+          default: Default
+          minLength: 1
+          title: Organization
+          description: AAP organization name to create the OAuth2 application in
+        admin_username:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Platform Admin Username
+          description: AAP platform admin username (required when using basic auth)
+        admin_password:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          format: password
+          title: Platform Admin Password
+          description: AAP platform admin password (used only for setup, never stored)
+        personal_access_token:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          format: password
+          title: Personal Access Token
+          description: AAP personal access token (alternative to username/password, never stored)
+        insecure_skip_tls_verify:
+          type: boolean
+          default: false
+          title: Insecure Skip TLS Verify
+          description: Skip TLS certificate verification for the AAP connection
     IntegrationType:
       type: string
       enum:

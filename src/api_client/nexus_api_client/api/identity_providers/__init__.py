@@ -64,6 +64,14 @@ class IdentityProvidersApi:
         endpoint_module = self._load_endpoint_module("patch_identity_provider")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def setup_aap_oidc_provider(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("setup_aap_oidc_provider")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_setup_aap_oidc_provider(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("setup_aap_oidc_provider")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def test(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("test_identity_provider")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

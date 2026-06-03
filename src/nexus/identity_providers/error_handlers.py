@@ -10,6 +10,9 @@ from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_resp
 
 if TYPE_CHECKING:
     from nexus.identity_providers.exceptions import (
+        AAPAuthenticationError,
+        AAPConnectionError,
+        AAPSetupError,
         IdentityProviderError,
         IdentityProviderNameConflictError,
         IdentityProviderNotFoundError,
@@ -55,6 +58,48 @@ def identity_provider_error_handler(request: Request, exc: "IdentityProviderErro
         title="Identity Provider Error",
         detail=exc.message,
         code="IDENTITY_PROVIDER_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def aap_connection_error_handler(request: Request, exc: "AAPConnectionError") -> JSONResponse:
+    """Handle AAP connection errors with RFC 9457 format."""
+    logger.error("AAP connection error", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        problem_type=PROBLEM_TYPES["provider_error"],
+        title="AAP Connection Error",
+        detail=exc.message,
+        code="AAP_CONNECTION_ERROR",
+        retryable=True,
+        instance=str(request.url),
+    )
+
+
+def aap_authentication_error_handler(request: Request, exc: "AAPAuthenticationError") -> JSONResponse:
+    """Handle AAP authentication errors with RFC 9457 format."""
+    logger.error("AAP authentication error", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        problem_type=PROBLEM_TYPES["provider_error"],
+        title="AAP Authentication Error",
+        detail=exc.message,
+        code="AAP_AUTHENTICATION_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def aap_setup_error_handler(request: Request, exc: "AAPSetupError") -> JSONResponse:
+    """Handle AAP setup errors with RFC 9457 format."""
+    logger.error("AAP setup error", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        problem_type=PROBLEM_TYPES["provider_error"],
+        title="AAP Setup Error",
+        detail=exc.message,
+        code="AAP_SETUP_ERROR",
         retryable=False,
         instance=str(request.url),
     )

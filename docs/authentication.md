@@ -651,6 +651,7 @@ All management endpoints require authentication and are under `/api/v1/identity_
 | `PATCH /{provider_id}` | Update provider | Partially update (client_secret optional — preserves existing) |
 | `DELETE /{provider_id}` | Delete provider | Soft delete a provider (204) |
 | `POST /test` | Test connection | Test OIDC discovery without saving |
+| `POST /setup-aap-oidc` | Setup AAP provider | Push-button AAP OIDC setup (201) |
 
 ### OIDC Configuration
 
@@ -846,6 +847,55 @@ Both modes respect the **JMESPath expression** configured on the provider. The e
 **JMESPath validation**: Expressions are validated at configuration time — saving an invalid expression (e.g., `[[[bad`) returns a 422 error. If a valid expression fails at runtime (e.g., unexpected token claim structure), the group sync is aborted and login is denied rather than silently removing the user's groups.
 
 **Scalar claim mismatch**: If the JMESPath expression uses a wildcard projection (e.g., `groups[*]`) but the IdP sends the claim as a bare string instead of an array (e.g., `"groups": "admin"` instead of `"groups": ["admin"]`), login is denied with an error. The error log message instructs the administrator to either fix the IdP to send an array or remove the trailing `[*]` from the expression. This strict behavior avoids silently guessing the intended interpretation of the expression.
+
+#### Push-Button AAP Setup
+
+The `POST /identity_providers/setup-aap-oidc` endpoint automates the full AAP OIDC identity provider setup in a single API call. It connects to an AAP Gateway instance, creates an OAuth2 application, and configures the corresponding identity provider in Nexus with AAP-specific defaults.
+
+**Request body:**
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `aap_url` | Yes | — | AAP Gateway base URL (e.g., `https://aap.example.com`) |
+| `organization` | No | `"Default"` | AAP organization name to create the OAuth2 application in |
+| `admin_username` | Yes | — | AAP platform admin username |
+| `admin_password` | Yes | — | AAP platform admin password (used only for setup, never stored) |
+| `insecure_skip_tls_verify` | No | `false` | Skip TLS certificate verification for the AAP connection |
+
+**What happens when the endpoint is called:**
+
+1. The backend resolves the AAP organization by name via `GET /api/gateway/v1/organizations/?name=<name>`.
+2. An OAuth2 application named "Automation Orchestrator" is created on AAP via `POST /api/gateway/v1/applications/` using the admin credentials. The redirect URI is derived from `APP_SERVER_PUBLIC_URL`.
+3. An identity provider is created in Nexus with the following AAP preset defaults:
+   - `idp_type` = `"aap"`, `auto_discovery` = `true`
+   - `issuer_url` = `{aap_url}/o/`
+   - `scopes` = `"read write openid roles"`
+   - JMESPath group extraction for AAP teams and organizations
+   - `aap_role_mapping_enabled` = `true` (see [AAP Role Mapping](#aap-role-mapping))
+   - `enable_rp_initiated_logout` = `true`
+   - `disable_tls_verify` mirrors the request's `insecure_skip_tls_verify` value
+4. The created identity provider is returned (201).
+
+**Prerequisites:**
+
+- `APP_SERVER_PUBLIC_URL` must be set to the frontend URL so the OAuth2 redirect URI is correct.
+- The admin credentials must have permission to create applications in the specified organization.
+
+**Error cases:**
+
+| Scenario | HTTP Status | Error |
+|---|---|---|
+| AAP unreachable or timeout | 502 | `AAPConnectionError` |
+| TLS verification failure | 502 | `AAPConnectionError` (with suggestion to enable TLS skip) |
+| Invalid credentials | 502 | `AAPAuthenticationError` |
+| Insufficient privileges | 502 | `AAPAuthenticationError` |
+| Organization not found | 502 | `AAPSetupError` |
+| Duplicate OAuth2 app name | 502 | `AAPSetupError` (with suggestion to delete existing app or configure manually) |
+
+**Security notes:**
+
+- The `admin_password` is used only for the one-time API calls to create the OAuth2 application and is never persisted.
+- The `aap_url` is validated against SSRF (private network) restrictions.
 
 #### AAP Role Mapping
 

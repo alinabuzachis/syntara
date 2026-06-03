@@ -25,6 +25,7 @@ __all__ = (
     "AAPListResponseAAPLabel",
     "AAPListResponseAAPOrganization",
     "AAPListResponseAAPWorkflowJobTemplate",
+    "AAPOIDCSetupRequest",
     "AAPOrganization",
     "AAPSummaryField",
     "AAPWorkflowJobTemplate",
