@@ -1,1 +1,1 @@
-"""Workflow E2E tests package."""
+"""E2E tests for workflows domain."""

@@ -566,15 +566,37 @@ def workflow_factory(nexus_api: NexusApiRegistry) -> Generator[Callable[[Workflo
     created_workflow_ids: list[UUID] = []
 
     def _create(workflow_data: WorkflowCreate) -> WorkflowRead:
-        response = nexus_api.workflows.create(body=workflow_data)
-        assert response.status_code == HTTPStatus.CREATED
-        assert response.parsed is not None
-        created_workflow_ids.append(response.parsed.id)
-        return cast("WorkflowRead", response.parsed)
+        workflow: WorkflowRead = nexus_api.workflows.create(body=workflow_data).assert_and_get()
+        created_workflow_ids.append(workflow.id)
+        return workflow
 
     yield _create
 
     for workflow_id in created_workflow_ids:
+        try:
+            nexus_api.workflows.delete(workflow_id=workflow_id)
+        except Exception:
+            pass  # Best effort cleanup
+
+
+@pytest.fixture
+def cleanup_workflows(nexus_api: NexusApiRegistry) -> Generator[list[UUID], None, None]:
+    """List to register workflow IDs for cleanup after test.
+
+    Use when tests need to call nexus_api.workflows.create() directly
+    (e.g., to validate response status codes) instead of using workflow_factory.
+
+    Usage:
+        def test_create_workflow(nexus_api, cleanup_workflows):
+            response = nexus_api.workflows.create(...)
+            if response.status_code == 201:
+                cleanup_workflows.append(response.parsed.id)
+            assert response.status_code == 201
+    """
+    workflow_ids: list[UUID] = []
+    yield workflow_ids
+
+    for workflow_id in workflow_ids:
         try:
             nexus_api.workflows.delete(workflow_id=workflow_id)
         except Exception:
