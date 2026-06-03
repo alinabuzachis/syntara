@@ -240,8 +240,7 @@ def _validate_ssl_fields(
 ) -> None:
     """Shared validation for SSL field combinations.
 
-    Raises :class:`ValueError` for invalid combinations; emits a
-    :class:`UserWarning` for risky-but-legal ones.
+    Raises :class:`ValueError` for invalid or incomplete combinations.
     """
     if ssl_key is not None and ssl_cert is None:
         msg = "SSL client key (ssl_key) requires a client certificate (ssl_cert)"
