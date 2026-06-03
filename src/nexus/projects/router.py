@@ -13,6 +13,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.approvals.models.approval_request import ApprovalListResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
 from nexus.authz.engine import AllowedProjectsResult, VisibilityResult
@@ -132,6 +134,7 @@ def _get_role_assignment_service(
     operation_id="create_project",
     response_description="Project created",
 )
+@audit(EventCategory.USER_ACTION)
 async def create_project(
     body: ProjectCreate,
     service: Annotated[ProjectService, Depends(get_project_service)],
@@ -203,6 +206,7 @@ async def _do_update_project(
     operation_id="update_project",
     response_description="Updated project",
 )
+@audit(EventCategory.USER_ACTION)
 async def update_project(
     project_id: UUID,
     body: ProjectUpdate,
@@ -218,6 +222,7 @@ async def update_project(
     operation_id="replace_project",
     response_description="Updated project",
 )
+@audit(EventCategory.USER_ACTION)
 async def replace_project(
     project_id: UUID,
     body: ProjectUpdate,
@@ -234,6 +239,7 @@ async def replace_project(
     operation_id="delete_project",
     response_description="Project deleted",
 )
+@audit(EventCategory.USER_ACTION)
 async def delete_project(
     project_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
@@ -336,6 +342,7 @@ async def list_project_approvals(
     operation_id="create_project_role_assignment",
     response_description="Role assignment created",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def create_project_role_assignment(
     project_id: UUID,
     body: RoleAssignmentCreate,
@@ -415,6 +422,7 @@ async def list_project_role_assignments(
     operation_id="delete_project_role_assignment",
     response_description="Assignment removed",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def delete_project_role_assignment(
     project_id: UUID,
     assignment_id: UUID,
@@ -435,6 +443,7 @@ async def delete_project_role_assignment(
     dependencies=[Depends(_perm_role_create)],
     operation_id="create_project_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def create_project_role(
     project_id: UUID,
     body: ProjectRoleCreate,
@@ -520,6 +529,7 @@ async def _do_update_project_role(
     dependencies=[Depends(_perm_role_update)],
     operation_id="update_project_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def update_project_role(
     project_id: UUID,
     role_id: UUID,
@@ -535,6 +545,7 @@ async def update_project_role(
     dependencies=[Depends(_perm_role_update)],
     operation_id="replace_project_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def replace_project_role(
     project_id: UUID,
     role_id: UUID,
@@ -551,6 +562,7 @@ async def replace_project_role(
     dependencies=[Depends(_perm_role_delete)],
     operation_id="delete_project_role",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def delete_project_role(
     project_id: UUID,
     role_id: UUID,
@@ -582,6 +594,7 @@ def _is_global_project_scoped(policy_read: PolicyRead) -> bool:
     dependencies=[Depends(_perm_policy_create)],
     operation_id="create_project_policy",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def create_project_policy(
     project_id: UUID,
     body: ProjectPolicyCreate,
@@ -671,6 +684,7 @@ async def _do_update_project_policy(
     dependencies=[Depends(_perm_policy_update)],
     operation_id="update_project_policy",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def update_project_policy(
     project_id: UUID,
     policy_id: UUID,
@@ -686,6 +700,7 @@ async def update_project_policy(
     dependencies=[Depends(_perm_policy_update)],
     operation_id="replace_project_policy",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def replace_project_policy(
     project_id: UUID,
     policy_id: UUID,
@@ -702,6 +717,7 @@ async def replace_project_policy(
     dependencies=[Depends(_perm_policy_delete)],
     operation_id="delete_project_policy",
 )
+@audit(EventCategory.SECURITY_EVENT)
 async def delete_project_policy(
     project_id: UUID,
     policy_id: UUID,
@@ -726,6 +742,7 @@ async def delete_project_policy(
     dependencies=[Depends(_perm_credential_create)],
     operation_id="create_project_credential",
 )
+@audit(EventCategory.USER_ACTION, event_action="credential_create")
 async def create_project_credential(
     project_id: UUID,
     data: ProjectCredentialCreate,
@@ -790,6 +807,7 @@ async def get_project_credential(
     dependencies=[Depends(_perm_credential_update)],
     operation_id="update_project_credential",
 )
+@audit(EventCategory.USER_ACTION, event_action="credential_update", capture_args={"credential_id"})
 async def update_project_credential(
     project_id: UUID,
     credential_id: UUID,
@@ -810,6 +828,7 @@ async def update_project_credential(
     dependencies=[Depends(_perm_credential_delete)],
     operation_id="delete_project_credential",
 )
+@audit(EventCategory.USER_ACTION, event_action="credential_delete", capture_args={"credential_id"})
 async def delete_project_credential(
     project_id: UUID,
     credential_id: UUID,
