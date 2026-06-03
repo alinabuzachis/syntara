@@ -1271,6 +1271,77 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  http.post('/api/v1/identity_providers/setup_aap_oidc', async ({ request }) => {
+    const body = (await request.json()) as {
+      aap_url?: string
+      organization?: string
+      admin_username?: string
+      admin_password?: string
+      personal_access_token?: string
+      insecure_skip_tls_verify?: boolean
+    }
+
+    const hasBasicAuth = body.admin_username && body.admin_password
+    const hasToken = body.personal_access_token
+
+    if (!body.aap_url || (!hasBasicAuth && !hasToken)) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: 'aap_url and either admin credentials or a personal access token are required',
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+        },
+        { status: 422 }
+      )
+    }
+
+    const existing = identityProviders.find((p) => p.configuration?.idp_type === 'aap')
+    if (existing) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/name-conflict',
+          title: 'Identity Provider Name Conflict',
+          detail: "Identity provider with name 'Ansible Automation Platform' already exists",
+          code: 'IDENTITY_PROVIDER_NAME_CONFLICT',
+          retryable: false,
+        },
+        { status: 409 }
+      )
+    }
+
+    const provider: IdentityProvider = {
+      id: crypto.randomUUID(),
+      name: 'Ansible Automation Platform',
+      description: 'Auto-configured AAP OIDC provider',
+      enabled: true,
+      configuration: {
+        provider_type: 'oidc',
+        idp_type: 'aap',
+        auto_discovery: true,
+        issuer_url: `${body.aap_url.replace(/\/+$/, '')}/o/`,
+        client_id: `mock-${crypto.randomUUID().slice(0, 8)}`,
+        redirect_uri: 'http://localhost:8000/api/v1/auth/oidc/callback',
+        scopes: 'read write openid roles',
+        claim_mapping: { subject: 'sub', email: 'email', username: 'preferred_username', full_name: 'name' },
+        aap_role_mapping_enabled: true,
+        enable_rp_initiated_logout: true,
+        allow_all_authenticated: false,
+        disable_tls_verify: body.insecure_skip_tls_verify ?? false,
+        group_jmespath_expression: "[aap_teams[*].join('/', [organization, name]), aap_organizations[*].name] | []",
+        group_mapping_entries: [],
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: 'admin',
+      updated_by: 'admin',
+    }
+
+    identityProviders.push(provider)
+    return HttpResponse.json(provider, { status: 201 })
+  }),
+
   http.post('/api/v1/identity_providers/test', async ({ request }) => {
     const body = (await request.json()) as { configuration?: { issuer_url?: string } }
     const issuerUrl = body.configuration?.issuer_url ?? ''

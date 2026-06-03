@@ -14,7 +14,7 @@ import {
 import { RhUiAddIcon, RhUiBanIcon, RhUiEditIcon, RhUiSecurityIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -37,6 +37,7 @@ import type { FilterFieldDefinition } from '../../../types/filters'
 import { detachPromise } from '../../../utils/detachPromise'
 
 import { DisableIdentityProviderDialog } from './DisableIdentityProviderDialog'
+import { AAPSetupModal } from './identity-providers/AAPSetupModal'
 import { IdentityProviderDeleteDialog } from './identity-providers/IdentityProviderDeleteDialog'
 import { getProviderNameFilterDefinition, getProviderStatusFilterDefinition } from './identityProviderFilters'
 import { useIdentityProviderToggle } from './useIdentityProviderToggle'
@@ -102,7 +103,12 @@ function providerDetailPath(providerId: string): string {
   )
 }
 
-function NoProvidersEmptyState() {
+type NoProvidersEmptyStateProps = Readonly<{
+  showAapButton: boolean
+  onAapSetup: () => void
+}>
+
+function NoProvidersEmptyState({ showAapButton, onAapSetup }: NoProvidersEmptyStateProps) {
   return (
     <EmptyState headingLevel="h2" titleText="No identity providers configured" icon={RhUiSecurityIcon}>
       <EmptyStateBody>
@@ -112,6 +118,11 @@ function NoProvidersEmptyState() {
       <EmptyStateFooter>
         <EmptyStateActions>
           <AddProviderButton />
+          {showAapButton && (
+            <Button variant="secondary" onClick={onAapSetup}>
+              Add Ansible Automation Platform
+            </Button>
+          )}
         </EmptyStateActions>
       </EmptyStateFooter>
     </EmptyState>
@@ -119,6 +130,7 @@ function NoProvidersEmptyState() {
 }
 
 export function IdentityProvidersTab() {
+  const [aapSetupOpen, setAapSetupOpen] = useState(false)
   const deleteDialog = useDialogState<IdentityProvider>()
   const revokeDialog = useDialogState<IdentityProvider>()
   const { showSuccess } = useAlerts()
@@ -151,6 +163,10 @@ export function IdentityProvidersTab() {
 
   const providers = query.data?.resources ?? []
   const refetch = useCallback(() => detachPromise(query.refetch()), [query])
+  const hasAapProvider = useMemo(
+    () => (query.data?.resources ?? []).some((p) => p.configuration?.idp_type === 'aap'),
+    [query.data?.resources]
+  )
 
   const { mutate: deleteProvider } = identityProvidersClient.useMutation('delete', '/identity_providers/{provider_id}')
 
@@ -197,7 +213,16 @@ export function IdentityProvidersTab() {
   if (queryState) return queryState
 
   if (providers.length === 0 && !cursor && !hasActiveFilters) {
-    return <NoProvidersEmptyState />
+    return (
+      <>
+        <NoProvidersEmptyState showAapButton={!hasAapProvider} onAapSetup={() => setAapSetupOpen(true)} />
+        <AAPSetupModal
+          isOpen={aapSetupOpen}
+          onClose={() => setAapSetupOpen(false)}
+          onSuccess={() => detachPromise(query.refetch())}
+        />
+      </>
+    )
   }
 
   return (
@@ -211,6 +236,13 @@ export function IdentityProvidersTab() {
               onFilterChange={handleFilterChange}
             />
           </FlexItem>
+          {!hasAapProvider && (
+            <FlexItem>
+              <Button variant="secondary" onClick={() => setAapSetupOpen(true)}>
+                Add Ansible Automation Platform
+              </Button>
+            </FlexItem>
+          )}
           <FlexItem>
             <AddProviderButton />
           </FlexItem>
@@ -301,6 +333,11 @@ export function IdentityProvidersTab() {
         All tokens for users authenticated via <strong>{revokeDialog.item?.name}</strong> will be revoked. Affected
         users will be signed out and must sign in again.
       </NxConfirmationDialog>
+      <AAPSetupModal
+        isOpen={aapSetupOpen}
+        onClose={() => setAapSetupOpen(false)}
+        onSuccess={() => detachPromise(query.refetch())}
+      />
     </NxPanelContentStack>
   )
 }
