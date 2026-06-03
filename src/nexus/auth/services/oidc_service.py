@@ -548,8 +548,6 @@ class OIDCService:
             "name": id_token_claims.get("name"),
             "preferred_username": id_token_claims.get(claim_mapping.username),
         }
-        if claim_mapping.groups:
-            result["groups"] = id_token_claims.get(claim_mapping.groups)
 
         identity_claims = {"sub", "email"}
         for key, value in result.items():

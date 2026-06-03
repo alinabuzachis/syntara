@@ -1089,38 +1089,6 @@ class TestExtractUserClaims:
         assert result["given_name"] == "Azure"
         assert result["family_name"] == "User"
 
-    def test_custom_claim_mapping_with_groups(self, oidc_service: OIDCService) -> None:
-        """Test extraction with groups claim mapping."""
-        mapping = OIDCClaimMapping(
-            subject="sub",
-            email="email",
-            username="preferred_username",
-            first_name="name",
-            groups="memberOf",
-        )
-        id_token_claims = {
-            "sub": "user-789",
-            "email": "user@example.com",
-            "preferred_username": "testuser",
-            "name": "Test User",
-            "memberOf": "group1,group2",
-        }
-
-        result = oidc_service.extract_user_claims(id_token_claims, mapping)
-
-        assert result["groups"] == "group1,group2"
-
-    def test_default_mapping_has_no_groups_key(self, oidc_service: OIDCService) -> None:
-        """Test that default mapping does not include groups in result."""
-        id_token_claims = {
-            "sub": "user-123",
-            "groups": "should-be-ignored",
-        }
-
-        result = oidc_service.extract_user_claims(id_token_claims)
-
-        assert "groups" not in result
-
     def test_rejects_control_chars_in_email(self, oidc_service: OIDCService) -> None:
         id_token_claims = {"sub": "u1", "email": "user17\n@example.com"}
         with pytest.raises(OIDCError):
@@ -1159,18 +1127,6 @@ class TestExtractUserClaims:
         assert result["email"] == "user@example.com"
         assert result["name"] == "Test User"
         assert result["preferred_username"] == "testuser"
-
-    def test_escapes_control_chars_in_groups_string(self, oidc_service: OIDCService) -> None:
-        mapping = OIDCClaimMapping(
-            subject="sub",
-            email="email",
-            username="preferred_username",
-            first_name="name",
-            groups="groups",
-        )
-        id_token_claims = {"sub": "u1", "groups": "admin\nops"}
-        result = oidc_service.extract_user_claims(id_token_claims, mapping)
-        assert result["groups"] == "admin\\nops"
 
 
 class TestBuildAuthorizationUrl:

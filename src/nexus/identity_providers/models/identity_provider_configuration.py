@@ -33,7 +33,6 @@ class OIDCClaimMapping(SQLModel):
     username: str = Field(default="preferred_username")
     first_name: str = Field(default="given_name")
     last_name: str = Field(default="family_name")
-    groups: str | None = Field(default=None)
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
 

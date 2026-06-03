@@ -25592,11 +25592,6 @@ components:
           type: string
           default: family_name
           title: Last Name
-        groups:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Groups
     OIDCGroupMappingEntry:
       type: object
       title: OIDCGroupMappingEntry
