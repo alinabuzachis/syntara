@@ -28,7 +28,7 @@ export function TokenRevocationTab() {
   const confirmDialog = useDialogState()
   const { showSuccess } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
-  const { allowed: canRevoke } = useCanI('revoke', 'admin:revocation')
+  const { allowed: canRevoke } = useCanI('execute', 'admin:revocation')
 
   const query = adminClient.useQuery('get', '/admin/revocation')
   const { mutate: revokeAll, isPending } = adminClient.useMutation('post', '/admin/revocation')
@@ -93,7 +93,7 @@ export function TokenRevocationTab() {
             <StackItem>
               <DisabledWithTooltip
                 isDisabled={!canRevoke}
-                content={permissionTooltip('revoke all tokens', 'admin:revocation:revoke')}
+                content={permissionTooltip('revoke all tokens', 'admin:revocation:execute')}
               >
                 <Button
                   variant="danger"
