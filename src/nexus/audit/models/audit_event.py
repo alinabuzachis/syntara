@@ -3,14 +3,20 @@
 import re
 from enum import StrEnum
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from pydantic import SerializeAsAny, field_validator
 from sqlmodel import Field, SQLModel
+from uuid_utils import uuid7 as _uuid7_native
 
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.constants import FieldLimits
+
+
+def _uuid7() -> UUID:
+    return UUID(str(_uuid7_native()))
+
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -69,7 +75,7 @@ class AuditEvent(SQLModel):
     """Audit event model for tracking system activities and user actions."""
 
     # Core identification
-    event_id: UUID = Field(default_factory=uuid4, description="Unique identifier for the audit event")
+    event_id: UUID = Field(default_factory=_uuid7, description="Unique identifier for the audit event")
     event_category: EventCategory = Field(description="Category of the audit event")
     event_severity: EventSeverity = Field(default=EventSeverity.INFO, description="Severity level of the audit event")
     event_status: EventStatus | None = Field(default=None, description="Status of the audited operation")
