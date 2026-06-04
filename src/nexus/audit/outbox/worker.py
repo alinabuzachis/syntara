@@ -133,7 +133,7 @@ async def publish_outbox_events(
     settings = get_settings()
     batch_size = settings.audit_outbox_batch_size
 
-    logger.info("Running AuditOutboxRecord export loop.....")
+    logger.debug("Running AuditOutboxRecord export loop.....")
 
     async with session_factory() as main_session:
         # Read batch of outbox records with row-level locking (FIFO processing)
@@ -146,7 +146,7 @@ async def publish_outbox_events(
         outbox_records = result.all()
 
         if not outbox_records:
-            logger.info("No AuditOutboxRecord records found.")
+            logger.debug("No AuditOutboxRecord records found.")
             return
 
         try:
