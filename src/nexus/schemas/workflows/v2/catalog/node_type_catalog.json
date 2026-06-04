@@ -144,6 +144,17 @@
       "since": "2.0.0"
     },
     {
+      "type": "switch",
+      "name": "Switch",
+      "description": "Multi-case expression-based branching with first-match-wins evaluation",
+      "labels": {
+        "category": "control"
+      },
+      "schema_ref": "../control-nodes/switch.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
       "type": "wait",
       "name": "Wait",
       "description": "Pause workflow execution for a specified duration before continuing",
