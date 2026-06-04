@@ -23,7 +23,7 @@ vi.mock('../../client', () => ({
 }))
 
 vi.mock('../../hooks/useCanI', () => ({
-  useCanI: vi.fn(() => ({ allowed: true, isChecking: false })),
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
 }))
 
 vi.mock('../../providers/alerts/AlertContext', () => ({
@@ -89,7 +89,7 @@ describe('CancelExecutionButton', () => {
   })
 
   it('is aria-disabled when user lacks execution:run permission', () => {
-    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false })
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
 
     renderButton()
 
