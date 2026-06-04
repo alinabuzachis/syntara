@@ -11,6 +11,8 @@ from ... import errors
 {% for relative in endpoint.relative_imports %}
 {% if not relative.startswith('from ...types import') %}
 {{ relative }}
+{% elif 'File' in relative %}
+from ...types import File
 {% endif %}
 {% endfor %}
 

@@ -13,6 +13,8 @@ from temporalio.client import Client
 from temporalio.converter import DataConverter
 from temporalio.worker import Worker
 
+from nexus.audit.export.activity import execute_audit_export
+from nexus.audit.export.workflow import AuditExportWorkflow
 from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
@@ -114,8 +116,8 @@ class TemporalWorkerService:
             self.worker = Worker(
                 self.client,
                 task_queue=self.task_queue,
-                workflows=[NexusWorkflow],
-                activities=list(ACTIVITY_REGISTRY.values()),
+                workflows=[NexusWorkflow, AuditExportWorkflow],
+                activities=[*list(ACTIVITY_REGISTRY.values()), execute_audit_export],
                 interceptors=[MonitoringWorkflowInterceptor()],
             )
 

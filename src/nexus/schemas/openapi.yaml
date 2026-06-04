@@ -2831,6 +2831,350 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
+  /audit/exports:
+    post:
+      summary: Start Audit Export
+      description: |-
+        Start an asynchronous audit event export.
+
+        Returns immediately with an export ID that can be used to poll for
+        status and download the result once complete.
+      operationId: start_audit_export
+      x-app-permission:
+        resource: audit
+        action: read
+      tags:
+        - Audit Events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - $ref: '#/components/schemas/AuditExportCreate'
+                - type: 'null'
+              title: Body
+      responses:
+        '202':
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExportRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /audit/exports/{export_id}:
+    get:
+      summary: Get Audit Export Status
+      description: Check the status of an audit export job.
+      operationId: get_audit_export_status
+      x-app-permission:
+        resource: audit
+        action: read
+      tags:
+        - Audit Events
+      parameters:
+        - name: export_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Export Id
+      responses:
+        '200':
+          description: Export job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExportRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /audit/exports/{export_id}/download:
+    get:
+      summary: Download Audit Export
+      description: Download the result of a completed audit export.
+      operationId: download_audit_export
+      x-app-permission:
+        resource: audit
+        action: read
+      tags:
+        - Audit Events
+      parameters:
+        - name: export_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Export Id
+      responses:
+        '200':
+          description: Exported audit data file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
   /auth/login:
     post:
       summary: Login with username and password
@@ -24080,6 +24424,137 @@ components:
             - type: 'null'
           title: Error Message
           description: Detailed error message if an error occurred
+    AuditExportCreate:
+      type: object
+      title: AuditExportCreate
+      description: API request body for starting an audit export.
+      properties:
+        created_at_gte:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Created At Gte
+          description: Export events created at or after this time
+        created_at_lte:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Created At Lte
+          description: Export events created at or before this time
+        event_category:
+          anyOf:
+            - $ref: '#/components/schemas/EventCategory'
+            - type: 'null'
+          description: Filter by event category
+        event_severity:
+          anyOf:
+            - $ref: '#/components/schemas/EventSeverity'
+            - type: 'null'
+          description: Filter by severity level
+        event_status:
+          anyOf:
+            - $ref: '#/components/schemas/EventStatus'
+            - type: 'null'
+          description: Filter by event status
+        event_action:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Event Action
+          description: Filter by specific action
+        actor_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Actor Id
+          description: Filter by actor UUID
+        actor_type:
+          anyOf:
+            - $ref: '#/components/schemas/ActorType'
+            - type: 'null'
+          description: Filter by actor type
+        source_component:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Source Component
+          description: Filter by source component
+        workflow_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Workflow Id
+          description: Filter by workflow UUID
+        activity_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Activity Id
+          description: Filter by activity ID
+        execution_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Execution Id
+          description: Filter by execution UUID
+        export_format:
+          $ref: '#/components/schemas/ExportFormat'
+          description: Export file format
+          default: csv
+    AuditExportRead:
+      type: object
+      title: AuditExportRead
+      description: API response for an audit export job.
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for this export job
+        status:
+          $ref: '#/components/schemas/ExportStatus'
+          description: Current status of the export job
+        file_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: File Name
+          description: Name of the export file when completed
+        row_count:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Row Count
+          description: Number of rows exported
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error
+          description: Error message if export failed
+    ExportStatus:
+      type: string
+      title: ExportStatus
+      description: Status of an audit export job.
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+    ExportFormat:
+      type: string
+      title: ExportFormat
+      description: Supported export file formats.
+      enum:
+        - csv
     EventCategory:
       type: string
       title: EventCategory

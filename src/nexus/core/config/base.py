@@ -516,6 +516,33 @@ class AuditDatabaseSettings(BaseSettings):
         )
 
 
+class AuditExportSettings(BaseSettings):
+    """Audit data export configuration settings.
+
+    Configures the directory where exported audit CSV files are written and
+    the Temporal task queue used for export jobs.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    audit_export_dir: str = Field(
+        default=str(Path(tempfile.gettempdir()) / "nexus-audit-exports"),
+        description="Directory for audit export files",
+    )
+
+    audit_export_task_queue: str = Field(
+        default="nexus-workflow-queue",
+        description="Temporal task queue for audit export jobs (defaults to the main workflow queue)",
+    )
+
+    audit_export_batch_size: int = Field(
+        default=5000,
+        description="Number of rows fetched per batch during export",
+        ge=100,
+        le=50000,
+    )
+
+
 # =============================================================================
 # Audit Retention Configuration
 # =============================================================================
@@ -1704,6 +1731,7 @@ class Settings(
     AuditDatabaseSettings,
     AuditWriterSettings,
     AuditRetentionSettings,
+    AuditExportSettings,
     ServerSettings,
     RetrieverServiceSettings,
     AdapterRetrySettings,

@@ -1,10 +1,13 @@
 """Audit events API endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, Query, Request
+from fastapi import Body, Depends, Query, Request, Response
+from fastapi.responses import FileResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.export.models import AuditExportCreate, AuditExportRead
 from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.audit.models.schemas import AuditEventListParams, AuditEventListResponse
 from nexus.audit.services.audit_event_service import AuditEventService
@@ -67,4 +70,69 @@ async def list_audit_events(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
+    )
+
+
+# ============================================================================
+# Audit export endpoints
+# ============================================================================
+
+
+@router.post(
+    "/exports",
+    dependencies=[Depends(_audit_perm_read)],
+    operation_id="start_audit_export",
+    response_model=AuditExportRead,
+    status_code=202,
+    response_description="Export job accepted",
+)
+async def start_audit_export(
+    service: Annotated[AuditEventService, Depends(get_audit_event_service)],
+    body: Annotated[AuditExportCreate | None, Body()] = None,
+) -> AuditExportRead:
+    """Start an asynchronous audit event export.
+
+    Returns immediately with an export ID that can be used to poll for
+    status and download the result once complete.
+    """
+    return await service.start_export(body if body is not None else AuditExportCreate())
+
+
+@router.get(
+    "/exports/{export_id}",
+    dependencies=[Depends(_audit_perm_read)],
+    operation_id="get_audit_export_status",
+    response_model=AuditExportRead,
+    response_description="Export job status",
+)
+async def get_audit_export_status(
+    export_id: UUID,
+    service: Annotated[AuditEventService, Depends(get_audit_event_service)],
+) -> AuditExportRead:
+    """Check the status of an audit export job."""
+    return await service.get_export_status(export_id)
+
+
+@router.get(
+    "/exports/{export_id}/download",
+    dependencies=[Depends(_audit_perm_read)],
+    operation_id="download_audit_export",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"text/csv": {"schema": {"type": "string", "format": "binary"}}},
+            "description": "Exported audit data file",
+        },
+    },
+)
+async def download_audit_export(
+    export_id: UUID,
+    service: Annotated[AuditEventService, Depends(get_audit_event_service)],
+) -> FileResponse:
+    """Download the result of a completed audit export."""
+    file_path = await service.get_export_file_path(export_id)
+    return FileResponse(
+        path=file_path,
+        filename=file_path.name,
+        media_type="text/csv",
     )
