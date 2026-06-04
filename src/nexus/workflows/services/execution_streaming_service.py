@@ -5,7 +5,7 @@ Provides WebSocket event streaming from Redis streams for workflow executions.
 
 from collections.abc import Callable
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import structlog
@@ -198,8 +198,8 @@ class WebSocketStreamingHandler(BaseWebSocketStreamingHandler):
 
         async with self._session_factory() as db_session:
             stmt = select(Execution).where(Execution.id == execution_id)
-            result = await db_session.exec(stmt)
-            execution = result.one_or_none()
+            result = await db_session.execute(stmt)
+            execution = cast("Execution | None", result.scalar_one_or_none())
 
             if execution is None:
                 logger.warning("Execution not found in database", execution_id=execution_id)
