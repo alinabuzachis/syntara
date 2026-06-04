@@ -75,9 +75,8 @@ body {
 
 /* Deep Space background on Compass + login */
 .pf-v6-c-compass.bg-deep-space {
-  --pf-v6-c-compass--BackgroundImage: var(--nexus-shell-bg-image);
-
-  background-color: var(--nexus-shell-bg-base);
+  background: var(--nexus-shell-bg-image), var(--nexus-shell-bg-base);
+  background-size: cover;
   background-attachment: fixed;
 }
 
