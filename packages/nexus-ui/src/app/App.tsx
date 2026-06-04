@@ -1,6 +1,7 @@
 import { Compass, CompassContent } from '@patternfly/react-core'
 import { QueryClientProvider } from '@tanstack/react-query'
 
+import { SessionTimeoutWarning } from '../components/session/SessionTimeoutWarning'
 import { AlertProvider } from '../providers/alerts'
 import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
 import { UnsavedChangesProvider } from '../providers/unsaved-changes/UnsavedChangesProvider'
@@ -26,6 +27,7 @@ export default function App() {
         <AlertProvider>
           <UnsavedChangesProvider>
             <AppLogin>
+              <SessionTimeoutWarning />
               <Compass
                 className="pf-m-no-screen-warning bg-deep-space"
                 dock={<AppDockedNav />}
