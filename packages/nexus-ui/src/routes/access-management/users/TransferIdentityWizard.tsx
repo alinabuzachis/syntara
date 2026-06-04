@@ -5,7 +5,9 @@ import {
   Button,
   Content,
   ContentVariants,
+  Stack,
   StackItem,
+  Title,
   useWizardContext,
   Wizard,
   WizardFooterWrapper,
@@ -93,7 +95,7 @@ function WizardFooterStep2({
           </ActionListItem>
           <ActionListItem>
             <Button variant="primary" onClick={onAttach} isDisabled={isAttachDisabled} isLoading={isAttaching}>
-              {isAttaching ? 'Attaching...' : 'Attach'}
+              {isAttaching ? 'Transferring...' : 'Transfer identity'}
             </Button>
           </ActionListItem>
           <ActionListItem>
@@ -190,10 +192,10 @@ export function TransferIdentityWizard() {
       },
       {
         onSuccess: () => {
-          showSuccess({ title: 'Identity attached' })
+          showSuccess({ title: 'Identity transferred' })
           navigateBack()
         },
-        onError: handleMutationError({ title: 'Failed to attach identity' }),
+        onError: handleMutationError({ title: 'Failed to transfer identity' }),
       }
     )
   }
@@ -222,12 +224,21 @@ export function TransferIdentityWizard() {
 
   return (
     <NxPage>
-      <NxPageHeader title={`Transfer identity to ${targetUsername}`} />
-      <StackItem className={styles.headerDescription}>
-        <Content component={ContentVariants.p} className={styles.descriptionText}>
-          Transfer a federated identity from another user to {targetUsername}.
-        </Content>
-      </StackItem>
+      <NxPageHeader
+        title={`Transfer identity to ${targetUsername}`}
+        titleSlot={
+          <Stack>
+            <StackItem>
+              <Title headingLevel="h1">Transfer identity to {targetUsername}</Title>
+            </StackItem>
+            <StackItem>
+              <Content component={ContentVariants.p} className={styles.descriptionText}>
+                Transfer a federated identity from another user to <strong>{targetUsername}</strong>.
+              </Content>
+            </StackItem>
+          </Stack>
+        }
+      />
       <NxPageBody>
         <NxPanel isFullHeight hasNoPadding>
           <Wizard onClose={navigateBack} onStepChange={handleStepChange} isVisitRequired height="100%">

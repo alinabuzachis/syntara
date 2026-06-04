@@ -7,7 +7,7 @@
  * Critical paths covered:
  * - Wizard navigation: button on identities tab, page title, step nav
  * - Step 1: Next disabled until user selected, filtering, user selection
- * - Step 2: empty state, Attach disabled until identity selected
+ * - Step 2: empty state, Transfer identity disabled until identity selected
  * - Back from Step 2 clears selections and returns to Step 1
  * - Cancel navigates back to identities tab
  * - Full attach flow tested in user-identity-admin-actions.spec.ts (route-intercepted)
@@ -152,7 +152,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
 
     await expect(app.getByText('No identities')).toBeVisible({ timeout: 10_000 })
     await expect(app.getByText('This user has no federated identities to attach.')).toBeVisible()
-    await expect(app.getByRole('button', { name: 'Attach' })).toBeDisabled()
+    await expect(app.getByRole('button', { name: 'Transfer identity' })).toBeDisabled()
   })
 
   test('Next button is disabled until a user is selected', async ({ app }) => {
@@ -236,7 +236,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
     await app.getByRole('button', { name: 'Next', exact: true }).click()
 
     await expect(app.getByRole('heading', { level: 2, name: 'Select an identity' })).toBeVisible({ timeout: 10_000 })
-    await expect(app.getByRole('button', { name: 'Attach' })).toBeDisabled()
+    await expect(app.getByRole('button', { name: 'Transfer identity' })).toBeDisabled()
   })
 
   test('Step 2 shows step heading and description with selected user name', async ({ app }) => {

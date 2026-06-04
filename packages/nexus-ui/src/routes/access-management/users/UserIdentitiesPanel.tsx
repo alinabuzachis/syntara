@@ -1,6 +1,6 @@
 import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
-import { RhUiKeyIcon } from '@patternfly/react-icons'
+import { RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
@@ -376,6 +376,7 @@ export function UserIdentitiesPanel({
             <FlexItem>
               <Button
                 variant="primary"
+                icon={<RhUiLinkIcon />}
                 onClick={() => navigate(AppRoute.AccessManagement.TransferIdentity.replace(':userId', userId))}
               >
                 Transfer identity

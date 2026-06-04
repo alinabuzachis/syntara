@@ -82,7 +82,7 @@ export function SelectUserStep({
         </Title>
         <Content component={ContentVariants.p} className={styles.stepDescription}>
           Choose the user whose federated identity you want to transfer. The selected identity will be moved from this
-          user to {targetUsername}.
+          user to <strong>{targetUsername}</strong>.
         </Content>
       </StackItem>
       <StackItem className={styles.filterBar}>

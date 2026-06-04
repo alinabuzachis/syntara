@@ -144,7 +144,7 @@ describe('TransferIdentityWizard', () => {
   it('renders the description text with username', () => {
     render(<TransferIdentityWizard />, { wrapper })
 
-    expect(screen.getByText(/Transfer a federated identity from another user to targetuser/i)).toBeInTheDocument()
+    expect(screen.getByText(/Transfer a federated identity from another user to/i)).toBeInTheDocument()
   })
 
   it('renders the wizard step navigation', () => {
@@ -243,31 +243,31 @@ describe('TransferIdentityWizard', () => {
       expect(screen.getByText('This user has no federated identities to attach.')).toBeInTheDocument()
     })
 
-    it('has Attach button disabled until an identity is selected', async () => {
+    it('has Transfer identity button disabled until an identity is selected', async () => {
       const user = await goToStep2()
 
-      expect(screen.getByRole('button', { name: 'Attach' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Transfer identity' })).toBeDisabled()
 
       await user.click(screen.getByText('sub-1'))
 
-      expect(screen.getByRole('button', { name: 'Attach' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Transfer identity' })).toBeEnabled()
     })
 
     it('deselects identity when clicking a selected row again', async () => {
       const user = await goToStep2()
 
       await user.click(screen.getByText('sub-1'))
-      expect(screen.getByRole('button', { name: 'Attach' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Transfer identity' })).toBeEnabled()
 
       await user.click(screen.getByText('sub-1'))
-      expect(screen.getByRole('button', { name: 'Attach' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Transfer identity' })).toBeDisabled()
     })
 
-    it('calls mutation with correct params when Attach is clicked', async () => {
+    it('calls mutation with correct params when Transfer identity is clicked', async () => {
       const user = await goToStep2()
 
       await user.click(screen.getByText('sub-1'))
-      await user.click(screen.getByRole('button', { name: 'Attach' }))
+      await user.click(screen.getByRole('button', { name: 'Transfer identity' }))
 
       expect(mockMutate).toHaveBeenCalledTimes(1)
       const [body] = mockMutate.mock.calls[0] as unknown[]
@@ -323,7 +323,7 @@ describe('TransferIdentityWizard', () => {
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
       await user.click(screen.getByText('sub-1'))
-      await user.click(screen.getByRole('button', { name: 'Attach' }))
+      await user.click(screen.getByRole('button', { name: 'Transfer identity' }))
 
       const callbacks = mockMutate.mock.calls[0][1] as { onSuccess: () => void }
       act(() => {
@@ -337,14 +337,14 @@ describe('TransferIdentityWizard', () => {
       })
     })
 
-    it('shows error alert on attach failure', async () => {
+    it('shows error alert on transfer failure', async () => {
       const user = userEvent.setup()
       render(<TransferIdentityWizard />, { wrapper })
 
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
       await user.click(screen.getByText('sub-1'))
-      await user.click(screen.getByRole('button', { name: 'Attach' }))
+      await user.click(screen.getByRole('button', { name: 'Transfer identity' }))
 
       const callbacks = mockMutate.mock.calls[0][1] as { onError: (error: unknown) => void }
       act(() => {
@@ -352,7 +352,7 @@ describe('TransferIdentityWizard', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to attach identity')).toBeInTheDocument()
+        expect(screen.getByText('Failed to transfer identity')).toBeInTheDocument()
       })
     })
   })

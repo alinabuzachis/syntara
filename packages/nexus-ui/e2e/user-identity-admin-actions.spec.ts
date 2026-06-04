@@ -97,11 +97,11 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
     // Step 2: Select an identity — click the Subject text to select via row click
     await app.getByText('asmith@example.com').click()
 
-    // Click Attach
-    await app.getByRole('button', { name: 'Attach' }).click()
+    // Click Transfer identity
+    await app.getByRole('button', { name: 'Transfer identity' }).click()
 
     // Success alert and identity now appears in User B's table with Connected status
-    await expect(app.getByRole('heading', { name: 'Identity attached' })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByRole('heading', { name: 'Identity transferred' })).toBeVisible({ timeout: 10_000 })
     await expect(app.getByRole('gridcell', { name: /Corporate SSO/ })).toBeVisible({ timeout: 10_000 })
     await expect(app.getByText('Connected')).toBeVisible()
     await expect(app.getByText('https://sso.example.com')).toBeVisible()
@@ -159,7 +159,7 @@ test.describe('User Detail — Admin Identity Actions (UI-25, UI-26)', () => {
 
     await expect(app.getByText('No identities')).toBeVisible()
     await expect(app.getByText('This user has no federated identities to attach.')).toBeVisible()
-    await expect(app.getByRole('button', { name: 'Attach' })).toBeDisabled()
+    await expect(app.getByRole('button', { name: 'Transfer identity' })).toBeDisabled()
   })
 
   /**
