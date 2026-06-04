@@ -147,11 +147,22 @@ def verify_test_structure(repo_root: Path) -> tuple[bool, list[str], list[str]]:
     # Get domains for each test directory
     test_dirs = {name: (path, get_domains(path), skip) for name, (path, skip) in test_dirs_config.items()}
 
-    # Allow-list for infrastructure directories
+    # Allow-list for test directories without a matching source domain.
+    # Infrastructure dirs and cross-cutting test dirs that group tests
+    # by concern rather than by source domain.
     allowed_test_only = {
         "__pycache__",
-        "helpers",  # Test helper utilities
-        "fixtures",  # Shared test fixtures
+        "helpers",
+        "fixtures",
+        "agents",
+        "cli",
+        "models",
+        "services",
+        "tools",
+        "utils",
+        "validators",
+        "websocket",
+        "workflow",
     }
 
     # These source domains are allowed to have no tests
