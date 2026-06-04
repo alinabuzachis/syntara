@@ -56,7 +56,7 @@ describe('useUserDetailPermissions', () => {
   })
 
   it('returns all permissions when granted', async () => {
-    mockCanI({ group: true, user_identity: true, 'role-assignment': true })
+    mockCanI({ user: true, group: true, user_identity: true, 'role-assignment': true })
 
     const { result } = renderHook(() => useUserDetailPermissions(OTHER_USER_ID), {
       wrapper: createWrapper(),
@@ -67,6 +67,7 @@ describe('useUserDetailPermissions', () => {
     })
 
     expect(result.current).toEqual({
+      canReadUsers: true,
       canReadGroups: true,
       canReadIdentities: true,
       canReadAssignments: true,
@@ -75,7 +76,7 @@ describe('useUserDetailPermissions', () => {
   })
 
   it('denies all permissions when denied', async () => {
-    mockCanI({ group: false, user_identity: false, 'role-assignment': false })
+    mockCanI({ user: false, group: false, user_identity: false, 'role-assignment': false })
 
     const { result } = renderHook(() => useUserDetailPermissions(OTHER_USER_ID), {
       wrapper: createWrapper(),
@@ -86,6 +87,7 @@ describe('useUserDetailPermissions', () => {
     })
 
     expect(result.current).toEqual({
+      canReadUsers: false,
       canReadGroups: false,
       canReadIdentities: false,
       canReadAssignments: false,
@@ -93,8 +95,8 @@ describe('useUserDetailPermissions', () => {
     })
   })
 
-  it('grants identities and assignments for own profile via self-permission', async () => {
-    mockCanI({ group: false, user_identity: false, 'role-assignment': false })
+  it('grants groups, identities, and assignments for own profile via self-permission', async () => {
+    mockCanI({ user: false, group: false, user_identity: false, 'role-assignment': false })
 
     const { result } = renderHook(() => useUserDetailPermissions(CURRENT_USER_ID), {
       wrapper: createWrapper(),
@@ -104,7 +106,8 @@ describe('useUserDetailPermissions', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(result.current.canReadGroups).toBe(false)
+    expect(result.current.canReadUsers).toBe(false)
+    expect(result.current.canReadGroups).toBe(true)
     expect(result.current.canReadIdentities).toBe(true)
     expect(result.current.canReadAssignments).toBe(true)
   })
@@ -131,6 +134,7 @@ describe('useUserDetailPermissions', () => {
       wrapper: createWrapper(),
     })
 
+    expect(result.current.canReadUsers).toBe(false)
     expect(result.current.canReadGroups).toBe(false)
     expect(result.current.canReadIdentities).toBe(false)
     expect(result.current.canReadAssignments).toBe(false)

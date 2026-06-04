@@ -184,6 +184,21 @@ function UserDetailsTab({
 type UserTab = 'details' | 'groups' | 'identities' | 'roles'
 const ALL_USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
 
+function computeVisibleTabs(
+  canReadGroups: boolean,
+  canReadIdentities: boolean,
+  canReadAssignments: boolean,
+  isLoading: boolean
+): UserTab[] {
+  if (isLoading) return ALL_USER_TABS
+  const hidden = new Set<UserTab>()
+  if (!canReadGroups) hidden.add('groups')
+  if (!canReadIdentities) hidden.add('identities')
+  if (!canReadAssignments) hidden.add('roles')
+  if (hidden.size === 0) return ALL_USER_TABS
+  return ALL_USER_TABS.filter((tab) => !hidden.has(tab))
+}
+
 export function UserDetail() {
   const { userId } = useParams<{ userId: string }>()
   const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
@@ -191,21 +206,17 @@ export function UserDetail() {
 
   const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
   const {
+    canReadUsers,
     canReadGroups,
     canReadIdentities,
     canReadAssignments,
     isLoading: permissionsLoading,
   } = useUserDetailPermissions(userId)
 
-  const validTabs = useMemo(() => {
-    if (permissionsLoading) return ALL_USER_TABS
-    const hidden = new Set<UserTab>()
-    if (!canReadGroups) hidden.add('groups')
-    if (!canReadIdentities) hidden.add('identities')
-    if (!canReadAssignments) hidden.add('roles')
-    if (hidden.size === 0) return ALL_USER_TABS
-    return ALL_USER_TABS.filter((tab) => !hidden.has(tab))
-  }, [canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading])
+  const validTabs = useMemo(
+    () => computeVisibleTabs(canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading),
+    [canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading]
+  )
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
   const navigateEdit = () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? ''))
@@ -219,9 +230,12 @@ export function UserDetail() {
     },
   })
 
+  const breadcrumbOptions = { showParentCrumbs: canReadUsers }
+  const shellBreadcrumbs = breadcrumbsUserDetailEarlyShell(breadcrumbOptions)
+
   if (userQuery.error) {
     return (
-      <DetailPageShell title="User Details" breadcrumbs={breadcrumbsUserDetailEarlyShell()}>
+      <DetailPageShell title="User" breadcrumbs={shellBreadcrumbs}>
         <UserNotFoundState
           onBack={navigateBack}
           onRetry={() => {
@@ -234,7 +248,7 @@ export function UserDetail() {
 
   if (queryState) {
     return (
-      <DetailPageShell title="User Details" breadcrumbs={breadcrumbsUserDetailEarlyShell()}>
+      <DetailPageShell title="User" breadcrumbs={shellBreadcrumbs}>
         {queryState}
       </DetailPageShell>
     )
@@ -243,7 +257,7 @@ export function UserDetail() {
   if (!userData) return null
 
   const displayName = userDisplayName(userData) || userData.username
-  const userBreadcrumbs = breadcrumbsUserDetail(displayName, basePath, activeTab)
+  const userBreadcrumbs = breadcrumbsUserDetail(displayName, basePath, activeTab, breadcrumbOptions)
 
   return (
     <NxPage>
