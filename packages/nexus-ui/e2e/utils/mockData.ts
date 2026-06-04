@@ -333,3 +333,54 @@ export async function mockIdentityProviders(
 ): Promise<void> {
   await app.route('**/api/v1/identity_providers/', (route) => route.fulfill(fulfill(response)))
 }
+
+// ---------------------------------------------------------------------------
+// Session revocation fixtures (UI-28, UI-30)
+// ---------------------------------------------------------------------------
+
+export const revokeTargetUserResponse = {
+  id: 'e2e-revoke-target-user-id',
+  username: 'e2e-revoke-target',
+  email: 'e2e-revoke@nexus.local',
+  first_name: 'Revoke',
+  last_name: 'Target',
+  is_enabled: true,
+  is_builtin: false,
+  auth_type: 'local',
+  auth_sources: ['Local'],
+  last_login: '2026-05-01T12:00:00Z',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+}
+
+export const canIAllowedResponse = {
+  allowed: true,
+  denied: false,
+  matched_policy: 'default-policy',
+  denial_reason: '',
+  denied_by: '',
+}
+
+/**
+ * Mocks GET /users to return a single non-builtin user for revocation tests.
+ * Must be called BEFORE navigating to the users page.
+ */
+export async function mockUsersForRevocation(app: Page): Promise<void> {
+  await mockUsersList(app, {
+    resources: [revokeTargetUserResponse],
+    next: null,
+    prev: null,
+    total: 1,
+  })
+}
+
+/**
+ * Mocks POST /authz/can_i to always return allowed.
+ * Must be called BEFORE navigating to pages that check permissions.
+ */
+export async function mockCanIAllowed(app: Page): Promise<void> {
+  await app.route(
+    (url) => url.pathname === '/api/v1/authz/can_i',
+    (route) => route.fulfill(fulfill(canIAllowedResponse))
+  )
+}
