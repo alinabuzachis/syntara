@@ -5,34 +5,12 @@
   "description": "Pause workflow execution for a specified duration",
   "configSchema": {
     "type": "object",
-    "minProperties": 1,
+    "required": ["duration"],
     "properties": {
-      "days": {
+      "duration": {
         "type": "integer",
-        "minimum": 0,
-        "default": 0,
-        "description": "Number of days to wait"
-      },
-      "hours": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 23,
-        "default": 0,
-        "description": "Number of hours to wait"
-      },
-      "minutes": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 59,
-        "default": 0,
-        "description": "Number of minutes to wait"
-      },
-      "seconds": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 59,
-        "default": 0,
-        "description": "Number of seconds to wait"
+        "minimum": 1,
+        "description": "Total wait duration in seconds"
       }
     },
     "additionalProperties": false

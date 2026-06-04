@@ -23,65 +23,45 @@ class TestWaitValidDuration:
     """Valid duration configs raise CompleteAsyncError (async completion)."""
 
     @pytest.mark.asyncio
-    async def test_hours_and_minutes(self) -> None:
+    async def test_valid_seconds(self) -> None:
         with patch(SETTINGS_PATH, _mock_settings()), pytest.raises(CompleteAsyncError):
-            await wait({"days": 0, "hours": 1, "minutes": 30, "seconds": 0}, None)
+            await wait({"duration": 5400}, None)
 
     @pytest.mark.asyncio
-    async def test_days_only(self) -> None:
+    async def test_one_second(self) -> None:
         with patch(SETTINGS_PATH, _mock_settings()), pytest.raises(CompleteAsyncError):
-            await wait({"days": 2, "hours": 0, "minutes": 0, "seconds": 0}, None)
+            await wait({"duration": 1}, None)
 
     @pytest.mark.asyncio
-    async def test_seconds_only(self) -> None:
-        with patch(SETTINGS_PATH, _mock_settings()), pytest.raises(CompleteAsyncError):
-            await wait({"days": 0, "hours": 0, "minutes": 0, "seconds": 30}, None)
-
-    @pytest.mark.asyncio
-    async def test_all_fields_combined(self) -> None:
-        with patch(SETTINGS_PATH, _mock_settings()), pytest.raises(CompleteAsyncError):
-            await wait({"days": 1, "hours": 2, "minutes": 3, "seconds": 4}, None)
-
-    @pytest.mark.asyncio
-    async def test_minimum_one_second(self) -> None:
-        with patch(SETTINGS_PATH, _mock_settings()), pytest.raises(CompleteAsyncError):
-            await wait({"days": 0, "hours": 0, "minutes": 0, "seconds": 1}, None)
+    async def test_large_duration(self) -> None:
+        with patch(SETTINGS_PATH, _mock_settings(max_wait_seconds=2592000)), pytest.raises(CompleteAsyncError):
+            await wait({"duration": 2592000}, None)
 
 
 class TestWaitZeroDuration:
     """Zero total duration raises ApplicationError."""
 
     @pytest.mark.asyncio
-    async def test_all_zeros_raises_application_error(self) -> None:
+    async def test_zero_seconds_raises_application_error(self) -> None:
         with pytest.raises(ApplicationError, match="greater than zero") as exc_info:
-            await wait({"days": 0, "hours": 0, "minutes": 0, "seconds": 0}, None)
+            await wait({"duration": 0}, None)
         assert exc_info.value.type == "ConfigError"
         assert exc_info.value.non_retryable is True
+
+    @pytest.mark.asyncio
+    async def test_missing_seconds_raises_application_error(self) -> None:
+        with pytest.raises(ApplicationError, match="greater than zero"):
+            await wait({}, None)
 
 
 class TestWaitNegativeValues:
     """Negative values raise ApplicationError."""
 
     @pytest.mark.asyncio
-    async def test_negative_days(self) -> None:
-        with pytest.raises(ApplicationError, match="'days'") as exc_info:
-            await wait({"days": -1, "hours": 0, "minutes": 0, "seconds": 0}, None)
-        assert exc_info.value.type == "ConfigError"
-
-    @pytest.mark.asyncio
-    async def test_negative_hours(self) -> None:
-        with pytest.raises(ApplicationError, match="'hours'"):
-            await wait({"days": 0, "hours": -1, "minutes": 0, "seconds": 0}, None)
-
-    @pytest.mark.asyncio
-    async def test_negative_minutes(self) -> None:
-        with pytest.raises(ApplicationError, match="'minutes'"):
-            await wait({"days": 0, "hours": 0, "minutes": -5, "seconds": 0}, None)
-
-    @pytest.mark.asyncio
     async def test_negative_seconds(self) -> None:
-        with pytest.raises(ApplicationError, match="'seconds'"):
-            await wait({"days": 0, "hours": 0, "minutes": 0, "seconds": -10}, None)
+        with pytest.raises(ApplicationError, match="greater than zero") as exc_info:
+            await wait({"duration": -10}, None)
+        assert exc_info.value.type == "ConfigError"
 
 
 class TestWaitInvalidTypes:
@@ -89,18 +69,18 @@ class TestWaitInvalidTypes:
 
     @pytest.mark.asyncio
     async def test_string_value(self) -> None:
-        with pytest.raises(ApplicationError, match="'days'"):
-            await wait({"days": "two", "hours": 0, "minutes": 0, "seconds": 0}, None)
+        with pytest.raises(ApplicationError, match="positive integer"):
+            await wait({"duration": "thirty"}, None)
 
     @pytest.mark.asyncio
     async def test_float_value(self) -> None:
-        with pytest.raises(ApplicationError, match="'hours'"):
-            await wait({"days": 0, "hours": 1.5, "minutes": 0, "seconds": 0}, None)
+        with pytest.raises(ApplicationError, match="positive integer"):
+            await wait({"duration": 1.5}, None)
 
     @pytest.mark.asyncio
     async def test_none_value(self) -> None:
-        with pytest.raises(ApplicationError, match="'hours'"):
-            await wait({"days": 0, "hours": None, "minutes": 0, "seconds": 0}, None)
+        with pytest.raises(ApplicationError, match="positive integer"):
+            await wait({"duration": None}, None)
 
 
 class TestWaitBoolValues:
@@ -108,32 +88,13 @@ class TestWaitBoolValues:
 
     @pytest.mark.asyncio
     async def test_bool_true_rejected(self) -> None:
-        with pytest.raises(ApplicationError, match="'days'"):
-            await wait({"days": True, "hours": 0, "minutes": 0, "seconds": 0}, None)
+        with pytest.raises(ApplicationError, match="positive integer"):
+            await wait({"duration": True}, None)
 
     @pytest.mark.asyncio
     async def test_bool_false_rejected(self) -> None:
-        with pytest.raises(ApplicationError, match="'hours'"):
-            await wait({"days": 0, "hours": False, "minutes": 0, "seconds": 0}, None)
-
-
-class TestWaitFieldMaxBounds:
-    """Values exceeding per-field maximums are rejected (hours, minutes, seconds)."""
-
-    @pytest.mark.asyncio
-    async def test_hours_exceeds_max(self) -> None:
-        with pytest.raises(ApplicationError, match=r"'hours'.*between 0 and 23"):
-            await wait({"days": 0, "hours": 24, "minutes": 0, "seconds": 0}, None)
-
-    @pytest.mark.asyncio
-    async def test_minutes_exceeds_max(self) -> None:
-        with pytest.raises(ApplicationError, match=r"'minutes'.*between 0 and 59"):
-            await wait({"days": 0, "hours": 0, "minutes": 60, "seconds": 0}, None)
-
-    @pytest.mark.asyncio
-    async def test_seconds_exceeds_max(self) -> None:
-        with pytest.raises(ApplicationError, match=r"'seconds'.*between 0 and 59"):
-            await wait({"days": 0, "hours": 0, "minutes": 0, "seconds": 60}, None)
+        with pytest.raises(ApplicationError, match="positive integer"):
+            await wait({"duration": False}, None)
 
 
 class TestWaitGlobalMaxDuration:
@@ -141,55 +102,31 @@ class TestWaitGlobalMaxDuration:
 
     @pytest.mark.asyncio
     async def test_exceeds_global_max(self) -> None:
-        """Duration exceeding the configured max raises ApplicationError."""
         with (
             patch(SETTINGS_PATH, _mock_settings(max_wait_seconds=3600)),
             pytest.raises(ApplicationError, match="exceeds maximum allowed") as exc_info,
         ):
-            await wait({"days": 1, "hours": 0, "minutes": 0, "seconds": 0}, None)
+            await wait({"duration": 86400}, None)
         assert exc_info.value.type == "ConfigError"
         assert exc_info.value.non_retryable is True
 
     @pytest.mark.asyncio
     async def test_at_global_max_is_valid(self) -> None:
-        """Duration exactly at the max passes."""
         with patch(SETTINGS_PATH, _mock_settings(max_wait_seconds=3600)), pytest.raises(CompleteAsyncError):
-            await wait({"days": 0, "hours": 1, "minutes": 0, "seconds": 0}, None)
+            await wait({"duration": 3600}, None)
 
     @pytest.mark.asyncio
     async def test_below_global_max_is_valid(self) -> None:
-        """Duration below the max passes."""
         with patch(SETTINGS_PATH, _mock_settings(max_wait_seconds=86400)), pytest.raises(CompleteAsyncError):
-            await wait({"days": 0, "hours": 1, "minutes": 0, "seconds": 0}, None)
+            await wait({"duration": 3600}, None)
 
     @pytest.mark.asyncio
-    async def test_large_days_within_global_max(self) -> None:
-        """Large day values are allowed if within the global max."""
-        with patch(SETTINGS_PATH, _mock_settings(max_wait_seconds=2592000)), pytest.raises(CompleteAsyncError):
-            await wait({"days": 30, "hours": 0, "minutes": 0, "seconds": 0}, None)
-
-    @pytest.mark.asyncio
-    async def test_large_days_exceeding_global_max(self) -> None:
-        """Large day values exceeding global max are rejected."""
+    async def test_large_duration_exceeding_global_max(self) -> None:
         with (
             patch(SETTINGS_PATH, _mock_settings(max_wait_seconds=2592000)),
             pytest.raises(ApplicationError, match="exceeds maximum"),
         ):
-            await wait({"days": 31, "hours": 0, "minutes": 0, "seconds": 0}, None)
-
-
-class TestWaitMissingFields:
-    """Missing fields default to 0."""
-
-    @pytest.mark.asyncio
-    async def test_missing_days_defaults_to_zero(self) -> None:
-        with patch(SETTINGS_PATH, _mock_settings()), pytest.raises(CompleteAsyncError):
-            await wait({"hours": 1, "minutes": 0, "seconds": 0}, None)
-
-    @pytest.mark.asyncio
-    async def test_empty_config_raises_application_error(self) -> None:
-        with pytest.raises(ApplicationError, match="greater than zero"):
-            await wait({}, None)
+            await wait({"duration": 2678400}, None)
 
 
 class TestWaitNonRetryable:
@@ -198,13 +135,13 @@ class TestWaitNonRetryable:
     @pytest.mark.asyncio
     async def test_config_errors_are_non_retryable(self) -> None:
         with pytest.raises(ApplicationError) as exc_info:
-            await wait({"days": -1}, None)
+            await wait({"duration": -1}, None)
         assert exc_info.value.non_retryable is True
 
     @pytest.mark.asyncio
     async def test_zero_duration_is_non_retryable(self) -> None:
         with pytest.raises(ApplicationError) as exc_info:
-            await wait({"days": 0, "hours": 0, "minutes": 0, "seconds": 0}, None)
+            await wait({"duration": 0}, None)
         assert exc_info.value.non_retryable is True
 
 

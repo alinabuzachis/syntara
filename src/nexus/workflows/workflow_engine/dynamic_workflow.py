@@ -29,7 +29,6 @@ with workflow.unsafe.imports_passed_through():
         resolve_wait_duration,
     )
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
-    from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
@@ -976,21 +975,12 @@ class NexusWorkflow:
         2. Sleep via workflow.sleep() (durable timer, no worker resources)
         3. Complete the async activity via local activity
         """
-        try:
-            total_seconds = compute_wait_seconds(resolved_config)
-        except (TypeError, ValueError) as e:
+        total_seconds = resolved_config.get("duration", 0)
+        if isinstance(total_seconds, bool) or not isinstance(total_seconds, int) or total_seconds <= 0:
             return {
                 "output": {
                     "status": "failed",
-                    "error": {"type": "ConfigError", "message": f"Invalid wait config: {e}"},
-                }
-            }
-
-        if total_seconds <= 0:
-            return {
-                "output": {
-                    "status": "failed",
-                    "error": {"type": "ConfigError", "message": "Total wait duration must be greater than zero"},
+                    "error": {"type": "ConfigError", "message": "Wait duration must be a positive integer (seconds)"},
                 }
             }
 

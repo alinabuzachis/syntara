@@ -44,11 +44,9 @@ async def _test_wait_activity(
     instead of calling raise_complete_async(). This avoids the async activity
     completion RPC which is not supported in the time-skipping test environment.
     """
-    from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
-
-    total_seconds = compute_wait_seconds(input_config)
-    if total_seconds <= 0:
-        return {"output": {"status": "failed", "error": "Total wait duration must be greater than zero"}}
+    total_seconds = input_config.get("duration", 0)
+    if isinstance(total_seconds, bool) or not isinstance(total_seconds, int) or total_seconds <= 0:
+        return {"output": {"status": "failed", "error": "Wait duration must be a positive integer (seconds)"}}
 
     return {"output": {"status": "completed", "total_seconds": total_seconds}}
 
@@ -66,10 +64,7 @@ nodes:
 - id: wait_node
   type: wait
   config:
-    days: 0
-    hours: 0
-    minutes: 0
-    seconds: {wait_seconds}
+    duration: {wait_seconds}
 edges:
 - from: trigger_manual
   to: wait_node
