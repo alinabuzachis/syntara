@@ -17,9 +17,9 @@ if TYPE_CHECKING:
 from sqlmodel import update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.audit.invocation_lifecycle import InvocationLifecycleEvent
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
+from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationStatus, LLMCredentialConfig
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
