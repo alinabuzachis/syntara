@@ -157,7 +157,7 @@ export async function createRoleAssignmentViaApi(
     const token = options.token ?? (await getAuthToken(page))
     if (!token) return null
 
-    const resp = await apiRequest(page, 'post', `/projects/${projectId}/role-assignments`, {
+    const resp = await apiRequest(page, 'post', `/projects/${projectId}/role_assignments`, {
       token,
       data: {
         principal_type: 'user',
@@ -178,7 +178,7 @@ export async function deleteRoleAssignmentViaApi(page: Page, projectId: string, 
   try {
     const token = await getAuthToken(page)
     if (token) {
-      await apiRequest(page, 'delete', `/projects/${projectId}/role-assignments/${assignmentId}`, { token })
+      await apiRequest(page, 'delete', `/projects/${projectId}/role_assignments/${assignmentId}`, { token })
     }
   } catch {
     // Best-effort cleanup
