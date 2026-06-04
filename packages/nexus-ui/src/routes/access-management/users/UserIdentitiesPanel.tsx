@@ -376,11 +376,7 @@ export function UserIdentitiesPanel({
             <FlexItem>
               <Button
                 variant="primary"
-                onClick={() =>
-                  navigate(
-                    AppRoute.AccessManagement.TransferIdentity.replace(':userId', userId)
-                  )
-                }
+                onClick={() => navigate(AppRoute.AccessManagement.TransferIdentity.replace(':userId', userId))}
               >
                 Transfer identity
               </Button>

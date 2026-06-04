@@ -45,6 +45,9 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
+      - name: Prettier format check
+        run: npm run format:check
+
       - name: Check for dead code with knip
         run: npm run knip -- --reporter compact
         working-directory: packages/nexus-ui
