@@ -153,7 +153,7 @@ function mockAuditQuery(
 describe('AuditLog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false })
+    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false, isError: false })
     vi.mocked(useFilterState).mockRestore?.()
     mockAuditQuery()
   })
@@ -487,7 +487,7 @@ describe('AuditLog', () => {
   // ── Access denied ───────────────────────────────────────────────────
 
   it('does not show access denied while permission is loading', () => {
-    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true })
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true, isError: false })
 
     render(<AuditLog />, { wrapper })
 
@@ -497,7 +497,7 @@ describe('AuditLog', () => {
 
   describe('no access', () => {
     beforeEach(() => {
-      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false })
+      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
     })
 
     it('shows access denied when user cannot read audit log', () => {

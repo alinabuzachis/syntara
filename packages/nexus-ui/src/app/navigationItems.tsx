@@ -60,6 +60,12 @@ export type TNavigationItem = {
    * Omit to keep the item always visible.
    */
   requiredPermissions?: PermissionRequirement[]
+  /**
+   * If set, the route is wrapped in a `ProtectedRoute` guard that blocks
+   * access when the user lacks this permission. Shows an access-denied
+   * empty state instead of the page component.
+   */
+  routePermission?: PermissionRequirement
 }
 
 export const NAV_ITEMS: TNavigationItem[] = [
@@ -222,12 +228,14 @@ export const NAV_ITEMS: TNavigationItem[] = [
             path: AppRoute.AccessManagement.CreateUser,
             element: <CreateUser />,
             hidden: true,
+            routePermission: { action: 'create', resourceType: 'user' },
           },
           {
             label: 'Edit User',
             path: AppRoute.AccessManagement.EditUser,
             element: <EditUser />,
             hidden: true,
+            routePermission: { action: 'update', resourceType: 'user' },
           },
           {
             label: 'Transfer Identity',
@@ -260,11 +268,13 @@ export const NAV_ITEMS: TNavigationItem[] = [
             label: 'Add Identity Provider',
             path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
             element: <AddIdentityProvider />,
+            routePermission: { action: 'create', resourceType: 'identity-provider' },
           },
           {
             label: 'Edit Identity Provider',
             path: AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
             element: <EditIdentityProvider />,
+            routePermission: { action: 'update', resourceType: 'identity-provider' },
           },
           {
             label: 'Identity Provider Details',

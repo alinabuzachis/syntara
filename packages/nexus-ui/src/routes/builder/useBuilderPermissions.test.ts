@@ -5,6 +5,7 @@ vi.mock('../../hooks/useCanI', () => ({
   useCanI: vi.fn(() => ({
     allowed: true,
     isChecking: false,
+    isError: false,
   })),
 }))
 
@@ -20,6 +21,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: action === 'create',
       isChecking: false,
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(true))
@@ -31,6 +33,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: action === 'update',
       isChecking: false,
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(false))
@@ -42,6 +45,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: action !== 'create',
       isChecking: false,
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(true))
@@ -53,6 +57,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: action !== 'update',
       isChecking: false,
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(false))
@@ -64,6 +69,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: false,
       isChecking: action === 'run',
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(false))
@@ -74,7 +80,7 @@ describe('useBuilderPermissions', () => {
   })
 
   it('defaults canEdit, canRun, canDelete to false (safe-false) while loading', () => {
-    mockedUseCanI.mockReturnValue({ allowed: false, isChecking: true })
+    mockedUseCanI.mockReturnValue({ allowed: false, isChecking: true, isError: false })
 
     const { result } = renderHook(() => useBuilderPermissions(false))
 
@@ -88,6 +94,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: true,
       isChecking: action === 'create',
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(true))
@@ -100,6 +107,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: true,
       isChecking: action === 'update',
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(false))
@@ -112,6 +120,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: false,
       isChecking: action === 'delete',
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(false))
@@ -121,7 +130,7 @@ describe('useBuilderPermissions', () => {
   })
 
   it('reports not loading when all permissions are resolved', () => {
-    mockedUseCanI.mockReturnValue({ allowed: true, isChecking: false })
+    mockedUseCanI.mockReturnValue({ allowed: true, isChecking: false, isError: false })
 
     const { result } = renderHook(() => useBuilderPermissions(false))
 
@@ -132,6 +141,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: action !== 'run',
       isChecking: false,
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(false))
@@ -144,6 +154,7 @@ describe('useBuilderPermissions', () => {
     mockedUseCanI.mockImplementation((action) => ({
       allowed: action !== 'delete',
       isChecking: false,
+      isError: false,
     }))
 
     const { result } = renderHook(() => useBuilderPermissions(false))
@@ -153,7 +164,7 @@ describe('useBuilderPermissions', () => {
   })
 
   it('generates correct tooltip for new workflow', () => {
-    mockedUseCanI.mockReturnValue({ allowed: true, isChecking: false })
+    mockedUseCanI.mockReturnValue({ allowed: true, isChecking: false, isError: false })
 
     const { result } = renderHook(() => useBuilderPermissions(true))
 
@@ -162,7 +173,7 @@ describe('useBuilderPermissions', () => {
   })
 
   it('generates correct tooltip for existing workflow', () => {
-    mockedUseCanI.mockReturnValue({ allowed: true, isChecking: false })
+    mockedUseCanI.mockReturnValue({ allowed: true, isChecking: false, isError: false })
 
     const { result } = renderHook(() => useBuilderPermissions(false))
 

@@ -7,6 +7,8 @@ type UseCanIResult = {
   allowed: boolean
   /** `true` while the API call is in flight. */
   isChecking: boolean
+  /** `true` when the permission check failed (network/server error). */
+  isError: boolean
 }
 
 type UseCanIOptions = {
@@ -33,7 +35,7 @@ type UseCanIOptions = {
  * ```
  */
 export function useCanI(action: string, resourceType: string, options?: UseCanIOptions): UseCanIResult {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: [
       'authz',
       'can_i',
@@ -57,5 +59,5 @@ export function useCanI(action: string, resourceType: string, options?: UseCanIO
     retry: false,
   })
 
-  return { allowed: data ?? false, isChecking: isLoading }
+  return { allowed: data ?? false, isChecking: isLoading, isError }
 }
