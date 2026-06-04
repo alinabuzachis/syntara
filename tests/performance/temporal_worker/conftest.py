@@ -105,6 +105,7 @@ SLOW_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
 
 MULTI_ACTIVITY_WORKFLOW_DEFINITIONS: list[dict[str, Any]] = [
     {
+        "name": "bash-activities-workflow",
         "schema_version": "2.0.0",
         "triggers": [
             {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -129,6 +130,7 @@ MULTI_ACTIVITY_WORKFLOW_DEFINITIONS: list[dict[str, Any]] = [
         ],
     },
     {
+        "name": "python-activities-workflow",
         "schema_version": "2.0.0",
         "triggers": [
             {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -153,6 +155,7 @@ MULTI_ACTIVITY_WORKFLOW_DEFINITIONS: list[dict[str, Any]] = [
         ],
     },
     {
+        "name": "mixed-activities-workflow",
         "schema_version": "2.0.0",
         "triggers": [
             {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
