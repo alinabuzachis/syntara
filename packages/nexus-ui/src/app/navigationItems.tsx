@@ -41,6 +41,7 @@ import {
   IntegrationTools,
   Integrations,
   Settings,
+  TransferIdentityWizard,
   UserDetail,
 } from './lazyRoutes'
 
@@ -226,6 +227,12 @@ export const NAV_ITEMS: TNavigationItem[] = [
             label: 'Edit User',
             path: AppRoute.AccessManagement.EditUser,
             element: <EditUser />,
+            hidden: true,
+          },
+          {
+            label: 'Transfer Identity',
+            path: AppRoute.AccessManagement.TransferIdentity,
+            element: <TransferIdentityWizard />,
             hidden: true,
           },
           {

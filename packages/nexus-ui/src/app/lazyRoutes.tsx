@@ -48,6 +48,11 @@ export const EditUser = lazy(() =>
     default: m.EditUser,
   }))
 )
+export const TransferIdentityWizard = lazy(() =>
+  import('../routes/access-management/users/TransferIdentityWizard').then((m) => ({
+    default: m.TransferIdentityWizard,
+  }))
+)
 export const GroupDetail = lazy(() =>
   import('../routes/access-management/groups/GroupDetail').then((m) => ({
     default: m.GroupDetail,

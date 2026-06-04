@@ -8,7 +8,7 @@ export type UserIdentity = UsersAPI.components['schemas']['UserIdentityRead']
 
 export type UserSummary = Pick<
   UsersAPI.components['schemas']['UserRead'],
-  'id' | 'username' | 'email' | 'first_name' | 'last_name'
+  'id' | 'username' | 'email' | 'first_name' | 'last_name' | 'auth_type' | 'auth_sources' | 'is_builtin'
 >
 
 export function useLocalFilterState() {

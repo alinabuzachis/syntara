@@ -1,0 +1,19 @@
+.headerDescription {
+  padding: 0 var(--pf-t--global--spacer--lg);
+}
+
+.descriptionText {
+  margin: 0;
+}
+
+.stepTitle {
+  margin: 0 0 var(--pf-t--global--spacer--sm);
+}
+
+.stepDescription {
+  margin: 0 0 var(--pf-t--global--spacer--lg);
+}
+
+.filterBar {
+  padding-bottom: var(--pf-t--global--spacer--md);
+}

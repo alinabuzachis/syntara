@@ -3,7 +3,7 @@
  * Test UI-32: Local User IdP Link — Conversion Warning
  *
  * Critical paths covered:
- * - Builtin admin sees empty state — no Connect or Attach identity controls (UI-24)
+ * - Builtin admin sees empty state — no Connect or Transfer identity controls (UI-24)
  * - Non-builtin local user sees Connect controls with conversion warning dialog (UI-24, UI-32)
  * - Warning displays account conversion message and password removal notice (UI-32)
  *
@@ -46,7 +46,7 @@ test.describe('User Detail — Identity Controls (UI-24)', () => {
     // The builtin-user empty state replaces the whole table section — buttons are
     // never mounted. not.toBeAttached() asserts DOM non-presence, which is
     // stronger than not.toBeVisible() (which also passes for hidden-but-present elements).
-    await expect(app.getByRole('button', { name: 'Attach identity' })).not.toBeAttached()
+    await expect(app.getByRole('button', { name: 'Transfer identity' })).not.toBeAttached()
     await expect(app.getByRole('button', { name: 'Identity actions' })).not.toBeAttached()
   })
 

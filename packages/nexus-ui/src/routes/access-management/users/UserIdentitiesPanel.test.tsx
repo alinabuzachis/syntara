@@ -26,9 +26,8 @@ vi.mock('../../../client', () => ({
   OIDC_AUTHORIZE_PATH: '/api/v1/auth/oidc/authorize',
 }))
 
-const mockAttachIdentityModal: ReturnType<typeof vi.fn<(props: Record<string, unknown>) => null>> = vi.fn(() => null)
 vi.mock('./AttachIdentityModal', () => ({
-  AttachIdentityModal: (props: Record<string, unknown>) => mockAttachIdentityModal(props),
+  AttachIdentityModal: () => null,
 }))
 
 type MockProvider = {
@@ -144,7 +143,6 @@ describe('UserIdentitiesPanel', () => {
     })
     mockNavigate.mockClear()
     mockMutate.mockClear()
-    mockAttachIdentityModal.mockClear()
     mockUseAuthProviders.mockReturnValue({ providers: [], isLoading: false })
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue({
       data: { resources: mockFullProviders, next: null, prev: null },
@@ -375,15 +373,15 @@ describe('UserIdentitiesPanel', () => {
     })
   })
 
-  // ---- Attach identity button (table view) --------------------------------
+  // ---- Transfer identity button (table view) --------------------------------
 
-  describe('Attach identity button', () => {
-    it('renders Attach identity button in table view', () => {
+  describe('Transfer identity button', () => {
+    it('renders Transfer identity button in table view', () => {
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      expect(screen.getByRole('button', { name: /attach identity/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /transfer identity/i })).toBeInTheDocument()
     })
   })
 
@@ -764,31 +762,20 @@ describe('UserIdentitiesPanel', () => {
     })
   })
 
-  // ---- Attach identity modal interactions ---------------------------------
+  // ---- Transfer identity navigation ---------------------------------
 
-  describe('Attach identity modal', () => {
-    it('opens AttachIdentityModal when Attach identity button is clicked', async () => {
+  describe('Transfer identity navigation', () => {
+    it('navigates to transfer identity wizard when Transfer identity button is clicked', async () => {
       const user = userEvent.setup()
       setupMocks(mockIdentities)
 
       render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: /attach identity/i }))
+      await user.click(screen.getByRole('button', { name: /transfer identity/i }))
 
-      // The mock should have been called with isOpen=true
-      const lastCall = mockAttachIdentityModal.mock.calls[mockAttachIdentityModal.mock.calls.length - 1]
-      expect(lastCall[0]).toMatchObject({ isOpen: true })
-    })
-
-    it('passes correct currentUserId to AttachIdentityModal', () => {
-      setupMocks(mockIdentities)
-
-      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
-
-      const calls = mockAttachIdentityModal.mock.calls
-      // Check that any call has currentUserId set to the userId prop
-      const hasCorrectId = calls.some((call: [Record<string, unknown>]) => call[0].currentUserId === 'user-1')
-      expect(hasCorrectId).toBe(true)
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/system-administration/access-management/users/user-1/transfer-identity'
+      )
     })
   })
 

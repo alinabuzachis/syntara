@@ -35,6 +35,48 @@ const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
 const MOCK_IDENTITY_PROVIDER_ID = 'idp-001'
 
 // ---------------------------------------------------------------------------
+// Transfer Identity Wizard states
+// ---------------------------------------------------------------------------
+export const transferIdentityWizardPages: PageEntry[] = [
+  {
+    section: 'access-management/users',
+    name: 'transfer-identity-wizard-step1',
+    path: AppRoute.AccessManagement.TransferIdentity.replace(':userId', MOCK_USER_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: /Transfer identity to/i })).toBeVisible()
+      await expect(page.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/users',
+    name: 'transfer-identity-wizard-step1-selected',
+    path: AppRoute.AccessManagement.TransferIdentity.replace(':userId', MOCK_USER_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.locator('table tbody tr').first().click()
+      await expect(page.getByRole('radio', { checked: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/users',
+    name: 'transfer-identity-wizard-step2-empty',
+    path: AppRoute.AccessManagement.TransferIdentity.replace(':userId', MOCK_USER_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.locator('table tbody tr').first().click()
+      await page.getByRole('button', { name: 'Next', exact: true }).click()
+      await expect(page.getByRole('heading', { level: 2, name: 'Select an identity' })).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Builder interaction states
 // ---------------------------------------------------------------------------
 export const builderInteractivePages: PageEntry[] = [

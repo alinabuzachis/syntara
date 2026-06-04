@@ -25,6 +25,7 @@ import {
   integrationDialogPages,
   settingsTabPages,
   statusVariantPages,
+  transferIdentityWizardPages,
   workflowDialogPages,
 } from './page-entries-interactive'
 
@@ -247,6 +248,8 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Edit User' })).toBeVisible()
     },
   },
+
+  ...transferIdentityWizardPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // ACCESS MANAGEMENT — Groups
@@ -782,6 +785,7 @@ export const excludedDynamic: string[] = [
   AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
   AppRoute.AccessManagement.Root,
   AppRoute.Auth.TestSignInCallback,
+  AppRoute.AccessManagement.TransferIdentity, // covered by transferIdentityWizardPages (interactive entries)
   AppRoute.Profile, // redirects to user detail — no longer a standalone page
 ]
 

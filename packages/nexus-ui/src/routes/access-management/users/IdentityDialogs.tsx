@@ -17,7 +17,6 @@ import { useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
-import { AttachIdentityModal } from './AttachIdentityModal'
 import type { UserIdentity } from './identityUtils'
 
 function DetachConfirmModal({
@@ -66,10 +65,6 @@ function DetachConfirmModal({
 export type ConvertProviderInfo = { name: string; authorizeUrl: string }
 
 export function IdentityDialogs({
-  isAttachOpen,
-  onCloseAttach,
-  currentUserId,
-  onAttached,
   identityToDetach,
   isDetaching,
   onConfirmDetach,
@@ -78,10 +73,6 @@ export function IdentityDialogs({
   onCloseConvert,
   onConfirmConvert,
 }: Readonly<{
-  isAttachOpen: boolean
-  onCloseAttach: () => void
-  currentUserId: string
-  onAttached: () => void
   identityToDetach: UserIdentity | null
   isDetaching: boolean
   onConfirmDetach: () => void
@@ -92,12 +83,6 @@ export function IdentityDialogs({
 }>) {
   return (
     <>
-      <AttachIdentityModal
-        isOpen={isAttachOpen}
-        onClose={onCloseAttach}
-        currentUserId={currentUserId}
-        onAttached={onAttached}
-      />
       <DetachConfirmModal
         identity={identityToDetach}
         isDetaching={isDetaching}

@@ -47,6 +47,7 @@ export const AppRoute = {
     UserDetail: '/system-administration/access-management/users/:userId',
     UserDetailTab: '/system-administration/access-management/users/:userId/:tab',
     EditUser: '/system-administration/access-management/users/:userId/edit',
+    TransferIdentity: '/system-administration/access-management/users/:userId/transfer-identity',
     Groups: '/system-administration/access-management/groups',
     GroupDetail: '/system-administration/access-management/groups/:groupId',
     GroupDetailTab: '/system-administration/access-management/groups/:groupId/:tab',

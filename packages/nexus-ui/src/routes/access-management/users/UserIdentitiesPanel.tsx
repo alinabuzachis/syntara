@@ -1,6 +1,6 @@
 import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
-import { RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
+import { RhUiKeyIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
@@ -198,8 +198,6 @@ function useIdentityPagination() {
 }
 
 function renderIdentityDialogs(props: {
-  isAttachOpen: boolean
-  onCloseAttach: () => void
   userId: string
   query: { refetch: () => Promise<unknown> }
   identityToDetach: UserIdentity | null
@@ -211,10 +209,6 @@ function renderIdentityDialogs(props: {
 }) {
   return (
     <IdentityDialogs
-      isAttachOpen={props.isAttachOpen}
-      onCloseAttach={props.onCloseAttach}
-      currentUserId={props.userId}
-      onAttached={() => detachPromise(props.query.refetch())}
       identityToDetach={props.identityToDetach}
       isDetaching={props.isDetaching}
       onConfirmDetach={props.confirmDetach}
@@ -253,7 +247,6 @@ export function UserIdentitiesPanel({
 }: Readonly<UserIdentitiesPanelProps>) {
   const { showAlert } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
-  const [isAttachOpen, setIsAttachOpen] = useState(false)
   const [identityToDetach, setIdentityToDetach] = useState<UserIdentity | null>(null)
   const [convertProvider, setConvertProvider] = useState<ConvertProviderInfo | null>(null)
   const { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange } = useIdentityPagination()
@@ -330,8 +323,6 @@ export function UserIdentitiesPanel({
   const showTable = identities.length > 0 || (!isBuiltinUser && unlinkedProviders.length > 0) || hasActiveFilters
 
   const dialogs = renderIdentityDialogs({
-    isAttachOpen,
-    onCloseAttach: () => setIsAttachOpen(false),
     userId,
     query,
     identityToDetach,
@@ -383,8 +374,15 @@ export function UserIdentitiesPanel({
           </FlexItem>
           {!isBuiltinUser && (
             <FlexItem>
-              <Button variant="secondary" icon={<RhUiLinkIcon />} onClick={() => setIsAttachOpen(true)}>
-                Attach identity
+              <Button
+                variant="primary"
+                onClick={() =>
+                  navigate(
+                    AppRoute.AccessManagement.TransferIdentity.replace(':userId', userId)
+                  )
+                }
+              >
+                Transfer identity
               </Button>
             </FlexItem>
           )}
