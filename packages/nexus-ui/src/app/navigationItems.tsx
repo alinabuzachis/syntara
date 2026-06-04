@@ -30,6 +30,7 @@ import {
   CreateUser,
   CredentialDetail,
   Credentials,
+  EditGroupMapping,
   EditIdentityProvider,
   EditUser,
   IdentityProviderDetail,
@@ -275,6 +276,12 @@ export const NAV_ITEMS: TNavigationItem[] = [
             path: AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
             element: <EditIdentityProvider />,
             routePermission: { action: 'update', resourceType: 'identity-provider' },
+          },
+          {
+            label: 'Edit Group Mapping',
+            path: AppRoute.SystemAdministration.Authentication.EditGroupMapping,
+            element: <EditGroupMapping />,
+            hidden: true,
           },
           {
             label: 'Identity Provider Details',

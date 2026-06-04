@@ -138,7 +138,7 @@ export async function loginAsUser(page: Page, persona: Pick<Persona, 'username' 
 
     await page.getByLabel('Username').fill(persona.username)
     await page.getByRole('textbox', { name: 'Password' }).fill(password)
-    await page.getByRole('button', { name: /^Log in/i }).click()
+    await page.getByRole('button', { name: /^Log in( as administrator)?$/ }).click()
   }
 
   await expect(mainNav).toBeVisible({ timeout: 15_000 })
@@ -208,7 +208,7 @@ export async function loginViaUI(page: Page, username: string, password: string 
 
     await page.getByLabel('Username').fill(username)
     await page.getByRole('textbox', { name: 'Password' }).fill(password)
-    await page.getByRole('button', { name: /^Log in/i }).click()
+    await page.getByRole('button', { name: /^Log in( as administrator)?$/ }).click()
     await expect(mainNav).toBeVisible({ timeout: 15_000 })
   }
 }

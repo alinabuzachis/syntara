@@ -49,20 +49,13 @@ import { DisableIdentityProviderDialog } from '../DisableIdentityProviderDialog'
 import { useIdentityProviderToggle } from '../useIdentityProviderToggle'
 
 import { GroupMappingTab } from './GroupMappingTab'
-import { type GroupMappingConfig } from './groupMappingUtils'
+import { buildGroupMappingConfig, type GroupMappingConfig } from './groupMappingUtils'
 import { IdentityProviderDeleteDialog } from './IdentityProviderDeleteDialog'
+import { identityProviderGroupMappingEditPath } from './identityProviderPaths'
 import { IdpTypeKey, IDP_TYPE_PRESETS } from './idpTypePresets'
 
 type ProviderData = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 type ProviderConfig = NonNullable<ProviderData['configuration']>
-
-function buildGroupMappingConfig(config: ProviderConfig | undefined): GroupMappingConfig | null {
-  if (!config?.group_jmespath_expression && !config?.group_mapping_entries?.length) return null
-  return {
-    group_jmespath_expression: config.group_jmespath_expression,
-    group_mapping_entries: config.group_mapping_entries,
-  }
-}
 
 function identityProviderTypeDisplayLabel(idpType: string | null | undefined): string {
   return idpType ? (IDP_TYPE_PRESETS[idpType]?.label ?? idpType) : 'OIDC'
@@ -152,11 +145,8 @@ type TabContentProps = {
   activeTab: string
   provider: ProviderData
   providerId: string
-  idpType?: string | null
   providerConfig?: ProviderConfig
   groupMappingConfig: GroupMappingConfig | null
-  onSaved: () => void
-  editMappingTrigger: number
   readOnly: boolean
 }
 
@@ -164,25 +154,12 @@ function TabContent({
   activeTab,
   provider,
   providerId,
-  idpType,
   providerConfig,
   groupMappingConfig,
-  onSaved,
-  editMappingTrigger,
   readOnly,
 }: Readonly<TabContentProps>) {
   if (activeTab === 'group-mapping' && providerConfig) {
-    return (
-      <GroupMappingTab
-        providerId={providerId}
-        idpType={idpType}
-        providerConfig={providerConfig}
-        groupMapping={groupMappingConfig}
-        onSaved={onSaved}
-        editMappingTrigger={editMappingTrigger}
-        readOnly={readOnly}
-      />
-    )
+    return <GroupMappingTab providerId={providerId} groupMapping={groupMappingConfig} readOnly={readOnly} />
   }
   return <ProviderDetailsContent provider={provider} />
 }
@@ -233,15 +210,13 @@ export function IdentityProviderDetail() {
   const { providerId } = useParams<{ providerId: string }>()
   const isValidId = !!providerId && isValidUUID(providerId)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [editMappingTrigger, setEditMappingTrigger] = useState(0)
   const { allowed: canUpdate } = useCanI('update', 'identity-provider')
-
   const idpDetailBasePath = AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
     ':providerId',
     providerId ?? ''
   ).replace('/:tab?', '')
 
-  const [activeTab, setActiveTab] = useUrlTab<TabKey>(idpDetailBasePath)
+  const [activeTab] = useUrlTab<TabKey>(idpDetailBasePath)
 
   const providerQuery = identityProvidersClient.useQuery(
     'get',
@@ -283,14 +258,17 @@ export function IdentityProviderDetail() {
   })
 
   const kebabActions: IAction[] = [
-    {
-      title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
-      onClick: () => {
-        setActiveTab('group-mapping')
-        setEditMappingTrigger((prev) => prev + 1)
-      },
-    },
-    { isSeparator: true },
+    ...(canUpdate
+      ? [
+          {
+            title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
+            onClick: () => {
+              if (providerId) navigate(identityProviderGroupMappingEditPath(providerId))
+            },
+          },
+          { isSeparator: true },
+        ]
+      : []),
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
       onClick: () => setDeleteDialogOpen(true),
@@ -378,11 +356,8 @@ export function IdentityProviderDetail() {
             activeTab={activeTab}
             provider={providerData}
             providerId={providerId ?? ''}
-            idpType={idpType}
             providerConfig={config}
             groupMappingConfig={groupMappingConfig}
-            onSaved={() => detachPromise(refetchProvider())}
-            editMappingTrigger={editMappingTrigger}
             readOnly={!canUpdate}
           />
         </NxPanel>

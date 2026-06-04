@@ -133,6 +133,20 @@ export function breadcrumbsIdentityProviderEdit(providerName: string, detailBase
   return [crumbIdentityProvidersList(), { label: providerName, href: detailBasePath }, { label: 'Edit OIDC provider' }]
 }
 
+export function breadcrumbsIdentityProviderGroupMappingForm(
+  providerName: string,
+  detailBasePath: string,
+  groupMappingTabPath: string,
+  formTitle: string
+): AppBreadcrumbItem[] {
+  return [
+    crumbIdentityProvidersList(),
+    { label: providerName, href: detailBasePath },
+    { label: 'Group mapping', href: groupMappingTabPath },
+    { label: formTitle },
+  ]
+}
+
 export function breadcrumbsIdentityProviderDetail(
   providerName: string,
   detailBasePath: string,

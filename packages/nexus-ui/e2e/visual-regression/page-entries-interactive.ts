@@ -9,6 +9,7 @@ import { expect } from '@playwright/test'
 
 import { AppRoute } from '../../src/app/AppRoute'
 
+import { MOCK_IDENTITY_PROVIDER_ID } from './mock-ids'
 import type { PageEntry } from './page-registry'
 
 // ---------------------------------------------------------------------------
@@ -32,8 +33,6 @@ const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
 const MOCK_CREDENTIAL_ID = 'cred-001'
 const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
-const MOCK_IDENTITY_PROVIDER_ID = 'idp-001'
-
 // ---------------------------------------------------------------------------
 // Transfer Identity Wizard states
 // ---------------------------------------------------------------------------

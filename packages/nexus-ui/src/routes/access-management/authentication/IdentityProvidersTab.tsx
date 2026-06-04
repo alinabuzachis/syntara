@@ -65,7 +65,7 @@ function getRowActions(
       isDisabled: !provider.id,
       onClick: () => {
         if (!provider.id) return
-        navigate(`${providerDetailPath(provider.id)}/group-mapping`)
+        navigate(AppRoute.SystemAdministration.Authentication.EditGroupMapping.replace(':providerId', provider.id))
       },
     },
     {

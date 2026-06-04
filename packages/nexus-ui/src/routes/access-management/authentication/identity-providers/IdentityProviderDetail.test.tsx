@@ -745,7 +745,23 @@ describe('IdentityProviderDetail', () => {
 
     await user.click(screen.getByText('Edit mapping'))
 
-    expect(mockSetLocation).toHaveBeenCalledWith(expect.stringContaining('group-mapping'))
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.stringContaining(`/identity-providers/${VALID_PROVIDER_ID}/group-mapping/edit`)
+    )
+  })
+
+  it('omits Edit mapping from kebab when user lacks identity-provider:update', async () => {
+    const user = userEvent.setup()
+    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
+    await user.click(kebabButton)
+
+    expect(screen.queryByText('Edit mapping')).not.toBeInTheDocument()
+    expect(screen.getByText('Delete')).toBeInTheDocument()
   })
 
   it('shows only some manual endpoints when others are not set', () => {

@@ -210,7 +210,8 @@ describe('MappingRow', () => {
     entry: defaultEntry,
     index: 0,
     nexusGroups: mockNexusGroups,
-    onChange: vi.fn(),
+    onIdpGroupValueChange: vi.fn(),
+    onNexusGroupIdChange: vi.fn(),
     onRemove: vi.fn(),
     onCreateGroup: vi.fn(),
   }
@@ -249,7 +250,12 @@ describe('MappingRow', () => {
         return (
           <table>
             <tbody>
-              <MappingRow {...defaultProps} entry={entry} onChange={(_index, next) => setEntry(next)} />
+              <MappingRow
+                {...defaultProps}
+                entry={entry}
+                onIdpGroupValueChange={(_index, value) => setEntry((prev) => ({ ...prev, idpGroupValue: value }))}
+                onNexusGroupIdChange={(_index, nexusGroupId) => setEntry((prev) => ({ ...prev, nexusGroupId }))}
+              />
             </tbody>
           </table>
         )
@@ -275,7 +281,7 @@ describe('MappingRow', () => {
 
       await user.click(screen.getByRole('button', { name: 'Remove mapping 1' }))
 
-      expect(onRemove).toHaveBeenCalledWith('k1')
+      expect(onRemove).toHaveBeenCalledWith(0)
     })
 
     it('has no accessibility violations', async () => {
@@ -370,7 +376,7 @@ describe('MappingRow', () => {
 
       await user.click(screen.getByRole('button', { name: 'Remove mapping 1' }))
 
-      expect(onRemove).toHaveBeenCalledWith('k1')
+      expect(onRemove).toHaveBeenCalledWith(0)
     })
 
     it('displays em dash for empty values', () => {

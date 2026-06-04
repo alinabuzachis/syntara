@@ -6,6 +6,7 @@ import {
   processDiscoveredGroups,
   searchGroups,
   toFormEntries,
+  validateGroupJmespathExpression,
   type GroupMappingConfig,
   type GroupMappingEntry,
   type NexusGroup,
@@ -62,6 +63,18 @@ describe('groupMappingUtils', () => {
     it('returns empty array when claims is empty', () => {
       const result = searchGroups({}, 'groups[*]')
       expect(result).toEqual([])
+    })
+  })
+
+  describe('validateGroupJmespathExpression', () => {
+    it('returns null for valid syntax', () => {
+      expect(validateGroupJmespathExpression('groups[*]')).toBeNull()
+    })
+
+    it('returns an error message for invalid syntax', () => {
+      expect(validateGroupJmespathExpression('groups[[[*]')).toBe(
+        "Invalid group extraction expression: 'groups[[[*]' is not a valid JMESPath expression"
+      )
     })
   })
 

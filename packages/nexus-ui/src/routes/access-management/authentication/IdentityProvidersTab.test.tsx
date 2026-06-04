@@ -434,7 +434,7 @@ describe('IdentityProvidersTab', () => {
       await user.click(screen.getByText('Edit mapping'))
 
       expect(navigate).toHaveBeenCalledWith(
-        '/system-administration/authentication/identity-providers/provider-1/group-mapping'
+        '/system-administration/authentication/identity-providers/provider-1/group-mapping/edit'
       )
     })
 

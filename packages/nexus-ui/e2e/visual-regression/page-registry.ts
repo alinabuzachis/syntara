@@ -16,6 +16,7 @@ import { type Page, expect } from '@playwright/test'
 
 import { AppRoute } from '../../src/app/AppRoute'
 
+import { MOCK_IDENTITY_PROVIDER_ID } from './mock-ids'
 import {
   approvalInteractivePages,
   authenticationInteractivePages,
@@ -536,6 +537,19 @@ export const pages: PageEntry[] = [
     setup: async (page) => {
       await page.getByRole('button', { name: /Select a provider template/i }).click()
       await expect(page.getByRole('option', { name: /Ansible Automation Platform/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-group-mapping-edit',
+    path: AppRoute.SystemAdministration.Authentication.EditGroupMapping.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Add group mapping' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Save mapping' })).toBeVisible()
+      await expect(page.getByRole('textbox', { name: 'IdP group value 1' })).toBeVisible()
     },
   },
   // ══════════════════════════════════════════════════════════════════════════
