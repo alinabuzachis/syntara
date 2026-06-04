@@ -42,7 +42,7 @@ from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.models.user_read import UserRead
-from nexus_api_client.types import Response
+from nexus_api_client.types import UNSET, Response, Unset
 from typer.testing import CliRunner
 
 from nexus.core.models.user_schemas import UserCreate as UserCreateSchema
@@ -679,14 +679,15 @@ def local_user_factory(
     def _create(
         *,
         username: str | None = None,
-        email: str | None = None,
+        email: str | None | Unset = UNSET,
         first_name: str = "Test",
         last_name: str = "Local User",
         password: str | None = None,
     ) -> tuple[UserRead, str]:
         username = username or unique_name("e2e-test-user")
         password = password or generate_test_password()
-        email = email or f"{username}@example.com"
+        if isinstance(email, Unset):
+            email = f"{username}@example.com"
 
         resp = nexus_api.users.create(
             body=UserCreate(
