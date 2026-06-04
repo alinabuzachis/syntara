@@ -36,7 +36,7 @@ vi.mock('../../../../hooks/useMutationErrorHandler', () => ({
 }))
 
 vi.mock('../../../../hooks/useCanI', () => ({
-  useCanI: vi.fn(() => ({ allowed: true, isChecking: false })),
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
 }))
 
 vi.mock('../../access/accessClient', () => ({
@@ -94,7 +94,7 @@ describe('EditGroupMapping', () => {
     mockSearchRef.current = ''
     mockProviderIdRef.current = VALID_PROVIDER_ID
     mockNavigate.mockClear()
-    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false })
+    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false, isError: false })
     vi.mocked(useAllGroups).mockReturnValue({
       groups: mockNexusGroups.map((g) => ({
         ...g,
@@ -316,7 +316,7 @@ describe('EditGroupMapping', () => {
   })
 
   it('shows access denied when user lacks identity-provider:update', async () => {
-    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false })
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
     render(<EditGroupMapping />, { wrapper })
 
     await waitFor(() => {
@@ -327,7 +327,7 @@ describe('EditGroupMapping', () => {
   })
 
   it('does not show edit form while update permission is checking', () => {
-    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true })
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true, isError: false })
     render(<EditGroupMapping />, { wrapper })
 
     expect(screen.queryByRole('button', { name: /save mapping/i })).not.toBeInTheDocument()
@@ -394,7 +394,7 @@ describe('EditGroupMapping', () => {
 
   it('does not open discover when user lacks update permission', async () => {
     mockSearchRef.current = '?discover=1'
-    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false })
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
     const mockOpen = vi.fn()
     const originalOpen = globalThis.open
     globalThis.open = mockOpen
