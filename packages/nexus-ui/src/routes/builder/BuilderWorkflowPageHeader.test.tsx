@@ -17,6 +17,7 @@ vi.mock('../../stores/useWorkflowStore', () => ({
 }))
 
 vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
   executionsClient: {
     useMutation: vi.fn(() => ({
       mutate: vi.fn(),

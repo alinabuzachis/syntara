@@ -1,24 +1,12 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { AlertActionLink, Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
-import {
-  RhUiAddIcon,
-  RhUiCheckCircleIcon,
-  RhUiDuplicateIcon,
-  RhUiEditFillIcon,
-  RhUiExportIcon,
-  RhUiHistoryIcon,
-  RhUiImportIcon,
-  RhUiMinusCircleFillIcon,
-  RhUiPlayIcon,
-  RhUiTrashIcon,
-} from '@patternfly/react-icons'
-import type { IAction } from '@patternfly/react-table'
+import { RhUiAddIcon, RhUiImportIcon } from '@patternfly/react-icons'
 import { useCallback, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
-import { IconLabel } from '../../components/IconLabel'
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
@@ -36,6 +24,8 @@ import { accessClient } from '../access/accessClient'
 import { PublishWorkflowDialog } from '../builder/PublishWorkflowDialog'
 
 import { ImportWorkflowDialog } from './ImportWorkflowDialog'
+import { useWorkflowPermissions } from './useWorkflowPermissions'
+import { buildWorkflowRowActions } from './workflowRowActions'
 import { WorkflowsListPanel } from './WorkflowsListPanel'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
@@ -51,11 +41,12 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
     return filter
   })
 
-// eslint-disable-next-line max-lines-per-function
+// eslint-disable-next-line max-lines-per-function -- pre-existing size
 export default function Workflows() {
   const { showAlert, showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const permissions = useWorkflowPermissions()
   const projectExtraParams = useMemo(
     () => (selectedProjectId ? { project_id: selectedProjectId } : undefined),
     [selectedProjectId]
@@ -325,56 +316,25 @@ export default function Workflows() {
     [isDuplicating, setLocation, showAlert, showError, workflowsQuery]
   )
 
-  const getRowActions = (workflow: Workflow): IAction[] => [
-    {
-      title: <IconLabel icon={<RhUiEditFillIcon />}>Edit workflow</IconLabel>,
-      onClick: () => setLocation(`/workflow-builder/${workflow.id}`),
-    },
-    {
-      title: <IconLabel icon={<RhUiPlayIcon />}>Run workflow</IconLabel>,
-      onClick: () => runDialog.open(workflow),
-    },
-    {
-      title: <IconLabel icon={<RhUiHistoryIcon />}>View run history</IconLabel>,
-      onClick: () => setLocation(`/executions?workflow_id=${workflow.id}`),
-    },
-    {
-      title: <IconLabel icon={<RhUiDuplicateIcon />}>Duplicate workflow</IconLabel>,
-      isDisabled: isDuplicating,
-      onClick: () => detachPromise(handleDuplicateWorkflow(workflow)),
-    },
-    {
-      title: <IconLabel icon={<RhUiExportIcon />}>Export workflow</IconLabel>,
-      onClick: () => {
-        if (workflow.id) {
+  const getRowActions = (workflow: Workflow) =>
+    buildWorkflowRowActions(workflow, permissions, {
+      setLocation,
+      onRun: (wf) => runDialog.open(wf),
+      onDuplicate: (wf) => detachPromise(handleDuplicateWorkflow(wf)),
+      onExport: (wf) => {
+        if (wf.id) {
           detachPromise(
-            downloadWorkflowExportById(workflow.id).catch((err: unknown) => {
+            downloadWorkflowExportById(wf.id).catch((err: unknown) => {
               showError({ title: 'Export failed', description: getErrorMessage(err) })
             })
           )
         }
       },
-    },
-    {
-      title: <IconLabel icon={<RhUiCheckCircleIcon />}>Publish workflow</IconLabel>,
-      onClick: () => publishDialog.open(workflow),
-    },
-    ...(workflow.published_version == null
-      ? []
-      : [
-          {
-            title: <IconLabel icon={<RhUiMinusCircleFillIcon />}>Unpublish workflow</IconLabel>,
-            onClick: () => unpublishDialog.open(workflow),
-          } satisfies IAction,
-        ]),
-    {
-      isSeparator: true,
-    },
-    {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Delete workflow</IconLabel>,
-      onClick: () => deleteDialog.open(workflow),
-    },
-  ]
+      onPublish: (wf) => publishDialog.open(wf),
+      onUnpublish: (wf) => unpublishDialog.open(wf),
+      onDelete: (wf) => deleteDialog.open(wf),
+      isDuplicating,
+    })
 
   const queryState = useQueryState(workflowsQuery, {
     title: 'Error loading workflows',
@@ -390,12 +350,26 @@ export default function Workflows() {
           toolbar={
             queryState || (sortedWorkflows.length === 0 && !hasActiveFilters) ? undefined : (
               <>
-                <Button variant="secondary" icon={<RhUiImportIcon />} onClick={() => setImportDialogOpen(true)}>
-                  Import workflow
-                </Button>
-                <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setLocation('/workflow-builder/new')}>
-                  Create workflow
-                </Button>
+                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                  <Button
+                    variant="secondary"
+                    icon={<RhUiImportIcon />}
+                    isAriaDisabled={!permissions.canCreate}
+                    onClick={() => setImportDialogOpen(true)}
+                  >
+                    Import workflow
+                  </Button>
+                </DisabledWithTooltip>
+                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                  <Button
+                    variant="primary"
+                    icon={<RhUiAddIcon />}
+                    isAriaDisabled={!permissions.canCreate}
+                    onClick={() => setLocation('/workflow-builder/new')}
+                  >
+                    Create workflow
+                  </Button>
+                </DisabledWithTooltip>
               </>
             )
           }
@@ -411,7 +385,7 @@ export default function Workflows() {
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 onClearAllFilters={handleClearAllFilters}
-                onCreateWorkflow={() => setLocation('/workflow-builder/new')}
+                onCreateWorkflow={permissions.canCreate ? () => setLocation('/workflow-builder/new') : undefined}
                 footer={getFooterProps(workflowsQuery.data)}
                 isAllProjects={isAllProjects}
                 groupedWorkflows={groupedWorkflows}

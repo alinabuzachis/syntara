@@ -75,7 +75,12 @@ const mockExecutionsQuery = {
   error: null,
 }
 
+vi.mock('../../hooks/useCanI', () => ({
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false })),
+}))
+
 vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
   executionsClient: {
     useQuery: vi.fn((_method: string, endpoint: string) => {
       if (endpoint === '/executions/{execution_id}') {

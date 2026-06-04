@@ -108,7 +108,7 @@ test.describe('Team onboarding journey', () => {
 
       await app.goto(toAppUrl('/workflows'))
       await selectProject(app, project.name)
-      await expect(app.getByRole('button', { name: wf.name })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('button', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // --- Alice: reader (group) + writer (direct) ---
       await logoutViaUI(app)
@@ -116,7 +116,7 @@ test.describe('Team onboarding journey', () => {
 
       await app.goto(toAppUrl('/workflows'))
       await selectProject(app, project.name)
-      await expect(app.getByRole('button', { name: wf.name })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('button', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // Alice can create workflows (writer role) — fresh token right before API calls
       const aliceToken = await loginAsUserApi(app, alice.username)
@@ -134,7 +134,7 @@ test.describe('Team onboarding journey', () => {
 
       await app.goto(toAppUrl('/workflows'))
       await selectProject(app, project.name)
-      await expect(app.getByRole('button', { name: wf.name })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('button', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // Bob can trigger executions (operator role) — fresh token right before API calls
       const bobToken = await loginAsUserApi(app, bob.username)
@@ -152,7 +152,7 @@ test.describe('Team onboarding journey', () => {
 
       await app.goto(toAppUrl('/workflows'))
       await selectProject(app, project.name)
-      await expect(app.getByRole('button', { name: wf.name })).toBeVisible({ timeout: 10_000 })
+      await expect(app.getByRole('button', { name: wf.name, exact: true })).toBeVisible({ timeout: 10_000 })
 
       // Carol cannot create workflows — fresh token right before API calls
       const carolToken = await loginAsUserApi(app, carol.username)

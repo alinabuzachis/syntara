@@ -7,6 +7,7 @@ import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './E
 import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
 
 vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
   executionsClient: {
     useMutation: vi.fn(() => ({
       mutate: vi.fn(),

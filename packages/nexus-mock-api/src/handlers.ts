@@ -3811,7 +3811,7 @@ export const handlers = [
         {
           policy_name: 'admin-policy',
           effect: 'allow',
-          actions: ['create', 'read', 'update', 'delete'],
+          actions: ['create', 'read', 'update', 'delete', 'approval:decide'],
           scope: 'system',
           project: '',
         },

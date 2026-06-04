@@ -6,6 +6,8 @@ export type ApprovalsBulkActionsProps = {
   onApprove: () => void
   onReject: () => void
   isDisabled?: boolean
+  /** When set, buttons are aria-disabled with this tooltip explaining the missing permission. */
+  permissionTooltip?: string
 }
 
 export function ApprovalsBulkActions({
@@ -13,24 +15,40 @@ export function ApprovalsBulkActions({
   onApprove,
   onReject,
   isDisabled = false,
+  permissionTooltip: permTooltip,
 }: Readonly<ApprovalsBulkActionsProps>) {
   const hasSelection = selectedCount > 0
-  const disabled = isDisabled || !hasSelection
+  const permDenied = !!permTooltip
+  const disabled = isDisabled || !hasSelection || permDenied
 
-  // Determine tooltip content based on why buttons are disabled
   let tooltipContent: string | undefined
-  if (!hasSelection) {
+  if (permDenied) {
+    tooltipContent = permTooltip
+  } else if (!hasSelection) {
     tooltipContent = 'At least one approval needs to be selected to take action'
   }
 
   const approveButton = (
-    <Button icon={<RhUiLikeIcon />} variant="secondary" isDisabled={disabled} onClick={onApprove}>
+    <Button
+      icon={<RhUiLikeIcon />}
+      variant="secondary"
+      isAriaDisabled={permDenied}
+      isDisabled={!permDenied && disabled}
+      onClick={disabled ? undefined : onApprove}
+    >
       Approve
     </Button>
   )
 
   const rejectButton = (
-    <Button icon={<RhUiDislikeIcon />} variant="secondary" isDanger isDisabled={disabled} onClick={onReject}>
+    <Button
+      icon={<RhUiDislikeIcon />}
+      variant="secondary"
+      isDanger
+      isAriaDisabled={permDenied}
+      isDisabled={!permDenied && disabled}
+      onClick={disabled ? undefined : onReject}
+    >
       Reject
     </Button>
   )

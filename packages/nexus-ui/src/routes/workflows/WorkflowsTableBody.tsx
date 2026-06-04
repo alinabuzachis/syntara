@@ -1,10 +1,11 @@
 import type { Workflow as WorkflowWithId, WorkflowAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, Label, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Tbody, Td, Tr } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
+import { Tbody, Td, Tr } from '@patternfly/react-table'
 
 import groupedTableStyles from '../../components/groupedTable.module.css'
+import type { KebabAction } from '../../components/NxKebabMenu'
+import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
@@ -15,12 +16,16 @@ import type { ProjectRead } from '../access/types'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
+export type RowAction = KebabAction
+
 type WorkflowRowProps = {
   workflow: Workflow
-  getRowActions: (workflow: Workflow) => IAction[]
+  getRowActions: (workflow: Workflow) => RowAction[]
 }
 
 function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
+  const actions = getRowActions(workflow)
+
   return (
     <Tr key={workflow.id}>
       <Td dataLabel="Name">
@@ -44,7 +49,7 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
         />
       </Td>
       <Td isActionCell>
-        <ActionsColumn items={getRowActions(workflow)} />
+        <NxKebabMenu actions={actions} aria-label={`Actions for ${workflow.name}`} />
       </Td>
     </Tr>
   )
@@ -59,7 +64,7 @@ type GroupedWorkflowsTableBodyProps = {
   groupedWorkflows: Map<string, ProjectGroup>
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
-  getRowActions: (workflow: Workflow) => IAction[]
+  getRowActions: (workflow: Workflow) => RowAction[]
 }
 
 export function GroupedWorkflowsTableBody({
@@ -99,7 +104,7 @@ export function GroupedWorkflowsTableBody({
 
 type FlatWorkflowsTableBodyProps = {
   workflows: Workflow[]
-  getRowActions: (workflow: Workflow) => IAction[]
+  getRowActions: (workflow: Workflow) => RowAction[]
 }
 
 export function FlatWorkflowsTableBody({ workflows, getRowActions }: Readonly<FlatWorkflowsTableBodyProps>) {

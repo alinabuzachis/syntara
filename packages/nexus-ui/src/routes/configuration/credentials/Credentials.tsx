@@ -1,10 +1,10 @@
 import { Button, StackItem } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
 import { credentialsClient } from '../../../client'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
@@ -26,17 +26,49 @@ import { detachPromise } from '../../../utils/detachPromise'
 import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
 import { getCredentialNameFilterDefinition } from './credentialFilters'
-import { FlatCredentialsTableBody, GroupedCredentialsTableBody } from './CredentialsTableBody'
+import { FlatCredentialsTableBody, GroupedCredentialsTableBody, type CredentialRowAction } from './CredentialsTableBody'
 import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DisableCredentialDialog } from './DisableCredentialDialog'
 import { CredentialFormModal } from './form/CredentialFormModal'
+import { useCredentialPermissions } from './useCredentialPermissions'
 import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 
-// eslint-disable-next-line max-lines-per-function
+function buildCredentialRowActions(
+  credential: Credential,
+  permissions: ReturnType<typeof useCredentialPermissions>,
+  callbacks: {
+    onEdit: (credential: Credential) => void
+    onDelete: (credential: Credential) => void
+  }
+): CredentialRowAction[] {
+  const noUpdate = permissions.canUpdate ? undefined : { content: permissions.tooltips.update }
+  const noDelete = permissions.canDelete ? undefined : { content: permissions.tooltips.delete }
+  return [
+    {
+      key: 'edit',
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit credential</IconLabel>,
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: noUpdate,
+      onClick: () => callbacks.onEdit(credential),
+    },
+    { key: 'sep-delete', isSeparator: true },
+    {
+      key: 'delete',
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete credential</IconLabel>,
+      isDanger: true,
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: noDelete,
+      onClick: () => callbacks.onDelete(credential),
+    },
+  ]
+}
+
+// eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- pre-existing complexity
 export default function Credentials() {
   const { showAlert } = useAlerts()
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const permissions = useCredentialPermissions()
 
   const {
     cursor,
@@ -243,18 +275,13 @@ export default function Credentials() {
     onSettled: closeDeleteDialog,
   })
 
-  const getRowActions = (credential: Credential): IAction[] => [
-    {
-      title: <IconLabel icon={<RhUiEditIcon />}>Edit credential</IconLabel>,
-      onClick: () => setCredentialToEdit(credential),
-    },
-    { isSeparator: true },
-    {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Delete credential</IconLabel>,
-      isDanger: true,
-      onClick: () => openDeleteDialog(credential),
-    },
-  ]
+  const toggleTooltip = permissions.canUpdate ? undefined : permissions.tooltips.enable
+
+  const getRowActions = (credential: Credential) =>
+    buildCredentialRowActions(credential, permissions, {
+      onEdit: setCredentialToEdit,
+      onDelete: openDeleteDialog,
+    })
 
   // Query state handling (loading/error)
   const queryState = useQueryState(query, {
@@ -279,9 +306,15 @@ export default function Credentials() {
         projectSelector={ProjectSelector}
         toolbar={
           results.length > 0 || hasActiveFilters ? (
-            <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
-              Create credential
-            </Button>
+            <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+              <Button
+                variant="primary"
+                isAriaDisabled={!permissions.canCreate}
+                onClick={() => setCreateModalOpen(true)}
+              >
+                Create credential
+              </Button>
+            </DisabledWithTooltip>
           ) : undefined
         }
       />
@@ -289,7 +322,9 @@ export default function Credentials() {
       {results.length === 0 && !hasActiveFilters ? (
         <NxPageBody>
           <NxPanel isFullHeight>
-            <CredentialEmptyState onCreateCredential={() => setCreateModalOpen(true)} />
+            <CredentialEmptyState
+              onCreateCredential={permissions.canCreate ? () => setCreateModalOpen(true) : undefined}
+            />
           </NxPanel>
         </NxPageBody>
       ) : (
@@ -344,6 +379,7 @@ export default function Credentials() {
                       onToggleRow={handleToggleRow}
                       getRowActions={getRowActions}
                       onToggleEnabled={handleToggleEnabled}
+                      toggleDisabledTooltip={toggleTooltip}
                     />
                   ) : (
                     <FlatCredentialsTableBody
@@ -353,6 +389,7 @@ export default function Credentials() {
                       onToggleRow={handleToggleRow}
                       getRowActions={getRowActions}
                       onToggleEnabled={handleToggleEnabled}
+                      toggleDisabledTooltip={toggleTooltip}
                     />
                   )}
                 </NxScrollableTableContainer>

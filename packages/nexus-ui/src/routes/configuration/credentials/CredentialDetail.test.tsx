@@ -10,6 +10,7 @@ import { AlertProvider } from '../../../providers/alerts'
 import { accessFetchClient } from '../../access/accessClient'
 
 import CredentialDetail from './CredentialDetail'
+import { useCredentialPermissions } from './useCredentialPermissions'
 
 const { mockNavigate } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
@@ -50,6 +51,21 @@ const mockCredentialType = {
 
 /** Credential payload as returned by the API (description may be absent). */
 type MockCredentialRecord = Omit<typeof mockCredential, 'description'> & { description?: string }
+
+vi.mock('./useCredentialPermissions', () => ({
+  useCredentialPermissions: vi.fn(() => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    isLoading: false,
+    tooltips: {
+      create: 'You need credential:create permission to create a credential.',
+      update: 'You need credential:update permission to edit this credential.',
+      enable: 'You need credential:update permission to enable or disable this credential.',
+      delete: 'You need credential:delete permission to delete this credential.',
+    },
+  })),
+}))
 
 vi.mock('../../../client', () => ({
   credentialsClient: {
@@ -282,7 +298,7 @@ describe('CredentialDetail', () => {
     const user = userEvent.setup()
     render(<CredentialDetail />, { wrapper })
 
-    const kebabButton = screen.getByRole('button', { name: 'Kebab toggle' })
+    const kebabButton = screen.getByRole('button', { name: 'Credential actions' })
     expect(kebabButton).toBeInTheDocument()
     await user.click(kebabButton)
 
@@ -480,7 +496,7 @@ describe('CredentialDetail', () => {
     const user = userEvent.setup()
     render(<CredentialDetail />, { wrapper })
 
-    const kebabButton = screen.getByRole('button', { name: 'Kebab toggle' })
+    const kebabButton = screen.getByRole('button', { name: 'Credential actions' })
     await user.click(kebabButton)
 
     const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
@@ -507,7 +523,7 @@ describe('CredentialDetail', () => {
     const user = userEvent.setup()
     render(<CredentialDetail />, { wrapper })
 
-    const kebabButton = screen.getByRole('button', { name: 'Kebab toggle' })
+    const kebabButton = screen.getByRole('button', { name: 'Credential actions' })
     await user.click(kebabButton)
 
     const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
@@ -767,5 +783,69 @@ describe('CredentialDetail', () => {
 
       expect(await screen.findByRole('tab', { name: /Workflows/ })).toBeInTheDocument()
     })
+  })
+
+  it('disables Edit button when user lacks credential:update permission', () => {
+    vi.mocked(useCredentialPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: false,
+      canDelete: true,
+      isLoading: false,
+      tooltips: {
+        create: 'create tooltip',
+        update: 'You need credential:update permission to edit this credential.',
+        enable: 'enable tooltip',
+        delete: 'delete tooltip',
+      },
+    })
+
+    render(<CredentialDetail />, { wrapper })
+
+    const editButton = screen.getByRole('button', { name: 'Edit credential' })
+    expect(editButton).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('disables Enable/Disable toggle when user lacks credential:update permission', () => {
+    vi.mocked(useCredentialPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: false,
+      canDelete: true,
+      isLoading: false,
+      tooltips: {
+        create: 'create tooltip',
+        update: 'You need credential:update permission to edit this credential.',
+        enable: 'enable tooltip',
+        delete: 'delete tooltip',
+      },
+    })
+
+    render(<CredentialDetail />, { wrapper })
+
+    const toggle = screen.getByRole('switch', { name: 'Enabled' })
+    expect(toggle).toBeDisabled()
+  })
+
+  it('disables Delete kebab action when user lacks credential:delete permission', async () => {
+    vi.mocked(useCredentialPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: true,
+      canDelete: false,
+      isLoading: false,
+      tooltips: {
+        create: 'create tooltip',
+        update: 'update tooltip',
+        enable: 'enable tooltip',
+        delete: 'You need credential:delete permission to delete this credential.',
+      },
+    })
+
+    const user = userEvent.setup()
+    render(<CredentialDetail />, { wrapper })
+
+    const kebabButton = screen.getByRole('button', { name: 'Credential actions' })
+    await user.click(kebabButton)
+
+    const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
+    expect(deleteItem).toHaveAttribute('aria-disabled', 'true')
   })
 })

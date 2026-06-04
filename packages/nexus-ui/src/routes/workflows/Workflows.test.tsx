@@ -48,6 +48,28 @@ vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => mockUseProjectSelector(),
 }))
 
+const { mockWorkflowPermissions } = vi.hoisted(() => ({
+  mockWorkflowPermissions: {
+    current: {
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      canRun: true,
+      isLoading: false,
+      tooltips: {
+        create: 'create tooltip',
+        update: 'update tooltip',
+        delete: 'delete tooltip',
+        run: 'run tooltip',
+      },
+    },
+  },
+}))
+
+vi.mock('./useWorkflowPermissions', () => ({
+  useWorkflowPermissions: () => mockWorkflowPermissions.current,
+}))
+
 const mockSetLocation = vi.fn()
 const mockSetSearchParams = vi.fn()
 
@@ -115,6 +137,14 @@ describe('Workflows Component', () => {
     // Reset mocks before each test
     mockSetSearchParams.mockClear()
     mockSearchParams = new URLSearchParams()
+    mockWorkflowPermissions.current = {
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      canRun: true,
+      isLoading: false,
+      tooltips: { create: 'create tooltip', update: 'update tooltip', delete: 'delete tooltip', run: 'run tooltip' },
+    }
 
     // Set up accessClient default return values FIRST
     vi.mocked(accessClient.useQuery).mockReturnValue({

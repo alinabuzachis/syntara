@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { axe } from 'vitest-axe'
 
 import { executionsClient } from '../../client'
+import { useCanI } from '../../hooks/useCanI'
 
 import { CancelExecutionButton } from './CancelExecutionButton'
 
@@ -18,6 +19,11 @@ vi.mock('../../client', () => ({
       isPending: false,
     })),
   },
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../../hooks/useCanI', () => ({
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false })),
 }))
 
 vi.mock('../../providers/alerts/AlertContext', () => ({
@@ -79,7 +85,16 @@ describe('CancelExecutionButton', () => {
     renderButton()
 
     const button = screen.getByRole('button', { name: /Cancel/ })
-    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('is aria-disabled when user lacks execution:run permission', () => {
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false })
+
+    renderButton()
+
+    const button = screen.getByRole('button', { name: 'Cancel execution' })
+    expect(button).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('has no accessibility violations', async () => {

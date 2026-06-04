@@ -13,6 +13,7 @@ import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { PaginationFooterProps } from '../../components/table/PaginationFooter'
+import { permissionTooltip } from '../../hooks/permissionUtils'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -114,6 +115,7 @@ type ApprovalsContentProps = {
   allPendingSelected: boolean
   onSelectAll: (checked: boolean) => void
   hasPendingApprovals: boolean
+  canDecideAnyApproval: boolean
   isAllProjects: boolean
   groupedApprovals: ReturnType<typeof useApprovalsData>['groupedApprovals']
   collapsedProjects: Set<string>
@@ -138,6 +140,7 @@ function ApprovalsContent({
   allPendingSelected,
   onSelectAll,
   hasPendingApprovals,
+  canDecideAnyApproval,
   isAllProjects,
   groupedApprovals,
   collapsedProjects,
@@ -175,6 +178,7 @@ function ApprovalsContent({
       allPendingSelected={allPendingSelected}
       onSelectAll={onSelectAll}
       hasPendingApprovals={hasPendingApprovals}
+      canDecideAnyApproval={canDecideAnyApproval}
       isAllProjects={isAllProjects}
       groupedApprovals={groupedApprovals}
       collapsedProjects={collapsedProjects}
@@ -199,6 +203,7 @@ type ApprovalsTableContentProps = {
   allPendingSelected: boolean
   onSelectAll: (checked: boolean) => void
   hasPendingApprovals: boolean
+  canDecideAnyApproval: boolean
   isAllProjects: boolean
   groupedApprovals: ReturnType<typeof useApprovalsData>['groupedApprovals']
   collapsedProjects: Set<string>
@@ -221,6 +226,7 @@ function ApprovalsTableContent({
   allPendingSelected,
   onSelectAll,
   hasPendingApprovals,
+  canDecideAnyApproval,
   isAllProjects,
   groupedApprovals,
   collapsedProjects,
@@ -242,6 +248,8 @@ function ApprovalsTableContent({
         allPendingSelected={allPendingSelected}
         onSelectAll={onSelectAll}
         hasPendingApprovals={hasPendingApprovals}
+        canDecideAnyApproval={canDecideAnyApproval}
+        isLoadingPermissions={isLoadingPermissions}
       />
       {isAllProjects && groupedApprovals ? (
         <GroupedApprovalsTableBody
@@ -457,6 +465,11 @@ export default function Approvals() {
             onApprove={() => setBulkApproveDialogOpen(true)}
             onReject={() => setBulkRejectDialogOpen(true)}
             isDisabled={isBulkActionPending}
+            permissionTooltip={
+              !canDecideAllProjects && canDecideProjectNames.size === 0 && !isLoadingDecideProjects
+                ? permissionTooltip('approve or reject approvals', 'approval:decide')
+                : undefined
+            }
           />
         }
       />
@@ -486,6 +499,7 @@ export default function Approvals() {
               allPendingSelected={allPendingSelected}
               onSelectAll={handleSelectAll}
               hasPendingApprovals={pendingApprovals.length > 0}
+              canDecideAnyApproval={canDecideAllProjects || canDecideProjectNames.size > 0}
               isAllProjects={isAllProjects}
               groupedApprovals={groupedApprovals}
               collapsedProjects={collapsedProjects}
