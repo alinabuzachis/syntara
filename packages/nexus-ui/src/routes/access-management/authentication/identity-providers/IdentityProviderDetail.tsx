@@ -31,6 +31,7 @@ import {
   breadcrumbsIdentityProviderDetailEarlyShell,
 } from '../../../../app/breadcrumbBuilders'
 import { identityProvidersClient } from '../../../../client'
+import { DisabledWithTooltip } from '../../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
@@ -38,7 +39,6 @@ import { NxPanel } from '../../../../components/layout/NxPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../../components/tabs/NxUrlTabs'
-import { useCanI } from '../../../../hooks/useCanI'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../../hooks/useUrlTab'
 import { getErrorStatus } from '../../../../utils/apiErrors'
@@ -46,6 +46,7 @@ import { formatDateTime } from '../../../../utils/dateUtils'
 import { detachPromise } from '../../../../utils/detachPromise'
 import { isValidUUID } from '../../../../utils/generateUUID'
 import { DisableIdentityProviderDialog } from '../DisableIdentityProviderDialog'
+import { useIdentityProviderPermissions } from '../useIdentityProviderPermissions'
 import { useIdentityProviderToggle } from '../useIdentityProviderToggle'
 
 import { GroupMappingTab } from './GroupMappingTab'
@@ -158,13 +159,14 @@ function TabContent({
   groupMappingConfig,
   readOnly,
 }: Readonly<TabContentProps>) {
-  if (activeTab === 'group-mapping' && providerConfig) {
+  if (activeTab === GROUP_MAPPING_TAB && providerConfig) {
     return <GroupMappingTab providerId={providerId} groupMapping={groupMappingConfig} readOnly={readOnly} />
   }
   return <ProviderDetailsContent provider={provider} />
 }
 
-type TabKey = 'details' | 'group-mapping'
+const GROUP_MAPPING_TAB = 'group-mapping' as const
+type TabKey = 'details' | typeof GROUP_MAPPING_TAB
 
 function identityProviderDetailBreadcrumbTrail(provider: ProviderData, idpDetailBasePath: string, activeTab: TabKey) {
   return breadcrumbsIdentityProviderDetail(provider.name ?? 'Identity provider', idpDetailBasePath, activeTab)
@@ -193,12 +195,12 @@ function IdentityProviderDetailTabStrip({
       <NxUrlTabs
         basePath={basePath}
         defaultTab="details"
-        validTabs={['details', 'group-mapping']}
+        validTabs={['details', GROUP_MAPPING_TAB]}
         aria-label="Identity provider details"
       >
         <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
         <Tab
-          eventKey="group-mapping"
+          eventKey={GROUP_MAPPING_TAB}
           title={<TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>}
         />
       </NxUrlTabs>
@@ -206,11 +208,34 @@ function IdentityProviderDetailTabStrip({
   )
 }
 
+function buildKebabActions(
+  idpPermissions: ReturnType<typeof useIdentityProviderPermissions>,
+  onEditMapping: () => void,
+  onDelete: () => void
+): IAction[] {
+  return [
+    {
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
+      isAriaDisabled: !idpPermissions.canUpdate,
+      tooltipProps: idpPermissions.canUpdate ? undefined : { content: idpPermissions.tooltips.update },
+      onClick: idpPermissions.canUpdate ? onEditMapping : undefined,
+    },
+    { isSeparator: true },
+    {
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
+      isAriaDisabled: !idpPermissions.canDelete,
+      tooltipProps: idpPermissions.canDelete ? undefined : { content: idpPermissions.tooltips.delete },
+      onClick: idpPermissions.canDelete ? onDelete : undefined,
+    },
+  ]
+}
+
 export function IdentityProviderDetail() {
   const { providerId } = useParams<{ providerId: string }>()
   const isValidId = !!providerId && isValidUUID(providerId)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const { allowed: canUpdate } = useCanI('update', 'identity-provider')
+  const idpPermissions = useIdentityProviderPermissions()
+  const canUpdate = idpPermissions.canUpdate
   const idpDetailBasePath = AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
     ':providerId',
     providerId ?? ''
@@ -257,23 +282,13 @@ export function IdentityProviderDetail() {
     onSettled: () => setDeleteDialogOpen(false),
   })
 
-  const kebabActions: IAction[] = [
-    ...(canUpdate
-      ? [
-          {
-            title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
-            onClick: () => {
-              if (providerId) navigate(identityProviderGroupMappingEditPath(providerId))
-            },
-          },
-          { isSeparator: true },
-        ]
-      : []),
-    {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-      onClick: () => setDeleteDialogOpen(true),
+  const kebabActions = buildKebabActions(
+    idpPermissions,
+    () => {
+      if (providerId) navigate(identityProviderGroupMappingEditPath(providerId))
     },
-  ]
+    () => setDeleteDialogOpen(true)
+  )
 
   // Check for 404 specifically — show a domain-specific "not found" empty state
   // with navigation back to the list. Let queryState handle all other errors.
@@ -334,17 +349,31 @@ export function IdentityProviderDetail() {
         }
         toolbar={
           <>
-            <Switch
-              id="provider-detail-toggle"
-              label="Enabled"
-              isChecked={providerData.enabled}
-              onChange={() => {
-                if (providerData) handleToggle(providerData)
-              }}
-            />
-            <Button variant="primary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
-              Edit provider
-            </Button>
+            <DisabledWithTooltip isDisabled={!idpPermissions.canUpdate} content={idpPermissions.tooltips.update}>
+              <Switch
+                id="provider-detail-toggle"
+                label="Enabled"
+                isChecked={providerData.enabled}
+                aria-disabled={!idpPermissions.canUpdate || undefined}
+                onChange={
+                  idpPermissions.canUpdate
+                    ? () => {
+                        if (providerData) handleToggle(providerData)
+                      }
+                    : undefined
+                }
+              />
+            </DisabledWithTooltip>
+            <DisabledWithTooltip isDisabled={!idpPermissions.canUpdate} content={idpPermissions.tooltips.update}>
+              <Button
+                variant="primary"
+                icon={<RhUiEditIcon />}
+                isAriaDisabled={!idpPermissions.canUpdate}
+                onClick={idpPermissions.canUpdate ? navigateEdit : undefined}
+              >
+                Edit provider
+              </Button>
+            </DisabledWithTooltip>
             <ActionsColumn items={kebabActions} />
           </>
         }

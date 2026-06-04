@@ -120,6 +120,14 @@ type ConnectedKebabProps = {
   isLastIdentity: boolean
   isDetaching: boolean
   onDisconnect: () => void
+  /**
+   * Defaults to `true` (unlike other `canX` permission props) because disconnecting an
+   * identity is a self-service action — users can always disconnect their own identities
+   * unless explicitly denied. The `false` case is only hit when viewing another user's
+   * profile without `identity:detach` permission.
+   */
+  canDetach?: boolean
+  detachTooltip?: string
 }
 
 type DisconnectedKebabProps = {
@@ -155,17 +163,30 @@ export function IdentityActionsKebab(props: Readonly<IdentityKebabProps>) {
   let actionItem: React.ReactNode
 
   if (props.kind === 'connected') {
-    const { isLastIdentity, isDetaching, onDisconnect } = props
+    const { isLastIdentity, isDetaching, onDisconnect, canDetach = true, detachTooltip } = props
+    const isDisconnectDisabled = isLastIdentity || isDetaching || !canDetach
+
+    let disconnectTooltipProps: { content: string } | undefined
+    if (isLastIdentity) {
+      disconnectTooltipProps = { content: 'Cannot disconnect the only sign-in method' }
+    } else if (!canDetach && detachTooltip) {
+      disconnectTooltipProps = { content: detachTooltip }
+    }
+
     actionItem = (
       <DropdownItem
         isDanger
         icon={<RhUiLinkBrokenIcon />}
-        isAriaDisabled={isLastIdentity || isDetaching}
-        tooltipProps={isLastIdentity ? { content: 'Cannot disconnect the only sign-in method' } : undefined}
-        onClick={() => {
-          onDisconnect()
-          setIsOpen(false)
-        }}
+        isAriaDisabled={isDisconnectDisabled}
+        tooltipProps={disconnectTooltipProps}
+        onClick={
+          isDisconnectDisabled
+            ? undefined
+            : () => {
+                onDisconnect()
+                setIsOpen(false)
+              }
+        }
       >
         Disconnect
       </DropdownItem>

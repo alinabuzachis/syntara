@@ -44,6 +44,15 @@ vi.mock('../../../app/useAuthProviders', () => ({
   useAuthProviders: () => mockUseAuthProviders(),
 }))
 
+vi.mock('./useUserIdentityPermissions', () => ({
+  useUserIdentityPermissions: () => ({
+    canAttach: true,
+    canDetach: true,
+    isLoading: false,
+    tooltips: { attach: '', detach: '' },
+  }),
+}))
+
 const mockNavigate = vi.fn()
 vi.mock('wouter/use-browser-location', () => ({
   navigate: (...args: unknown[]): void => {

@@ -18,6 +18,7 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
@@ -40,6 +41,7 @@ import type { ProjectRead } from '../access/types'
 import { useAllProjects } from '../access/useAllProjects'
 
 import { ProjectFormModal } from './ProjectFormModal'
+import { useProjectPermissions } from './useProjectPermissions'
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
@@ -63,17 +65,22 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
 function getRowActions(
   project: ProjectRead,
   onEdit: (p: ProjectRead) => void,
-  onDelete: (p: ProjectRead) => void
+  onDelete: (p: ProjectRead) => void,
+  permissions: ReturnType<typeof useProjectPermissions>
 ): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
-      onClick: () => onEdit(project),
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.update },
+      onClick: permissions.canUpdate ? () => onEdit(project) : undefined,
     },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-      onClick: () => onDelete(project),
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+      onClick: permissions.canDelete ? () => onDelete(project) : undefined,
     },
   ]
 }
@@ -83,11 +90,13 @@ function ProjectsTable({
   getSortParams,
   onEdit,
   onDelete,
+  permissions,
 }: Readonly<{
   projects: ProjectRead[]
   getSortParams: (columnIndex: number) => ThProps['sort']
   onEdit: (p: ProjectRead) => void
   onDelete: (p: ProjectRead) => void
+  permissions: ReturnType<typeof useProjectPermissions>
 }>) {
   return (
     <>
@@ -120,7 +129,7 @@ function ProjectsTable({
             <Td dataLabel="Created">{formatDateTime(project.created_at)}</Td>
             <Td dataLabel="Updated">{formatDateTime(project.updated_at)}</Td>
             <Td isActionCell>
-              <ActionsColumn items={getRowActions(project, onEdit, onDelete)} />
+              <ActionsColumn items={getRowActions(project, onEdit, onDelete, permissions)} />
             </Td>
           </Tr>
         ))}
@@ -176,6 +185,7 @@ const projectSortFieldByColumn: Record<number, string> = {
 }
 
 export function ProjectsTab() {
+  const permissions = useProjectPermissions()
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useSortState(projectSortFieldByColumn)
   const [page, setPage] = useState(1)
@@ -271,9 +281,7 @@ export function ProjectsTab() {
           title="No projects yet"
           description="Create a project to organize workflows and manage access."
           buttonText="Create project"
-          addData={() => {
-            formDialog.open(null)
-          }}
+          addData={permissions.canCreate ? () => formDialog.open(null) : undefined}
         />
         <ProjectFormModal
           project={null}
@@ -312,15 +320,16 @@ export function ProjectsTab() {
               />
             </FlexItem>
             <FlexItem>
-              <Button
-                variant="primary"
-                icon={<RhUiAddIcon />}
-                onClick={() => {
-                  formDialog.open(null)
-                }}
-              >
-                Create project
-              </Button>
+              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                <Button
+                  variant="primary"
+                  icon={<RhUiAddIcon />}
+                  isAriaDisabled={!permissions.canCreate}
+                  onClick={permissions.canCreate ? () => formDialog.open(null) : undefined}
+                >
+                  Create project
+                </Button>
+              </DisabledWithTooltip>
             </FlexItem>
           </Flex>
         </StackItem>
@@ -349,6 +358,7 @@ export function ProjectsTab() {
             <ProjectsTable
               projects={paginatedProjects}
               getSortParams={getSortParams}
+              permissions={permissions}
               onEdit={(p) => {
                 formDialog.open(p)
               }}

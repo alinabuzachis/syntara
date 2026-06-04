@@ -20,6 +20,17 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+vi.mock('./useGroupPermissions', () => ({
+  useGroupPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canManageMembers: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '', manageMembers: '' },
+  }),
+}))
+
 const mockSetSearchParams = vi.fn()
 let mockSearchParams = new URLSearchParams()
 

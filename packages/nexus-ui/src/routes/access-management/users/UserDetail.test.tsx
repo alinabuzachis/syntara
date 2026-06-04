@@ -58,6 +58,17 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
+vi.mock('../useUserPermissions', () => ({
+  useUserPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '', revoke: '' },
+  }),
+}))
+
 const VALID_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
 let mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}`

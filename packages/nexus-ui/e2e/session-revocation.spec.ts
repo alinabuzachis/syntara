@@ -84,6 +84,10 @@ async function openGlobalRevokeDialog(app: Page) {
 }
 
 test.describe('Session Revocation — User-Scoped (UI-28)', () => {
+  test.beforeEach(async ({ app }) => {
+    await mockCanIAllowed(app)
+  })
+
   test('revoke tokens for a specific user via kebab menu shows confirmation and succeeds', async ({ app }) => {
     await mockUsersForRevocation(app)
 

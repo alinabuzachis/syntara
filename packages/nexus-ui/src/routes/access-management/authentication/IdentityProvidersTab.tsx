@@ -20,6 +20,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../../app/AppRoute'
 import { adminClient, identityProvidersClient } from '../../../client'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
@@ -40,59 +41,81 @@ import { DisableIdentityProviderDialog } from './DisableIdentityProviderDialog'
 import { AAPSetupModal } from './identity-providers/AAPSetupModal'
 import { IdentityProviderDeleteDialog } from './identity-providers/IdentityProviderDeleteDialog'
 import { getProviderNameFilterDefinition, getProviderStatusFilterDefinition } from './identityProviderFilters'
+import { useIdentityProviderPermissions } from './useIdentityProviderPermissions'
 import { useIdentityProviderToggle } from './useIdentityProviderToggle'
 
 const SORT_FIELDS = ['name', 'issuer_url', 'client_id', 'enabled'] as const
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
+function tooltipWhenDenied(allowed: boolean, text: string) {
+  return allowed ? undefined : { content: text }
+}
+
 function getRowActions(
   provider: IdentityProvider,
   onDelete: (provider: IdentityProvider) => void,
-  onRevoke: (provider: IdentityProvider) => void
+  onRevoke: (provider: IdentityProvider) => void,
+  permissions: ReturnType<typeof useIdentityProviderPermissions>
 ): IAction[] {
+  const { id } = provider
+  const canEdit = permissions.canUpdate && !!id
+  const canDel = permissions.canDelete && !!id
+
   return [
     {
       title: <IconLabel icon={<RhUiEditIcon />}>Edit provider</IconLabel>,
-      isDisabled: !provider.id,
-      onClick: () => {
-        if (!provider.id) return
-        navigate(AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', provider.id))
-      },
+      isDisabled: !id,
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: tooltipWhenDenied(permissions.canUpdate, permissions.tooltips.update),
+      onClick: canEdit
+        ? () => navigate(AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(':providerId', id))
+        : undefined,
     },
     {
       title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
-      isDisabled: !provider.id,
-      onClick: () => {
-        if (!provider.id) return
-        navigate(AppRoute.SystemAdministration.Authentication.EditGroupMapping.replace(':providerId', provider.id))
-      },
+      isDisabled: !id,
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: tooltipWhenDenied(permissions.canUpdate, permissions.tooltips.editMapping),
+      onClick: canEdit
+        ? () => navigate(AppRoute.SystemAdministration.Authentication.EditGroupMapping.replace(':providerId', id))
+        : undefined,
     },
     {
       title: <IconLabel icon={<RhUiBanIcon />}>Revoke tokens</IconLabel>,
-      onClick: () => onRevoke(provider),
+      isAriaDisabled: !permissions.canRevoke,
+      tooltipProps: tooltipWhenDenied(permissions.canRevoke, permissions.tooltips.revoke),
+      onClick: permissions.canRevoke ? () => onRevoke(provider) : undefined,
     },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-      isDisabled: !provider.id,
-      onClick: () => {
-        if (!provider.id) return
-        onDelete(provider)
-      },
+      isDisabled: !id,
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: tooltipWhenDenied(permissions.canDelete, permissions.tooltips.delete),
+      onClick: canDel ? () => onDelete(provider) : undefined,
     },
   ]
 }
 
-function AddProviderButton() {
+function AddProviderButton({
+  permissions,
+}: Readonly<{ permissions: ReturnType<typeof useIdentityProviderPermissions> }>) {
   return (
-    <Button
-      variant="primary"
-      icon={<RhUiAddIcon />}
-      onClick={() => navigate(AppRoute.SystemAdministration.Authentication.AddIdentityProvider)}
-    >
-      Add OIDC provider
-    </Button>
+    <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+      <Button
+        variant="primary"
+        icon={<RhUiAddIcon />}
+        isAriaDisabled={!permissions.canCreate}
+        onClick={
+          permissions.canCreate
+            ? () => navigate(AppRoute.SystemAdministration.Authentication.AddIdentityProvider)
+            : undefined
+        }
+      >
+        Add OIDC provider
+      </Button>
+    </DisabledWithTooltip>
   )
 }
 
@@ -103,12 +126,15 @@ function providerDetailPath(providerId: string): string {
   )
 }
 
-type NoProvidersEmptyStateProps = Readonly<{
+function NoProvidersEmptyState({
+  showAapButton,
+  onAapSetup,
+  permissions,
+}: Readonly<{
   showAapButton: boolean
   onAapSetup: () => void
-}>
-
-function NoProvidersEmptyState({ showAapButton, onAapSetup }: NoProvidersEmptyStateProps) {
+  permissions: ReturnType<typeof useIdentityProviderPermissions>
+}>) {
   return (
     <EmptyState headingLevel="h2" titleText="No identity providers configured" icon={RhUiSecurityIcon}>
       <EmptyStateBody>
@@ -117,11 +143,17 @@ function NoProvidersEmptyState({ showAapButton, onAapSetup }: NoProvidersEmptySt
       </EmptyStateBody>
       <EmptyStateFooter>
         <EmptyStateActions>
-          <AddProviderButton />
+          <AddProviderButton permissions={permissions} />
           {showAapButton && (
-            <Button variant="secondary" onClick={onAapSetup}>
-              Add Ansible Automation Platform
-            </Button>
+            <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+              <Button
+                variant="secondary"
+                isAriaDisabled={!permissions.canCreate}
+                onClick={permissions.canCreate ? onAapSetup : undefined}
+              >
+                Add Ansible Automation Platform
+              </Button>
+            </DisabledWithTooltip>
           )}
         </EmptyStateActions>
       </EmptyStateFooter>
@@ -129,8 +161,65 @@ function NoProvidersEmptyState({ showAapButton, onAapSetup }: NoProvidersEmptySt
   )
 }
 
+function ProviderRow({
+  provider,
+  permissions,
+  onDelete,
+  onRevoke,
+  onToggleEnabled,
+}: Readonly<{
+  provider: IdentityProvider
+  permissions: ReturnType<typeof useIdentityProviderPermissions>
+  onDelete: (p: IdentityProvider) => void
+  onRevoke: (p: IdentityProvider) => void
+  onToggleEnabled: (p: IdentityProvider) => void
+}>) {
+  return (
+    <Tr>
+      <Td dataLabel="Name">
+        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'nowrap' }}>
+          <FlexItem style={{ flexShrink: 0 }}>
+            <ProviderIcon name={provider.name ?? ''} idpType={provider.configuration?.idp_type} />
+          </FlexItem>
+          <FlexItem style={{ minWidth: 0 }}>
+            {provider.id ? (
+              <Button variant="link" isInline onClick={() => navigate(providerDetailPath(provider.id ?? ''))}>
+                <Truncate content={provider.name ?? ''} />
+              </Button>
+            ) : (
+              <Truncate content={provider.name ?? ''} />
+            )}
+          </FlexItem>
+        </Flex>
+      </Td>
+      <Td dataLabel="Issuer URL">
+        <Truncate content={provider.configuration?.issuer_url ?? ''} />
+      </Td>
+      <Td dataLabel="Client ID">
+        <Truncate content={provider.configuration?.client_id ?? ''} />
+      </Td>
+      <Td dataLabel="State">
+        <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.enable}>
+          <Switch
+            id={`provider-toggle-${provider.id}`}
+            label="Enabled"
+            isChecked={provider.enabled}
+            isDisabled={!permissions.canUpdate}
+            onChange={permissions.canUpdate ? () => onToggleEnabled(provider) : undefined}
+            aria-label={`Toggle ${provider.name}`}
+          />
+        </DisabledWithTooltip>
+      </Td>
+      <Td isActionCell>
+        <ActionsColumn items={getRowActions(provider, onDelete, onRevoke, permissions)} />
+      </Td>
+    </Tr>
+  )
+}
+
 export function IdentityProvidersTab() {
   const [aapSetupOpen, setAapSetupOpen] = useState(false)
+  const permissions = useIdentityProviderPermissions()
   const deleteDialog = useDialogState<IdentityProvider>()
   const revokeDialog = useDialogState<IdentityProvider>()
   const { showSuccess } = useAlerts()
@@ -215,7 +304,11 @@ export function IdentityProvidersTab() {
   if (providers.length === 0 && !cursor && !hasActiveFilters) {
     return (
       <>
-        <NoProvidersEmptyState showAapButton={!hasAapProvider} onAapSetup={() => setAapSetupOpen(true)} />
+        <NoProvidersEmptyState
+          showAapButton={!hasAapProvider}
+          onAapSetup={() => setAapSetupOpen(true)}
+          permissions={permissions}
+        />
         <AAPSetupModal
           isOpen={aapSetupOpen}
           onClose={() => setAapSetupOpen(false)}
@@ -238,13 +331,19 @@ export function IdentityProvidersTab() {
           </FlexItem>
           {!hasAapProvider && (
             <FlexItem>
-              <Button variant="secondary" onClick={() => setAapSetupOpen(true)}>
-                Add Ansible Automation Platform
-              </Button>
+              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                <Button
+                  variant="secondary"
+                  isAriaDisabled={!permissions.canCreate}
+                  onClick={permissions.canCreate ? () => setAapSetupOpen(true) : undefined}
+                >
+                  Add Ansible Automation Platform
+                </Button>
+              </DisabledWithTooltip>
             </FlexItem>
           )}
           <FlexItem>
-            <AddProviderButton />
+            <AddProviderButton permissions={permissions} />
           </FlexItem>
         </Flex>
       </StackItem>
@@ -265,46 +364,14 @@ export function IdentityProvidersTab() {
           </Thead>
           <Tbody>
             {providers.map((provider) => (
-              <Tr key={provider.id}>
-                <Td dataLabel="Name">
-                  <Flex
-                    alignItems={{ default: 'alignItemsCenter' }}
-                    gap={{ default: 'gapSm' }}
-                    flexWrap={{ default: 'nowrap' }}
-                  >
-                    <FlexItem style={{ flexShrink: 0 }}>
-                      <ProviderIcon name={provider.name ?? ''} idpType={provider.configuration?.idp_type} />
-                    </FlexItem>
-                    <FlexItem style={{ minWidth: 0 }}>
-                      {provider.id ? (
-                        <Button variant="link" isInline onClick={() => navigate(providerDetailPath(provider.id ?? ''))}>
-                          <Truncate content={provider.name ?? ''} />
-                        </Button>
-                      ) : (
-                        <Truncate content={provider.name ?? ''} />
-                      )}
-                    </FlexItem>
-                  </Flex>
-                </Td>
-                <Td dataLabel="Issuer URL">
-                  <Truncate content={provider.configuration?.issuer_url ?? ''} />
-                </Td>
-                <Td dataLabel="Client ID">
-                  <Truncate content={provider.configuration?.client_id ?? ''} />
-                </Td>
-                <Td dataLabel="State">
-                  <Switch
-                    id={`provider-toggle-${provider.id}`}
-                    label="Enabled"
-                    isChecked={provider.enabled}
-                    onChange={() => handleToggleEnabled(provider)}
-                    aria-label={`Toggle ${provider.name}`}
-                  />
-                </Td>
-                <Td isActionCell>
-                  <ActionsColumn items={getRowActions(provider, deleteDialog.open, revokeDialog.open)} />
-                </Td>
-              </Tr>
+              <ProviderRow
+                key={provider.id}
+                provider={provider}
+                permissions={permissions}
+                onDelete={deleteDialog.open}
+                onRevoke={revokeDialog.open}
+                onToggleEnabled={handleToggleEnabled}
+              />
             ))}
           </Tbody>
         </NxScrollableTableContainer>

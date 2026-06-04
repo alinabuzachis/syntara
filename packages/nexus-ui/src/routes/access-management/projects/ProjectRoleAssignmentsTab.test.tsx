@@ -33,6 +33,25 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+vi.mock('../../access/useAssignmentPermissions', () => ({
+  useAssignmentPermissions: () => ({
+    canAssign: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { assign: '', revoke: '' },
+  }),
+}))
+
+vi.mock('../../access/useRolePermissions', () => ({
+  useRolePermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '' },
+  }),
+}))
+
 vi.mock('../../access/AddRoleDialog', () => ({
   AddRoleDialog: ({
     onClose,

@@ -43,6 +43,18 @@ vi.mock('wouter/use-browser-location', () => ({
   navigate: vi.fn(),
 }))
 
+vi.mock('./useIdentityProviderPermissions', () => ({
+  useIdentityProviderPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canTest: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', enable: '', delete: '', test: '', editMapping: '', revoke: '' },
+  }),
+}))
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })

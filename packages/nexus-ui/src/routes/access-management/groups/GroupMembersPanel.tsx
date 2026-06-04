@@ -1,10 +1,11 @@
 import { Button, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
-import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
@@ -23,6 +24,7 @@ import { accessClient } from '../../access/accessClient'
 import { DisabledBadge } from '../DisabledBadge'
 import { MembershipSourceLabels } from '../MembershipSourceLabels'
 import { getMembershipSources } from '../membershipSourceUtils'
+import { useGroupPermissions } from '../useGroupPermissions'
 import { userDisplayName } from '../users/userDisplayName'
 
 import { AddMemberModal } from './AddMemberModal'
@@ -48,62 +50,37 @@ type MemberInfo = {
   username: string
 }
 
-function getMemberActions(member: MemberInfo, onRemove: (m: MemberInfo) => void): IAction[] {
+function getMemberActions(
+  member: MemberInfo,
+  onRemove: (m: MemberInfo) => void,
+  permissions: ReturnType<typeof useGroupPermissions>
+): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Remove</IconLabel>,
-      onClick: () => onRemove(member),
+      isAriaDisabled: !permissions.canManageMembers,
+      tooltipProps: permissions.canManageMembers ? undefined : { content: permissions.tooltips.manageMembers },
+      onClick: permissions.canManageMembers ? () => onRemove(member) : undefined,
     },
   ]
 }
 
-export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<GroupMembersPanelProps>) {
-  const [addModalOpen, setAddModalOpen] = useState(false)
-  const [memberToRemove, setMemberToRemove] = useState<MemberInfo | null>(null)
-  const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(20)
+function useGroupMembersData(groupId: string, onMembershipChange: () => void) {
   const { showAlert } = useAlerts()
-
-  const handleFilterChange = (newFilters: typeof filters) => {
-    setAllFilters(newFilters)
-    setPage(1)
-  }
-
-  const handlePerPageChange = (newPerPage: number) => {
-    setPerPage(newPerPage)
-    setPage(1)
-  }
-
   const query = accessClient.useQuery('get', '/groups/{group_id}/members', {
     params: { path: { group_id: groupId } },
   })
-
   const members = useMemo(() => query.data?.resources ?? [], [query.data])
-
-  const filteredMembers = useMemo(() => {
-    const nameFilter = filters.find((f) => f.key === 'username')
-    if (!nameFilter) return members
-    const term = String(nameFilter.value).toLowerCase()
-    return members.filter((m) => m.username.toLowerCase().includes(term))
-  }, [members, filters])
-
-  const paginatedMembers = useMemo(() => {
-    const start = (page - 1) * perPage
-    return filteredMembers.slice(start, start + perPage)
-  }, [filteredMembers, page, perPage])
-
   const { mutate: removeMember } = accessClient.useMutation('delete', '/groups/{group_id}/members/{user_id}')
 
-  const handleRemove = () => {
-    if (!memberToRemove) return
+  const remove = (member: MemberInfo, onSettled: () => void) => {
     removeMember(
-      { params: { path: { group_id: groupId, user_id: memberToRemove.id } } },
+      { params: { path: { group_id: groupId, user_id: member.id } } },
       {
         onSuccess: () => {
           showAlert({
             title: 'Member removed',
-            description: `User "${memberToRemove.username}" has been removed from the group.`,
+            description: `User "${member.username}" has been removed from the group.`,
             variant: 'success',
             autoDismiss: true,
           })
@@ -118,7 +95,7 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
             autoDismiss: true,
           })
         },
-        onSettled: () => setMemberToRemove(null),
+        onSettled,
       }
     )
   }
@@ -126,6 +103,35 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
   const handleMemberAdded = () => {
     detachPromise(query.refetch())
     onMembershipChange()
+  }
+
+  return { query, members, remove, handleMemberAdded }
+}
+
+export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<GroupMembersPanelProps>) {
+  const permissions = useGroupPermissions()
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<MemberInfo | null>(null)
+  const { filters, setAllFilters, clearAllFilters } = useFilterState()
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const { query, members, remove, handleMemberAdded } = useGroupMembersData(groupId, onMembershipChange)
+
+  const filteredMembers = useMemo(() => {
+    const nameFilter = filters.find((f) => f.key === 'username')
+    if (!nameFilter) return members
+    const term = String(nameFilter.value).toLowerCase()
+    return members.filter((m) => m.username.toLowerCase().includes(term))
+  }, [members, filters])
+
+  const paginatedMembers = useMemo(() => {
+    const start = (page - 1) * perPage
+    return filteredMembers.slice(start, start + perPage)
+  }, [filteredMembers, page, perPage])
+
+  const handleRemove = () => {
+    if (!memberToRemove) return
+    remove(memberToRemove, () => setMemberToRemove(null))
   }
 
   const queryState = useQueryState(query, {
@@ -141,7 +147,7 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
           title="No members"
           description="Add users to this group to manage their access."
           buttonText="Add member"
-          addData={() => setAddModalOpen(true)}
+          addData={permissions.canManageMembers ? () => setAddModalOpen(true) : undefined}
         />
         <AddMemberModal
           groupId={groupId}
@@ -163,7 +169,10 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
               <FilterBar
                 fieldDefinitions={filterFieldDefinitions}
                 filters={filters}
-                onFilterChange={handleFilterChange}
+                onFilterChange={(f) => {
+                  setAllFilters(f)
+                  setPage(1)
+                }}
                 showClearAll={true}
                 clearAllFilters={() => {
                   clearAllFilters()
@@ -172,9 +181,19 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<PlusIcon />} onClick={() => setAddModalOpen(true)}>
-                Add member
-              </Button>
+              <DisabledWithTooltip
+                isDisabled={!permissions.canManageMembers}
+                content={permissions.tooltips.manageMembers}
+              >
+                <Button
+                  variant="primary"
+                  icon={<RhUiAddIcon />}
+                  isAriaDisabled={!permissions.canManageMembers}
+                  onClick={permissions.canManageMembers ? () => setAddModalOpen(true) : undefined}
+                >
+                  Add member
+                </Button>
+              </DisabledWithTooltip>
             </FlexItem>
           </Flex>
         </StackItem>
@@ -198,7 +217,10 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
               hasNext: page * perPage < filteredMembers.length,
               onPrev: () => setPage((p) => Math.max(1, p - 1)),
               onNext: () => setPage((p) => p + 1),
-              onPerPageChange: handlePerPageChange,
+              onPerPageChange: (n: number) => {
+                setPerPage(n)
+                setPage(1)
+              },
             }}
           >
             <Thead>
@@ -229,7 +251,11 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
                   <Td isActionCell>
                     {!member.is_builtin && (
                       <ActionsColumn
-                        items={getMemberActions({ id: member.id, username: member.username }, setMemberToRemove)}
+                        items={getMemberActions(
+                          { id: member.id, username: member.username },
+                          setMemberToRemove,
+                          permissions
+                        )}
                       />
                     )}
                   </Td>

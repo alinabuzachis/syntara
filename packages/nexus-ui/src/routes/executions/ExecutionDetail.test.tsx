@@ -76,7 +76,7 @@ const mockExecutionsQuery = {
 }
 
 vi.mock('../../hooks/useCanI', () => ({
-  useCanI: vi.fn(() => ({ allowed: true, isChecking: false })),
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
 }))
 
 vi.mock('../../client', () => ({

@@ -21,6 +21,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsUserDetail, breadcrumbsUserDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { authClient } from '../../../client'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -35,6 +36,7 @@ import { AUTH_TYPE_LOCAL } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
+import { useUserPermissions } from '../useUserPermissions'
 
 import type { UserIdentity } from './identityUtils'
 import { computeGroupCount, computeRoleAssignmentCount } from './userDetailUtils'
@@ -181,6 +183,25 @@ function UserDetailsTab({
   )
 }
 
+function EditUserButton({
+  canUpdate,
+  tooltip,
+  onClick,
+}: Readonly<{ canUpdate: boolean; tooltip: string; onClick: () => void }>) {
+  return (
+    <DisabledWithTooltip isDisabled={!canUpdate} content={tooltip}>
+      <Button
+        variant="secondary"
+        icon={<RhUiEditIcon />}
+        isAriaDisabled={!canUpdate}
+        onClick={canUpdate ? onClick : undefined}
+      >
+        Edit user
+      </Button>
+    </DisabledWithTooltip>
+  )
+}
+
 type UserTab = 'details' | 'groups' | 'identities' | 'roles'
 const ALL_USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
 
@@ -204,6 +225,7 @@ export function UserDetail() {
   const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
   const [activeTab] = useUrlTab<UserTab>(basePath)
 
+  const userPermissions = useUserPermissions()
   const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
   const {
     canReadUsers,
@@ -272,9 +294,11 @@ export function UserDetail() {
           ) : undefined
         }
         toolbar={
-          <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
-            Edit user
-          </Button>
+          <EditUserButton
+            canUpdate={userPermissions.canUpdate}
+            tooltip={userPermissions.tooltips.update}
+            onClick={navigateEdit}
+          />
         }
       />
       <StackItem style={{ flexShrink: 0 }}>

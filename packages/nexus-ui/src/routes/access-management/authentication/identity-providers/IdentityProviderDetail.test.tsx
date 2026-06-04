@@ -57,6 +57,22 @@ vi.mock('wouter/use-browser-location', () => ({
   },
 }))
 
+const { mockIdpPermissions } = vi.hoisted(() => ({
+  mockIdpPermissions: {
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canTest: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', enable: '', delete: '', test: '', editMapping: '', revoke: '' },
+  },
+}))
+
+vi.mock('../useIdentityProviderPermissions', () => ({
+  useIdentityProviderPermissions: () => mockIdpPermissions,
+}))
+
 const mockProvider = {
   id: VALID_PROVIDER_ID,
   name: 'Azure AD',
@@ -104,6 +120,11 @@ describe('IdentityProviderDetail', () => {
     vi.clearAllMocks()
     vi.mocked(identityProvidersClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+    mockIdpPermissions.canCreate = true
+    mockIdpPermissions.canUpdate = true
+    mockIdpPermissions.canDelete = true
+    mockIdpPermissions.canTest = true
+    mockIdpPermissions.isLoading = false
     mockLocationRef.current = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`
   })
 
@@ -750,9 +771,9 @@ describe('IdentityProviderDetail', () => {
     )
   })
 
-  it('omits Edit mapping from kebab when user lacks identity-provider:update', async () => {
+  it('disables Edit mapping in kebab when user lacks identity-provider:update', async () => {
     const user = userEvent.setup()
-    vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+    mockIdpPermissions.canUpdate = false
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
@@ -760,7 +781,8 @@ describe('IdentityProviderDetail', () => {
     const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
     await user.click(kebabButton)
 
-    expect(screen.queryByText('Edit mapping')).not.toBeInTheDocument()
+    const editMappingItem = screen.getByRole('menuitem', { name: /Edit mapping/i })
+    expect(editMappingItem).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByText('Delete')).toBeInTheDocument()
   })
 
@@ -882,7 +904,7 @@ describe('IdentityProviderDetail', () => {
 
   describe('Permission-based read-only mode', () => {
     it('passes readOnly=false when user has identity-provider:update', async () => {
-      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+      mockIdpPermissions.canUpdate = true
       const providerWithMapping = {
         ...mockProvider,
         configuration: {
@@ -902,7 +924,7 @@ describe('IdentityProviderDetail', () => {
     })
 
     it('passes readOnly=true when user lacks identity-provider:update', async () => {
-      vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: false } } as never)
+      mockIdpPermissions.canUpdate = false
       const providerWithMapping = {
         ...mockProvider,
         configuration: {

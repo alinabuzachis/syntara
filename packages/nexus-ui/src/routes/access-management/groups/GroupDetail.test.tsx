@@ -28,6 +28,17 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
+vi.mock('../useGroupPermissions', () => ({
+  useGroupPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canManageMembers: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '', manageMembers: '' },
+  }),
+}))
+
 const VALID_GROUP_ID = 'g-1234-5678-abcd'
 
 let mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}`

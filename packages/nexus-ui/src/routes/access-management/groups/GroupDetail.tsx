@@ -20,6 +20,7 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsGroupDetail, breadcrumbsGroupDetailEarlyShell } from '../../../app/breadcrumbBuilders'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -33,6 +34,7 @@ import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { GroupFormModal } from '../GroupFormModal'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
+import { useGroupPermissions } from '../useGroupPermissions'
 
 import { GroupMembersPanel } from './GroupMembersPanel'
 import { GroupNotFoundState } from './GroupNotFoundState'
@@ -176,6 +178,7 @@ export function GroupDetail() {
   const [activeTab] = useUrlTab<GroupTab>(basePath)
   const [editModalOpen, setEditModalOpen] = useState(false)
 
+  const groupPermissions = useGroupPermissions()
   const { groupQuery, membersQuery, isAuthenticated, memberCount, roleAssignmentCount } = useGroupQueries(groupId)
   const { canReadMembers, canReadAssignments, isLoading: permissionsLoading } = useGroupDetailPermissions()
 
@@ -225,9 +228,16 @@ export function GroupDetail() {
         breadcrumbs={groupCrumbs}
         toolbar={
           !groupData.is_builtin ? (
-            <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
-              Edit group
-            </Button>
+            <DisabledWithTooltip isDisabled={!groupPermissions.canUpdate} content={groupPermissions.tooltips.update}>
+              <Button
+                variant="secondary"
+                icon={<RhUiEditIcon />}
+                isAriaDisabled={!groupPermissions.canUpdate}
+                onClick={groupPermissions.canUpdate ? () => setEditModalOpen(true) : undefined}
+              >
+                Edit group
+              </Button>
+            </DisabledWithTooltip>
           ) : undefined
         }
       />

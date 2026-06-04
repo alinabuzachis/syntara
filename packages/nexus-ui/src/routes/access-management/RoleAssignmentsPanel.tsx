@@ -1,10 +1,11 @@
 import { Alert, Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
-import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { type ReactNode, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
@@ -22,6 +23,7 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorCode, getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
+import { useAssignmentPermissions } from '../access/useAssignmentPermissions'
 
 import { AssignRoleModal } from './AssignRoleModal'
 
@@ -129,11 +131,17 @@ type RoleAssignmentsPanelProps = {
   principalId: string
 }
 
-function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssignmentRow) => void): IAction[] {
+function getAssignmentActions(
+  row: RoleAssignmentRow,
+  onUnassign: (row: RoleAssignmentRow) => void,
+  permissions: ReturnType<typeof useAssignmentPermissions>
+): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Unassign</IconLabel>,
-      onClick: () => onUnassign(row),
+      isAriaDisabled: !permissions.canRevoke,
+      tooltipProps: permissions.canRevoke ? undefined : { content: permissions.tooltips.revoke },
+      onClick: permissions.canRevoke ? () => onUnassign(row) : undefined,
     },
   ]
 }
@@ -224,6 +232,7 @@ function RoleAssignmentsTable({
   onPrev,
   onNext,
   onPerPageChange,
+  permissions,
 }: Readonly<{
   paginatedRows: RoleAssignmentRow[]
   sortedRows: RoleAssignmentRow[]
@@ -234,6 +243,7 @@ function RoleAssignmentsTable({
   onPrev: () => void
   onNext: () => void
   onPerPageChange: (perPage: number) => void
+  permissions: ReturnType<typeof useAssignmentPermissions>
 }>) {
   return (
     <NxScrollableTableContainer
@@ -287,7 +297,7 @@ function RoleAssignmentsTable({
               )}
             </Td>
             <Td isActionCell>
-              <ActionsColumn items={getAssignmentActions(row, onUnassign)} />
+              <ActionsColumn items={getAssignmentActions(row, onUnassign, permissions)} />
             </Td>
           </Tr>
         ))}
@@ -296,8 +306,11 @@ function RoleAssignmentsTable({
   )
 }
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- permission gating adds necessary branches
 export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<RoleAssignmentsPanelProps>) {
+  const assignmentPermissions = useAssignmentPermissions()
   const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const openAssignIfAllowed = assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined
   const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortFieldByColumn)
@@ -376,7 +389,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
           title="No role assignments"
           description={`No roles have been assigned to this ${principalType}.`}
           buttonText="Assign role"
-          addData={() => setAssignModalOpen(true)}
+          addData={openAssignIfAllowed}
         />
         <AssignRoleModal
           principalType={principalType}
@@ -398,7 +411,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
             title="No role assignments"
             description={`No project-scoped roles have been assigned to this ${principalType}.`}
             buttonText="Assign role"
-            addData={() => setAssignModalOpen(true)}
+            addData={openAssignIfAllowed}
           />
         </NxPageBody>
       )
@@ -426,6 +439,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         onPrev={() => setPage((p) => Math.max(1, p - 1))}
         onNext={() => setPage((p) => p + 1)}
         onPerPageChange={handlePerPageChange}
+        permissions={assignmentPermissions}
       />
     )
   }
@@ -462,9 +476,19 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<PlusIcon />} onClick={() => setAssignModalOpen(true)}>
-                Assign role
-              </Button>
+              <DisabledWithTooltip
+                isDisabled={!assignmentPermissions.canAssign}
+                content={assignmentPermissions.tooltips.assign}
+              >
+                <Button
+                  variant="primary"
+                  icon={<RhUiAddIcon />}
+                  isAriaDisabled={!assignmentPermissions.canAssign}
+                  onClick={assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined}
+                >
+                  Assign role
+                </Button>
+              </DisabledWithTooltip>
             </FlexItem>
           </Flex>
         </StackItem>
