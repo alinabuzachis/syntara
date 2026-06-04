@@ -64,6 +64,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Destructure props to use in callbacks
   const {
     workflowId,
+    canEdit = true,
     triggerLayout,
     panelOpen,
     activeEdgeButtonNodeId,
@@ -105,7 +106,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const effectiveExecutionStatus = resolveExecutionStatus(executionStatus, storeExecutionStatus)
   const isActiveExecution =
     effectiveExecutionStatus !== null && !TERMINAL_EXECUTION_STATUSES.has(effectiveExecutionStatus)
-  const isReadOnly = isExecutionView || isActiveExecution
+  const isReadOnly = isExecutionView || isActiveExecution || !canEdit
   // Button-edge maintenance must also see null for terminal states so it recreates the "+" buttons.
   const buttonEdgeExecutionStatus = isActiveExecution ? effectiveExecutionStatus : null
 
@@ -387,6 +388,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setNodes,
     setEdges,
     executionStatus: buttonEdgeExecutionStatus,
+    isReadOnly,
   })
 
   // Use custom hook to manage edge active states
@@ -566,7 +568,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           onNodeDragStop={isReadOnly ? undefined : onNodeDragStop}
           onEdgesChange={onEdgesChange}
           onNodesDelete={isReadOnly ? undefined : onNodesDelete}
-          onNodeClick={onNodeClick}
+          onNodeClick={!canEdit && !isExecutionView ? undefined : onNodeClick}
           onConnect={isReadOnly ? undefined : onConnect}
           onConnectStart={isReadOnly ? undefined : onConnectStart}
           onConnectEnd={isReadOnly ? undefined : onConnectEnd}

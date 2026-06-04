@@ -1,4 +1,4 @@
-import { useReactFlow, Position } from '@xyflow/react'
+import { useReactFlow, Position, useStore } from '@xyflow/react'
 
 import { EdgeActions } from './EdgeActions'
 import { EdgeLabel } from './EdgeLabel'
@@ -20,6 +20,7 @@ export function LoopBackEdge(props: BaseEdgeProps) {
   const { sourceX, sourceY, targetX, targetY, label, style, id, source, target, data, markerEnd, selected } = props
   const reactFlowInstance = useReactFlow()
   const { getNodes } = reactFlowInstance
+  const nodesConnectable = useStore((s) => s.nodesConnectable)
 
   const {
     isHovered,
@@ -122,7 +123,7 @@ export function LoopBackEdge(props: BaseEdgeProps) {
         onMouseLeave={handleEdgeMouseLeave}
       />
       <EdgeLabel labelX={labelX} labelY={labelY} label={label} />
-      {(isHovered || data?.isActive) && !data?.isPending && !data?.executionStatus && (
+      {(isHovered || data?.isActive) && !data?.isPending && !data?.executionStatus && nodesConnectable && (
         <EdgeActions
           labelX={labelX}
           labelY={labelY}

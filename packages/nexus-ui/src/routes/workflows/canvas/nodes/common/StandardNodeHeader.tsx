@@ -1,4 +1,5 @@
 import { Content, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { useStore } from '@xyflow/react'
 
 import { useIsActiveExecution } from '../../../../builder/ActiveExecutionContext'
 import { useIsExecutionView } from '../../../../builder/ExecutionViewContext'
@@ -53,6 +54,7 @@ const titleSectionStyle = {
 export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
   const isExecutionView = useIsExecutionView()
   const isActiveExecution = useIsActiveExecution()
+  const nodesConnectable = useStore((s) => s.nodesConnectable)
 
   return (
     <Stack>
@@ -66,11 +68,15 @@ export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
                   <NodeExpandToggle />
                 </FlexItem>
               )}
-              {props.menuActions && props.menuActions.length > 0 && !isExecutionView && !isActiveExecution && (
-                <FlexItem>
-                  <NodeMenu menuActions={props.menuActions} />
-                </FlexItem>
-              )}
+              {props.menuActions &&
+                props.menuActions.length > 0 &&
+                !isExecutionView &&
+                !isActiveExecution &&
+                nodesConnectable && (
+                  <FlexItem>
+                    <NodeMenu menuActions={props.menuActions} />
+                  </FlexItem>
+                )}
             </Flex>
           </FlexItem>
         </NodeHeader>

@@ -2,11 +2,19 @@ import type { TaskActivity } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { TaskActivityDetails } from './TaskNode'
+vi.mock('@xyflow/react', async () => {
+  const actual = await vi.importActual('@xyflow/react')
+  return {
+    ...actual,
+    useStore: (selector: (s: { nodesConnectable: boolean }) => boolean) => selector({ nodesConnectable: true }),
+  }
+})
 
 vi.mock('./renderNodeIcon', () => ({
   renderNodeIcon: () => null,
 }))
+
+import { TaskActivityDetails } from './TaskNode'
 
 describe('TaskActivityDetails', () => {
   it('renders script task details correctly', () => {

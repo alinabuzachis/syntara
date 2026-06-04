@@ -11,6 +11,8 @@ export type FlowPosition = { x: number; y: number }
 export type BuilderFlowProps = {
   /** Workflow ID from route params (null for new workflows) */
   workflowId?: string | null
+  /** Whether the user has RBAC permission to edit. Defaults to `true` (execution view sets its own read-only). */
+  canEdit?: boolean
   /** Counter to trigger layout re-calculation */
   triggerLayout?: number
   /** Whether the side panel is open */

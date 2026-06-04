@@ -11,31 +11,11 @@ import { AlertProvider } from '../../providers/alerts'
 import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
-import { BuilderContent } from './BuilderContent'
-
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
-type BuilderContentProps = ComponentProps<typeof BuilderContent>
 
 type MutationCallbacks = {
   onSuccess?: (data: unknown, variables: unknown, context: unknown) => void
   onError?: (error: unknown, variables: unknown, context: unknown) => void
-}
-
-async function renderBuilder(props: BuilderContentProps) {
-  const view = render(<BuilderContent {...props} />, { wrapper })
-  await waitFor(() => {
-    expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
-  })
-  return view
-}
-
-async function clickKebabItem(name: RegExp | string) {
-  const user = userEvent.setup()
-  await user.click(screen.getByLabelText('Workflow actions'))
-  const menuItem = await screen.findByRole('menuitem', {
-    name: typeof name === 'string' ? new RegExp(name, 'i') : name,
-  })
-  await user.click(menuItem)
 }
 
 // Mock dependencies
@@ -94,6 +74,20 @@ vi.mock('../../hooks/useProjectSelector', () => ({
   }),
 }))
 
+const mockBuilderPermissions = vi.hoisted(() => ({
+  canEdit: true,
+  canRun: true,
+  canDelete: true,
+  isLoading: false,
+  tooltips: { edit: '', save: '', publish: '', unpublish: '', run: '', delete: '' },
+}))
+
+vi.mock('./useBuilderPermissions', () => ({
+  useBuilderPermissions: () => mockBuilderPermissions,
+}))
+
+import { BuilderContent } from './BuilderContent'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -111,6 +105,25 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     </AlertProvider>
   </QueryClientProvider>
 )
+
+type BuilderContentProps = ComponentProps<typeof BuilderContent>
+
+async function renderBuilder(props: BuilderContentProps) {
+  const view = render(<BuilderContent {...props} />, { wrapper })
+  await waitFor(() => {
+    expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
+  })
+  return view
+}
+
+async function clickKebabItem(name: RegExp | string) {
+  const user = userEvent.setup()
+  await user.click(screen.getByLabelText('Workflow actions'))
+  const menuItem = await screen.findByRole('menuitem', {
+    name: typeof name === 'string' ? new RegExp(name, 'i') : name,
+  })
+  await user.click(menuItem)
+}
 
 describe('BuilderContent', () => {
   // Using 'as WorkflowWithVersion' cast since test mocks don't need all optional fields
@@ -2859,6 +2872,41 @@ describe('BuilderContent', () => {
       })
 
       // This tests the branches: if (nameChanged) and if (descriptionChanged) and if (nameChanged || descriptionChanged || tagsChanged)
+    })
+  })
+
+  describe('RBAC read-only mode', () => {
+    afterEach(() => {
+      mockBuilderPermissions.canEdit = true
+      mockBuilderPermissions.isLoading = false
+    })
+
+    it('shows read-only banner when canEdit is false', async () => {
+      mockBuilderPermissions.canEdit = false
+      mockBuilderPermissions.isLoading = false
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      expect(screen.getByText('You are viewing this workflow in read-only mode.')).toBeInTheDocument()
+      expect(screen.getByText(/You do not have permission to edit this workflow/)).toBeInTheDocument()
+    })
+
+    it('does not show read-only banner when canEdit is true', async () => {
+      mockBuilderPermissions.canEdit = true
+      mockBuilderPermissions.isLoading = false
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      expect(screen.queryByText('You are viewing this workflow in read-only mode.')).not.toBeInTheDocument()
+    })
+
+    it('does not show read-only banner while permissions are loading', async () => {
+      mockBuilderPermissions.canEdit = false
+      mockBuilderPermissions.isLoading = true
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      expect(screen.queryByText('You are viewing this workflow in read-only mode.')).not.toBeInTheDocument()
     })
   })
 })

@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LoopBackEdge } from './LoopBackEdge'
 
+const mockNodesConnectable = vi.hoisted(() => ({ value: true }))
+const mockIsHovered = vi.hoisted(() => ({ value: false }))
+
 // Mock @xyflow/react
 const mockGetNodes = vi.fn()
 vi.mock('@xyflow/react', async (importOriginal) => {
@@ -14,6 +17,8 @@ vi.mock('@xyflow/react', async (importOriginal) => {
     useReactFlow: () => ({
       getNodes: mockGetNodes,
     }),
+    useStore: (selector: (s: { nodesConnectable: boolean }) => boolean) =>
+      selector({ nodesConnectable: mockNodesConnectable.value }),
   }
 })
 
@@ -32,7 +37,7 @@ vi.mock('./EdgeActions', () => ({
 
 vi.mock('./useEdgeHandlers', () => ({
   useEdgeHandlers: () => ({
-    isHovered: false,
+    isHovered: mockIsHovered.value,
     isEdgeHovered: false,
     effectiveMarkerEnd: 'url(#arrow)',
     handleEdgeMouseEnter: vi.fn(),
@@ -108,5 +113,48 @@ describe('LoopBackEdge', () => {
 
     render(<LoopBackEdge {...defaultProps} />)
     expect(screen.getByTestId('edge-path')).toBeInTheDocument()
+  })
+
+  it('shows EdgeActions when data.isActive is true', () => {
+    render(<LoopBackEdge {...defaultProps} data={{ isActive: true }} />)
+    expect(screen.getByTestId('edge-actions')).toBeInTheDocument()
+  })
+
+  it('shows EdgeActions when hovered', () => {
+    mockIsHovered.value = true
+    render(<LoopBackEdge {...defaultProps} />)
+    expect(screen.getByTestId('edge-actions')).toBeInTheDocument()
+    mockIsHovered.value = false
+  })
+
+  it('hides EdgeActions when hovered but isPending', () => {
+    mockIsHovered.value = true
+    render(<LoopBackEdge {...defaultProps} data={{ isPending: true }} />)
+    expect(screen.queryByTestId('edge-actions')).not.toBeInTheDocument()
+    mockIsHovered.value = false
+  })
+
+  it('hides EdgeActions when hovered but has executionStatus', () => {
+    mockIsHovered.value = true
+    render(<LoopBackEdge {...defaultProps} data={{ executionStatus: 'pending' }} />)
+    expect(screen.queryByTestId('edge-actions')).not.toBeInTheDocument()
+    mockIsHovered.value = false
+  })
+
+  it('hides EdgeActions when isPending is true', () => {
+    render(<LoopBackEdge {...defaultProps} data={{ isActive: true, isPending: true }} />)
+    expect(screen.queryByTestId('edge-actions')).not.toBeInTheDocument()
+  })
+
+  it('hides EdgeActions when executionStatus is set', () => {
+    render(<LoopBackEdge {...defaultProps} data={{ isActive: true, executionStatus: 'passed' }} />)
+    expect(screen.queryByTestId('edge-actions')).not.toBeInTheDocument()
+  })
+
+  it('hides edge actions when nodesConnectable is false', () => {
+    mockNodesConnectable.value = false
+    render(<LoopBackEdge {...defaultProps} data={{ isActive: true }} />)
+    expect(screen.queryByTestId('edge-actions')).not.toBeInTheDocument()
+    mockNodesConnectable.value = true
   })
 })

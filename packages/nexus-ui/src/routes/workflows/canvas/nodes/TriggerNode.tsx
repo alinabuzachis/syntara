@@ -1,6 +1,6 @@
 import { TriggerTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternfly/react-core'
-import { type Node, type NodeProps } from '@xyflow/react'
+import { type Node, type NodeProps, useStore } from '@xyflow/react'
 import type { CSSProperties } from 'react'
 
 import { FlowNodeType } from '../../../../constants'
@@ -123,6 +123,7 @@ function TriggerNodeDetails(
 ) {
   const isExecutionView = useIsExecutionView()
   const isActiveExecution = useIsActiveExecution()
+  const nodesConnectable = useStore((s) => s.nodesConnectable)
   const isManualTrigger = props.triggerKind === TriggerTypeEnum.MANUAL_TRIGGER
   const isScheduledTrigger = props.triggerKind === TriggerTypeEnum.SCHEDULED
   const isWebhookTrigger = props.triggerKind === TriggerTypeEnum.WEBHOOK_TRIGGER
@@ -132,11 +133,15 @@ function TriggerNodeDetails(
       <NodeHeader>
         <FlexItem>{props.icon}</FlexItem>
         <FlexItem grow={{ default: 'grow' }} />
-        {props.menuActions && props.menuActions.length > 0 && !isExecutionView && !isActiveExecution && (
-          <FlexItem>
-            <NodeMenu menuActions={props.menuActions} />
-          </FlexItem>
-        )}
+        {props.menuActions &&
+          props.menuActions.length > 0 &&
+          !isExecutionView &&
+          !isActiveExecution &&
+          nodesConnectable && (
+            <FlexItem>
+              <NodeMenu menuActions={props.menuActions} />
+            </FlexItem>
+          )}
       </NodeHeader>
       <NodeBody>
         <div>

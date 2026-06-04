@@ -1,5 +1,5 @@
 import { ExecutionStatusEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
-import { Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { Alert, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
@@ -38,6 +38,7 @@ import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle
 import { usePublishWorkflow, useUnpublishWorkflow } from './hooks/usePublishWorkflow'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext } from './NodeActionsContext'
+import { useBuilderPermissions } from './useBuilderPermissions'
 import { WorkflowHistoryCard } from './WorkflowHistoryCard'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
@@ -288,6 +289,8 @@ export function BuilderContent(props: BuilderContentProps) {
     isLiveRunActive,
   })
 
+  const builderPermissions = useBuilderPermissions(isNew)
+
   const triggers = currentWorkflow?.triggers ?? []
   const selectedTrigger = triggers[selectedTriggerIndex] ?? triggers[0]
   const triggerName = selectedTrigger?.name ?? 'Trigger'
@@ -336,8 +339,16 @@ export function BuilderContent(props: BuilderContentProps) {
                 triggers={triggers}
                 isAddNodePanelOpen={isAddNodePanelOpen}
                 hasNoWorkflowNodes={hasNoWorkflowNodes}
+                builderPermissions={builderPermissions}
               />
             </StackItem>
+            {!builderPermissions.canEdit && !builderPermissions.isLoading && (
+              <StackItem>
+                <Alert variant="info" isInline title="You are viewing this workflow in read-only mode.">
+                  You do not have permission to edit this workflow. Contact your administrator to request access.
+                </Alert>
+              </StackItem>
+            )}
             <StackItem isFilled style={{ minHeight: 0 }}>
               <Flex
                 alignItems={{ default: 'alignItemsStretch' }}
@@ -382,6 +393,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       >
                         <BuilderFlow
                           workflowId={workflowId}
+                          canEdit={builderPermissions.canEdit}
                           panelOpen={isAddNodePanelOpen || !!selectedNode}
                           activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
                           activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
@@ -426,7 +438,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     )}
                   </Stack>
                 </FlexItem>
-                {isAddNodePanelOpen && !isNodeEditorOpen && (
+                {isAddNodePanelOpen && !isNodeEditorOpen && builderPermissions.canEdit && (
                   <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
                     <AddNodePanel
                       onClose={() => dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })}
