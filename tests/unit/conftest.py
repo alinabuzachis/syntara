@@ -29,7 +29,10 @@ TEST_ENCRYPTION_KEY = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefd
 @pytest.fixture(autouse=True)
 def _set_encryption_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Provide a valid encryption key for all unit tests via env var."""
+    from nexus.core.config.base import get_settings
+
     monkeypatch.setenv("APP_SECRET_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY)
+    get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)

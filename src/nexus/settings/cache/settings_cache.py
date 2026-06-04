@@ -71,9 +71,9 @@ def _derive_signing_key() -> bytes:
     """
     global _signing_key  # noqa: PLW0603
     if _signing_key is None:
-        from nexus.core.config.base import get_settings  # noqa: PLC0415
+        from nexus.core.config.base import get_encryption_key  # noqa: PLC0415
 
-        secret = get_settings().secret_encryption_key.get_secret_value()
+        secret = get_encryption_key().get_secret_value()
         hkdf = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"settings-pubsub-hmac")
         _signing_key = hkdf.derive(secret.encode())
     return _signing_key

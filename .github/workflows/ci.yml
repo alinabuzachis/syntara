@@ -253,7 +253,6 @@ jobs:
           command: make test-e2e
         env:
           APP_BASE_URL: http://localhost:8000
-          APP_SECRET_ENCRYPTION_KEY_PATH: .secrets/encryption-key
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SEGMENT_SERVER_URL: http://localhost:9999
 

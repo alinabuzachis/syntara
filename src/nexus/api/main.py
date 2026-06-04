@@ -34,7 +34,7 @@ from nexus.authz.exceptions import (  # noqa: F401
     RoleNotFoundError,
 )
 from nexus.authz.opa_client import OPAClient
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import get_settings, validate_encryption_key_at_startup
 from nexus.core.database.audit_session import audit_engine
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
@@ -101,6 +101,8 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
 
     Returns a dict of resources needed for shutdown.
     """
+    validate_encryption_key_at_startup()
+
     # Initialise Audit framework first to ensure all Audit Events are captured
     discover_and_register_all_handlers()
     start_audit_components()

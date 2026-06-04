@@ -27,7 +27,7 @@ from jwt import PyJWKClient
 from starlette import status
 
 from nexus.auth.exceptions import OIDCErrorCode
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import get_encryption_key, get_settings
 from nexus.core.exceptions import NexusError
 from nexus.core.lib.encryption import EncryptionError, SecretEncryptor, key_from_string
 from nexus.core.lib.sanitization import escape_control_chars, has_control_chars
@@ -285,8 +285,7 @@ class OIDCService:
         if session_jti:
             payload["session_jti"] = session_jti
 
-        settings = get_settings()
-        enc_key = key_from_string(settings.secret_encryption_key.get_secret_value())
+        enc_key = key_from_string(get_encryption_key().get_secret_value())
         encryptor = SecretEncryptor(enc_key)
         token = encryptor.encrypt_field(payload, self._STATE_AAD_ID, self._STATE_AAD_FIELD)
         logger.debug("Encrypted OIDC state")
@@ -298,8 +297,7 @@ class OIDCService:
         Checks the embedded ``exp`` timestamp for TTL enforcement.
         Returns state data dict or None if invalid/expired/tampered.
         """
-        settings = get_settings()
-        enc_key = key_from_string(settings.secret_encryption_key.get_secret_value())
+        enc_key = key_from_string(get_encryption_key().get_secret_value())
         encryptor = SecretEncryptor(enc_key)
         try:
             payload: dict[str, Any] = encryptor.decrypt_field(state, self._STATE_AAD_ID, self._STATE_AAD_FIELD)

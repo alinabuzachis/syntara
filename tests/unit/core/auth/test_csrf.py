@@ -14,6 +14,12 @@ from nexus.auth.csrf import (
 from nexus.auth.exceptions import CSRFErrorCode, CSRFValidationError
 
 
+def _mock_encryption_key(value: str = "test-server-secret-key") -> MagicMock:
+    key = MagicMock()
+    key.get_secret_value.return_value = value
+    return key
+
+
 def _mock_settings(**overrides: bool | str | int | None) -> MagicMock:
     defaults: dict[str, bool | str | int | None] = {
         "cookie_secure": True,
@@ -21,9 +27,7 @@ def _mock_settings(**overrides: bool | str | int | None) -> MagicMock:
         "jwt_refresh_token_lifetime_hours": 8,
     }
     defaults.update(overrides)
-    settings = MagicMock(**defaults)
-    settings.secret_encryption_key.get_secret_value.return_value = "test-server-secret-key"
-    return settings
+    return MagicMock(**defaults)
 
 
 # =============================================================================
@@ -53,7 +57,7 @@ class TestDeriveCsrfFormToken:
     """Tests for derive_csrf_form_token."""
 
     def test_returns_hex_string(self) -> None:
-        with patch("nexus.auth.csrf.get_settings", return_value=_mock_settings()):
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_encryption_key()):
             token = derive_csrf_form_token("test-seed")
 
         # SHA-256 hex digest is 64 characters
@@ -61,29 +65,24 @@ class TestDeriveCsrfFormToken:
         assert all(c in "0123456789abcdef" for c in token)
 
     def test_deterministic_for_same_seed(self) -> None:
-        with patch("nexus.auth.csrf.get_settings", return_value=_mock_settings()):
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_encryption_key()):
             token1 = derive_csrf_form_token("same-seed")
             token2 = derive_csrf_form_token("same-seed")
 
         assert token1 == token2
 
     def test_different_seeds_produce_different_tokens(self) -> None:
-        with patch("nexus.auth.csrf.get_settings", return_value=_mock_settings()):
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_encryption_key()):
             token1 = derive_csrf_form_token("seed-one")
             token2 = derive_csrf_form_token("seed-two")
 
         assert token1 != token2
 
     def test_different_secrets_produce_different_tokens(self) -> None:
-        settings_a = _mock_settings()
-        settings_a.secret_encryption_key.get_secret_value.return_value = "secret-a"
-        settings_b = _mock_settings()
-        settings_b.secret_encryption_key.get_secret_value.return_value = "secret-b"
-
-        with patch("nexus.auth.csrf.get_settings", return_value=settings_a):
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_encryption_key("secret-a")):
             token_a = derive_csrf_form_token("same-seed")
 
-        with patch("nexus.auth.csrf.get_settings", return_value=settings_b):
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_encryption_key("secret-b")):
             token_b = derive_csrf_form_token("same-seed")
 
         assert token_a != token_b
@@ -178,7 +177,7 @@ class TestValidateCsrf:
         request.headers.get = MagicMock(return_value=None)
 
         with (
-            patch("nexus.auth.csrf.get_settings", return_value=_mock_settings()),
+            patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_encryption_key()),
             pytest.raises(CSRFValidationError, match="CSRF token header missing") as exc_info,
         ):
             validate_csrf(request)
@@ -191,7 +190,7 @@ class TestValidateCsrf:
         request.headers.get = MagicMock(return_value="wrong-token-value")
 
         with (
-            patch("nexus.auth.csrf.get_settings", return_value=_mock_settings()),
+            patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_encryption_key()),
             pytest.raises(CSRFValidationError, match="CSRF token mismatch") as exc_info,
         ):
             validate_csrf(request)
@@ -199,8 +198,8 @@ class TestValidateCsrf:
 
     def test_passes_when_token_matches(self) -> None:
         seed = "valid-seed"
-        settings = _mock_settings()
-        with patch("nexus.auth.csrf.get_settings", return_value=settings):
+        mock_key = _mock_encryption_key()
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=mock_key):
             expected_token = derive_csrf_form_token(seed)
 
         request = MagicMock()
@@ -208,15 +207,15 @@ class TestValidateCsrf:
         request.headers = MagicMock()
         request.headers.get = MagicMock(return_value=expected_token)
 
-        with patch("nexus.auth.csrf.get_settings", return_value=settings):
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=mock_key):
             # Should not raise
             validate_csrf(request)
 
     def test_header_lookup_uses_correct_name(self) -> None:
         """Verify validate_csrf reads the X-CSRF-Token header specifically."""
         seed = "seed-for-header-check"
-        settings = _mock_settings()
-        with patch("nexus.auth.csrf.get_settings", return_value=settings):
+        mock_key = _mock_encryption_key()
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=mock_key):
             expected_token = derive_csrf_form_token(seed)
 
         request = MagicMock()
@@ -224,7 +223,7 @@ class TestValidateCsrf:
         request.headers = MagicMock()
         request.headers.get = MagicMock(return_value=expected_token)
 
-        with patch("nexus.auth.csrf.get_settings", return_value=settings):
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=mock_key):
             validate_csrf(request)
 
         request.headers.get.assert_called_with(CSRF_HEADER_NAME)

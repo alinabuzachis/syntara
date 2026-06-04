@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 
 from nexus.auth.cookies import CSRF_COOKIE_NAME
 from nexus.auth.exceptions import CSRFErrorCode, CSRFValidationError
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import get_encryption_key
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -75,8 +75,7 @@ def derive_csrf_form_token(seed: str) -> str:
         Hex-encoded HMAC-SHA256 digest.
 
     """
-    settings = get_settings()
-    key = settings.secret_encryption_key.get_secret_value().encode()
+    key = get_encryption_key().get_secret_value().encode()
     return hmac.new(key, seed.encode(), hashlib.sha256).hexdigest()
 
 

@@ -76,7 +76,7 @@ from nexus.auth.session import SessionInfo, create_session_store
 from nexus.authz.dependencies import get_opa_client
 from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import get_encryption_key, get_settings
 from nexus.core.constants import FieldLimits
 from nexus.core.database.session import get_db
 from nexus.core.lib.encryption import SecretEncryptor, key_from_string
@@ -558,8 +558,7 @@ async def _maybe_rp_logout(
     decrypted_id_token_hint = None
     if session_info.id_token_hint:
         try:
-            settings = get_settings()
-            enc_key = key_from_string(settings.secret_encryption_key.get_secret_value())
+            enc_key = key_from_string(get_encryption_key().get_secret_value())
             encryptor = SecretEncryptor(enc_key)
             decrypted_id_token_hint = encryptor.decrypt_field(session_info.id_token_hint, "session", "id_token_hint")
         except (RuntimeError, ValueError):
@@ -1566,7 +1565,7 @@ async def _build_login_session_redirect(
     )
     if rp_logout_enabled:
         settings = get_settings()
-        key = key_from_string(settings.secret_encryption_key.get_secret_value())
+        key = key_from_string(get_encryption_key().get_secret_value())
         encryptor = SecretEncryptor(key)
         encrypted_id_token = encryptor.encrypt_field(id_token_raw, "session", "id_token_hint")
 

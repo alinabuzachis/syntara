@@ -16,7 +16,7 @@ from temporalio.worker import Worker
 from nexus.audit.export.activity import execute_audit_export
 from nexus.audit.export.workflow import AuditExportWorkflow
 from nexus.audit.registration import discover_and_register_all_handlers
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import get_encryption_key, get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.lib.encryption import key_from_string
 from nexus.telemetry.client import flush_telemetry, initialize_telemetry
@@ -79,8 +79,7 @@ class TemporalWorkerService:
             # Encrypt credential payloads in Temporal event history using AES-256-GCM.
             # Uses symmetric encrypt/decrypt (not one-way scrubbing) so workers can
             # still read credential data while it stays encrypted at rest in Temporal.
-            settings = get_settings()
-            encryption_key = key_from_string(settings.secret_encryption_key.get_secret_value())
+            encryption_key = key_from_string(get_encryption_key().get_secret_value())
             codec = CredentialPayloadCodec(encryption_key)
             data_converter = DataConverter(payload_codec=codec)
             self.client = await Client.connect(

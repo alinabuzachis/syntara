@@ -1621,7 +1621,8 @@ class CredentialEncryptionSettings(BaseSettings):
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
-    secret_encryption_key: SecretStr = Field(
+    secret_encryption_key: SecretStr | None = Field(
+        default=None,
         description="64-character hex string (32 bytes) for AES-256-GCM secret encryption.",
     )
 
@@ -1650,8 +1651,10 @@ class CredentialEncryptionSettings(BaseSettings):
 
     @field_validator("secret_encryption_key")
     @classmethod
-    def validate_encryption_key(cls, v: SecretStr) -> SecretStr:
-        """Validate that the encryption key is a valid, non-default 64-character hex string."""
+    def validate_encryption_key(cls, v: SecretStr | None) -> SecretStr | None:
+        """Validate the encryption key format when provided."""
+        if v is None:
+            return None
         key_value = v.get_secret_value()
         expected_hex_length = 64  # 32 bytes = 64 hex chars
         if len(key_value) != expected_hex_length:
@@ -1815,4 +1818,35 @@ def get_settings() -> Settings:
         Clear cache in tests if needed: get_settings.cache_clear()
 
     """
-    return Settings()  # type: ignore[call-arg]  # secret_encryption_key populated from env
+    return Settings()
+
+
+def validate_encryption_key_at_startup() -> None:
+    """Validate that a valid encryption key is configured.
+
+    Must be called during app/worker startup, before serving requests.
+    Raises RuntimeError if the key is missing or invalid.
+    """
+    settings = get_settings()
+    if settings.secret_encryption_key is None:
+        msg = (
+            "APP_SECRET_ENCRYPTION_KEY (or APP_SECRET_ENCRYPTION_KEY_PATH) is required. "
+            "Generate a key with:\n"
+            "  openssl rand -hex 32\n"
+            '  python -c "import secrets; print(secrets.token_hex(32))"'
+        )
+        raise RuntimeError(msg)
+
+
+def get_encryption_key() -> SecretStr:
+    """Get the encryption key, raising if not configured.
+
+    Callers that need the encryption key should use this instead of
+    accessing settings.secret_encryption_key directly to satisfy
+    type narrowing (the field is Optional to allow import without secrets).
+    """
+    key = get_settings().secret_encryption_key
+    if key is None:
+        msg = "secret_encryption_key is not configured — was validate_encryption_key_at_startup() called?"
+        raise RuntimeError(msg)
+    return key

@@ -115,7 +115,6 @@ _check-dependency-binaries: _check-uv
 define run-tests
 @PODMAN_SOCK="$(PODMAN_SOCK)" POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
-	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
 	./tools/scripts/run-with-testcontainers.sh --label "🧪 Running tests" -- \
 	uv run pytest $(1)
 endef
@@ -206,7 +205,6 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/ -v)
 else
 	@echo "🧪 Running end to end tests..."
-	APP_SECRET_ENCRYPTION_KEY_PATH=$${APP_SECRET_ENCRYPTION_KEY_PATH:-.secrets/encryption-key} \
 	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/ -v
 endif
@@ -246,8 +244,8 @@ db-seed-all: check-deps ## Run all database seeders including dev samples
 .PHONY: dev
 dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
-	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key uv run alembic upgrade head
-	@APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key uv run alembic -c alembic_audit.ini upgrade head
+	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
+	@uv run alembic -c alembic_audit.ini upgrade head
 	@$(MAKE) db-seed
 	@echo "✅ Migrations and seeding complete"
 	@echo "🚀 Starting Nexus API server..."
@@ -522,10 +520,9 @@ verify-test-structure: ## Verify test directory structure matches source code do
 	@uv run python tools/ci/verify_test_structure.py
 
 .PHONY: api-spec-drift
-api-spec-drift: _ensure-secrets ## Check that committed openapi.yaml matches the generated spec (VERBOSITY=-v/-vv/-vvv)
+api-spec-drift: ## Check that committed openapi.yaml matches the generated spec (VERBOSITY=-v/-vv/-vvv)
 	@echo "🔍 Checking OpenAPI spec is up to date..."
-	@APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
-		uv run python tools/export_openapi.py 2>/dev/null | uv run python tools/ci/check_openapi_spec.py $(OPENAPI_SPEC) $(VERBOSITY)
+	@uv run python tools/export_openapi.py 2>/dev/null | uv run python tools/ci/check_openapi_spec.py $(OPENAPI_SPEC) $(VERBOSITY)
 
 .PHONY: api-spec-bundle
 api-spec-bundle: ## Bundle all domain sub-specs into a single merged openapi.yaml (no external $refs)
@@ -657,7 +654,6 @@ typecheck-pyrefly: ## Run type checking with pyrefly (~3s, used in pre-commit)
 .PHONY: check-migrations
 check-migrations: _ensure-secrets ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (uses testcontainers)
 	@PODMAN_SOCK="$(PODMAN_SOCK)" POSTGRES_IMAGE="$(POSTGRES_IMAGE)" APP_ADMIN_PASSWORD_PATH=.secrets/admin-password \
-		APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
 		./tools/scripts/run-with-testcontainers.sh --label "🔍 Checking migrations" -- \
 		uv run python tools/ci/check_migrations.py
 

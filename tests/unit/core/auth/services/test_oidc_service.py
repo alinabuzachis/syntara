@@ -322,8 +322,8 @@ class TestStoreOidcState:
 
     def test_returns_encrypted_token(self, oidc_service: OIDCService) -> None:
         """Test that state is returned as an encrypted token string."""
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
             state = oidc_service.store_oidc_state(
                 provider_id=uuid4(),
                 nonce="test-nonce-456",
@@ -335,8 +335,8 @@ class TestStoreOidcState:
 
     def test_payload_is_not_readable(self, oidc_service: OIDCService) -> None:
         """Test that the code_verifier is not visible in the state token."""
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
             state = oidc_service.store_oidc_state(
                 provider_id=uuid4(),
                 nonce="test-nonce",
@@ -349,8 +349,8 @@ class TestStoreOidcState:
         """Test that all state fields survive encrypt/decrypt roundtrip."""
         provider_id = uuid4()
 
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
             state = oidc_service.store_oidc_state(
                 provider_id=provider_id,
                 nonce="test-nonce",
@@ -382,8 +382,8 @@ class TestRetrieveOidcState:
         """Test that a valid encrypted state is decrypted."""
         provider_id = uuid4()
 
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
             state = oidc_service.store_oidc_state(
                 provider_id=provider_id,
                 nonce="test-nonce",
@@ -398,32 +398,32 @@ class TestRetrieveOidcState:
 
     def test_returns_none_for_tampered_state(self, oidc_service: OIDCService) -> None:
         """Test that a tampered token returns None."""
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
             result = oidc_service.retrieve_oidc_state("tampered-garbage-token")
 
         assert result is None
 
     def test_returns_none_for_wrong_key(self, oidc_service: OIDCService) -> None:
         """Test that decryption with a different key fails."""
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
             state = oidc_service.store_oidc_state(
                 provider_id=uuid4(),
                 nonce="test-nonce",
                 code_verifier="test-verifier",
             )
 
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "b" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "b" * 64
             result = oidc_service.retrieve_oidc_state(state)
 
         assert result is None
 
     def test_returns_none_for_expired_state(self, oidc_service: OIDCService) -> None:
         """Test that state with an expired timestamp returns None."""
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
 
             # Encrypt state with exp in the past
             with patch("nexus.auth.services.oidc_service.time.time", return_value=time.time() - 700):
@@ -439,8 +439,8 @@ class TestRetrieveOidcState:
 
     def test_exp_is_stripped_from_result(self, oidc_service: OIDCService) -> None:
         """Test that the exp claim is not returned to the caller."""
-        with patch("nexus.auth.services.oidc_service.get_settings") as mock_settings:
-            mock_settings.return_value.secret_encryption_key.get_secret_value.return_value = "a" * 64
+        with patch("nexus.auth.services.oidc_service.get_encryption_key") as mock_key:
+            mock_key.return_value.get_secret_value.return_value = "a" * 64
             state = oidc_service.store_oidc_state(
                 provider_id=uuid4(),
                 nonce="test-nonce",

@@ -23,7 +23,7 @@ import sys
 import structlog
 
 from nexus.audit.registration import discover_and_register_all_handlers
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import get_settings, validate_encryption_key_at_startup
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.logging.logging import apply_runtime_log_level
 from nexus.settings.cache.settings_cache import SettingsCache, get_runtime_settings, set_runtime_settings
@@ -51,6 +51,7 @@ logger = structlog.stdlib.get_logger(__name__)
 
 async def main() -> None:
     """Run the Temporal worker."""
+    validate_encryption_key_at_startup()
     worker_service = None
 
     # Setup graceful shutdown

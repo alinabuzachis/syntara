@@ -10,6 +10,10 @@ This module provides:
 import os as _os
 
 _os.environ.setdefault("APP_ENV_FILE_PATH", "/dev/null")
+_os.environ.setdefault(
+    "APP_SECRET_ENCRYPTION_KEY",
+    "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+)
 
 import asyncio
 import os
