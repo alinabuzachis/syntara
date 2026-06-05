@@ -23,7 +23,7 @@ import pytest
 
 from tests.performance.conftest import (
     create_perf_test_workflow,
-    poll_for_component_kpis,
+    poll_until,
     scrape_prometheus_metric,
     submit_execution,
 )
@@ -51,9 +51,22 @@ def _poll_for_queue_depth_stats(
     nexus_api: NexusApiRegistry,
 ) -> dict[str, Any]:
     """Poll temporal_worker KPIs until queue_depth stats appear."""
-    kpis = poll_for_component_kpis(nexus_api.internal_metrics, "temporal_worker")
-    qd = kpis.get("metrics", {}).get("queue_depth", {})
-    return qd if isinstance(qd, dict) else {}
+
+    def _probe() -> dict[str, Any]:
+        r = nexus_api.internal_metrics.get_component_kpis(component="temporal_worker")
+        r.assert_successful()
+        kpis = r.parsed.to_dict() if r.parsed is not None else {}
+        qd = kpis.get("metrics", {}).get("queue_depth", {})
+        return qd if isinstance(qd, dict) else {}
+
+    # Poll with 15s timeout to allow for at least 2 poller cycles (5s each)
+    # The queue_depth_poller runs every 5s, so we need to wait for it
+    return poll_until(
+        _probe,
+        lambda stats: stats.get("count", 0) > 0,
+        timeout=15.0,
+        interval=1.0,
+    )
 
 
 def _submit_executions_concurrently(
