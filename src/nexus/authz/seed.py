@@ -191,7 +191,7 @@ async def _seed_assignments_and_admin(
             email="system@nexus.local",
             first_name="System",
             is_active=True,
-            is_builtin=True,
+            is_builtin=False,
             password_hash=hash_password(secrets.token_hex(32)),
         )
         session.add(system_user)
