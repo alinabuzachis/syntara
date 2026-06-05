@@ -20,6 +20,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+import structlog
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
 
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.types import Response
+
+logger = structlog.stdlib.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 
@@ -84,7 +87,8 @@ def _safe_api_call(
         r = api_call(**kwargs)
         stats.record(label, r.status_code)
         return r.status_code < 500, r
-    except Exception:
+    except Exception as exc:
+        logger.debug("API call failed", label=label, error_type=type(exc).__name__, error=str(exc))
         stats.record_failure(label)
         return False, None
 

@@ -28,7 +28,7 @@ import httpx
 import pytest
 import structlog
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
@@ -95,7 +95,7 @@ def call_openrouter(
         elapsed_ms = (time.monotonic() - start) * 1000
         logger.warning(
             "Direct OpenRouter call failed",
-            exc_type=type(exc).__name__,
+            error_type=type(exc).__name__,
             elapsed_ms=f"{elapsed_ms:.1f}",
         )
         return elapsed_ms, False, 0

@@ -12,7 +12,6 @@ Run with:
 from __future__ import annotations
 
 import pytest
-import structlog
 
 from tests.performance.llm_model.conftest import (
     get_direct_llm_model,
@@ -21,8 +20,6 @@ from tests.performance.llm_model.conftest import (
 )
 
 pytestmark = pytest.mark.performance
-
-logger = structlog.get_logger(__name__)
 
 BURST_RPS = 50
 BURST_DURATION_SECONDS = 30

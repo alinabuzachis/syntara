@@ -33,7 +33,7 @@ from tests.performance.llm_model.conftest import (
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 STREAMING_REQUESTS = 50
 
@@ -100,7 +100,7 @@ def _stream_openrouter_ttft(
         elapsed_ms = (time.monotonic() - start) * 1000
         logger.warning(
             "Streaming OpenRouter call failed",
-            exc_type=type(exc).__name__,
+            error_type=type(exc).__name__,
             elapsed_ms=f"{elapsed_ms:.1f}",
         )
         return elapsed_ms, False, 0

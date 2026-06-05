@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 WRITER_COUNT = 20
 READER_COUNT = 30

@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+import structlog
 from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
@@ -37,6 +38,8 @@ from tests.performance.execution_service.conftest import (
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+
+logger = structlog.stdlib.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 
@@ -123,7 +126,8 @@ class TestCompletionRate:
                     )
                     if r.is_success and r.parsed:
                         execution_map[str(r.parsed.id)] = wf_id
-                except Exception:
+                except Exception as exc:
+                    logger.warning("Execution creation failed", workflow_id=wf_id, error=str(exc))
                     creation_failures += 1
 
             status_counts: dict[str, int] = {}
@@ -184,8 +188,8 @@ class TestCompletionRate:
             for wf_id in workflow_ids:
                 try:
                     nexus_api.workflows.delete(workflow_id=wf_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Workflow cleanup failed", workflow_id=wf_id, error=str(exc))
 
 
 class TestCancellationTracking:
@@ -274,8 +278,8 @@ class TestCancellationTracking:
                     )
                     if r.is_success and r.parsed:
                         execution_ids.append(str(r.parsed.id))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Execution creation failed", workflow_id=wf_id, error=str(exc))
 
             status_counts = self._poll_until_executions_terminal(nexus_api, execution_ids)
 
@@ -308,5 +312,5 @@ class TestCancellationTracking:
             for wf_id in workflow_ids:
                 try:
                     nexus_api.workflows.delete(workflow_id=wf_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Workflow cleanup failed", workflow_id=wf_id, error=str(exc))

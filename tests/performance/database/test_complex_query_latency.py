@@ -44,7 +44,7 @@ DEEP_PAGE_SIZE = 50
 QUERIES_PER_DEPTH = 5
 LIST_ITERATION_COUNT = 50
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class TestComplexQueryLatency:

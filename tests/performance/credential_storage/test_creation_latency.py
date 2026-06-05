@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 SEQUENTIAL_CREDENTIAL_COUNT = 200
 TARGET_CREATION_LATENCY_P95_MS = 200

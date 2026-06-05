@@ -15,7 +15,6 @@ import itertools
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
-import structlog
 
 from tests.performance.conftest import compute_percentile
 from tests.performance.llm_model.conftest import (
@@ -27,8 +26,6 @@ from tests.performance.llm_model.conftest import (
 )
 
 pytestmark = pytest.mark.performance
-
-logger = structlog.get_logger(__name__)
 
 TOTAL_REQUESTS = 100
 TARGET_P95_MS = 200

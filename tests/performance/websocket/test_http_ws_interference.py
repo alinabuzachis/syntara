@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 HTTP_RPS = 50
 HTTP_DURATION_SECONDS = 30
@@ -205,8 +205,8 @@ async def _ws_connect_and_collect(
     for ws in connections:
         try:
             await ws.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("WebSocket close failed during cleanup", error=str(exc))
 
 
 def _run_http_load(

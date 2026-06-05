@@ -21,7 +21,6 @@ from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 import pytest
-import structlog
 
 from tests.performance.conftest import (
     ALL_LLM_TEST_PROMPTS,
@@ -40,8 +39,6 @@ if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
 pytestmark = pytest.mark.performance
-
-logger = structlog.get_logger(__name__)
 
 # Nexus overhead should be < 30% of LLM time: (total - llm) / llm < 0.30
 TARGET_OVERHEAD_RATIO = 0.30

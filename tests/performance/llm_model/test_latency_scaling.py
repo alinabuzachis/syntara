@@ -25,7 +25,7 @@ from tests.performance.llm_model.conftest import (
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 TOKEN_SIZES = [100, 500, 2000, 5000]
 REQUESTS_PER_SIZE = 10

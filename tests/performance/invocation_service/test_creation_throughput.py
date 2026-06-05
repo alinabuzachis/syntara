@@ -14,13 +14,13 @@ Run with:
 
 from __future__ import annotations
 
-import logging
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+import structlog
 
 from tests.performance.conftest import poll_for_component_kpis
 from tests.performance.invocation_service.conftest import create_invocation
@@ -28,7 +28,7 @@ from tests.performance.invocation_service.conftest import create_invocation
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 
@@ -63,7 +63,7 @@ def _collect_completed(
             done.add(future)
     except TimeoutError:
         remaining = len(pending) - len(done)
-        logger.debug("as_completed timeout: %d futures still pending", remaining)
+        logger.debug("as_completed timeout, futures still pending", remaining=remaining)
     return response_times, successes, failures, done
 
 
@@ -81,11 +81,11 @@ def _drain_pending(
     """
     if not pending:
         return [], 0, 0
-    logger.debug("Draining %d remaining futures", len(pending))
+    logger.debug("Draining remaining futures", count=len(pending))
     response_times, successes, failures, _ = _collect_completed(pending, timeout)
     undrained = sum(1 for f in pending if not f.done())
     if undrained:
-        logger.warning("Drain timeout: %d futures still unfinished, counting as failures", undrained)
+        logger.warning("Drain timeout, futures still unfinished counting as failures", undrained=undrained)
         failures += undrained
     return response_times, successes, failures
 

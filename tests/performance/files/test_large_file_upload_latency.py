@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 # Size tiers (KB)
 SIZE_10_MB_KB = 10 * 1024

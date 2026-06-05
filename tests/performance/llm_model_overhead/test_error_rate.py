@@ -40,7 +40,7 @@ SUSTAINED_DURATION_SECONDS = 60
 MAX_WORKERS = 30
 MIN_SLEEP_INTERVAL = 0.001
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def _count_llm_statuses(records: dict[str, Any]) -> tuple[int, int, int]:

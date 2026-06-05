@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 TARGET_API_P95_MS = 200
 BURST_UPLOADS = UPLOAD_COUNT  # 50

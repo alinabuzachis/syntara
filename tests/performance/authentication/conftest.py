@@ -34,11 +34,8 @@ from typing import Any
 
 import httpx
 import pytest
-import structlog
 
 from tests.performance.conftest import timed_http_request
-
-logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Targets from the Performance Test Plan

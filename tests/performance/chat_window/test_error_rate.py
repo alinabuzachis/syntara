@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
     from nexus_api_client.api import NexusApiRegistry
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 
@@ -99,7 +99,7 @@ class TestChatSessionErrorRate:
                 except Exception as exc:
                     logger.warning(
                         "Chat message future failed during error rate test",
-                        exc_type=type(exc).__name__,
+                        error_type=type(exc).__name__,
                         exc_info=True,
                     )
                     total_failures += 1
@@ -152,7 +152,7 @@ class TestChatSessionErrorRate:
                 except Exception as exc:
                     logger.warning(
                         "Chat message future failed during server KPI validation",
-                        exc_type=type(exc).__name__,
+                        error_type=type(exc).__name__,
                         exc_info=True,
                     )
 

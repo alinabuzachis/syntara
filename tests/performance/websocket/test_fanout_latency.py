@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 FANOUT_CLIENTS = 50
 TARGET_FANOUT_LATENCY_P95_MS = 100
@@ -206,8 +206,8 @@ async def _fanout_connect_and_collect(
     for ws in connections:
         try:
             await ws.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("WebSocket close failed during cleanup", error=str(exc))
 
     valid_events: list[list[dict[str, Any]]] = [result for result in all_events if isinstance(result, list)]
     return valid_events, connect_times
@@ -278,10 +278,11 @@ async def _stream_invocations(
             )
             try:
                 await ws.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("WebSocket close failed", error=str(exc))
             return events
-        except Exception:
+        except Exception as exc:
+            logger.warning("Stream collection failed", invocation_id=inv_id, error=str(exc))
             return []
 
     tasks = [asyncio.create_task(_stream_one(inv_id)) for inv_id in invocation_ids]

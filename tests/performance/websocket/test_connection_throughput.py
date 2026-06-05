@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 CONCURRENT_CONNECTIONS = 50
 TARGET_CONNECTION_TIME_MS = 1000

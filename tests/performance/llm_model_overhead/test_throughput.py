@@ -36,7 +36,7 @@ BURST_DURATION_SECONDS = 60
 MAX_WORKERS = 60
 MIN_SLEEP_INTERVAL = 0.001
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class TestNexusOverheadThroughput:

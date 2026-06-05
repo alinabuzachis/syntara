@@ -38,7 +38,6 @@ Run with:
 from __future__ import annotations
 
 import itertools
-import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -46,13 +45,14 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+import structlog
 
 from tests.performance.conftest import log_request_failure
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 ENCRYPTED_SENTINEL = "$encrypted$"
 
@@ -192,8 +192,8 @@ def create_credential(
     # Validate SSH key is available
     if credential_type_name == "SSH Key" and not inputs_dict.get("ssh_private_key"):
         logger.warning(
-            "Cannot create SSH credential - %s not set. Skipping this credential.",
-            _SSH_KEY_ENV_VAR,
+            "Cannot create SSH credential - env var not set, skipping",
+            env_var=_SSH_KEY_ENV_VAR,
         )
         return 0.0, False, None
 
@@ -315,8 +315,8 @@ def delete_credential_by_id(
     """Best-effort cleanup of a credential."""
     try:
         nexus_api.credentials.delete(credential_id=UUID(credential_id))
-    except Exception:
-        logger.debug("Failed to delete credential %s during cleanup", credential_id)
+    except Exception as exc:
+        logger.debug("Failed to delete credential during cleanup", credential_id=credential_id, error=str(exc))
 
 
 def delete_credential_timed(

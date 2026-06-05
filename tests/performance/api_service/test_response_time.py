@@ -32,7 +32,7 @@ from tests.performance.conftest import (
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 

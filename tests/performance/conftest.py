@@ -171,7 +171,7 @@ SIMPLE_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition(
 
 _AUTH_FAILURE_STATUS_CODES = frozenset({401, 403})
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 def _extract_status_code(exc: Exception) -> int | None:
@@ -213,7 +213,7 @@ def log_request_failure(exc: Exception, *, context: str) -> None:
     logger.warning(
         "Request failed during performance test",
         context=context,
-        exc_type=type(exc).__name__,
+        error_type=type(exc).__name__,
         status_code=status_code,
         url=str(exc.request.url.copy_with(params=None)) if isinstance(exc, httpx.HTTPStatusError) else None,
         exc_info=not carries_http_objects,
@@ -288,6 +288,14 @@ def poll_until[T](
     while not ready(result) and time.monotonic() < deadline:
         time.sleep(interval)
         result = probe()
+    elapsed = timeout - (deadline - time.monotonic())
+    if not ready(result):
+        logger.warning(
+            "poll_until timed out without satisfying ready condition",
+            timeout_s=timeout,
+            interval_s=interval,
+            elapsed_s=round(elapsed, 2),
+        )
     return result
 
 
@@ -544,6 +552,15 @@ def run_load_window(
 
     wall_time = time.monotonic() - window_start
     actual_rps = completed / max(wall_time, 0.001)
+    logger.info(
+        "Load window complete",
+        target_rps=target_rps,
+        duration_s=duration,
+        completed=completed,
+        errors=errors,
+        actual_rps=round(actual_rps, 2),
+        wall_time_s=round(wall_time, 2),
+    )
     return completed, errors, actual_rps
 
 
@@ -969,8 +986,26 @@ def wait_for_invocations(
         timeout: Maximum seconds to wait per invocation.
 
     """
-    for inv_id in invocation_ids:
-        poll_for_invocation_terminal_status(nexus_api, inv_id, timeout=timeout)
+    timed_out = 0
+    for idx, inv_id in enumerate(invocation_ids):
+        result = poll_for_invocation_terminal_status(nexus_api, inv_id, timeout=timeout)
+        status = str(result.get("status", ""))
+        if status not in {"completed", "failed", "cancelled"}:
+            timed_out += 1
+            logger.warning(
+                "Invocation did not reach terminal status within timeout",
+                invocation_id=inv_id,
+                last_status=status or "unknown",
+                timeout_s=timeout,
+                index=idx,
+                total=len(invocation_ids),
+            )
+    if timed_out:
+        logger.warning(
+            "Some invocations timed out during wait",
+            timed_out=timed_out,
+            total=len(invocation_ids),
+        )
 
 
 # ---------------------------------------------------------------------------

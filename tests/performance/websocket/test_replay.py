@@ -16,6 +16,7 @@ import time
 from typing import TYPE_CHECKING
 
 import pytest
+import structlog
 
 from tests.performance.conftest import (
     TERMINAL_STATUSES,
@@ -35,6 +36,8 @@ from tests.performance.websocket.conftest import (
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+
+logger = structlog.stdlib.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 
@@ -117,8 +120,8 @@ class TestReplayDuration:
 
             try:
                 await ws.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("WebSocket close failed during replay", error=str(exc))
 
             return replay_duration_ms, len(events)
 

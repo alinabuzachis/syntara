@@ -30,7 +30,7 @@ from tests.performance.files.conftest import (
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 TARGET_CONVERSION_TIME_S = 30.0
 SERVICE_LEVEL_TARGET_S = 5.0

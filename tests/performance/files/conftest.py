@@ -30,7 +30,6 @@ import time
 from typing import TYPE_CHECKING, Any
 
 import pytest
-import structlog
 
 from tests.performance.conftest import log_request_failure
 
@@ -38,8 +37,6 @@ if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
     from nexus.files.models import FileMetadata
-
-logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Synthetic file content generators

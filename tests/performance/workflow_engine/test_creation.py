@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+import structlog
 from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.performance.conftest import poll_for_component_kpis, poll_for_metric_records
@@ -27,6 +28,8 @@ from tests.performance.workflow_engine.conftest import (
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
+
+logger = structlog.stdlib.get_logger(__name__)
 
 pytestmark = pytest.mark.performance
 
@@ -119,8 +122,8 @@ class TestSequentialWorkflowCreation:
         for wf_id in created_ids:
             try:
                 nexus_api.workflows.delete(workflow_id=wf_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Workflow cleanup failed", workflow_id=wf_id, error=str(exc))
 
 
 class TestDuplicateNameFailureCategorization:
@@ -171,8 +174,8 @@ class TestDuplicateNameFailureCategorization:
             if created_id:
                 try:
                     nexus_api.workflows.delete(workflow_id=created_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Workflow cleanup failed", workflow_id=created_id, error=str(exc))
 
     def test_duplicate_name_records_failure_labels(
         self,
@@ -213,5 +216,5 @@ class TestDuplicateNameFailureCategorization:
             if created_id:
                 try:
                     nexus_api.workflows.delete(workflow_id=created_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Workflow cleanup failed", workflow_id=created_id, error=str(exc))

@@ -17,13 +17,12 @@ execution.
 Run with: pytest --run-performance tests/performance/telemetry/
 """
 
-import logging
 import statistics
-import sys
 import time
 import uuid
 
 import pytest
+import structlog
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.telemetry.client import TelemetryClientRegistry
@@ -40,12 +39,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
     WorkflowTerminalStatus,
 )
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-handler.setFormatter(logging.Formatter("%(message)s"))
-logger.addHandler(handler)
+logger = structlog.stdlib.get_logger(__name__)
 
 # Number of simulated workflow executions per measurement
 _ITERATIONS = 50
@@ -170,14 +164,28 @@ class TestTelemetryOverhead:
             mean_telemetry = statistics.mean(with_telemetry)
             overhead_pct = ((mean_telemetry - mean_baseline) / mean_baseline) * 100
 
-            logger.info("\nTelemetry Overhead (n=%d):", _ITERATIONS)
-            logger.info("  Baseline mean:   %.3fms", mean_baseline)
-            logger.info("  Telemetry mean:  %.3fms", mean_telemetry)
-            logger.info("  Overhead:        %.2f%%", overhead_pct)
-            logger.info("  Baseline p95:    %.3fms", sorted(baseline)[int(0.95 * len(baseline))])
-            logger.info("  Telemetry p95:   %.3fms", sorted(with_telemetry)[int(0.95 * len(with_telemetry))])
+            baseline_p95 = sorted(baseline)[int(0.95 * len(baseline))]
+            telemetry_p95 = sorted(with_telemetry)[int(0.95 * len(with_telemetry))]
 
-            assert overhead_pct < 5.0, f"Telemetry overhead {overhead_pct:.2f}% exceeds 5% threshold"
-            logger.info("  PASS: telemetry overhead is within 5%% budget")
+            logger.info(
+                "Telemetry overhead test results (SC-002)",
+                iterations=_ITERATIONS,
+                baseline_mean_ms=round(mean_baseline, 3),
+                baseline_p95_ms=round(baseline_p95, 3),
+                telemetry_mean_ms=round(mean_telemetry, 3),
+                telemetry_p95_ms=round(telemetry_p95, 3),
+                overhead_pct=round(overhead_pct, 2),
+                threshold_pct=5.0,
+            )
+
+            diag = (
+                f"\n--- Telemetry overhead results (SC-002) ---\n"
+                f"  iterations={_ITERATIONS}\n"
+                f"  baseline: mean={mean_baseline:.3f}ms, p95={baseline_p95:.3f}ms\n"
+                f"  telemetry: mean={mean_telemetry:.3f}ms, p95={telemetry_p95:.3f}ms\n"
+                f"  overhead={overhead_pct:.2f}%\n"
+            )
+
+            assert overhead_pct < 5.0, f"Telemetry overhead {overhead_pct:.2f}% exceeds 5% threshold{diag}"
         finally:
             registry.get_client().shutdown()

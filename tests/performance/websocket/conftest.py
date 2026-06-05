@@ -31,13 +31,10 @@ import json
 import time
 from typing import TYPE_CHECKING, Any
 
-import structlog
 import websockets
 
 if TYPE_CHECKING:
     from websockets.asyncio.client import ClientConnection
-
-logger = structlog.get_logger(__name__)
 
 WS_CONNECT_TIMEOUT = 10.0
 WS_RECEIVE_TIMEOUT = 30.0

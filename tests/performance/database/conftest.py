@@ -31,6 +31,8 @@ from tests.performance.conftest import (
     log_request_failure,
 )
 
+logger = structlog.stdlib.get_logger(__name__)
+
 TARGET_SIMPLE_QUERY_P95_MS = 50
 TARGET_COMPLEX_QUERY_P95_MS = 200
 
@@ -95,15 +97,14 @@ def cleanup_workflows(
         workflow_ids: List of workflow IDs to delete.
 
     """
-    log = structlog.get_logger(__name__)
     for wf_id in workflow_ids:
         try:
             nexus_api.workflows.delete(workflow_id=wf_id)
         except Exception as exc:
-            log.warning(
+            logger.warning(
                 "Failed to delete workflow during cleanup",
                 workflow_id=wf_id,
-                exc_type=type(exc).__name__,
+                error_type=type(exc).__name__,
                 status_code=_extract_status_code(exc),
             )
 

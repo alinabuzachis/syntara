@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.performance
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 REQUEST_COUNT = 100
 TARGET_RESPONSE_TIME_P95_MS = 300
@@ -124,7 +124,7 @@ class TestNexusOverheadResponseTime:
         except Exception as exc:
             logger.warning(
                 "Failed to fetch api_service KPIs (optional cross-validation skipped)",
-                exc_type=type(exc).__name__,
+                error_type=type(exc).__name__,
                 error=str(exc),
             )
 
@@ -136,7 +136,7 @@ class TestNexusOverheadResponseTime:
         except Exception as exc:
             logger.warning(
                 "Failed to fetch llm KPIs (optional cross-validation skipped)",
-                exc_type=type(exc).__name__,
+                error_type=type(exc).__name__,
                 error=str(exc),
             )
 
