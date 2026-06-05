@@ -81,6 +81,20 @@ export async function createWorkflowViaApi(
       name: options.name,
       description: `E2E seed workflow: ${options.name}`,
       is_enabled: false,
+      workflow_definition: {
+        schema_version: '2.0.0',
+        name: options.name,
+        description: `E2E seed workflow: ${options.name}`,
+        triggers: [
+          {
+            id: 'trigger-1',
+            name: 'Manual trigger',
+            type: 'manual',
+          },
+        ],
+        nodes: [],
+        edges: [],
+      },
     }
     if (projectId) data.project_id = projectId
 
