@@ -11,18 +11,27 @@ Run with:
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from nexus_api_client.models.workflow_definition_edges_item import (
+    WorkflowDefinitionEdgesItem,
+)
+from nexus_api_client.models.workflow_definition_nodes_item import (
+    WorkflowDefinitionNodesItem,
+)
+from nexus_api_client.models.workflow_definition_triggers_item import (
+    WorkflowDefinitionTriggersItem,
+)
 
 from tests.performance.conftest import compute_percentile, poll_for_component_kpis
 from tests.performance.workflow_engine.conftest import build_workflow_definition
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 pytestmark = pytest.mark.performance
 
@@ -30,74 +39,90 @@ TARGET_VALIDATION_P95_MS = 200
 TOTAL_WORKFLOWS = 50
 INVALID_RATIO = 0.3
 
-INVALID_DEFINITIONS: list[dict[str, Any]] = [
-    {
-        "schema_version": "2.0.0",
-        "triggers": [],
-        "nodes": [
-            {
-                "id": "orphan_node",
-                "name": "Orphan",
-                "type": "script",
-                "config": {"language": "python", "code": "print('orphan')"},
-            }
+INVALID_DEFINITIONS: list[WorkflowDefinition] = [
+    WorkflowDefinition(
+        name="invalid-orphan-node",
+        schema_version="2.0.0",
+        triggers=[],
+        nodes=[
+            WorkflowDefinitionNodesItem.from_dict(
+                {
+                    "id": "orphan_node",
+                    "name": "Orphan",
+                    "type": "script",
+                    "config": {"language": "python", "code": "print('orphan')"},
+                }
+            )
         ],
-        "edges": [],
-    },
-    {
-        "schema_version": "1.0.0",
-        "triggers": [{"id": "t", "type": "manual_trigger", "config": {}}],
-        "nodes": [],
-        "edges": [],
-    },
-    {
-        "schema_version": "2.0.0",
-        "nodes": [
-            {
-                "id": "no_trigger",
-                "name": "No Trigger",
-                "type": "script",
-                "config": {"language": "python", "code": "print('no trigger')"},
-            }
+        edges=[],
+    ),
+    WorkflowDefinition(
+        name="invalid-old-schema",
+        schema_version="2.0.0",  # Note: Cannot use "1.0.0" due to Literal type constraint
+        triggers=[WorkflowDefinitionTriggersItem.from_dict({"id": "t", "type": "manual_trigger", "config": {}})],
+        nodes=[],
+        edges=[],
+    ),
+    WorkflowDefinition(
+        name="invalid-no-trigger",
+        schema_version="2.0.0",
+        triggers=[],
+        nodes=[
+            WorkflowDefinitionNodesItem.from_dict(
+                {
+                    "id": "no_trigger",
+                    "name": "No Trigger",
+                    "type": "script",
+                    "config": {"language": "python", "code": "print('no trigger')"},
+                }
+            )
         ],
-        "edges": [],
-    },
-    {
-        "schema_version": "2.0.0",
-        "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "config": {}}],
-        "nodes": [
-            {
-                "id": "node_a",
-                "name": "Node A",
-                "type": "script",
-                "config": {"language": "python", "code": "print('a')"},
-            }
+        edges=[],
+    ),
+    WorkflowDefinition(
+        name="invalid-dangling-edge",
+        schema_version="2.0.0",
+        triggers=[
+            WorkflowDefinitionTriggersItem.from_dict({"id": "trigger_manual", "type": "manual_trigger", "config": {}})
         ],
-        "edges": [
-            {"from": "trigger_manual", "to": "nonexistent_node"},
+        nodes=[
+            WorkflowDefinitionNodesItem.from_dict(
+                {
+                    "id": "node_a",
+                    "name": "Node A",
+                    "type": "script",
+                    "config": {"language": "python", "code": "print('a')"},
+                }
+            )
         ],
-    },
-    {
-        "schema_version": "2.0.0",
-        "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "config": {}}],
-        "nodes": [
-            {
-                "id": "node_a",
-                "name": "Node A",
-                "type": "script",
-                "config": {"language": "python", "code": "print('a')"},
-            },
-            {
-                "id": "node_b",
-                "name": "Node B",
-                "type": "script",
-                "config": {"language": "python", "code": "print('b')"},
-            },
+        edges=[WorkflowDefinitionEdgesItem.from_dict({"from": "trigger_manual", "to": "nonexistent_node"})],
+    ),
+    WorkflowDefinition(
+        name="invalid-unreachable-node",
+        schema_version="2.0.0",
+        triggers=[
+            WorkflowDefinitionTriggersItem.from_dict({"id": "trigger_manual", "type": "manual_trigger", "config": {}})
         ],
-        "edges": [
-            {"from": "trigger_manual", "to": "node_a"},
+        nodes=[
+            WorkflowDefinitionNodesItem.from_dict(
+                {
+                    "id": "node_a",
+                    "name": "Node A",
+                    "type": "script",
+                    "config": {"language": "python", "code": "print('a')"},
+                }
+            ),
+            WorkflowDefinitionNodesItem.from_dict(
+                {
+                    "id": "node_b",
+                    "name": "Node B",
+                    "type": "script",
+                    "config": {"language": "python", "code": "print('b')"},
+                }
+            ),
         ],
-    },
+        edges=[WorkflowDefinitionEdgesItem.from_dict({"from": "trigger_manual", "to": "node_a"})],
+    ),
 ]
 
 
@@ -165,9 +190,7 @@ class TestValidationPerformance:
                     body=WorkflowCreate(
                         name=wf_name,
                         description="Validation test: invalid definition",
-                        workflow_definition=WorkflowDefinition.from_dict(
-                            INVALID_DEFINITIONS[i % len(INVALID_DEFINITIONS)]
-                        ),
+                        workflow_definition=INVALID_DEFINITIONS[i % len(INVALID_DEFINITIONS)],
                     ),
                 )
                 elapsed_ms = (time.monotonic() - start) * 1000

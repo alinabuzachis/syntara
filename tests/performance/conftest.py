@@ -40,6 +40,15 @@ if TYPE_CHECKING:
     from nexus_api_client.types import Unset
 
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from nexus_api_client.models.workflow_definition_edges_item import (
+    WorkflowDefinitionEdgesItem,
+)
+from nexus_api_client.models.workflow_definition_nodes_item import (
+    WorkflowDefinitionNodesItem,
+)
+from nexus_api_client.models.workflow_definition_triggers_item import (
+    WorkflowDefinitionTriggersItem,
+)
 
 pytestmark = pytest.mark.performance
 
@@ -130,29 +139,29 @@ ALL_LLM_TEST_PROMPTS: list[str] = [p for ps in LLM_TEST_PROMPTS.values() for p i
 # Common test data
 # ---------------------------------------------------------------------------
 
-SIMPLE_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
-    {
-        "name": "perfomance",
-        "schema_version": "2.0.0",
-        "triggers": [
+SIMPLE_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition(
+    name="perfomance",
+    schema_version="2.0.0",
+    triggers=[
+        WorkflowDefinitionTriggersItem.from_dict(
             {
                 "id": "trigger_manual",
                 "type": "manual_trigger",
                 "config": {"inputs": {}},
             }
-        ],
-        "nodes": [
+        )
+    ],
+    nodes=[
+        WorkflowDefinitionNodesItem.from_dict(
             {
                 "id": "script_task",
                 "name": "Script Task",
                 "type": "script",
                 "config": {"language": "python", "code": "print('hello')"},
             }
-        ],
-        "edges": [
-            {"from": "trigger_manual", "to": "script_task"},
-        ],
-    }
+        )
+    ],
+    edges=[WorkflowDefinitionEdgesItem.from_dict({"from": "trigger_manual", "to": "script_task"})],
 )
 
 

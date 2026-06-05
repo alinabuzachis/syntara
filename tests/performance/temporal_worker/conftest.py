@@ -20,6 +20,9 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from nexus_api_client.models.workflow_definition_nodes_item import (
+    WorkflowDefinitionNodesItem,
+)
 
 from tests.performance.conftest import SIMPLE_WORKFLOW_DEFINITION, poll_until
 
@@ -89,18 +92,21 @@ def poll_until_activities_stabilize(
     )
 
 
-SLOW_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
-    {
-        **WorkflowDefinition.to_dict(SIMPLE_WORKFLOW_DEFINITION),
-        "nodes": [
+SLOW_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition(
+    name=SIMPLE_WORKFLOW_DEFINITION.name,
+    schema_version=SIMPLE_WORKFLOW_DEFINITION.schema_version,
+    triggers=SIMPLE_WORKFLOW_DEFINITION.triggers,
+    edges=SIMPLE_WORKFLOW_DEFINITION.edges,
+    nodes=[
+        WorkflowDefinitionNodesItem.from_dict(
             {
                 "id": "script_task",
                 "name": "Script Task",
                 "type": "script",
                 "config": {"language": "python", "code": "import time; time.sleep(0.5); print('done')"},
             }
-        ],
-    }
+        )
+    ],
 )
 
 MULTI_ACTIVITY_WORKFLOW_DEFINITIONS: list[dict[str, Any]] = [
