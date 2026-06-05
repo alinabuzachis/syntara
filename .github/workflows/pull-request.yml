@@ -76,7 +76,7 @@ jobs:
         working-directory: packages/nexus-ui
 
   unit-tests:
-    name: Unit Tests (${{ matrix.shard }}/4)
+    name: Unit Tests
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
