@@ -2,12 +2,10 @@ name: Pull Request
 
 on:
   pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'LICENSE'
 
 permissions:
   contents: read # checkout code
+  pull-requests: read # gh api needs PR file list for doc-only detection
   statuses: read # read E2E commit status
 
 concurrency:
@@ -19,8 +17,33 @@ env:
   NODE_VERSION: '22.13.0'
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.check.outputs.code }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILES=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files --paginate --jq '.[].filename')
+          if [ -z "$FILES" ]; then
+            echo "::warning::No files from API, running all CI as fallback"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if echo "$FILES" | grep -qvE '(\.md$|^LICENSE$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   checks:
     name: Checks
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -54,6 +77,8 @@ jobs:
 
   unit-tests:
     name: Unit Tests (${{ matrix.shard }}/4)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -88,8 +113,9 @@ jobs:
 
   coverage-report:
     name: Coverage Report
+    needs: [changes, unit-tests]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    needs: unit-tests
     steps:
       - uses: actions/checkout@v6
 
@@ -134,6 +160,8 @@ jobs:
 
   visual-regression:
     name: Visual Regression
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -497,6 +525,8 @@ jobs:
 
   storybook-build:
     name: Storybook Build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -514,6 +544,8 @@ jobs:
 
   test-build:
     name: Test Container Build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -542,6 +574,8 @@ jobs:
 
   e2e-gate:
     name: E2E Gate
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -582,11 +616,15 @@ jobs:
   # Single required status check for branch protection. All merge-blocking jobs
   # are listed in `needs` so we manage requirements in code instead of maintaining
   # a separate list in GitHub rulesets that can drift out of sync with the workflow.
+  #
+  # For doc-only PRs the `changes` job sets code=false, all CI jobs are skipped,
+  # and this gate passes because `skipped` is accepted alongside `success`.
   success:
     name: Success
     runs-on: ubuntu-latest
     if: ${{ always() }}
     needs:
+      - changes
       - checks
       - unit-tests
       - coverage-report
@@ -597,21 +635,26 @@ jobs:
     steps:
       - name: Check required jobs passed
         run: |
-          if [[ "${{ needs.checks.result }}" != "success" ]] || \
-             [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.coverage-report.result }}" != "success" ]] || \
-             [[ "${{ needs.storybook-build.result }}" != "success" ]] || \
-             [[ "${{ needs.test-build.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e-gate.result }}" != "success" ]] || \
-             [[ "${{ needs.visual-regression.result }}" != "success" ]]; then
-            echo "Required jobs failed:"
-            echo "  checks: ${{ needs.checks.result }}"
-            echo "  unit-tests: ${{ needs.unit-tests.result }}"
-            echo "  coverage-report: ${{ needs.coverage-report.result }}"
-            echo "  storybook-build: ${{ needs.storybook-build.result }}"
-            echo "  test-build: ${{ needs.test-build.result }}"
-            echo "  e2e-gate: ${{ needs.e2e-gate.result }}"
-            echo "  visual-regression: ${{ needs.visual-regression.result }}"
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "::error::Detect Changes job did not succeed: ${{ needs.changes.result }}"
             exit 1
           fi
-          echo "All required checks passed"
+
+          ok="success|skipped"
+          for job in checks unit-tests coverage-report storybook-build test-build e2e-gate visual-regression; do
+            case "$job" in
+              checks)           result="${{ needs.checks.result }}" ;;
+              unit-tests)       result="${{ needs.unit-tests.result }}" ;;
+              coverage-report)  result="${{ needs.coverage-report.result }}" ;;
+              storybook-build)  result="${{ needs.storybook-build.result }}" ;;
+              test-build)       result="${{ needs.test-build.result }}" ;;
+              e2e-gate)         result="${{ needs.e2e-gate.result }}" ;;
+              visual-regression) result="${{ needs.visual-regression.result }}" ;;
+            esac
+            echo "$job: $result"
+            if [[ ! "$result" =~ ^($ok)$ ]]; then
+              echo "::error::Required job '$job' has result '$result'"
+              exit 1
+            fi
+          done
+          echo "All required checks passed (or skipped for doc-only PRs)"
