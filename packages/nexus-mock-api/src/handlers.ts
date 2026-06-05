@@ -3684,7 +3684,7 @@ export const handlers = [
     let allowed = true
 
     if (username === 'viewer') {
-      const readableResources = new Set(['workflow', 'execution', 'approval', 'credential'])
+      const readableResources = new Set(['workflow', 'execution', 'approval', 'credential', 'integration'])
       if (readableResources.has(resourceType)) {
         allowed = action === 'read'
       } else {
@@ -3805,7 +3805,31 @@ export const handlers = [
     return HttpResponse.json({ users, next_cursor: null })
   }),
 
-  http.post('/api/v1/authz/what_can_i', () => {
+  http.post('/api/v1/authz/what_can_i', async ({ request }) => {
+    const username = getUsernameFromRequest(request)
+
+    if (username === 'viewer') {
+      return HttpResponse.json({
+        permissions: [
+          { policy_name: 'viewer-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+        ],
+      })
+    }
+
+    if (username === 'user') {
+      return HttpResponse.json({
+        permissions: [{ policy_name: 'user-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' }],
+      })
+    }
+
+    if (username === 'auditor') {
+      return HttpResponse.json({
+        permissions: [
+          { policy_name: 'auditor-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+        ],
+      })
+    }
+
     return HttpResponse.json({
       permissions: [
         {

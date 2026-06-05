@@ -43,6 +43,8 @@ export type PageEntry = {
   setup?: (page: Page) => Promise<void>
   /** Override the default maxDiffPixelRatio for pages with non-deterministic rendering (e.g. canvas) */
   maxDiffPixelRatio?: number
+  /** Mock API role to log in as (default: admin). Used for permission gating screenshots. */
+  role?: 'viewer' | 'auditor' | 'user'
 }
 
 async function applyNameFilter(page: Page, value: string) {
@@ -737,6 +739,94 @@ export const pages: PageEntry[] = [
   ...detailTabPages,
   ...settingsTabPages,
   ...authenticationInteractivePages,
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PERMISSION GATING — restricted role screenshots
+  // ══════════════════════════════════════════════════════════════════════════
+  {
+    section: 'permission-gating',
+    name: 'viewer-workflows-list',
+    path: AppRoute.Workflows.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-credentials-list',
+    path: AppRoute.Configuration.Credentials.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'auditor-users-list',
+    path: AppRoute.AccessManagement.Users,
+    role: 'auditor',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-access-denied',
+    path: AppRoute.AccessManagement.Users,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: /access denied/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-builder-read-only',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    role: 'viewer',
+    maxDiffPixelRatio: 0.01,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'auditor-authentication-list',
+    path: AppRoute.SystemAdministration.Authentication.Root,
+    role: 'auditor',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'user-workflows-list',
+    path: AppRoute.Workflows.Root,
+    role: 'user',
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-workflows-kebab-disabled',
+    path: AppRoute.Workflows.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click({ force: true })
+      await expect(page.getByRole('menuitem').first()).toBeVisible()
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------

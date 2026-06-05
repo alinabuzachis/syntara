@@ -247,7 +247,7 @@ export async function createIdentityProviderViaApi(
     const token = await getAuthToken(app)
     if (!token) return null
 
-    const resp = await apiRequest(app, 'post', '/identity_providers', {
+    const resp = await apiRequest(app, 'post', '/identity_providers/', {
       token,
       data: {
         name: body.name,
