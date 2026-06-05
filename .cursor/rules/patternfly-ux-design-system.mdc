@@ -108,7 +108,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Use `variant="compact"` only for dense, supplementary tables (e.g., activity state tables inside panels) where space is constrained
 - ALWAYS include `<Thead>` with column headers
 - Actions column is rightmost (no column header label)
-- All row actions live inside a kebab menu (⋮) — no direct buttons in the actions column
+- All row actions live inside a kebab menu (⋮) — no direct buttons in the actions column. Use `NxKebabMenu` component with `actions` array: `{ key, title, onClick, isSeparator?, isDanger?, isAriaDisabled?, tooltipProps? }`. Per-row `aria-label` must be unique (e.g., `` `Actions for ${name}` ``).
 - **Kebab labels:** Always `"Action + resource"` format (e.g., "Edit credential", "Delete credential") with icons via `IconLabel`; destructive items use `isDanger: true`
 - Action order in kebab: non-destructive first, divider, destructive last
 - On the details page header, same actions appear in a kebab; frequently used actions promoted to primary button with icon (e.g., `RhUiEditIcon` + "Edit credential")
@@ -166,10 +166,12 @@ Icons per scenario: No data → `PlusCircleIcon` (gray, `lg`), No results → `S
 
 - **CTA deduplication:** When empty state has a create/configure CTA, hide the page-header primary button — it reappears once data exists.
 - **Tab-level empty states:** Use shared `EmptyStateNoData` component with correct heading level (`h2` inside tabs) and `isFullHeight`.
+- **Three-state list page pattern:** 1) Query error/loading → `useQueryState` renders loading or error; 2) No data AND no filters → `NxEmptyStateNoData` (hide FilterBar); 3) Data OR active filters → show FilterBar; empty with filters → `NxEmptyStateFilter`.
+- **Access denied:** `EmptyStateAccessDenied` with `RhUiLockIcon` when user navigates directly to a page they can't read.
 
 ## CRUD Patterns
 
-Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (AO-internal resources), "Add" ↔ "Disconnect" (external resources), "Assign" ↔ "Unassign", "Configure" for integrations (not "Add integration" — integrations are external connections being configured)
+Action verb pairings: "Create" ↔ "Delete", "Add" ↔ "Remove" (AO-internal resources), "Add" ↔ "Disconnect" (external resources), "Assign" ↔ "Unassign", "Transfer" for moving ownership between entities (e.g., "Transfer identity"), "Configure" for integrations (not "Add integration" — integrations are external connections being configured)
 
 ### Create
 
@@ -296,7 +298,8 @@ Button alignment differs by context (follows PatternFly convention):
 ## Statuses and Labels
 
 - **Statuses:** PatternFly Outline Status Label component
-- **Labels/Tags:** PatternFly Filled Non-status Label component, default to gray
+- **System labels:** Use `NxLabel` (filled, compact by default) — defaults to gray; use `color` for categories, `status` for statuses
+- **User-generated labels:** Use `NxUserTag` (outlined, compact) for any user-entered values (tags, filter chips)
 - If labels on a table reference a resource, make them clickable, navigating to the details page
 
 ## Icons
@@ -323,7 +326,7 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - **Toolbar hierarchy:** Primary actions visible (Add step, Run, Save, Publish); secondary in grouped kebab with `DropdownGroup` ("Views": Run history, Workflow details; "Actions": Export, Import, Delete with `isDanger`). Every kebab item has icon + label.
 - **Publish lifecycle:** Draft → Publish → Unpublish (replaces enable/disable). Status badges (no icons, text + color only): Draft (grey), Published (green `status="success"`), Unpublished changes (yellow `status="warning"`). Publish dialog requires version name. Unpublish via kebab with danger confirmation.
 - **Save behavior:** `isAriaDisabled` when `!isDirty` for existing workflows. Tooltip shows "Last saved {datetime}". No toast on update; toast on create only.
-- Add step: opens side panel, auto-adjusts canvas. **Empty workflow:** Add step button shown as active, panel forced open. Button uses `aria-pressed` toggle feedback.
+- Add step: opens side panel, auto-adjusts canvas. **Empty workflow onboarding:** When no triggers/steps exist, "Add step" button is **hidden** (not disabled) and the panel is forced open for trigger selection. Once first step is added, button appears. **Toggle-style button:** When panel is open (and steps exist), button uses `isClicked` + `aria-pressed` for toggle feedback.
 - **Duplicate workflow:** Row kebab action with `RhUiDuplicateIcon`; no confirmation dialog; success toast with inline deep-link to new workflow.
 - Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again", then `RunWorkflowModal` JSON editor for mock trigger data
 - Test step (Run step): from step kebab menu → choice dialog ("Run all previous steps" or mock data) → mock data editor (CodeEditor with JSON); upstream steps mocked as "skipped"; results in execution visualizer
@@ -334,6 +337,33 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - **Floating canvas panels:** prefer `NxPanel` with `variant="raised"` for compact controls or `opaqueFloatingFill` for large flat shells without raised chrome (see `NxPanel.tsx` JSDoc)
 - Execution view panels: use `NxPanel isFullHeight` for proper scroll — don't hand-roll flex column inline styles
 - View-only views: Run view, Run history, Version history
+
+## Permission Gating (AAP-74439)
+
+Every domain uses a `use{Domain}Permissions()` hook returning `{ can*, isLoading, tooltips }`. Default to **deny** while loading (safe-false). Always use `isAriaDisabled` (not `isDisabled`) — keeps elements focusable for tooltips/screen readers. Set `onClick={undefined}` when denied (defense in depth).
+
+**Gating strategy:**
+- **Nav items:** Hide via `requiredPermissions` (OR logic — visible if any granted)
+- **Tabs:** Filter with `NxUrlTabs validTabs`; show all during load; redirect invalid URLs to first visible tab
+- **Toolbar buttons:** `DisabledWithTooltip` wrapper + `isAriaDisabled` + permission tooltip
+- **Row/kebab actions:** `isAriaDisabled` + `tooltipProps` on action items
+- **Empty state CTA:** Pass `undefined` callback to hide button entirely
+- **Create/edit routes:** `ProtectedRoute` → `EmptyStateAccessDenied` on direct URL
+- **Read-only mode (builder):** Info banner + hide editing affordances + canvas lockdown (`nodesDraggable={false}`, `nodesConnectable={false}`)
+
+Permission tooltip format: `"To {action}, you need a role with the {policy} policy. Contact your Admin to request access."`
+
+## Session Timeout Warning
+
+Non-dismissible alert dialog for security-critical time warnings: `Modal variant="small" role="alertdialog"` with `onClose={undefined}`. Live countdown with `aria-live="assertive"`. Actions: "Continue session" (primary) + "Log out" (link). Centralize timing constants in a constants file.
+
+## Full-Page Wizard
+
+Use when flow has 2+ steps with tables/filters (too large for modal). Dedicated route. Each step: title + description (bold target entity) + FilterBar + ScrollableTableContainer (radio selection). Footer: Back/Next/Cancel (link). Cancel navigates to origin route. Going back clears selections. Terminology must be consistent across button/loading/toast/error.
+
+## Dedicated Edit Page
+
+Use when editing is too complex for inline (many rows, nested modals, external actions). Parent tab stays read-only with "Edit" button navigating to edit route. Edit page: `NxPageHeader` with Save (primary) + Cancel (link) toolbar. Permission-gated with `EmptyStateAccessDenied` fallback.
 
 ## Accessibility Guidelines
 
