@@ -2,7 +2,7 @@
 
 This document explains how workflows are loaded from the v2 API, edited in the builder, and saved back.
 
-**Terminology:** The UI speaks in **steps** on the canvas; this document uses **activity** / **node** because they match the API and store. React Flow exposes **`Node` / `nodes[]`** in code — see [architecture.md](./architecture.md) for the glossary.
+**Terminology:** The UI and validation messages use **step** on the canvas. This document uses **activity** and API **`nodes[]`** where they match the backend and store. React Flow exposes **`Node` / `nodes[]`** in code — see [architecture.md](./architecture.md) for the glossary.
 
 ---
 
@@ -80,20 +80,20 @@ The store is updated atomically via `loadWorkflowWithEdges()`.
 
 While editing, all activities stay in a flat array. Edges define relationships using React Flow handles.
 
-### Condition Nodes
+### Condition steps
 
 - Edges with `sourceHandle: 'true'` connect to the true branch
 - Edges with `sourceHandle: 'false'` connect to the false branch
 
-### Loop Nodes
+### Loop steps
 
 - `sourceHandle: 'loop'` → enters loop body (restricted to ONE connection)
 - `sourceHandle: 'done'` → exits loop after completion
 - `targetHandle: 'end'` → loop-back edge (returns to loop start)
 
-### Converge (Join) Nodes
+### Converge (Join) steps
 
-- Managed by converge nodes (`type: 'converge'`)
+- Managed by converge steps (`type: 'converge'`)
 - `syncConvergeNodeBranches()` updates `converge.branches` array from incoming edges
 - Branch activities remain in the main activities array
 
@@ -103,7 +103,7 @@ File: `useEdgeSynchronization.ts`
 
 Every time edges change:
 
-1. `syncConvergeNodeBranches()` — updates converge node branch arrays
+1. `syncConvergeNodeBranches()` — updates converge step branch arrays
 2. `reorderActivitiesFromEdges()` — topological sort of activities
 
 ## Saving Process
@@ -121,18 +121,18 @@ Every time edges change:
 
 ## Handle Types
 
-### Condition Node Handles
+### Condition step handles
 
 - `sourceHandle: 'true'` — True branch connection
 - `sourceHandle: 'false'` — False branch connection
 
-### Loop Node Handles
+### Loop step handles
 
 - `sourceHandle: 'loop'` — Enters loop body (max ONE connection)
 - `sourceHandle: 'done'` — Exits loop after completion
 - `targetHandle: 'end'` — Loop-back edge
 
-### Approval Node Handles
+### Approval step handles
 
 - `sourceHandle: 'approved'` — Approved branch
 - `sourceHandle: 'rejected'` — Rejected branch
@@ -186,5 +186,5 @@ Only ONE edge can go out from the `loop` handle. Enforced in:
 
 ### Issue: Save fails with ID validation error
 
-**Cause**: Node/edge IDs contain invalid characters.
+**Cause**: Step/edge IDs contain invalid characters.
 **Solution**: IDs must be alphanumeric with hyphens, underscores, and periods only. No path traversal (`..`), control characters, or special chars.

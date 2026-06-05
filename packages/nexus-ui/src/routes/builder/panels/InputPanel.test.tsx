@@ -40,7 +40,7 @@ describe('InputPanel', () => {
     render(<InputPanel nodeId="node-1" />)
 
     expect(screen.getByText('No input data')).toBeInTheDocument()
-    expect(screen.getByText('Input data can only be displayed when a node is connected and run')).toBeInTheDocument()
+    expect(screen.getByText('Input data can only be displayed when a step is connected and run')).toBeInTheDocument()
   })
 
   it('shows schema preview when upstream node type has a known schema and no execution data', async () => {
@@ -50,7 +50,7 @@ describe('InputPanel', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+        expect(screen.getByText('Expected output fields (run step to see actual values)')).toBeInTheDocument()
         expect(screen.getByRole('tree', { name: 'Schema preview' })).toBeInTheDocument()
         expect(screen.getByText('T stdout')).toBeInTheDocument()
         expect(screen.getByText('# return_code')).toBeInTheDocument()
@@ -65,7 +65,7 @@ describe('InputPanel', () => {
     render(<InputPanel nodeId="node-1" />)
 
     expect(screen.getByText('Input not available')).toBeInTheDocument()
-    expect(screen.getByText('Run previous node to populate input')).toBeInTheDocument()
+    expect(screen.getByText('Run previous step to populate input')).toBeInTheDocument()
   })
 
   it('shows trigger input_schema fields as schema preview', () => {
@@ -88,7 +88,7 @@ describe('InputPanel', () => {
 
     render(<InputPanel nodeId="node-1" />)
 
-    expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+    expect(screen.getByText('Expected output fields (run step to see actual values)')).toBeInTheDocument()
     expect(screen.getByText('T hostname')).toBeInTheDocument()
   })
 
@@ -160,7 +160,7 @@ describe('InputPanel', () => {
 
     render(<InputPanel nodeId="" sourceNodeId="source-1" />)
 
-    expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+    expect(screen.getByText('Expected output fields (run step to see actual values)')).toBeInTheDocument()
     expect(screen.getByText('T stdout')).toBeInTheDocument()
     expect(screen.getByText('# return_code')).toBeInTheDocument()
   })
@@ -301,7 +301,7 @@ describe('InputPanel', () => {
       render(<InputPanel nodeId="node-e" />)
 
       // Shows schema preview for script node (Step D), no dropdown
-      expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+      expect(screen.getByText('Expected output fields (run step to see actual values)')).toBeInTheDocument()
       expect(screen.getByText('T stdout')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Step A' })).not.toBeInTheDocument()
     })
@@ -319,7 +319,7 @@ describe('InputPanel', () => {
       render(<InputPanel nodeId="node-e" />)
 
       // Shows schema preview, dropdown available for switching between ancestors
-      expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+      expect(screen.getByText('Expected output fields (run step to see actual values)')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Step D' })).toBeInTheDocument()
     })
   })

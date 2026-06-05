@@ -5,12 +5,25 @@
  * status variants, dialog states, and other interactive UI states
  * that extend the base page coverage in page-registry.ts.
  */
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 import { AppRoute } from '../../src/app/AppRoute'
 
 import { MOCK_IDENTITY_PROVIDER_ID } from './mock-ids'
 import type { PageEntry } from './page-registry'
+
+/**
+ * Opens the step editor side panel by clicking the canvas card title (PatternFly `Title` h2).
+ * Prefer this over `getByTestId('rf__node-…')` + `force: true`, which often selects the card
+ * without opening the editor (seed workflows may lack `name`, so the h2 shows the executor label).
+ */
+async function openStepEditorFromCanvasTitle(page: Page, title: string | RegExp) {
+  const canvas = page.locator('.react-flow')
+  await canvas.getByRole('heading', { name: title, level: 2 }).first().click()
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
+    timeout: 15_000,
+  })
+}
 
 // ---------------------------------------------------------------------------
 // Mock API IDs for interactive state entries
@@ -133,17 +146,8 @@ export const builderInteractivePages: PageEntry[] = [
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      // Click the Loop node heading inside the canvas to select it reliably.
-      // Using getByTestId('rf__node-process_items') with force:true was flaky
-      // because the click could land on a child script node when React Flow
-      // layout hadn't settled.
-      const canvas = page.locator('.react-flow')
-      const loopHeading = canvas.getByRole('heading', { name: 'Loop', level: 2 }).first()
-      await loopHeading.click()
-      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
-        timeout: 15_000,
-      })
-      // Verify the loop form loaded (not a child node's form)
+      await openStepEditorFromCanvasTitle(page, 'Loop')
+      // Verify the loop form loaded (not a child step's form)
       await expect(page.getByLabel('Type', { exact: true })).toHaveValue(/while|forEach/)
     },
   },
@@ -156,11 +160,8 @@ export const builderInteractivePages: PageEntry[] = [
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      const agenticNode = page.getByTestId('rf__node-research_topic')
-      await agenticNode.click({ force: true })
-      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
-        timeout: 15_000,
-      })
+      // simple-research agentic activity has no display name — card title is executor label "Agentic"
+      await openStepEditorFromCanvasTitle(page, 'Agentic')
     },
   },
   {
@@ -172,11 +173,8 @@ export const builderInteractivePages: PageEntry[] = [
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      const httpNode = page.getByTestId('rf__node-fetch_data')
-      await httpNode.click({ force: true })
-      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
-        timeout: 15_000,
-      })
+      // simple-get-request http activity has no display name — card title is executor label "REST API"
+      await openStepEditorFromCanvasTitle(page, 'REST API')
     },
   },
   {

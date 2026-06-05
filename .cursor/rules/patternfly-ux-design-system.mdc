@@ -20,7 +20,7 @@ When building frontend UI in this project, follow these opinionated PatternFly p
 Our UX is designed around the **supervisor** mental model — an operator who must understand, trust, and intervene in complex automation across scale.
 
 - **Standardized compositions** — Combine atomic PatternFly components into larger, prescribed compositions (e.g., a "complete table view" with specific pagination, filtering, and bulk action patterns). These compositions are the unit of consistency.
-- **Data-driven adjustments** — Use side-out panels instead of modals for node configuration to preserve workflow canvas context.
+- **Data-driven adjustments** — Use side-out panels instead of modals for step configuration to preserve workflow canvas context.
 - **No custom one-offs** — When PatternFly does not meet a requirement, collaborate via the PatternFly liaison path. Never build a custom component.
 
 ## AO Design System
@@ -144,7 +144,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 
 ## Details Component
 
-- Use `NxDetailList` + `NxDetail` (vertical default; `isHorizontal` for compact contexts like canvas nodes)
+- Use `NxDetailList` + `NxDetail` (vertical default; `isHorizontal` for compact contexts like canvas steps)
 - `NxDetail` with empty/null children **renders nothing** — no manual null checks or placeholders needed
 - Use `NxCodeBlock` for JSON/scripts/logs — supports `enableCopy`, `enableExpand`, `jsonObject`
 - Consistent date/duration formatting per PatternFly Date/Time guidelines
@@ -326,10 +326,12 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - Add step: opens side panel, auto-adjusts canvas. **Empty workflow:** Add step button shown as active, panel forced open. Button uses `aria-pressed` toggle feedback.
 - **Duplicate workflow:** Row kebab action with `RhUiDuplicateIcon`; no confirmation dialog; success toast with inline deep-link to new workflow.
 - Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again", then `RunWorkflowModal` JSON editor for mock trigger data
-- Test step (Run step): from node kebab menu → choice dialog → mock data editor (CodeEditor with JSON); upstream nodes mocked as "skipped"; results in execution visualizer
+- Test step (Run step): from step kebab menu → choice dialog ("Run all previous steps" or mock data) → mock data editor (CodeEditor with JSON); upstream steps mocked as "skipped"; results in execution visualizer
 - **Cancel execution:** `variant="danger"` button, no confirmation dialog. Visible only when status is `pending`/`running`. Full label "Cancel execution".
-- Canvas controls: anchored to bottom-left corner
-- Canvas node cards: fixed 240px width — use `overflow-wrap: anywhere` on all dynamic text (`Title`, `Content`) to prevent overflow
+- **Canvas controls:** anchored to bottom-left corner; canvas overlays (controls, step legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
+- Legend toggle: accessible labels **Show step legend** / **Hide step legend**
+- **Canvas step styling:** workflow steps use `variant="raised"` with border-radius override to match `Card` / canvas chrome; fixed 240px width — use `overflow-wrap: anywhere` on all dynamic text (`Title`, `Content`) to prevent overflow (prefer `anywhere` over `break-word`)
+- **Floating canvas panels:** prefer `NxPanel` with `variant="raised"` for compact controls or `opaqueFloatingFill` for large flat shells without raised chrome (see `NxPanel.tsx` JSDoc)
 - Execution view panels: use `NxPanel isFullHeight` for proper scroll — don't hand-roll flex column inline styles
 - View-only views: Run view, Run history, Version history
 

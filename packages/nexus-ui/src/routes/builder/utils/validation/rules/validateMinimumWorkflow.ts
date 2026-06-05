@@ -28,7 +28,7 @@ export function validateMinimumWorkflow(
       severity: 'error',
       rule: 'minimum-workflow',
       message: 'Workflow must have at least one trigger to run',
-      suggestion: 'Add a trigger (e.g., Manual, Scheduled, or Webhook) from the node palette',
+      suggestion: 'Add a trigger (e.g., Manual, Scheduled, or Webhook) from the step palette',
     })
   }
 
@@ -39,7 +39,7 @@ export function validateMinimumWorkflow(
       severity: 'error',
       rule: 'minimum-workflow',
       message: 'Workflow must have at least one step to run',
-      suggestion: 'Add a step (e.g., Script, HTTP Request, or AAP Job) from the node palette',
+      suggestion: 'Add a step (e.g., Script, HTTP Request, or AAP Job) from the step palette',
     })
   }
 

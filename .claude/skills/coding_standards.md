@@ -1406,7 +1406,7 @@ Do not ship `// TODO`, `// FIXME`, `// HACK`, or `// XXX` comments in PRs. These
 export type SwitchConfig = { cases: Array<{ label: string }> }
 
 // ✅ GOOD — use the best type available now, track the follow-up in Jira
-/** Switch node configuration. Uses inline type until the OpenAPI spec includes the switch schema (AAP-XXXXX). */
+/** Switch step configuration. Uses inline type until the OpenAPI spec includes the switch schema (AAP-XXXXX). */
 export type SwitchConfig = { cases: Array<{ label: string }> }
 ```
 

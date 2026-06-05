@@ -15,7 +15,7 @@ describe('ApprovalSummaryList', () => {
     render(<ApprovalSummaryList {...defaultProps} />)
 
     expect(screen.getByText('Approval type')).toBeInTheDocument()
-    expect(screen.getByText('Approval Node')).toBeInTheDocument()
+    expect(screen.getByText('Approval step')).toBeInTheDocument()
     expect(screen.getByText('Workflow')).toBeInTheDocument()
     expect(screen.getByText('Production Deployment')).toBeInTheDocument()
     expect(screen.getByText('Approval initiated')).toBeInTheDocument()

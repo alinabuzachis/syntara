@@ -111,7 +111,7 @@ describe('NodeExecutionDetailsPanel', () => {
     const user = userEvent.setup()
     render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
 
-    await user.click(screen.getByRole('button', { name: 'Close node details' }))
+    await user.click(screen.getByRole('button', { name: 'Close step details' }))
 
     expect(defaultProps.onClose).toHaveBeenCalledOnce()
   })

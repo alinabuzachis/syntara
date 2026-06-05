@@ -68,7 +68,7 @@ export function InputSchemaPreview({ fields, nodeId }: Readonly<InputSchemaPrevi
     <div className={styles.previewContainer}>
       <Content component={ContentVariants.small} className={styles.previewHeader}>
         <InfoCircleIcon />
-        Expected output fields (run node to see actual values)
+        Expected output fields (run step to see actual values)
       </Content>
       <TreeView data={treeData} aria-label="Schema preview" />
     </div>

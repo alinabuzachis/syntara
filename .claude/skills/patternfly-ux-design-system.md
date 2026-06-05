@@ -81,7 +81,7 @@ The study identified several "table stakes" features that users expect as standa
 Research revealed critical friction points in competitor products — specifically around fragmented AI integration and poor observability:
 
 - **Hybrid Workflow Debugging:** Unlike competitors who struggle to differentiate between probabilistic (AI) and deterministic (code) failures, Orchestrator provides superior debugging and observability for hybrid workflows.
-- **Safety as a First-Class Object:** "Gating" nodes and Human-In-The-Loop (HITL) checkpoints build trust, ensuring users can safely manage non-deterministic AI outputs before they execute against critical infrastructure.
+- **Safety as a First-Class Object:** "Gating" steps and Human-In-The-Loop (HITL) checkpoints build trust, ensuring users can safely manage non-deterministic AI outputs before they execute against critical infrastructure.
 - **In-Context Documentation:** Context-aware help and documentation integrated directly into configuration panels to save users from switching tabs.
 
 ### Accessibility & Compliance
@@ -99,7 +99,7 @@ While PatternFly provides flexible building blocks, this project follows an **op
 **Key principles:**
 
 - **Standardized compositions** — Atomic PatternFly components are combined into larger, opinionated compositions (e.g., a "complete table view" with prescribed pagination, filtering, and bulk action patterns). These compositions are the unit of consistency, not individual components.
-- **Data-driven adjustments** — Side-out panels instead of modals for node configuration, preserving workflow canvas context.
+- **Data-driven adjustments** — Side-out panels instead of modals for step configuration, preserving workflow canvas context.
 - **No custom one-offs** — When PatternFly does not meet a requirement, collaborate via the PatternFly liaison path rather than building a custom component. This keeps the product upgrade-compatible.
 
 ### Framework & Source of Truth
@@ -355,7 +355,7 @@ For fields where users can select multiple items (e.g., group assignment on user
 
 - Use `NxDetailList` + `NxDetail` for detail page fields (from `src/components/details/`)
   - **Vertical** (default) for standard detail pages
-  - **`isHorizontal`** for compact contexts (e.g., canvas node detail panels)
+  - **`isHorizontal`** for compact contexts (e.g., canvas step detail panels)
 - `NxDetail` with empty/null/undefined children **renders nothing automatically** — optional fields can be passed unconditionally without manual null checks
 - Use `NxCodeBlock` (from `src/components/details/NxCodeBlock.tsx`) for scripts, JSON payloads, or log output
   - Supports `enableCopy` (clipboard), `enableExpand` (full-screen modal), and `jsonObject` (auto-formatted JSON)
@@ -1017,11 +1017,11 @@ These badges use `Label` with no icons — text and color only.
 
 ### Test Step (Run Step)
 
-- Triggered from a node's kebab menu → "Run step"
+- Triggered from a step's kebab menu → "Run step"
 - Opens a two-step dialog flow:
-  1. **Choice dialog** — "Run all previous nodes" (future) or "Set mock input data"
+  1. **Choice dialog** — "Run all previous steps" or "Set mock input data"
   2. **Mock data editor** — PatternFly `CodeEditor` with JSON syntax highlighting, validate/format/clear toolbar actions
-- All upstream nodes in the graph are mocked and show as "skipped" in execution details
+- All upstream steps in the graph are mocked and show as "skipped" in execution details
 - After clicking "Run", the execution visualizer panel opens (same as full workflow Run) showing real-time results
 - Test executions are visible in run history
 
@@ -1037,12 +1037,13 @@ These badges use `Label` with no icons — text and color only.
 ### Canvas Controls
 
 - Should be anchored to the **bottom-left corner** of the canvas view
-- Canvas overlays (controls, legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
-- Workflow step nodes also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
+- Canvas overlays (controls, step legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
+- Legend toggle uses accessible labels **Show step legend** / **Hide step legend**
+- Workflow steps on the canvas also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
 
-### Canvas Node Styling
+### Canvas step styling
 
-- Node cards have a fixed width (240px) — all dynamic text elements (`Title`, `Content`) must use `overflow-wrap: anywhere` to prevent text overflow from long expressions, template names, or URLs
+- Step cards have a fixed width (240px) — all dynamic text elements (`Title`, `Content`) must use `overflow-wrap: anywhere` to prevent text overflow from long expressions, template names, or URLs
 - Use `anywhere` instead of `break-word` because it also influences `min-content` intrinsic sizing, preventing overflow in fixed-width flex containers
 
 ### Execution View Panels

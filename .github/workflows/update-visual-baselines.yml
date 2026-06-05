@@ -95,7 +95,7 @@ jobs:
           COMMITTED: ${{ steps.commit.outputs.committed }}
           ADDED: ${{ steps.commit.outputs.added }}
           MODIFIED: ${{ steps.commit.outputs.modified }}
-          TESTS_FAILED: ${{ steps.screenshots.outcome == 'failure' }}
+          TESTS_FAILED: ${{ steps.screenshots.outcome == 'failure' || steps.screenshots.conclusion == 'failure' }}
           COMMIT_FAILED: ${{ steps.commit.outcome == 'failure' }}
           COMMIT_OUTCOME: ${{ steps.commit.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -168,7 +168,9 @@ jobs:
               body = [
                 '### :white_check_mark: Visual baselines already up to date',
                 '',
-                'No screenshot changes detected — all baselines match.',
+                'No screenshot PNG changes were committed — generated images match the baselines already on this branch.',
+                '',
+                'If the **Visual Regression** check on this PR still fails, the failing test may have errored during `setup`/`waitFor` (no screenshot taken). Download the PR `visual-regression-diffs` artifact or inspect the [workflow run](${runUrl}) logs.',
               ].join('\n');
             }
 
