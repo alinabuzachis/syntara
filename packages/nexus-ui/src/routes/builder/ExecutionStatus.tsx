@@ -1,4 +1,4 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Label } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
@@ -78,7 +78,15 @@ const activityStatusDisplayLabels: Record<ActivityStatus, string> = {
   cancelled: 'Cancelled',
 }
 
-export function ActivityStatusLabel({ status }: Readonly<{ status: ActivityStatus }>) {
+export function ActivityStatusLabel({ status, nodeType }: Readonly<{ status: ActivityStatus; nodeType?: string }>) {
+  if (nodeType === ActivityTypeEnum.WAIT && status === 'waiting') {
+    return (
+      <Label variant="outline" status="custom" icon={<RhUiSyncIcon />}>
+        Running
+      </Label>
+    )
+  }
+
   const IconComponent = activityStatusIcons[status] ?? RhUiEllipsisHorizontalFillIcon
   const variant = activityStatusVariant[status] ?? 'custom'
   const displayLabel = activityStatusDisplayLabels[status] ?? status.charAt(0).toUpperCase() + status.slice(1)

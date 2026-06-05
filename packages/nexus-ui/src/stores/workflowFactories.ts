@@ -491,6 +491,18 @@ export function createConvergeActivity(
 }
 
 /**
+ * Create a wait node (v2).
+ */
+export function createWaitActivity(id: string, name: string, config: { duration: number }): Activity {
+  return {
+    id,
+    type: ActivityTypeEnum.WAIT,
+    name,
+    config,
+  }
+}
+
+/**
  * Create a generic placeholder node (v2).
  * UI-only concept — not backed by a v2 backend schema.
  * Metadata is stored in the `metadata` field (not `config`) for proper detection.

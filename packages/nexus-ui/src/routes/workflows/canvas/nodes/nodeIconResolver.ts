@@ -69,6 +69,10 @@ export function getCanvasNodeIconDescriptor(
     return { icon: executorMetadata.approval.icon, id: RegistryNodeId.APPROVAL }
   }
 
+  if (node.type === 'wait') {
+    return { icon: nodeMetadata.wait.icon, id: RegistryNodeId.LOGIC_WAIT }
+  }
+
   if (node.type === 'task') {
     const taskData = node.data as TaskActivity
     return getTaskIconDescriptor(taskData)

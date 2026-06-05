@@ -30,6 +30,7 @@ export const ActivityTypeEnum = {
   CONDITION: 'condition',
   LOOP: 'loop',
   CONVERGE: 'converge',
+  WAIT: 'wait',
 } as const
 
 /**
@@ -163,6 +164,15 @@ export type LoopConfig = WorkflowAPI.components['schemas']['loop.schema_configSc
 /** Converge node configuration */
 export type ConvergeConfig = WorkflowAPI.components['schemas']['converge.schema_configSchema']
 
+/**
+ * Wait node configuration — total duration in seconds.
+ * Inline type until AAP-66091 adds WaitConfig to the OpenAPI schema.
+ * Tracks: src/nexus/schemas/workflows/v2/control-nodes/wait.schema.json
+ */
+export type WaitConfig = {
+  duration: number
+}
+
 // ============================================================================
 // Activity Base Interface
 // ============================================================================
@@ -242,6 +252,12 @@ export interface ConvergeActivity extends ActivityBase {
   config: ConvergeConfig & { [key: string]: unknown }
 }
 
+/** Wait/delay node */
+export interface WaitActivity extends ActivityBase {
+  type: 'wait'
+  config: WaitConfig & { [key: string]: unknown }
+}
+
 // ============================================================================
 // Activity Discriminated Union (Typed - Opt-In)
 // ============================================================================
@@ -280,6 +296,7 @@ export type TypedActivity =
   | ConditionActivity
   | LoopActivity
   | ConvergeActivity
+  | WaitActivity
 
 // ============================================================================
 // Activity (Loose - Backward Compatible)

@@ -89,6 +89,7 @@ export function getDefaultNodeBaseName({
     const logicType = initialData?.logicType as string | undefined
     if (logicType === 'condition') return 'Condition'
     if (logicType === 'loop') return 'Loop'
+    if (logicType === 'wait') return 'Wait'
     return 'Converge'
   }
 

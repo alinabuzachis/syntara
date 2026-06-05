@@ -2,6 +2,7 @@ import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import {
   RhUiBranchFillIcon,
   RhUiConditionNodeIcon,
+  RhUiClockIcon,
   RhUiLoopNodeIcon,
   RhUiMergeNodesIcon,
 } from '@patternfly/react-icons'
@@ -17,6 +18,7 @@ import {
   submitConditionLogic,
   submitConvergeLogic,
   submitLoopLogic,
+  submitWaitLogic,
 } from './registerLogicNodeSubmit'
 
 /**
@@ -31,7 +33,21 @@ export default function registerLogicNode() {
         icon: RhUiBranchFillIcon,
         category: 'logic',
         description: 'Add conditional logic and branching to workflows',
-        keywords: ['if', 'else', 'condition', 'branch', 'switch', 'case', 'decision', 'converge', 'join'],
+        keywords: [
+          'if',
+          'else',
+          'condition',
+          'branch',
+          'switch',
+          'case',
+          'decision',
+          'converge',
+          'join',
+          'wait',
+          'delay',
+          'pause',
+          'timer',
+        ],
         order: 50,
         selectionTitle: 'Select a logic step',
         formComponent: LogicNodeForm,
@@ -59,6 +75,14 @@ export default function registerLogicNode() {
             description: 'Batch workflow to repeat specific actions.',
             formTitle: 'Configure Loop Logic',
             initialData: { logicType: ActivityTypeEnum.LOOP, type: 'while', maxIterationsBehavior: 'continue' },
+          },
+          {
+            id: RegistryNodeId.LOGIC_WAIT,
+            label: 'Wait',
+            icon: RhUiClockIcon,
+            description: 'Pause workflow execution for a specified duration.',
+            formTitle: 'Configure Wait Duration',
+            initialData: { logicType: ActivityTypeEnum.WAIT },
           },
         ],
       },
@@ -88,6 +112,13 @@ export default function registerLogicNode() {
 
           if (data.logicType === ActivityTypeEnum.CONVERGE) {
             if (submitConvergeLogic(activityId, name, data, onError)) {
+              onSuccess(activityId)
+            }
+            return
+          }
+
+          if (data.logicType === ActivityTypeEnum.WAIT) {
+            if (submitWaitLogic(activityId, name, data)) {
               onSuccess(activityId)
             }
             return

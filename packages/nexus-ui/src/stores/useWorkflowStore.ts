@@ -624,6 +624,7 @@ export {
   createAAPWorkflowTemplateActivity,
   createGenericActivity,
   createApprovalActivity,
+  createWaitActivity,
 } from './workflowFactories'
 export type {
   CreateApiActivityOptions,

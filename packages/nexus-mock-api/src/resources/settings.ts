@@ -442,6 +442,18 @@ export const settings: RuntimeSetting[] = [
     default_value: 100000,
     validation_schema: { min: 1000 } as unknown as Record<string, never>,
   }),
+  makeSetting({
+    key: 'workflow_engine.max_wait_duration_seconds',
+    name: 'Max wait duration (seconds)',
+    description:
+      "Maximum total duration allowed for wait nodes in workflows. If a wait node's configured duration exceeds this limit, the activity fails with a configuration error.",
+    helper_text: 'Minimum 1 second. Default: 2,592,000 (30 days).',
+    category: 'workflow_execution',
+    group: 'Execution',
+    value_type: 'integer',
+    default_value: 2592000,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
 
   // ── Authentication ─────────────────────────────────────────────────────
   makeSetting({

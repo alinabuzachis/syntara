@@ -23,6 +23,7 @@ export const RegistryNodeId = {
   LOGIC_CONDITION: 'logic-condition',
   LOGIC_CONVERGE: 'logic-converge',
   LOGIC_LOOP: 'logic-loop',
+  LOGIC_WAIT: 'logic-wait',
   AGENT: 'agent',
   AAP_EXECUTION: 'aap-execution',
   AAP_JOB_TEMPLATE: 'aap-job-template',

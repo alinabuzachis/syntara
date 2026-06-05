@@ -6,10 +6,12 @@ import {
   createConvergeActivity,
   createGenericActivity,
   createLoopActivity,
+  createWaitActivity,
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
 import type { LogicFormData } from '../../node-forms/LogicNodeForm'
 import { getDefaultNodeBaseName, getNodeDisplayName } from '../../utils/nodeNaming'
+import { timeUnitsToSeconds } from '../../utils/timeUtils'
 
 export function generateSecureRandomId(): string {
   const cryptoApi = globalThis.crypto
@@ -24,6 +26,7 @@ export function generateSecureRandomId(): string {
 function resolveLogicLabel(logicType: string): string {
   if (logicType === ActivityTypeEnum.CONDITION) return 'Conditional'
   if (logicType === ActivityTypeEnum.LOOP) return 'Loop'
+  if (logicType === ActivityTypeEnum.WAIT) return 'Wait'
   return 'Converge'
 }
 
@@ -143,6 +146,13 @@ export function submitConvergeLogic(
     }),
   })
 
+  useWorkflowStore.getState().addActivity(activity)
+  return true
+}
+
+export function submitWaitLogic(activityId: string, name: string, data: LogicFormData): boolean {
+  const totalSeconds = timeUnitsToSeconds(data.seconds ?? 0, data.minutes ?? 0, data.hours ?? 0, data.days ?? 0)
+  const activity = createWaitActivity(activityId, name, { duration: totalSeconds })
   useWorkflowStore.getState().addActivity(activity)
   return true
 }

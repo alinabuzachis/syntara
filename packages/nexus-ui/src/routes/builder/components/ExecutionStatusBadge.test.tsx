@@ -65,13 +65,21 @@ describe('ExecutionStatusBadge', () => {
     expect(style).toContain('border-style: dashed')
   })
 
-  it('renders waiting status with warning border', () => {
+  it('renders waiting status with warning border for approval nodes', () => {
     render(<ExecutionStatusBadge status="waiting" />)
 
     const badge = screen.getByLabelText('Waiting for approval')
     const style = badge.getAttribute('style') ?? ''
     expect(style).toContain('border-color: var(--pf-t--global--color--status--warning--default)')
     expect(style).toContain('border-style: solid')
+  })
+
+  it('renders waiting status as running for wait nodes', () => {
+    render(<ExecutionStatusBadge status="waiting" nodeType="wait" />)
+
+    const badge = screen.getByLabelText('Running')
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('border-color: var(--pf-t--global--color--brand--default)')
   })
 
   it('renders cancelled status with muted border', () => {

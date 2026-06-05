@@ -16,3 +16,13 @@ export function secondsToTimeUnits(totalSeconds: number): {
 export function timeUnitsToSeconds(seconds = 0, minutes = 0, hours = 0, days = 0): number {
   return seconds + minutes * 60 + hours * 3600 + days * 86400
 }
+
+export function formatDurationLabel(totalSeconds: number): string {
+  const { days, hours, minutes, seconds } = secondsToTimeUnits(totalSeconds)
+  const parts: string[] = []
+  if (days) parts.push(`${days}d`)
+  if (hours) parts.push(`${hours}h`)
+  if (minutes) parts.push(`${minutes}m`)
+  if (seconds) parts.push(`${seconds}s`)
+  return parts.length > 0 ? parts.join(' ') : 'Not configured'
+}

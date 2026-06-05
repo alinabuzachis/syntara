@@ -35,4 +35,14 @@ describe('ActivityStatusLabel', () => {
 
     expect(screen.getByText('Successful')).toBeInTheDocument()
   })
+
+  it('renders "waiting" as "Waiting for approval" for non-wait nodes', () => {
+    render(<ActivityStatusLabel status="waiting" />)
+    expect(screen.getByText('Waiting for approval')).toBeInTheDocument()
+  })
+
+  it('renders "waiting" as "Running" for wait nodes', () => {
+    render(<ActivityStatusLabel status="waiting" nodeType="wait" />)
+    expect(screen.getByText('Running')).toBeInTheDocument()
+  })
 })

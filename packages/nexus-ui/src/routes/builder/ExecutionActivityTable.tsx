@@ -11,6 +11,7 @@ import { ActivityStatusLabel } from './ExecutionStatus'
 export type ActivityOrderItem = {
   id: string
   name?: string
+  type?: string
 }
 
 type ExecutionActivityTableProps = {
@@ -66,6 +67,7 @@ function formatOptionalDate(date: string | null | undefined) {
 function ActivityRow({
   id,
   name,
+  type,
   state,
   now,
   executionError,
@@ -74,6 +76,7 @@ function ActivityRow({
 }: Readonly<{
   id: string
   name?: string
+  type?: string
   state?: ActivityState
   now: number
   executionError?: string | null
@@ -95,7 +98,7 @@ function ActivityRow({
         <Td dataLabel="Ended">{formatOptionalDate(state?.completedAt) ?? DASH}</Td>
         <Td dataLabel="Elapsed time">{elapsedMs === undefined ? DASH : formatElapsedTime(elapsedMs)}</Td>
         <Td dataLabel="Status" modifier="nowrap">
-          <ActivityStatusLabel status={state?.status ?? 'pending'} />
+          <ActivityStatusLabel status={state?.status ?? 'pending'} nodeType={type} />
         </Td>
       </Tr>
       {state?.errorDetails && state.errorDetails !== executionError && (
@@ -131,11 +134,12 @@ export function ExecutionActivityTable({
         </Tr>
       </Thead>
       <Tbody>
-        {activityOrder.map(({ id, name }) => (
+        {activityOrder.map(({ id, name, type }) => (
           <ActivityRow
             key={id}
             id={id}
             name={name}
+            type={type}
             state={activityStates.get(id)}
             now={now}
             executionError={executionError}

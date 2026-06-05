@@ -1,4 +1,10 @@
-import type { ConditionActivity, ConvergeActivity, LoopActivity, TaskActivity } from '@ansible/nexus-contracts'
+import type {
+  ConditionActivity,
+  ConvergeActivity,
+  LoopActivity,
+  TaskActivity,
+  WaitActivity,
+} from '@ansible/nexus-contracts'
 import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
@@ -27,6 +33,7 @@ import {
   LoopNodeDetails,
   TaskNodeDetails,
   TriggerNodeDetails,
+  WaitNodeDetails,
 } from './node-details'
 import { NodeEditorLayout } from './NodeEditorLayout'
 import { NodeRawDataView } from './NodeRawDataView'
@@ -73,6 +80,7 @@ function getAddModeFormId(
       [RegistryNodeId.LOGIC_CONDITION]: 'condition-node-form',
       [RegistryNodeId.LOGIC_LOOP]: 'loop-node-form',
       [RegistryNodeId.LOGIC_CONVERGE]: 'converge-node-form',
+      [RegistryNodeId.LOGIC_WAIT]: 'wait-node-form',
     }
     return logicFormMap[nodeSubtypeId]
   }
@@ -123,6 +131,7 @@ function getEditModeFormId(node: Node<NodeType['data']> | undefined): string | u
   if (node.type === FlowNodeType.CONDITION) return 'condition-node-form'
   if (node.type === FlowNodeType.LOOP) return 'loop-node-form'
   if (node.type === FlowNodeType.CONVERGE) return 'converge-node-form'
+  if (node.type === FlowNodeType.WAIT) return 'wait-node-form'
   if (node.type === FlowNodeType.APPROVAL) return 'approval-node-form'
   if (node.type === FlowNodeType.TASK) {
     return getTaskFormId(node.data as TaskActivity)
@@ -134,6 +143,99 @@ function getEditModeFormId(node: Node<NodeType['data']> | undefined): string | u
 function findActivityInCurrentWorkflow(activityId: string): Activity | undefined {
   const current = useWorkflowStore.getState().currentWorkflow
   return current?.workflow.activities.find((activity: Activity) => activity.id === activityId)
+}
+
+/** Renders the appropriate details component for a given node in edit mode. */
+function renderEditModeContent(
+  node: Node<NodeType['data']>,
+  currentWorkflow: ReturnType<typeof selectCurrentWorkflow>,
+  onClose: () => void,
+  onHeaderContentChange: (content: ReactNode | null) => void,
+  projectId?: string
+): ReactNode {
+  if (node.type === FlowNodeType.TRIGGER) {
+    const triggerIdx = parseTriggerIndex(node.id) ?? 0
+    const trigger = currentWorkflow?.triggers?.[triggerIdx]
+    if (trigger) {
+      return (
+        <TriggerNodeDetails
+          trigger={trigger}
+          triggerIndex={triggerIdx}
+          onClose={onClose}
+          onHeaderContentChange={onHeaderContentChange}
+        />
+      )
+    }
+  }
+
+  if (node.type === FlowNodeType.TASK) {
+    return (
+      <TaskNodeDetails
+        taskData={node.data as TaskActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+        projectId={projectId}
+      />
+    )
+  }
+
+  if (node.type === FlowNodeType.APPROVAL) {
+    return (
+      <ApprovalNodeDetails
+        taskData={node.data as TaskActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  if (node.type === FlowNodeType.CONDITION) {
+    return (
+      <ConditionNodeDetails
+        conditionData={node.data as ConditionActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  if (node.type === FlowNodeType.LOOP) {
+    return (
+      <LoopNodeDetails
+        loopData={node.data as LoopActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  if (node.type === FlowNodeType.CONVERGE) {
+    return (
+      <ConvergeNodeDetails
+        convergeData={node.data as ConvergeActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  if (node.type === FlowNodeType.WAIT) {
+    return (
+      <WaitNodeDetails
+        waitData={node.data as WaitActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  return <NodeRawDataView node={node} />
 }
 
 type NodeDetailsPanelProps = {
@@ -187,7 +289,6 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       : resolveIconForType({ nodeTypeId, nodeSubtypeId })
   const headerIcon = renderNodeIcon(iconDescriptor.icon, iconDescriptor.id, 'header')
 
-  // eslint-disable-next-line complexity
   const renderContent = () => {
     if (mode === 'add') {
       const selectedNode = nodeTypeId ? NodeRegistry.get(nodeTypeId) : null
@@ -279,89 +380,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     }
 
     if (!node) return null
-
-    // Handle trigger node
-    if (node.type === FlowNodeType.TRIGGER) {
-      // Get trigger from workflow by index (assuming node id is "trigger-0", "trigger-1", etc.)
-      const triggerIndex = parseTriggerIndex(node.id) ?? 0
-      const trigger = currentWorkflow?.triggers?.[triggerIndex]
-
-      if (trigger) {
-        return (
-          <TriggerNodeDetails
-            trigger={trigger}
-            triggerIndex={triggerIndex}
-            onClose={onClose}
-            onHeaderContentChange={setHeaderContent}
-          />
-        )
-      }
-    }
-
-    // Render appropriate form based on node type
-    if (node.type === FlowNodeType.TASK) {
-      const taskData = node.data as TaskActivity
-      return (
-        <TaskNodeDetails
-          taskData={taskData}
-          nodeId={node.id}
-          onClose={onClose}
-          onHeaderContentChange={setHeaderContent}
-          projectId={projectId}
-        />
-      )
-    }
-
-    if (node.type === FlowNodeType.APPROVAL) {
-      const taskData = node.data as TaskActivity
-      return (
-        <ApprovalNodeDetails
-          taskData={taskData}
-          nodeId={node.id}
-          onClose={onClose}
-          onHeaderContentChange={setHeaderContent}
-        />
-      )
-    }
-
-    if (node.type === FlowNodeType.CONDITION) {
-      const conditionData = node.data as ConditionActivity
-      return (
-        <ConditionNodeDetails
-          conditionData={conditionData}
-          nodeId={node.id}
-          onClose={onClose}
-          onHeaderContentChange={setHeaderContent}
-        />
-      )
-    }
-
-    if (node.type === FlowNodeType.LOOP) {
-      const loopData = node.data as LoopActivity
-      return (
-        <LoopNodeDetails
-          loopData={loopData}
-          nodeId={node.id}
-          onClose={onClose}
-          onHeaderContentChange={setHeaderContent}
-        />
-      )
-    }
-
-    if (node.type === FlowNodeType.CONVERGE) {
-      const convergeData = node.data as ConvergeActivity
-      return (
-        <ConvergeNodeDetails
-          convergeData={convergeData}
-          nodeId={node.id}
-          onClose={onClose}
-          onHeaderContentChange={setHeaderContent}
-        />
-      )
-    }
-
-    // Default fallback - show raw data
-    return <NodeRawDataView node={node} />
+    return renderEditModeContent(node, currentWorkflow, onClose, setHeaderContent, projectId)
   }
 
   const showInputPanel = mode === 'add' ? nodeTypeId !== RegistryNodeId.TRIGGER : node?.type !== FlowNodeType.TRIGGER

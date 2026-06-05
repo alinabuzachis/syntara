@@ -1,3 +1,4 @@
+import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import type { ReactFlowInstance } from '@xyflow/react'
 import { useCallback, type Dispatch } from 'react'
 
@@ -7,6 +8,7 @@ import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { BuilderAction } from '../builderReducer'
+import { DEFAULT_MAX_WAIT_SECONDS, fetchMaxWaitDuration } from '../node-forms/useMaxWaitDuration'
 import { validateWorkflow } from '../utils/validation'
 import { validateMinimumWorkflow } from '../utils/validation/rules/validateMinimumWorkflow'
 
@@ -114,6 +116,13 @@ export function useBuilderToolbarHandlers({
         return
       }
 
+      const waitErrors = await validateWaitNodeDurations(activities)
+      if (waitErrors.length > 0) {
+        showError({ title: 'Cannot run workflow', description: waitErrors.join('\n• ') })
+        dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
+        return
+      }
+
       executeWorkflow(
         {
           body: {
@@ -179,4 +188,23 @@ export function useBuilderToolbarHandlers({
   }, [historyCardOpen, executionsQuery, dispatch])
 
   return { handleRunWorkflow, handleDeleteWorkflow, handleToggleDetails, handleToggleHistory }
+}
+
+async function validateWaitNodeDurations(activities: WorkflowDefinition['workflow']['activities']): Promise<string[]> {
+  const waitNodes = activities.filter((a) => a.type === ActivityTypeEnum.WAIT)
+  if (waitNodes.length === 0) return []
+
+  const maxWaitSeconds = await fetchMaxWaitDuration().catch(() => DEFAULT_MAX_WAIT_SECONDS)
+  const errors: string[] = []
+
+  for (const node of waitNodes) {
+    const total = (node.config as { duration?: number } | undefined)?.duration ?? 0
+    if (total > maxWaitSeconds) {
+      errors.push(
+        `Wait step "${node.name || 'Untitled'}" duration (${total}s) exceeds maximum allowed (${maxWaitSeconds}s)`
+      )
+    }
+  }
+
+  return errors
 }
