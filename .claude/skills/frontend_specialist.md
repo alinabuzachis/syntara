@@ -91,6 +91,14 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - [ ] All async server state uses TanStack Query (`useQuery`/`useMutation`/`useQueries`) -- no manual `useEffect` + `useState` for API calls (see coding_standards.md §30)
 - [ ] Hooks called unconditionally but used conditionally -- extract to wrapper component (see coding_standards.md §29)
 
+### Permission Gating
+
+- [ ] New pages with access requirements: set `requiredPermissions` in `navigationItems.tsx`
+- [ ] Create/edit routes: set `routePermission` for `ProtectedRoute` guard
+- [ ] New CRUD actions: wrap in `DisabledWithTooltip` with domain permission hook and `permissionTooltip()`
+- [ ] New permission-gated features: add role-aware mock handlers in `handlers.ts` for all 4 roles
+- [ ] See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for architecture
+
 ### PR Completeness
 
 - [ ] UI changes include screenshots or screen recordings

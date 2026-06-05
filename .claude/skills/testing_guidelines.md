@@ -358,6 +358,69 @@ expect(screen.queryByTestId('globe-icon')).not.toBeInTheDocument()
 
 ---
 
+## Permission Gating Tests
+
+### Unit test mocking pattern
+
+When mocking `useCanI`, always include all three fields — `allowed`, `isChecking`, and `isError`:
+
+```typescript
+vi.mock('../../hooks/useCanI', () => ({
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
+}))
+
+// Per-test override
+vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
+```
+
+When a component uses a domain hook (e.g. `useWorkflowPermissions`, `useUserPermissions`), mock the domain hook instead of `useCanI`:
+
+```typescript
+const { mockPermissions } = vi.hoisted(() => ({
+  mockPermissions: { canCreate: true, canUpdate: true, canDelete: true, tooltips: { ... } },
+}))
+vi.mock('../useWorkflowPermissions', () => ({
+  useWorkflowPermissions: () => mockPermissions,
+}))
+
+// Per-test override
+mockPermissions.canCreate = false
+```
+
+### Testing disabled-with-tooltip actions
+
+```typescript
+const button = screen.getByRole('button', { name: /Create/i })
+expect(button).toHaveAttribute('aria-disabled', 'true')
+
+// For kebab menu items
+const menuItem = screen.getByRole('menuitem', { name: /Edit/i })
+expect(menuItem).toHaveAttribute('aria-disabled', 'true')
+```
+
+### Testing page-level access denied
+
+```typescript
+vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
+render(<ProtectedPage />)
+expect(screen.getByRole('heading', { name: /Access denied/i })).toBeInTheDocument()
+```
+
+### E2E permission testing
+
+Use role-specific fixtures from `e2e/fixtures.ts`:
+
+- `app` — admin (all permissions)
+- `viewerApp` — viewer (read-only on workflows/credentials/executions/approvals)
+- `auditorApp` — auditor (all reads, no writes)
+- `userApp` — user (limited reads, no writes)
+
+For builder read-only tests, create workflows via `apiRequest` (API-based setup) rather than through the UI to keep tests focused on permission gating.
+
+When testing pages that call `useCanI` (which queries the mock API asynchronously), use `mockCanIAllowed(app)` from `e2e/utils/mockData.ts` to intercept the `can_i` endpoint and avoid race conditions where actions render as disabled before the permission check resolves.
+
+---
+
 ## Quick Reference
 
 - **Components**: `render()`, `screen`, `userEvent` from Testing Library

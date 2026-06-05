@@ -562,7 +562,74 @@ Core functions: `getAuthToken()`, `apiRequest()`, `ensureProject()`. Plus CRUD h
 
 #### `utils/mockData.ts` — Route Interception & Mock Data
 
-Helpers: `fulfill()`, `mockUser()`, `mockUserIdentities()`, `mockAuthMe()`, `mockAuthProviders()`, `mockUsersList()`, `mockUserGroups()`. Plus mock fixtures for users, identities, providers, and audit events. Used by user identity and auth tests.
+Helpers: `fulfill()`, `mockUser()`, `mockUserIdentities()`, `mockAuthMe()`, `mockAuthProviders()`, `mockUsersList()`, `mockUserGroups()`, `mockCanIAllowed()`. Plus mock fixtures for users, identities, providers, and audit events. Used by user identity and auth tests.
+
+#### `utils/roleSetup.ts` — Real Backend Role Provisioning
+
+Creates test users with specific roles (viewer, auditor, user) on a real backend. Used by the worker-scoped `roleSetup` fixture in `fixtures.ts`. Returns credentials for each role and a cleanup function. See the "Permission Gating E2E Tests" section below.
+
+---
+
+### Permission Gating E2E Tests
+
+Permission gating tests validate that navigation items, action buttons, tabs, and route guards behave correctly for different user roles. They run in **dual mode**: against both the mock API and a real backend.
+
+#### Role-specific fixtures
+
+`fixtures.ts` exports four page fixtures:
+
+| Fixture      | Role    | Mock API                                          | Real backend                                              |
+| ------------ | ------- | ------------------------------------------------- | --------------------------------------------------------- |
+| `app`        | admin   | Cookie-based auto-login                           | Login with admin credentials                              |
+| `viewerApp`  | viewer  | Intercepts `/auth/refresh` → `mock-token-viewer`  | Logs in as dynamically created user with viewer policies  |
+| `auditorApp` | auditor | Intercepts `/auth/refresh` → `mock-token-auditor` | Logs in as dynamically created user with auditor role     |
+| `userApp`    | user    | Intercepts `/auth/refresh` → `mock-token-user`    | Logs in as dynamically created user with limited policies |
+
+For mock API tests, `loginAsRole` intercepts the `/auth/refresh` endpoint to return a role-scoped token (`mock-token-{role}`). The mock API's `can_i` handler extracts the username from this token and returns role-appropriate permission responses.
+
+For real backend tests, the worker-scoped `roleSetup` fixture (via `roleSetup.ts`) creates test users with appropriate roles/policies at worker startup and cleans them up on teardown.
+
+#### Writing permission gating tests
+
+```typescript
+import { test, expect, toAppUrl } from './fixtures'
+
+test('viewer: create button is disabled with tooltip', async ({ viewerApp }) => {
+  await viewerApp.goto(toAppUrl('/workflows'))
+  const createBtn = viewerApp.getByRole('button', { name: /Create workflow/i })
+  await expect(createBtn).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('auditor: direct URL to Create User shows access denied', async ({ auditorApp }) => {
+  await auditorApp.goto(toAppUrl('/system-administration/access-management/users/create'))
+  await expect(auditorApp.getByRole('heading', { name: 'Access denied', level: 2 })).toBeVisible()
+})
+```
+
+#### Self-contained tests with API setup
+
+Permission tests that validate gated actions on existing resources must create those resources via API, not assume seed data:
+
+```typescript
+test('viewer: workflow kebab actions are disabled', async ({ app, viewerApp }) => {
+  const workflowId = await createTestWorkflow(app)
+  try {
+    await viewerApp.goto(toAppUrl('/workflows'))
+    // ... assert kebab actions are aria-disabled
+  } finally {
+    await deleteTestWorkflow(app, workflowId)
+  }
+})
+```
+
+Use `app` (admin) to create resources, then `viewerApp`/`auditorApp`/`userApp` to verify gating. Always clean up in `finally`.
+
+#### Adding tests for new permission-gated features
+
+1. Add role-aware `can_i` responses in `packages/nexus-mock-api/src/handlers.ts` for all 4 roles
+2. Add test cases in `e2e/permission-gating.spec.ts` using the appropriate role fixture
+3. For route guards, test both the admin positive case and the denied case for each restricted role
+4. For action buttons, verify `aria-disabled="true"` and tooltip content
 
 ---
 
@@ -844,6 +911,15 @@ Before considering tests complete:
 - [ ] Tests work alone: `npx playwright test --grep "test name"`
 - [ ] Tests work in full suite: `npm run e2e`
 - [ ] Duplicated cleanup/setup logic extracted into `e2e/helpers/` or `e2e/utils/` resource helpers
+
+### Permission Gating Tests
+
+- [ ] New permission-gated features have tests in `e2e/permission-gating.spec.ts`
+- [ ] Tests use role fixtures (`viewerApp`, `auditorApp`, `userApp`) — not `app`
+- [ ] Route guard tests verify `Access denied` heading for denied roles
+- [ ] Action button tests verify `aria-disabled="true"` attribute
+- [ ] Tests create resources via admin `app` fixture and clean up in `finally`
+- [ ] Mock API `can_i` handler updated for all 4 roles in `handlers.ts`
 
 ### Verification
 

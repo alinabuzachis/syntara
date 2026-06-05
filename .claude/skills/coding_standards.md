@@ -1365,7 +1365,7 @@ function useCanI(action: string, resourceType: string) {
   const [isChecking, setIsChecking] = useState(true)
   useEffect(() => {
     let cancelled = false
-    fetchClient
+    accessFetchClient
       .POST('/authz/can_i', { body: { action, resource_type: resourceType } })
       .then(({ data }) => {
         if (!cancelled) setAllowed(data?.allowed === true)
@@ -1381,22 +1381,131 @@ function useCanI(action: string, resourceType: string) {
 }
 
 // ✅ GOOD - TanStack Query handles caching, dedup, retry, and DevTools
-function useCanI(action: string, resourceType: string) {
-  const query = useQuery({
-    queryKey: ['can_i', action, resourceType],
+// (this is the actual implementation in hooks/useCanI.ts)
+function useCanI(action: string, resourceType: string, options?: UseCanIOptions) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: [
+      'authz',
+      'can_i',
+      {
+        action,
+        resource_type: resourceType,
+        ...(options?.resourceId ? { resource_id: options.resourceId } : {}),
+      },
+    ],
     queryFn: () =>
-      fetchClient.POST('/authz/can_i', {
+      accessFetchClient.POST('/authz/can_i', {
         body: { action, resource_type: resourceType },
       }),
     select: (res) => res.data?.allowed === true,
+    staleTime: Infinity,
+    retry: false,
   })
-  return { allowed: query.data ?? false, isChecking: query.isLoading }
+  return { allowed: data ?? false, isChecking: isLoading, isError }
 }
 ```
 
+> **Trade-off: `staleTime: Infinity`** means permissions are fetched once per session and
+> never automatically re-fetched. If an admin revokes a user's role, the change won't take
+> effect in that user's browser until (a) a role/assignment mutation triggers
+> `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })`, or (b) the user logs
+> out (`queryClient.clear()`). This is intentional — permission checks are high-frequency
+> and low-change, so we trade freshness for reduced API load. Server-side enforcement
+> remains the ultimate authority; the UI cache is a UX optimization, not a security boundary.
+
 ---
 
-## 31. No `// TODO` Comments in Shipped Code
+## 31. Permission Gating Patterns
+
+All CRUD and destructive actions must be gated by permissions. See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for the full architecture.
+
+### When to create a domain hook vs inline `useCanI`
+
+- **Domain hook** (`use*Permissions`): when a page has 3+ gated actions, or when the same permissions are checked in multiple components (e.g. list + detail). Returns `can*` booleans, `isLoading`, and `tooltips`.
+- **Inline `useCanI`**: when a single isolated action needs gating (e.g. `CancelExecutionButton`).
+
+### Action button gating pattern
+
+```tsx
+// Use DisabledWithTooltip + isAriaDisabled for action buttons
+<DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+  <Button isAriaDisabled={!permissions.canCreate} onClick={permissions.canCreate ? handleCreate : undefined}>
+    Create
+  </Button>
+</DisabledWithTooltip>
+```
+
+For kebab menu items, use `isAriaDisabled` and `tooltipProps`:
+
+```tsx
+{
+  title: <IconLabel icon={<RhUiEditIcon />}>Edit</IconLabel>,
+  isAriaDisabled: !permissions.canUpdate,
+  tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.update },
+  onClick: permissions.canUpdate ? handleEdit : undefined,
+}
+```
+
+### Tooltip copy
+
+Always use `permissionTooltip()` from `hooks/permissionUtils.ts` for consistent copy:
+
+```tsx
+permissionTooltip('create a workflow', 'workflow:create')
+// → "To create a workflow, you need a role with the workflow:create policy. Contact your Admin to request access."
+```
+
+### Navigation gating
+
+In `navigationItems.tsx`, use `requiredPermissions` (array, OR logic) for visibility and `routePermission` (single) for route guards:
+
+```tsx
+{
+  label: 'Settings',
+  requiredPermissions: [{ action: 'read', resourceType: 'setting' }],
+}
+{
+  label: 'Create User',
+  routePermission: { action: 'create', resourceType: 'user' },
+}
+```
+
+### Tab gating
+
+Detail pages conditionally show/hide tabs based on permissions. Use a `use*DetailPermissions` hook:
+
+```tsx
+const { canReadGroups, canReadAssignments } = useUserDetailPermissions(userId)
+const visibleTabs = computeVisibleTabs(canReadGroups, canReadAssignments, isLoading)
+```
+
+When a user views their own profile, apply a self-permission exception (`isSelf`) so tabs like Groups and Identities remain visible even without system-wide read permission.
+
+### Builder / editor read-only mode
+
+For editor-style pages where many controls depend on a single permission, use a `canEdit` flag from the domain hook instead of wrapping every control individually:
+
+```tsx
+const { canEdit, tooltips } = useBuilderPermissions(isNew)
+// canEdit = isNew ? canCreate : canUpdate
+// Builder enters full read-only mode when canEdit is false
+```
+
+### Cache invalidation
+
+After role or assignment mutations, invalidate all permission caches:
+
+```tsx
+queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })
+```
+
+### Mock API
+
+When adding new permission-gated features, add role-aware responses in `packages/nexus-mock-api/src/handlers.ts` for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`.
+
+---
+
+## 32. No `// TODO` Comments in Shipped Code
 
 Do not ship `// TODO`, `// FIXME`, `// HACK`, or `// XXX` comments in PRs. These represent deferred work that should be tracked in Jira, not buried in source code where it is invisible to project management and will rot.
 

@@ -1006,11 +1006,11 @@ Pages that support role-based access must adapt their UI based on the authentica
 
 ### Permission Tiers
 
-| Permission Level         | Navigation             | Controls                               | Actions                         |
-| ------------------------ | ---------------------- | -------------------------------------- | ------------------------------- |
-| **No read permission**   | Hidden from navigation | Nothing rendered (empty screen)        | None                            |
-| **Read only** (auditor)  | Visible in navigation  | All controls rendered as **read-only** | No save, reset, or edit buttons |
-| **Read + write** (admin) | Visible in navigation  | All controls editable                  | Full CRUD actions available     |
+| Permission Level         | Navigation             | Controls                               | Actions                               |
+| ------------------------ | ---------------------- | -------------------------------------- | ------------------------------------- |
+| **No read permission**   | Hidden from navigation | `EmptyStateAccessDenied` on direct URL | None                                  |
+| **Read only** (auditor)  | Visible in navigation  | All controls rendered as **read-only** | Action buttons disabled with tooltips |
+| **Read + write** (admin) | Visible in navigation  | All controls editable                  | Full CRUD actions available           |
 
 ### Permission Hook Pattern
 
@@ -1133,6 +1133,8 @@ For create/edit forms accessible via direct URL:
 4. `allowed` → render children
 
 **Note:** List/detail pages use in-page empty states or tab filtering — not route guards. Route guards target mutation form routes only.
+
+See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for the full permission gating architecture.
 
 ---
 

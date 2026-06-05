@@ -371,6 +371,15 @@ flowchart LR
 | `app/navigationItems.tsx` | Defines nav tree + lazy-loaded route components                            |
 | `app/AppRouter.tsx`       | Maps `navigationItems` into `<Route>` elements                             |
 
+**Permission gating on routes:**
+
+Each `TNavigationItem` in `navigationItems.tsx` supports two permission fields:
+
+- `requiredPermissions` (array of `{ action, resourceType }`, OR logic): controls navigation visibility. The item is hidden if the user lacks ALL listed permissions. Consumed by `useFilteredNavigationItems`.
+- `routePermission` (single `{ action, resourceType }`): wraps the route component in `ProtectedRoute`, which shows `EmptyStateAccessDenied` when the permission check fails. Used for create/edit routes.
+
+See [`docs/permissions-rbac.md`](permissions-rbac.md) for the full permission gating architecture.
+
 > **Note**: The `/dashboard` route is defined in `AppRoute.tsx` and appears in navigation, but has no component mounted (placeholder for future implementation).
 
 **Common patterns:**
