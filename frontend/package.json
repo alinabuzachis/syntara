@@ -1,0 +1,96 @@
+{
+  "name": "@ansible/nexus",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "concurrently npm:start:* -c auto",
+    "start:ui": "npm run start --prefix packages/nexus-ui",
+    "start:mock-api": "npm run start --prefix packages/nexus-mock-api",
+    "build": "npm run build --workspace=packages/nexus-ui",
+    "test": "npm run build && concurrently --group npm:test:* npm:format:check -c auto && if [ $? -eq 0 ]; then echo 'All Tests Passed: Success' && exit 0; else echo 'Checks failed: Failure' && exit 1; fi",
+    "test:ui": "npm run test --prefix packages/nexus-ui",
+    "e2e": "npm run e2e --prefix packages/nexus-ui",
+    "e2e:ui": "npm run e2e:ui --prefix packages/nexus-ui",
+    "e2e:visual-regression": "npm run e2e --prefix packages/nexus-ui -- e2e/visual-regression/page-screenshots",
+    "e2e:visual-regression:update": "npm run e2e --prefix packages/nexus-ui -- e2e/visual-regression/page-screenshots --update-snapshots",
+    "knip": "npm run knip --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "tsc": "npm run tsc --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "lint:mermaid": "node scripts/lint-mermaid.js",
+    "create-workflow": "python3 tools/workflow-creator/create_workflow.py",
+    "storybook": "npm run storybook --prefix packages/nexus-ui",
+    "storybook:build": "npm run storybook:build --prefix packages/nexus-ui",
+    "gen": "npm run gen --prefix packages/nexus-contracts",
+    "podman:build": "concurrently npm:podman:build:* -c auto",
+    "podman:build:ui": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
+    "podman:build:mock-api": "podman build -f packages/nexus-mock-api/Containerfile -t nexus-mock-api:latest -t ghcr.io/syntara-orchestration/syntara-mock-api:latest .",
+    "podman:run": "concurrently npm:podman:run:* -c auto",
+    "podman:run:ui": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest",
+    "podman:run:mock-api": "podman run --rm -p 3000:3000 --name nexus-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest",
+    "prepare": "husky"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "overrides": {
+    "eslint": "^9.39.4",
+    "@eslint/js": "^9.39.4",
+    "dompurify": "3.4.0",
+    "lodash": "^4.18.1",
+    "lodash-es": "^4.18.1",
+    "path-to-regexp@<1.0.0": "0.1.13"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@vitest/coverage-v8": "^4.1.7",
+    "concurrently": "^9.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import-x": "^4.16.2",
+    "eslint-plugin-no-only-tests": "^3.3.0",
+    "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
+    "lint-staged": "^16.4.0",
+    "mermaid": "^11.15.0",
+    "prettier": "^3.8.3",
+    "vitest": "^4.1.7"
+  },
+  "lint-staged": {
+    "*.{json,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write",
+      "node scripts/lint-mermaid.js"
+    ],
+    "packages/nexus-ui/{src,.storybook}/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write",
+      "eslint --fix --config packages/nexus-ui/eslint.config.js"
+    ],
+    "packages/nexus-ui/{e2e,scripts}/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write"
+    ],
+    "packages/nexus-contracts/**/*.ts": [
+      "prettier --write"
+    ],
+    "packages/nexus-mock-api/**/*.ts": [
+      "prettier --write"
+    ],
+    "scripts/**/*.js": [
+      "prettier --write"
+    ]
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "windows"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

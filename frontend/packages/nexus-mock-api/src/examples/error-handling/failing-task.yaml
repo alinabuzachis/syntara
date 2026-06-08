@@ -1,0 +1,24 @@
+---
+schema_version: "2.0.0"
+name: error-handling-test
+description: Test error handling
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: failing_task
+    name: Failing Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Attempting task..."
+        echo "ERROR: Something went wrong" >&2
+        exit 1
+    retry_policy:
+      maxAttempts: 3
+      backoff: fixed
+      initialInterval: 1
+edges: []

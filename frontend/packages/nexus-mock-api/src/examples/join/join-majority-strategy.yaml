@@ -1,0 +1,71 @@
+---
+schema_version: "2.0.0"
+name: join-majority-test
+description: Test join with majority strategy
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_majority
+    type: parallel
+
+  - id: task_a
+    type: script
+    config:
+      language: bash
+      code: echo "Task A"
+
+  - id: task_b
+    type: script
+    config:
+      language: bash
+      code: echo "Task B"
+
+  - id: task_c
+    type: script
+    config:
+      language: bash
+      code: echo "Task C"
+
+  - id: task_d
+    type: script
+    config:
+      language: bash
+      code: echo "Task D"
+
+  - id: task_e
+    type: script
+    config:
+      language: bash
+      code: echo "Task E"
+
+  - id: join_majority
+    type: converge
+    config:
+      branches:
+        - task_a
+        - task_b
+        - task_c
+        - task_d
+        - task_e
+      strategy: majority
+edges:
+  - from: trigger_manual
+    to: parallel_majority
+  - from: parallel_majority
+    to: task_a
+    from_port: branch
+  - from: parallel_majority
+    to: task_b
+    from_port: branch
+  - from: parallel_majority
+    to: task_c
+    from_port: branch
+  - from: parallel_majority
+    to: task_d
+    from_port: branch
+  - from: parallel_majority
+    to: task_e
+    from_port: branch
+  - from: parallel_majority
+    to: join_majority

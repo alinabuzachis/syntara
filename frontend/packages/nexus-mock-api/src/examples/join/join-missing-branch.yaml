@@ -1,0 +1,26 @@
+---
+schema_version: "2.0.0"
+name: join-missing-branch-test
+description: Test join with a branch ID that doesn't exist
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: existing_task
+    type: script
+    config:
+      language: bash
+      code: echo "Existing task"
+
+  - id: join_missing
+    type: converge
+    config:
+      branches:
+        - existing_task
+        - nonexistent_task
+      strategy: all
+edges:
+  - from: trigger_manual
+    to: existing_task
+  - from: existing_task
+    to: join_missing

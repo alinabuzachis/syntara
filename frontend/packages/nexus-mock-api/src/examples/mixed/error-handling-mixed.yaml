@@ -1,0 +1,30 @@
+---
+schema_version: "2.0.0"
+name: error-handling-mixed
+description: Error handling across different executor types
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: bash_success
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Bash executed successfully"
+
+  - id: python_fail
+    type: script
+    config:
+      language: python
+      code: |
+        raise Exception("Python intentional error")
+    retry_policy:
+      maxAttempts: 2
+      backoff: fixed
+      initialInterval: 1
+edges:
+  - source: bash_success
+    target: python_fail

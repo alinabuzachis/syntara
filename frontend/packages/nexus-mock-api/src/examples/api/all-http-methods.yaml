@@ -1,0 +1,55 @@
+---
+schema_version: "2.0.0"
+name: all-http-methods
+description: Test all HTTP methods (GET, POST, PUT, PATCH, DELETE)
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: get_request
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/data
+
+  - id: post_request
+    type: http_request
+    config:
+      method: POST
+      url: http://test-api.example.com/api/users
+      body:
+        name: New User
+        email: user@example.com
+
+  - id: put_request
+    type: http_request
+    config:
+      method: PUT
+      url: http://test-api.example.com/api/users/123
+      body:
+        name: Updated User
+
+  - id: patch_request
+    type: http_request
+    config:
+      method: PATCH
+      url: http://test-api.example.com/api/users/123
+      body:
+        email: updated@example.com
+
+  - id: delete_request
+    type: http_request
+    config:
+      method: DELETE
+      url: http://test-api.example.com/api/users/123
+edges:
+  - source: get_request
+    target: post_request
+  - source: post_request
+    target: put_request
+  - source: put_request
+    target: patch_request
+  - source: patch_request
+    target: delete_request

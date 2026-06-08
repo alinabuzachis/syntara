@@ -1,0 +1,54 @@
+.root {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel {
+  box-shadow: none;
+}
+
+.shellStack {
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  max-height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
+/*
+ * The Panel has border-radius but no overflow:hidden, so the sticky header's rectangular
+ * ::before background bleeds into the corners the Panel visually rounds off. Adding
+ * border-radius here (to the overflow:auto scroll container) clips all table content —
+ * including the sticky thead and its background — to the rounded shape. CSS clips overflow
+ * to the border-radius curve when overflow is not visible.
+ */
+.scrollContainer {
+  min-height: 0;
+  max-height: 100%;
+  overflow: auto;
+  width: 100%;
+  position: relative;
+  border-radius: var(--pf-t--global--border--radius--medium);
+}
+
+.footer {
+  flex: 0 0 auto;
+  width: 100%;
+  border-top: var(--pf-t--global--border--width--divider--default) solid
+    var(--pf-t--global--border--color--default);
+  padding-bottom: var(--pf-t--global--spacer--sm);
+}
+
+.table {
+  width: 100%;
+}
+
+/*
+ * Not applied to expandable tables — PatternFly's expandable row layout relies on the
+ * browser's automatic table layout to correctly size columns and expansion control cells.
+ */
+.tableFixedLayout {
+  table-layout: fixed;
+}

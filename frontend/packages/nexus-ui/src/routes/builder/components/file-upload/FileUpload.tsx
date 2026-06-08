@@ -1,0 +1,160 @@
+import {
+  type DropEvent,
+  HelperText,
+  HelperTextItem,
+  MultipleFileUpload,
+  MultipleFileUploadMain,
+  MultipleFileUploadStatus,
+} from '@patternfly/react-core'
+import { RhUiUploadIcon } from '@patternfly/react-icons'
+import { useState } from 'react'
+
+import { generateUUID } from '../../../../utils/generateUUID'
+
+import { FileUploadItem, type FileUploadItemProps } from './FileUploadItem'
+import {
+  computeUploadStatusProps,
+  createDropRejectedHandler,
+  formatAcceptedTypesForDisplay,
+  type UploadedFile,
+} from './fileUploadUtils'
+
+export type { UploadedFile } from './fileUploadUtils'
+
+export type FileUploadProps = {
+  onFilesSelected?: (files: File[]) => void
+  onFileRemove?: (fileId: string) => void
+  maxFiles?: number
+  maxSizeBytes?: number
+  maxSizeMB?: number
+  acceptedMimeTypes?: string[]
+  files?: UploadedFile[]
+  titleText?: string
+  infoText?: string
+  browseButtonText?: string
+  className?: string
+  'aria-label'?: string
+}
+
+function formatAcceptProp(acceptedMimeTypes?: string[]): Record<string, string[]> | undefined {
+  if (!acceptedMimeTypes || acceptedMimeTypes.length === 0) {
+    return undefined
+  }
+
+  const acceptObj: Record<string, string[]> = {}
+  for (const type of acceptedMimeTypes) {
+    if (type.startsWith('.')) {
+      acceptObj['application/octet-stream'] = acceptObj['application/octet-stream'] || []
+      acceptObj['application/octet-stream'].push(type)
+    } else {
+      acceptObj[type] = acceptObj[type] || []
+    }
+  }
+  return acceptObj
+}
+
+export function FileUpload({
+  onFilesSelected,
+  onFileRemove,
+  maxFiles,
+  maxSizeBytes,
+  maxSizeMB,
+  acceptedMimeTypes,
+  files: controlledFiles,
+  titleText = 'Drag and drop files here',
+  infoText,
+  browseButtonText = 'Upload',
+  className,
+  'aria-label': ariaLabel,
+}: FileUploadProps) {
+  const [internalFiles, setInternalFiles] = useState<UploadedFile[]>([])
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const uploadedFiles = controlledFiles ?? internalFiles
+  const isControlled = controlledFiles !== undefined
+  const effectiveMaxSizeBytes = maxSizeBytes ?? (maxSizeMB !== undefined ? maxSizeMB * 1024 * 1024 : undefined)
+  const handleDropRejected = createDropRejectedHandler({
+    setErrorMessage,
+    effectiveMaxSizeBytes,
+    acceptedMimeTypes,
+    maxFiles,
+  })
+
+  const handleFileDrop = (_event: DropEvent, droppedFiles: File[]) => {
+    setErrorMessage(null)
+    if (droppedFiles.length === 0) return
+
+    const currentFileNames = new Set(uploadedFiles.map((f) => f.file.name))
+    const reUploadNames = new Set(droppedFiles.filter((file) => currentFileNames.has(file.name)).map((f) => f.name))
+
+    const newFiles: UploadedFile[] = droppedFiles.map((file) => ({
+      id: generateUUID(),
+      file,
+      progress: 0,
+      status: 'pending' as const,
+    }))
+
+    if (!isControlled) {
+      setInternalFiles((prev) => [...prev.filter((f) => !reUploadNames.has(f.file.name)), ...newFiles])
+    }
+    onFilesSelected?.(droppedFiles)
+  }
+
+  const handleFileRemove = (fileId: string) => {
+    setErrorMessage(null)
+    if (!isControlled) {
+      setInternalFiles((prev) => prev.filter((f) => f.id !== fileId))
+    }
+    onFileRemove?.(fileId)
+  }
+
+  const dropzoneProps = {
+    accept: formatAcceptProp(acceptedMimeTypes),
+    maxSize: effectiveMaxSizeBytes,
+    maxFiles: maxFiles,
+    onDropRejected: handleDropRejected,
+  }
+
+  const { statusToggleText, statusToggleIcon } = computeUploadStatusProps(uploadedFiles)
+  const acceptedTypesDisplay = formatAcceptedTypesForDisplay(acceptedMimeTypes)
+  const resolvedInfoText =
+    infoText ?? (acceptedTypesDisplay ? `Accepted file types: ${acceptedTypesDisplay}` : undefined)
+
+  return (
+    <MultipleFileUpload onFileDrop={handleFileDrop} dropzoneProps={dropzoneProps} isHorizontal className={className}>
+      <MultipleFileUploadMain
+        titleIcon={<RhUiUploadIcon />}
+        titleText={titleText}
+        titleTextSeparator="or"
+        infoText={resolvedInfoText}
+        browseButtonText={browseButtonText}
+      />
+      {errorMessage && (
+        <HelperText>
+          <HelperTextItem variant="error">{errorMessage}</HelperTextItem>
+        </HelperText>
+      )}
+      {uploadedFiles.length > 0 && (
+        <MultipleFileUploadStatus
+          statusToggleText={statusToggleText}
+          statusToggleIcon={statusToggleIcon}
+          aria-label={ariaLabel ?? 'Uploaded files'}
+        >
+          {uploadedFiles.map((uploadedFile) => (
+            <FileUploadItem
+              key={uploadedFile.id}
+              file={uploadedFile.file}
+              fileId={uploadedFile.id}
+              status={uploadedFile.status}
+              progress={uploadedFile.progress}
+              errorMessage={uploadedFile.errorMessage}
+              onRemove={() => handleFileRemove(uploadedFile.id)}
+            />
+          ))}
+        </MultipleFileUploadStatus>
+      )}
+    </MultipleFileUpload>
+  )
+}
+
+export type { FileUploadItemProps }

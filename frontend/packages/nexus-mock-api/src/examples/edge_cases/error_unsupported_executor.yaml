@@ -1,0 +1,16 @@
+---
+schema_version: "2.0.0"
+name: error-unsupported-executor
+description: Test error when task uses unsupported executor type
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: api_task
+    name: Task With Unsupported Executor
+    type: http_request
+    config:
+      url: https://example.com
+edges: []

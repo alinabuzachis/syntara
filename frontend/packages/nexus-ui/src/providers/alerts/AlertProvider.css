@@ -1,0 +1,22 @@
+/**
+ * Position the toast AlertGroup at the bottom-right of the viewport.
+ *
+ * PF6's `.pf-m-toast` defaults to `inset-block-start` (top-right). We override
+ * the component-scoped CSS variable to `auto` and set `inset-block-end` using
+ * the same PF spacing token the default uses for the top inset.
+ *
+ * Stacking: AlertProvider prepends new alerts (newest first in DOM).
+ * `flex-direction: column-reverse` flips the visual order so the newest toast
+ * appears at the bottom, closest to the corner. `gap` replaces PF's default
+ * per-item margin which doesn't apply correctly under column-reverse.
+ */
+.pf-v6-c-alert-group.pf-m-toast {
+  --pf-v6-c-alert-group--m-toast--InsetBlockStart: auto;
+  inset-block-end: var(--pf-t--global--spacer--2xl);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--pf-t--global--spacer--gap--group--vertical);
+
+  /* Zero out PF's per-item margin; gap handles all spacing uniformly. */
+  --pf-v6-c-alert-group__item--MarginBlockStart: 0;
+}

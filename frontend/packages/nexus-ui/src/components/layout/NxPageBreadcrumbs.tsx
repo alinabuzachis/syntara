@@ -1,0 +1,92 @@
+import { Breadcrumb, BreadcrumbItem } from '@patternfly/react-core'
+import { useSyncExternalStore } from 'react'
+
+import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
+
+import { NxPageBreadcrumbsCollapsedMiddle } from './NxPageBreadcrumbsCollapsedMiddle'
+
+export type { AppBreadcrumbItem }
+
+const NARROW_MEDIA_QUERY = '(max-width: 768px)'
+
+function subscribeNarrowMedia(callback: () => void) {
+  const mq = globalThis.window?.matchMedia?.(NARROW_MEDIA_QUERY)
+  if (!mq) {
+    return () => {}
+  }
+  mq.addEventListener('change', callback)
+  return () => mq.removeEventListener('change', callback)
+}
+
+function getNarrowMediaSnapshot() {
+  return globalThis.window?.matchMedia?.(NARROW_MEDIA_QUERY).matches ?? false
+}
+
+function getNarrowMediaServerSnapshot() {
+  return false
+}
+
+function useNarrowViewportForBreadcrumb() {
+  return useSyncExternalStore(subscribeNarrowMedia, getNarrowMediaSnapshot, getNarrowMediaServerSnapshot)
+}
+
+type NxPageBreadcrumbsProps = Readonly<{
+  /** Ordered breadcrumb segments. Requires at least two items to render. */
+  items: readonly AppBreadcrumbItem[]
+}>
+
+/** Breadcrumb trail where parent items are links and the last item is the current page. On narrow viewports, two or more middle segments collapse into a dropdown. */
+export function NxPageBreadcrumbs(props: NxPageBreadcrumbsProps) {
+  const { items } = props
+  const isNarrow = useNarrowViewportForBreadcrumb()
+
+  if (items.length < 2) {
+    return null
+  }
+
+  const lastIndex = items.length - 1
+  const first = items[0]
+  const last = items[lastIndex]
+  const middle = items.slice(1, lastIndex)
+  const collapseMiddle = isNarrow && middle.length >= 2
+
+  return (
+    <Breadcrumb aria-label="Breadcrumb">
+      {collapseMiddle ? (
+        <>
+          {first.href ? (
+            <BreadcrumbItem to={first.href}>{first.label}</BreadcrumbItem>
+          ) : (
+            <BreadcrumbItem isActive>{first.label}</BreadcrumbItem>
+          )}
+          <NxPageBreadcrumbsCollapsedMiddle middleItems={middle} />
+          <BreadcrumbItem isActive>{last.label}</BreadcrumbItem>
+        </>
+      ) : (
+        items.map((item, index) => {
+          const isLast = index === lastIndex
+          const itemKey = item.href ?? `current:${item.label}`
+          if (isLast) {
+            return (
+              <BreadcrumbItem key={itemKey} isActive>
+                {item.label}
+              </BreadcrumbItem>
+            )
+          }
+          if (item.href) {
+            return (
+              <BreadcrumbItem key={item.href} to={item.href}>
+                {item.label}
+              </BreadcrumbItem>
+            )
+          }
+          return (
+            <BreadcrumbItem key={itemKey} isActive>
+              {item.label}
+            </BreadcrumbItem>
+          )
+        })
+      )}
+    </Breadcrumb>
+  )
+}

@@ -1,0 +1,58 @@
+import type { Page } from '@playwright/test'
+
+import { test, expect, toAppUrl } from './fixtures'
+
+async function navigateViaConfigMenu(app: Page, itemName: string) {
+  await app.getByRole('button', { name: 'Configuration' }).click()
+  await app.getByRole('menuitem', { name: itemName }).click()
+}
+
+test.describe('Configuration Navigation & Tabs', () => {
+  test('displays all Configuration sub-navigation tabs', async ({ app }) => {
+    // Act - Open the Configuration flyout dropdown
+    await app.getByRole('button', { name: 'Configuration' }).click()
+
+    // Assert - Configuration tabs are visible (Credential Types removed for GA)
+    await expect(app.getByRole('menuitem', { name: 'Integrations' })).toBeVisible()
+    await expect(app.getByRole('menuitem', { name: 'Credentials' })).toBeVisible()
+  })
+
+  test('navigates to Credentials page from Configuration menu', async ({ app }) => {
+    // Act - Open Configuration dropdown and click Credentials
+    await navigateViaConfigMenu(app, 'Credentials')
+
+    // Assert - URL and page heading are correct
+    await expect(app).toHaveURL(/configuration\/credentials/)
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
+  })
+
+  test('persists active tab after page refresh', async ({ app }) => {
+    // Arrange - Navigate directly to Credentials page
+    await app.goto(toAppUrl('/configuration/credentials'))
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
+
+    // Act - Reload the page
+    await app.reload()
+
+    // Assert - Route and heading persist after reload
+    await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
+    await expect(app).toHaveURL(/configuration\/credentials/)
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
+  })
+
+  test('navigates between all Configuration tabs successfully', async ({ app }) => {
+    // Arrange - Start at Integrations page
+    await app.goto(toAppUrl('/configuration/integrations'))
+    await expect(app.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible()
+
+    // Act & Assert - Navigate to Credentials
+    await navigateViaConfigMenu(app, 'Credentials')
+    await expect(app).toHaveURL(/configuration\/credentials/)
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
+
+    // Act & Assert - Navigate back to Integrations (full circle)
+    await navigateViaConfigMenu(app, 'Integrations')
+    await expect(app).toHaveURL(/configuration\/integrations/)
+    await expect(app.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible()
+  })
+})

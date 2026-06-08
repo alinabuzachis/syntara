@@ -1,0 +1,576 @@
+/**
+ * Interactive-state page entries for visual regression testing.
+ *
+ * These entries cover builder interaction states, detail page tabs,
+ * status variants, dialog states, and other interactive UI states
+ * that extend the base page coverage in page-registry.ts.
+ */
+import { expect } from '@playwright/test'
+
+import { AppRoute } from '../../src/app/AppRoute'
+
+import type { PageEntry } from './page-registry'
+
+// ---------------------------------------------------------------------------
+// Mock API IDs for interactive state entries
+// ---------------------------------------------------------------------------
+const MOCK_WORKFLOW_ID = '1'
+const MOCK_LOOP_WORKFLOW_ID = '3'
+const MOCK_AGENTIC_WORKFLOW_ID = '48'
+const MOCK_HTTP_WORKFLOW_ID = '49'
+const MOCK_EXECUTION_FAILED_ID = 'exec-3'
+const MOCK_EXECUTION_RUNNING_ID = 'exec-4'
+const MOCK_EXECUTION_PAUSED_ID = 'exec-6'
+const MOCK_EXECUTION_CANCELLED_ID = 'exec-8'
+const MOCK_EXECUTION_PENDING_ID = 'exec-10'
+const MOCK_APPROVAL_APPROVED_ID = '550e8400-e29b-41d4-a716-446655440002'
+const MOCK_APPROVAL_REJECTED_ID = '550e8400-e29b-41d4-a716-446655440003'
+const MOCK_APPROVAL_EXPIRED_ID = '550e8400-e29b-41d4-a716-446655440007'
+const MOCK_APPROVAL_CANCELLED_ID = '550e8400-e29b-41d4-a716-446655440008'
+const MOCK_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
+const MOCK_PROJECT_ID = 'p-001'
+const MOCK_CREDENTIAL_ID = 'cred-001'
+const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
+const MOCK_IDENTITY_PROVIDER_ID = 'idp-001'
+
+// ---------------------------------------------------------------------------
+// Builder interaction states
+// ---------------------------------------------------------------------------
+export const builderInteractivePages: PageEntry[] = [
+  {
+    section: 'workflows',
+    name: 'builder-edit-add-step-panel',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: /Add Step/i }).click()
+      const panel = page.getByRole('region', { name: /add step|select a step/i })
+      await expect(panel).toBeVisible()
+    },
+  },
+  {
+    // Workflow "conditional-demo" (ID 1) — node "Check Temperature" is a script executor
+    section: 'workflows',
+    name: 'builder-edit-script-node-form',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      const scriptNode = page.getByRole('group', { name: /Check Temperature/i })
+      await scriptNode.click({ force: true })
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
+        timeout: 15_000,
+      })
+    },
+  },
+  {
+    // Workflow "conditional-demo" (ID 1) — node "Temperature-Based Routing" is a condition
+    section: 'workflows',
+    name: 'builder-edit-condition-node-form',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      const conditionNode = page.getByRole('group', { name: /Temperature-Based Routing/i })
+      await conditionNode.click({ force: true })
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
+        timeout: 15_000,
+      })
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'builder-edit-loop-node-form',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_LOOP_WORKFLOW_ID),
+    maxDiffPixelRatio: 0.01,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      // Click the Loop node heading inside the canvas to select it reliably.
+      // Using getByTestId('rf__node-process_items') with force:true was flaky
+      // because the click could land on a child script node when React Flow
+      // layout hadn't settled.
+      const canvas = page.locator('.react-flow')
+      const loopHeading = canvas.getByRole('heading', { name: 'Loop', level: 2 }).first()
+      await loopHeading.click()
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
+        timeout: 15_000,
+      })
+      // Verify the loop form loaded (not a child node's form)
+      await expect(page.getByLabel('Type', { exact: true })).toHaveValue(/while|forEach/)
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'builder-edit-agentic-node-form',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_AGENTIC_WORKFLOW_ID),
+    maxDiffPixelRatio: 0.01,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      const agenticNode = page.getByTestId('rf__node-research_topic')
+      await agenticNode.click({ force: true })
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
+        timeout: 15_000,
+      })
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'builder-edit-http-node-form',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_HTTP_WORKFLOW_ID),
+    maxDiffPixelRatio: 0.01,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      const httpNode = page.getByTestId('rf__node-fetch_data')
+      await httpNode.click({ force: true })
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
+        timeout: 15_000,
+      })
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'builder-new-scheduled-trigger-form',
+    path: AppRoute.WorkflowBuilder.New,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
+        timeout: 30_000,
+      })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Schedule trigger' }).click()
+      const scheduleType = page.getByLabel('Schedule type')
+      await expect(scheduleType).toBeVisible()
+      await scheduleType.selectOption('interval')
+      await expect(page.getByLabel('Start date')).toBeVisible()
+      await expect(page.getByLabel('Hour')).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Workflow dialog entries (publish, unpublish, run, kebab menu)
+// ---------------------------------------------------------------------------
+export const workflowDialogPages: PageEntry[] = [
+  {
+    section: 'workflows',
+    name: 'workflows-kebab-menu',
+    path: AppRoute.Workflows.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await expect(page.getByRole('menuitem', { name: /Edit workflow/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'workflows-publish-dialog',
+    path: AppRoute.Workflows.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: 'Publish workflow', exact: true }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByText('Publish workflow?')).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'workflows-unpublish-dialog',
+    path: AppRoute.Workflows.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      // Find a workflow row that has a published version and open its kebab
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      // The unpublish option only appears for published workflows; if absent, click publish first
+      const unpublishItem = page.getByRole('menuitem', { name: /Unpublish workflow/i })
+      const hasUnpublish = await unpublishItem.isVisible().catch(() => false)
+      if (hasUnpublish) {
+        await unpublishItem.click()
+      } else {
+        // Close menu and try publishing first so the unpublish item appears
+        await page.keyboard.press('Escape')
+        await kebab.click()
+        await page.getByRole('menuitem', { name: /Publish workflow/i }).click()
+        await expect(page.getByRole('dialog')).toBeVisible()
+        await page.getByRole('button', { name: 'Publish' }).click()
+        await expect(page.getByRole('dialog')).not.toBeVisible()
+        await kebab.click()
+        const unpublishAfterPublish = page.getByRole('menuitem', { name: /Unpublish workflow/i })
+        await expect(unpublishAfterPublish).toBeVisible()
+        await unpublishAfterPublish.click()
+      }
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByText('Unpublish workflow?')).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'workflows-run-dialog',
+    path: AppRoute.Workflows.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: /Run workflow/i }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'workflows-import-dialog',
+    path: AppRoute.Workflows.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: /Import workflow/i }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Credential dialog entries (delete, disable from detail page)
+// ---------------------------------------------------------------------------
+export const credentialDialogPages: PageEntry[] = [
+  {
+    section: 'configuration/credentials',
+    name: 'credentials-delete-dialog',
+    path: AppRoute.Configuration.Credentials.Root,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: /Delete/i }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Integration dialog entries (disconnect)
+// ---------------------------------------------------------------------------
+export const integrationDialogPages: PageEntry[] = [
+  {
+    section: 'configuration/integrations',
+    name: 'integrations-disconnect-dialog',
+    path: AppRoute.Configuration.Integrations.Root,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: /Disconnect/i }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Approvals interactive entries (bulk selection toolbar)
+// ---------------------------------------------------------------------------
+export const approvalInteractivePages: PageEntry[] = [
+  {
+    section: 'approvals',
+    name: 'approvals-bulk-actions-toolbar',
+    path: AppRoute.Approvals.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      // Click the header "select all" checkbox to select all pending approvals
+      const selectAllCheckbox = page.locator('thead th').first().getByRole('checkbox')
+      await selectAllCheckbox.click()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Settings tab entries (additional categories beyond Application)
+// ---------------------------------------------------------------------------
+export const settingsTabPages: PageEntry[] = [
+  {
+    section: 'settings',
+    name: 'settings-ai-llm-tab',
+    path: AppRoute.SystemAdministration.SettingsTab.replace(':category', 'ai_llm'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /AI \/ LLM/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'settings',
+    name: 'settings-system-tab',
+    path: AppRoute.SystemAdministration.SettingsTab.replace(':category', 'system'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /System/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'settings',
+    name: 'settings-authentication-tab',
+    path: AppRoute.SystemAdministration.SettingsTab.replace(':category', 'authentication'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Authentication/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'settings',
+    name: 'settings-workflow-execution-tab',
+    path: AppRoute.SystemAdministration.SettingsTab.replace(':category', 'workflow_execution'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Workflow Execution/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'settings',
+    name: 'settings-context-manager-tab',
+    path: AppRoute.SystemAdministration.SettingsTab.replace(':category', 'context_manager'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Context Manager/i, selected: true })).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Status variant entries (execution, approval, credential states)
+// ---------------------------------------------------------------------------
+export const statusVariantPages: PageEntry[] = [
+  {
+    section: 'executions',
+    name: 'execution-detail-failed',
+    path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_FAILED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('heading', { name: /run failed/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'executions',
+    name: 'execution-detail-running',
+    path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_RUNNING_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Running', { exact: true }).first()).toBeVisible()
+    },
+  },
+  {
+    section: 'executions',
+    name: 'execution-detail-paused',
+    path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PAUSED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Paused', { exact: true }).first()).toBeVisible()
+    },
+  },
+  {
+    section: 'executions',
+    name: 'execution-detail-cancelled',
+    path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_CANCELLED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Cancelled', { exact: true }).first()).toBeVisible()
+    },
+  },
+  {
+    section: 'executions',
+    name: 'execution-detail-pending',
+    path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PENDING_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approval-detail-approved',
+    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_APPROVED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Approved', { exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approval-detail-rejected',
+    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_REJECTED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Rejected', { exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approval-detail-expired',
+    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_EXPIRED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Expired', { exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approval-detail-cancelled',
+    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_CANCELLED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Cancelled', { exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approvals-expanded-row',
+    path: AppRoute.Approvals.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page
+        .getByRole('button', { name: /details/i })
+        .first()
+        .click()
+    },
+  },
+  {
+    section: 'configuration/credentials',
+    name: 'credential-detail-disabled',
+    path: AppRoute.Configuration.Credentials.Detail.replace(':credentialId', MOCK_CREDENTIAL_DISABLED_ID),
+    waitFor: async (page) => {
+      await expect(page.getByText('GitHub API Token').first()).toBeVisible()
+      await expect(page.getByText('Disabled')).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Authentication interactive states
+// ---------------------------------------------------------------------------
+export const authenticationInteractivePages: PageEntry[] = [
+  {
+    section: 'authentication',
+    name: 'identity-provider-detail',
+    path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ).replace('/:tab?', ''),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    },
+  },
+  // Note: identity-provider-detail-group-mapping-tab excluded — navigating directly
+  // to the /group-mapping tab URL causes a loading state that never resolves when
+  // page.clock.setFixedTime is active. The detail default tab covers IdP rendering.
+]
+
+// ---------------------------------------------------------------------------
+// Detail page tab entries
+// ---------------------------------------------------------------------------
+export const detailTabPages: PageEntry[] = [
+  {
+    section: 'settings',
+    name: 'settings-application-tab',
+    path: AppRoute.SystemAdministration.SettingsTab.replace(':category', 'application'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Application/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/credentials',
+    name: 'credential-detail-workflows-tab',
+    path: AppRoute.Configuration.Credentials.DetailTab.replace(':credentialId', MOCK_CREDENTIAL_ID).replace(
+      ':tab',
+      'workflows'
+    ),
+    waitFor: async (page) => {
+      await expect(page.getByText('Production API Auth').first()).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Workflows/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/users',
+    name: 'user-detail-groups-tab',
+    path: AppRoute.AccessManagement.UserDetailTab.replace(':userId', MOCK_USER_ID).replace(':tab', 'groups'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Groups/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/users',
+    name: 'user-detail-roles-tab',
+    path: AppRoute.AccessManagement.UserDetailTab.replace(':userId', MOCK_USER_ID).replace(':tab', 'roles'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/groups',
+    name: 'group-detail-members-tab',
+    path: AppRoute.AccessManagement.GroupDetailTab.replace(':groupId', MOCK_GROUP_ID).replace(':tab', 'members'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Members/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/groups',
+    name: 'group-detail-roles-tab',
+    path: AppRoute.AccessManagement.GroupDetailTab.replace(':groupId', MOCK_GROUP_ID).replace(':tab', 'roles'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/projects',
+    name: 'project-detail-role-assignments-tab',
+    path: AppRoute.AccessManagement.ProjectDetailTab.replace(':projectId', MOCK_PROJECT_ID).replace(
+      ':tab',
+      'role-assignments'
+    ),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Assignments/i, selected: true })).toBeVisible()
+    },
+  },
+]

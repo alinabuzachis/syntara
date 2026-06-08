@@ -1,0 +1,45 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it } from 'vitest'
+
+import { NodeFormTabsLayout } from './NodeFormTabsLayout'
+
+describe('NodeFormTabsLayout', () => {
+  describe('tab navigation', () => {
+    it('shows parameters content by default', () => {
+      render(
+        <NodeFormTabsLayout
+          parametersContent={<div>Parameter content</div>}
+          settingsContent={<div>Settings content</div>}
+        />
+      )
+
+      expect(screen.getByText('Parameter content')).toBeInTheDocument()
+      expect(screen.queryByText('Settings content')).not.toBeInTheDocument()
+    })
+
+    it('switches to settings content when Settings tab is clicked', async () => {
+      const user = userEvent.setup()
+      render(
+        <NodeFormTabsLayout
+          parametersContent={<div>Parameter content</div>}
+          settingsContent={<div>Settings content</div>}
+        />
+      )
+
+      await user.click(screen.getByRole('tab', { name: 'Settings' }))
+
+      expect(screen.getByText('Settings content')).toBeInTheDocument()
+      expect(screen.queryByText('Parameter content')).not.toBeInTheDocument()
+    })
+
+    it('renders nothing in the Settings tab when settingsContent is not provided', async () => {
+      const user = userEvent.setup()
+      render(<NodeFormTabsLayout parametersContent={<div>Parameter content</div>} />)
+
+      await user.click(screen.getByRole('tab', { name: 'Settings' }))
+
+      expect(screen.queryByText('Parameter content')).not.toBeInTheDocument()
+    })
+  })
+})

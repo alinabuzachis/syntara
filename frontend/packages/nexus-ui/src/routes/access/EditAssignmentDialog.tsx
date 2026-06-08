@@ -1,0 +1,164 @@
+import {
+  Button,
+  Content,
+  ContentVariants,
+  Form,
+  FormGroup,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from '@patternfly/react-core'
+import { useEffect, useMemo, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+
+import { useAlerts } from '../../providers/alerts'
+import { getErrorMessage } from '../../utils/apiErrors'
+
+import { accessClient } from './accessClient'
+import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
+import { TypeaheadSelect } from './TypeaheadSelect'
+import type { PermissionRow } from './types'
+import { useAllRoles } from './useAllRoles'
+
+type EditAssignmentDialogProps = {
+  row: PermissionRow
+  displayName: string
+  onClose: () => void
+  onSuccess: () => void
+}
+
+type EditAssignmentFormData = {
+  roleName: string
+}
+
+export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: Readonly<EditAssignmentDialogProps>) {
+  const { showSuccess, showError } = useAlerts()
+  const [isPending, setIsPending] = useState(false)
+
+  const isProjectScoped = row.scopeType === 'project'
+
+  const { roles: allRoles } = useAllRoles()
+
+  const roleOptions = useMemo(
+    () =>
+      allRoles.map((role) =>
+        isProjectScoped ? { value: role.name, label: role.name } : { value: role.id, label: role.name }
+      ),
+    [allRoles, isProjectScoped]
+  )
+
+  const { handleSubmit, control, reset } = useForm<EditAssignmentFormData>({
+    defaultValues: {
+      roleName: '',
+    },
+  })
+
+  useEffect(() => {
+    reset({ roleName: isProjectScoped ? row.assignmentName : '' })
+  }, [row, isProjectScoped, reset])
+
+  const { mutateAsync: deleteRoleAssignment } = accessClient.useMutation('delete', '/role_assignments/{assignment_id}')
+  const { mutateAsync: deleteProjectRoleAssignment } = accessClient.useMutation(
+    'delete',
+    '/projects/{project_id}/role_assignments/{assignment_id}'
+  )
+
+  const { mutateAsync: createRoleAssignment } = accessClient.useMutation('post', '/role_assignments')
+  const { mutateAsync: createProjectRoleAssignment } = accessClient.useMutation(
+    'post',
+    '/projects/{project_id}/role_assignments'
+  )
+
+  const onSubmit = async (data: EditAssignmentFormData) => {
+    const newRole = data.roleName
+    if (!newRole || newRole === row.assignmentName) {
+      onClose()
+      return
+    }
+
+    setIsPending(true)
+    try {
+      if (row.sourceEndpoint === 'project-role-assignments') {
+        if (!row.projectId) {
+          showError({ title: 'Update failed', description: 'Invalid assignment: missing project ID' })
+          setIsPending(false)
+          return
+        }
+        const pid = row.projectId
+        await assignNewThenDeleteOldWithRollback({
+          assignNew: () =>
+            createProjectRoleAssignment({
+              params: { path: { project_id: pid } },
+              body: { principal_type: row.principalType, principal_id: row.principalId, role_name: newRole },
+            }),
+          deleteOld: () =>
+            deleteProjectRoleAssignment({ params: { path: { project_id: pid, assignment_id: row.id } } }),
+          revokeNew: (newAssignmentId) =>
+            deleteProjectRoleAssignment({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
+        })
+      } else {
+        await assignNewThenDeleteOldWithRollback({
+          assignNew: () =>
+            createRoleAssignment({
+              body: { principal_type: row.principalType, principal_id: row.principalId, role_name: newRole },
+            }),
+          deleteOld: () => deleteRoleAssignment({ params: { path: { assignment_id: row.id } } }),
+          revokeNew: (newAssignmentId) =>
+            deleteRoleAssignment({ params: { path: { assignment_id: newAssignmentId } } }),
+        })
+      }
+
+      showSuccess({ title: 'Assignment updated', description: `Updated role for ${displayName}` })
+      onSuccess()
+      onClose()
+    } catch (error) {
+      showError({ title: 'Failed to update assignment', description: getErrorMessage(error) })
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <Modal isOpen onClose={onClose} variant="small">
+      <ModalHeader title="Edit Assignment" />
+      <ModalBody>
+        <Form id="edit-assignment-form" onSubmit={handleSubmit(onSubmit)}>
+          <FormGroup label="Principal" fieldId="principal-display">
+            <Content component={ContentVariants.p}>{displayName}</Content>
+          </FormGroup>
+
+          <FormGroup label="Scope" fieldId="scope-display">
+            <Content component={ContentVariants.p}>{row.scopeType === 'project' ? row.scopeName : 'System'}</Content>
+          </FormGroup>
+
+          <FormGroup label="Role" isRequired fieldId="role-select">
+            <Controller
+              name="roleName"
+              control={control}
+              rules={{ required: 'Role is required' }}
+              render={({ field }) => (
+                <TypeaheadSelect
+                  id="role-select"
+                  ariaLabel="Role"
+                  options={roleOptions}
+                  selected={field.value}
+                  onChange={field.onChange}
+                  placeholder="Select a role..."
+                />
+              )}
+            />
+          </FormGroup>
+        </Form>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="primary" form="edit-assignment-form" type="submit" isLoading={isPending}>
+          Save
+        </Button>
+        <Button variant="link" onClick={onClose}>
+          Cancel
+        </Button>
+      </ModalFooter>
+    </Modal>
+  )
+}

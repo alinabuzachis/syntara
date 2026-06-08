@@ -1,0 +1,47 @@
+# Build stage - use native platform for faster builds
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+WORKDIR /app
+
+# Copy package files for all required packages
+COPY package*.json ./
+COPY packages/nexus-contracts/package*.json ./packages/nexus-contracts/
+COPY packages/nexus-mock-api/package*.json ./packages/nexus-mock-api/
+
+# Install dependencies
+RUN npm ci
+
+# Copy source files
+COPY packages/nexus-contracts ./packages/nexus-contracts
+COPY packages/nexus-mock-api ./packages/nexus-mock-api
+
+# Production stage - target platform will be used automatically
+FROM node:24-alpine
+WORKDIR /app
+
+# Copy package files and install production dependencies
+# Note: Explicitly list files instead of wildcards when copying from previous stage
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/packages/nexus-contracts/package.json ./packages/nexus-contracts/
+COPY --from=builder /app/packages/nexus-mock-api/package.json ./packages/nexus-mock-api/
+
+RUN npm ci --omit=dev --ignore-scripts
+
+# Copy source code
+COPY --from=builder /app/packages/nexus-contracts ./packages/nexus-contracts
+COPY --from=builder /app/packages/nexus-mock-api ./packages/nexus-mock-api
+
+# Set working directory to the mock API package
+WORKDIR /app/packages/nexus-mock-api
+
+# Expose the API port
+EXPOSE 3000
+
+# Set environment variable for port
+ENV PORT=3000
+
+# Run the server
+CMD ["npm", "start"]

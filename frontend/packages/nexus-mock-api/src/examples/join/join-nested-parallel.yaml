@@ -1,0 +1,66 @@
+---
+schema_version: "2.0.0"
+name: join-nested-parallel-test
+description: Test join with nested parallel execution
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: group1
+    type: parallel
+
+  - id: branch1a
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 1A"
+
+  - id: branch1b
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 1B"
+
+  - id: group2
+    type: parallel
+
+  - id: branch2a
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 2A"
+
+  - id: branch2b
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 2B"
+
+  - id: join_groups
+    type: converge
+    config:
+      branches:
+        - branch1a
+        - branch1b
+        - branch2a
+        - branch2b
+      strategy: all
+edges:
+  - from: trigger_manual
+    to: group1
+  - from: group1
+    to: branch1a
+    from_port: branch
+  - from: group1
+    to: branch1b
+    from_port: branch
+  - from: group1
+    to: group2
+  - from: group2
+    to: branch2a
+    from_port: branch
+  - from: group2
+    to: branch2b
+    from_port: branch
+  - from: group2
+    to: join_groups

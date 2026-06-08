@@ -1,0 +1,41 @@
+---
+schema_version: "2.0.0"
+name: join-any-test
+description: Test join with any strategy - completes when any branch finishes
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_tasks
+    type: parallel
+
+  - id: fast_task
+    type: script
+    config:
+      language: bash
+      code: echo "Fast task"
+
+  - id: slow_task
+    type: script
+    config:
+      language: bash
+      code: sleep 0.1 && echo "Slow task"
+
+  - id: join_any
+    type: converge
+    config:
+      branches:
+        - fast_task
+        - slow_task
+      strategy: any
+edges:
+  - from: trigger_manual
+    to: parallel_tasks
+  - from: parallel_tasks
+    to: fast_task
+    from_port: branch
+  - from: parallel_tasks
+    to: slow_task
+    from_port: branch
+  - from: parallel_tasks
+    to: join_any

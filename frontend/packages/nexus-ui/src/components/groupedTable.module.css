@@ -1,0 +1,4 @@
+.groupHeader {
+  background-color: var(--pf-t--global--background--color--secondary--default);
+  cursor: pointer;
+}

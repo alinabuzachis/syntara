@@ -1,0 +1,51 @@
+{
+  "name": "hello-world-demo - from the UI",
+  "description": "Simple hello world workflow with two sequential tasks",
+  "is_enabled": true,
+  "workflow_definition": {
+    "version": 1,
+    "schemaVersion": "1.0.0",
+    "metadata": {
+      "name": "hello-world-demo",
+      "description": "Simple hello world workflow"
+    },
+    "triggers": [
+      {
+        "type": "manual",
+        "requiresApproval": false
+      }
+    ],
+    "workflow": {
+      "activities": [
+        {
+          "id": "say_hello",
+          "name": "Say Hello",
+          "type": "task",
+          "task": {
+            "executor": "script",
+            "config": {
+              "language": "python",
+              "code": "print('Hello, World!')",
+              "timeout_seconds": 60
+            }
+          },
+          "requiresApproval": false
+        },
+        {
+          "id": "say_goodbye",
+          "name": "Say Goodbye",
+          "type": "task",
+          "task": {
+            "executor": "script",
+            "config": {
+              "language": "python",
+              "code": "print('Goodbye, World!')",
+              "timeout_seconds": 60
+            }
+          },
+          "requiresApproval": false
+        }
+      ]
+    }
+  }
+}

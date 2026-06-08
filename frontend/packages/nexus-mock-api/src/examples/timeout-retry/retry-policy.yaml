@@ -1,0 +1,40 @@
+---
+schema_version: "2.0.0"
+name: retry-test
+description: Test activity retry
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: flaky_task
+    name: Flaky Task
+    type: script
+    config:
+      language: bash
+      code: |
+        # Fail on first 2 attempts, succeed on 3rd
+        ATTEMPT_FILE="/tmp/attempt_counter_$$"
+        ATTEMPT=0
+        if [ -f "$ATTEMPT_FILE" ]; then
+          ATTEMPT=$(cat "$ATTEMPT_FILE")
+        fi
+        ATTEMPT=$((ATTEMPT + 1))
+        echo $ATTEMPT > "$ATTEMPT_FILE"
+
+        if [ $ATTEMPT -lt 3 ]; then
+          echo "Attempt $ATTEMPT failed"
+          exit 1
+        else
+          echo "Attempt $ATTEMPT succeeded"
+          rm "$ATTEMPT_FILE"
+          exit 0
+        fi
+    retry_policy:
+      maxAttempts: 3
+      backoff: exponential
+      multiplier: 2
+      initialInterval: 1
+      maxInterval: 60
+edges: []

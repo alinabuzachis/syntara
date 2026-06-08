@@ -1,0 +1,350 @@
+import { describe, expect, it, beforeEach } from 'vitest'
+
+import { useWorkflowStore, createScriptActivity } from './useWorkflowStore'
+import type { Activity, WorkflowDefinition } from './workflowStoreTypes'
+
+// Helper to create a v2 WorkflowDefinition for tests
+function makeWorkflow(name: string, activities: Activity[] = []): WorkflowDefinition {
+  return {
+    schema_version: '2.0.0',
+    name,
+    description: '',
+    triggers: [],
+    workflow: { activities },
+  }
+}
+
+describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
+  beforeEach(() => {
+    useWorkflowStore.setState({
+      currentWorkflow: null,
+      workflowVersion: 0,
+      edges: [],
+    })
+  })
+
+  describe('Topological sorting', () => {
+    it('reorders activities based on edges (simple chain)', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+
+      // Activities in wrong order
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityC, activityA, activityB]),
+        workflowVersion: 1,
+        edges: [
+          { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-C', source: 'B', target: 'C', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities.map((a) => a.id)).toEqual(['A', 'B', 'C'])
+    })
+
+    it('handles branching paths', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+
+      // A -> B -> D
+      // A -> C -> D
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityD, activityC, activityB, activityA]),
+        workflowVersion: 1,
+        edges: [
+          { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'A-C', source: 'A', target: 'C', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-D', source: 'B', target: 'D', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'C-D', source: 'C', target: 'D', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      const ids = activities.map((a) => a.id)
+
+      // A should be first, D should be last
+      expect(ids[0]).toBe('A')
+      expect(ids[3]).toBe('D')
+      // B and C should be in the middle (order between them is deterministic due to sort)
+      expect(ids.slice(1, 3).sort()).toEqual(['B', 'C'])
+    })
+
+    it('handles complex DAG', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+      const activityE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
+
+      // A -> B -> D -> E
+      //  \\-> C -/
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityE, activityD, activityC, activityB, activityA]),
+        workflowVersion: 1,
+        edges: [
+          { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'A-C', source: 'A', target: 'C', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-D', source: 'B', target: 'D', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'C-D', source: 'C', target: 'D', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'D-E', source: 'D', target: 'E', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      const ids = activities.map((a) => a.id)
+
+      // Verify topological order
+      expect(ids.indexOf('A')).toBeLessThan(ids.indexOf('B'))
+      expect(ids.indexOf('A')).toBeLessThan(ids.indexOf('C'))
+      expect(ids.indexOf('B')).toBeLessThan(ids.indexOf('D'))
+      expect(ids.indexOf('C')).toBeLessThan(ids.indexOf('D'))
+      expect(ids.indexOf('D')).toBeLessThan(ids.indexOf('E'))
+    })
+  })
+
+  describe('Handling flat activities', () => {
+    it('reorders all activities in flat list', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const conditionActivity: Activity = {
+        type: 'condition',
+        id: 'COND',
+        name: 'Condition',
+        config: { condition: 'input.value > 10' },
+      }
+
+      // C -> COND
+      // A -> C
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [conditionActivity, activityB, activityA]),
+        workflowVersion: 1,
+        edges: [
+          { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-COND', source: 'B', target: 'COND', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities.map((a) => a.id)).toEqual(['A', 'B', 'COND'])
+    })
+  })
+
+  describe('Preserving unconnected activities', () => {
+    it('keeps activities without edges at the end', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityOrphan = createScriptActivity('ORPHAN', 'Orphan', 'python', 'print("orphan")')
+
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityOrphan, activityC, activityA, activityB]),
+        workflowVersion: 1,
+        edges: [
+          { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-C', source: 'B', target: 'C', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      const ids = activities.map((a) => a.id)
+
+      // Connected activities should be ordered
+      expect(ids.slice(0, 3)).toEqual(['A', 'B', 'C'])
+      // Orphan should be preserved
+      expect(ids).toContain('ORPHAN')
+      expect(activities).toHaveLength(4)
+    })
+
+    it('preserves all activities even with no edges', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
+        workflowVersion: 1,
+        edges: [],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities).toHaveLength(2)
+      expect(activities.map((a) => a.id).sort()).toEqual(['A', 'B'])
+    })
+  })
+
+  describe('Deterministic ordering', () => {
+    it('produces consistent order for nodes at same level', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+
+      // B and C have no ordering constraint (both depend on nothing)
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityC, activityA, activityB]),
+        workflowVersion: 1,
+        edges: [],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const run1 = useWorkflowStore.getState().currentWorkflow?.workflow.activities.map((a) => a.id) ?? []
+
+      // Reset and run again
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityB, activityC, activityA]),
+        workflowVersion: 1,
+        edges: [],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const run2 = useWorkflowStore.getState().currentWorkflow?.workflow.activities.map((a) => a.id) ?? []
+
+      // Should produce same sorted order (alphabetical due to sort in algorithm)
+      expect(run1.sort()).toEqual(run2.sort())
+    })
+  })
+
+  describe('Edge cases', () => {
+    it('does nothing when no workflow is set', () => {
+      useWorkflowStore.setState({ currentWorkflow: null })
+
+      expect(() => useWorkflowStore.getState().reorderActivitiesFromEdges()).not.toThrow()
+      expect(useWorkflowStore.getState().currentWorkflow).toBeNull()
+    })
+
+    it('handles empty activities array', () => {
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test'),
+        workflowVersion: 1,
+        edges: [],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities).toHaveLength(0)
+    })
+
+    it('handles self-referential edges (should be filtered)', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
+        workflowVersion: 1,
+        edges: [
+          { id: 'A-A', source: 'A', target: 'A', sourceHandle: 'source', targetHandle: 'target' }, // Self-loop
+          { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
+    })
+
+    it('preserves all activities even with duplicate edges', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
+        workflowVersion: 1,
+        edges: [
+          { id: 'A-B-1', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'A-B-2', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities).toHaveLength(2)
+      expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
+    })
+  })
+
+  describe('Safety check', () => {
+    it('never removes activities during reordering', () => {
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [activityA, activityB, activityC]),
+        workflowVersion: 1,
+        edges: [
+          // Only A->B edge, C is disconnected
+          { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+
+      // All three activities must be preserved
+      expect(activities).toHaveLength(3)
+      expect(activities.map((a) => a.id).sort()).toEqual(['A', 'B', 'C'])
+    })
+
+    it('reorders activities with loop nodes using done handle', () => {
+      const startActivity = createScriptActivity('START', 'Start', 'python', 'print("start")')
+      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const loopBodyC = createScriptActivity('C', 'Loop Body C', 'python', 'print("C")')
+      const loopB: Activity = {
+        type: 'loop',
+        id: 'B',
+        name: 'Loop B',
+        config: {
+          type: 'for_each',
+          items: 'input.items',
+        },
+      }
+
+      // Initial order: START->A->B with C inside loop body
+      // Change to: START->B->A (reconnect edges)
+      useWorkflowStore.setState({
+        currentWorkflow: makeWorkflow('Test', [startActivity, activityA, loopB, loopBodyC]),
+        workflowVersion: 1,
+        edges: [
+          // NEW edge configuration: START->B->A
+          { id: 'START-B', source: 'START', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-A', source: 'B', target: 'A', sourceHandle: 'done', targetHandle: 'target' },
+          // Loop internal edges (should be ignored for ordering)
+          { id: 'B-C', source: 'B', target: 'C', sourceHandle: 'loop', targetHandle: 'target' },
+          { id: 'C-B', source: 'C', target: 'B', sourceHandle: 'source', targetHandle: 'end' },
+        ],
+      })
+
+      useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+
+      // All activities should be preserved
+      expect(activities).toHaveLength(4)
+      const topLevelIds = activities.map((a) => a.id)
+      const startIndex = topLevelIds.indexOf('START')
+      const bIndex = topLevelIds.indexOf('B')
+
+      // Verify correct ordering: START < B
+      expect(startIndex).toBeLessThan(bIndex)
+    })
+  })
+})

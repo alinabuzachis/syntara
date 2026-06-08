@@ -1,0 +1,155 @@
+import { useReactFlow } from '@xyflow/react'
+import { useCallback } from 'react'
+import type { ReactNode } from 'react'
+
+import { type MenuNodeTypeUnion, MenuNodeType } from '../../../../../constants'
+import { useAlerts } from '../../../../../providers/alerts'
+import { useNodeActions } from '../../../../../routes/builder/NodeActionsContext'
+import { getErrorMessage } from '../../../../../utils/apiErrors'
+import { detachPromise } from '../../../../../utils/detachPromise'
+import { resolveFlowNodeId } from '../../../../../utils/triggerNodeIds'
+
+// Re-export for convenience
+export { MenuNodeType, type MenuNodeTypeUnion } from '../../../../../constants'
+
+export type NodeMenuAction = {
+  id: string
+  label: string
+  onClick: () => void
+  icon?: ReactNode
+  variant?: 'default' | 'danger'
+  separator?: boolean
+}
+
+type UseNodeMenuActionsOptions = {
+  nodeId: string
+  nodeType: MenuNodeTypeUnion
+  triggerIndex?: number
+  additionalActions?: NodeMenuAction[]
+}
+
+/**
+ * Custom hook for managing the canvas step kebab menu in the workflow builder.
+ * Defines menu items per canvas step category (`MenuNodeType`).
+ *
+ * Uses React Flow's deleteElements API to ensure proper edge cleanup and ButtonEdge maintenance.
+ *
+ * When rendered inside a NodeActionsContext.Provider (i.e. within BuilderContent),
+ * additional builder-specific actions are automatically included:
+ * - View details (all step types)
+ * - Run step (activity steps only — currently a placeholder)
+ * - Duplicate (activity steps only)
+ * - Replace (activity steps only)
+ *
+ * @param options Configuration options for the step menu (React Flow node id + category)
+ * @returns Array of menu actions to display in the kebab menu
+ *
+ * @example
+ * // For activity nodes (Task, Condition, Join, Loop, Parallel)
+ * const menuActions = useNodeMenuActions({
+ *   nodeId: props.data.id,
+ *   nodeType: MenuNodeType.ACTIVITY,
+ * })
+ *
+ * @example
+ * // For trigger nodes
+ * const triggerIndex = parseInt(props.id.split('-')[1])
+ * const menuActions = useNodeMenuActions({
+ *   nodeId: props.id,
+ *   nodeType: MenuNodeType.TRIGGER,
+ *   triggerIndex,
+ * })
+ *
+ * @example
+ * // With additional custom actions
+ * const menuActions = useNodeMenuActions({
+ *   nodeId: props.data.id,
+ *   nodeType: MenuNodeType.ACTIVITY,
+ *   additionalActions: [
+ *     {
+ *       id: 'duplicate',
+ *       label: 'Duplicate',
+ *       onClick: () => handleDuplicate(),
+ *       icon: <CopyIcon />,
+ *     },
+ *   ],
+ * })
+ */
+export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenuAction[] {
+  const { nodeId, nodeType, triggerIndex, additionalActions = [] } = options
+  const { deleteElements } = useReactFlow()
+  const { showError } = useAlerts()
+  const nodeActions = useNodeActions()
+
+  const handleDelete = useCallback(() => {
+    // Use React Flow's deleteElements to trigger proper cleanup via onNodesDelete
+    // This ensures edges are removed and ButtonEdges are recreated correctly
+    const flowNodeId = resolveFlowNodeId({ nodeId, nodeType, triggerIndex })
+    detachPromise(deleteElements({ nodes: [{ id: flowNodeId }] }), {
+      onReject: (error: unknown) => showError({ title: 'Could not delete step', description: getErrorMessage(error) }),
+    })
+  }, [nodeType, nodeId, triggerIndex, deleteElements, showError])
+
+  const handleViewDetails = useCallback(() => {
+    nodeActions?.onViewDetails(nodeId)
+  }, [nodeActions, nodeId])
+
+  const handleRunStep = useCallback(() => {
+    nodeActions?.onRunStep(nodeId)
+  }, [nodeActions, nodeId])
+
+  const handleDuplicate = useCallback(() => {
+    nodeActions?.onDuplicate(nodeId)
+  }, [nodeActions, nodeId])
+
+  const handleReplace = useCallback(() => {
+    nodeActions?.onReplace(nodeId)
+  }, [nodeActions, nodeId])
+
+  // Build the menu actions array
+  const deleteAction: NodeMenuAction = {
+    id: 'delete',
+    label: 'Delete',
+    onClick: handleDelete,
+    variant: 'danger',
+  }
+
+  // Builder-specific actions — only present when NodeActionsContext is provided.
+  // Omitted automatically in execution view and any other non-builder context.
+  const builderActions: NodeMenuAction[] = nodeActions
+    ? [
+        {
+          id: 'view-details',
+          label: 'View step details',
+          onClick: handleViewDetails,
+        },
+        ...(nodeType === MenuNodeType.ACTIVITY
+          ? [
+              {
+                id: 'run-step',
+                label: 'Run step',
+                onClick: handleRunStep,
+              },
+              {
+                id: 'duplicate',
+                label: 'Duplicate',
+                onClick: handleDuplicate,
+              },
+              {
+                id: 'replace',
+                label: 'Replace',
+                onClick: handleReplace,
+              },
+            ]
+          : []),
+      ]
+    : []
+
+  const allAdditionalActions = [...builderActions, ...additionalActions]
+
+  if (allAdditionalActions.length > 0) {
+    return [...allAdditionalActions, deleteAction]
+  }
+
+  return [deleteAction]
+}

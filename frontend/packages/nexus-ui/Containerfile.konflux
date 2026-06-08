@@ -1,0 +1,61 @@
+# Konflux-specific Containerfile using UBI9 for Red Hat certification
+# This is used by Konflux pipelines for official builds
+# For local development, use packages/nexus-ui/Containerfile
+
+# Build stage
+FROM registry.access.redhat.com/ubi9/nodejs-24:latest@sha256:3ffbe2cf5ff14d8fdca014a125753ca59a077215383e7319edcab61e889366dc AS builder
+
+USER root
+
+WORKDIR /app
+
+# Copy license files for Red Hat certification
+COPY LICENSE /licenses/LICENSE
+COPY packages/nexus-ui/LICENSE /licenses/nexus-ui-LICENSE
+
+# Copy package files for dependency installation
+COPY package.json package-lock.json ./
+COPY packages/nexus-contracts/package.json ./packages/nexus-contracts/
+COPY packages/nexus-ui/package.json ./packages/nexus-ui/
+
+# Install dependencies (CI=true for deterministic builds)
+RUN CI=true npm ci --no-fund --no-audit --ignore-scripts
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production stage - use ubi9 nginx image
+FROM registry.redhat.io/ubi9/nginx-124:latest@sha256:c04a63aa056bc1021f5e5f7cab73fa7ea579833d5dcf8a0eb2162f78be54e4e6
+
+USER 0
+
+# Copy licenses from builder stage for Red Hat certification (HasLicense check)
+COPY --from=builder /licenses /licenses
+
+# Copy built application to the location expected by ubi9/nginx-124
+COPY --from=builder --chown=1001:0 /app/packages/nexus-ui/dist /opt/app-root/src
+
+# Switch to non-root user
+USER 1001
+
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]
+
+# Downstream specific labels
+
+ENV DESCRIPTION="Syntara UI" \
+    container=oci
+
+LABEL com.redhat.component="ansible-automation-orchestrator-ui-container" \
+      name="ansible-automation-platform/ansible-automation-orchestrator-ui-rhel9" \
+      summary="${DESCRIPTION}" \
+      io.openshift.expose-services="" \
+      io.openshift.tags="automation,ansible,orchestrator" \
+      io.k8s.display-name="ansible-automation-orchestrator-ui-rhel9" \
+      io.k8s.description="${DESCRIPTION}" \
+      maintainer="Ansible Automation Platform Productization Team" \
+      description="${DESCRIPTION}"

@@ -1,0 +1,114 @@
+import { ActivityTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { MarkerType } from '@xyflow/react'
+
+import { BUTTON_EDGE_DEFAULT_STROKE } from '../edges/buttonEdgeStrokeColor'
+
+/**
+ * In v2, triggers are { id, type, name, config } nodes.
+ * Manual trigger type is 'manual_trigger'.
+ */
+export type Trigger = {
+  id?: string
+  type: string
+  name?: string
+  config?: Record<string, unknown>
+}
+
+export type TaskActivity = Activity
+
+export const markerEnd = {
+  type: MarkerType.ArrowClosed,
+  width: 12,
+  height: 12,
+  color: BUTTON_EDGE_DEFAULT_STROKE,
+}
+
+export type EdgeType = {
+  id: string
+  type?: string
+  source: string
+  target: string
+  sourceHandle?: string
+  targetHandle?: string
+  selectable?: boolean
+  data?: {
+    onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string) => void
+    onButtonClick?: () => void
+    isActive?: boolean
+    isPending?: boolean
+    executionStatus?: 'passed' | 'pending'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any
+  }
+  markerEnd?: typeof markerEnd
+}
+
+/**
+ * Extracts all executor and approval activities from the flat activity list.
+ * In v2, all activities are flat (no nested structures), so this just filters
+ * by type. Also includes generic placeholder nodes (type: 'generic').
+ */
+export function extractTaskActivities(activities: Activity[]): Activity[] {
+  const tasks: Activity[] = []
+  for (const activity of activities) {
+    // In v2, executor types are direct activity types
+    // Also include 'generic' type for placeholder nodes (UI-only concept)
+    if (
+      activity.type === ActivityTypeEnum.SCRIPT ||
+      activity.type === ActivityTypeEnum.HTTP_REQUEST ||
+      activity.type === ActivityTypeEnum.AGENTIC ||
+      activity.type === ActivityTypeEnum.AAP_JOB_TEMPLATE ||
+      activity.type === ActivityTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE ||
+      activity.type === ActivityTypeEnum.APPROVAL ||
+      activity.type === 'generic'
+    ) {
+      tasks.push(activity)
+    }
+  }
+  return tasks
+}
+
+/**
+ * Extracts display name and details from a trigger based on its type and configuration.
+ * Returns separate fields to avoid encoding issues with special characters in names.
+ */
+export function getTriggerDisplayData(trigger: Trigger): { name: string; details: string | null } {
+  const name = trigger.name?.trim() || 'Trigger'
+  let details: string | null = null
+
+  switch (trigger.type) {
+    case TriggerTypeEnum.MANUAL_TRIGGER:
+      details = 'Manual'
+      break
+    case TriggerTypeEnum.SCHEDULED:
+      if (trigger.config) {
+        const scheduleType = trigger.config.schedule_type as string | undefined
+        if (scheduleType === 'cron') {
+          details = `Cron: ${(trigger.config.cron as string) ?? ''}`
+        } else if (scheduleType === 'interval') {
+          details = `Interval: ${(trigger.config.interval as string) ?? ''}`
+        } else {
+          details = 'Continuous'
+        }
+      } else {
+        details = 'Scheduled'
+      }
+      break
+    case TriggerTypeEnum.EVENT:
+      if (trigger.config) {
+        const source = (trigger.config.source as string) ?? ''
+        const eventType = (trigger.config.event_type as string) ?? ''
+        details = `Event: ${source}/${eventType}`
+      } else {
+        details = 'Event'
+      }
+      break
+    case TriggerTypeEnum.WEBHOOK_TRIGGER: {
+      const webhookPath = (trigger.config?.webhook_path as string) ?? ''
+      details = webhookPath ? `Webhook: /${webhookPath}` : 'Webhook'
+      break
+    }
+  }
+
+  return { name, details }
+}

@@ -1,0 +1,31 @@
+---
+schema_version: "2.0.0"
+name: full-metadata-workflow
+description: Workflow demonstrating all metadata fields
+metadata:
+  tags:
+    - test
+    - metadata
+    - comprehensive
+  owner: qa-team
+  timeout: 30
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: validate_metadata
+    name: Validate Metadata
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Workflow with complete metadata"
+        echo "Tags: test, metadata, comprehensive"
+        echo "Owner: qa-team"
+        echo "Timeout: 30 seconds"
+        echo '{"validated": true}'
+    outputs:
+      result: $.stdout
+edges: []

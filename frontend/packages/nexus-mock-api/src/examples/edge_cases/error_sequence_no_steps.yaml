@@ -1,0 +1,15 @@
+---
+schema_version: "2.0.0"
+name: error-sequence-no-steps
+description: Test error when sequence activity has no steps
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: invalid_sequence
+    name: Sequence Without Steps
+    type: sequence
+    # Missing 'steps' field - should raise ValueError
+edges: []

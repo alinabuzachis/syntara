@@ -1,0 +1,204 @@
+/* PatternFly base CSS */
+@import '@patternfly/react-core/dist/styles/base.css';
+
+/* Semantic token for Red Hat logo + shared “deep space” shell (PF primitives only — see
+   https://www.patternfly.org/tokens/all-patternfly-tokens/ ). Legacy bitmap stops approximated:
+   left #092E5C, right #28154B, top #0E417D, bottom #00464C, base #030308 */
+:root {
+  --pf-t--custom--color--redhat-logo: #e00;
+
+  --nexus-form-max-width: 600px;
+
+  /* Solid chroma centers: nested color-mix() of --pf-t--color--* to hug legacy RGB */
+  --nexus-deep-space-chroma-left: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--pf-t--color--blue--80) 70%, var(--pf-t--color--blue--60) 30%) 88%,
+    var(--pf-t--color--purple--70) 12%
+  );
+  --nexus-deep-space-chroma-right: color-mix(
+    in srgb,
+    var(--pf-t--color--purple--70) 72%,
+    var(--pf-t--color--purple--80) 28%
+  );
+  --nexus-deep-space-chroma-top: color-mix(in srgb, var(--pf-t--color--blue--70) 52%, var(--pf-t--color--blue--60) 48%);
+  /* #00464C legacy ≈ teal-70 #004d4d */
+  --nexus-deep-space-chroma-bottom: var(--pf-t--color--teal--70);
+
+  /* Same apparent strengths as original rgba() stops (76% / 66% / 38% / 32%) */
+  --nexus-deep-space-wash-left: color-mix(in srgb, var(--nexus-deep-space-chroma-left) 76%, transparent);
+  --nexus-deep-space-wash-right: color-mix(in srgb, var(--nexus-deep-space-chroma-right) 66%, transparent);
+  --nexus-deep-space-wash-top: color-mix(in srgb, var(--nexus-deep-space-chroma-top) 38%, transparent);
+  --nexus-deep-space-wash-bottom: color-mix(in srgb, var(--nexus-deep-space-chroma-bottom) 32%, transparent);
+
+  --nexus-deep-space-image:
+    radial-gradient(ellipse 80% 100% at 0% 50%, var(--nexus-deep-space-wash-left) 0%, transparent 51%),
+    radial-gradient(ellipse 80% 100% at 100% 50%, var(--nexus-deep-space-wash-right) 0%, transparent 51%),
+    radial-gradient(ellipse 100% 60% at 50% 0%, var(--nexus-deep-space-wash-top) 0%, transparent 51%),
+    radial-gradient(ellipse 100% 60% at 50% 100%, var(--nexus-deep-space-wash-bottom) 0%, transparent 51%);
+  /* #030308 ≈ heavy black + hint of blue-80 */
+  --nexus-deep-space-base: color-mix(in srgb, var(--pf-t--color--blue--80) 14%, var(--pf-t--color--black));
+
+  /* Light shell chroma (PF primitives; strengths aligned to UX rgba stops) */
+  --nexus-deep-space-light-wash-left: color-mix(in srgb, var(--pf-t--color--blue--60) 22%, transparent);
+  --nexus-deep-space-light-wash-right: color-mix(in srgb, var(--pf-t--color--purple--60) 18%, transparent);
+  --nexus-deep-space-light-wash-top: color-mix(in srgb, var(--pf-t--color--blue--50) 14%, transparent);
+  --nexus-deep-space-light-wash-bottom: color-mix(in srgb, var(--pf-t--color--teal--50) 12%, transparent);
+  --nexus-deep-space-light-image:
+    radial-gradient(ellipse 80% 100% at 0% 50%, var(--nexus-deep-space-light-wash-left) 0%, transparent 51%),
+    radial-gradient(ellipse 80% 100% at 100% 50%, var(--nexus-deep-space-light-wash-right) 0%, transparent 51%),
+    radial-gradient(ellipse 100% 60% at 50% 0%, var(--nexus-deep-space-light-wash-top) 0%, transparent 51%),
+    radial-gradient(ellipse 100% 60% at 50% 100%, var(--nexus-deep-space-light-wash-bottom) 0%, transparent 51%);
+  /* #F5F7FC ≈ primary background tinted with blue-30 */
+  --nexus-deep-space-light-base: color-mix(
+    in srgb,
+    var(--pf-t--global--background--color--primary--default) 88%,
+    var(--pf-t--color--blue--30)
+  );
+}
+
+/* Shell chrome: Compass, login, and body share the same layered background tokens. */
+html.pf-v6-theme-dark {
+  --nexus-shell-bg-image: var(--nexus-deep-space-image);
+  --nexus-shell-bg-base: var(--nexus-deep-space-base);
+}
+
+html:not(.pf-v6-theme-dark) {
+  --nexus-shell-bg-image: var(--nexus-deep-space-light-image);
+  --nexus-shell-bg-base: var(--nexus-deep-space-light-base);
+}
+
+body {
+  background: var(--nexus-shell-bg-image), var(--nexus-shell-bg-base);
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+/* Deep Space background on Compass + login */
+.pf-v6-c-compass.bg-deep-space {
+  --pf-v6-c-compass--BackgroundImage: var(--nexus-shell-bg-image);
+
+  background-color: var(--nexus-shell-bg-base);
+  background-attachment: fixed;
+}
+
+.bg-deep-space-login {
+  background: var(--nexus-shell-bg-image), var(--nexus-shell-bg-base);
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+/* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that
+   extend past the viewport edge. The app requires ≥1200px viewport anyway. */
+html {
+  overflow-x: hidden;
+}
+
+/* Docked masthead glass background: PF prerelease.45 sets the docked masthead background
+   to transparent (expecting Compass dock to provide it), but Compass dock has no background
+   styles. Restore the glass effect using PF's own design tokens.
+   Note: backdrop-filter is set to none to prevent creating a stacking context that would
+   trap NavItem flyout menus behind the main content panel. */
+.pf-v6-c-masthead.pf-m-docked {
+  background-color: var(--pf-v6-c-masthead--m-docked--BackgroundColor);
+  backdrop-filter: none !important;
+}
+
+/* Docked masthead logo: PF prerelease.45 hides the full logo at ≥62rem in favour of
+   a compact variant. Since this app only uses a single icon logo, always treat it as
+   compact so it stays visible and centered. The brand flex container also needs
+   justify-content so the logo is horizontally centered within the bar. */
+.pf-v6-c-masthead.pf-m-docked .pf-v6-c-masthead__main {
+  align-items: center;
+}
+.pf-v6-c-masthead.pf-m-docked .pf-v6-c-masthead__brand {
+  justify-content: center;
+}
+
+/* Sticky header background: fix for `isPlain` setting thead background to transparent,
+   causing table rows to show through it when scrolling. Triple-layer the glass color
+   (~87.5% effective opacity) to keep the glass effect while preventing content bleed. */
+table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
+  background:
+    linear-gradient(
+      var(--pf-t--global--background--color--glass--primary--default),
+      var(--pf-t--global--background--color--glass--primary--default)
+    ),
+    linear-gradient(
+      var(--pf-t--global--background--color--glass--primary--default),
+      var(--pf-t--global--background--color--glass--primary--default)
+    ),
+    linear-gradient(
+      var(--pf-t--global--background--color--glass--primary--default),
+      var(--pf-t--global--background--color--glass--primary--default)
+    );
+  backdrop-filter: var(--pf-t--global--background--filter--glass--blur--primary);
+}
+
+/**
+ * Fix z-index for NavItem flyout menus in docked vertical navigation.
+ * Ensures the flyout menu appears above the main content panel.
+ */
+.pf-v6-c-menu__container,
+.pf-v6-c-popper {
+  z-index: 9999 !important;
+}
+
+/**
+ * Ensure menu items in nav flyouts are visible with proper styling.
+ * Set minimum width to accommodate both icons and text labels.
+ */
+.pf-v6-c-nav.pf-m-docked .pf-v6-c-menu {
+  min-width: 200px;
+  width: max-content;
+}
+
+.pf-v6-c-nav.pf-m-docked .pf-v6-c-menu__item {
+  color: var(--pf-t--global--text--color--regular);
+  white-space: nowrap;
+}
+
+/**
+ * Hide the flyout arrow indicator in the docked nav.
+ * The docked nav uses icon-only items where the arrow disrupts alignment.
+ */
+.pf-v6-c-nav.pf-m-docked .pf-v6-c-nav__toggle {
+  display: none;
+}
+
+/**
+ * Hide the Popper arrow on all flyout menus.
+ * The arrow is unnecessary and can cause visual clutter.
+ */
+.pf-v6-c-popper__arrow {
+  display: none !important;
+}
+
+/* Disable Compass screen warning above 720px, show custom warning below. */
+@media (max-width: 1200px) {
+  .pf-v6-c-compass.pf-m-no-screen-warning {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto;
+    grid-template-rows: auto;
+    place-content: center;
+    gap: 0;
+  }
+  .pf-v6-c-compass.pf-m-no-screen-warning::after {
+    padding: 1em;
+    border-radius: var(--pf-t--global--border--radius--large);
+    background: var(--pf-t--global--background--color--primary--default);
+    content: 'This app requires a viewport width of at least 1200px.\A\APlease use a larger display or expand your browser window.';
+    width: 300px;
+    border: 1px solid var(--pf-t--global--border--color--default);
+    box-shadow: var(--pf-t--global--box-shadow--md);
+    white-space: pre-wrap;
+    text-align: center;
+  }
+  .pf-v6-c-compass.pf-m-no-screen-warning * {
+    display: none;
+  }
+  /* Hide PF menu portals (Select/Dropdown) that render on document.body */
+  body > .pf-v6-c-menu__container {
+    display: none !important;
+  }
+}

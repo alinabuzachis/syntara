@@ -1,0 +1,51 @@
+---
+schema_version: "2.0.0"
+name: join-all-test
+description: Test join with all strategy - waits for all branches to complete
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_tasks
+    type: parallel
+
+  - id: task1
+    type: script
+    config:
+      language: bash
+      code: echo "Task 1 complete"
+
+  - id: task2
+    type: script
+    config:
+      language: bash
+      code: echo "Task 2 complete"
+
+  - id: task3
+    type: script
+    config:
+      language: bash
+      code: echo "Task 3 complete"
+
+  - id: join_all
+    type: converge
+    config:
+      branches:
+        - task1
+        - task2
+        - task3
+      strategy: all
+edges:
+  - from: trigger_manual
+    to: parallel_tasks
+  - from: parallel_tasks
+    to: task1
+    from_port: branch
+  - from: parallel_tasks
+    to: task2
+    from_port: branch
+  - from: parallel_tasks
+    to: task3
+    from_port: branch
+  - from: parallel_tasks
+    to: join_all

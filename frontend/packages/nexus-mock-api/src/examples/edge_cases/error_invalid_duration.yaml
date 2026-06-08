@@ -1,0 +1,18 @@
+---
+schema_version: "2.0.0"
+name: error-invalid-duration
+description: Test error with invalid ISO 8601 duration format
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: task_with_invalid_timeout
+    name: Task With Invalid Timeout
+    type: script
+    config:
+      language: bash
+      code: echo "Should not execute"
+    timeout: 5M # Missing PT prefix - should raise ValueError
+edges: []

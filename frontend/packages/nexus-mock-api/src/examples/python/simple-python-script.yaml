@@ -1,0 +1,18 @@
+---
+schema_version: "2.0.0"
+name: simple-python-script
+description: Execute a simple Python script that prints JSON output
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: hello_python
+    type: script
+    config:
+      language: python
+      code: |
+        import json
+        print(json.dumps({"message": "Hello from Python!"}))
+edges: []

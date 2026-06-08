@@ -1,0 +1,51 @@
+---
+schema_version: "2.0.0"
+name: join-timeout-fail-test
+description: Test join with timeout that fails when timeout is reached
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_tasks
+    name: Parallel Tasks
+    type: parallel
+
+  - id: fast_task
+    name: Fast Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Fast task completed"
+
+  - id: slow_task
+    name: Slow Task
+    type: script
+    config:
+      language: bash
+      code: |
+        sleep 3
+        echo "Slow task completed"
+
+  - id: join_with_timeout
+    name: Join with Timeout (Fail)
+    type: converge
+    config:
+      branches:
+        - fast_task
+        - slow_task
+      strategy: all
+      timeout: PT1S
+      onTimeout: fail
+      aggregateOutputs: true
+edges:
+  - from: trigger_manual
+    to: parallel_tasks
+  - from: parallel_tasks
+    to: fast_task
+    from_port: branch
+  - from: parallel_tasks
+    to: slow_task
+    from_port: branch
+  - from: parallel_tasks
+    to: join_with_timeout

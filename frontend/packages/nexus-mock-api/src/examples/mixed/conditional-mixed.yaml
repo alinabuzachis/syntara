@@ -1,0 +1,42 @@
+---
+schema_version: "2.0.0"
+name: conditional-mixed
+description: Conditional execution with different activity types
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        use_python:
+          type: boolean
+          description: Whether to use Python branch or API branch
+          default: true
+nodes:
+  - id: check_condition
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"condition_checked": true}'
+
+  - id: python_branch
+    type: script
+    condition: ${input.use_python} == true
+    config:
+      language: python
+      code: |
+        print("Python branch executed")
+
+  - id: api_branch
+    type: http_request
+    condition: ${input.use_python} == false
+    config:
+      method: GET
+      url: http://test-api.example.com/api/data
+edges:
+  - from: trigger_manual
+    to: check_condition
+  - from: check_condition
+    to: python_branch
+  - from: python_branch
+    to: api_branch
