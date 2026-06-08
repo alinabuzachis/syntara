@@ -17,7 +17,7 @@ export function useCredentialWorkflowCheck(credential: Credential | null): Crede
   )
 
   return {
-    affectedWorkflows: workflowsQuery.data ?? [],
+    affectedWorkflows: workflowsQuery.data?.resources ?? [],
     workflowsFetchError: !!workflowsQuery.error,
     isLoadingWorkflows: workflowsQuery.isLoading && !!credential,
   }

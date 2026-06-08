@@ -28,7 +28,7 @@ export function getAuthSourceFilterDefinition(): FilterFieldDefinition {
       const staticOptions = [{ value: AUTH_SOURCE_LOCAL, label: AUTH_SOURCE_LOCAL }]
       try {
         const response = await authFetchClient.GET('/auth/providers')
-        const providers = response.data?.providers ?? []
+        const providers = response.data?.resources ?? []
         const providerOptions = providers.map((p) => ({ value: p.name, label: p.name }))
         return [...staticOptions, ...providerOptions]
       } catch {

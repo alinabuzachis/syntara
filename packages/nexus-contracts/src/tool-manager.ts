@@ -14,24 +14,6 @@ export interface paths {
     /**
      * Get Tools
      * @description List tools with filtering, sorting, and pagination.
-     *
-     *     Supports filtering using query parameters with standard operators:
-     *     - name: Filter by tool name (name=tool_name, name[contains]=text)
-     *     - enabled: Filter by enabled status (enabled=true|false)
-     *     - status: Filter by tool status (status=available|missing|error)
-     *     - provider_id: Filter by provider ID (provider_id=uuid)
-     *     - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
-     *     - labels: Filter by labels using bracket notation (labels[environment]=production)
-     *
-     *     Uses cursor-based pagination for scalability and consistency.
-     *
-     *     Args:
-     *         request: FastAPI request object containing query parameters
-     *         service: Tool service
-     *         params: Query parameters for pagination and filtering
-     *
-     *     Returns:
-     *         ToolListResponse with tools, pagination metadata, and optional total
      */
     get: operations['get_tools']
     put?: never
@@ -52,19 +34,6 @@ export interface paths {
     /**
      * Get Tool
      * @description Get tool details by ID.
-     *
-     *     Returns detailed information about a specific tool including
-     *     parameters, status, and metadata.
-     *
-     *     Args:
-     *         tool_id: UUID of the tool to retrieve
-     *         service: Tool service
-     *
-     *     Returns:
-     *         ToolWithParameters instance with full details
-     *
-     *     Raises:
-     *         HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
      */
     get: operations['get_tool']
     put?: never
@@ -75,20 +44,6 @@ export interface paths {
     /**
      * Patch Tool
      * @description Update tool status (enable/disable).
-     *
-     *     Updates the tool's status to enable or disable it for use.
-     *     Only admin-controllable status changes are allowed (available/disabled).
-     *
-     *     Args:
-     *         tool_id: UUID of the tool to update
-     *         tool_update: Tool update data with status
-     *         service: Tool service
-     *
-     *     Returns:
-     *         Updated Tool instance
-     *
-     *     Raises:
-     *         HTTPException: 400 for validation errors, 404 if not found, 403 for auth
      */
     patch: operations['patch_tool']
     trace?: never
@@ -109,19 +64,6 @@ export interface paths {
     /**
      * Bulk Update Tools
      * @description Bulk update tool status (enable/disable multiple tools).
-     *
-     *     Updates the status of multiple tools in a single operation.
-     *     Only admin-controllable status changes are allowed (available/disabled).
-     *
-     *     Args:
-     *         bulk_update: Bulk update request with tool IDs and status
-     *         service: Tool service
-     *
-     *     Returns:
-     *         Dictionary with update statistics and timestamp
-     *
-     *     Raises:
-     *         HTTPException: 400 for validation errors, 403 for auth
      */
     patch: operations['bulk_update_tools']
     trace?: never
@@ -136,42 +78,12 @@ export interface paths {
     /**
      * Get Tool Providers
      * @description List tool providers with filtering, sorting, and pagination.
-     *
-     *     Supports filtering using query parameters with standard operators:
-     *     - name: Filter by provider name (name=provider_name, name[contains]=text)
-     *     - status: Filter by provider status (status=validating|available|error)
-     *     - enabled: Filter by enabled status (enabled=true|false)
-     *     - provider_type: Filter by provider type (provider_type=openapi)
-     *     - labels: Filter by labels using bracket notation (labels[environment]=production)
-     *
-     *     Uses cursor-based pagination for scalability and consistency.
-     *
-     *     Args:
-     *         request: FastAPI request object containing query parameters
-     *         service: Tool provider service
-     *         params: Query parameters for pagination and filtering
-     *
-     *     Returns:
-     *         ToolProviderListResponse with providers, pagination metadata, and optional total
      */
     get: operations['get_tool_providers']
     put?: never
     /**
      * Register Tool Provider
      * @description Register a new Tool Provider.
-     *
-     *     Creates a new tool provider with the specified configuration.
-     *     The provider starts in 'validating' status.
-     *
-     *     Args:
-     *         provider_create: Provider configuration and metadata
-     *         service: Tool provider service
-     *
-     *     Returns:
-     *         Created ToolProvider instance
-     *
-     *     Raises:
-     *         HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
      */
     post: operations['register_tool_provider']
     delete?: never
@@ -190,54 +102,17 @@ export interface paths {
     /**
      * Get Tool Provider
      * @description Get Tool Provider details by ID.
-     *
-     *     Returns detailed information about a specific Tool Provider including
-     *     configuration, status, and metadata.
-     *
-     *     Args:
-     *         provider_id: UUID of the provider to retrieve
-     *         service: Tool provider service
-     *
-     *     Returns:
-     *         ToolProvider instance with full details
-     *
-     *     Raises:
-     *         HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
      */
     get: operations['get_tool_provider']
     /**
      * Update Tool Provider
      * @description Update Tool Provider configuration (complete replacement).
-     *
-     *     Performs a complete replacement of the provider configuration.
-     *     All fields in the request body will replace existing values.
-     *
-     *     Args:
-     *         provider_id: UUID of the provider to update
-     *         provider_update: New provider configuration
-     *         service: Tool provider service
-     *
-     *     Returns:
-     *         Updated ToolProvider instance
-     *
-     *     Raises:
-     *         HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
      */
     put: operations['update_tool_provider']
     post?: never
     /**
      * Delete Tool Provider
      * @description Remove Tool Provider and all associated tools.
-     *
-     *     Performs a soft delete of the provider and cascades to associated tools.
-     *     The provider will no longer be accessible but remains in the database.
-     *
-     *     Args:
-     *         provider_id: UUID of the provider to delete
-     *         service: Tool provider service
-     *
-     *     Raises:
-     *         HTTPException: 404 if provider not found, 403 for auth
      */
     delete: operations['delete_tool_provider']
     options?: never
@@ -245,20 +120,6 @@ export interface paths {
     /**
      * Patch Tool Provider
      * @description Patch Tool Provider.
-     *
-     *     Performs a partial update of the provider configuration.
-     *     Only provided fields are updated, configuration objects are replaced.
-     *
-     *     Args:
-     *         provider_id: UUID of the provider to patch
-     *         provider_patch: Partial update data
-     *         service: Tool provider service
-     *
-     *     Returns:
-     *         Updated ToolProvider instance
-     *
-     *     Raises:
-     *         HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
      */
     patch: operations['patch_tool_provider']
     trace?: never
@@ -275,19 +136,6 @@ export interface paths {
     /**
      * Validate Tool Provider
      * @description Validate Tool Provider connection and capabilities.
-     *
-     *     Tests the connection to the tool provider and validates compatibility.
-     *     Updates the provider status based on validation results.
-     *
-     *     Args:
-     *         provider_id: UUID of the provider to validate
-     *         service: Tool provider service
-     *
-     *     Returns:
-     *         Validation result with status and capability details (always 200)
-     *
-     *     Raises:
-     *         HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
      */
     post: operations['validate_tool_provider']
     delete?: never
@@ -308,19 +156,6 @@ export interface paths {
     /**
      * Refresh Tool Provider
      * @description Refresh tools from Tool Provider.
-     *
-     *     Connects to the tool provider and refreshes the list of available tools.
-     *     Creates new tools, updates existing ones, and disables missing tools.
-     *
-     *     Args:
-     *         provider_id: UUID of the provider to refresh
-     *         service: Tool provider service
-     *
-     *     Returns:
-     *         Refresh statistics including counts and timestamp
-     *
-     *     Raises:
-     *         HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
      */
     post: operations['refresh_tool_provider']
     delete?: never
@@ -341,19 +176,6 @@ export interface paths {
     /**
      * Test Tool Provider
      * @description Test Tool Provider definition without saving to database.
-     *
-     *     Validates the provider configuration and tests connectivity using the appropriate adapter.
-     *     This endpoint allows testing provider definitions before registering them.
-     *
-     *     Args:
-     *         provider_create: Provider configuration to test
-     *         service: Tool provider service
-     *
-     *     Returns:
-     *         ToolProviderValidationResult with test results (always 200)
-     *
-     *     Raises:
-     *         HTTPException: 403 for auth, 500 for unexpected errors
      */
     post: operations['test_tool_provider']
     delete?: never
@@ -1026,6 +848,8 @@ export interface components {
     }
   }
   parameters: {
+    /** @description Maximum number of results per page */
+    limitParam: number
     /** @description Pagination cursor from previous response */
     cursorParam: string | null
     /** @description Sort parameter (e.g., 'name', '-created_at') */
@@ -1043,7 +867,7 @@ export interface operations {
     parameters: {
       query?: {
         /** @description Maximum number of results per page */
-        limit?: number
+        limit?: components['parameters']['limitParam']
         /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
         /** @description Sort parameter (e.g., 'name', '-created_at') */
@@ -1174,7 +998,7 @@ export interface operations {
     parameters: {
       query?: {
         /** @description Maximum number of results per page */
-        limit?: number
+        limit?: components['parameters']['limitParam']
         /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
         /** @description Sort parameter (e.g., 'name', '-created_at') */

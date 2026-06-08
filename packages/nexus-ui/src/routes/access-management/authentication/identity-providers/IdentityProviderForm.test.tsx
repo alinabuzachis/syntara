@@ -377,7 +377,7 @@ describe('IdentityProviderForm', () => {
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
-        if (path === '/identity_providers/') {
+        if (path === '/identity_providers') {
           return { mutate: mockCreate, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }
@@ -413,7 +413,7 @@ describe('IdentityProviderForm', () => {
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
-        if (path === '/identity_providers/') {
+        if (path === '/identity_providers') {
           return { mutate: mockCreate, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }
@@ -444,7 +444,7 @@ describe('IdentityProviderForm', () => {
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
-        if (path === '/identity_providers/') {
+        if (path === '/identity_providers') {
           return { mutate: mockCreate, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }
@@ -477,7 +477,7 @@ describe('IdentityProviderForm', () => {
       setupMocks()
 
       vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
-        if (path === '/identity_providers/') {
+        if (path === '/identity_providers') {
           return { mutate: mockCreate, isPending: false }
         }
         return { mutate: vi.fn(), isPending: false }

@@ -191,8 +191,8 @@ export function WhoCanView({ resourceTypes, actionsByResource }: Readonly<Resour
     submitWithCursor(formData)
   })
 
-  const nextCursor = whoCanMutation.data?.next_cursor ?? null
-  const result: WhoCanUser[] | null = whoCanMutation.data?.users ?? null
+  const nextCursor = whoCanMutation.data?.next ?? null
+  const result: WhoCanUser[] | null = whoCanMutation.data?.resources ?? null
 
   const handleNextPage = useCallback(() => {
     if (!nextCursor || !lastSubmittedFormData) return

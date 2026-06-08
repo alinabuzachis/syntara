@@ -31,6 +31,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/users/me': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Current User Profile
+     * @description Return information about the currently authenticated user.
+     */
+    get: operations['get_current_user_profile']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/users/{user_id}': {
     parameters: {
       query?: never
@@ -500,32 +520,10 @@ export interface components {
       updated_at: string
     }
     /**
-     * ResourcesResponse[UserRead]
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
+     * UserListResponse
+     * @description Paginated list response for users.
      */
-    ResourcesResponse_UserRead_: {
-      /**
-       * Next
-       * @description Cursor for next page of results
-       */
-      next?: string | null
-      /**
-       * Prev
-       * @description Cursor for previous page of results
-       */
-      prev?: string | null
-      /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
-       */
-      total?: number | null
+    UserListResponse: components['schemas']['ResourcesResponseBase'] & {
       /**
        * Resources
        * @description Array of resources in current page
@@ -800,32 +798,10 @@ export interface components {
       membership_sources?: components['schemas']['MembershipSource'][]
     }
     /**
-     * ResourcesResponse[GroupRead]
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
+     * GroupListResponse
+     * @description Paginated list response for groups.
      */
-    ResourcesResponse_GroupRead_: {
-      /**
-       * Next
-       * @description Cursor for next page of results
-       */
-      next?: string | null
-      /**
-       * Prev
-       * @description Cursor for previous page of results
-       */
-      prev?: string | null
-      /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
-       */
-      total?: number | null
+    GroupListResponse: components['schemas']['ResourcesResponseBase'] & {
       /**
        * Resources
        * @description Array of resources in current page
@@ -833,32 +809,10 @@ export interface components {
       resources: components['schemas']['GroupRead'][]
     }
     /**
-     * ResourcesResponse[UserGroupRead]
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
+     * UserGroupListResponse
+     * @description Paginated list response for user groups.
      */
-    ResourcesResponse_UserGroupRead_: {
-      /**
-       * Next
-       * @description Cursor for next page of results
-       */
-      next?: string | null
-      /**
-       * Prev
-       * @description Cursor for previous page of results
-       */
-      prev?: string | null
-      /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
-       */
-      total?: number | null
+    UserGroupListResponse: components['schemas']['ResourcesResponseBase'] & {
       /**
        * Resources
        * @description Array of resources in current page
@@ -866,32 +820,10 @@ export interface components {
       resources: components['schemas']['UserGroupRead'][]
     }
     /**
-     * ResourcesResponse[GroupMemberRead]
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
+     * GroupMemberListResponse
+     * @description Paginated list response for group members.
      */
-    ResourcesResponse_GroupMemberRead_: {
-      /**
-       * Next
-       * @description Cursor for next page of results
-       */
-      next?: string | null
-      /**
-       * Prev
-       * @description Cursor for previous page of results
-       */
-      prev?: string | null
-      /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
-       */
-      total?: number | null
+    GroupMemberListResponse: components['schemas']['ResourcesResponseBase'] & {
       /**
        * Resources
        * @description Array of resources in current page
@@ -1074,6 +1006,40 @@ export interface components {
       resources: components['schemas']['RoleAssignmentRead'][]
     }
     /**
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponseBase: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
+    }
+    /**
      * ErrorData
      * @description RFC 9457 Problem Details format for error event data.
      *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
@@ -1178,40 +1144,6 @@ export interface components {
       labels?: {
         [key: string]: string
       }
-    }
-    /**
-     * Paginated Response Base
-     * @description Pagination metadata structure for list responses
-     * @example {
-     *       "next": "eyJpZCI6InV1aWQifQ",
-     *       "total": 150
-     *     }
-     * @example {
-     *       "next": "eyJpZCI6Im5leHQifQ",
-     *       "prev": "eyJpZCI6InByZXYifQ"
-     *     }
-     */
-    ResourcesResponseBase: {
-      /**
-       * Next
-       * @description Cursor for next page of results
-       */
-      next?: string | null
-      /**
-       * Prev
-       * @description Cursor for previous page of results
-       */
-      prev?: string | null
-      /**
-       * Total
-       * @description Total count of resources (only when include_total=true)
-       */
-      total?: number | null
-      /**
-       * Resources
-       * @description Array of resources in current page
-       */
-      resources?: unknown[]
     }
   }
   responses: {
@@ -1390,7 +1322,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponse_UserRead_']
+          'application/json': components['schemas']['UserListResponse']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1417,6 +1349,33 @@ export interface operations {
     responses: {
       /** @description User created */
       201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UserRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_current_user_profile: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Current user profile */
+      200: {
         headers: {
           [name: string]: unknown
         }
@@ -1548,7 +1507,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponse_UserGroupRead_']
+          'application/json': components['schemas']['UserGroupListResponse']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1581,7 +1540,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponse_UserGroupRead_']
+          'application/json': components['schemas']['UserGroupListResponse']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1783,7 +1742,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponse_GroupRead_']
+          'application/json': components['schemas']['GroupListResponse']
         }
       }
       400: components['responses']['BadRequestError']
@@ -1945,7 +1904,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponse_GroupMemberRead_']
+          'application/json': components['schemas']['GroupMemberListResponse']
         }
       }
       400: components['responses']['BadRequestError']

@@ -50,7 +50,7 @@ export async function goToLoginPage(page: Page, options: GoToLoginPageOptions = 
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ providers }),
+      body: JSON.stringify({ resources: providers }),
     })
   )
 

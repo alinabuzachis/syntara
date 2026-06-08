@@ -293,7 +293,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
   const { mutate: createProvider, isPending: isCreating } = identityProvidersClient.useMutation(
     'post',
-    '/identity_providers/'
+    '/identity_providers'
   )
   const { mutate: patchProvider, isPending: isPatching } = identityProvidersClient.useMutation(
     'patch',

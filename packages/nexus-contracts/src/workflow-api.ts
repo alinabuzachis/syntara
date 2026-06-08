@@ -242,7 +242,7 @@ export interface components {
      */
     WorkflowVersionListResponse: {
       /** @description Array of workflow versions */
-      versions: components['schemas']['WorkflowVersionResponse'][]
+      resources: components['schemas']['WorkflowVersionResponse'][]
     }
     /**
      * WorkflowCreate

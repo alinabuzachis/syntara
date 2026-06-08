@@ -44,7 +44,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
     params: { path: { credential_id: credentialId } },
   })
   // Cast to extended type - backend returns more fields than the contract declares
-  const workflows = (query.data ?? []) as CredentialWorkflowRefExtended[]
+  const workflows = (query.data?.resources ?? []) as CredentialWorkflowRefExtended[]
 
   const queryState = useQueryState(query, {
     title: 'Failed to load workflows',

@@ -33,7 +33,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
         fulfill(filterUsers(url.searchParams.get('auth_source'), url.searchParams.get('email[contains]')))
       )
     })
-    await mockAuthProviders(app, { providers: [AAP_AUTH_PROVIDER] })
+    await mockAuthProviders(app, { resources: [AAP_AUTH_PROVIDER] })
     await app.goto(toAppUrl(ACCESS_URL))
     await expect(app.getByRole('grid', { name: 'Users' })).toBeVisible()
   })

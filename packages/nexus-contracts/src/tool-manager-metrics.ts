@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/metrics/tools': {
+  '/tool_manager/metrics/tools': {
     parameters: {
       query?: never
       header?: never
@@ -12,8 +12,12 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get tool usage metrics
-     * @description Retrieve usage statistics for tools and providers
+     * Get Tool Metrics Summary
+     * @description Return aggregated per-tool metrics summary.
+     *
+     *     Supports filtering by namespaced_name and time range.
+     *     Uses UsageCounter for unfiltered queries (fast path) and SQL aggregation
+     *     for time-filtered queries (flexible path).
      */
     get: operations['get_tool_metrics']
     put?: never
@@ -24,7 +28,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/metrics/executions': {
+  '/tool_manager/metrics/executions': {
     parameters: {
       query?: never
       header?: never
@@ -32,8 +36,11 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get detailed execution logs
-     * @description Retrieve detailed execution logs for troubleshooting
+     * List Tool Executions
+     * @description Return paginated tool execution history.
+     *
+     *     Supports filtering by namespaced_name, status, and time range.
+     *     Uses cursor-based pagination consistent with other Nexus list endpoints.
      */
     get: operations['get_tool_executions']
     put?: never
@@ -44,217 +51,463 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/rate-limits': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List rate limit configurations
-     * @description Retrieve all rate limit configurations
-     */
-    get: operations['list_rate_limits']
-    put?: never
-    /**
-     * Create rate limit configuration
-     * @description Create new rate limit for provider, tool, or user
-     */
-    post: operations['create_rate_limit']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/rate-limits/{limit_id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get rate limit details
-     * @description Retrieve specific rate limit configuration
-     */
-    get: operations['get_rate_limit']
-    /**
-     * Update rate limit configuration
-     * @description Update existing rate limit configuration
-     */
-    put: operations['update_rate_limit']
-    post?: never
-    /**
-     * Delete rate limit configuration
-     * @description Remove rate limit configuration
-     */
-    delete: operations['delete_rate_limit']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
 }
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    ToolMetrics: {
-      /** Format: uuid */
-      tool_id: string
-      tool_name: string
-      provider_name: string
-      total_executions: number
-      successful_executions: number
-      failed_executions: number
-      /** Format: float */
-      success_rate: number
-      avg_duration_ms?: number
-      min_duration_ms?: number
-      max_duration_ms?: number
-      total_duration_ms?: number
-      time_period: string
-      /** Format: date-time */
-      period_start: string
-      /** Format: date-time */
-      period_end: string
-    }
-    MetricsSummary: {
-      total_tools?: number
-      total_executions?: number
-      /** Format: float */
-      overall_success_rate?: number
-      most_used_tool?: string
-      least_used_tool?: string
-      avg_execution_duration_ms?: number
-    }
-    ToolExecution: {
-      /** Format: uuid */
-      id: string
-      /** Format: uuid */
-      tool_id: string
-      /** Format: uuid */
-      provider_id: string
-      /** Format: uuid */
-      user_id: string
-      /** Format: date-time */
-      execution_start: string
-      /** Format: date-time */
-      execution_end?: string | null
-      duration_ms?: number | null
-      /** @enum {string} */
-      status: 'running' | 'success' | 'error' | 'timeout'
-      /** @description Tool input parameters as JSON */
-      input_parameters: Record<string, never>
-      /** @description Tool output data as JSON */
-      output_data?: Record<string, never> | null
-      error_message?: string | null
-      error_code?: string | null
-      /** Format: date-time */
-      created_at: string
-      /** Format: uuid */
-      created_by: string
-      /** Format: date-time */
-      updated_at?: string | null
-      /** Format: uuid */
-      updated_by?: string | null
-      /** Format: date-time */
-      deleted_at?: string | null
-      /** Format: uuid */
-      deleted_by?: string | null
-    }
-    RateLimit: {
-      /** Format: uuid */
-      id: string
-      /** @enum {string} */
-      target_type: 'provider' | 'tool' | 'user'
-      target_id: string
-      target_name?: string
-      requests_per_window: number
-      window_duration_seconds: number
-      burst_allowance: number
-      enabled: boolean
-      current_usage?: number
-      /** Format: date-time */
-      usage_reset_at?: string
-      /** Format: date-time */
-      created_at: string
-      /** Format: uuid */
-      created_by: string
-      /** Format: date-time */
-      updated_at?: string | null
-      /** Format: uuid */
-      updated_by?: string | null
-      /** Format: date-time */
-      deleted_at?: string | null
-      /** Format: uuid */
-      deleted_by?: string | null
-    }
-    RateLimitCreate: {
-      /** @enum {string} */
-      target_type: 'provider' | 'tool' | 'user'
-      target_id: string
-      requests_per_window: number
-      window_duration_seconds: number
-      /** @default 0 */
-      burst_allowance?: number
-      /** @default true */
-      enabled?: boolean
-    }
-    RateLimitUpdate: {
-      requests_per_window?: number
-      window_duration_seconds?: number
-      burst_allowance?: number
-      enabled?: boolean
+    /**
+     * ToolExecutionStatus
+     * @description Status of a tool execution.
+     * @enum {string}
+     */
+    ToolExecutionStatus: 'running' | 'success' | 'error' | 'timeout'
+    /**
+     * ToolExecutionListResponse
+     * @description Paginated list response for tool executions.
+     */
+    ToolExecutionListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources: components['schemas']['ToolExecution'][]
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ToolMetricsToolSummary
+     * @description Per-tool aggregated metrics summary for the metrics/tools endpoint.
+     */
+    ToolMetricsToolSummary: {
+      /**
+       * Namespaced Name
+       * @description Tool identifier (e.g., 'provider::tool')
+       */
+      namespaced_name: string
+      /**
+       * Total Executions
+       * @description Total execution count
+       */
+      total_executions: number
+      /**
+       * Success Count
+       * @description Successful executions
+       */
+      success_count: number
+      /**
+       * Error Count
+       * @description Error executions
+       */
+      error_count: number
+      /**
+       * Timeout Count
+       * @description Timeout executions
+       */
+      timeout_count: number
+      /**
+       * Success Rate
+       * @description Success rate (0.0 to 1.0)
+       */
+      success_rate: number
+      /**
+       * Avg Duration Ms
+       * @description Average execution duration in milliseconds
+       */
+      avg_duration_ms: number
+      /**
+       * Last Execution At
+       * @description Timestamp of most recent execution
+       */
+      last_execution_at?: string | null
+    }
+    /**
+     * ToolMetricsToolSummaryListResponse
+     * @description Paginated list response for tool metrics summaries.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ToolMetricsToolSummaryListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ToolMetricsToolSummary'][]
+    }
+    /**
+     * ToolExecution
+     * @description Tool execution records stored in database.
+     *
+     *     Records individual Tool executions for performance monitoring and analysis.
+     *     This model matches the ToolExecution schema from the metrics contract.
+     *
+     *     Inherits from UserOwnedResource:
+     *         id: UUID primary key
+     *         created_at: Creation timestamp
+     *         updated_at: Last update timestamp
+     *         created_by: UUID of user who created the resource
+     *         updated_by: Optional UUID of user who last updated the resource
+     *         deleted_at: Optional timestamp when resource was soft deleted
+     *         deleted_by: Optional UUID of user who performed the soft delete
+     *         labels: Optional key-value metadata
+     */
+    ToolExecution: components['schemas']['UserOwnedResource'] & {
+      /**
+       * Tool Id
+       * Format: uuid
+       * @description Foreign key to Tool
+       */
+      tool_id: string
+      /**
+       * Provider Id
+       * Format: uuid
+       * @description Foreign key to Tool Provider
+       */
+      provider_id: string
+      /**
+       * User Id
+       * Format: uuid
+       * @description Identifier of executing user/agent
+       */
+      user_id: string
+      /**
+       * Execution Start
+       * Format: date-time
+       * @description Execution start timestamp
+       */
+      execution_start: string
+      /**
+       * Execution End
+       * @description Execution completion timestamp
+       */
+      execution_end?: string | null
+      /**
+       * Duration Ms
+       * @description Execution duration in milliseconds
+       */
+      duration_ms?: number | null
+      /** @description Execution status */
+      status: components['schemas']['ToolExecutionStatus']
+      /**
+       * Input Parameters
+       * @description Tool input parameters
+       */
+      input_parameters: {
+        [key: string]: unknown
+      }
+      /**
+       * Output Data
+       * @description Tool output data
+       */
+      output_data?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Error Message
+       * @description Error description for failed executions
+       */
+      error_message?: string | null
+      /**
+       * Error Code
+       * @description Structured error code
+       */
+      error_code?: string | null
+    }
+    /**
+     * Paginated Response Base
+     * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ResourcesResponseBase: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
+    }
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
+    /**
+     * Base Resource
+     * @description Foundational schema for all API resources with system-managed metadata
+     */
+    BaseResource: {
+      /**
+       * Resource ID
+       * Format: uuid
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      readonly id?: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly created_at?: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updated_at?: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
+       * @example {
+       *       "environment": "production",
+       *       "region": "us-east-1",
+       *       "team": "platform"
+       *     }
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    UserOwnedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Created By
+       * Format: uuid
+       * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
+       */
+      readonly created_by: string
+      /**
+       * Updated By
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updated_by?: string | null
+    }
   }
-  responses: never
-  parameters: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
+  parameters: {
+    /** @description Maximum number of results per page */
+    limitParam: number
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
+    includeTotalParam: boolean
+  }
   requestBodies: never
   headers: never
   pathItems: never
@@ -264,33 +517,12 @@ export interface operations {
   get_tool_metrics: {
     parameters: {
       query?: {
-        /**
-         * @description Generic field filtering with operators. Syntax: field[operator]=value
-         *
-         *     Supported operators:
-         *     - eq: equals
-         *     - contains: string contains
-         *     - starts_with: string starts with
-         *     - gt: greater than
-         *     - gte: greater than or equal
-         *     - lt: less than
-         *     - lte: less than or equal
-         *
-         *     Examples:
-         *     - ?time_window[eq]=day
-         *     - ?start_date[gte]=2025-01-01
-         *     - ?provider_id[eq]=uuid1
-         *     - ?user_id[contains]=agent
-         */
-        'field[operator]'?: {
-          [key: string]: string
-        }
-        /** @description Maximum number of metric records to return */
-        limit?: number
-        /** @description Cursor for keyset pagination (metric ID to start after) */
-        cursor?: string
-        /** @description Include total count in response (may impact performance) */
-        include_total?: boolean
+        /** @description Filter by tool namespaced name */
+        namespaced_name?: string | null
+        /** @description Start of time range (ISO 8601) */
+        start_time?: string | null
+        /** @description End of time range (ISO 8601) */
+        end_time?: string | null
       }
       header?: never
       path?: never
@@ -298,75 +530,43 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Tool usage metrics */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': {
-            metrics: components['schemas']['ToolMetrics'][]
-            summary: components['schemas']['MetricsSummary']
-            time_window?: string
-            /** Format: date */
-            start_date?: string
-            /** Format: date */
-            end_date?: string
-            /** @description Maximum number of items requested */
-            limit: number
-            /**
-             * Format: uuid
-             * @description Cursor for the next page (null if no more pages)
-             */
-            next_cursor?: string | null
-            /** @description Whether there are more items available */
-            has_more: boolean
-            /** @description Total count (only included if include_total=true) */
-            total?: number
-          }
+          'application/json': components['schemas']['ToolMetricsToolSummaryListResponse']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_tool_executions: {
     parameters: {
       query?: {
-        /**
-         * @description Generic field filtering with operators. Syntax: field[operator]=value
-         *
-         *     Supported operators:
-         *     - eq: equals
-         *     - contains: string contains
-         *     - starts_with: string starts with
-         *     - gt: greater than
-         *     - gte: greater than or equal
-         *     - lt: less than
-         *     - lte: less than or equal
-         *
-         *     Examples:
-         *     - ?status[eq]=success
-         *     - ?execution_start[gte]=2025-01-01T00:00:00Z
-         *     - ?duration_ms[gt]=100
-         *     - ?user_id[contains]=agent
-         */
-        'field[operator]'?: {
-          [key: string]: string
-        }
-        /** @description Maximum number of executions to return */
-        limit?: number
-        /** @description Cursor for keyset pagination (execution ID to start after) */
-        cursor?: string
-        /** @description Include total count in response (may impact performance) */
-        include_total?: boolean
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by tool namespaced name */
+        namespaced_name?: string | null
+        /** @description Filter by execution status */
+        status?: components['schemas']['ToolExecutionStatus'] | null
+        /** @description Start of time range (ISO 8601) */
+        start_time?: string | null
+        /** @description End of time range (ISO 8601) */
+        end_time?: string | null
       }
       header?: never
       path?: never
@@ -374,280 +574,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Execution logs */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': {
-            executions: components['schemas']['ToolExecution'][]
-            /** @description Maximum number of items requested */
-            limit: number
-            /**
-             * Format: uuid
-             * @description Cursor for the next page (null if no more pages)
-             */
-            next_cursor?: string | null
-            /** @description Whether there are more items available */
-            has_more: boolean
-            /** @description Total count (only included if include_total=true) */
-            total?: number
-          }
+          'application/json': components['schemas']['ToolExecutionListResponse']
         }
       }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  list_rate_limits: {
-    parameters: {
-      query?: {
-        /**
-         * @description Generic field filtering with operators. Syntax: field[operator]=value
-         *
-         *     Supported operators:
-         *     - eq: equals
-         *     - contains: string contains
-         *     - starts_with: string starts with
-         *     - gt: greater than
-         *     - gte: greater than or equal
-         *     - lt: less than
-         *     - lte: less than or equal
-         *
-         *     Examples:
-         *     - ?target_type[eq]=tool
-         *     - ?enabled[eq]=true
-         *     - ?requests_per_window[gte]=100
-         *     - ?created_at[gte]=2025-01-01
-         */
-        'field[operator]'?: {
-          [key: string]: string
-        }
-        /** @description Maximum number of rate limits to return */
-        limit?: number
-        /** @description Cursor for keyset pagination (rate limit ID to start after) */
-        cursor?: string
-        /** @description Include total count in response (may impact performance) */
-        include_total?: boolean
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Rate limit configurations */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': {
-            rate_limits: components['schemas']['RateLimit'][]
-            /** @description Maximum number of items requested */
-            limit: number
-            /**
-             * Format: uuid
-             * @description Cursor for the next page (null if no more pages)
-             */
-            next_cursor?: string | null
-            /** @description Whether there are more items available */
-            has_more: boolean
-            /** @description Total count (only included if include_total=true) */
-            total?: number
-          }
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  create_rate_limit: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RateLimitCreate']
-      }
-    }
-    responses: {
-      /** @description Rate limit created successfully */
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['RateLimit']
-        }
-      }
-      /** @description Invalid rate limit configuration */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  get_rate_limit: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        limit_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Rate limit details */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['RateLimit']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Rate limit not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  update_rate_limit: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        limit_id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RateLimitUpdate']
-      }
-    }
-    responses: {
-      /** @description Rate limit updated successfully */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['RateLimit']
-        }
-      }
-      /** @description Invalid rate limit configuration */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Rate limit not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  delete_rate_limit: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        limit_id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Rate limit deleted successfully */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      /** @description Admin access required */
-      403: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Rate limit not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

@@ -54,7 +54,7 @@ export default function Settings() {
     }
   )
 
-  const categories = useMemo(() => categoriesQuery.data?.results ?? [], [categoriesQuery.data])
+  const categories = useMemo(() => categoriesQuery.data?.resources ?? [], [categoriesQuery.data])
   const validTabs = useMemo(() => categories.map((c) => c.slug), [categories])
   const defaultCategory = categories[0]?.slug ?? ''
   const [activeSlug] = useUrlTab(basePath, defaultCategory)

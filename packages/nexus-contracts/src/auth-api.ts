@@ -254,7 +254,7 @@ export interface components {
        * Email
        * @description User email
        */
-      email: string
+      email?: string | null
       /**
        * Groups
        * @description Group memberships
@@ -299,10 +299,10 @@ export interface components {
      */
     AuthProvidersResponse: {
       /**
-       * Providers
+       * Resources
        * @description Enabled identity providers
        */
-      providers?: components['schemas']['AuthProviderInfo'][]
+      resources?: components['schemas']['AuthProviderInfo'][]
     }
     /**
      * CsrfTokenResponse
