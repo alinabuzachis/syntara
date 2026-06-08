@@ -22,11 +22,14 @@ import {
   authenticationInteractivePages,
   builderInteractivePages,
   credentialDialogPages,
+  credentialEditPages,
   detailTabPages,
   integrationDialogPages,
+  oidcProviderWizardPages,
   settingsTabPages,
   statusVariantPages,
   transferIdentityWizardPages,
+  userCreateFormPages,
   workflowDialogPages,
 } from './page-entries-interactive'
 
@@ -106,7 +109,9 @@ export const pages: PageEntry[] = [
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click()
       await page.getByRole('menuitem', { name: 'Delete' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
     },
   },
 
@@ -224,7 +229,9 @@ export const pages: PageEntry[] = [
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click()
       await page.getByRole('menuitem', { name: 'Delete' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
     },
   },
   {
@@ -253,6 +260,7 @@ export const pages: PageEntry[] = [
   },
 
   ...transferIdentityWizardPages,
+  ...userCreateFormPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // ACCESS MANAGEMENT — Groups
@@ -290,7 +298,9 @@ export const pages: PageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: 'Create group' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Create/i })).toBeVisible()
     },
   },
   {
@@ -309,7 +319,9 @@ export const pages: PageEntry[] = [
         .getByRole('button', { name: /Actions|Kebab toggle/i })
         .click()
       await page.getByRole('menuitem', { name: 'Delete' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
     },
   },
   {
@@ -357,7 +369,9 @@ export const pages: PageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: 'Create project' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Create/i })).toBeVisible()
     },
   },
   {
@@ -405,7 +419,9 @@ export const pages: PageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: 'Create role' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Create/i })).toBeVisible()
     },
   },
 
@@ -506,7 +522,9 @@ export const pages: PageEntry[] = [
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click()
       await page.getByRole('menuitem', { name: 'Delete' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
     },
   },
   {
@@ -604,7 +622,9 @@ export const pages: PageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: 'Revoke all tokens' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Revoke/i })).toBeVisible()
     },
   },
 
@@ -705,7 +725,9 @@ export const pages: PageEntry[] = [
       await page.getByRole('textbox', { name: 'Project' }).click()
       await page.getByRole('option', { name: 'default' }).click()
       await page.getByRole('button', { name: /create credential/i }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Create/i })).toBeVisible()
     },
   },
   {
@@ -718,6 +740,7 @@ export const pages: PageEntry[] = [
     },
   },
   ...credentialDialogPages,
+  ...credentialEditPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // SUPPORT
@@ -739,6 +762,7 @@ export const pages: PageEntry[] = [
   ...detailTabPages,
   ...settingsTabPages,
   ...authenticationInteractivePages,
+  ...oidcProviderWizardPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // PERMISSION GATING — restricted role screenshots
@@ -851,6 +875,21 @@ export const loginPages: PageEntry[] = [
   },
   {
     section: 'login',
+    name: 'login-local-form-expanded',
+    path: '/',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Log in to Automation Orchestrator' })).toBeVisible()
+    },
+    setup: async (page) => {
+      const localToggle = page.getByRole('button', { name: 'Sign in using local account' })
+      if (await localToggle.isVisible()) {
+        await localToggle.click()
+      }
+      await expect(page.getByLabel('Username')).toBeVisible()
+    },
+  },
+  {
+    section: 'login',
     name: 'login-error',
     path: '/',
     waitFor: async (page) => {
@@ -886,7 +925,7 @@ export const excludedUnimplemented: string[] = [
 export const excludedDynamic: string[] = [
   AppRoute.WorkflowBuilder.New,
   AppRoute.SystemAdministration.Root,
-  AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
+  AppRoute.SystemAdministration.Authentication.EditIdentityProvider, // covered by oidcProviderWizardPages
   AppRoute.AccessManagement.Root,
   AppRoute.Auth.TestSignInCallback,
   AppRoute.AccessManagement.TransferIdentity, // covered by transferIdentityWizardPages (interactive entries)

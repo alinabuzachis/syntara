@@ -29,6 +29,7 @@ async function openStepEditorFromCanvasTitle(page: Page, title: string | RegExp)
 // Mock API IDs for interactive state entries
 // ---------------------------------------------------------------------------
 const MOCK_WORKFLOW_ID = '1'
+const MOCK_CONDITION_WORKFLOW_ID = '6'
 const MOCK_LOOP_WORKFLOW_ID = '3'
 const MOCK_AGENTIC_WORKFLOW_ID = '48'
 const MOCK_HTTP_WORKFLOW_ID = '49'
@@ -89,6 +90,108 @@ export const transferIdentityWizardPages: PageEntry[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// OIDC Provider Wizard — additional section / step states
+// ---------------------------------------------------------------------------
+export const oidcProviderWizardPages: PageEntry[] = [
+  {
+    section: 'authentication',
+    name: 'identity-provider-add-connection-section',
+    path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
+    },
+    setup: async (page) => {
+      const connectionHeading = page.getByRole('heading', { name: 'Connection', level: 3 })
+      await connectionHeading.scrollIntoViewIfNeeded()
+      await expect(connectionHeading).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-add-options-section',
+    path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
+    },
+    setup: async (page) => {
+      const optionsHeading = page.getByRole('heading', { name: 'Options', level: 3 })
+      await optionsHeading.scrollIntoViewIfNeeded()
+      await expect(optionsHeading).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-edit',
+    path: AppRoute.SystemAdministration.Authentication.EditIdentityProvider.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: /Edit OIDC provider/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-detail-group-mapping-tab',
+    path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ).replace('/:tab?', ''),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('tab', { name: /Group mapping/i }).click()
+      await expect(page.getByRole('tab', { name: /Group mapping/i })).toHaveAttribute('aria-selected', 'true')
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-detail-disable-dialog',
+    path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ).replace('/:tab?', ''),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.locator('#provider-detail-toggle').click({ force: true })
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Disable/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-detail-kebab-menu',
+    path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ).replace('/:tab?', ''),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: /Actions|Kebab toggle/i }).click()
+      await expect(page.getByRole('menuitem', { name: /Delete/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'authentication',
+    name: 'identity-provider-add-step1-validation',
+    path: AppRoute.SystemAdministration.Authentication.AddIdentityProvider,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Add OIDC provider' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Next' }).click()
+      await expect(page.getByText(/required/i).first()).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Builder interaction states
 // ---------------------------------------------------------------------------
 export const builderInteractivePages: PageEntry[] = [
@@ -106,35 +209,27 @@ export const builderInteractivePages: PageEntry[] = [
     },
   },
   {
-    // Workflow "conditional-demo" (ID 1) — node "Check Temperature" is a script executor
     section: 'workflows',
     name: 'builder-edit-script-node-form',
-    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      const scriptNode = page.getByRole('group', { name: /Check Temperature/i })
-      await scriptNode.click({ force: true })
-      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
-        timeout: 15_000,
-      })
+      await openStepEditorFromCanvasTitle(page, /Adult Message/i)
     },
   },
   {
-    // Workflow "conditional-demo" (ID 1) — node "Temperature-Based Routing" is a condition
     section: 'workflows',
     name: 'builder-edit-condition-node-form',
-    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      const conditionNode = page.getByRole('group', { name: /Temperature-Based Routing/i })
-      await conditionNode.click({ force: true })
-      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
-        timeout: 15_000,
-      })
+      await openStepEditorFromCanvasTitle(page, /Check Age/i)
     },
   },
   {
@@ -277,7 +372,9 @@ export const workflowDialogPages: PageEntry[] = [
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click()
       await page.getByRole('menuitem', { name: /Run workflow/i }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Run/i })).toBeVisible()
     },
   },
   {
@@ -290,7 +387,9 @@ export const workflowDialogPages: PageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: /Import workflow/i }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Import/i })).toBeVisible()
     },
   },
 ]
@@ -311,7 +410,24 @@ export const credentialDialogPages: PageEntry[] = [
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click()
       await page.getByRole('menuitem', { name: /Delete/i }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/credentials',
+    name: 'credentials-disable-dialog',
+    path: AppRoute.Configuration.Credentials.Root,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.locator('label[for="credential-toggle-cred-001"]').click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Disable/i })).toBeVisible()
     },
   },
 ]
@@ -332,7 +448,9 @@ export const integrationDialogPages: PageEntry[] = [
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click()
       await page.getByRole('menuitem', { name: /Disconnect/i }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Disconnect/i })).toBeVisible()
     },
   },
 ]
@@ -353,6 +471,40 @@ export const approvalInteractivePages: PageEntry[] = [
       // Click the header "select all" checkbox to select all pending approvals
       const selectAllCheckbox = page.locator('thead th').first().getByRole('checkbox')
       await selectAllCheckbox.click()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approvals-bulk-approve-dialog',
+    path: AppRoute.Approvals.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const selectAllCheckbox = page.locator('thead th').first().getByRole('checkbox')
+      await selectAllCheckbox.click()
+      await page.getByRole('button', { name: 'Approve' }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Approve/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approvals-bulk-reject-dialog',
+    path: AppRoute.Approvals.Root,
+    waitFor: async (page) => {
+      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const selectAllCheckbox = page.locator('thead th').first().getByRole('checkbox')
+      await selectAllCheckbox.click()
+      await page.getByRole('button', { name: 'Reject' }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Reject/i })).toBeVisible()
     },
   },
 ]
@@ -520,6 +672,48 @@ export const statusVariantPages: PageEntry[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// User create form states
+// ---------------------------------------------------------------------------
+export const userCreateFormPages: PageEntry[] = [
+  {
+    section: 'access-management/users',
+    name: 'user-create-validation-errors',
+    path: AppRoute.AccessManagement.CreateUser,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Create User' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Create user' }).click()
+      await expect(page.getByText(/required/i).first()).toBeVisible()
+      await expect(page.getByRole('textbox', { name: /username/i })).toHaveAttribute('aria-invalid', 'true')
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Credential edit modal
+// ---------------------------------------------------------------------------
+export const credentialEditPages: PageEntry[] = [
+  {
+    section: 'configuration/credentials',
+    name: 'credentials-edit-modal',
+    path: AppRoute.Configuration.Credentials.Root,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click()
+      await page.getByRole('menuitem', { name: /Edit/i }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Save/i })).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Authentication interactive states
 // ---------------------------------------------------------------------------
 export const authenticationInteractivePages: PageEntry[] = [
@@ -534,9 +728,6 @@ export const authenticationInteractivePages: PageEntry[] = [
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
   },
-  // Note: identity-provider-detail-group-mapping-tab excluded — navigating directly
-  // to the /group-mapping tab URL causes a loading state that never resolves when
-  // page.clock.setFixedTime is active. The detail default tab covers IdP rendering.
 ]
 
 // ---------------------------------------------------------------------------
