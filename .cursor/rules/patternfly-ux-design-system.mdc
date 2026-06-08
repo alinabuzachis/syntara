@@ -330,7 +330,7 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - **Duplicate workflow:** Row kebab action with `RhUiDuplicateIcon`; no confirmation dialog; success toast with inline deep-link to new workflow.
 - Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again", then `RunWorkflowModal` JSON editor for mock trigger data
 - Test step (Run step): from step kebab menu → choice dialog ("Run all previous steps" or mock data) → mock data editor (CodeEditor with JSON); upstream steps mocked as "skipped"; results in execution visualizer
-- **Cancel execution:** `variant="danger"` button, no confirmation dialog. Visible only when status is `pending`/`running`. Full label "Cancel execution".
+- **Cancel run:** secondary destructive button (`variant="secondary"` + `isDanger`), no confirmation dialog. Visible only when status is `pending`/`running`.
 - **Canvas controls:** anchored to bottom-left corner; canvas overlays (controls, step legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
 - Legend toggle: accessible labels **Show step legend** / **Hide step legend**
 - **Canvas step styling:** workflow steps use `variant="raised"` with border-radius override to match `Card` / canvas chrome; fixed 240px width — use `overflow-wrap: anywhere` on all dynamic text (`Title`, `Content`) to prevent overflow (prefer `anywhere` over `break-word`)

@@ -1283,12 +1283,12 @@ These badges use `Label` with no icons — text and color only.
 - After clicking "Run", the execution visualizer panel opens (same as full workflow Run) showing real-time results
 - Test executions are visible in run history
 
-### Cancel Execution
+### Cancel run:
 
-- `variant="danger"` button placed directly in the builder live-run header and execution detail header toolbar
+- Secondary destructive button (`variant="secondary"` + `isDanger`) placed directly in the builder live-run header and execution detail header toolbar
 - **No confirmation dialog** — inline cancel for running executions (intentional exception to the standard confirmation pattern)
 - **Visibility:** Only shown when execution status is `pending` or `running` (`isExecutionCancellable`)
-- **Label:** Full "Cancel execution" (Action + Resource)
+- **Label:** "Cancel run"
 - **Feedback:** Success toast "Execution cancellation requested"; error toast "Failed to cancel execution" + API message
 - **Loading state:** Button shows spinner and disables while mutation is pending
 
