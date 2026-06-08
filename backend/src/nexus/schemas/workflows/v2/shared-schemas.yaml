@@ -1,0 +1,896 @@
+---
+# Shared Schemas for Workflow Engine API v2
+# This file contains workflow-specific schema definitions used by both REST API (OpenAPI) and WebSocket API (AsyncAPI)
+# Base resource schemas (BaseResource, NamedResource, etc.) are in ../../base/shared-resources.openapi.yaml
+
+components:
+  schemas:
+    WorkflowRead:
+      type: object
+      title: WorkflowRead
+      description: |-
+        Schema for workflow response (GET /workflows/{id}).
+
+        Includes all fields from the database table model.
+
+        Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
+      required:
+        - name
+        - id
+        - current_version
+        - is_enabled
+        - created_by
+        - created_at
+        - updated_at
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Workflow name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Workflow description
+        labels:
+          additionalProperties: true
+          type: object
+          title: Labels
+          description: Workflow labels
+        id:
+          type: string
+          format: uuid
+          title: Id
+        current_version:
+          type: integer
+          title: Current Version
+        is_enabled:
+          type: boolean
+          title: Is Enabled
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Project Id
+        published_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Published Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+
+    WorkflowReadWithVersion:
+      type: object
+      title: WorkflowReadWithVersion
+      description: |-
+        Schema for workflow response with current version details.
+
+        Used when retrieving a single workflow to include the active workflow definition.
+      required:
+        - name
+        - id
+        - current_version
+        - is_enabled
+        - created_by
+        - created_at
+        - updated_at
+        - version
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Workflow name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Workflow description
+        labels:
+          additionalProperties: true
+          type: object
+          title: Labels
+          description: Workflow labels
+        id:
+          type: string
+          format: uuid
+          title: Id
+        current_version:
+          type: integer
+          title: Current Version
+        is_enabled:
+          type: boolean
+          title: Is Enabled
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Project Id
+        published_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Published Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+        version:
+          $ref: '#/components/schemas/WorkflowVersionRead'
+          description: Current active version details
+
+    ActivityData:
+      type: object
+      title: ActivityData
+      description: Activity data for execution response.
+      required:
+        - activity_id
+        - status
+      properties:
+        activity_id:
+          type: string
+          title: Activity Id
+        status:
+          type: string
+          title: Status
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Details
+        output_data:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Output Data
+        started_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Completed At
+
+    ExecutionRead:
+      type: object
+      title: ExecutionRead
+      description: |-
+        Schema for execution response (GET /executions/{id}).
+
+        Includes all fields from the database table model.
+      required:
+        - id
+        - workflow_id
+        - workflow_version_id
+        - temporal_workflow_id
+        - status
+        - created_by
+        - created_at
+        - completed_at
+        - updated_at
+        - updated_by
+        - input_data
+        - error_details
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workflow_id:
+          type: string
+          format: uuid
+          title: Workflow Id
+        workflow_version_id:
+          type: string
+          format: uuid
+          title: Workflow Version Id
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Project Id
+        temporal_workflow_id:
+          type: string
+          title: Temporal Workflow Id
+        status:
+          $ref: "#/components/schemas/ExecutionStatus"
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        completed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Completed At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Updated By
+        input_data:
+          additionalProperties: true
+          type: object
+          title: Input Data
+        trigger_node_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Trigger Node Id
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Details
+        mode:
+          $ref: "#/components/schemas/ExecutionMode"
+          default: standard
+        execution_metadata:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Execution Metadata
+        labels:
+          additionalProperties: true
+          type: object
+          title: Labels
+        current_activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/CurrentActivity"
+          title: Current Activities
+          description: Currently executing activities
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+        workflow_definition:
+          anyOf:
+            - $ref: "#/components/schemas/WorkflowDefinition"
+            - type: 'null'
+          description: Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
+        activities:
+          anyOf:
+            - type: array
+              items:
+                $ref: "#/components/schemas/ActivityData"
+            - type: 'null'
+          title: Activities
+          description: List of activities with their current status. Only included when requested via ?include=activities query parameter.
+
+    ActivityExecution:
+      allOf:
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
+        - type: object
+          title: ActivityExecution
+          description: |-
+            Database model for activity executions.
+
+            Persists activity execution state to enable querying after Temporal's retention
+            period expires. Data is synced from Temporal events and cached in database.
+
+            This model serves both as the database table and the API response schema.
+            Activities are read-only from the API - they're created/updated by syncing from Temporal.
+
+            Inherits from BaseResource:
+                id: UUID primary key
+                created_at: Creation timestamp
+                updated_at: Last update timestamp
+                labels: Optional key-value metadata
+          additionalProperties: false
+          required:
+            - execution_id
+            - activity_name
+            - temporal_activity_id
+            - status
+          properties:
+            execution_id:
+              type: string
+              format: uuid
+              description: Parent execution ID
+              title: Execution Id
+            activity_name:
+              type: string
+              description: Activity ID from workflow definition
+              minLength: 1
+              maxLength: 255
+              title: Activity Name
+            activity_definition:
+              anyOf:
+                - additionalProperties: true
+                  type: object
+                - type: 'null'
+              description: Snapshot of activity configuration from workflow definition
+              title: Activity Definition
+            temporal_activity_id:
+              type: string
+              description: Temporal activity execution ID
+              minLength: 1
+              maxLength: 255
+              title: Temporal Activity Id
+            status:
+              $ref: "#/components/schemas/ActivityStatus"
+              description: Current activity status
+            started_at:
+              anyOf:
+                - format: date-time
+                  type: string
+                - type: 'null'
+              description: When activity started execution
+              title: Started At
+            completed_at:
+              anyOf:
+                - format: date-time
+                  type: string
+                - type: 'null'
+              description: When activity completed/failed
+              title: Completed At
+            input_data:
+              type: object
+              additionalProperties: true
+              description: Runtime input parameters
+              title: Input Data
+            output_data:
+              anyOf:
+                - additionalProperties: true
+                  type: object
+                - type: 'null'
+              description: Activity results (if completed)
+              title: Output Data
+            error_details:
+              anyOf:
+                - type: string
+                - type: 'null'
+              description: Error information if failed
+              title: Error Details
+            retry_count:
+              type: integer
+              description: Number of retry attempts
+              default: 0
+              title: Retry Count
+            iteration:
+              anyOf:
+                - type: integer
+                - type: 'null'
+              description: Iteration number if activity is within a loop (0-indexed)
+              title: Iteration
+
+    ExecutionStatus:
+      type: string
+      title: ExecutionStatus
+      description: Current state of a workflow execution lifecycle.
+      enum: [pending, running, paused, completed, failed, cancelled]
+
+    ExecutionMode:
+      type: string
+      title: ExecutionMode
+      description: Execution mode for workflow runs.
+      enum: [standard, test, debug]
+
+    ActivityStatus:
+      type: string
+      title: ActivityStatus
+      description: Activity execution status enumeration.
+      enum: [pending, running, waiting, completed, failed, retrying, skipped, cancelled]
+
+    CurrentActivity:
+      type: object
+      title: CurrentActivity
+      description: Currently executing activity information.
+      required:
+        - activity_name
+        - temporal_activity_id
+      properties:
+        activity_name:
+          type: string
+          description: Name of the activity
+          title: Activity Name
+        temporal_activity_id:
+          type: string
+          description: Temporal activity ID
+          title: Temporal Activity Id
+        iteration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          description: Iteration number for loops
+          title: Iteration
+
+    ExecutionListResponse:
+      type: object
+      required:
+        - resources
+      title: ExecutionListResponse
+      description: Paginated list response for executions.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionRead'
+          maxItems: 100
+          title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+
+    ActivityExecutionListResponse:
+      type: object
+      required:
+        - resources
+      title: ActivityExecutionListResponse
+      description: Paginated list response for activity executions.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityExecution'
+          maxItems: 100
+          title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+
+    # Request/Response schemas
+    WorkflowCreate:
+      type: object
+      title: WorkflowCreate
+      description: |-
+        Schema for creating a new workflow (POST /workflows).
+
+        Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
+      required:
+        - name
+        - workflow_definition
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Workflow name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Workflow description
+        labels:
+          additionalProperties: true
+          type: object
+          title: Labels
+          description: Workflow labels
+        workflow_definition:
+          $ref: "#/components/schemas/WorkflowDefinition"
+          description: Workflow definition object
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Project Id
+          description: Project to assign workflow to
+
+    WorkflowUpdate:
+      type: object
+      title: WorkflowUpdate
+      description: |-
+        Schema for updating workflow (PATCH /workflows/{id}).
+
+        All fields are optional for partial updates.
+        Supports metadata updates and workflow definition updates (creates new version).
+      properties:
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: "null"
+          title: Name
+          description: Update workflow name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: "null"
+          title: Description
+          description: Update workflow description
+        labels:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: "null"
+          title: Labels
+          description: Update workflow labels
+        workflow_definition:
+          anyOf:
+            - $ref: "#/components/schemas/WorkflowDefinition"
+            - type: "null"
+          description: New workflow definition (auto-creates version)
+        change_description:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Change Description
+          description: Description of changes for version history
+
+    ExecutionCreate:
+      type: object
+      title: ExecutionCreate
+      description: |-
+        Schema for creating a new execution (POST /executions).
+
+        Excludes auto-generated fields: id, created_at, created_by (set by backend).
+      required:
+        - workflow_id
+      properties:
+        workflow_id:
+          type: string
+          format: uuid
+          title: Workflow Id
+          description: Workflow ID to execute
+        input_data:
+          additionalProperties: true
+          type: object
+          title: Input Data
+          description: Input data for workflow execution
+        trigger_node_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Trigger Node Id
+          description: Trigger node ID to start from (defaults to first trigger)
+
+    PreResolvedNodeOutput:
+      type: object
+      title: PreResolvedNodeOutput
+      description: Typed structure for a single pre-resolved node's mock output.
+      properties:
+        output:
+          additionalProperties: true
+          type: object
+          title: Output
+          description: Mock output data for the node
+        control:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Control
+          description: Control data for condition/loop routing (e.g., next_port)
+
+    TestExecutionCreate:
+      type: object
+      title: TestExecutionCreate
+      description: |-
+        Request body for POST /workflows/{workflow_id}/test.
+      required:
+        - target_node_id
+      properties:
+        target_node_id:
+          type: string
+          title: Target Node Id
+          description: The node to execute for real
+        pre_resolved_nodes:
+          additionalProperties:
+            $ref: '#/components/schemas/PreResolvedNodeOutput'
+          type: object
+          title: Pre Resolved Nodes
+          description: Mock outputs for predecessor nodes. Keys are node IDs.
+        trigger_inputs:
+          additionalProperties: true
+          type: object
+          title: Trigger Inputs
+          description: Input data for the trigger node
+
+    # WebSocket-specific schemas
+    WebSocketMessage:
+      type: object
+      title: WebSocket Message
+      description: |-
+        Message format for bidirectional WebSocket communication.
+        Server sends execution updates, clients send commands and subscriptions.
+      required:
+        - message_type
+        - timestamp
+      properties:
+        message_type:
+          type: string
+          description: Type of message
+          enum:
+            - execution_update
+            - activity_update
+            - approval_notification
+            - subscription
+            - error
+            - connection_ack
+        api_version:
+          type: string
+          description: API version for this message (optional, defaults to connection version)
+          example: v1
+        protocol_version:
+          type: string
+          description: Protocol version for this message
+          example: 1.0.0
+        event_id:
+          type: string
+          description: Unique event identifier for message replay and deduplication
+        session_id:
+          type: string
+          description: Session identifier provided by server on connection
+        execution_id:
+          type: string
+          format: uuid
+          description: Workflow execution ID (for execution-related messages)
+        activity_id:
+          type: string
+          description: Activity ID (for activity-related messages)
+        approval_id:
+          type: string
+          format: uuid
+          description: Approval ID (for approval-related messages)
+        data:
+          type: object
+          description: Message payload (varies by message_type)
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+        error:
+          type: object
+          description: Error details (only for message_type=error)
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+    WebSocketCommand:
+      type: object
+      title: WebSocket Command
+      description: Client-to-server command message
+      required:
+        - command
+      properties:
+        command:
+          type: string
+          enum:
+            - pause
+            - resume
+            - cancel
+            - subscribe
+            - unsubscribe
+          description: Command to execute
+        api_version:
+          type: string
+          description: API version (optional, defaults to connection version)
+          example: v1
+        execution_id:
+          type: string
+          format: uuid
+          description: Target execution ID (for pause/resume/cancel)
+        subscription_filter:
+          type: object
+          description: Filter criteria (for subscribe command)
+          properties:
+            workflow_id:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/ExecutionStatus"
+            labels:
+              type: object
+              additionalProperties:
+                type: string
+
+    WebSocketSubscription:
+      type: object
+      title: WebSocket Subscription
+      description: Client subscription to workflow events
+      properties:
+        subscription_id:
+          type: string
+          description: Unique subscription identifier
+        filter:
+          type: object
+          description: Subscription filter criteria
+          properties:
+            workflow_id:
+              type: string
+              format: uuid
+            execution_id:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/ExecutionStatus"
+            labels:
+              type: object
+              additionalProperties:
+                type: string
+
+    WorkflowDefinition:
+      title: WorkflowDefinition
+      description: |-
+        JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2.
+
+        Attributes:
+            schema_version: Schema version that this workflow definition conforms to
+            name: Workflow name
+            description: Human-readable description of the workflow's purpose
+            triggers: Trigger nodes that define how the workflow is initiated
+            nodes: Execution and control nodes in the workflow graph
+            edges: Directed edges connecting triggers and nodes in the workflow graph
+      type: object
+      required:
+        - schema_version
+        - name
+        - triggers
+        - nodes
+        - edges
+      properties:
+        schema_version:
+          type: string
+          const: "2.0.0"
+          title: Schema Version
+          description: Schema version that this workflow definition conforms to
+        name:
+          type: string
+          title: Name
+          description: Workflow name
+          minLength: 1
+          maxLength: 255
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 1000
+            - type: "null"
+          title: Description
+          description: Human-readable description of the workflow's purpose
+        triggers:
+          type: array
+          title: Triggers
+          description: Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation.
+          minItems: 1
+          items:
+            additionalProperties: true
+            type: object
+        nodes:
+          type: array
+          title: Nodes
+          description: Execution and control nodes in the workflow graph
+          items:
+            additionalProperties: true
+            type: object
+        edges:
+          type: array
+          title: Edges
+          description: List of directed edges connecting triggers and nodes in the workflow graph
+          items:
+            additionalProperties: true
+            type: object
+      additionalProperties: false

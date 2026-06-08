@@ -1,0 +1,74 @@
+---
+schema_version: "2.0.0"
+name: converge-nested-parallel-test
+description: Test converge with nested parallel execution
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: group1_fork
+    type: fork
+
+  - id: branch1a
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 1A"
+
+  - id: branch1b
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 1B"
+
+  - id: group1_join
+    type: join
+
+  - id: group2_fork
+    type: fork
+
+  - id: branch2a
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 2A"
+
+  - id: branch2b
+    type: script
+    config:
+      language: bash
+      code: echo "Branch 2B"
+
+  - id: group2_join
+    type: join
+
+  - id: converge_groups
+    type: converge
+    converge:
+      branches:
+        - branch1a
+        - branch1b
+        - branch2a
+        - branch2b
+      strategy: all
+edges:
+  - source: group1_fork
+    target: branch1a
+  - source: group1_fork
+    target: branch1b
+  - source: branch1a
+    target: group1_join
+  - source: branch1b
+    target: group1_join
+  - source: group1_join
+    target: group2_fork
+  - source: group2_fork
+    target: branch2a
+  - source: group2_fork
+    target: branch2b
+  - source: branch2a
+    target: group2_join
+  - source: branch2b
+    target: group2_join
+  - source: group2_join
+    target: converge_groups

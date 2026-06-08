@@ -1,0 +1,183 @@
+---
+schema_version: "2.0.0"
+name: aap-job-template
+description: |
+  Test workflow for AAP Job Template executor.
+
+  This workflow demonstrates all available parameters for the AAP job template
+  executor including tags, limits, verbosity, job_credentials, extra_vars, and inventory.
+
+  Prerequisites:
+  1. Create a Job Template in AAP based on samples/playbooks/test-aap-parameters.yml
+  2. Note the Job Template ID from AAP
+  3. Configure AAP credentials in Nexus (.env file):
+     - APP_AAP_BASE_URL=https://your-aap-controller.example.com
+     - APP_AAP_TOKEN=your_api_token (or username/password)
+  4. Ensure the Job Template has access to an inventory with target hosts
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        job_template_id:
+          type: integer
+          description: "AAP Job Template ID to execute"
+          required: true
+        app_name:
+          type: string
+          description: "Application name"
+          default: "nexus-test-app"
+        app_version:
+          type: string
+          description: "Application version to deploy/manage"
+          default: "1.0.0"
+        deployment_env:
+          type: string
+          description: "Target environment (deployment_env, not 'environment' which is reserved in Ansible)"
+          default: "development"
+          enum:
+            - development
+            - staging
+            - production
+        operation:
+          type: string
+          description: "Operation to perform"
+          default: "status"
+          enum:
+            - deploy
+            - config
+            - status
+            - backup
+        inventory_id:
+          type: integer
+          description: "Override inventory by ID - optional"
+          required: false
+        inventory_name:
+          type: string
+          description: "Override inventory by name (requires organization_name) - optional"
+          required: false
+        organization_name:
+          type: string
+          description: "AAP organization name (required when using inventory_name) - optional"
+          required: false
+        limit:
+          type: string
+          description: "Limit execution to specific hosts (e.g., 'webservers' or 'host1,host2')"
+          required: false
+        tags:
+          type: string
+          description: "Comma-separated list of tags to run (e.g., 'monitoring,system')"
+          required: false
+        skip_tags:
+          type: string
+          description: "Comma-separated list of tags to skip (e.g., 'deploy,backup')"
+          required: false
+        verbosity:
+          type: integer
+          description: "Ansible verbosity level (0-5, higher = more verbose)"
+          default: 0
+          minimum: 0
+          maximum: 5
+        custom_message:
+          type: string
+          description: "Custom message to pass to playbook"
+          default: "Hello from Nexus AAP Workflow Executor!"
+nodes:
+  - id: execute_job_template
+    type: aap_job_template
+    name: Execute AAP Job Template
+    config:
+      job_template_id: ${trigger.job_template_id}
+      inventory_id: ${trigger.inventory_id}
+      inventory_name: ${trigger.inventory_name}
+      organization_name: ${trigger.organization_name}
+      extra_vars:
+        app_name: ${trigger.app_name}
+        app_version: ${trigger.app_version}
+        deployment_env: ${trigger.deployment_env}
+        operation: ${trigger.operation}
+        custom_message: ${trigger.custom_message}
+        executed_by: "Nexus Workflow Engine"
+      limit: ${trigger.limit}
+      tags: ${trigger.tags}
+      skip_tags: ${trigger.skip_tags}
+      verbosity: ${trigger.verbosity}
+    outputs:
+      job_id: "${result.job_id}"
+      job_status: "${result.job_status}"
+      artifacts: "${result.artifacts}"
+      created: "${result.created}"
+      started: "${result.started}"
+      finished: "${result.finished}"
+    settings:
+      timeout: 1800
+      retry_policy:
+        max_retries: 3
+        initial_interval: 5
+        max_interval: 60
+        backoff_coefficient: 2.0
+
+  - id: display_results
+    type: script
+    name: Display Job Results
+    config:
+      language: python
+      code: |
+        import json
+        import os
+        import sys
+
+        job_id = os.getenv('INPUT_JOB_ID')
+        job_status = os.getenv('INPUT_JOB_STATUS')
+        artifacts_json = os.getenv('INPUT_ARTIFACTS', '{}')
+        created = os.getenv('INPUT_CREATED', '')
+        started = os.getenv('INPUT_STARTED', '')
+        finished = os.getenv('INPUT_FINISHED', '')
+
+        artifacts = json.loads(artifacts_json) if artifacts_json else {}
+
+        print("=" * 80, file=sys.stderr)
+        print("AAP Job Template Execution Results", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(f"Job ID: {job_id}", file=sys.stderr)
+        print(f"Job Status: {job_status}", file=sys.stderr)
+        print(f"Created: {created}", file=sys.stderr)
+        print(f"Started: {started}", file=sys.stderr)
+        print(f"Finished: {finished}", file=sys.stderr)
+        print("", file=sys.stderr)
+
+        if artifacts:
+            print("Artifacts:", file=sys.stderr)
+            print(json.dumps(artifacts, indent=2), file=sys.stderr)
+            print("", file=sys.stderr)
+
+        success = job_status == 'successful'
+        if success:
+            print("\n✅ Job completed successfully!", file=sys.stderr)
+        else:
+            print(f"\n❌ Job completed with status: {job_status}", file=sys.stderr)
+
+        print("=" * 80, file=sys.stderr)
+
+        result = {
+            "success": success,
+            "job_id": job_id,
+            "job_status": job_status
+        }
+        print(json.dumps(result))
+      inputs:
+        job_id: ${execute_job_template.job_id}
+        job_status: ${execute_job_template.job_status}
+        artifacts: ${execute_job_template.artifacts}
+        created: ${execute_job_template.created}
+        started: ${execute_job_template.started}
+        finished: ${execute_job_template.finished}
+    outputs:
+      success: "${result.stdout_json.success}"
+      job_id: "${result.stdout_json.job_id}"
+      final_status: "${result.stdout_json.job_status}"
+edges:
+  - from: trigger_manual
+    to: execute_job_template
+  - from: execute_job_template
+    to: display_results

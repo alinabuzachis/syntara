@@ -1,0 +1,33 @@
+---
+schema_version: "2.0.0"
+name: expression-test
+description: Test input parameter expressions
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: source
+    name: Source Activity
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"count": 42, "status": "active"}'
+    outputs:
+      data: $.stdout
+
+  - id: consumer
+    name: Consumer Activity
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Count: $INPUT_COUNT, Status: $INPUT_STATUS"
+    inputs:
+      count: ${source.output.data.count}
+      status: ${source.output.data.status}
+edges:
+  - source: source
+    target: consumer

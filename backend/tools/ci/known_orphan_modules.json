@@ -1,0 +1,26 @@
+{
+  "description": "Glob patterns for modules intentionally not imported via standard import statements. Each pattern documents the discovery/registration mechanism that makes the module reachable at runtime. See docs/standards/static-analysis.md.",
+  "patterns": {
+    "nexus/*/router.py": "Auto-discovered by core.router_discovery.discover_and_register_routers() at app startup",
+    "nexus/*/*_router.py": "Auto-discovered by core.router_discovery (matches *_router.py naming convention)",
+    "nexus/*/__main__.py": "CLI entrypoint invoked via python -m (e.g., python -m nexus.seed)",
+    "nexus/*/cli/__main__.py": "CLI entrypoint invoked via python -m (e.g., python -m nexus.credentials.cli)",
+    "nexus/*/migrations/env.py": "Alembic migration environment — invoked by Alembic CLI, not imported",
+    "nexus/*/migrations/versions/*.py": "Alembic migration scripts — invoked by Alembic CLI, not imported",
+    "nexus/*/audit_migrations/env.py": "Audit-specific Alembic migration environment",
+    "nexus/*/audit_migrations/versions/*.py": "Audit-specific Alembic migration scripts",
+    "nexus/*/error_handlers.py": "Resolved at runtime via string-based handler refs in @fastapi_exception decorators",
+    "nexus/core/storage_error_handlers.py": "Resolved at runtime via string-based handler refs in @fastapi_exception decorators",
+    "nexus/*/audit/*.py": "Audit event handlers — discovered by audit.discovery.discover_handlers() at startup",
+    "nexus/telemetry/handlers/*.py": "Telemetry event handlers — discovered by handler scanning at startup",
+    "nexus/telemetry/middleware.py": "Registered as middleware during app startup in main.py",
+    "nexus/*/ws/*.py": "WebSocket handlers — discovered via AsyncAPI spec + convention-based importlib loading",
+    "nexus/example/*.py": "Reference implementations for developers, not production code",
+    "nexus/example/*/*.py": "Reference implementations for developers, not production code",
+    "nexus/api/main.py": "Application entrypoint — invoked via uvicorn/python -m, not imported",
+    "nexus/*/worker.py": "Background worker entrypoints — invoked via python -m in podman-compose",
+    "nexus/*/utils.py": "Intra-package utilities — imported via package (from nexus.X import utils), not direct module import",
+    "nexus/workflows/utils/template_resolution.py": "Functions imported directly by name (resolve_value) from consuming modules, not via module path",
+    "nexus/files/validators.py": "Imported via package (from nexus.files import validators) in file_manager.py"
+  }
+}

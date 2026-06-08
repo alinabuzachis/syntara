@@ -1,0 +1,7 @@
+# Snyk (https://snyk.io) policy file
+# Excludes specification and test trees from Snyk Code (see CI sast-snyk.yml).
+---
+exclude:
+  code:
+    - specs/**
+    - tests/**

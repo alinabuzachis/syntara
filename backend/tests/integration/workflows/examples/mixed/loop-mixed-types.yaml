@@ -1,0 +1,40 @@
+---
+schema_version: "2.0.0"
+name: loop-mixed-types
+description: Loop execution with alternating executor types
+
+inputs:
+  items:
+    type: array
+    description: Items to process
+    default: [item1, item2, item3]
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: process_items
+    type: loop
+    loop:
+      type: forEach
+      items: ${input.items}
+      itemVariable: item
+      indexVariable: index
+
+  - id: process_item
+    type: script
+    config:
+      language: python
+      code: |
+        import os
+        item = os.getenv('INPUT_ITEM', '')
+        index = os.getenv('INPUT_INDEX', '0')
+        print(f"Processing item {item} at index {index}")
+    inputs:
+      item: ${item}
+      index: ${index}
+edges:
+  - source: process_items
+    target: process_item
+    port: body

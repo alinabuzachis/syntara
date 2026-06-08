@@ -1,0 +1,1243 @@
+---
+openapi: 3.1.0
+info:
+  title: Tool Provider Management API
+  description: API for registering and managing external Tool Providers
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: API server (relative path)
+
+# Reference shared resource schemas
+x-shared-contracts:
+  - path: ../base/shared-resources.openapi.yaml
+    namespace: shared
+
+paths:
+  /tool_manager/tools:
+    get:
+      summary: Get Tools
+      description: |-
+        List tools with filtering, sorting, and pagination.
+
+        Supports filtering using query parameters with standard operators:
+        - name: Filter by tool name (name=tool_name, name[contains]=text)
+        - enabled: Filter by enabled status (enabled=true|false)
+        - status: Filter by tool status (status=available|missing|error)
+        - provider_id: Filter by provider ID (provider_id=uuid)
+        - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+        - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+        Uses cursor-based pagination for scalability and consistency.
+
+        Args:
+            request: FastAPI request object containing query parameters
+            service: Tool service
+            params: Query parameters for pagination and filtering
+
+        Returns:
+            ToolListResponse with tools, pagination metadata, and optional total
+      operationId: get_tools
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 100
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+  /tool_manager/tools/{tool_id}:
+    get:
+      summary: Get Tool
+      description: |-
+        Get tool details by ID.
+
+        Returns detailed information about a specific tool including
+        parameters, status, and metadata.
+
+        Args:
+            tool_id: UUID of the tool to retrieve
+            service: Tool service
+
+        Returns:
+            ToolWithParameters instance with full details
+
+        Raises:
+            HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
+      operationId: get_tool
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Tool Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolWithParameters'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+    patch:
+      summary: Patch Tool
+      description: |-
+        Update tool status (enable/disable).
+
+        Updates the tool's status to enable or disable it for use.
+        Only admin-controllable status changes are allowed (available/disabled).
+
+        Args:
+            tool_id: UUID of the tool to update
+            tool_update: Tool update data with status
+            service: Tool service
+
+        Returns:
+            Updated Tool instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 404 if not found, 403 for auth
+      operationId: patch_tool
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Tool Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolWithParameters'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+  /tool_manager/tools/bulk_update:
+    patch:
+      summary: Bulk Update Tools
+      description: |-
+        Bulk update tool status (enable/disable multiple tools).
+
+        Updates the status of multiple tools in a single operation.
+        Only admin-controllable status changes are allowed (available/disabled).
+
+        Args:
+            bulk_update: Bulk update request with tool IDs and status
+            service: Tool service
+
+        Returns:
+            Dictionary with update statistics and timestamp
+
+        Raises:
+            HTTPException: 400 for validation errors, 403 for auth
+      operationId: bulk_update_tools
+      x-app-permission:
+        resource: null
+        action: null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolBulkUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Bulk Update Tools
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+  /tool_manager/tool_providers:
+    get:
+      summary: Get Tool Providers
+      description: |-
+        List tool providers with filtering, sorting, and pagination.
+
+        Supports filtering using query parameters with standard operators:
+        - name: Filter by provider name (name=provider_name, name[contains]=text)
+        - status: Filter by provider status (status=validating|available|error)
+        - enabled: Filter by enabled status (enabled=true|false)
+        - provider_type: Filter by provider type (provider_type=openapi)
+        - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+        Uses cursor-based pagination for scalability and consistency.
+
+        Args:
+            request: FastAPI request object containing query parameters
+            service: Tool provider service
+            params: Query parameters for pagination and filtering
+
+        Returns:
+            ToolProviderListResponse with providers, pagination metadata, and optional total
+      operationId: get_tool_providers
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 100
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+    post:
+      summary: Register Tool Provider
+      description: |-
+        Register a new Tool Provider.
+
+        Creates a new tool provider with the specified configuration.
+        The provider starts in 'validating' status.
+
+        Args:
+            provider_create: Provider configuration and metadata
+            service: Tool provider service
+
+        Returns:
+            Created ToolProvider instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
+      operationId: register_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolProviderCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+  /tool_manager/tool_providers/{provider_id}:
+    get:
+      summary: Get Tool Provider
+      description: |-
+        Get Tool Provider details by ID.
+
+        Returns detailed information about a specific Tool Provider including
+        configuration, status, and metadata.
+
+        Args:
+            provider_id: UUID of the provider to retrieve
+            service: Tool provider service
+
+        Returns:
+            ToolProvider instance with full details
+
+        Raises:
+            HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
+      operationId: get_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Provider Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+    put:
+      summary: Update Tool Provider
+      description: |-
+        Update Tool Provider configuration (complete replacement).
+
+        Performs a complete replacement of the provider configuration.
+        All fields in the request body will replace existing values.
+
+        Args:
+            provider_id: UUID of the provider to update
+            provider_update: New provider configuration
+            service: Tool provider service
+
+        Returns:
+            Updated ToolProvider instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
+      operationId: update_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Provider Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolProviderCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+    patch:
+      summary: Patch Tool Provider
+      description: |-
+        Patch Tool Provider.
+
+        Performs a partial update of the provider configuration.
+        Only provided fields are updated, configuration objects are replaced.
+
+        Args:
+            provider_id: UUID of the provider to patch
+            provider_patch: Partial update data
+            service: Tool provider service
+
+        Returns:
+            Updated ToolProvider instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
+      operationId: patch_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Provider Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolProviderPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+    delete:
+      summary: Delete Tool Provider
+      description: |-
+        Remove Tool Provider and all associated tools.
+
+        Performs a soft delete of the provider and cascades to associated tools.
+        The provider will no longer be accessible but remains in the database.
+
+        Args:
+            provider_id: UUID of the provider to delete
+            service: Tool provider service
+
+        Raises:
+            HTTPException: 404 if provider not found, 403 for auth
+      operationId: delete_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Provider Id
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+  /tool_manager/tool_providers/{provider_id}/validate:
+    post:
+      summary: Validate Tool Provider
+      description: |-
+        Validate Tool Provider connection and capabilities.
+
+        Tests the connection to the tool provider and validates compatibility.
+        Updates the provider status based on validation results.
+
+        Args:
+            provider_id: UUID of the provider to validate
+            service: Tool provider service
+
+        Returns:
+            Validation result with status and capability details (always 200)
+
+        Raises:
+            HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
+      operationId: validate_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Provider Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderValidationResult'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+  /tool_manager/tool_providers/{provider_id}/refresh_tools:
+    post:
+      summary: Refresh Tool Provider
+      description: |-
+        Refresh tools from Tool Provider.
+
+        Connects to the tool provider and refreshes the list of available tools.
+        Creates new tools, updates existing ones, and disables missing tools.
+
+        Args:
+            provider_id: UUID of the provider to refresh
+            service: Tool provider service
+
+        Returns:
+            Refresh statistics including counts and timestamp
+
+        Raises:
+            HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
+      operationId: refresh_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Provider Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderRefreshResult'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+  /tool_manager/tool_providers/test:
+    post:
+      summary: Test Tool Provider
+      description: |-
+        Test Tool Provider definition without saving to database.
+
+        Validates the provider configuration and tests connectivity using the appropriate adapter.
+        This endpoint allows testing provider definitions before registering them.
+
+        Args:
+            provider_create: Provider configuration to test
+            service: Tool provider service
+
+        Returns:
+            ToolProviderValidationResult with test results (always 200)
+
+        Raises:
+            HTTPException: 403 for auth, 500 for unexpected errors
+      operationId: test_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolProviderCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolProviderValidationResult'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+      tags:
+        - ToolManager
+components:
+  schemas:
+    ToolListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolWithParameters'
+              description: Array of resources in current page
+              title: Resources
+      title: ToolListResponse
+      description: Paginated list response for tools.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+
+    ProviderStatus:
+      type: string
+      title: ProviderStatus
+      description: Status of a tool provider.
+      enum:
+        - available
+        - error
+        - validating
+
+    ToolStatus:
+      type: string
+      title: ToolStatus
+      description: Status of a tool.
+      enum:
+        - available
+        - missing
+        - error
+
+    ToolParameterType:
+      type: string
+      title: ToolParameterType
+      description: Parameter types for tools.
+      enum:
+        - string
+        - number
+        - boolean
+        - object
+        - array
+
+    ToolProviderListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
+      title: ToolProviderListResponse
+      description: Paginated list response for tool providers.
+
+    ToolWithParameters:
+      allOf:
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/Resource'
+        - type: object
+          title: ToolWithParameters
+          additionalProperties: false
+          description: Schema for Tool response with ToolParameter details.
+          required:
+            - provider_id
+            - namespaced_name
+            - parameters
+          properties:
+            provider_id:
+              type: string
+              format: uuid
+              title: Provider Id
+              description: UUID of the associated tool provider
+            namespaced_name:
+              type: string
+              minLength: 1
+              maxLength: 200
+              title: Namespaced Name
+              description: Unique namespaced name for the tool
+            enabled:
+              type: boolean
+              default: true
+              title: Enabled
+              description: Whether the tool is enabled
+            status:
+              $ref: '#/components/schemas/ToolStatus'
+              default: available
+              description: Current status of the tool
+            last_executed_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              title: Last Executed At
+              description: Timestamp of last execution
+            last_refreshed_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              title: Last Refreshed At
+              description: Timestamp of last refresh from provider
+            refresh_error:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Refresh Error
+              description: Error message from last refresh attempt
+            parameters:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolParameter'
+              title: Parameters
+              description: Tool parameters
+
+    ToolParameter:
+      allOf:
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/BaseResource'
+        - type: object
+          title: ToolParameter
+          additionalProperties: false
+          description: |-
+            Tool parameter definition stored in database.
+
+            Represents a parameter that a tool accepts, with its type, validation rules,
+            and example values.
+
+            Inherits from BaseResource:
+                id: UUID primary key
+                created_at: Creation timestamp
+                updated_at: Last update timestamp
+                labels: Optional key-value metadata
+          required:
+            - tool_id
+            - name
+            - type
+            - description
+            - required
+          properties:
+            tool_id:
+              type: string
+              format: uuid
+              title: Tool Id
+            name:
+              type: string
+              minLength: 1
+              maxLength: 100
+              title: Name
+              description: Parameter name
+            type:
+              $ref: '#/components/schemas/ToolParameterType'
+              description: Parameter type
+            description:
+              type: string
+              title: Description
+              description: Parameter description
+            required:
+              type: boolean
+              title: Required
+              description: Whether this parameter is required
+            default_value:
+              anyOf:
+                - type: object
+                  additionalProperties: true
+                - type: 'null'
+              title: Default Value
+              description: Default value for the parameter
+            example_value:
+              anyOf:
+                - type: object
+                  additionalProperties: true
+                - type: 'null'
+              title: Example Value
+              description: Example value for the parameter
+
+    ToolUpdate:
+      type: object
+      title: ToolUpdate
+      additionalProperties: false
+      description: Model for updating tool configuration.
+      properties:
+        enabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enabled
+          description: Whether the tool is enabled
+        status:
+          anyOf:
+            - $ref: '#/components/schemas/ToolStatus'
+            - type: 'null'
+          description: Current status of the tool
+        refresh_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Refresh Error
+          description: Error message from last refresh attempt
+
+    ToolBulkUpdate:
+      type: object
+      title: ToolBulkUpdate
+      additionalProperties: false
+      description: |-
+        Request model for bulk updating tool status.
+
+        Attributes:
+            tool_ids: List of tool UUIDs to update (max 50)
+            enabled: Enable or disable the Tool.
+      properties:
+        tool_ids:
+          type: array
+          title: Tool Ids
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+          description: List of tool UUIDs to update (max 50)
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Enable/disable the Tool
+      required:
+        - tool_ids
+        - enabled
+
+    ToolProviderWithConfiguration:
+      allOf:
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/Resource'
+        - type: object
+          title: ToolProviderWithConfiguration
+          additionalProperties: false
+          description: Schema for ToolProvider response with ProviderConfiguration details.
+          required:
+            - configuration
+          properties:
+            name:
+              description: Human-readable provider name
+            enabled:
+              type: boolean
+              default: true
+              title: Enabled
+              description: Enable/disable the provider
+            status:
+              $ref: '#/components/schemas/ProviderStatus'
+              default: validating
+              description: Current status of the provider
+            last_validated_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              title: Last Validated At
+              description: Timestamp of last validation
+            validation_error:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Validation Error
+              description: Error message from last validation attempt
+            configuration:
+              $ref: '#/components/schemas/MCPConfiguration'
+              description: ToolProvider configuration
+
+    ToolProviderCreate:
+      type: object
+      title: ToolProviderCreate
+      description: |-
+        ToolProviderCreate model for creating new tool providers.
+
+        Contains only the fields needed to create a new tool provider.
+        This model is used for API requests when creating new tool providers.
+
+        Attributes:
+            name: Human-readable name (required, 1-255 chars)
+            description: Optional detailed description (max 2000 chars)
+            configuration: Provider configuration (required)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable name for the provider
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the provider
+        configuration:
+          title: Configuration
+          description: Provider configuration
+          discriminator:
+            propertyName: provider_type
+            mapping:
+              mcp: '#/components/schemas/MCPConfiguration'
+          oneOf:
+            - $ref: '#/components/schemas/MCPConfiguration'
+      required:
+        - name
+        - configuration
+
+    ToolProviderPatch:
+      type: object
+      title: ToolProviderPatch
+      additionalProperties: false
+      description: |-
+        ToolProviderPatch model for partially updating tool providers.
+
+        All fields are optional to support.
+        This model is used for API PATCH requests when updating existing tool providers.
+
+        Attributes:
+            name: Optional human-readable name (1-255 chars)
+            description: Optional detailed description (max 2000 chars)
+            configuration: Optional provider-specific configuration
+            enabled: Optional enable/disable flag
+            status: Optional provider status
+            validation_error: Optional error message from validation attempts
+      properties:
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the provider
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the provider
+        configuration:
+          anyOf:
+            - discriminator:
+                propertyName: provider_type
+                mapping:
+                  mcp: '#/components/schemas/MCPConfiguration'
+              oneOf:
+                - $ref: '#/components/schemas/MCPConfiguration'
+            - type: 'null'
+          title: Configuration
+          description: Provider-specific configuration
+        enabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enabled
+          description: Enable/disable the provider
+        status:
+          anyOf:
+            - $ref: '#/components/schemas/ProviderStatus'
+            - type: 'null'
+          description: Current status of the provider
+        validation_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Validation Error
+          description: Error message from last validation attempt
+
+    MCPConfiguration:
+      type: object
+      title: MCPConfiguration
+      description: Configuration for MCP (Model Context Protocol) providers.
+      additionalProperties: false
+      required:
+        - base_url
+      properties:
+        provider_type:
+          type: string
+          const: mcp
+          default: mcp
+          title: Provider Type
+        base_url:
+          type: string
+          title: Base Url
+          description: Base URL for the MCP provider
+          format: uri
+        api_key:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Api Key
+          description: API key for authentication (optional)
+
+    ToolProviderValidationResult:
+      type: object
+      title: ToolProviderValidationResult
+      additionalProperties: false
+      description: |-
+        Result of validating a connection to a tool provider.
+
+        Attributes:
+            valid: Whether the connection validation was successful
+            provider_type: The type of provider that was validated
+            validated_at: Timestamp when validation was performed
+            error: Optional error message if validation failed
+            timeout: Whether the validation failed due to a timeout
+      properties:
+        valid:
+          type: boolean
+          title: Valid
+        provider_type:
+          type: string
+          title: Provider Type
+        validated_at:
+          type: string
+          format: date-time
+          title: Validated At
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error
+        timeout:
+          type: boolean
+          title: Timeout
+          default: false
+      required:
+        - valid
+        - provider_type
+        - validated_at
+
+    ToolProviderRefreshResult:
+      type: object
+      title: ToolProviderRefreshResult
+      additionalProperties: false
+      description: |-
+        Result of refreshing tools from a tool provider.
+
+        Attributes:
+            refreshed_count: Number of new tools discovered and added
+            updated_count: Number of existing tools that were updated
+            disabled_count: Number of tools that were disabled (not found in provider)
+            refreshed_at: Timestamp when refresh operation was performed
+      properties:
+        refreshed_count:
+          type: integer
+          title: Refreshed Count
+        updated_count:
+          type: integer
+          title: Updated Count
+        disabled_count:
+          type: integer
+          title: Disabled Count
+        refreshed_at:
+          type: string
+          format: date-time
+          title: Refreshed At
+      required:
+        - refreshed_count
+        - updated_count
+        - disabled_count
+        - refreshed_at

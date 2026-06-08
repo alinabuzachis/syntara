@@ -1,0 +1,102 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+pytest-results.xml
+coverage.xml
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Linting
+.ruff_cache/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Environment files
+.env
+.env.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Containers
+containers/
+podman-compose.yml
+docker-compose.yml
+Dockerfile
+Containerfile
+.dockerignore
+
+# Tests
+tests/
+!tests/__init__.py
+!tests/fixtures/
+!tests/fixtures/__init__.py
+!tests/fixtures/example_mcp_server.py
+test_*.py
+*_test.py
+
+# Tools and scripts
+# tools/ - Now needed for:
+# - load_sample_workflows.py
+# - run_mcp_server.py
+scripts/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Project specific
+.claude/
+.cursor/
+.specify/
+specs/

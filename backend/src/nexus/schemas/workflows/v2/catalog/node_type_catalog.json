@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/catalog/node_type_catalog",
+  "schema_version": "2.0.0",
+  "title": "Node Type Catalog",
+  "description": "Machine-readable registry of all available node types with metadata",
+  "categories": [
+    {
+      "id": "trigger",
+      "name": "Triggers",
+      "description": "Workflow entry points that define how external data flows into the workflow"
+    },
+    {
+      "id": "executor",
+      "name": "Executors",
+      "description": "Nodes that execute work and produce outputs"
+    },
+    {
+      "id": "control",
+      "name": "Control Flow",
+      "description": "Nodes that manage workflow execution flow"
+    }
+  ],
+  "node_types": [
+    {
+      "type": "manual_trigger",
+      "name": "Manual Trigger",
+      "description": "Workflow entry point triggered manually with user-provided inputs",
+      "labels": {
+        "category": "trigger"
+      },
+      "schema_ref": "../triggers/manual.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "description": "Workflow entry point triggered by incoming HTTP POST requests from external systems",
+      "labels": {
+        "category": "trigger"
+      },
+      "schema_ref": "../triggers/webhook.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "script",
+      "name": "Script",
+      "description": "Execute Python or Bash scripts with structured output",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/script.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "aap_job_template",
+      "name": "AAP Job Template",
+      "description": "Launch Ansible Automation Platform job templates",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/aap_job_template.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "aap_workflow_job_template",
+      "name": "AAP Workflow Job Template",
+      "description": "Launch Ansible Automation Platform workflow job templates",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/aap_workflow_job_template.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "http_request",
+      "name": "HTTP Request",
+      "description": "Make HTTP API requests",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/http_request.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "agentic",
+      "name": "AI Agent",
+      "description": "Execute AI agent tasks with asynchronous completion",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/agentic.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "approval",
+      "name": "Approval",
+      "description": "Human approval gate with timeout and conditional branching",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/approval.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "condition",
+      "name": "Condition",
+      "description": "Binary conditional branching (if/then/else)",
+      "labels": {
+        "category": "control"
+      },
+      "schema_ref": "../control-nodes/condition.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "loop",
+      "name": "Loop",
+      "description": "Iterate over collections or conditions (for_each/do_while)",
+      "labels": {
+        "category": "control"
+      },
+      "schema_ref": "../control-nodes/loop.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "converge",
+      "name": "Converge",
+      "description": "Wait for multiple parallel branches to complete (partially implemented)",
+      "labels": {
+        "category": "control"
+      },
+      "schema_ref": "../control-nodes/converge.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "wait",
+      "name": "Wait",
+      "description": "Pause workflow execution for a specified duration before continuing",
+      "labels": {
+        "category": "control"
+      },
+      "schema_ref": "../control-nodes/wait.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    }
+  ]
+}

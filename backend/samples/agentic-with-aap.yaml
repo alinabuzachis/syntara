@@ -1,0 +1,65 @@
+---
+schema_version: "2.0.0"
+name: agentic-with-aap
+description: >-
+  Workflow combining agentic task and AAP task. You would have to configure
+  APP_AAP_BASE_URL, APP_AAP_USERNAME, APP_AAP_PASSWORD in your .env file
+  and attach an LLM Provider credential to the agentic node.
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        prompt:
+          type: string
+          description: Prompt
+          default: |
+            Find the Job Template that is installed out of the box in the majority of AAP installations.
+
+            CRITICAL INSTRUCTIONS:
+            - Your response must contain ONLY the JSON object below
+            - Do NOT include any explanatory text, notes, or comments before or after the JSON
+            - Do NOT include markdown code blocks or backticks
+            - Return ONLY raw JSON
+
+            Required format:
+            {
+              "default_job_template": "template_name_here"
+            }
+        organization_name:
+          type: string
+          description: Name of the organization
+          required: true
+          default: "Default"
+nodes:
+  - id: name_via_ai
+    type: agentic
+    name: Get Popular Job Template Name
+    config:
+      agent: production://analysis-agent
+      model: claude-3-5-sonnet-20241022
+      prompt: ${trigger.prompt}
+    outputs:
+      analysis: "${result.output}"
+
+  - id: conditional_aap_launch
+    type: condition
+    name: If LLM got the popular Job Template Name
+    config:
+      condition: ${name_via_ai.analysis.default_job_template}
+
+  - id: launch_job_by_name
+    type: aap_job_template
+    name: Launch the Job Template in AAP
+    config:
+      job_template_name: ${name_via_ai.analysis.default_job_template}
+      organization_name: ${trigger.organization_name}
+      verbosity: 3
+edges:
+  - from: trigger_manual
+    to: name_via_ai
+  - from: name_via_ai
+    to: conditional_aap_launch
+  - from: conditional_aap_launch
+    to: launch_job_by_name
+    from_port: "true"

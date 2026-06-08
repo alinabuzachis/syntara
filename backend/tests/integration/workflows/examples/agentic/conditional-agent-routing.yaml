@@ -1,0 +1,104 @@
+---
+schema_version: "2.0.0"
+name: conditional-agent-routing
+description: Route to different specialized agents based on conditions
+metadata:
+  tags:
+    - agentic
+    - conditional
+    - routing
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+inputs:
+  user_request:
+    type: string
+    description: User request to be classified and routed to appropriate specialist
+    default: How do I optimize database query performance?
+
+nodes:
+  - id: classify_request
+    name: Classify User Request
+    type: agentic
+    config:
+      agent: production://classifier-agent
+      model: claude-3-5-sonnet-20241022
+      prompt: |
+        Classify the following request and determine the appropriate domain:
+        ${inputs.user_request}
+
+        Domains:
+        - technical: Technical questions, coding, architecture
+        - business: Business strategy, market analysis, planning
+        - creative: Content creation, design, marketing
+
+        Respond with ONLY one word: technical, business, or creative
+    inputs:
+      user_request: ${inputs.user_request}
+    outputs:
+      domain: $.result.content
+
+  - id: route_to_specialist
+    name: Route to Specialist
+    type: condition
+    condition: ${classify_request.output.domain} == 'technical'
+
+  - id: technical_specialist
+    name: Technical Specialist
+    type: agentic
+    config:
+      agent: production://technical-specialist
+      model: claude-3-5-sonnet-20241022
+      prompt: |
+        Provide technical assistance for: ${inputs.user_request}
+    inputs:
+      user_request: ${inputs.user_request}
+    outputs:
+      response: $.result.content
+
+  - id: check_business
+    name: Check if Business Domain
+    type: condition
+    condition: ${classify_request.output.domain} == 'business'
+
+  - id: business_specialist
+    name: Business Specialist
+    type: agentic
+    config:
+      agent: production://business-specialist
+      model: claude-3-5-sonnet-20241022
+      prompt: |
+        Provide business guidance for: ${inputs.user_request}
+    inputs:
+      user_request: ${inputs.user_request}
+    outputs:
+      response: $.result.content
+
+  - id: creative_specialist
+    name: Creative Specialist
+    type: agentic
+    config:
+      agent: production://creative-specialist
+      model: claude-3-5-sonnet-20241022
+      prompt: |
+        Provide creative assistance for: ${inputs.user_request}
+    inputs:
+      user_request: ${inputs.user_request}
+    outputs:
+      response: $.result.content
+edges:
+  - source: classify_request
+    target: route_to_specialist
+  - source: route_to_specialist
+    target: technical_specialist
+    port: then
+  - source: route_to_specialist
+    target: check_business
+    port: else
+  - source: check_business
+    target: business_specialist
+    port: then
+  - source: check_business
+    target: creative_specialist
+    port: else

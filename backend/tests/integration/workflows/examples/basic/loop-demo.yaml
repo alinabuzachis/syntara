@@ -1,0 +1,43 @@
+---
+schema_version: "2.0.0"
+name: loop-demo
+description: Demonstrates forEach loop
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+inputs:
+  items:
+    type: array
+    description: List of items to process
+    default: [apple, banana, cherry]
+nodes:
+  - id: process_items
+    type: loop
+    loop:
+      type: forEach
+      items: ${input.items}
+      itemVariable: item
+      indexVariable: idx
+
+  - id: process_item
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Processing item #$INPUT_INDEX: $INPUT_ITEM"
+    inputs:
+      item: ${item}
+      index: ${idx}
+
+  - id: summary
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "All items processed!"
+edges:
+  - source: process_items
+    target: process_item
+    port: body
+  - source: process_items
+    target: summary

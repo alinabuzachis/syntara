@@ -1,0 +1,196 @@
+---
+name: E2E Tests (AO Operator)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [requested]
+  workflow_dispatch:
+
+permissions:
+  statuses: write
+  contents: read
+  actions: read
+
+concurrency:
+  group: e2e-ao-operator-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  test-e2e-ao-operator:
+    runs-on: aap-dev2
+    if: github.event.workflow_run.event != 'merge_group'
+    steps:
+      - name: Report pending status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ github.event.workflow_run.head_sha }}',
+              state: 'pending',
+              context: 'E2E Tests (AO Operator)',
+              description: 'E2E tests (AO operator) in progress...',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+        if: github.event_name == 'workflow_run'
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.workflow_run.repository.full_name || github.repository }}
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Deploy Nexus
+        uses: ./.github/actions/deploy-nexus
+        with:
+          deployment-mode: ao-operator
+          nexus-ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          rh-registry-token: ${{ secrets.RH_REGISTRY_TOKEN }}
+          rh-registry-user: ${{ secrets.RH_REGISTRY_USER }}
+          quay-user: ${{ secrets.QUAY_USER }}
+          quay-token: ${{ secrets.QUAY_TOKEN }}
+          quay-aap-user: ${{ secrets.QUAY_AAP_USER }}
+          quay-aap-token: ${{ secrets.QUAY_AAP_TOKEN }}
+
+      - name: Export KUBECONFIG
+        run: echo "KUBECONFIG=${{ github.workspace }}/aap-dev/.tmp/27-ao-operator.kubeconfig" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up SSH for private dependencies
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EXTERNAL_SERVICES_DEPLOY_KEY }}
+
+      - name: Install dependencies
+        working-directory: aap-dev/src/nexus
+        run: make install-integration
+
+      - name: Wait for Nexus API to be ready
+        run: |
+          echo "Waiting for operator to create myao-backend deployment..."
+          until kubectl get deployment myao-backend 2>/dev/null; do
+            sleep 10
+          done
+          kubectl rollout status deployment/myao-backend --timeout=300s
+
+      - name: Initialize admin password
+        working-directory: aap-dev/src/nexus
+        run: |
+          mkdir -p .secrets
+          python3 -c "import secrets; print(secrets.token_urlsafe(16))" > .secrets/admin-password
+          POD=$(kubectl get endpoints myao-backend -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
+          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/set_admin_password.py' < tools/set_admin_password.py
+          cat .secrets/admin-password | kubectl exec -i "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/set_admin_password.py'
+
+      - name: Deploy test helpers in cluster
+        working-directory: aap-dev/src/nexus
+        run: |
+          # --- Mock Segment server (reuses the Nexus API image) ---
+          export AO_IMAGE=$(kubectl get deployment myao-backend \
+            -o jsonpath='{.spec.template.spec.containers[?(@.name=="backend")].image}')
+          echo "Nexus image: ${AO_IMAGE}"
+
+          kubectl create configmap mock-segment-server \
+            --from-file=mock_segment_server.py=tests/e2e/telemetry/mock_segment_server.py
+
+          # --- MCP server (build inside Kind node so it's available to K8s) ---
+          export MCP_IMAGE="localhost/nexus-mcp:e2e"
+          KIND_NODE="27-ao-operator-control-plane"
+          podman build -t "${MCP_IMAGE}" -f containers/mcp/Containerfile .
+          podman save "${MCP_IMAGE}" | podman exec -i "${KIND_NODE}" ctr --namespace=k8s.io images import -
+
+          envsubst '$AO_IMAGE' < tools/ci/e2e/mock-segment-pod.yaml | kubectl apply -f -
+          envsubst '$AO_IMAGE' < tools/ci/e2e/mock-segment-svc.yaml | kubectl apply -f -
+          envsubst '$MCP_IMAGE' < tools/ci/e2e/mcp-server-pod.yaml | kubectl apply -f -
+          envsubst '$MCP_IMAGE' < tools/ci/e2e/mcp-server-svc.yaml | kubectl apply -f -
+
+          kubectl wait --for=condition=ready pod/mock-segment --timeout=60s
+          kubectl wait --for=condition=ready pod/mcp-server --timeout=60s
+
+      - name: Configure Nexus to send telemetry to mock Segment
+        run: |
+          kubectl set env deployment/myao-backend \
+            APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
+            APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
+            APP_COLLECTION_INTERVAL_SECONDS=10
+          kubectl set env deployment/myao-worker \
+            APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
+            APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
+            APP_COLLECTION_INTERVAL_SECONDS=10
+          kubectl rollout status deployment/myao-backend --timeout=120s
+          kubectl rollout status deployment/myao-worker --timeout=120s
+
+      - name: Port-forward services
+        run: |
+          kubectl port-forward svc/myao-backend 8000:8000 &
+          kubectl port-forward svc/mock-segment 9999:9999 &
+          kubectl port-forward svc/mcp-server 8765:8765 &
+
+          wait_for() {
+            local url=$1 label=$2 timeout=$3
+            for i in $(seq 1 "$timeout"); do
+              curl -sf "$url" > /dev/null 2>&1 && return 0
+              sleep 1
+            done
+            echo "::error::${label} not reachable after ${timeout}s"
+            return 1
+          }
+
+          wait_for http://localhost:8000/health "Nexus API" 60
+          wait_for http://localhost:9999/health "Mock Segment" 30
+          wait_for http://localhost:8765/health "MCP server" 30
+
+      - name: Run E2E tests
+        working-directory: aap-dev/src/nexus
+        run: make test-e2e
+        env:
+          APP_BASE_URL: http://localhost:8000
+          APP_SECRET_ENCRYPTION_KEY_PATH: ${{ github.workspace }}/aap-dev/src/nexus/.secrets/encryption-key
+          APP_WORKER_BASE_URL: http://myao-backend:8000
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SEGMENT_SERVER_URL: http://localhost:9999
+          GKE_CLUSTER_ENDPOINT: ${{ secrets.GKE_CLUSTER_ENDPOINT }}
+          GKE_CLUSTER_API_KEY: ${{ secrets.GKE_CLUSTER_API_KEY }}
+          GKE_CLUSTER_DOMAIN: ${{ secrets.GKE_CLUSTER_DOMAIN }}
+          AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          AZURE_AD_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          AZURE_AD_USER_PASSWORD: ${{ secrets.AZURE_AD_USER_PASSWORD }}
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          echo "=== logs ==="
+          kubectl get pods -o name | grep 'myao-backend\|myao-worker\|mock-segment\|mcp-server' | xargs -n1 kubectl logs
+
+      - name: Cleanup
+        if: always()
+        working-directory: aap-dev
+        run: make clean-ao-operator
+
+      - name: Report final status
+        if: always() && github.event_name == 'workflow_run'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const state = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ github.event.workflow_run.head_sha }}',
+              state: state,
+              context: 'E2E Tests (AO Operator)',
+              description: `E2E tests (AO operator) ${state}`,
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });

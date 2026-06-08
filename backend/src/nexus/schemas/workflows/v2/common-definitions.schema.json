@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/common-definitions",
+  "title": "Common Schema Definitions",
+  "description": "Shared schema definitions for workflow v2",
+  "$defs": {
+    "baseErrorObject": {
+      "type": "object",
+      "description": "Standard error object structure",
+      "required": ["type", "message"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Error type (e.g., 'TimeoutError', 'ExecutionError', 'HTTPError', 'ConnectionError', 'JobLaunchError', 'AgentError')"
+        },
+        "message": {
+          "type": "string",
+          "description": "Error message"
+        }
+      },
+      "additionalProperties": false
+    },
+    "baseFailedResult": {
+      "type": "object",
+      "description": "Base failed result structure (can be extended with additional properties)",
+      "required": ["status", "error"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "failed",
+          "description": "Execution failed"
+        },
+        "error": {
+          "$ref": "#/$defs/baseErrorObject"
+        }
+      }
+    },
+    "credential_id": {
+      "type": "string",
+      "description": "Nexus credential UUID for authentication. When provided, the credential is resolved at execution time and injected into the node config.",
+      "format": "uuid"
+    },
+    "retry_policy": {
+      "type": "object",
+      "description": "Retry configuration for failed node execution. Only applies to executor and approval nodes. Unset fields inherit from global settings. Set max_retries to 0 to explicitly disable retry.",
+      "properties": {
+        "max_retries": {
+          "type": "integer",
+          "description": "Number of retries after the initial attempt. 0 = no retry. Inherits from global settings when absent.",
+          "minimum": 0
+        },
+        "initial_interval": {
+          "type": "integer",
+          "description": "Initial retry interval in seconds. Inherits from global settings when absent.",
+          "minimum": 1
+        },
+        "max_interval": {
+          "type": "integer",
+          "description": "Maximum retry interval in seconds. Inherits from global settings when absent.",
+          "minimum": 1
+        },
+        "backoff_coefficient": {
+          "type": "number",
+          "description": "Multiplier applied to the interval after each retry. 1.0 = fixed interval (no growth). Values above 1.0 give exponential backoff. Inherits from global settings when absent.",
+          "minimum": 1.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "nodeSettings": {
+      "type": "object",
+      "description": "Engine-level settings that control how the workflow engine runs a node.",
+      "properties": {
+        "continue_on_failure": {
+          "type": "boolean",
+          "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout in seconds."
+        },
+        "retry_policy": {
+          "$ref": "#/$defs/retry_policy"
+        }
+      },
+      "additionalProperties": false
+    },
+    "executorSettings": {
+      "type": "object",
+      "description": "Engine-level settings for executor nodes (script, http_request, agentic, AAP job/workflow template).",
+      "properties": {
+        "continue_on_failure": {
+          "$ref": "#/$defs/nodeSettings/properties/continue_on_failure"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Activity execution timeout in seconds. Falls back to the global timeout setting if not specified."
+        },
+        "retry_policy": {
+          "$ref": "#/$defs/retry_policy"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

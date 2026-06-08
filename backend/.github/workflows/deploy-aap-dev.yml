@@ -1,0 +1,99 @@
+---
+name: Deploy Nexus with aap-dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_mode:
+        description: "Deployment mode: standalone (nexus + datastores only), ao-operator (nexus via OLM operator), or aap (nexus + full AAP stack)"
+        required: true
+        default: standalone
+        type: choice
+        options:
+          - standalone
+          - ao-operator
+          - aap
+      aap_dev_ref:
+        description: "aap-dev git ref (branch, tag, or SHA)"
+        required: false
+        default: main
+        type: string
+      nexus_ref:
+        description: "Nexus git ref (branch, tag, or SHA)"
+        required: false
+        default: main
+        type: string
+      nexus_ui_ref:
+        description: "Nexus UI git ref (branch, tag, or SHA)"
+        required: false
+        default: main
+        type: string
+      ao_version:
+        description: "quay.io/ansible/nexus image tag — base image for API and worker"
+        required: false
+        default: latest
+        type: string
+      ao_ui_version:
+        description: "quay.io/ansible/nexus-ui image tag — base image for UI"
+        required: false
+        default: latest
+        type: string
+      aap_version:
+        description: "AAP version (used as source directory name, e.g. 2.7)"
+        required: false
+        default: "2.7"
+        type: string
+
+jobs:
+  deploy:
+    name: Deploy Nexus (${{ inputs.deployment_mode }})
+    runs-on: aap-dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy Nexus
+        uses: ./.github/actions/deploy-nexus
+        with:
+          deployment-mode: ${{ inputs.deployment_mode }}
+          aap-dev-ref: ${{ inputs.aap_dev_ref || 'main' }}
+          nexus-ref: ${{ inputs.nexus_ref || 'main' }}
+          nexus-ui-ref: ${{ inputs.nexus_ui_ref || 'main' }}
+          ao-version: ${{ inputs.ao_version }}
+          ao-ui-version: ${{ inputs.ao_ui_version }}
+          aap-version: ${{ inputs.aap_version }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          rh-registry-token: ${{ secrets.RH_REGISTRY_TOKEN }}
+          rh-registry-user: ${{ secrets.RH_REGISTRY_USER }}
+          quay-user: ${{ secrets.QUAY_USER }}
+          quay-token: ${{ secrets.QUAY_TOKEN }}
+          quay-aap-user: ${{ secrets.QUAY_AAP_USER }}
+          quay-aap-token: ${{ secrets.QUAY_AAP_TOKEN }}
+
+      - name: Show deployment summary
+        env:
+          AAP_VERSION: ${{ inputs.aap_version }}
+          DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
+          WORKSPACE: ${{ github.workspace }}
+        run: |
+          version_nodot="${AAP_VERSION//./}"
+          if [ "$DEPLOYMENT_MODE" = "ao-operator" ]; then
+            kubeconfig_suffix="${version_nodot}-ao-operator"
+          else
+            kubeconfig_suffix="${version_nodot}"
+          fi
+          KUBECONFIG="${WORKSPACE}/aap-dev/.tmp/${kubeconfig_suffix}.kubeconfig" kubectl get pods -n "aap${version_nodot}"
+
+      - name: Cleanup
+        if: always()
+        env:
+          DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
+        working-directory: aap-dev
+        run: |
+          if [ "$DEPLOYMENT_MODE" = "ao-operator" ]; then
+            make clean-ao-operator
+          else
+            make clean
+          fi

@@ -1,0 +1,30 @@
+"""Workflow engine constants loaded from Pydantic settings.
+
+Static infrastructure settings (URLs, UUIDs, cleanup timeouts) that are
+not runtime-configurable. Activity timeouts and limits are runtime settings
+in the Settings Catalog — see ``catalog.py``.
+"""
+
+from nexus.core.config.base import get_settings
+
+# Clear cached settings so re-imports pick up any environment changes
+get_settings.cache_clear()
+
+# Load settings once at module import time
+_settings = get_settings()
+
+# Agentic activity infrastructure
+AGENT_ORCHESTRATOR_BASE_URL = str(_settings.agent_orchestrator_base_url)
+APPROVALS_API_BASE_URL = str(_settings.approvals_api_base_url)
+SYSTEM_USER_ID = _settings.system_user_id
+
+# Script activity settings
+SCRIPT_CLEANUP_TERMINATE_TIMEOUT = _settings.script_cleanup_terminate_timeout
+SCRIPT_CLEANUP_KILL_TIMEOUT = _settings.script_cleanup_kill_timeout
+MAX_ENV_VAR_LENGTH = _settings.max_env_var_length
+
+# Temporal start-to-close safety ceiling used as a fallback until per-type
+# catalog lookup is wired in the engine. 30s is sufficient for condition and
+# switch nodes, which complete in milliseconds. Converge, loop, and all
+# executor nodes use _get_default_timeout() for type-appropriate defaults.
+DEFAULT_ACTIVITY_TIMEOUT_SECONDS = 30

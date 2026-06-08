@@ -1,0 +1,17 @@
+---
+schema_version: "2.0.0"
+name: aap-hello-world
+description: Simple AAP job template workflow that launches job template 7
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: launch_job_template
+    type: aap_job_template
+    name: Launch Job Template
+    config:
+      job_template_id: 7
+      verbosity: 5
+edges:
+  - from: trigger_manual
+    to: launch_job_template

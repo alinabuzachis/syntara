@@ -1,0 +1,100 @@
+---
+schema_version: "2.0.0"
+name: approval-demo-workflow
+description: |
+  Demonstration workflow with approval node for Human-in-the-Loop oversight.
+
+  This workflow shows how to:
+  1. Execute a task to prepare data
+  2. Pause for human approval before proceeding
+  3. Continue on approved path OR rejected path based on decision
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        environment:
+          type: string
+          description: "Target environment for deployment"
+          required: true
+          enum:
+            - development
+            - staging
+            - production
+        change_description:
+          type: string
+          description: "Description of changes to be deployed"
+          required: true
+nodes:
+  - id: prepare_deployment
+    type: script
+    name: Prepare Deployment
+    config:
+      language: python
+      code: |
+        import json
+        import os
+
+        environment = os.getenv('INPUT_ENVIRONMENT', 'unknown')
+        description = os.getenv('INPUT_CHANGE_DESCRIPTION', 'No description')
+
+        deployment_plan = {
+            "environment": environment,
+            "changes": description,
+            "estimated_downtime": "5 minutes",
+            "backup_required": True,
+            "rollback_plan": "Automatic rollback on failure"
+        }
+
+        print(json.dumps(deployment_plan))
+      inputs:
+        environment: ${trigger.environment}
+        change_description: ${trigger.change_description}
+
+  - id: review_deployment
+    type: approval
+    name: Review Deployment Plan
+    settings:
+      timeout: 3600
+
+  - id: execute_deployment
+    type: script
+    name: Execute Deployment
+    config:
+      language: python
+      code: |
+        import json
+        print(json.dumps({
+            "status": "deployed",
+            "deployed_at": "2024-01-15T10:30:00Z"
+        }))
+
+  - id: notify_success
+    type: script
+    name: Notify Success
+    config:
+      language: bash
+      code: |
+        echo "Deployment approved and completed successfully!"
+
+  - id: log_rejection
+    type: script
+    name: Log Rejection
+    config:
+      language: bash
+      code: |
+        echo "Deployment rejected by approver"
+        echo "No changes were deployed"
+edges:
+  - from: trigger_manual
+    to: prepare_deployment
+  - from: prepare_deployment
+    to: review_deployment
+  - from: review_deployment
+    to: execute_deployment
+    from_port: approved
+  - from: execute_deployment
+    to: notify_success
+  - from: review_deployment
+    to: log_rejection
+    from_port: rejected

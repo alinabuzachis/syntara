@@ -1,0 +1,47 @@
+---
+schema_version: "2.0.0"
+name: sequential-mixed-types
+description: Sequential workflow with bash to python to api activities
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: bash_step
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"data": "from bash"}'
+    outputs:
+      data: $.data
+
+  - id: python_step
+    type: script
+    config:
+      language: python
+      code: |
+        import json
+        import os
+
+        bash_data = os.getenv('INPUT_BASH_DATA', 'none')
+        result = {"processed": bash_data, "by": "python"}
+        print(json.dumps(result))
+    inputs:
+      bash_data: ${bash_step.output.data}
+    outputs:
+      processed: $.processed
+
+  - id: api_step
+    type: http_request
+    config:
+      method: POST
+      url: http://test-api.example.com/api/create
+      body:
+        data: ${python_step.output.processed}
+edges:
+  - source: bash_step
+    target: python_step
+  - source: python_step
+    target: api_step

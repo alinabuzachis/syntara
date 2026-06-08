@@ -1,0 +1,30 @@
+---
+schema_version: "2.0.0"
+name: hello-world
+description: Simple hello world workflow with environment variables
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: say_hello
+    type: script
+    config:
+      language: bash
+      environment:
+        GREETING: Hello
+        WORLD_NAME: World
+      code: |
+        echo "${GREETING}, ${WORLD_NAME}!"
+        echo "Current time: $(date)"
+
+  - id: say_goodbye
+    type: script
+    config:
+      language: bash
+      environment:
+        FAREWELL: Goodbye
+      code: |
+        echo "${FAREWELL}, World!"
+edges:
+  - source: say_hello
+    target: say_goodbye

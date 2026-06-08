@@ -1,0 +1,66 @@
+---
+schema_version: "2.0.0"
+name: converge-timeout-continue-test
+description: Test converge with timeout that continues when timeout is reached
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: parallel_tasks_fork
+    name: Parallel Tasks (fork)
+    type: fork
+
+  - id: fast_task
+    name: Fast Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Fast task completed"
+
+  - id: slow_task
+    name: Slow Task
+    type: script
+    config:
+      language: bash
+      code: |
+        sleep 3
+        echo "Slow task completed"
+
+  - id: parallel_tasks_join
+    type: join
+
+  - id: converge_with_timeout_continue
+    name: Converge with Timeout (Continue)
+    type: converge
+    converge:
+      branches:
+        - fast_task
+        - slow_task
+      strategy: all
+      timeout: 1
+      onTimeout: continue
+      aggregateOutputs: true
+
+  - id: post_converge_task
+    name: Post-Converge Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Post-converge task executed after timeout"
+edges:
+  - source: parallel_tasks_fork
+    target: fast_task
+  - source: parallel_tasks_fork
+    target: slow_task
+  - source: fast_task
+    target: parallel_tasks_join
+  - source: slow_task
+    target: parallel_tasks_join
+  - source: parallel_tasks_join
+    target: converge_with_timeout_continue
+  - source: converge_with_timeout_continue
+    target: post_converge_task

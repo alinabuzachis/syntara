@@ -1,0 +1,45 @@
+---
+schema_version: "2.0.0"
+name: config-resolution-simple-test
+description: Simple test for activity config resolution using outputs
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  # Node 1: Bash script that outputs a timeout value
+  - id: generate_timeout
+    name: Generate Timeout
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"timeout_value": 120}'
+    outputs:
+      config: $.stdout
+
+  # Node 2: Python script that uses the timeout from Node 1
+  - id: use_timeout
+    name: Use Timeout
+    type: script
+    config:
+      language: python
+      # Config resolution: Use timeout from previous node's output
+      timeout: ${generate_timeout.output.config.timeout_value}
+      code: |
+        import json
+        import os
+
+        # Verify we received the timeout
+        result = {
+            "success": True,
+            "message": "Config resolution worked!"
+        }
+
+        print(json.dumps(result))
+    outputs:
+      result: $.output
+edges:
+  - source: generate_timeout
+    target: use_timeout

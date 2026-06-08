@@ -1,0 +1,25 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mcp-server
+  labels:
+    app: mcp-server
+spec:
+  containers:
+    - name: mcp-server
+      image: ${MCP_IMAGE}
+      imagePullPolicy: Never
+      env:
+        - name: MCP_HOST
+          value: "0.0.0.0"
+        - name: MCP_PORT
+          value: "8765"
+      ports:
+        - containerPort: 8765
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8765
+        initialDelaySeconds: 5
+        periodSeconds: 2

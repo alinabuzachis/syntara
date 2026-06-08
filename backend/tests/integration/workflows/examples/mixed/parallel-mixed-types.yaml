@@ -1,0 +1,48 @@
+---
+schema_version: "2.0.0"
+name: parallel-mixed-types
+description: Parallel execution with bash, python, and api activities
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: parallel_mixed_fork
+    type: fork
+
+  - id: bash_branch
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Bash branch executed"
+
+  - id: python_branch
+    type: script
+    config:
+      language: python
+      code: |
+        print("Python branch executed")
+
+  - id: api_branch
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/data
+
+  - id: parallel_mixed_join
+    type: join
+edges:
+  - source: parallel_mixed_fork
+    target: bash_branch
+  - source: parallel_mixed_fork
+    target: python_branch
+  - source: parallel_mixed_fork
+    target: api_branch
+  - source: bash_branch
+    target: parallel_mixed_join
+  - source: python_branch
+    target: parallel_mixed_join
+  - source: api_branch
+    target: parallel_mixed_join

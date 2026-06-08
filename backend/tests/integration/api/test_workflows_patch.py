@@ -1,0 +1,505 @@
+"""Contract tests for PATCH /api/v1/workflows/{id} endpoint.
+
+Tests for updating workflow metadata.
+Tests MUST FAIL before implementation (TDD approach).
+"""
+
+from uuid import uuid4
+
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from nexus.authz.models import Project
+from tests.helpers.error_data import assert_error_data
+from tests.helpers.workflow import create_minimal_workflow_definition, create_workflow_definition_with_activities
+
+
+@pytest_asyncio.fixture
+async def project(test_db_session: AsyncSession) -> Project:
+    """Create a test project."""
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project")
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+    return project
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_name(jwt_client: AsyncClient) -> None:
+    """Test updating workflow name.
+
+    Expected: 200 OK with updated workflow
+    """
+    # Create workflow
+    workflow = {
+        "name": "original-name",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="original",
+            description="Original workflow",
+            activity_id="task1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+
+    # Update name
+    update_data = {"name": "updated-name"}
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "updated-name"
+    assert data["id"] == workflow_id
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_description(jwt_client: AsyncClient) -> None:
+    """Test updating workflow description.
+
+    Expected: 200 OK with updated description
+    """
+    workflow = {
+        "name": "test-workflow",
+        "description": "Original description",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="test",
+            description="Original description",
+            activity_id="task1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+
+    # Update description
+    update_data = {"description": "Updated description"}
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["description"] == "Updated description"
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_is_enabled_not_settable(jwt_client: AsyncClient) -> None:
+    """Test that is_enabled cannot be toggled via PATCH (managed by publish/unpublish)."""
+    workflow = {
+        "name": "toggle-workflow",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="toggle",
+            description="Toggle test",
+            activity_id="task1",
+        ),
+    }
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+    assert create_response.json()["is_enabled"] is False
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json={"name": "updated-toggle"})
+    assert response.status_code == 200
+    assert response.json()["is_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_labels(jwt_client: AsyncClient) -> None:
+    """Test updating workflow labels.
+
+    Expected: 200 OK with updated labels
+    """
+    workflow = {
+        "name": "labeled-workflow",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="labeled",
+            description="Labeled workflow",
+            activity_id="task1",
+        ),
+        "labels": {"env": "dev"},
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+
+    # Update labels
+    update_data = {"labels": {"env": "prod", "team": "engineering"}}
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["labels"]["env"] == "prod"
+    assert data["labels"]["team"] == "engineering"
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_labels_not_strings(jwt_client: AsyncClient) -> None:
+    """Test updating workflow with non-string labels.
+
+    Expected: 422 Unprocessable
+    """
+    workflow = {
+        "name": "labeled-workflow",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="labeled",
+            description="Labeled workflow",
+            activity_id="task1",
+        ),
+        "labels": {"env": "dev"},
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+
+    # Update labels
+    update_data = {"labels": {"env": 1}}
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 422
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Request Validation Error",
+        detail="Validation failed: labels: labels value for key 'env' must be a string, got int",
+        code="REQUEST_VALIDATION_ERROR",
+        retryable=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_updates_timestamp(jwt_client: AsyncClient) -> None:
+    """Test that PATCH updates the updated_at timestamp.
+
+    Expected: updated_at changes after update
+    """
+    workflow = {
+        "name": "timestamp-test",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="timestamp",
+            description="Timestamp test",
+            activity_id="task1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+    original_updated_at = create_response.json()["updated_at"]
+
+    # Update workflow
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json={"description": "New description"})
+
+    assert response.status_code == 200
+    new_updated_at = response.json()["updated_at"]
+    assert new_updated_at != original_updated_at
+
+
+@pytest.mark.asyncio
+async def test_patch_nonexistent_workflow(jwt_client: AsyncClient) -> None:
+    """Test updating a non-existent workflow.
+
+    Expected: 404 Not Found
+    """
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    response = await jwt_client.patch(f"/api/v1/workflows/{fake_id}", json={"name": "new-name"})
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_validation_errors(jwt_client: AsyncClient) -> None:
+    """Test validation errors on invalid update data.
+
+    Expected: 400 Bad Request for invalid data
+    """
+    workflow = {
+        "name": "validation-test",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="validation",
+            description="Validation test",
+            activity_id="task1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+
+    # Try to set name to empty string
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json={"name": ""})
+
+    assert response.status_code == 422
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Request Validation Error",
+        detail="Validation failed: name: String should have at least 1 character",
+        code="REQUEST_VALIDATION_ERROR",
+        retryable=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_with_workflow_definition_creates_version(jwt_client: AsyncClient) -> None:
+    """Test that PATCH with workflow_definition creates a new version.
+
+    Expected: 200 OK, current_version incremented, new version created
+    """
+    workflow = {
+        "name": "versioning-test",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="versioning-test",
+            description="Initial version",
+            activity_id="initial_task",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+    assert create_response.json()["current_version"] == 1
+
+    # Update with new workflow_definition
+    update_data = {
+        "workflow_definition": create_workflow_definition_with_activities(
+            name="versioning-test",
+            description="Version 2",
+            activities=[
+                {
+                    "id": "step1",
+                    "name": "Step 1",
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('step 1')",
+                    },
+                }
+            ],
+        ),
+        "change_description": "Added step1 activity",
+    }
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["current_version"] == 2
+    assert data["version"]["version"] == 2
+    assert data["version"]["change_description"] == "Added step1 activity"
+    workflow_def = data["version"]["workflow_definition"]
+    assert workflow_def["nodes"][0]["id"] == "step1"
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_metadata_only_does_not_create_version(jwt_client: AsyncClient) -> None:
+    """Test that PATCH with only metadata does NOT create a new version.
+
+    Expected: 200 OK, current_version unchanged
+    """
+    workflow = {
+        "name": "metadata-test",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="metadata-test",
+            description="Initial description",
+            activity_id="task1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+    assert create_response.json()["current_version"] == 1
+
+    # Update only metadata fields
+    update_data = {"name": "metadata-test-updated", "description": "Updated description"}
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["current_version"] == 1  # Version should NOT be incremented
+    assert data["name"] == "metadata-test-updated"
+    assert data["description"] == "Updated description"
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_returns_version_data(jwt_client: AsyncClient) -> None:
+    """Test that PATCH response includes version object with current version data.
+
+    Expected: 200 OK with version object containing current active version
+    """
+    workflow = {
+        "name": "version-response-test",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="version-response-test",
+            description="Initial version",
+            activity_id="task1",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+
+    # Update metadata
+    update_data = {"description": "Testing version response"}
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify version object is present
+    assert "version" in data
+    version = data["version"]
+    assert version["version"] == 1
+    assert version["workflow_id"] == workflow_id
+    assert "workflow_definition" in version
+    assert "schema_version" in version
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_with_unchanged_yaml_skips_version(jwt_client: AsyncClient) -> None:
+    """Test that PATCH with identical definition does NOT create new version (change detection).
+
+    Expected: 200 OK, current_version unchanged when definition is exactly identical.
+    """
+    workflow_definition = create_workflow_definition_with_activities(
+        name="change-detection-test",
+        description="Change detection test",
+        activities=[
+            {
+                "id": "step1",
+                "name": "Step 1",
+                "type": "script",
+                "config": {
+                    "language": "python",
+                    "code": "print('step 1')",
+                },
+            }
+        ],
+    )
+
+    workflow = {
+        "name": "change-detection-test",
+        "workflow_definition": workflow_definition,
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    workflow_id = create_response.json()["id"]
+    assert create_response.json()["current_version"] == 1
+
+    # Update with identical definition (should NOT create new version)
+    update_data = {
+        "workflow_definition": workflow_definition,
+        "change_description": "Testing change detection",
+    }
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["current_version"] == 1  # Version should NOT be incremented
+    assert data["version"]["version"] == 1
+
+    # Update with actual definition change (should create new version)
+    updated_definition = create_workflow_definition_with_activities(
+        name="change-detection-test",
+        description="Change detection test",
+        activities=[
+            {
+                "id": "step1",
+                "name": "Step 1",
+                "type": "script",
+                "config": {
+                    "language": "python",
+                    "code": "print('step 1')",
+                },
+            },
+            {
+                "id": "step2",
+                "name": "Step 2",
+                "type": "http_request",
+                "config": {
+                    "method": "GET",
+                    "url": "https://example.com",
+                },
+            },
+        ],
+    )
+    update_data_changed = {
+        "workflow_definition": updated_definition,
+        "change_description": "Added step2",
+    }
+    response2 = await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_changed)
+
+    assert response2.status_code == 200
+    data2 = response2.json()
+    assert data2["current_version"] == 2  # Version incremented due to content change
+    workflow_def = data2["version"]["workflow_definition"]
+    assert len(workflow_def["nodes"]) == 2
+    assert workflow_def["nodes"][1]["id"] == "step2"
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_duplicate_name_error(jwt_client: AsyncClient) -> None:
+    """Test that renaming to an existing workflow name returns 400 error.
+
+    Expected: 400 Bad Request (not 500 IntegrityError)
+    """
+    # Create two workflows
+    workflow1 = {
+        "name": "workflow-one",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-one",
+            description="First workflow",
+            activity_id="task1",
+        ),
+    }
+
+    workflow2 = {
+        "name": "workflow-two",
+        "workflow_definition": create_minimal_workflow_definition(
+            name="workflow-two",
+            description="Second workflow",
+            activity_id="task2",
+        ),
+    }
+
+    response1 = await jwt_client.post("/api/v1/workflows", json=workflow1)
+    workflow1_id = response1.json()["id"]
+
+    response2 = await jwt_client.post("/api/v1/workflows", json=workflow2)
+    workflow2_id = response2.json()["id"]
+
+    # Try to rename workflow2 to workflow1's name (should fail)
+    update_data = {"name": "workflow-one"}
+    response = await jwt_client.patch(f"/api/v1/workflows/{workflow2_id}", json=update_data)
+
+    # Should return 409 Conflict for duplicate name
+    assert response.status_code == 409
+    data = response.json()
+    assert "title" in data
+    assert data["title"] == "Workflow Name Conflict"
+
+    # Verify workflow1 is unchanged
+    get_response = await jwt_client.get(f"/api/v1/workflows/{workflow1_id}")
+    assert get_response.status_code == 200
+    assert get_response.json()["name"] == "workflow-one"
+
+
+@pytest.mark.asyncio
+async def test_patch_workflow_preserves_project_id(jwt_client: AsyncClient, project: Project) -> None:
+    """Test that PATCH response includes the correct project_id."""
+    workflow = {
+        "name": "project-patch-test",
+        "project_id": str(project.id),
+        "workflow_definition": create_minimal_workflow_definition(
+            name="project-patch-test",
+            description="Workflow in a project",
+            activity_id="proj_activity",
+        ),
+    }
+
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    response = await jwt_client.patch(
+        f"/api/v1/workflows/{workflow_id}",
+        json={"description": "Updated description"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["project_id"] == str(project.id)

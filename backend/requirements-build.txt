@@ -1,0 +1,43 @@
+# Build-time dependencies for hermetic/offline container builds.
+#
+# uv - generated with: uv pip compile --universal -p 3.12 --generate-hashes - <<< "uv"
+uv==0.11.9 \
+    --hash=sha256:053659e258b33c88e416e508d4cf63685505c1151f3cf46e47dd47212439379c \
+    --hash=sha256:12caca9460223611cfaa65d3508c3fd4c4c4bfec091e0baaef86a774748eff61 \
+    --hash=sha256:29a7337a1699d4a152bdaa1ff2607e9d1451675c45bc8862d9671013b1d5392b \
+    --hash=sha256:2aabf5f28271e00f011ca9bc3972b044200ad9dfa07a8802db5221746d393faf \
+    --hash=sha256:43edb4b3eb43a9780f9232110dfbcc0bed9367ce5b24d37a315817d3faf3c913 \
+    --hash=sha256:5837b514d3e9686e1db8280b1913ca0155810e6547eb37f80f2b9d6c66728087 \
+    --hash=sha256:64eb69a88fe1c6c21b2bebf69a7cfd25b1fd02346f0c1213cef49a61375761cf \
+    --hash=sha256:76fece22e397eae133397a5dd322418d007253ff6a01e070cb4ab660a21b4f84 \
+    --hash=sha256:7d7ccee2c1d51e7905680a989b63d30430f6deb06d2abda476da9f867f494325 \
+    --hash=sha256:8aa8a3b14883dc2fd618c79cf1506077dd8fe08335a846f8679a8e70dd16eb30 \
+    --hash=sha256:8ba2f50cfe6a1b22b9caaab4e500fdcb90002be26e5cb371f8aee08f24a13426 \
+    --hash=sha256:9b3bf17f6e33fd74078437e01dbfbd3c08623ff4b9f16f34be2c5b5f2682ce16 \
+    --hash=sha256:9fb549e1de544596e840e076a7f09a40e50303ba5d70d4ead12f866638d9a1b0 \
+    --hash=sha256:a712094efd1304d6b3657b1b6211ba1bfd11563a7a44b3ec3965bcb48b0f182b \
+    --hash=sha256:c765ab07cffa2cd9e79a5afa62aa134010d73f3d0cd9b5e72e48cf723fd41e4a \
+    --hash=sha256:cd7ed9438b46749ca5e5e82ad3b958264c861472249dcbac23e6145ad68dd1e1 \
+    --hash=sha256:cdc6970be26c02f4f4e4d126f8938f118f1068d6e20533af8b360e4aaa07eca7 \
+    --hash=sha256:d6fcd327a577bedde6c33007277b429e8e6cb0d7a665933c12e60a4e5ee5dccc \
+    --hash=sha256:f07298b7f21942423e827318e719a66aa4530888e94ba01f180f0f4613fd0d95
+# hatchling - generated with: uv pip compile --generate-hashes -p 3.12 - <<< "hatchling"
+hatchling==1.29.0 \
+    --hash=sha256:50af9343281f34785fab12da82e445ed987a6efb34fd8c2fc0f6e6630dbcc1b0 \
+    --hash=sha256:793c31816d952cee405b83488ce001c719f325d9cda69f1fc4cd750527640ea6
+packaging==26.0 \
+    --hash=sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4 \
+    --hash=sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529
+    # via hatchling
+pathspec==1.0.4 \
+    --hash=sha256:0210e2ae8a21a9137c0d470578cb0e595af87edaa6ebf12ff176f14a02e0e645 \
+    --hash=sha256:fb6ae2fd4e7c921a165808a552060e722767cfa526f99ca5156ed2ce45a5c723
+    # via hatchling
+pluggy==1.6.0 \
+    --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
+    --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
+    # via hatchling
+trove-classifiers==2026.1.14.14 \
+    --hash=sha256:00492545a1402b09d4858605ba190ea33243d361e2b01c9c296ce06b5c3325f3 \
+    --hash=sha256:1f9553927f18d0513d8e5ff80ab8980b8202ce37ecae0e3274ed2ef11880e74d
+    # via hatchling

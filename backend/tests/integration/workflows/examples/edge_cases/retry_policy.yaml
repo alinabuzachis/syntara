@@ -1,0 +1,26 @@
+---
+schema_version: "2.0.0"
+name: retry-policy-test
+description: Test retry policy with exponential backoff
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: task_with_retry
+    name: Task With Retry Policy
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Task executed successfully"
+    outputs:
+      result: $.stdout
+    retry_policy:
+      maxAttempts: 3
+      initialInterval: 1
+      maxInterval: 30
+      backoff: exponential
+      multiplier: 2.0
+edges: []

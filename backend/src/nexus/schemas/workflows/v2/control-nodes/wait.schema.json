@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/wait",
+  "title": "Wait Node",
+  "description": "Pause workflow execution for a specified duration",
+  "configSchema": {
+    "type": "object",
+    "minProperties": 1,
+    "properties": {
+      "days": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0,
+        "description": "Number of days to wait"
+      },
+      "hours": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 23,
+        "default": 0,
+        "description": "Number of hours to wait"
+      },
+      "minutes": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 59,
+        "default": 0,
+        "description": "Number of minutes to wait"
+      },
+      "seconds": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 59,
+        "default": 0,
+        "description": "Number of seconds to wait"
+      }
+    },
+    "additionalProperties": false
+  },
+  "settingSchema": {
+    "type": "object",
+    "properties": {
+      "continue_on_failure": {
+        "type": "boolean",
+        "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
+      }
+    },
+    "additionalProperties": false
+  },
+  "resultSchema": {
+    "description": "Result structure available in result namespace",
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "description": "Wait duration elapsed successfully"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "Failed Result",
+        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
+  }
+}

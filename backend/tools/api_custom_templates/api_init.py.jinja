@@ -1,0 +1,27 @@
+"""Nexus API Registry - auto-generated from OpenAPI spec."""
+from __future__ import annotations
+
+from functools import cached_property
+from typing import TYPE_CHECKING
+
+from ..client import AuthenticatedClient
+
+if TYPE_CHECKING:
+{% for tag in endpoint_collections_by_tag %}
+    from .{{ tag }} import {{ class_name(tag) }}Api
+{% endfor %}
+
+class NexusApiRegistry:
+    """Top-level registry providing access to all API endpoint groups."""
+
+    def __init__(self, client: AuthenticatedClient) -> None:
+        self._client = client
+
+{% for tag in endpoint_collections_by_tag %}
+    @cached_property
+    def {{ tag }}(self) -> "{{ class_name(tag) }}Api":
+        from .{{ tag }} import {{ class_name(tag) }}Api
+
+        return {{ class_name(tag) }}Api(client=self._client)
+
+{% endfor %}

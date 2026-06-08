@@ -1,0 +1,140 @@
+"""Shared exception classes for workflows module.
+
+This module contains all custom exceptions used across workflow services,
+following DRY principle by centralizing exception definitions.
+"""
+
+from uuid import UUID
+
+from nexus.core.exception_registry import fastapi_exception
+from nexus.core.exceptions import NexusError
+
+
+class WorkflowError(NexusError):
+    """Base exception for all workflow errors."""
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.validation_error_handler")
+class WorkflowValidationError(WorkflowError):
+    """Workflow validation error."""
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_not_found_handler")
+class WorkflowNotFoundError(WorkflowError):
+    """Raised when a workflow is not found."""
+
+    def __init__(self, workflow_id: UUID) -> None:
+        """Initialize exception with workflow ID."""
+        self.workflow_id = workflow_id
+        super().__init__(f"Workflow {workflow_id} not found")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_name_conflict_handler")
+class WorkflowNameConflictError(WorkflowError):
+    """Raised when a workflow name already exists."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize exception with workflow name."""
+        self.name = name
+        super().__init__(f"Workflow with name '{name}' already exists")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_version_not_found_handler")
+class WorkflowVersionNotFoundError(WorkflowError):
+    """Raised when a workflow version is not found."""
+
+    def __init__(self, workflow_id: UUID, version: int) -> None:
+        """Initialize exception with workflow ID and version."""
+        self.workflow_id = workflow_id
+        self.version = version
+        super().__init__(f"Workflow {workflow_id} version {version} not found")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.workflow_not_published_handler")
+class WorkflowNotPublishedError(WorkflowError):
+    """Raised when a triggered execution targets a workflow with no published version."""
+
+    def __init__(self, workflow_id: UUID) -> None:
+        """Initialize exception with workflow ID."""
+        self.workflow_id = workflow_id
+        super().__init__(f"Workflow {workflow_id} has no published version")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.execution_not_found_handler")
+class ExecutionNotFoundError(WorkflowError):
+    """Raised when an execution is not found."""
+
+    def __init__(self, execution_id: UUID) -> None:
+        """Initialize exception with execution ID."""
+        self.execution_id = execution_id
+        super().__init__(f"Execution {execution_id} not found")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.execution_terminal_state_handler")
+class ExecutionInTerminalStateError(WorkflowError):
+    """Raised when attempting to modify an execution in a terminal state."""
+
+    def __init__(self, execution_id: UUID, status: str, operation: str = "modify") -> None:
+        """Initialize exception with execution details."""
+        self.execution_id = execution_id
+        self.status = status
+        self.operation = operation
+        super().__init__(f"Cannot {operation} execution {execution_id} in {status} state")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.temporal_unavailable_handler")
+class TemporalUnavailableError(WorkflowError):
+    """Raised when Temporal service is unavailable."""
+
+    def __init__(self, operation: str = "operation") -> None:
+        """Initialize exception with operation description.
+
+        Args:
+            operation: Description of the operation that failed
+
+        """
+        self.operation = operation
+        super().__init__(f"Temporal service unavailable - cannot perform {operation}")
+
+
+# ============================================================================
+# Trigger Exceptions (shared across trigger types)
+# ============================================================================
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.trigger_validation_handler")
+class TriggerValidationError(WorkflowError):
+    """Raised when a trigger payload fails JSON Schema validation."""
+
+    def __init__(self, message: str) -> None:
+        """Initialize exception with validation message."""
+        super().__init__(message)
+
+
+# ============================================================================
+# Webhook Trigger Exceptions
+# ============================================================================
+
+
+class WebhookTriggerError(WorkflowError):
+    """Base exception for all webhook trigger errors."""
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.webhook_trigger_not_found_handler")
+class WebhookTriggerNotFoundError(WebhookTriggerError):
+    """Raised when a webhook trigger is not found for the given path."""
+
+    def __init__(self, webhook_path: str) -> None:
+        """Initialize exception with webhook path."""
+        self.webhook_path = webhook_path
+        super().__init__(f"Webhook trigger not found for path '{webhook_path}'")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.webhook_trigger_path_conflict_handler")
+class WebhookTriggerPathConflictError(WebhookTriggerError):
+    """Raised when a webhook path already exists."""
+
+    def __init__(self, webhook_path: str) -> None:
+        """Initialize exception with webhook path."""
+        self.webhook_path = webhook_path
+        super().__init__(f"Webhook path '{webhook_path}' is already in use")

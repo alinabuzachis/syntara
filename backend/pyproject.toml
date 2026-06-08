@@ -1,0 +1,333 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nexus"
+version = "0.1.0"
+description = "A distributed multi-agent system. Nexus enables coordinated AI agents to work together on complex tasks."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "fastapi>=0.104.0,<0.122",
+    "httpx>=0.28.1",
+    "uvicorn[standard]>=0.24.0",
+    "redis>=7.1.0",
+    "sqlalchemy[asyncio]>=2.0.0,<2.0.45",
+    "sqlmodel>=0.0.14,<0.0.28",
+    "pydantic[email]>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0.0",
+    "alembic>=1.12.0",
+    "python-multipart>=0.0.6",
+    "python-magic>=0.4.27",
+    "aiofiles>=24.1.0",
+    "temporalio>=1.5.0",
+    "langchain>=1.2.10",
+    "langchain-core>=1.3.3",
+    "langchain-openai>=0.3.0",
+    "langchain-mcp-adapters>=0.1.0,<0.2.0",
+    "langgraph>=0.2.0",
+    "filelock>=3.20.0",
+    "pypandoc>=1.14",
+    "pymupdf>=1.26.6,<1.27.0",
+    "tiktoken>=0.5.0",
+    "scikit-learn>=1.7.2",
+    "rapidfuzz>=3.14.3",
+    "spacy>=3.8.11",
+    "structlog>=25.5.0",
+    "segment-analytics-python>=2.3.5",
+    "prometheus-client>=0.19.0",
+    "PyJWT[crypto]>=2.8.0",
+    "argon2-cffi>=25.1.0",
+    "cachetools>=5.0",
+    "cryptography>=42.0.0",
+    "jmespath>=1.0.0",
+    "jsonschema>=4.0.0",
+    "typer>=0.9.0",
+    "idna>=3.15",
+    "langsmith>=0.8.0",
+    "opentelemetry-api>=1.39.1",
+    "opentelemetry-sdk>=1.39.1",
+    "opentelemetry-exporter-otlp-proto-http>=1.39.1",
+    "wrapt>=1.17.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-asyncio>=1.3.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.1.0,<0.14.4",
+    "mypy>=1.6.0,<1.19",
+    "httpx>=0.25.0",  # for testing FastAPI
+    "respx>=0.20.0",  # for mocking httpx requests
+    "websockets>=12.0",  # for WebSocket client testing
+    "types-cachetools>=5.0",
+    "types-pyyaml>=6.0.12",  # type stubs for PyYAML
+    "types-aiofiles>=24.1.0",  # type stubs for aiofiles
+    "ruamel.yaml>=0.17.40",
+    "pre-commit>=3.5.0",
+    "podman-compose>=1.5.0",  # for container orchestration
+    "jsonschema>=4.0.0",  # for schema validation tests
+    "types-PyYAML>=6.0.0",  # for mypy type stubs
+    "types-jsonschema>=4.0.0",  # for mypy type stubs
+    "types-requests>=2.31.0",  # type stubs for requests library
+    "types-python-dateutil>=2.8.0",  # type stubs for python-dateutil
+    "psutil>=5.9.0",  # for memory monitoring in performance tests
+    "scikit-learn-stubs>=0.0.3",  # type stubs for scikit-learn
+    "openapi-python-client>=0.28.3",  # for API client code generation
+    # MCP testing infrastructure
+    "fastmcp>=3.2.0,<4.0.0",  # for MCP test server creation
+    "authlib>=1.7.1",  # CVE-2026-44681: open redirect in OIDC implicit/hybrid grants
+    "testcontainers[postgres,redis]>=4.14.0",  # for auto-starting PostgreSQL/Redis in tests
+    "nexus-api-client",  # local API client for E2E tests
+    "azure-identity>=1.19.0",  # ClientSecretCredential for Azure AD fixture
+    "msgraph-sdk>=1.0.0",  # GraphServiceClient and graph models for Azure AD fixture
+    "aap-orchestrator-cli",  # local CLI for the AAP Orchestrator API
+    "beautifulsoup4>=4.12.0",  # for parsing HTML in external auth client fixture
+    # Static analysis tools
+    "vulture>=2.16",  # dead code detection
+    "pyan3>=2.6.0",  # import cycle detection
+]
+integration = [
+    "external-services",  # GKE service deployment for integration tests
+]
+
+[tool.uv.sources]
+nexus-api-client = { path = "src/api_client", editable = true }
+external-services = { git = "" }
+aap-orchestrator-cli = { path = "src/cli", editable = true }
+
+[project.scripts]
+ao-admin = "nexus.ao_admin:app"
+
+[project.urls]
+Homepage = "https://github.com/syntara-orchestration/syntara"
+Repository = "https://github.com/syntara-orchestration/syntara"
+Issues = "https://github.com/syntara-orchestration/syntara/issues"
+
+# Hatchling configuration for multiple modules
+[tool.hatch.build.targets.wheel]
+packages = ["src/nexus"]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "src/nexus",
+    "README.md",
+    "LICENSE",
+    "uv.lock",
+]
+
+# Ruff configuration
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",  # one-blank-line-before-class (conflicts with D211)
+    "D213",  # multi-line-summary-second-line (conflicts with D212)
+    "COM812",  # missing-trailing-comma (conflicts with formatter)
+    "PLR0913",  # Allow more than 5 arguments in FastAPI
+    "TRY300",  # Standard exception handling pattern
+    "FIX002",  # Allow TODO comments
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "D104"]
+"src/nexus/core/models/base/resource.py" = ["A005"]  # Allow module name shadowing stdlib
+"tools/**/*.py" = ["T201", "INP001", "PLC0415", "ARG001", "ANN401", "TRY003", "EM102"]  # CLI tools: print, deferred imports, unused args
+"tests/**/*.py" = [
+    "S101",     # Allow assert statements in tests
+    "ANN001",   # Don't require type annotations for test function arguments (fixtures)
+    "ANN201",   # Don't require return type annotations for test functions
+    "D102",     # Don't require docstrings for test methods
+    "PLR2004",  # Allow magic values in tests
+    "TD002",    # TODO formatting
+    "TD003",    # TODO formatting
+    "ARG001",   # Allow unused test fixture arguments (functions)
+    "ARG002",   # Allow unused test fixture arguments (methods)
+    "SLF001",   # Allow private member access in tests (for unit testing internal state)
+    "PERF401",  # Allow append in loops (readability over performance in tests)
+    "S110",     # Allow try-except-pass in test cleanup
+    "BLE001",   # Allow catching Exception in test cleanup
+    "SIM105",   # Allow try-except-pass in test cleanup
+    "PLC0415",  # Allow imports within test functions
+    "D401",     # Allow non-imperative docstrings in tests
+    "PT011",    # Allow broad pytest.raises for contract tests
+    "PT012",    # Allow multi-statement pytest.raises blocks (async generators)
+    "PGH003",   # Allow generic type: ignore comments in tests
+]
+"src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types
+"src/nexus/core/database/migrations/**/*.py" = ["INP001", "D400", "D415", "PLR0915"]  # Alembic files (auto-generated)
+"src/nexus/core/database/audit_migrations/**/*.py" = ["INP001", "D400", "D415", "PLR0915"]  # Alembic files (auto-generated)
+"src/cli/**/*.py" = ["ANN401", "SLF001", "PLC0415"]  # CLI: dynamic types, private access to bundler, deferred imports
+"src/nexus/api/main.py" = ["S104"]  # Binding to all interfaces for development
+"tools/ci/check_migrations.py" = [
+    "T201",   # print() is intentional CLI output
+    "BLE001", # broad Exception needed for external lib error handling
+]
+"src/nexus/workflows/workflow_engine/unified_eval.py" = ["PLR0911"]  # _eval_node dispatcher needs 7 returns for clarity
+
+# Pyrefly configuration — used in pre-commit for fast local type checking (~3s).
+# Mypy (strict) continues to run in CI via a dedicated GitHub Actions job.
+[tool.pyrefly]
+python-version = "3.12.0"
+project-includes = ["src"]
+
+# SQLModel/SQLAlchemy stubs cause false positives for these rules.
+# unbound-name and bad-return have a few false positives in existing code
+# that mypy (strict) handles correctly in CI.
+[tool.pyrefly.errors]
+no-matching-overload = "ignore"
+bad-override = "ignore"
+bad-argument-type = "ignore"
+bad-index = "ignore"
+bad-specialization = "ignore"
+bad-override-param-name = "ignore"
+unbound-name = "warn"
+bad-return = "warn"
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# Settings() calls in these tests omit secret_encryption_key (injected via autouse fixture)
+module = ["tests.unit.core.config.*", "tests.unit.metrics.test_config"]
+disable_error_code = ["call-arg"]
+
+[[tool.mypy.overrides]]
+module = "asyncpg.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sklearn.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bs4.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "jmespath.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "external_services.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "kubernetes.*"
+ignore_missing_imports = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "mcp: marks tests that require MCP server infrastructure (deselect with '-m \"not mcp\"')",
+    "performance: marks tests as performance tests (excluded by default, run with '--run-performance')",
+    "e2e: marks tests as end-to-end tests requiring full stack (Nexus API, Temporal, MCP server, OpenRouter)",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["src"]
+relative_files = true
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__init__.py",
+    "tools/*",  # Manual utilities, not production code
+    "src/api_client/*",  # Auto-generated API client, not production code
+    "src/cli/*",  # CLI package, tested separately
+]
+
+[tool.coverage.report]
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.vulture]
+min_confidence = 100
+paths = ["src/nexus"]
+exclude = ["*tests*", "*test_*", "*alembic*", "*migrations*", "*__pycache__*"]
+ignore_decorators = [
+    "@app.*",
+    "@router.*",
+    "@pytest.*",
+    "@event.*",
+    "@staticmethod",
+    "@classmethod",
+    "@property",
+    "@validator",
+    "@field_validator",
+    "@model_validator",
+    "@computed_field",
+    "@lru_cache",
+]
+ignore_names = [
+    "whence",
+]
+sort_by_size = true
+
+[dependency-groups]
+dev = [
+    "psutil>=7.1.3",
+    "respx>=0.22.0",
+    "types-aiofiles>=25.1.0.20251011",
+    "pypandoc-binary>=1.16.2",
+]

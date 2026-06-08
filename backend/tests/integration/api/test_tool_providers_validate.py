@@ -1,0 +1,209 @@
+"""Contract tests for POST /api/v1/tool_manager/tool_providers/{provider_id}/validate endpoint.
+
+Tests provider connection validation and status updates.
+"""
+
+from datetime import UTC, datetime
+from unittest.mock import patch
+
+import pytest
+from httpx import AsyncClient
+
+from nexus.tool_manager.models import ToolProvider
+from nexus.tool_manager.models.tool_provider_configuration import MCPConfiguration
+from nexus.tool_manager.models.tool_provider_validation_result import ToolProviderValidationResult
+
+
+class TestToolProvidersValidateContract:
+    """Contract tests for tool provider validate endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_success_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
+        """Test successful provider validation returns 200."""
+        # Create a test provider first
+        provider_data = {
+            "name": "test-validate-provider",
+            "description": "Test provider for validation",
+            "configuration": {"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
+        }
+
+        create_response = await jwt_client_with_provider_factory.post(
+            "/api/v1/tool_manager/tool_providers", json=provider_data
+        )
+        assert create_response.status_code == 201
+        provider_id = create_response.json()["id"]
+
+        response = await jwt_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{provider_id}/validate"
+        )
+
+        # Contract: Must return 200 OK for successful validation
+        assert response.status_code == 200
+
+        # Contract: Must return validation results
+        data = response.json()
+        assert "valid" in data
+        assert isinstance(data["valid"], bool)
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_response_fields_contract(
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test response includes all required validation fields."""
+        response = await jwt_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: Must include all validation response fields per OpenAPI spec
+        data = response.json()
+        required_fields = ["valid", "provider_type", "validated_at"]
+        for field in required_fields:
+            assert field in data
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_failure_contract(
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+    ) -> None:
+        """Test validation failure returns 400 with error details."""
+        # Update the provider to use MCP configuration
+        test_tool_provider.configuration = MCPConfiguration(
+            provider_type="mcp", base_url="http://localhost:8080", api_key="test-key"
+        )
+        test_db_session.add(test_tool_provider)
+        await test_db_session.commit()
+
+        # Patch MockMCPProvider.validate_connection to simulate connection failure
+        with patch("tests.fixtures.mock_mcp_provider.MockMCPProvider.validate_connection") as mock_validate:
+            mock_validate.return_value = ToolProviderValidationResult(
+                valid=False,
+                provider_type="mcp",
+                error="Provider connection validation failed: Simulated connection error",
+                validated_at=datetime.now(UTC),
+            )
+
+            response = await jwt_client_with_provider_factory.post(
+                f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
+            )
+
+        # Contract: Must return 200 with validation result showing failure
+        assert response.status_code == 200
+
+        # Contract: Must return validation failure details
+        data = response.json()
+        assert data["valid"] is False
+        assert data["error"] == "Provider connection validation failed: Simulated connection error"
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_not_found_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
+        """Test 404 error for non-existent provider."""
+        provider_id = "99999999-9999-9999-9999-999999999999"
+
+        response = await jwt_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{provider_id}/validate"
+        )
+
+        # Contract: Must return 404 Not Found
+        assert response.status_code == 404
+
+        # Contract: Must return error response
+        data = response.json()
+        assert "error" in data or "detail" in data
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_status_update_contract(
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test provider status is updated after validation."""
+        # Validate the provider
+        validate_response = await jwt_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
+        )
+        assert validate_response.status_code == 200
+
+        # Check provider status was updated
+        get_response = await jwt_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
+        assert get_response.status_code == 200
+
+        provider_data = get_response.json()
+        # Status should be updated based on validation result
+        assert provider_data["status"] in ["available", "error"]
+        # last_validated_at should be updated
+        assert provider_data["last_validated_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_error_status_update_contract(
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider, test_db_session
+    ) -> None:
+        """Test provider status is set to error on validation failure."""
+        # Update the provider to use MCP configuration
+        test_tool_provider.configuration = MCPConfiguration(
+            provider_type="mcp", base_url="http://localhost:8080", api_key="test-key"
+        )
+        test_db_session.add(test_tool_provider)
+        await test_db_session.commit()
+
+        # Patch MockMCPProvider.validate_connection to simulate connection failure
+        with patch("tests.fixtures.mock_mcp_provider.MockMCPProvider.validate_connection") as mock_validate:
+            mock_validate.return_value = ToolProviderValidationResult(
+                valid=False,
+                provider_type="mcp",
+                error="Provider connection validation failed: Simulated connection error",
+                validated_at=datetime.now(UTC),
+            )
+
+            # Validate the provider (expecting failure)
+            validate_response = await jwt_client_with_provider_factory.post(
+                f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
+            )
+
+        assert validate_response.status_code == 200
+
+        # Verify validation failed
+        validation_data = validate_response.json()
+        assert validation_data["valid"] is False
+
+        # Check provider status was updated to error
+        get_response = await jwt_client_with_provider_factory.get(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
+        )
+        assert get_response.status_code == 200
+
+        provider_data = get_response.json()
+        assert provider_data["status"] == "error"
+        assert provider_data["validation_error"] is not None
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_validated_at_format_contract(
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+    ) -> None:
+        """Test validated_at timestamp format."""
+        response = await jwt_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}/validate"
+        )
+
+        # Contract: Must return 200 OK
+        assert response.status_code == 200
+
+        # Contract: validated_at must be ISO format string
+        data = response.json()
+        assert "validated_at" in data
+        assert isinstance(data["validated_at"], str)
+        # Basic ISO format validation
+        assert "T" in data["validated_at"]
+
+    @pytest.mark.asyncio
+    async def test_validate_provider_invalid_uuid_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
+        """Test 422 Unprocessable Entity error for invalid UUID format."""
+        invalid_id = "not-a-uuid"
+
+        response = await jwt_client_with_provider_factory.post(
+            f"/api/v1/tool_manager/tool_providers/{invalid_id}/validate"
+        )
+
+        # Contract: Must return 422 Unprocessable Entity for invalid UUID
+        assert response.status_code == 422

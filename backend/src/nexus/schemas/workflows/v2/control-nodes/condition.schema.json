@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/condition",
+  "title": "Condition Node",
+  "description": "Binary conditional branching (if/then/else)",
+  "configSchema": {
+    "type": "object",
+    "required": [
+      "condition"
+    ],
+    "properties": {
+      "condition": {
+        "type": "string",
+        "description": "Expression that evaluates to boolean",
+        "minLength": 1,
+        "examples": [
+          "${trigger.environment} == \"prod\"",
+          "${previous_node.status} == \"success\"",
+          "${check_status.count} > 5"
+        ]
+      }
+    },
+    "additionalProperties": false
+  },
+  "settingSchema": {
+    "type": "object",
+    "description": "Condition nodes have no user-configurable settings. A fixed internal timeout applies.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "resultSchema": {
+    "description": "Result structure available in result namespace (discriminated union)",
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "required": [
+          "status",
+          "evaluated_result"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "description": "Condition evaluated successfully"
+          },
+          "evaluated_result": {
+            "type": "boolean",
+            "description": "Result of condition evaluation (true or false)"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "Failed Result",
+        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+---
+contentOrigin:
+  repofiles:
+    - giturl: https://github.com/syntara-orchestration/syntara.git
+      gitref: main
+      file: repositories/ubi-9.repo
+packages:
+  - name: python3.12
+  - name: python3.12-pip
+  - name: python3.12-cffi
+context:
+  containerfile: containers/nexus/Containerfile
+arches:
+  - x86_64
+  - aarch64
+installWeakDeps: false

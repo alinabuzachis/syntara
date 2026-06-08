@@ -1,0 +1,30 @@
+---
+schema_version: "2.0.0"
+name: while-loop-max-iterations-test
+description: Test while loop stops at maxIterations
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+nodes:
+  - id: while_with_max
+    name: While Loop with Max Iterations
+    type: loop
+    loop:
+      type: while
+      condition: 'true'
+      maxIterations: 3
+
+  - id: iteration_task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Iteration executed"
+    outputs:
+      result: $.stdout
+edges:
+  - source: while_with_max
+    target: iteration_task
+    port: body
