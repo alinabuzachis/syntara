@@ -88,10 +88,15 @@ describe('WaitNodeComponent', () => {
     })
 
     it('renders "Untitled Wait" when name is undefined', () => {
-      const untitledNode = { ...baseWaitNode, name: undefined } as unknown as WaitActivity
+      const unnamed = {
+        type: 'wait',
+        id: 'wait-unnamed',
+        config: { duration: 60 },
+      } as WaitActivity
+
       render(
         <ReactFlowProvider>
-          <WaitNodeComponent {...createNodeProps(untitledNode)} />
+          <WaitNodeComponent {...createNodeProps(unnamed)} />
         </ReactFlowProvider>
       )
 
@@ -219,6 +224,50 @@ describe('WaitNodeComponent', () => {
       )
 
       expect(screen.getByText('Wait 5 minutes')).toBeInTheDocument()
+    })
+
+    it('shows both duration and countdown when waiting', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2024-01-01T00:01:00Z'))
+
+      const nodeWithExecution = {
+        ...baseWaitNode,
+        __executionState: {
+          status: 'waiting',
+          started_at: '2024-01-01T00:00:00Z',
+        },
+      } as WaitActivity
+
+      render(
+        <ReactFlowProvider>
+          <WaitNodeComponent {...createNodeProps(nodeWithExecution)} />
+        </ReactFlowProvider>
+      )
+
+      expect(screen.getByText('5m')).toBeInTheDocument()
+      expect(screen.getByText('00:04:00')).toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('shows only duration when not executing', () => {
+      const nodeWithCompletion = {
+        ...baseWaitNode,
+        __executionState: {
+          status: 'completed',
+          started_at: '2024-01-01T00:00:00Z',
+          completed_at: '2024-01-01T00:05:00Z',
+        },
+      } as WaitActivity
+
+      render(
+        <ReactFlowProvider>
+          <WaitNodeComponent {...createNodeProps(nodeWithCompletion)} />
+        </ReactFlowProvider>
+      )
+
+      expect(screen.getByText('5m')).toBeInTheDocument()
+      expect(screen.queryByText(/Countdown/)).not.toBeInTheDocument()
     })
   })
 
