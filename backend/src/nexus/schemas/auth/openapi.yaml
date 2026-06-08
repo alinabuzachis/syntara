@@ -68,7 +68,7 @@ paths:
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
-  /auth/csrf-token:
+  /auth/csrf_token:
     post:
       summary: Get CSRF form token
       description: |

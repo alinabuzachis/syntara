@@ -13,11 +13,13 @@ from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
-from nexus.workflows.workflow_engine.graph import WorkflowGraph
+from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
+from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -49,6 +51,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    init_workflow_runtime(wf)
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
     return wf
@@ -358,3 +361,86 @@ class TestErrorMessageFormat:
         error_message = f"{type(exc).__name__}: {exc}"
 
         assert error_message == "RuntimeError: connection lost"
+
+
+def _make_approval_graph(node_id: str = "approval_1") -> WorkflowGraph:
+    """Single approval node with no successors."""
+    backend = InMemoryGraphBackend()
+    backend.add_node(node_id, {"id": node_id, "type": "approval", "config": {}})
+    return WorkflowGraph(backend)
+
+
+class TestContinueOnFailureApproval:
+    """_handle_continued_failure routes approval nodes via fallback_decision."""
+
+    @pytest.mark.asyncio
+    async def test_reject_fallback_sets_control_data(self) -> None:
+        """Explicit fallback_decision='reject' routes to the reject port."""
+        wf = _make_workflow()
+        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "reject"})
+        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "reject"}
+
+        await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
+
+        assert wf.node_control_data["approval_1"] == {"next_port": "reject"}
+
+    @pytest.mark.asyncio
+    async def test_approve_fallback_sets_control_data(self) -> None:
+        """Explicit fallback_decision='approve' routes to the approve port."""
+        wf = _make_workflow()
+        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "approve"})
+        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "approve"}
+
+        await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
+
+        assert wf.node_control_data["approval_1"] == {"next_port": "approve"}
+
+    @pytest.mark.asyncio
+    async def test_default_fallback_is_reject(self) -> None:
+        """When fallback_decision is absent the safe default 'reject' is used."""
+        wf = _make_workflow()
+        node = ActivityNode("approval_1", "approval", {"name": "Review"})
+        wf.node_inputs["approval_1"] = {"name": "Review"}
+
+        await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
+
+        assert wf.node_control_data["approval_1"] == {"next_port": "reject"}
+
+    @pytest.mark.asyncio
+    async def test_uses_resolved_config_not_raw_config(self) -> None:
+        """fallback_decision is read from node_inputs (resolved), not node.config (raw template)."""
+        wf = _make_workflow()
+        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "${vars.decision}"})
+        # Engine stored the resolved value in node_inputs before the activity ran
+        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "approve"}
+
+        await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
+
+        assert wf.node_control_data["approval_1"] == {"next_port": "approve"}
+
+    @pytest.mark.asyncio
+    async def test_invalid_fallback_raises_non_retryable_config_error(self) -> None:
+        """An unrecognised fallback_decision value raises ConfigError immediately."""
+        wf = _make_workflow()
+        node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "defer"})
+        wf.node_inputs["approval_1"] = {"name": "Review", "fallback_decision": "defer"}
+
+        with pytest.raises(ApplicationError) as exc_info:
+            await wf._handle_continued_failure("approval_1", node, _make_approval_graph(), {})
+
+        assert exc_info.value.type == "ConfigError"
+        assert exc_info.value.non_retryable is True
+        assert "defer" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_non_approval_node_does_not_set_control_data(self) -> None:
+        """CoF on a non-approval node (e.g., script) leaves node_control_data untouched."""
+        wf = _make_workflow()
+        node = ActivityNode("script_1", "script", {"language": "bash", "code": "echo hi"})
+        backend = InMemoryGraphBackend()
+        backend.add_node("script_1", {"id": "script_1", "type": "script", "config": {}})
+        graph = WorkflowGraph(backend)
+
+        await wf._handle_continued_failure("script_1", node, graph, {})
+
+        assert "script_1" not in wf.node_control_data

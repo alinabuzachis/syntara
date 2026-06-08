@@ -13,16 +13,19 @@ from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker
+from nexus.core.config.base import get_settings
 from nexus.core.database.session import get_db
 from nexus.core.models import User, UserIdentity
 from nexus.core.services.secret_service import create_secret_service
 from nexus.identity_providers.models import IdentityProviderListParams
+from nexus.identity_providers.models.aap_setup import AAPOIDCSetupRequest
 from nexus.identity_providers.models.identity_provider import (
     IdentityProviderCreate,
     IdentityProviderListResponse,
     IdentityProviderPatch,
     IdentityProviderResponse,
 )
+from nexus.identity_providers.services.aap_oidc_setup_service import AAPOIDCSetupService
 from nexus.identity_providers.services.identity_provider_service import IdentityProviderService
 from nexus.identity_providers.services.oidc_discovery import OIDCTestResult, test_oidc_connection
 
@@ -74,6 +77,34 @@ async def test_identity_provider(
         str(provider_create.configuration.issuer_url),
         disable_tls_verify=provider_create.configuration.disable_tls_verify,
     )
+
+
+# ============================================================================
+# AAP OIDC Push-Button Setup
+# ============================================================================
+
+
+@router.post(
+    "/setup_aap_oidc",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_idp_create)],
+    operation_id="setup_aap_oidc_provider",
+    summary="Setup AAP OIDC Provider",
+    description=(
+        "Push-button setup: connects to AAP, creates an OAuth2 application,"
+        " and configures the identity provider with AAP defaults."
+    ),
+    response_description="AAP OIDC provider created",
+)
+@audit(EventCategory.USER_ACTION, event_action="identity_provider_aap_oidc_setup")
+async def setup_aap_oidc_provider(
+    setup_request: AAPOIDCSetupRequest,
+    service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],
+) -> IdentityProviderResponse:
+    """Set up an AAP OIDC identity provider."""
+    settings = get_settings()
+    setup_service = AAPOIDCSetupService(idp_service=service, settings=settings)
+    return await setup_service.setup(setup_request)
 
 
 # ============================================================================

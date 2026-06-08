@@ -212,3 +212,34 @@ class TestRegistryIntegrity:  # noqa: D101
         for role in BUILTIN_ROLES:
             if role.name.startswith("project-"):
                 assert role.scope == "project", f"Role '{role.name}' should have scope='project'"
+
+    def test_all_builtin_policies_have_test_coverage(self) -> None:
+        from tests.e2e.authorization.policies.conftest import (
+            E2E_COVERAGE_EXEMPT,
+            PROJECT_SCOPED_CASES,
+            SELF_SCOPED_CASES,
+            SYSTEM_SCOPED_REPRESENTATIVE,
+        )
+
+        e2e_covered = {c.policy for c in PROJECT_SCOPED_CASES + SYSTEM_SCOPED_REPRESENTATIVE + SELF_SCOPED_CASES}
+        accounted_for = e2e_covered | E2E_COVERAGE_EXEMPT
+        all_builtin = {p.name for p in BUILTIN_POLICIES}
+
+        missing = sorted(all_builtin - accounted_for)
+        assert not missing, (
+            f"{len(missing)} built-in policies have no test coverage. "
+            f"Add a PolicyTestCase to the appropriate list in "
+            f"tests/e2e/authorization/policies/conftest.py:\n"
+            f"  - project-scoped → PROJECT_SCOPED_CASES\n"
+            f"  - system-scoped  → SYSTEM_SCOPED_REPRESENTATIVE\n"
+            f"  - self-scoped    → SELF_SCOPED_CASES\n"
+            f"Or, if unit-test coverage is sufficient, add to E2E_COVERAGE_EXEMPT.\n"
+            f"\nMissing policies:\n  " + "\n  ".join(missing)
+        )
+
+        stale = sorted(accounted_for - all_builtin)
+        assert not stale, (
+            f"{len(stale)} policies are listed in e2e test cases or "
+            f"E2E_COVERAGE_EXEMPT but no longer exist in BUILTIN_POLICIES. "
+            f"Remove them from tests/e2e/authorization/policies/conftest.py:\n  " + "\n  ".join(stale)
+        )

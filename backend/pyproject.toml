@@ -64,6 +64,7 @@ dependencies = [
     "opentelemetry-sdk>=1.39.1",
     "opentelemetry-exporter-otlp-proto-http>=1.39.1",
     "wrapt>=1.17.3",
+    "uuid-utils>=0.9.0",
 ]
 
 [project.optional-dependencies]
@@ -227,8 +228,8 @@ disallow_incomplete_defs = false
 check_untyped_defs = false
 
 [[tool.mypy.overrides]]
-# Settings() calls in these tests omit secret_encryption_key (injected via autouse fixture)
-module = ["tests.unit.core.config.*", "tests.unit.metrics.test_config"]
+# Settings(_env_file=...) uses a pydantic-settings kwarg mypy doesn't recognize
+module = ["tests.unit.core.config.test_config"]
 disable_error_code = ["call-arg"]
 
 [[tool.mypy.overrides]]

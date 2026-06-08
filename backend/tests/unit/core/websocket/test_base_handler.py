@@ -184,6 +184,7 @@ class TestBaseHandlerErrorHandling:
             # Verify error event sent
             mock_websocket.send_json.assert_called_once()
             error_event = mock_websocket.send_json.call_args[0][0]
+            assert error_event["type"] == "error"
             assert error_event["event_type"] == "error"
             assert "resource_id is required" in error_event["data"]["detail"]
 
@@ -204,6 +205,57 @@ class TestBaseHandlerErrorHandling:
             # Verify connection closed with error code
             mock_websocket.close.assert_called_once()
             assert mock_websocket.close.call_args[1]["code"] == INTERNAL_ERROR
+
+    async def test_unexpected_error_sends_error_event_with_type_field(
+        self, mock_websocket: MagicMock, mock_lifecycle_manager: MagicMock
+    ) -> None:
+        """Test that unexpected errors send error event with type='error' for client switch compatibility."""
+
+        class FailingHandler(ConcreteHandler):
+            async def create_session_state(self, **params: Any) -> dict[str, Any]:  # noqa: ANN401
+                msg = "Database connection failed"
+                raise RuntimeError(msg)
+
+        handler = FailingHandler()
+        stream_id = "test:some-id:events"
+
+        with patch("nexus.core.websocket.base_handler.get_connection_lifecycle_manager") as mock_lifecycle:
+            mock_lifecycle.return_value = mock_lifecycle_manager
+
+            with pytest.raises(RuntimeError):
+                await handler.stream_events_to_websocket(websocket=mock_websocket, stream_id=stream_id)
+
+            mock_websocket.send_json.assert_called_once()
+            error_event = mock_websocket.send_json.call_args[0][0]
+            assert error_event["type"] == "error"
+            assert error_event["event_type"] == "error"
+            assert error_event["resource_id"] == "unknown"
+            assert error_event["data"]["code"] == "INTERNAL_ERROR"
+            assert "Database connection failed" in error_event["data"]["detail"]
+
+    async def test_unexpected_error_truncates_long_detail(
+        self, mock_websocket: MagicMock, mock_lifecycle_manager: MagicMock
+    ) -> None:
+        """Test that long error messages are truncated to fit ErrorData max_length."""
+
+        class FailingHandler(ConcreteHandler):
+            async def create_session_state(self, **params: Any) -> dict[str, Any]:  # noqa: ANN401
+                raise RuntimeError("x" * 5000)
+
+        handler = FailingHandler()
+        stream_id = "test:some-id:events"
+
+        with patch("nexus.core.websocket.base_handler.get_connection_lifecycle_manager") as mock_lifecycle:
+            mock_lifecycle.return_value = mock_lifecycle_manager
+
+            with pytest.raises(RuntimeError):
+                await handler.stream_events_to_websocket(websocket=mock_websocket, stream_id=stream_id)
+
+            # Error event should still be sent (not dropped due to validation failure)
+            mock_websocket.send_json.assert_called_once()
+            error_event = mock_websocket.send_json.call_args[0][0]
+            assert error_event["type"] == "error"
+            assert len(error_event["data"]["detail"]) <= 2000
 
 
 class TestBaseHandlerStreaming:

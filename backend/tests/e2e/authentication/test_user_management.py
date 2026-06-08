@@ -9,6 +9,8 @@ from uuid import UUID
 
 import pytest
 from nexus_api_client.models.auth_type import AuthType
+from nexus_api_client.models.login_request import LoginRequest
+from nexus_api_client.models.setting_update import SettingUpdate
 from nexus_api_client.models.user_update import UserUpdate
 
 from tests.e2e.conftest import local_user_login
@@ -75,6 +77,25 @@ class TestBuiltInAdminManagement:
                 user_id=nexus_admin_user.id, body=UserUpdate(is_enabled=True)
             ).assert_and_get()
             assert enabled_user.is_enabled
+
+    def test_built_in_admin_lockout_prevention(
+        self,
+        nexus_api: NexusApiRegistry,
+        nexus_admin_user: UserInfo,
+        nexus_api_admin_group_id: UUID,
+        disable_system_user: None,
+    ) -> None:
+        """Verify the system prevents disabling the built-in admin when no admin mapping exists."""
+        """1. Validate no other enabled admin users"""
+        admin_users = nexus_api.groups.list_members(group_id=nexus_api_admin_group_id).assert_and_get()
+        if any(str(u.id) != nexus_admin_user.id and u.is_enabled for u in admin_users.resources):
+            pytest.skip("Another enabled admin user is enabled.")
+
+        """2. Attempt to disable built-in admin user"""
+        assert (
+            nexus_api.users.update(user_id=nexus_admin_user.id, body=UserUpdate(is_enabled=False)).status_code
+            == HTTPStatus.FORBIDDEN
+        )
 
 
 class TestUserManagementUsingCLI:
@@ -151,3 +172,49 @@ class TestUserManagementUsingCLI:
 
         kc_user_api_retry = oidc_user_factory(provider.id, kc_username, kc_password)
         kc_user_api_retry.authentication.get_current_user().assert_successful()
+
+
+class TestLocalLoginRuntimeSettings:
+    """Test API-47: Local Login Runtime Setting."""
+
+    def test_local_login_runtime_setting(
+        self,
+        nexus_api: NexusApiRegistry,
+        local_user_factory: Callable[..., tuple[UserRead, str]],
+    ) -> None:
+        """Verify the runtime setting controls whether non-builtin local users can log in."""
+        """1. Create a non-builtin local user"""
+        local_user, local_password = local_user_factory()
+
+        local_login_setting_key = "authentication.local_login_enabled"
+        local_login_settings = nexus_api.settings.get(key=local_login_setting_key).assert_and_get()
+
+        """2. Set the local login runtime setting to enabled"""
+        enabled_local_login_settings = nexus_api.settings.update(
+            key=local_login_setting_key, body=SettingUpdate(value=True, expected_version=local_login_settings.version)
+        ).assert_and_get()
+
+        """3. Authenticate as the non-builtin local user — verify login succeeds"""
+        nexus_api.authentication.login(
+            body=LoginRequest(username=local_user.username, password=local_password)
+        ).assert_successful()
+
+        """4. Set the local login runtime setting to disabled"""
+        disabled_local_login_settings = nexus_api.settings.update(
+            key=local_login_setting_key,
+            body=SettingUpdate(value=False, expected_version=enabled_local_login_settings.version),
+        ).assert_and_get()
+
+        try:
+            """5. Authenticate as the non-builtin local user — verify login is rejected"""
+            assert (
+                nexus_api.authentication.login(
+                    body=LoginRequest(username=local_user.username, password=local_password)
+                ).status_code
+                == HTTPStatus.UNAUTHORIZED
+            )
+        finally:
+            nexus_api.settings.update(
+                key=local_login_setting_key,
+                body=SettingUpdate(value=True, expected_version=disabled_local_login_settings.version),
+            )

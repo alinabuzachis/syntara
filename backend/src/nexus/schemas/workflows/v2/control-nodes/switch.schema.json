@@ -33,11 +33,15 @@
             },
             "condition": {
               "type": "string",
-              "description": "Boolean expression to evaluate (empty strings are silently skipped)",
+              "description": "Boolean expression to evaluate. Supports complex expressions with and/or/not operators (empty strings are silently skipped)",
               "examples": [
                 "${trigger.status} == \"approved\"",
                 "${previous_node.priority} > 5",
-                "\"critical\" in ${trigger.tags}"
+                "\"critical\" in ${trigger.tags}",
+                "${trigger.priority} > 7 and ${trigger.approved} == True",
+                "${trigger.tier} == \"vip\" or ${trigger.tier} == \"premium\"",
+                "(${trigger.priority} > 5 and ${trigger.approved} == True) or ${trigger.is_admin} == True",
+                "not (${trigger.status} == \"blocked\" and ${trigger.retries} > 3)"
               ]
             }
           },

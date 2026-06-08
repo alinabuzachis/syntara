@@ -14,7 +14,7 @@ import structlog
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.config.base import get_settings
+from nexus.core.config.base import get_encryption_key
 from nexus.core.lib.encryption import SecretEncryptor, key_from_string
 from nexus.core.models.secret import Secret
 from nexus.core.services.storage_backend import DatabaseBackend, StorageBackend
@@ -128,7 +128,6 @@ def create_secret_service(session: AsyncSession) -> SecretService:
     Encapsulates the encryption key lookup, encryptor creation, and backend
     construction so callers don't need to know the internal wiring.
     """
-    settings = get_settings()
-    encryptor = SecretEncryptor(key_from_string(settings.secret_encryption_key.get_secret_value()))
+    encryptor = SecretEncryptor(key_from_string(get_encryption_key().get_secret_value()))
     backend = DatabaseBackend(session)
     return SecretService(session, encryptor, backend)

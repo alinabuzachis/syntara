@@ -252,6 +252,7 @@ async def list_members(
     operation_id="create_group_role_assignment",
     response_description="Role assignment created",
 )
+@audit(EventCategory.SECURITY_EVENT, event_action="group_role_assign", capture_args={"group_id"})
 async def create_group_role_assignment(
     group_id: UUID,
     body: SubResourceRoleAssignmentCreate,
@@ -309,6 +310,7 @@ async def list_group_role_assignments(
     operation_id="delete_group_role_assignment",
     response_description="Assignment removed",
 )
+@audit(EventCategory.SECURITY_EVENT, event_action="group_role_revoke", capture_args={"group_id", "assignment_id"})
 async def delete_group_role_assignment(
     group_id: UUID,
     assignment_id: UUID,

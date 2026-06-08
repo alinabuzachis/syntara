@@ -6,16 +6,13 @@ The **Wait node** is a control-flow node that pauses workflow execution for a sp
 
 ## Configuration
 
-The wait node accepts a duration split into four fields:
+The wait node accepts a single duration field:
 
-| Field     | Type    | Range   | Default | Description              |
-|-----------|---------|---------|---------|--------------------------|
-| `days`    | integer | 0+      | 0       | Number of days to wait   |
-| `hours`   | integer | 0–23    | 0       | Number of hours to wait  |
-| `minutes` | integer | 0–59    | 0       | Number of minutes to wait|
-| `seconds` | integer | 0–59    | 0       | Number of seconds to wait|
+| Field      | Type    | Constraint | Description                     |
+|------------|---------|------------|---------------------------------|
+| `duration` | integer | > 0        | Total wait duration in seconds  |
 
-The total duration must be greater than zero. All fields must be non-negative integers.
+The UI provides a user-friendly interface with separate days/hours/minutes/seconds inputs, which are converted to a single `duration` value (in seconds) before being sent to the backend.
 
 ### Example
 
@@ -24,10 +21,7 @@ nodes:
   - id: wait_before_retry
     type: wait
     config:
-      days: 0
-      hours: 1
-      minutes: 30
-      seconds: 0
+      duration: 5400
 
 edges:
   - from: previous_node
@@ -36,7 +30,7 @@ edges:
     to: next_node
 ```
 
-This pauses the workflow for 1 hour and 30 minutes before proceeding to `next_node`.
+This pauses the workflow for 5400 seconds (1 hour and 30 minutes) before proceeding to `next_node`.
 
 ## Edge Routing
 
@@ -45,7 +39,7 @@ The wait node uses default edge routing (no explicit output ports). After the wa
 ## Execution Flow
 
 1. **Async completion activity** — The `wait` Temporal activity validates the duration config, then calls `activity.raise_complete_async()`. This puts the activity in STARTED state, deferring completion to an external call.
-2. **Durable timer** — The workflow engine sleeps for the computed duration using `workflow.sleep()`, which creates a Temporal durable timer that survives worker restarts without consuming resources.
+2. **Durable timer** — The workflow engine sleeps for the configured duration using `workflow.sleep()`, which creates a Temporal durable timer that survives worker restarts without consuming resources.
 3. **Completion** — After the timer fires, a local activity completes the async wait activity via the Temporal client. The node returns `status: "completed"`.
 
 ## Result Schema
@@ -61,18 +55,19 @@ On success:
 On configuration error, the activity raises a non-retryable `ApplicationError` with `type="ConfigError"`:
 
 ```
-ApplicationError("Total wait duration must be greater than zero", type="ConfigError", non_retryable=True)
+ApplicationError("Wait duration must be greater than zero", type="ConfigError", non_retryable=True)
 ```
 
 ## Validation Rules
 
-- All four fields (`days`, `hours`, `minutes`, `seconds`) must be non-negative integers
-- The total duration (`days*86400 + hours*3600 + minutes*60 + seconds`) must be > 0
+- `duration` must be a positive integer (> 0)
+- Boolean values are explicitly rejected (Python's `bool` is a subclass of `int`)
 - Float, string, or null values are rejected with a `ConfigError`
+- The duration must not exceed the global maximum (see below)
 
 ## Maximum Duration
 
-The maximum total wait duration is controlled by the global setting:
+The maximum wait duration is controlled by the global setting:
 
 - **Key**: `workflow_engine.max_wait_duration_seconds`
 - **Default**: 2,592,000 seconds (30 days)
@@ -95,3 +90,4 @@ If a wait node's configured duration exceeds this limit, the activity fails with
 | `src/nexus/workflows/workflow_engine/dynamic_workflow.py` | Workflow dispatch and durable timer |
 | `src/nexus/workflows/workflow_engine/services/activity_sync_service.py` | WAITING status handling |
 | `tests/unit/workflows/workflow_engine/activities/test_wait_activity.py` | Unit tests |
+| `tests/integration/workflows/workflow_engine/services/test_wait_node_integration.py` | Integration tests |

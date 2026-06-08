@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from nexus.core.config.base import CredentialEncryptionSettings
+from nexus.core.config.base import CredentialEncryptionSettings, validate_encryption_key_at_startup
 from nexus.core.lib.encryption import key_from_string
 
 if TYPE_CHECKING:
@@ -34,14 +34,23 @@ def _build_settings(env: dict[str, str]) -> CredentialEncryptionSettings:
 
 
 class TestEncryptionKeyRequired:
-    """Verify secret_encryption_key is required with no insecure default."""
+    """Verify secret_encryption_key is optional at construction but required at startup."""
 
-    def test_rejects_missing_key(self) -> None:
-        with pytest.raises(ValidationError, match="Field required"):
-            _build_settings({})
+    def test_construction_succeeds_without_key(self) -> None:
+        settings = _build_settings({})
+        assert settings.secret_encryption_key is None
+
+    def test_startup_validation_rejects_missing_key(self) -> None:
+        settings = _build_settings({})
+        with (
+            patch("nexus.core.config.base.get_settings", return_value=settings),
+            pytest.raises(RuntimeError, match=r"APP_SECRET_ENCRYPTION_KEY.*is required"),
+        ):
+            validate_encryption_key_at_startup()
 
     def test_accepts_valid_hex_key(self) -> None:
         settings = _build_settings({ENV_KEY: VALID_KEY})
+        assert settings.secret_encryption_key is not None
         assert settings.secret_encryption_key.get_secret_value() == VALID_KEY
 
 
@@ -64,6 +73,7 @@ class TestPathBasedLoading:
         key_file = tmp_path / "encryption-key"
         key_file.write_text(VALID_KEY + "\n")
         settings = _build_settings({ENV_PATH: str(key_file)})
+        assert settings.secret_encryption_key is not None
         assert settings.secret_encryption_key.get_secret_value() == VALID_KEY
 
     def test_path_wins_over_direct_value(self, tmp_path: Path) -> None:
@@ -76,6 +86,7 @@ class TestPathBasedLoading:
                 ENV_PATH: str(key_file),
             }
         )
+        assert settings.secret_encryption_key is not None
         assert settings.secret_encryption_key.get_secret_value() == VALID_KEY
 
     def test_rejects_nonexistent_path(self) -> None:

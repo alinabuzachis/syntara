@@ -143,7 +143,7 @@ async def revoke_user(
 
 
 @router.post(
-    "/identity-providers/{idp_name}",
+    "/identity_providers/{idp_name}",
     dependencies=[Depends(_require_revocation_execute)],
     operation_id="revoke_idp_sessions",
     summary="Revoke sessions for an identity provider",

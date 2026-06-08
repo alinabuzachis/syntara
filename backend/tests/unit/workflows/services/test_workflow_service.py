@@ -1287,6 +1287,34 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         with pytest.raises(WorkflowNotFoundError):
             await service.publish_workflow_version(workflow_id=fake_id, version=1)
 
+    @pytest.mark.asyncio
+    async def test_publish_syncs_all_trigger_types(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test that publish syncs both webhook and EDA trigger types."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="publish-trigger-sync-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        mock_wh_svc = MagicMock()
+        mock_sync = AsyncMock(return_value=[])
+        mock_wh_svc.return_value.sync_webhook_triggers = mock_sync
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+
+        # Should have been called once per trigger type
+        assert mock_sync.call_count == 2
+        call_trigger_types = {call.kwargs["trigger_type"] for call in mock_sync.call_args_list}
+        assert call_trigger_types == {"webhook_trigger", "eda_trigger"}
+        # All calls should pass is_enabled=True
+        for call in mock_sync.call_args_list:
+            assert call.kwargs["is_enabled"] is True
+
 
 class TestUnpublishWorkflow(TestWorkflowServiceBase):
     """Test unpublish_workflow method."""
@@ -1342,3 +1370,38 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
 
         with pytest.raises(WorkflowNotFoundError):
             await service.unpublish_workflow(workflow_id=fake_id)
+
+    @pytest.mark.asyncio
+    async def test_unpublish_syncs_all_trigger_types(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test that unpublish syncs both webhook and EDA trigger types."""
+        service = WorkflowService(test_db_session, test_user)
+        workflow_def = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="unpublish-trigger-sync-test",
+                description=None,
+                labels={},
+                workflow_definition=workflow_def,
+            )
+
+        # Publish first (mock webhook service)
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock(return_value=[])
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
+            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+
+        # Now unpublish and verify trigger sync
+        mock_wh_svc2 = MagicMock()
+        mock_sync = AsyncMock(return_value=[])
+        mock_wh_svc2.return_value.sync_webhook_triggers = mock_sync
+        with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc2):
+            await service.unpublish_workflow(workflow_id=workflow.id)
+
+        # Should have been called once per trigger type
+        assert mock_sync.call_count == 2
+        call_trigger_types = {call.kwargs["trigger_type"] for call in mock_sync.call_args_list}
+        assert call_trigger_types == {"webhook_trigger", "eda_trigger"}
+        # All calls should pass is_enabled=False
+        for call in mock_sync.call_args_list:
+            assert call.kwargs["is_enabled"] is False

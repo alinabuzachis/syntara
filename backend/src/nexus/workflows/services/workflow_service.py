@@ -31,7 +31,7 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
 from nexus.workflows.models.workflow_version import WorkflowVersionStatus
-from nexus.workflows.services.webhook_trigger_service import WebhookTriggerService
+from nexus.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES, WebhookTriggerService
 from nexus.workflows.validators import workflow_validator
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -76,6 +76,22 @@ class WorkflowService(BaseService):
                 version=version.version,
             )
         )
+
+    async def _sync_all_trigger_types(
+        self,
+        webhook_service: WebhookTriggerService,
+        workflow_id: UUID,
+        workflow_definition: dict[str, Any],
+        *,
+        is_enabled: bool,
+    ) -> None:
+        for trigger_type in WEBHOOK_TRIGGER_TYPES:
+            await webhook_service.sync_webhook_triggers(
+                workflow_id=workflow_id,
+                workflow_definition=workflow_definition,
+                is_enabled=is_enabled,
+                trigger_type=trigger_type,
+            )
 
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.
@@ -194,9 +210,10 @@ class WorkflowService(BaseService):
 
             # Sync webhook triggers within the same transaction
             webhook_service = WebhookTriggerService(self.session, self.user)
-            await webhook_service.sync_webhook_triggers(
-                workflow_id=workflow.id,
-                workflow_definition=workflow_dict,
+            await self._sync_all_trigger_types(
+                webhook_service,
+                workflow.id,
+                workflow_dict,
                 is_enabled=False,
             )
 
@@ -560,9 +577,10 @@ class WorkflowService(BaseService):
             sync_definition = current_version.workflow_definition
 
         webhook_service = WebhookTriggerService(self.session, self.user)
-        await webhook_service.sync_webhook_triggers(
-            workflow_id=workflow.id,
-            workflow_definition=sync_definition,
+        await self._sync_all_trigger_types(
+            webhook_service,
+            workflow.id,
+            sync_definition,
             is_enabled=workflow.is_enabled,
         )
 
@@ -618,9 +636,10 @@ class WorkflowService(BaseService):
         workflow.updated_by = self.user.id
 
         webhook_service = WebhookTriggerService(self.session, self.user)
-        await webhook_service.sync_webhook_triggers(
-            workflow_id=workflow.id,
-            workflow_definition=target_version.workflow_definition,
+        await self._sync_all_trigger_types(
+            webhook_service,
+            workflow.id,
+            target_version.workflow_definition,
             is_enabled=True,
         )
 
@@ -643,9 +662,10 @@ class WorkflowService(BaseService):
 
         webhook_service = WebhookTriggerService(self.session, self.user)
         if published_version:
-            await webhook_service.sync_webhook_triggers(
-                workflow_id=workflow.id,
-                workflow_definition=published_version.workflow_definition,
+            await self._sync_all_trigger_types(
+                webhook_service,
+                workflow.id,
+                published_version.workflow_definition,
                 is_enabled=False,
             )
 

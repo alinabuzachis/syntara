@@ -31,3 +31,11 @@ class WebhooksApi:
     async def async_receive(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("receive_webhook")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def receive_eda(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("receive_eda_webhook")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_receive_eda(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("receive_eda_webhook")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

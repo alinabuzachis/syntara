@@ -105,6 +105,8 @@ def _map_execution_status_to_telemetry(status: ExecutionStatus) -> WorkflowTermi
     """
     if status == ExecutionStatus.COMPLETED:
         return WorkflowTerminalStatus.COMPLETED
+    if status == ExecutionStatus.COMPLETED_WITH_ERRORS:
+        return WorkflowTerminalStatus.COMPLETED_WITH_ERRORS
     if status == ExecutionStatus.FAILED:
         return WorkflowTerminalStatus.FAILED
     return WorkflowTerminalStatus.CANCELLED

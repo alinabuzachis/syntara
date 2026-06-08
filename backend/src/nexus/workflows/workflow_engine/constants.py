@@ -28,3 +28,8 @@ MAX_ENV_VAR_LENGTH = _settings.max_env_var_length
 # switch nodes, which complete in milliseconds. Converge, loop, and all
 # executor nodes use _get_default_timeout() for type-appropriate defaults.
 DEFAULT_ACTIVITY_TIMEOUT_SECONDS = 30
+
+# Key injected by the engine into each activity's input config so the activity
+# can use the already-resolved timeout without re-querying the catalog.
+# Must be popped by agentic_activity before forwarding config to the orchestrator.
+ENGINE_TIMEOUT_SECONDS_KEY = "_engine_timeout_seconds"

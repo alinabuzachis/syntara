@@ -10,6 +10,10 @@ This module provides:
 import os as _os
 
 _os.environ.setdefault("APP_ENV_FILE_PATH", "/dev/null")
+_os.environ.setdefault(
+    "APP_SECRET_ENCRYPTION_KEY",
+    "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+)
 
 import asyncio
 import os
@@ -65,6 +69,7 @@ from nexus.workflows.services.execution_streaming_service import ExecutionStream
 from nexus.workflows.workflow_engine.activities.condition import condition
 from nexus.workflows.workflow_engine.activities.converge import converge
 from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
+from nexus.workflows.workflow_engine.activities.runtime_settings_activity import fetch_workflow_runtime_settings
 from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
@@ -1295,7 +1300,7 @@ async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[W
             temporal_env.client,
             task_queue=task_queue,
             workflows=[NexusWorkflow],
-            activities=[execute_script_activity, manual_trigger, condition, converge],
+            activities=[execute_script_activity, manual_trigger, condition, converge, fetch_workflow_runtime_settings],
         ) as worker:
             logger.info("Test worker started on queue: %s", task_queue)
             yield worker
@@ -1961,7 +1966,6 @@ async def admin_user(test_db_session: AsyncSession, user_factory: Callable[..., 
         if admin_user is None:
             admin_user = await user_factory(
                 username="admin",
-                email="admin@example.com",
                 first_name="Admin",
                 last_name="User",
             )

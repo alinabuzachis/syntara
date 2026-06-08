@@ -47,6 +47,48 @@ _METHOD_PASSWORD = "password"  # noqa: S105
 _METHOD_OIDC = "oidc"
 
 
+def _audit_list_kwargs(
+    event_action: str,
+    *,
+    event_category: EventCategory | None,
+    actor_username: str | None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "event_action": event_action,
+        "sort": "-created_at",
+        "limit": 20,
+    }
+    if event_category is not None:
+        kwargs["event_category"] = event_category
+    if actor_username is not None:
+        kwargs["actor_username"] = actor_username
+    return kwargs
+
+
+def _event_matches_criteria(
+    event: AuditEventRead,
+    *,
+    event_status: EventStatus | None,
+    structured_data: dict[str, str] | None,
+    error_message_contains: str | None,
+    exclude_ids: set[str] | None,
+) -> bool:
+    """Check whether a single audit event matches all client-side filters."""
+    if exclude_ids and str(event.id) in exclude_ids:
+        return False
+    if event_status is not None and event.event_status != event_status:
+        return False
+    if structured_data:
+        props = event.structured_data.additional_properties
+        if not all(props.get(k) == v for k, v in structured_data.items()):
+            return False
+    if error_message_contains is not None:
+        error_message = event.structured_data.error_message
+        if not isinstance(error_message, str) or error_message_contains not in error_message:
+            return False
+    return True
+
+
 def _find_audit_event(
     api: NexusApiRegistry,
     event_action: str,
@@ -55,6 +97,8 @@ def _find_audit_event(
     event_status: EventStatus | None = None,
     actor_username: str | None = None,
     structured_data: dict[str, str] | None = None,
+    error_message_contains: str | None = None,
+    exclude_ids: set[str] | None = None,
     timeout: float = _AUDIT_POLL_TIMEOUT,
 ) -> AuditEventRead | None:
     """Poll the audit API until an event matching all criteria appears, or timeout."""
@@ -62,17 +106,9 @@ def _find_audit_event(
     while time.monotonic() < deadline:
         time.sleep(_AUDIT_POLL_INTERVAL)
 
-        kwargs: dict[str, Any] = {
-            "event_action": event_action,
-            "sort": "-created_at",
-            "limit": 20,
-        }
-        if event_category is not None:
-            kwargs["event_category"] = event_category
-        if actor_username is not None:
-            kwargs["actor_username"] = actor_username
-
-        resp = api.audit_events.list(**kwargs)
+        resp = api.audit_events.list(
+            **_audit_list_kwargs(event_action, event_category=event_category, actor_username=actor_username)
+        )
         if resp.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
             detail = resp.content.decode() if resp.content else "no detail"
             pytest.fail(f"Audit database unavailable (503): {detail}")
@@ -80,13 +116,14 @@ def _find_audit_event(
             continue
 
         for event in resp.parsed.resources:
-            if event_status is not None and event.event_status != event_status:
-                continue
-            if structured_data:
-                props = event.structured_data.additional_properties
-                if not all(props.get(k) == v for k, v in structured_data.items()):
-                    continue
-            return cast("AuditEventRead", event)
+            if _event_matches_criteria(
+                event,
+                event_status=event_status,
+                structured_data=structured_data,
+                error_message_contains=error_message_contains,
+                exclude_ids=exclude_ids,
+            ):
+                return cast("AuditEventRead", event)
     return None
 
 
@@ -139,6 +176,7 @@ class TestAuditAuthenticationEvents:
             event_status=EventStatus.ERROR,
             actor_username=username,
             structured_data={"method": _METHOD_PASSWORD},
+            error_message_contains="bad_password",
         )
         assert bad_creds_event is not None, f"No failed-login audit event for {username}"
         assert bad_creds_event.event_severity == EventSeverity.WARNING
@@ -176,6 +214,8 @@ class TestAuditAuthenticationEvents:
                 event_status=EventStatus.ERROR,
                 actor_username=username,
                 structured_data={"method": _METHOD_PASSWORD},
+                error_message_contains="inactive_account",
+                exclude_ids={str(bad_creds_event.id)},
             )
             assert disabled_event is not None, f"No disabled-login audit event for {username}"
             assert disabled_event.event_severity in (EventSeverity.WARNING, EventSeverity.ERROR)

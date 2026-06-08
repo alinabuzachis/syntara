@@ -221,6 +221,47 @@ paths:
         - IdentityProviders
       security:
         - bearerAuth: []
+  /identity_providers/setup_aap_oidc:
+    post:
+      summary: Setup AAP OIDC Provider
+      description: >-
+        Push-button setup: connects to AAP, creates an OAuth2
+        application, and configures the identity provider with AAP defaults.
+      operationId: setup_aap_oidc_provider
+      x-app-permission:
+        resource: identity-provider
+        action: create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AAPOIDCSetupRequest'
+      responses:
+        '201':
+          description: AAP OIDC provider created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityProviderResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      tags:
+        - IdentityProviders
+      security:
+        - bearerAuth: []
   /identity_providers/test:
     post:
       summary: Test Identity Provider
@@ -288,11 +329,6 @@ components:
           type: string
           default: family_name
           title: Last Name
-        groups:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Groups
 
     OIDCGroupMappingEntry:
       type: object
@@ -904,3 +940,51 @@ components:
           type: boolean
           default: false
           title: End Session Endpoint Supported
+
+    AAPOIDCSetupRequest:
+      type: object
+      title: AAPOIDCSetupRequest
+      description: Request body for push-button AAP OIDC identity provider setup.
+      required:
+        - aap_url
+      additionalProperties: false
+      properties:
+        aap_url:
+          type: string
+          minLength: 1
+          title: AAP URL
+          description: AAP base URL (e.g., https://aap.example.com)
+        organization:
+          type: string
+          default: Default
+          minLength: 1
+          title: Organization
+          description: AAP organization name to create the OAuth2 application in
+        admin_username:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Platform Admin Username
+          description: AAP platform admin username (required when using basic auth)
+        admin_password:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          format: password
+          title: Platform Admin Password
+          description: AAP platform admin password (used only for setup, never stored)
+        personal_access_token:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          format: password
+          title: Personal Access Token
+          description: AAP personal access token (alternative to username/password, never stored)
+        insecure_skip_tls_verify:
+          type: boolean
+          default: false
+          title: Insecure Skip TLS Verify
+          description: Skip TLS certificate verification for the AAP connection

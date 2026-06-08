@@ -16,16 +16,8 @@ from temporalio.service import RPCError
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.services.activity_sync_registry import get_activity_sync_service
-from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
 
 logger = structlog.stdlib.get_logger(__name__)
-
-_FIELD_LIMITS: dict[str, tuple[int, int | None]] = {
-    "days": (0, None),
-    "hours": (0, 23),
-    "minutes": (0, 59),
-    "seconds": (0, 59),
-}
 
 
 @activity.defn(name=ActivityName.WAIT)
@@ -36,33 +28,22 @@ async def wait(
     """Validate wait config then defer to async completion.
 
     Args:
-        input_config: Wait node configuration with duration fields:
-            - "days": int >= 0
-            - "hours": int 0-23
-            - "minutes": int 0-59
-            - "seconds": int 0-59
+        input_config: Wait node configuration with a single duration field:
+            - "duration": int > 0 (total wait duration in seconds)
         output_config: Output mapping configuration (unused; kept for dispatch signature)
 
     Raises:
         ApplicationError: If config validation fails (non-retryable).
 
     """
-    for field_name, (min_val, max_val) in _FIELD_LIMITS.items():
-        value = input_config.get(field_name, 0)
-        if isinstance(value, bool) or not isinstance(value, int):
-            msg = f"'{field_name}' must be a non-negative integer, got: {value!r}"
-            raise ApplicationError(msg, type="ConfigError", non_retryable=True)
-        if value < min_val:
-            msg = f"'{field_name}' must be >= {min_val}, got: {value}"
-            raise ApplicationError(msg, type="ConfigError", non_retryable=True)
-        if max_val is not None and value > max_val:
-            msg = f"'{field_name}' must be between {min_val} and {max_val}, got: {value}"
-            raise ApplicationError(msg, type="ConfigError", non_retryable=True)
+    total_seconds = input_config.get("duration", 0)
 
-    total_seconds = compute_wait_seconds(input_config)
+    if isinstance(total_seconds, bool) or not isinstance(total_seconds, int):
+        msg = f"'duration' must be a positive integer, got: {total_seconds!r}"
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True)
 
     if total_seconds <= 0:
-        msg = "Total wait duration must be greater than zero"
+        msg = "Wait duration must be greater than zero"
         raise ApplicationError(msg, type="ConfigError", non_retryable=True)
 
     cache = get_runtime_settings()

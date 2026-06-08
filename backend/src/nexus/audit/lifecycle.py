@@ -24,6 +24,7 @@ import structlog
 
 from nexus.audit.otel_logging import configure_otel_logging, flush_otel_logging
 from nexus.audit.outbox.worker import get_outbox_worker
+from nexus.audit.retention.purge import get_audit_purge_worker
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -65,6 +66,11 @@ def start_audit_components() -> None:
         outbox_worker.start()
         logger.info("AuditOutboxWorker started")
 
+        # Start audit purge worker (deletes events older than retention period)
+        purge_worker = get_audit_purge_worker()
+        purge_worker.start()
+        logger.info("AuditPurgeWorker started")
+
         _state = AuditLifecycleState.RUNNING
 
 
@@ -84,6 +90,11 @@ async def stop_audit_components() -> None:
         if _state == AuditLifecycleState.STOPPED:
             logger.debug("audit.components.already_stopped", state=_state)
             return
+
+        # Stop audit purge worker
+        purge_worker = get_audit_purge_worker()
+        await purge_worker.stop()
+        logger.info("AuditPurgeWorker stopped")
 
         # Wait for in-flight audit writes to complete
         outbox_worker = get_outbox_worker()

@@ -28,6 +28,7 @@ from nexus.authz.models.policy import Policy
 from nexus.authz.models.role import Role
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
+from tests.integration.api.conftest import make_admin, make_auditor, make_user_role
 
 _REGO_POLICY_PATH = Path(__file__).resolve().parents[3] / "src" / "nexus" / "authz" / "rego" / "authz.rego"
 _OPA_RESULT_FIELDS = {"allow", "deny", "matched_policy", "denial_reason", "denied_by", "allowed_projects"}
@@ -83,36 +84,6 @@ def _override_opa_dependency() -> Generator[None, None, None]:
 # ============================================================================
 
 
-async def _make_admin(session: AsyncSession, user: User) -> None:
-    """Assign the admin role to a user via a dedicated group."""
-    group = Group(name=f"admin-grp-{uuid4()}", description="", labels={})
-    session.add(group)
-    await session.flush()
-    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="admin"))
-    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
-    await session.commit()
-
-
-async def _make_auditor(session: AsyncSession, user: User) -> None:
-    """Assign the auditor role to a user via a dedicated group."""
-    group = Group(name=f"auditor-grp-{uuid4()}", description="", labels={})
-    session.add(group)
-    await session.flush()
-    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor"))
-    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
-    await session.commit()
-
-
-async def _make_user_role(session: AsyncSession, user: User) -> None:
-    """Assign the user role to a user via a dedicated group."""
-    group = Group(name=f"user-grp-{uuid4()}", description="", labels={})
-    session.add(group)
-    await session.flush()
-    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="user"))
-    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
-    await session.commit()
-
-
 def _auth_as(user: User) -> None:
     """Override the current user dependency to act as a user."""
 
@@ -152,7 +123,7 @@ async def test_can_i_denied_action(
 ) -> None:
     """CI-2: User with only 'user' role cannot create policies."""
     limited_user = await user_factory(username="limited-ci2", email="limited-ci2@test.com")
-    await _make_user_role(test_db_session, limited_user)
+    await make_user_role(test_db_session, limited_user)
     _auth_as(limited_user)
 
     response = await auth_client.post(
@@ -172,7 +143,7 @@ async def test_can_i_admin_allowed(
     test_user: User,
 ) -> None:
     """CI-3: Admin user is allowed any action."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.post(
         "/api/v1/authz/can_i",
@@ -306,7 +277,7 @@ async def test_can_i_explicit_deny_overrides_allow(
 ) -> None:
     """CI-7: An explicit deny policy overrides an allow policy."""
     # Give test_user admin role which grants workflow:delete:any.
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
     # Create a deny policy that blocks workflow:delete.
     deny_policy = Policy(
         id=uuid4(),
@@ -363,7 +334,7 @@ async def test_who_can_requires_admin(
 ) -> None:
     """WC-0: who-can is admin-only; non-admin gets 403."""
     limited_user = await user_factory(username="limited-wc0", email="limited-wc0@test.com")
-    await _make_user_role(test_db_session, limited_user)
+    await make_user_role(test_db_session, limited_user)
     _auth_as(limited_user)
 
     response = await auth_client.post(
@@ -381,7 +352,7 @@ async def test_who_can_returns_authorized_users(
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """WC-1: who-can returns all users authorized for the action."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     # Create a second user also with the user role
     other = await user_factory(username="reader", email="reader@example.com", first_name="Reader")
@@ -409,11 +380,11 @@ async def test_who_can_excludes_unauthorized_users(
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """WC-2: who-can excludes users who lack the permission."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     # Create an auditor who can read but not create workflows
     auditor = await user_factory(username="aud-user", email="aud@example.com", first_name="Auditor")
-    await _make_auditor(test_db_session, auditor)
+    await make_auditor(test_db_session, auditor)
 
     response = await auth_client.post(
         "/api/v1/authz/who_can",
@@ -435,7 +406,7 @@ async def test_who_can_empty_for_ungranted_action(
     test_user: User,
 ) -> None:
     """WC-3: who-can returns empty list for an action nobody has."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.post(
         "/api/v1/authz/who_can",
@@ -453,7 +424,7 @@ async def test_who_can_excludes_inactive_users(
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """WC-4: Inactive users are not returned even if they have permissions."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     inactive = await user_factory(username="inactive-user", email="inactive@example.com", first_name="Inactive")
     # Add to test-users group (grants user role with user:read)
@@ -482,7 +453,7 @@ async def test_who_can_pagination(
     user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """WC-5: who-can paginates results with cursor."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     # Create extra users with the user role so we have enough to paginate
     test_group = (await test_db_session.exec(select(Group).where(Group.name == "test-users"))).first()
@@ -573,7 +544,7 @@ async def test_what_can_i_admin_sees_all_policies(
     test_user: User,
 ) -> None:
     """WI-3: Admin user sees all built-in policies."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200
@@ -595,7 +566,7 @@ async def test_what_can_i_multiple_groups_additive(
     """WI-4: Permissions from multiple groups are additive."""
     # test_user has admin role via test-users group.
     # Add auditor role via a second group.
-    await _make_auditor(test_db_session, test_user)
+    await make_auditor(test_db_session, test_user)
 
     response = await auth_client.post("/api/v1/authz/what_can_i")
     assert response.status_code == 200

@@ -13,7 +13,7 @@ from ...types import Response
 def _get_kwargs() -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/auth/csrf-token",
+        "url": "/auth/csrf_token",
     }
 
     return _kwargs

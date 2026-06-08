@@ -2,6 +2,7 @@
 
 import itertools
 import logging
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -446,3 +447,131 @@ class TestAuditEventServiceTelemetry:
 
         failed_records = [r for r in caplog.records if "list_query_failed" in r.message]
         assert len(failed_records) == 1
+
+
+# ------------------------------------------------------------------ #
+# Export file path security
+# ------------------------------------------------------------------ #
+
+
+class TestGetExportFilePathSecurity:
+    """Test path traversal and file access protection in get_export_file_path.
+
+    UUID format validation is now enforced at the router layer (FastAPI path
+    parameter type `UUID`), so the service only receives valid UUIDs.
+    The `is_relative_to` guard inside the service remains as defense-in-depth.
+    """
+
+    @pytest.mark.asyncio
+    async def test_valid_uuid_nonexistent_file_raises_not_found(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        tmp_path: Any,  # noqa: ANN401
+        override_settings: Any,  # noqa: ANN401
+    ) -> None:
+        """Valid UUID for non-existent file raises AuditExportNotFoundError.
+
+        When the file is absent, get_export_file_path consults Temporal.
+        A non-RUNNING status (e.g. FAILED) must produce AuditExportNotFoundError.
+        """
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from uuid import uuid4
+
+        from nexus.audit.exceptions import AuditExportNotFoundError
+
+        export_id = uuid4()
+        service = AuditEventService(test_db_session, test_user)
+
+        handle = AsyncMock()
+        status_mock = MagicMock()
+        status_mock.name = "FAILED"
+        desc = MagicMock()
+        desc.status = status_mock
+        handle.describe.return_value = desc
+
+        mock_client = AsyncMock()
+        mock_client.get_workflow_handle = MagicMock(return_value=handle)
+
+        with (
+            override_settings(audit_export_dir=str(tmp_path)),
+            patch(
+                "nexus.audit.services.audit_event_service._get_temporal_client",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            pytest.raises(AuditExportNotFoundError) as exc_info,
+        ):
+            await service.get_export_file_path(export_id)
+
+        assert exc_info.value.export_id == str(export_id)
+
+    @pytest.mark.asyncio
+    async def test_valid_uuid_nonexistent_file_raises_not_ready_when_running(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        tmp_path: Any,  # noqa: ANN401
+        override_settings: Any,  # noqa: ANN401
+    ) -> None:
+        """Valid UUID for non-existent file raises AuditExportNotReadyError when still running."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from uuid import uuid4
+
+        from nexus.audit.exceptions import AuditExportNotReadyError
+
+        export_id = uuid4()
+        service = AuditEventService(test_db_session, test_user)
+
+        handle = AsyncMock()
+        status_mock = MagicMock()
+        status_mock.name = "RUNNING"
+        desc = MagicMock()
+        desc.status = status_mock
+        handle.describe.return_value = desc
+
+        mock_client = AsyncMock()
+        mock_client.get_workflow_handle = MagicMock(return_value=handle)
+
+        with (
+            override_settings(audit_export_dir=str(tmp_path)),
+            patch(
+                "nexus.audit.services.audit_event_service._get_temporal_client",
+                new=AsyncMock(return_value=mock_client),
+            ),
+            pytest.raises(AuditExportNotReadyError) as exc_info,
+        ):
+            await service.get_export_file_path(export_id)
+
+        assert exc_info.value.export_id == str(export_id)
+
+    @pytest.mark.asyncio
+    async def test_valid_uuid_existing_file_returns_path(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        tmp_path: Any,  # noqa: ANN401
+        override_settings: Any,  # noqa: ANN401
+    ) -> None:
+        """Valid UUID with existing export file returns correct path without calling Temporal."""
+        from uuid import uuid4
+
+        export_id = uuid4()
+        csv_file = tmp_path / f"audit-export-{export_id}.csv"
+        csv_file.write_text("test,data\n1,2\n")
+
+        service = AuditEventService(test_db_session, test_user)
+
+        with override_settings(audit_export_dir=str(tmp_path)):
+            result = await service.get_export_file_path(export_id)
+
+        assert result == csv_file
+        assert result.is_file()
+
+
+class TestGetExportStatusSecurity:
+    """Test security behaviour of get_export_status.
+
+    UUID format validation is now enforced at the router layer (FastAPI path
+    parameter type `UUID`), so invalid-string rejection is covered by the
+    integration tests for the route endpoints.
+    """

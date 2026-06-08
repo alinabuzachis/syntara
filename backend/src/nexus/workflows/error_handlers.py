@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from nexus.workflows.exceptions import (
         ExecutionInTerminalStateError,
         ExecutionNotFoundError,
+        PayloadTooLargeError,
         TemporalUnavailableError,
         TriggerValidationError,
         WebhookTriggerNotFoundError,
@@ -196,6 +197,20 @@ def trigger_validation_handler(request: Request, exc: "TriggerValidationError") 
         title="Trigger Payload Validation Failed",
         detail=exc.message,
         code="TRIGGER_VALIDATION_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def payload_too_large_handler(request: Request, exc: "PayloadTooLargeError") -> JSONResponse:
+    """Handle PayloadTooLargeError with RFC 9457 format."""
+    logger.warning("Webhook payload too large", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        problem_type=PROBLEM_TYPES["payload_too_large"],
+        title="Payload Too Large",
+        detail=exc.message,
+        code="PAYLOAD_TOO_LARGE",
         retryable=False,
         instance=str(request.url),
     )

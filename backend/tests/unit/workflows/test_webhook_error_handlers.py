@@ -27,7 +27,7 @@ class TestWebhookTriggerNotFoundHandler:
         request = Mock(spec=Request)
         request.url = "https://api.example.com/webhooks/my-hook"
 
-        exc = WebhookTriggerNotFoundError("my-hook")
+        exc = WebhookTriggerNotFoundError("my-hook", "webhook_trigger")
         response = webhook_trigger_not_found_handler(request, exc)
 
         assert isinstance(response, JSONResponse)
@@ -47,7 +47,7 @@ class TestWebhookTriggerNotFoundHandler:
         request = Mock(spec=Request)
         request.url = "https://api.example.com/webhooks/secret-path"
 
-        exc = WebhookTriggerNotFoundError("secret-path")
+        exc = WebhookTriggerNotFoundError("secret-path", "webhook_trigger")
         response = webhook_trigger_not_found_handler(request, exc)
 
         data = json.loads(bytes(response.body).decode())
@@ -58,7 +58,7 @@ class TestWebhookTriggerNotFoundHandler:
         request = Mock(spec=Request)
         request.url = "https://api.example.com/webhooks/test"
 
-        exc = WebhookTriggerNotFoundError("test")
+        exc = WebhookTriggerNotFoundError("test", "webhook_trigger")
         response = webhook_trigger_not_found_handler(request, exc)
 
         data = json.loads(bytes(response.body).decode())

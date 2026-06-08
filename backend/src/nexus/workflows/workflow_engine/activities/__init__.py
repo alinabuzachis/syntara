@@ -12,6 +12,7 @@ from .approval_activity import create_approval_request_activity
 from .condition import condition
 from .converge import converge
 from .credential_resolution_activity import resolve_workflow_credentials
+from .eda_trigger import eda_trigger
 from .execution_tracker import (
     cancel_execution_activities,
     create_activity_execution,
@@ -23,6 +24,7 @@ from .http_request_activity import execute_http_request_activity
 from .internal import register_activity_monitoring
 from .loop import loop
 from .manual_trigger import manual_trigger
+from .runtime_settings_activity import fetch_workflow_runtime_settings
 from .script_activity import execute_script_activity
 from .switch import switch
 from .wait_activity import complete_wait, wait
@@ -30,6 +32,7 @@ from .webhook_trigger import webhook_trigger
 
 _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     register_activity_monitoring,
+    fetch_workflow_runtime_settings,
     resolve_workflow_credentials,
     execute_aap_job_template_activity,
     execute_aap_workflow_job_template_activity,
@@ -37,6 +40,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     create_approval_request_activity,
     condition,
     converge,
+    eda_trigger,
     switch,
     execute_http_request_activity,
     loop,

@@ -841,7 +841,7 @@ class ActivitySyncService:
             metadata.pending_activity_updates[scheduled_id]["error_details"] = "Activity was canceled"
             metadata.pending_sync_event_ids.add(scheduled_id)
 
-    def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:
+    def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:  # noqa: C901
         """Extract execution status, completion time, and error from workflow completion event.
 
         Args:
@@ -867,9 +867,14 @@ class ActivitySyncService:
                 try:
                     payload = completed_attrs.result.payloads[0]
                     result_data = json.loads(payload.data)
-                    if isinstance(result_data, dict) and result_data.get("status") == "failed":
-                        status = ExecutionStatus.FAILED
-                        error_details = self._extract_failed_activity_errors(result_data)
+                    if isinstance(result_data, dict):
+                        inner_status = result_data.get("status")
+                        if inner_status == "failed":
+                            status = ExecutionStatus.FAILED
+                            error_details = self._extract_failed_activity_errors(result_data)
+                        elif inner_status == "completed_with_errors":
+                            status = ExecutionStatus.COMPLETED_WITH_ERRORS
+                            error_details = self._extract_failed_activity_errors(result_data)
                 except Exception:  # noqa: BLE001
                     logger.warning("Failed to parse workflow result for failure detection", exc_info=True)
         elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
@@ -960,7 +965,12 @@ class ActivitySyncService:
                     )
                     return
 
-                terminal_states = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
+                terminal_states = {
+                    ExecutionStatus.COMPLETED,
+                    ExecutionStatus.COMPLETED_WITH_ERRORS,
+                    ExecutionStatus.FAILED,
+                    ExecutionStatus.CANCELLED,
+                }
 
                 # Only update if not already in terminal state (idempotency)
                 if execution.status in terminal_states:
@@ -1619,6 +1629,8 @@ class ActivitySyncService:
                     if activity_type in [
                         # V2 triggers
                         NodeType.MANUAL_TRIGGER,
+                        NodeType.WEBHOOK_TRIGGER,
+                        NodeType.EDA_TRIGGER,
                         # V2 control nodes
                         NodeType.CONDITION,
                         NodeType.CONVERGE,

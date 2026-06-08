@@ -18,14 +18,22 @@ with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
-    from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS
+    from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS, ENGINE_TIMEOUT_SECONDS_KEY
     from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+    from nexus.workflows.workflow_engine.node_settings_resolver import (
+        resolve_continue_on_failure,
+        resolve_decision_window,
+        resolve_max_iterations,
+        resolve_retry_policy,
+        resolve_timeout,
+        resolve_wait_duration,
+    )
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
-    from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
     ConvergeStrategy,
     DoWhileLoopState,
     ForEachLoopState,
@@ -38,6 +46,7 @@ from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespac
 # Trigger types allowed for dynamic dispatch via Temporal activities.
 # Each entry must have a corresponding @activity.defn with a matching name.
 ALLOWED_TRIGGER_TYPES: set[str] = {
+    ActivityName.EDA_TRIGGER,
     ActivityName.MANUAL_TRIGGER,
     ActivityName.WEBHOOK_TRIGGER,
 }
@@ -103,6 +112,14 @@ class NexusWorkflow:
             pre_resolved_outputs=pre_resolved_outputs,
             stop_after_nodes=stop_after_nodes,
         )
+        self._runtime_settings = cast(
+            "dict[str, Any]",
+            await workflow.execute_local_activity(
+                ActivityName.FETCH_RUNTIME_SETTINGS,
+                activity_id="__internal__fetch_runtime_settings",
+                start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+            ),
+        )
 
         pending_tasks: dict[str, asyncio.Task[Any]] = {}
         await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
@@ -133,6 +150,8 @@ class NexusWorkflow:
         self._timeout_tasks: dict[str, asyncio.Task[Any]] = {}
         self._timed_out_converge_nodes: set[str] = set()
         self._detached_nodes: set[str] = set()
+        self._has_unhandled_failure: bool = False
+        self._runtime_settings = {}  # populated by run() after settings fetch
         self.pre_resolved_outputs: dict[str, dict[str, Any]] = pre_resolved_outputs or {}
         self.stop_after_nodes: set[str] = set(stop_after_nodes) if stop_after_nodes else set()
 
@@ -184,7 +203,7 @@ class NexusWorkflow:
             pending_tasks=pending_tasks,
         )
 
-    async def _process_pending_tasks(
+    async def _process_pending_tasks(  # noqa: C901
         self,
         pending_tasks: dict[str, asyncio.Task[Any]],
         graph: WorkflowGraph,
@@ -239,7 +258,11 @@ class NexusWorkflow:
                     )
                     self._cancel_skipped_pending_tasks(pending_tasks)
                 except Exception as node_error:  # noqa: BLE001
-                    self._handle_node_failure(completed_node_id, node_error, graph)
+                    node = graph.get_node(completed_node_id)
+                    cof = resolve_continue_on_failure(node, self._runtime_settings)
+                    self._handle_node_failure(completed_node_id, node_error, graph, continue_on_failure=cof)
+                    if cof:
+                        await self._handle_continued_failure(completed_node_id, node, graph, pending_tasks)
 
     @staticmethod
     def _find_node_for_task(
@@ -257,8 +280,10 @@ class NexusWorkflow:
         node_id: str,
         error: Exception,
         graph: WorkflowGraph,
+        *,
+        continue_on_failure: bool = False,
     ) -> None:
-        """Record a node failure and mark downstream nodes as skipped."""
+        """Record a node failure; skip downstream unless continue_on_failure is set."""
         # Unwrap Temporal's ActivityError to surface the inner ApplicationError message
         if isinstance(error, ActivityError) and isinstance(error.cause, ApplicationError):
             error_message = error.cause.message or str(error.cause)
@@ -267,7 +292,31 @@ class NexusWorkflow:
         self.failed_nodes[node_id] = error_message
         self.resolver.set_namespace(node_id, {"status": "failed", "error": error_message})
         workflow.logger.error(f"Node {node_id} failed: {error_message}")
-        self._mark_downstream_as_skipped(node_id, graph)
+        if not continue_on_failure:
+            self._has_unhandled_failure = True
+            self._mark_downstream_as_skipped(node_id, graph)
+
+    async def _handle_continued_failure(
+        self,
+        node_id: str,
+        node: ActivityNode,
+        graph: WorkflowGraph,
+        pending_tasks: dict[str, asyncio.Task[Any]],
+    ) -> None:
+        """Schedule successors after a node failure when continue_on_failure is true.
+
+        For approval nodes, validates and applies fallback_decision routing before
+        scheduling successors. Raises ApplicationError for invalid fallback_decision.
+        """
+        if node.type == NodeType.APPROVAL:
+            resolved = self.node_inputs.get(node_id, node.config)
+            fallback = resolved.get("fallback_decision", "reject")
+            if fallback not in {"approve", "reject"}:
+                msg = f"Invalid fallback_decision '{fallback}' on node {node_id}: must be 'approve' or 'reject'"
+                raise ApplicationError(msg, type="ConfigError", non_retryable=True)
+            self.node_control_data[node_id] = {"next_port": fallback}
+        await self._schedule_successors(node_id, graph, pending_tasks)
+        self._cancel_skipped_pending_tasks(pending_tasks)
 
     def _cancel_skipped_pending_tasks(self, pending_tasks: dict[str, asyncio.Task[Any]]) -> None:
         """Cancel pending tasks for nodes that were marked as skipped."""
@@ -297,7 +346,17 @@ class NexusWorkflow:
     def _build_result(self, execution_id: str, include_node_results: bool) -> dict[str, Any]:  # noqa: FBT001
         """Build the final workflow execution result."""
         node_outputs = self.resolver.get_all_namespaces()
-        workflow_status = "failed" if self.failed_nodes else "completed"
+        # _has_unhandled_failure is set by any node that fails WITHOUT continue_on_failure.
+        # In concurrent branches, a single unhandled failure dominates: if branch A fails
+        # without CoF and branch B fails with CoF, the workflow is still "failed" (not
+        # "completed_with_errors"). "completed_with_errors" requires that every failure
+        # in the execution was individually recovered via continue_on_failure.
+        if self._has_unhandled_failure:
+            workflow_status = "failed"
+        elif self.failed_nodes:
+            workflow_status = "completed_with_errors"
+        else:
+            workflow_status = "completed"
         return {
             "status": workflow_status,
             "execution_id": execution_id,
@@ -454,11 +513,10 @@ class NexusWorkflow:
         """Handle a converge node that is waiting for predecessors, optionally starting a timeout."""
         workflow.logger.info(f"Converge node {node_id} waiting for predecessors to complete")
 
-        converge_timeout = successor.settings.timeout
-        if converge_timeout is None or node_id in self._timeout_tasks:
+        if node_id in self._timeout_tasks:
             return
 
-        timeout_seconds = float(converge_timeout)
+        timeout_seconds = float(resolve_wait_duration(successor, self._runtime_settings))
         workflow.logger.info(f"Starting converge timeout for {node_id}: {timeout_seconds}s")
 
         self._timeout_tasks[node_id] = asyncio.create_task(
@@ -502,6 +560,7 @@ class NexusWorkflow:
                     error_msg = f"Converge node {node_id} timed out after {timeout_seconds}s waiting for predecessors"
                     workflow.logger.error(error_msg)
                     self.failed_nodes[node_id] = error_msg
+                    self._has_unhandled_failure = True
                     self.resolver.set_namespace(node_id, {"status": "failed", "error": error_msg})
                     self._mark_downstream_as_skipped(node_id, graph)
                     for pred_id in graph.get_predecessors(node_id):
@@ -853,6 +912,18 @@ class NexusWorkflow:
     # activity's internal timeout always fires before Temporal cancels the attempt.
     _TEMPORAL_MARGIN: ClassVar[int] = 10
 
+    # Executor node types whose activities enforce their own internal deadline,
+    # so Temporal's start_to_close_timeout must include the margin.
+    _EXECUTOR_TIMEOUT_MARGIN_TYPES: ClassVar[frozenset[str]] = frozenset(
+        {
+            NodeType.SCRIPT,
+            NodeType.HTTP_REQUEST,
+            NodeType.AAP_JOB_TEMPLATE,
+            NodeType.AAP_WORKFLOW_JOB_TEMPLATE,
+            NodeType.AGENTIC,
+        }
+    )
+
     # Mapping from node type to activity name.
     # Approval is NOT in this map — it needs custom args and routing logic.
     _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, str]] = {
@@ -867,7 +938,7 @@ class NexusWorkflow:
 
     async def _execute_executor_node(
         self,
-        node_id: str,
+        node: ActivityNode,
         node_type: str,
         resolved_config: dict[str, Any],
         outputs: dict[str, str] | None,
@@ -882,13 +953,15 @@ class NexusWorkflow:
         if extra_args:
             args.extend(extra_args)
 
+        retry_policy = resolve_retry_policy(node, self._runtime_settings)
         return cast(
             "dict[str, Any]",
             await workflow.execute_activity(
                 activity_name,
                 args=args,
-                activity_id=node_id,
+                activity_id=node.id,
                 start_to_close_timeout=timedelta(seconds=timeout_seconds),
+                retry_policy=retry_policy,
             ),
         )
 
@@ -904,21 +977,12 @@ class NexusWorkflow:
         2. Sleep via workflow.sleep() (durable timer, no worker resources)
         3. Complete the async activity via local activity
         """
-        try:
-            total_seconds = compute_wait_seconds(resolved_config)
-        except (TypeError, ValueError) as e:
+        total_seconds = resolved_config.get("duration", 0)
+        if isinstance(total_seconds, bool) or not isinstance(total_seconds, int) or total_seconds <= 0:
             return {
                 "output": {
                     "status": "failed",
-                    "error": {"type": "ConfigError", "message": f"Invalid wait config: {e}"},
-                }
-            }
-
-        if total_seconds <= 0:
-            return {
-                "output": {
-                    "status": "failed",
-                    "error": {"type": "ConfigError", "message": "Total wait duration must be greater than zero"},
+                    "error": {"type": "ConfigError", "message": "Wait duration must be a positive integer (seconds)"},
                 }
             }
 
@@ -1036,7 +1100,7 @@ class NexusWorkflow:
                 "config": first_rejected.config,
             }
 
-        approval_timeout = node.settings.timeout or self._get_default_timeout(NodeType.APPROVAL)
+        approval_timeout = resolve_decision_window(node, self._runtime_settings)
         timeout_at = (workflow.now() + timedelta(seconds=approval_timeout)).isoformat()
 
         return [
@@ -1150,12 +1214,17 @@ class NexusWorkflow:
             "current_index": state.current_index,
         }
 
+        max_iter = resolve_max_iterations(node, self._runtime_settings)
+
         if isinstance(state, ForEachLoopState):
             loop_config["items"] = state.items
+            condition_result = True
         elif isinstance(state, DoWhileLoopState):
             loop_config["condition_result"] = condition_result
-            if state.max_iterations is not None:
-                loop_config["max_iterations"] = state.max_iterations
+
+        if condition_result is True and state.current_index >= max_iter:
+            msg = f"Loop {node_id} exceeded max_iterations ({max_iter})"
+            raise ApplicationError(msg, type="MaxIterationsError", non_retryable=True)
 
         loop_result = cast(
             "dict[str, Any]",
@@ -1196,22 +1265,6 @@ class NexusWorkflow:
         condition = loop_config.get("condition")
         max_iterations = loop_config.get("max_iterations")
         return DoWhileLoopState(condition=condition, max_iterations=max_iterations)
-
-    @staticmethod
-    def _get_default_timeout(node_type: str) -> int:
-        """Return the catalog-mirrored default timeout (seconds) for a node type.
-
-        TODO: Replace hardcoded mirrors with a live catalog lookup (AAP-75595).
-        """
-        _defaults: dict[str, int] = {
-            NodeType.SCRIPT: 300,  # workflow_engine.script_timeout_seconds
-            NodeType.HTTP_REQUEST: 30,  # workflow_engine.http_request_timeout_seconds
-            NodeType.AAP_JOB_TEMPLATE: 3600,  # workflow_engine.aap_timeout_seconds
-            NodeType.AAP_WORKFLOW_JOB_TEMPLATE: 3600,
-            NodeType.AGENTIC: 300,  # workflow_engine.agentic_timeout_seconds
-            NodeType.APPROVAL: 86400,  # workflow_engine.approval_timeout_seconds
-        }
-        return _defaults.get(node_type, DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
 
     async def _execute_node(
         self,
@@ -1264,9 +1317,7 @@ class NexusWorkflow:
             # For all other nodes: standard resolution (Tier 1)
             resolved_config = self._resolve_node_config(node)
 
-        timeout_seconds = (
-            node.settings.timeout if node.settings.timeout is not None else self._get_default_timeout(node_type)
-        )
+        timeout_seconds = resolve_timeout(node, self._runtime_settings)
         self.node_inputs[node.id] = copy.deepcopy(resolved_config)
 
         result = await self._dispatch_node(node, resolved_config, graph, timeout_seconds)
@@ -1364,8 +1415,9 @@ class NexusWorkflow:
         # human decision window, not just the API call to create the request.
         # The margin lets the approval service send its signal right at the deadline
         # without racing our Temporal timeout.
-        approval_window = node.settings.timeout or self._get_default_timeout(NodeType.APPROVAL)
+        approval_window = resolve_decision_window(node, self._runtime_settings)
         approval_start_to_close = approval_window + self._TEMPORAL_MARGIN
+        retry_policy = resolve_retry_policy(node, self._runtime_settings)
         result = cast(
             "dict[str, Any]",
             await workflow.execute_activity(
@@ -1373,6 +1425,7 @@ class NexusWorkflow:
                 args=approval_args,
                 activity_id=node_id,
                 start_to_close_timeout=timedelta(seconds=approval_start_to_close),
+                retry_policy=retry_policy,
             ),
         )
         raw = result.get("output", {})
@@ -1419,21 +1472,18 @@ class NexusWorkflow:
             extra_args = None
             if node_type == NodeType.AGENTIC:
                 extra_args = [self.execution_id, self.request_id]
-            # Add a margin above the internal timeout for activity types that enforce
-            # their own deadline (script, http_request, AAP polling), so Temporal's
-            # start_to_close_timeout never fires before the activity exits cleanly.
-            _with_margin = {
-                NodeType.SCRIPT,
-                NodeType.HTTP_REQUEST,
-                NodeType.AAP_JOB_TEMPLATE,
-                NodeType.AAP_WORKFLOW_JOB_TEMPLATE,
-                NodeType.AGENTIC,
-            }
-            temporal_timeout = timeout_seconds + self._TEMPORAL_MARGIN if node_type in _with_margin else timeout_seconds
+            # Inject the operational timeout BEFORE adding the Temporal margin so
+            # activities use the operator-configured deadline, not the Temporal ceiling.
+            config_with_timeout = {**resolved_config, ENGINE_TIMEOUT_SECONDS_KEY: timeout_seconds}
+            temporal_timeout = (
+                timeout_seconds + self._TEMPORAL_MARGIN
+                if node_type in self._EXECUTOR_TIMEOUT_MARGIN_TYPES
+                else timeout_seconds
+            )
             return await self._execute_executor_node(
-                node_id,
+                node,
                 node_type,
-                resolved_config,
+                config_with_timeout,
                 node.outputs,
                 timeout_seconds=temporal_timeout,
                 extra_args=extra_args,

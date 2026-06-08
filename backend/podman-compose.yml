@@ -135,8 +135,10 @@ services:
       - APP_OPA_URL=${APP_OPA_URL:-http://opa:8181}
       # Secret encryption key (mounted from .secrets/)
       - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
+      - APP_AUDIT_EXPORT_DIR=/data/audit-exports
     volumes:
       - ./src:/opt/app-root/src/src:z
+      - nexus_audit_exports:/data/audit-exports:z
       # JWT signing keys
       - ./.secrets/jwt-primary.pem:/run/secrets/jwt-primary.pem:ro,z
       - ./.secrets/jwt-backup.pem:/run/secrets/jwt-backup.pem:ro,z
@@ -175,6 +177,12 @@ services:
       - APP_SERVER_HOST=${APP_SERVER_HOST:-0.0.0.0}
       - APP_SERVER_PORT=${APP_SERVER_PORT:-8000}
       - APP_SERVER_PUBLIC_URL=${APP_SERVER_PUBLIC_URL:-}
+      # Audit Database Configuration (for audit export activity)
+      - APP_AUDIT_DB_HOST=database
+      - APP_AUDIT_DB_PORT=5432
+      - APP_AUDIT_DB_USER=${APP_AUDIT_DB_USER:-nexus_audit}
+      - APP_AUDIT_DB_PASSWORD=${APP_AUDIT_DB_PASSWORD:-audit_pass}
+      - APP_AUDIT_DB_NAME=${APP_AUDIT_DB_NAME:-nexus_audit}
       # Temporal Configuration
       - APP_TEMPORAL_ADDRESS=temporal:7233
       - APP_TEMPORAL_NAMESPACE=default
@@ -209,8 +217,10 @@ services:
       - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]
       # Secret encryption key (mounted from .secrets/)
       - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
+      - APP_AUDIT_EXPORT_DIR=/data/audit-exports
     volumes:
       - ./src:/opt/app-root/src/src:z
+      - nexus_audit_exports:/data/audit-exports:z
       # JWT signing keys
       - ./.secrets/jwt-primary.pem:/run/secrets/jwt-primary.pem:ro,z
       - ./.secrets/jwt-backup.pem:/run/secrets/jwt-backup.pem:ro,z
@@ -280,4 +290,6 @@ services:
 
 volumes:
   nexus_postgres_data:
+    driver: local
+  nexus_audit_exports:
     driver: local

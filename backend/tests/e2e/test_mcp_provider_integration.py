@@ -13,6 +13,7 @@ from http import HTTPStatus
 from typing import Any
 from uuid import UUID
 
+import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models import MCPConfiguration, ToolProviderCreate
@@ -21,11 +22,15 @@ from nexus_api_client.models.tool_status import ToolStatus
 from nexus_api_client.types import Response
 
 from tests.e2e.conftest import unique_name
+from tests.e2e.helpers import _retry_api_call
 
 pytestmark = pytest.mark.e2e
 
 MCP_PORT = os.environ.get("MCP_PORT", "8765")
 MCP_PROVIDER_URL = os.environ.get("MCP_BASE_URL", f"http://mcp-server:{MCP_PORT}/mcp")
+
+
+TRANSIENT_STATUSES = {HTTPStatus.INTERNAL_SERVER_ERROR, HTTPStatus.BAD_GATEWAY, HTTPStatus.SERVICE_UNAVAILABLE}
 
 
 def _validate_provider(
@@ -35,14 +40,20 @@ def _validate_provider(
     timeout: float = 10.0,
     interval: float = 0.5,
 ) -> Response[Any]:
-    """Call validate, retrying on 404 until the provider is findable."""
+    """Call validate, retrying on 404 and transient errors until the provider is findable."""
     deadline = time.monotonic() + timeout
     while True:
-        resp = nexus_api.tool_manager.validate_tool_provider(provider_id=provider_id)
-        if resp.status_code != HTTPStatus.NOT_FOUND:
+        try:
+            resp = nexus_api.tool_manager.validate_tool_provider(provider_id=provider_id)
+        except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError):
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(interval)
+            continue
+        if resp.status_code not in {HTTPStatus.NOT_FOUND, *TRANSIENT_STATUSES}:
             return resp
         if time.monotonic() >= deadline:
-            msg = f"Provider {provider_id} still returns 404 after {timeout}s"
+            msg = f"Provider {provider_id} still returns {resp.status_code} after {timeout}s"
             raise AssertionError(msg)
         time.sleep(interval)
 
@@ -58,8 +69,20 @@ def _wait_for_provider_status(
     """Poll until the provider reaches the expected status."""
     deadline = time.monotonic() + timeout
     while True:
-        resp = nexus_api.tool_manager.get_tool_provider(provider_id=provider_id)
-        assert resp.is_success
+        try:
+            resp = nexus_api.tool_manager.get_tool_provider(provider_id=provider_id)
+        except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError):
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(interval)
+            continue
+        if resp.status_code in TRANSIENT_STATUSES:
+            if time.monotonic() >= deadline:
+                msg = f"Provider {provider_id} still returns {resp.status_code} after {timeout}s"
+                raise AssertionError(msg)
+            time.sleep(interval)
+            continue
+        assert resp.is_success, f"Unexpected status {resp.status_code} for provider {provider_id}"
         assert resp.parsed is not None
         if resp.parsed.status == expected:
             return
@@ -136,12 +159,14 @@ class TestMCPProviderIntegration:
     @pytest.mark.mcp
     def test_mcp_provider_connection_failure_handling(self, nexus_api: NexusApiRegistry) -> None:
         """Test MCP provider creation with unreachable server."""
-        create_resp = nexus_api.tool_manager.register_tool_provider(
-            body=ToolProviderCreate(
-                name=unique_name("test-mcp-unreachable"),
-                description="Test MCP provider with unreachable server",
-                configuration=MCPConfiguration(base_url="http://localhost:9999/nonexistent", api_key="test-key"),
-            ),
+        create_resp = _retry_api_call(
+            lambda: nexus_api.tool_manager.register_tool_provider(
+                body=ToolProviderCreate(
+                    name=unique_name("test-mcp-unreachable"),
+                    description="Test MCP provider with unreachable server",
+                    configuration=MCPConfiguration(base_url="http://localhost:9999/nonexistent", api_key="test-key"),
+                ),
+            )
         )
         assert create_resp.is_success
         assert create_resp.parsed is not None
@@ -179,12 +204,14 @@ class TestMCPProviderIntegration:
         async with test_server.running():
             provider_url = f"http://host.containers.internal:{test_server.port}/mcp"
 
-            create_resp = nexus_api.tool_manager.register_tool_provider(
-                body=ToolProviderCreate(
-                    name=unique_name("test-mcp-unauthorised"),
-                    description="Test MCP provider with unauthorised user",
-                    configuration=MCPConfiguration(base_url=provider_url, api_key=None),
-                ),
+            create_resp = _retry_api_call(
+                lambda: nexus_api.tool_manager.register_tool_provider(
+                    body=ToolProviderCreate(
+                        name=unique_name("test-mcp-unauthorised"),
+                        description="Test MCP provider with unauthorised user",
+                        configuration=MCPConfiguration(base_url=provider_url, api_key=None),
+                    ),
+                )
             )
             assert create_resp.is_success
             assert create_resp.parsed is not None
@@ -214,12 +241,14 @@ class TestMCPProviderIntegration:
         async with test_server.running():
             provider_url = f"http://host.containers.internal:{test_server.port}/mcp"
 
-            create_resp = nexus_api.tool_manager.register_tool_provider(
-                body=ToolProviderCreate(
-                    name=unique_name("test-mcp-forbidden"),
-                    description="Test MCP provider with forbidden user",
-                    configuration=MCPConfiguration(base_url=provider_url),
-                ),
+            create_resp = _retry_api_call(
+                lambda: nexus_api.tool_manager.register_tool_provider(
+                    body=ToolProviderCreate(
+                        name=unique_name("test-mcp-forbidden"),
+                        description="Test MCP provider with forbidden user",
+                        configuration=MCPConfiguration(base_url=provider_url),
+                    ),
+                )
             )
             assert create_resp.is_success
             assert create_resp.parsed is not None

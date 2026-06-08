@@ -5,9 +5,9 @@ Verifies that InvocationExecutor emits the expected audit events during executio
 """
 
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -72,7 +72,8 @@ class TestInvocationExecutorLifecycleEvents:
         user: User | None,
         mock_orchestration_service: AsyncMock,
         session_get_behavior: AsyncMock | None = None,
-        session_refresh_behavior: AsyncMock | None = None,
+        *,
+        update_status_if_not_cancelled_return: bool = True,
     ) -> list[AuditEvent]:
         """Generic helper to execute invocation with customizable mocking.
 
@@ -81,7 +82,9 @@ class TestInvocationExecutorLifecycleEvents:
             user: The user to return from session.get(User, ...). If None, simulates unknown user.
             mock_orchestration_service: Pre-configured mock orchestration service
             session_get_behavior: Optional custom session.get() behavior. If None, uses default.
-            session_refresh_behavior: Optional custom session.refresh() behavior. If None, uses default.
+            update_status_if_not_cancelled_return: Return value for
+                _update_invocation_status_if_not_cancelled. Default is True.
+                Use False to simulate cancellation during execution.
 
         Returns:
             List of emitted AuditEvents
@@ -103,22 +106,43 @@ class TestInvocationExecutorLifecycleEvents:
 
             mock_session.get.side_effect = session_get_side_effect
 
+        # Mock session.exec() for status update operations
+        # exec() is async and returns a result object with first() method (non-async) and rowcount
+        mock_exec_result = Mock()
+        mock_exec_result.first.return_value = invocation
+        mock_exec_result.rowcount = 1  # Simulate successful update
+
+        async def mock_exec_func(*args: object, **kwargs: object) -> Mock:
+            return mock_exec_result
+
+        mock_session.exec = mock_exec_func
+
         mock_session.commit = AsyncMock()
-        mock_session.refresh = session_refresh_behavior or AsyncMock()
         mock_session.rollback = AsyncMock()
 
-        # Mock session context manager
+        # Mock session context manager factory
         @asynccontextmanager
         async def mock_session_context() -> AsyncGenerator[AsyncSession, None]:
             yield mock_session
 
         executor = InvocationExecutor()
 
-        with (
-            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
-            patch.object(executor, "get_async_session_context", return_value=mock_session_context()),
+        patches = [
+            patch("nexus.audit.emitter._do_emit_audit_event"),
+            patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
             patch.object(executor, "_init_orchestration", return_value=mock_orchestration_service),
-        ):
+            patch.object(
+                executor,
+                "_complete_invocation_if_not_cancelled",
+                return_value=update_status_if_not_cancelled_return,
+            ),
+        ]
+
+        with ExitStack() as stack:
+            mock_do_emit = stack.enter_context(patches[0])
+            for p in patches[1:]:
+                stack.enter_context(p)
+
             await executor.execute_invocation(invocation_id=invocation.id)
 
         # Return all emitted events for test-specific assertions
@@ -163,7 +187,7 @@ class TestInvocationExecutorLifecycleEvents:
             expected_actor_type = ActorType.SYSTEM
 
         # Verify events: RUNNING, COMPLETED
-        assert len(events) >= 2
+        assert len(events) == 2
 
         # Filter to InvocationLifecycleEvents
         lifecycle_events = [e for e in events if e.event_action in ["invocation_running", "invocation_completed"]]
@@ -219,16 +243,14 @@ class TestInvocationExecutorLifecycleEvents:
 
         # Mock orchestration service
         mock_orchestration_service = AsyncMock()
-        mock_orchestration_service.execute = AsyncMock(return_value={"content": "result"})
+        mock_orchestration_service.execute = AsyncMock(return_value={"content": "result", "llm_token_usage_log": []})
 
-        # Custom refresh behavior: set status to CANCELLED on refresh
-        mock_refresh = AsyncMock(side_effect=lambda inv: setattr(inv, "status", InvocationStatus.CANCELLED))
-
+        # Simulate invocation being cancelled during execution by making the conditional update fail
         events = await self._execute_invocation(
             invocation=invocation,
             user=user,
             mock_orchestration_service=mock_orchestration_service,
-            session_refresh_behavior=mock_refresh,
+            update_status_if_not_cancelled_return=False,
         )
 
         lifecycle_events = [e for e in events if e.event_action in ["invocation_running", "invocation_cancelled"]]
@@ -354,35 +376,147 @@ class TestInvocationExecutorLifecycleEvents:
 
     @pytest.mark.asyncio
     async def test_handle_execution_error_emits_failed_event(self) -> None:
-        """_handle_execution_error emits FAILED InvocationLifecycleEvent."""
-        invocation_id = uuid4()
+        """Exception during orchestration triggers _fail_invocation_status_if_not_cancelled and emits FAILED event."""
         execution_id = uuid4()
+        request_id = uuid4()
+        user = _make_user()
 
-        invocation = _make_invocation(id=invocation_id)
+        invocation = _make_invocation(
+            created_by=user.id,
+            context_data={"execution_id": str(execution_id), "metadata": {"request_id": str(request_id)}},
+        )
 
+        # Mock orchestration service to raise exception
+        mock_orchestration_service = AsyncMock()
+        mock_orchestration_service.execute = AsyncMock(side_effect=ValueError("Test error"))
+
+        # Mock session to handle status updates
         mock_session = AsyncMock()
-        mock_session.get.return_value = invocation
+
+        def session_get_side_effect(model_class: type, _: object) -> object:
+            if model_class == Invocation:
+                return invocation
+            if model_class == User:
+                return user
+            return None
+
+        mock_session.get.side_effect = session_get_side_effect
+
+        # Mock session.exec() for status update operations
+        mock_exec_result = Mock()
+        mock_exec_result.rowcount = 1  # Simulate successful update (not cancelled)
+        mock_session.exec = AsyncMock(return_value=mock_exec_result)
         mock_session.commit = AsyncMock()
-        mock_session.rollback = AsyncMock()
+
+        # Mock session context manager factory
+        @asynccontextmanager
+        async def mock_session_context() -> AsyncGenerator[AsyncSession, None]:
+            yield mock_session
 
         executor = InvocationExecutor()
 
-        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit:
-            await executor._handle_execution_error(
-                error=ValueError("Test error"),
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=None,
-                session=mock_session,
-            )
+        # Mock WorkflowSignalClient to prevent actual signal sending
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+            patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
+            patch.object(executor, "_init_orchestration", return_value=mock_orchestration_service),
+            patch(
+                "nexus.agent_orchestrator.executor.invocation_executor.WorkflowSignalClient.send_failure_signal",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await executor.execute_invocation(invocation_id=invocation.id)
 
         events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
-        lifecycle_events = [e for e in events if e.event_action == "invocation_failed"]
+        lifecycle_events = [e for e in events if e.event_action in ["invocation_running", "invocation_failed"]]
 
+        # Should have RUNNING and FAILED events
+        assert len(lifecycle_events) == 2
+
+        # Event 1: RUNNING
+        assert lifecycle_events[0].event_action == "invocation_running"
+        assert lifecycle_events[0].actor_id == user.id
+        assert lifecycle_events[0].actor_username == user.username
+        assert lifecycle_events[0].actor_type == ActorType.USER
+
+        # Event 2: FAILED (triggered by _fail_invocation_status_if_not_cancelled)
+        assert lifecycle_events[1].event_action == "invocation_failed"
+        assert lifecycle_events[1].structured_data.invocation_status == InvocationStatus.FAILED  # type: ignore[attr-defined]
+        assert lifecycle_events[1].structured_data.error_type == "ValueError"
+        assert lifecycle_events[1].execution_id == execution_id
+        assert lifecycle_events[1].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
+        assert lifecycle_events[1].actor_id == user.id
+        assert lifecycle_events[1].actor_username == user.username
+        assert lifecycle_events[1].actor_type == ActorType.USER
+
+    @pytest.mark.asyncio
+    async def test_handle_execution_error_no_failed_event_when_cancelled(self) -> None:
+        """Exception during cancelled invocation does not emit FAILED event (race condition prevented)."""
+        execution_id = uuid4()
+        user = _make_user()
+
+        invocation = _make_invocation(
+            created_by=user.id,
+            context_data={"execution_id": str(execution_id)},
+        )
+
+        # Mock orchestration service to raise exception
+        mock_orchestration_service = AsyncMock()
+        mock_orchestration_service.execute = AsyncMock(side_effect=ValueError("Test error"))
+
+        # Mock session to handle status updates
+        mock_session = AsyncMock()
+
+        def session_get_side_effect(model_class: type, _: object) -> object:
+            if model_class == Invocation:
+                return invocation
+            if model_class == User:
+                return user
+            return None
+
+        mock_session.get.side_effect = session_get_side_effect
+
+        # Mock session.exec() to simulate invocation becoming cancelled after RUNNING
+        # First call (RUNNING status update): success (rowcount = 1)
+        # Second call (FAILED status update): failure (rowcount = 0, already CANCELLED)
+        mock_exec_result_success = Mock()
+        mock_exec_result_success.rowcount = 1  # First call succeeds
+
+        mock_exec_result_cancelled = Mock()
+        mock_exec_result_cancelled.rowcount = 0  # Second call fails (already cancelled)
+
+        mock_session.exec = AsyncMock(side_effect=[mock_exec_result_success, mock_exec_result_cancelled])
+        mock_session.commit = AsyncMock()
+
+        # Mock session context manager factory
+        @asynccontextmanager
+        async def mock_session_context() -> AsyncGenerator[AsyncSession, None]:
+            yield mock_session
+
+        executor = InvocationExecutor()
+
+        # Mock WorkflowSignalClient to prevent actual signal sending
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+            patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
+            patch.object(executor, "_init_orchestration", return_value=mock_orchestration_service),
+            patch(
+                "nexus.agent_orchestrator.executor.invocation_executor.WorkflowSignalClient.send_failure_signal",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await executor.execute_invocation(invocation_id=invocation.id)
+
+        events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+        lifecycle_events = [e for e in events if e.event_action in ["invocation_running", "invocation_failed"]]
+
+        # Should only have RUNNING event
+        # (no FAILED event because _fail_invocation_status_if_not_cancelled returned False)
         assert len(lifecycle_events) == 1
-        assert lifecycle_events[0].structured_data.invocation_status == InvocationStatus.FAILED  # type: ignore[attr-defined]
-        assert lifecycle_events[0].structured_data.error_type == "ValueError"
-        assert lifecycle_events[0].execution_id == execution_id
+        assert lifecycle_events[0].event_action == "invocation_running"
+        assert lifecycle_events[0].actor_id == user.id
+        assert lifecycle_events[0].actor_username == user.username
+        assert lifecycle_events[0].actor_type == ActorType.USER
 
     @pytest.mark.asyncio
     async def test_invocation_lifecycle_events_includes_context_identifiers(self) -> None:

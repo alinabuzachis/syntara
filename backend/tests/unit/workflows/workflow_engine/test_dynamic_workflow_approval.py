@@ -15,7 +15,8 @@ from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, NodeSettings
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -47,6 +48,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    init_workflow_runtime(wf)
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
     return wf
@@ -238,19 +240,19 @@ class TestPrepareApprovalArgs:
         ctx = args[4]
         assert ctx["inputs"] == {}
 
-    def test_timeout_at_computed_from_settings(self) -> None:
-        """timeout_at is ISO string when settings.timeout is set."""
+    def test_timeout_at_computed_from_decision_window(self) -> None:
+        """timeout_at is ISO string set to now + decision_window when configured."""
         wf = _make_workflow()
         graph = _build_approval_graph()
-        node = ActivityNode("approval", "approval", {"name": "Review"}, settings=NodeSettings(timeout=3600))
+        node = ActivityNode("approval", "approval", {"name": "Review", "decision_window": 3600})
 
         args = wf._prepare_approval_args(node, graph, node.config)
 
         timeout_at = args[5]
         assert timeout_at is not None
         parsed = datetime.fromisoformat(timeout_at)
-        assert parsed.year == 2026
-        assert parsed.hour == 13  # 12:00 + 1 hour
+        mock_now = datetime(2026, 4, 10, 12, 0, 0, tzinfo=UTC)
+        assert parsed == mock_now + timedelta(seconds=3600)
 
     def test_timeout_at_defaults_to_catalog_value_when_not_configured(self) -> None:
         """timeout_at falls back to the catalog default (86400s) when approver_timeout is absent."""

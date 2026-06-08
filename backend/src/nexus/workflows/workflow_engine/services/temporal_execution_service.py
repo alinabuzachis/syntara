@@ -148,12 +148,6 @@ class TemporalExecutionService:
                 msg = "V2 workflow must have at least one trigger"
                 raise SafeValueError(msg)  # noqa: TRY301
 
-            # Build validated trigger ID list once
-            trigger_ids = [t["id"] for t in triggers if "id" in t]
-            if not trigger_ids:
-                msg = "Trigger node must have an 'id' field"
-                raise SafeValueError(msg)  # noqa: TRY301
-
             # Use provided trigger_node_id or default to first manual trigger
             if trigger_node_id is None:
                 manual_triggers = [t for t in triggers if t.get("type") == NodeType.MANUAL_TRIGGER]
@@ -161,11 +155,15 @@ class TemporalExecutionService:
                     msg = "No manual trigger found in workflow definition"
                     raise SafeValueError(msg)  # noqa: TRY301
                 trigger_node_id = manual_triggers[0].get("id")
-
-            # Validate trigger_node_id exists in the workflow
-            if trigger_node_id not in trigger_ids:
-                msg = f"Specified trigger_node_id '{trigger_node_id}' not found in workflow triggers: {trigger_ids}"
-                raise SafeValueError(msg)  # noqa: TRY301
+                if not trigger_node_id:
+                    msg = "Manual trigger node must have an id field"
+                    raise SafeValueError(msg)  # noqa: TRY301
+            else:
+                # Validate that the specified trigger exists
+                trigger_ids = [t["id"] for t in triggers if "id" in t]
+                if trigger_node_id not in trigger_ids:
+                    msg = f"Specified trigger_node_id '{trigger_node_id}' not found in workflow triggers: {trigger_ids}"
+                    raise SafeValueError(msg)  # noqa: TRY301
 
             # Generate internal workflow ID if not provided
             if workflow_id is None:

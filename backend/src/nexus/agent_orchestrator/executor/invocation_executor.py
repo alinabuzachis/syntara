@@ -4,7 +4,7 @@ import contextlib
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import structlog
@@ -13,11 +13,13 @@ from nexus.audit.utils import escalate_actor_type
 
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.context_manager.compressor import CompressorService
+
+from sqlmodel import update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.audit.invocation_lifecycle import InvocationLifecycleEvent
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
+from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationStatus, LLMCredentialConfig
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
@@ -119,22 +121,20 @@ class InvocationExecutor:
         self.session_factory = session_factory
         self.file_manager = file_manager_factory()
         self.token_usage_repository = token_usage_repository or TokenUsageRepository()
-        # Create async context manager from the session factory
+        # Store the context manager factory (callable that returns a context manager)
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
 
-    @staticmethod
-    async def _get_actor_context_for_invocation(session: AsyncSession, invocation: Invocation) -> AuditActorContext:
+    async def _get_actor_context_for_invocation(self, invocation: Invocation) -> AuditActorContext:
         """Get AuditActorContext for an invocation's creator.
 
         Args:
-            session: Database session
             invocation: Invocation being executed
 
         Returns:
             ActorContext with atomic actor_id and actor_username
 
         """
-        user = await session.get(User, invocation.created_by)
+        user = await self._load_user_for_actor_context(invocation.created_by)
         if user:
             return AuditActorContext(
                 actor_id=user.id,
@@ -155,11 +155,158 @@ class InvocationExecutor:
             actor_type=ActorType.SYSTEM,
         )
 
+    async def _load_invocation(self, invocation_id: UUID) -> Invocation | None:
+        """Load invocation from database.
+
+        Args:
+            invocation_id: UUID of invocation to load
+
+        Returns:
+            Invocation if found, None otherwise
+
+        """
+        async with self.get_async_session_context() as session:
+            return await session.get(Invocation, invocation_id)
+
+    async def _load_user_for_actor_context(self, user_id: UUID) -> User | None:
+        """Load user from database for actor context.
+
+        Args:
+            user_id: UUID of user to load
+
+        Returns:
+            User if found, None otherwise
+
+        """
+        async with self.get_async_session_context() as session:
+            return await session.get(User, user_id)
+
+    async def _update_invocation_status(
+        self,
+        invocation_id: UUID,
+        status: InvocationStatus,
+        **fields: Any,  # noqa: ANN401
+    ) -> bool:
+        """Update invocation status and optional fields atomically.
+
+        Args:
+            invocation_id: UUID of invocation to update
+            status: New status to set
+            **fields: Additional fields to update (started_at, completed_at, result,
+                     model_name, error_message, etc.)
+
+        Returns:
+            True if update succeeded, otherwise False
+
+        """
+        async with self.get_async_session_context() as session:
+            # mypy doesn't recognize SQLAlchemy column comparison operators
+            stmt = (
+                update(Invocation)
+                .where(Invocation.id == invocation_id)  # type: ignore[arg-type]
+                .where(Invocation.status != InvocationStatus.CANCELLED)  # type: ignore[arg-type]
+                .values(status=status, **fields)
+            )
+            result = await session.exec(stmt)
+            await session.commit()
+            # Cast to access rowcount (exists on CursorResult at runtime)
+            return bool(cast("Any", result).rowcount > 0)
+
+    async def _complete_invocation_if_not_cancelled(
+        self,
+        invocation_id: UUID,
+        **fields: Any,  # noqa: ANN401
+    ) -> bool:
+        """Update invocation status to COMPLETE only if not currently cancelled.
+
+        Uses a conditional UPDATE to atomically check status and update,
+        preventing race condition where cancellation overwrites completion.
+
+        This solves the race condition where:
+        1. Executor reads status (RUNNING)
+        2. Cancel request commits status=CANCELLED
+        3. Executor overwrites with COMPLETED
+
+        The WHERE clause ensures the UPDATE only succeeds if status != CANCELLED.
+
+        Args:
+            invocation_id: UUID of invocation to update
+            **fields: Additional fields to update (result, model_name, completed_at, etc.)
+
+        Returns:
+            True if update succeeded, False if invocation was already cancelled
+
+        """
+        async with self.get_async_session_context() as session:
+            # mypy doesn't recognize SQLAlchemy column comparison operators
+            stmt = (
+                update(Invocation)
+                .where(Invocation.id == invocation_id)  # type: ignore[arg-type]
+                .where(Invocation.status != InvocationStatus.CANCELLED)  # type: ignore[arg-type]
+                .values(status=InvocationStatus.COMPLETED, **fields)
+            )
+            result = await session.exec(stmt)
+            await session.commit()
+            # Cast to access rowcount (exists on CursorResult at runtime)
+            return bool(cast("Any", result).rowcount > 0)
+
+    async def _fail_invocation_if_not_cancelled(
+        self,
+        invocation_id: UUID,
+        **fields: Any,  # noqa: ANN401
+    ) -> bool:
+        """Update invocation status to FAILED only if not currently cancelled.
+
+        Uses a conditional UPDATE to atomically check status and update,
+        preventing race condition where cancellation overwrites completion.
+
+        This solves the race condition where:
+        1. Executor reads status (RUNNING)
+        2. Cancel request commits status=CANCELLED
+        3. Executor overwrites with COMPLETED
+
+        The WHERE clause ensures the UPDATE only succeeds if status != CANCELLED.
+
+        If started_at is not already set, it will be set to the current timestamp.
+        This handles the case where an invocation fails before execution begins
+        (e.g., LLM configuration errors).
+
+        Args:
+            invocation_id: UUID of invocation to update
+            **fields: Additional fields to update (result, model_name, completed_at, etc.)
+                     If 'started_at' is not in fields, it will be conditionally set
+                     using COALESCE (only if currently NULL).
+
+        Returns:
+            True if update succeeded, False if invocation was already cancelled
+
+        """
+        async with self.get_async_session_context() as session:
+            # Load the invocation to check if started_at is None
+            invocation = await session.get(Invocation, invocation_id)
+            if invocation and invocation.started_at is None and "started_at" not in fields:
+                fields["started_at"] = datetime.now(UTC)
+
+            # mypy doesn't recognize SQLAlchemy column comparison operators
+            stmt = (
+                update(Invocation)
+                .where(Invocation.id == invocation_id)  # type: ignore[arg-type]
+                .where(Invocation.status != InvocationStatus.CANCELLED)  # type: ignore[arg-type]
+                .values(status=InvocationStatus.FAILED, **fields)
+            )
+            result = await session.exec(stmt)
+            await session.commit()
+            # Cast to access rowcount (exists on CursorResult at runtime)
+            return bool(cast("Any", result).rowcount > 0)
+
     async def execute_invocation(self, invocation_id: UUID) -> None:
         """Execute invocation by ID, loading fresh data from database.
 
         This method loads the invocation from the database to get the latest
         FileMetadata status updates from background tasks.
+
+        Uses short-lived sessions for each database operation to avoid
+        holding connections during long-running LLM calls.
 
         Args:
             invocation_id: UUID of the invocation to execute
@@ -169,54 +316,52 @@ class InvocationExecutor:
             False if execution was gated and should be retried later
 
         """
-        async with self.get_async_session_context() as session:
-            # Load fresh invocation from database to get latest FileMetadata status
-            invocation: Invocation | None = await session.get(Invocation, invocation_id)
-            if not invocation:
-                logger.error("Invocation not found for execution", invocation_id=invocation_id)
-                return
+        # Load fresh invocation from database to get latest FileMetadata status
+        invocation: Invocation | None = await self._load_invocation(invocation_id)
+        if not invocation:
+            logger.error("Invocation not found for execution", invocation_id=invocation_id)
+            return
 
-            # Check if invocation was cancelled before execution
-            if invocation.status == InvocationStatus.CANCELLED:
-                logger.info("Invocation was cancelled before execution", invocation_id=invocation_id)
-                return
+        # Check if invocation was cancelled before execution
+        if invocation.status == InvocationStatus.CANCELLED:
+            logger.info("Invocation was cancelled before execution", invocation_id=invocation_id)
+            return
 
-            logger.info(
-                "Executing invocation",
-                invocation_id=invocation.id,
-            )
+        logger.info(
+            "Executing invocation",
+            invocation_id=invocation.id,
+        )
 
-            # Parse context_data into typed model once, reused throughout execution
-            ctx = InvocationContextData.model_validate(invocation.context_data or {})
+        # Parse context_data into typed model once, reused throughout execution
+        ctx = InvocationContextData.model_validate(invocation.context_data or {})
 
-            # Log conversion failures but allow execution to proceed (FR-020)
-            await self._log_conversion_failures(invocation, ctx, session)
+        # Log conversion failures but allow execution to proceed (FR-020)
+        await self._log_conversion_failures(invocation, ctx)
 
-            # Initialize OrchestrationService - fail immediately if LLM not configured
-            orchestration_service = await self._init_orchestration(invocation, ctx, session)
-            if orchestration_service is None:
-                return
+        # Initialize OrchestrationService - fail immediately if LLM not configured
+        orchestration_service = await self._init_orchestration(invocation, ctx)
+        if orchestration_service is None:
+            return
 
-            # Execute orchestration with error handling
-            workflow_id: UUID | None = extract_workflow_id(ctx)
-            activity_id: str | None = ctx.activity_id
-            execution_id: UUID | None = extract_execution_id(ctx)
-            request_id: UUID | None = extract_request_id(ctx)
-            actor_context = await self._get_actor_context_for_invocation(session, invocation)
-            with audit_actor_context(
-                actor=actor_context,
-                workflow_id=workflow_id,
-                activity_id=activity_id,
-                execution_id=execution_id,
-                request_id=request_id,
-            ):
-                await self._execute_orchestration(invocation, orchestration_service, session, ctx, actor_context)
+        # Execute orchestration with error handling
+        workflow_id: UUID | None = extract_workflow_id(ctx)
+        activity_id: str | None = ctx.activity_id
+        execution_id: UUID | None = extract_execution_id(ctx)
+        request_id: UUID | None = extract_request_id(ctx)
+        actor_context = await self._get_actor_context_for_invocation(invocation)
+        with audit_actor_context(
+            actor=actor_context,
+            workflow_id=workflow_id,
+            activity_id=activity_id,
+            execution_id=execution_id,
+            request_id=request_id,
+        ):
+            await self._execute_orchestration(invocation, orchestration_service, ctx, actor_context)
 
     async def _execute_orchestration(
         self,
         invocation: Invocation,
         orchestration_service: OrchestrationService,
-        session: AsyncSession,
         ctx: InvocationContextData,
         actor_context: AuditActorContext,
     ) -> None:
@@ -225,7 +370,6 @@ class InvocationExecutor:
         Args:
             invocation: The invocation to execute
             orchestration_service: Initialized orchestration service
-            session: Database session
             ctx: Parsed context_data model
             actor_context: Actor context for audit event
 
@@ -237,20 +381,21 @@ class InvocationExecutor:
 
         try:
             # Mark invocation as started
-            invocation.started_at = datetime.now(UTC)
-            invocation.status = InvocationStatus.RUNNING
-            await session.commit()
-
-            # Dispatch RUNNING event
-            AuditEventDispatcher.dispatch(
-                InvocationLifecycleEvent(
-                    session_id=invocation.session_id,
-                    invocation_id=invocation.id,
-                    execution_id=execution_id,
-                    request_id=request_id,
-                    status=InvocationStatus.RUNNING,
+            if await self._update_invocation_status(
+                invocation.id,
+                InvocationStatus.RUNNING,
+                started_at=datetime.now(UTC),
+            ):
+                # Dispatch RUNNING event
+                AuditEventDispatcher.dispatch(
+                    InvocationLifecycleEvent(
+                        session_id=invocation.session_id,
+                        invocation_id=invocation.id,
+                        execution_id=execution_id,
+                        request_id=request_id,
+                        status=InvocationStatus.RUNNING,
+                    )
                 )
-            )
 
             # Execute through OrchestrationService (which handles context enhancement internally)
             logger.info(
@@ -273,16 +418,25 @@ class InvocationExecutor:
                 response_schema=response_schema,
             )
 
-            # Check if invocation was cancelled during execution (fix race condition)
-            # Refresh the current invocation to get latest status from database
-            await session.refresh(invocation)
+            # Extract model name from result metadata
+            model_name = _extract_model_name(result_dict)
 
-            if invocation.status == InvocationStatus.CANCELLED:
+            # Atomically update to COMPLETED only if not already CANCELLED
+            # This prevents race condition where cancellation is overwritten
+            updated = await self._complete_invocation_if_not_cancelled(
+                invocation.id,
+                result=result_dict,
+                model_name=model_name,
+                completed_at=datetime.now(UTC),
+            )
+
+            if not updated:
+                # Invocation was cancelled during execution - conditional UPDATE failed
                 logger.warning(
-                    "Invocation was cancelled during execution, skipping completion",
+                    "Invocation was cancelled during execution, completion update skipped",
                     invocation_id=invocation.id,
                 )
-                # Dispatch CANCELLED event
+                # Dispatch CANCELLED event (cancellation service may have already done this)
                 AuditEventDispatcher.dispatch(
                     InvocationLifecycleEvent(
                         session_id=invocation.session_id,
@@ -293,20 +447,11 @@ class InvocationExecutor:
                     )
                 )
                 self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="cancelled")
-                return  # Don't override the CANCELLED status
+                return
 
             # Update token usage record with actual provider-reported counts
-            await self._update_token_usage(result_dict, invocation, session)
-
-            # Extract model name from result metadata
-            model_name = _extract_model_name(result_dict)
-
-            # Store result and mark as completed (after cancellation check)
-            invocation.result = result_dict
-            invocation.model_name = model_name
-            invocation.status = InvocationStatus.COMPLETED
-            invocation.completed_at = datetime.now(UTC)
-            await session.commit()
+            # Only record for successfully completed invocations (not cancelled)
+            await self._update_token_usage(result_dict, invocation)
 
             # Dispatch COMPLETED event
             AuditEventDispatcher.dispatch(
@@ -335,7 +480,19 @@ class InvocationExecutor:
                 invocation_id=invocation.id,
                 error_type=type(e).__name__,
             )
-            await self._handle_execution_error(e, invocation.id, execution_id, request_id, session)
+
+            if await self._fail_invocation_if_not_cancelled(invocation.id, completed_at=datetime.now(UTC)):
+                # Dispatch FAILED event
+                AuditEventDispatcher.dispatch(
+                    InvocationLifecycleEvent(
+                        session_id=invocation.session_id,
+                        invocation_id=invocation.id,
+                        execution_id=execution_id,
+                        request_id=request_id,
+                        status=InvocationStatus.FAILED,
+                        error_type=type(e).__name__,
+                    )
+                )
 
             # Send failure signal to workflow
             cb_url = ctx.callback_url.get_secret_value() if ctx.callback_url else None
@@ -345,7 +502,6 @@ class InvocationExecutor:
         self,
         result_dict: dict[str, Any],
         invocation: Invocation,
-        session: AsyncSession,
     ) -> None:
         """Update TokenUsageRecord with actual provider-reported token counts.
 
@@ -356,7 +512,6 @@ class InvocationExecutor:
         Args:
             result_dict: Result dictionary (modified in-place to remove llm_token_usage_log)
             invocation: The Invocation object (provides .id as UUID)
-            session: Async database session
 
         """
         usage_log = result_dict.pop("llm_token_usage_log", [])
@@ -366,7 +521,7 @@ class InvocationExecutor:
         total_prompt, total_completion, total_tokens, usage_details = _aggregate_token_usage(usage_log)
 
         try:
-            async with session.begin_nested():
+            async with self.get_async_session_context() as session, session.begin_nested():
                 await self.token_usage_repository.update_with_actual_token_usage(
                     invocation_id=invocation.id,
                     prompt_tokens=total_prompt,
@@ -396,7 +551,7 @@ class InvocationExecutor:
             )
 
     async def _init_orchestration(
-        self, invocation: Invocation, ctx: InvocationContextData, session: AsyncSession
+        self, invocation: Invocation, ctx: InvocationContextData
     ) -> "OrchestrationService | None":
         """Initialise LLM and OrchestrationService, handling configuration failures.
 
@@ -416,7 +571,7 @@ class InvocationExecutor:
             raw_credential_id = meta.credential_id.get_secret_value() if meta and meta.credential_id else None
             credential_api_key: str | None = None
             if raw_credential_id:
-                credential_api_key = await self._resolve_llm_api_key(raw_credential_id, session)
+                credential_api_key = await self._resolve_llm_api_key(raw_credential_id)
 
             llm = get_openrouter_llm(
                 api_key=credential_api_key,
@@ -448,11 +603,13 @@ class InvocationExecutor:
         except LLMConfigurationError as e:
             logger.exception("LLM configuration failed for invocation", invocation_id=invocation.id)
             now = datetime.now(UTC)
-            invocation.started_at = now
-            invocation.status = InvocationStatus.FAILED
-            invocation.error_message = str(e)
-            invocation.completed_at = now
-            await session.commit()
+            await self._update_invocation_status(
+                invocation.id,
+                InvocationStatus.FAILED,
+                started_at=now,
+                error_message=type(e).__name__,
+                completed_at=now,
+            )
             logger.exception("Invocation failed", invocation_id=invocation.id, error_message=str(e))
 
             cb_url = ctx.callback_url.get_secret_value() if ctx.callback_url else None
@@ -487,59 +644,7 @@ class InvocationExecutor:
             status_labels["error_type"] = type(error).__name__
         recorder.record(MetricType.AGENT_STATUS, value=1, labels=status_labels)
 
-    async def _handle_execution_error(
-        self,
-        error: Exception,
-        invocation_id: UUID,
-        execution_id: UUID | None,
-        request_id: UUID | None,
-        session: AsyncSession,
-    ) -> None:
-        """Handle execution errors by marking invocation as failed.
-
-        Args:
-            error: The exception that occurred
-            invocation_id: ID of the invocation that failed
-            execution_id: ID of the execution
-            request_id: Optional X-Request-Id from the originating HTTP request.
-            session: Database session
-
-        """
-        logger.exception(
-            "Invocation execution failed",
-            invocation_id=invocation_id,
-        )
-        # Rollback session to clear any pending changes from the error
-        await session.rollback()
-
-        # Re-fetch invocation to get fresh instance attached to session
-        fresh_invocation = await session.get(Invocation, invocation_id)
-        if fresh_invocation:
-            # Mark invocation as failed
-            now = datetime.now(UTC)
-            # Set started_at if not already set (failure before execution started)
-            if fresh_invocation.started_at is None:
-                fresh_invocation.started_at = now
-            fresh_invocation.status = InvocationStatus.FAILED
-            fresh_invocation.error_message = str(error)
-            fresh_invocation.completed_at = now
-            await session.commit()
-
-            # Dispatch FAILED event
-            AuditEventDispatcher.dispatch(
-                InvocationLifecycleEvent(
-                    session_id=fresh_invocation.session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
-                    status=InvocationStatus.FAILED,
-                    error_type=type(error).__name__,
-                )
-            )
-
-    async def _log_conversion_failures(
-        self, invocation: Invocation, ctx: InvocationContextData, session: AsyncSession
-    ) -> None:
+    async def _log_conversion_failures(self, invocation: Invocation, ctx: InvocationContextData) -> None:
         """Log conversion failures but allow execution to proceed (FR-020).
 
         Queries FileMetadata records by file_ids via FileManager and logs any
@@ -549,7 +654,6 @@ class InvocationExecutor:
         Args:
             invocation: The invocation to check for conversion failures
             ctx: Parsed context_data model
-            session: Database session for querying FileMetadata
 
         """
         if not ctx.file_ids:
@@ -558,20 +662,21 @@ class InvocationExecutor:
         # Convert strings to UUIDs at the boundary
         file_ids = [UUID(fid) for fid in ctx.file_ids]
 
-        # Query FileMetadata records via FileManager
-        file_metadata_records = await self.file_manager.get_files_metadata(file_ids, session)
-        failed_files = [f for f in file_metadata_records if f.status == FileStatus.CONVERSION_FAILED]
+        # Create session for DB operations
+        async with self.get_async_session_context() as session:
+            # Query FileMetadata records via FileManager
+            file_metadata_records = await self.file_manager.get_files_metadata(file_ids, session)
+            failed_files = [f for f in file_metadata_records if f.status == FileStatus.CONVERSION_FAILED]
 
-        if failed_files:
-            logger.warning(
-                "Proceeding with invocation despite failed conversions",
-                failed_conversion_count=len(failed_files),
-                invocation_id=invocation.id,
-                failed_files=[f.filename for f in failed_files],
-            )
+            if failed_files:
+                logger.warning(
+                    "Proceeding with invocation despite failed conversions",
+                    failed_conversion_count=len(failed_files),
+                    invocation_id=invocation.id,
+                    failed_files=[f.filename for f in failed_files],
+                )
 
-    @staticmethod
-    async def _resolve_llm_api_key(credential_id: str, session: AsyncSession) -> str:
+    async def _resolve_llm_api_key(self, credential_id: str) -> str:
         """Decrypt LLM API key from credential at execution time.
 
         Resolves the credential from the database, decrypts its secret inputs,
@@ -588,40 +693,41 @@ class InvocationExecutor:
             msg = f"Invalid credential ID '{credential_id}'."
             raise LLMConfigurationError(msg) from e
 
-        credential = await session.get(Credential, cred_uuid)
-        if not credential:
-            msg = f"LLM credential '{credential_id}' not found."
-            raise LLMConfigurationError(msg)
-        if not credential.enabled:
-            msg = f"LLM credential '{credential_id}' is disabled."
-            raise LLMConfigurationError(msg)
-        if not credential.secret_id:
-            msg = f"LLM credential '{credential_id}' has no stored secret data."
-            raise LLMConfigurationError(msg)
+        async with self.get_async_session_context() as session:
+            credential = await session.get(Credential, cred_uuid)
+            if not credential:
+                msg = f"LLM credential '{credential_id}' not found."
+                raise LLMConfigurationError(msg)
+            if not credential.enabled:
+                msg = f"LLM credential '{credential_id}' is disabled."
+                raise LLMConfigurationError(msg)
+            if not credential.secret_id:
+                msg = f"LLM credential '{credential_id}' has no stored secret data."
+                raise LLMConfigurationError(msg)
 
-        try:
-            secret_service = create_secret_service(session)
-            decrypted = await secret_service.retrieve_secret(credential.secret_id)
-        except Exception as e:
-            msg = f"Failed to decrypt credential '{credential_id}'. It may need to be re-saved after key rotation."
-            raise LLMConfigurationError(msg) from e
+            try:
+                secret_service = create_secret_service(session)
+                decrypted = await secret_service.retrieve_secret(credential.secret_id)
+            except Exception as e:
+                msg = f"Failed to decrypt credential '{credential_id}'. It may need to be re-saved after key rotation."
+                raise LLMConfigurationError(msg) from e
 
-        cred_type = await session.get(CredentialType, credential.credential_type_id)
-        if not cred_type:
-            msg = f"Credential type for credential '{credential_id}' not found."
-            raise LLMConfigurationError(msg)
+            cred_type = await session.get(CredentialType, credential.credential_type_id)
+            if not cred_type:
+                msg = f"Credential type for credential '{credential_id}' not found."
+                raise LLMConfigurationError(msg)
 
-        try:
-            resolved = InjectorResolver.resolve(cred_type.injectors, decrypted)
-        except Exception as e:
-            msg = f"Failed to resolve credential '{credential_id}' injector templates."
-            raise LLMConfigurationError(msg) from e
+            try:
+                resolved = InjectorResolver.resolve(cred_type.injectors, decrypted)
+            except Exception as e:
+                msg = f"Failed to resolve credential '{credential_id}' injector templates."
+                raise LLMConfigurationError(msg) from e
 
-        api_key: str | None = resolved.extra_vars.get("llm_api_key")
-        if not api_key:
-            msg = f"LLM credential '{credential_id}' resolved but contains no API key."
-            raise LLMConfigurationError(msg)
-        return api_key
+            api_key: str | None = resolved.extra_vars.get("llm_api_key")
+            if not api_key:
+                msg = f"LLM credential '{credential_id}' resolved but contains no API key."
+                raise LLMConfigurationError(msg)
+            return api_key
 
 
 # ===================================================

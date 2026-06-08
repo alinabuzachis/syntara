@@ -22,3 +22,18 @@ class IdentityProviderNameConflictError(IdentityProviderError):
         """Initialize exception with provider name."""
         self.name = name
         super().__init__(f"Identity provider with name '{name}' already exists")
+
+
+@fastapi_exception(handler="nexus.identity_providers.error_handlers.aap_connection_error_handler")
+class AAPConnectionError(IdentityProviderError):
+    """Cannot connect to AAP during OIDC setup."""
+
+
+@fastapi_exception(handler="nexus.identity_providers.error_handlers.aap_authentication_error_handler")
+class AAPAuthenticationError(IdentityProviderError):
+    """AAP returned 401/403 during OIDC setup."""
+
+
+@fastapi_exception(handler="nexus.identity_providers.error_handlers.aap_setup_error_handler")
+class AAPSetupError(IdentityProviderError):
+    """AAP returned an error while creating the OAuth2 application."""

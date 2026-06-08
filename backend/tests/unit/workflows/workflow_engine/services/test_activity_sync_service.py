@@ -855,6 +855,51 @@ class TestWorkflowEventExtraction:
         with pytest.raises(SafeValueError, match="is not a workflow completion event"):
             self.service._extract_execution_status_from_event(event)
 
+    def test_extract_execution_status_completed_with_errors_from_result_payload(self) -> None:
+        """COMPLETED event with inner status 'completed_with_errors' maps to COMPLETED_WITH_ERRORS."""
+        import json
+
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED)
+        payload = Mock()
+        payload.data = json.dumps(
+            {
+                "status": "completed_with_errors",
+                "execution_id": "exec-1",
+                "failed_activities": {"node_2": "Script exited with code 1"},
+            }
+        ).encode()
+        event.workflow_execution_completed_event_attributes.result.payloads = [payload]
+
+        status, _completed_at, error_details = self.service._extract_execution_status_from_event(event)
+
+        assert status == ExecutionStatus.COMPLETED_WITH_ERRORS
+        assert error_details is not None
+        assert "node_2" in error_details
+
+    def test_extract_execution_status_completed_with_inner_failed_status(self) -> None:
+        """COMPLETED event with inner status 'failed' maps to FAILED (existing behaviour preserved)."""
+        import json
+
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED)
+        payload = Mock()
+        payload.data = json.dumps(
+            {
+                "status": "failed",
+                "execution_id": "exec-1",
+                "failed_activities": {"node_2": "Unhandled error"},
+            }
+        ).encode()
+        event.workflow_execution_completed_event_attributes.result.payloads = [payload]
+
+        status, _completed_at, error_details = self.service._extract_execution_status_from_event(event)
+
+        assert status == ExecutionStatus.FAILED
+        assert error_details is not None
+
 
 class TestExecutionStatusUpdates:
     """Test execution status updates during monitoring."""

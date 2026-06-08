@@ -1906,6 +1906,7 @@ dependencies = [
     { name = "temporalio" },
     { name = "tiktoken" },
     { name = "typer" },
+    { name = "uuid-utils" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "wrapt" },
 ]
@@ -2032,6 +2033,7 @@ requires-dist = [
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.31.0" },
+    { name = "uuid-utils", specifier = ">=0.9.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.16" },
     { name = "websockets", marker = "extra == 'dev'", specifier = ">=12.0" },

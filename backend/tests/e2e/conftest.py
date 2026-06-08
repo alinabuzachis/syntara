@@ -1,13 +1,14 @@
 """Shared fixtures for Nexus E2E tests.
 
 The core live-deployment fixtures (nexus_base_url, auth_headers,
-nexus_client, nexus_api) are defined in the root tests/conftest.py and
-inherited automatically.  This file adds e2e-specific fixtures.
+nexus_client, nexus_api) are defined in this file and inherited by E2E tests.
+This file adds e2e-specific fixtures and session helpers.
 """
 
 import logging
 import os
 import secrets
+import string
 import time
 from collections.abc import Callable, Generator
 from http import HTTPStatus
@@ -20,7 +21,10 @@ import pytest
 from click.testing import Result
 from nexus_api_client import AuthenticatedClient, Client
 from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
+from nexus_api_client.api.authentication.get_current_user import sync_detailed as get_user_sync
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
+from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models import (
     WorkflowCreate,
     WorkflowRead,
@@ -28,6 +32,8 @@ from nexus_api_client.models import (
 from nexus_api_client.models.access_token_response import AccessTokenResponse
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
+from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
+from nexus_api_client.models.error_data import ErrorData
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.provider_status import ProviderStatus
@@ -36,10 +42,43 @@ from nexus_api_client.models.tool_provider_create import ToolProviderCreate
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.models.user_read import UserRead
-from nexus_api_client.types import Response
+from nexus_api_client.models.user_update import UserUpdate
+from nexus_api_client.types import UNSET, Response, Unset
 from typer.testing import CliRunner
 
+from nexus.core.models.user_schemas import UserCreate as UserCreateSchema
+
 logger = logging.getLogger(__name__)
+
+REFRESH_COOKIE_NAME = "ao_refresh_token"
+CSRF_COOKIE_NAME = "ao_csrf_token"
+CSRF_HEADER_NAME = "X-CSRF-Token"
+
+pytest_plugins = ["tests.e2e.fixtures.factories"]
+
+
+_API_HEALTH_TIMEOUT = 15.0
+
+
+@pytest.fixture(autouse=True)
+def _wait_for_api(nexus_api: NexusApiRegistry) -> None:
+    """Wait for the API to be healthy before each test.
+
+    The database can become temporarily unreachable in the KinD CI cluster,
+    causing cascading 500s. This fixture ensures the API is responsive before
+    each test starts, absorbing any recovery window from prior tests.
+    """
+    deadline = time.monotonic() + _API_HEALTH_TIMEOUT
+    while True:
+        try:
+            resp = nexus_api.settings.list(limit=1)
+            if resp.status_code == HTTPStatus.OK:
+                return
+        except Exception:
+            pass
+        if time.monotonic() >= deadline:
+            pytest.fail(f"API not healthy after {_API_HEALTH_TIMEOUT}s")
+        time.sleep(0.5)
 
 
 def unique_name(base: str) -> str:
@@ -47,16 +86,30 @@ def unique_name(base: str) -> str:
     return f"{base}-{uuid4().hex[:8]}"
 
 
+_MIN_TEST_PASSWORD_LENGTH = 14
+_SAFE_TEST_PASSWORD_PUNCTUATION = "!@#$%^&*(),.?-_"  # noqa: S105
+
+
 def generate_test_password() -> str:
-    """Return a random password that always satisfies the server's complexity rules.
+    """Return a random password that satisfies server complexity rules for E2E tests."""
+    password_chars = [
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.digits),
+        secrets.choice(_SAFE_TEST_PASSWORD_PUNCTUATION),
+    ]
+    all_chars = string.ascii_letters + string.digits + _SAFE_TEST_PASSWORD_PUNCTUATION
+    extra_count = _MIN_TEST_PASSWORD_LENGTH - len(password_chars)
+    password_chars.extend(secrets.choice(all_chars) for _ in range(extra_count))
+    password_list = list(password_chars)
+    secrets.SystemRandom().shuffle(password_list)
+    password = "".join(password_list)
+    UserCreateSchema(username="password-check", first_name="Password", password=password)
+    return password
 
-    Uses a fixed prefix that covers uppercase, lowercase, digit, and special char,
-    then appends random hex so each call produces a unique value.
-    """
-    return f"Test@Pass1{secrets.token_hex(8)}"
 
-
-def _admin_password() -> str:
+def admin_password() -> str:
+    """Return the built-in admin password from the configured secrets file."""
     password_path = Path(os.environ.get("APP_ADMIN_PASSWORD_PATH", ".secrets/admin-password"))
     if not password_path.exists():
         msg = f"Admin password file not found: {password_path}. Run 'make secrets-generate'."
@@ -68,6 +121,113 @@ def _admin_password() -> str:
         raise RuntimeError(msg)
 
     return password
+
+
+def _require_session_cookies(cookies: dict[str, str]) -> None:
+    missing = [name for name in (REFRESH_COOKIE_NAME, CSRF_COOKIE_NAME) if name not in cookies]
+    if missing:
+        msg = f"Session cookies missing required keys: {', '.join(missing)}"
+        raise RuntimeError(msg)
+
+
+def local_login_session(
+    base_url: str,
+    username: str,
+    password: str,
+) -> tuple[str, dict[str, str]]:
+    """Log in via POST /auth/login and return (access_token, refresh cookies)."""
+    response = httpx.post(
+        f"{base_url}/api/v1/auth/login",
+        json={"username": username, "password": password},
+        verify=False,  # noqa: S501
+        timeout=30,
+    )
+    if response.status_code != HTTPStatus.OK:
+        msg = f"Login failed for {username}: {response.status_code} {response.text!r}"
+        raise RuntimeError(msg)
+    access_token: str = response.json()["access_token"]
+    cookies = dict(response.cookies)
+    _require_session_cookies(cookies)
+    return access_token, cookies
+
+
+def _csrf_headers_from_client(client: Client) -> dict[str, str]:
+    csrf_resp = csrf_token_sync(client=client)
+    if csrf_resp.status_code != HTTPStatus.OK or not isinstance(csrf_resp.parsed, CsrfTokenResponse):
+        msg = f"CSRF token fetch failed: {csrf_resp.status_code} {csrf_resp.content!r}"
+        raise RuntimeError(msg)
+    return {CSRF_HEADER_NAME: csrf_resp.parsed.csrf_token}
+
+
+def csrf_headers_for_cookies(base_url: str, cookies: dict[str, str]) -> dict[str, str]:
+    """Return X-CSRF-Token header derived from the session CSRF cookie."""
+    _require_session_cookies(cookies)
+    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=False)
+    return _csrf_headers_from_client(client)
+
+
+def client_with_csrf_cookies(base_url: str, cookies: dict[str, str]) -> Client:
+    """Return an API client with session cookies and X-CSRF-Token for cookie-auth endpoints."""
+    _require_session_cookies(cookies)
+    client = Client(base_url=f"{base_url}/api/v1", cookies=cookies, verify_ssl=False)
+    return client.with_headers(_csrf_headers_from_client(client))
+
+
+def refresh_with_cookies(
+    base_url: str,
+    cookies: dict[str, str],
+) -> Response[AccessTokenResponse | Any | ErrorData]:
+    """Call POST /auth/refresh using refresh and CSRF cookies plus X-CSRF-Token."""
+    return refresh_sync(client=client_with_csrf_cookies(base_url, cookies))
+
+
+def logout_with_session(
+    base_url: str,
+    access_token: str,
+    cookies: dict[str, str],
+) -> httpx.Response:
+    """Call POST /auth/logout with Bearer token, session cookies, and X-CSRF-Token."""
+    headers = {"Authorization": f"Bearer {access_token}", **csrf_headers_for_cookies(base_url, cookies)}
+    return httpx.post(
+        f"{base_url}/api/v1/auth/logout",
+        headers=headers,
+        cookies=cookies,
+        verify=False,  # noqa: S501
+        timeout=30,
+    )
+
+
+def get_current_user_with_token(
+    base_url: str,
+    access_token: str,
+) -> Response[Any | ErrorData | UserInfo]:
+    """Call GET /auth/me with a Bearer access token."""
+    client = AuthenticatedClient(base_url=f"{base_url}/api/v1", token=access_token, verify_ssl=False)
+    return get_user_sync(client=client)
+
+
+def assert_refresh_succeeds(base_url: str, cookies: dict[str, str]) -> AccessTokenResponse:
+    """Refresh must return 200 with an access token."""
+    resp = refresh_with_cookies(base_url, cookies)
+    assert resp.status_code == HTTPStatus.OK, f"Expected refresh 200, got {resp.status_code}: {resp.content!r}"
+    assert isinstance(resp.parsed, AccessTokenResponse)
+    return resp.parsed
+
+
+def assert_refresh_unauthorized(base_url: str, cookies: dict[str, str]) -> None:
+    """Refresh must return 401 when the session is revoked."""
+    resp = refresh_with_cookies(base_url, cookies)
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED, (
+        f"Expected refresh 401, got {resp.status_code}: {resp.content!r}"
+    )
+
+
+def logout_response_body(response: httpx.Response) -> dict[str, Any]:
+    """Parse logout JSON body."""
+    assert response.status_code == HTTPStatus.OK, f"Expected logout 200, got {response.status_code}: {response.text!r}"
+    body: dict[str, Any] = response.json()
+    assert body.get("detail") == "Successfully logged out"
+    return body
 
 
 _TOKEN_REFRESH_INTERVAL = 300  # Re-authenticate after 5 minutes (token lifetime is 15 min)
@@ -126,9 +286,25 @@ def _login(base_url: str, username: str, password: str) -> str:
     return resp.parsed.access_token
 
 
+def _make_client(base_url: str, token: str) -> AuthenticatedClient:
+    """Create an authenticated API client for the given base URL and token."""
+    return AuthenticatedClient(
+        base_url=f"{base_url}/api/v1",
+        token=token,
+        verify_ssl=False,
+        timeout=httpx.Timeout(60.0),
+    )
+
+
+def api_for(base_url: str, username: str, password: str) -> NexusApiRegistry:
+    """Return a ``NexusApiRegistry`` authenticated as the given user."""
+    token = _login(base_url, username, password)
+    return NexusApiRegistry(_make_client(base_url, token))
+
+
 def _generate_e2e_token(base_url: str) -> str:
     """Obtain a JWT access token for e2e tests via POST /auth/login."""
-    password = _admin_password()
+    password = admin_password()
     return _login(base_url, "admin", password)
 
 
@@ -140,7 +316,7 @@ def local_user_login(
 ) -> Response[Any]:
     """Login local user in Unauthenticated client. By default, login built-in admin."""
     resolved_username = username or "admin"
-    resolved_password = password if password else _admin_password()
+    resolved_password = password if password else admin_password()
     unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=False)
     return login_sync(client=unauthenticated, body=LoginRequest(username=resolved_username, password=resolved_password))
 
@@ -180,8 +356,25 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 
 @pytest.fixture(scope="session")
 def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
-    """Return a NexusApiRegistry bound to the authenticated test client."""
+    """Return a NexusApiRegistry bound to the session-scoped authenticated client.
+
+    Uses ``nexus_client``, which refreshes the admin JWT via ``_AutoRefreshAuth`` on
+    expiry or 401. Authentication E2E tests that revoke user/IdP sessions should use
+    this fixture for admin API calls; those revocations do not invalidate unrelated
+    admin tokens.
+    """
     return NexusApiRegistry(nexus_client)
+
+
+@pytest.fixture(scope="session")
+def unauthenticated_client(nexus_base_url: str) -> Client:
+    """Return an unauthenticated Nexus API client for login flows and public endpoints.
+
+    SSL verification is disabled for E2E tests (localhost/test environment with
+    self-signed certs). This is acceptable for test code but should NEVER be
+    used in production.
+    """
+    return Client(base_url=f"{nexus_base_url}/api/v1", verify_ssl=False)
 
 
 @pytest.fixture(autouse=True)
@@ -361,17 +554,35 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
 
 
 @pytest.fixture(scope="session")
-def unauthenticated_client(nexus_base_url: str) -> Client:
-    """Return an unauthenticated Nexus API client for testing public endpoints."""
-    return Client(base_url=f"{nexus_base_url}/api/v1", verify_ssl=False)
-
-
-@pytest.fixture(scope="session")
 def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
     """Get admin user ID for Nexus API."""
     curr_user_resp = nexus_api.authentication.get_current_user()
     assert curr_user_resp.parsed is not None
     return cast("UserInfo", curr_user_resp.parsed)
+
+
+@pytest.fixture(scope="session")
+def nexus_system_user(nexus_api: NexusApiRegistry) -> UserRead:
+    """Get system user for Nexus API."""
+    if "APP_SYSTEM_USER_ID" not in os.environ:
+        pytest.skip("No APP_SYSTEM_USER_ID")
+    system_user_id = os.environ["APP_SYSTEM_USER_ID"]
+    system_user: UserRead = nexus_api.users.get(user_id=system_user_id).assert_and_get()
+    return system_user
+
+
+@pytest.fixture
+def disable_system_user(nexus_api: NexusApiRegistry, nexus_system_user: UserRead) -> Generator[None, None, None]:
+    """Returns the disabled system user and re-enable at end."""
+    if nexus_system_user.is_builtin:
+        """Skip this test is system user is built in."""
+        pytest.skip("System user is a built in user. Data migration is required.")
+
+    nexus_api.users.update(user_id=nexus_system_user.id, body=UserUpdate(is_enabled=False)).assert_successful()
+
+    yield
+
+    nexus_api.users.update(user_id=nexus_system_user.id, body=UserUpdate(is_enabled=True))
 
 
 @pytest.fixture
@@ -380,15 +591,37 @@ def workflow_factory(nexus_api: NexusApiRegistry) -> Generator[Callable[[Workflo
     created_workflow_ids: list[UUID] = []
 
     def _create(workflow_data: WorkflowCreate) -> WorkflowRead:
-        response = nexus_api.workflows.create(body=workflow_data)
-        assert response.status_code == HTTPStatus.CREATED
-        assert response.parsed is not None
-        created_workflow_ids.append(response.parsed.id)
-        return cast("WorkflowRead", response.parsed)
+        workflow: WorkflowRead = nexus_api.workflows.create(body=workflow_data).assert_and_get()
+        created_workflow_ids.append(workflow.id)
+        return workflow
 
     yield _create
 
     for workflow_id in created_workflow_ids:
+        try:
+            nexus_api.workflows.delete(workflow_id=workflow_id)
+        except Exception:
+            pass  # Best effort cleanup
+
+
+@pytest.fixture
+def cleanup_workflows(nexus_api: NexusApiRegistry) -> Generator[list[UUID], None, None]:
+    """List to register workflow IDs for cleanup after test.
+
+    Use when tests need to call nexus_api.workflows.create() directly
+    (e.g., to validate response status codes) instead of using workflow_factory.
+
+    Usage:
+        def test_create_workflow(nexus_api, cleanup_workflows):
+            response = nexus_api.workflows.create(...)
+            if response.status_code == 201:
+                cleanup_workflows.append(response.parsed.id)
+            assert response.status_code == 201
+    """
+    workflow_ids: list[UUID] = []
+    yield workflow_ids
+
+    for workflow_id in workflow_ids:
         try:
             nexus_api.workflows.delete(workflow_id=workflow_id)
         except Exception:
@@ -471,14 +704,15 @@ def local_user_factory(
     def _create(
         *,
         username: str | None = None,
-        email: str | None = None,
+        email: str | None | Unset = UNSET,
         first_name: str = "Test",
         last_name: str = "Local User",
         password: str | None = None,
     ) -> tuple[UserRead, str]:
         username = username or unique_name("e2e-test-user")
         password = password or generate_test_password()
-        email = email or f"{username}@example.com"
+        if isinstance(email, Unset):
+            email = f"{username}@example.com"
 
         resp = nexus_api.users.create(
             body=UserCreate(

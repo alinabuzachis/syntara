@@ -12,7 +12,7 @@ from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
 from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC, AUTH_TYPE_BEARER
-from nexus.settings.cache.settings_cache import get_runtime_settings
+from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityName,
     APIExecutorConfig,
@@ -136,9 +136,7 @@ async def execute_http_request_activity(
     else:
         _apply_authentication(headers, config)
 
-    # TODO(engine-wiring): use node.settings.timeout when non-None.  # noqa: TD003
-    runtime_settings = get_runtime_settings()
-    timeout_seconds = await runtime_settings.get_int("workflow_engine.http_request_timeout_seconds", default=30)
+    timeout_seconds = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 30))
 
     start_time = time.time()
 

@@ -19,6 +19,7 @@ from temporalio.worker import Worker
 
 from nexus.workflows.worker import main
 from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
+from nexus.workflows.workflow_engine.activities.runtime_settings_activity import fetch_workflow_runtime_settings
 from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
@@ -59,7 +60,7 @@ class MockWorkerService(TemporalWorkerService):
             self.client,
             task_queue=self.task_queue,
             workflows=[NexusWorkflow],
-            activities=[execute_script_activity, manual_trigger],
+            activities=[execute_script_activity, manual_trigger, fetch_workflow_runtime_settings],
         )
 
         self._worker_task = asyncio.create_task(self.worker.run())

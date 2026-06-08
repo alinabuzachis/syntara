@@ -21,6 +21,7 @@ from temporalio.worker import Worker
 
 import nexus.settings.cache.settings_cache as _settings_mod
 from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
+from nexus.workflows.workflow_engine.activities.runtime_settings_activity import fetch_workflow_runtime_settings
 from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
@@ -43,11 +44,9 @@ async def _test_wait_activity(
     instead of calling raise_complete_async(). This avoids the async activity
     completion RPC which is not supported in the time-skipping test environment.
     """
-    from nexus.workflows.workflow_engine.utils.duration import compute_wait_seconds
-
-    total_seconds = compute_wait_seconds(input_config)
-    if total_seconds <= 0:
-        return {"output": {"status": "failed", "error": "Total wait duration must be greater than zero"}}
+    total_seconds = input_config.get("duration", 0)
+    if isinstance(total_seconds, bool) or not isinstance(total_seconds, int) or total_seconds <= 0:
+        return {"output": {"status": "failed", "error": "Wait duration must be a positive integer (seconds)"}}
 
     return {"output": {"status": "completed", "total_seconds": total_seconds}}
 
@@ -65,10 +64,7 @@ nodes:
 - id: wait_node
   type: wait
   config:
-    days: 0
-    hours: 0
-    minutes: 0
-    seconds: {wait_seconds}
+    duration: {wait_seconds}
 edges:
 - from: trigger_manual
   to: wait_node
@@ -99,7 +95,7 @@ class TestWaitNodeIntegration:
                 temporal_env.client,
                 task_queue=task_queue,
                 workflows=[NexusWorkflow],
-                activities=[manual_trigger, _test_wait_activity, complete_wait],
+                activities=[manual_trigger, _test_wait_activity, complete_wait, fetch_workflow_runtime_settings],
             ):
                 execution_service = TemporalExecutionService(
                     temporal_client=temporal_env.client,
@@ -135,7 +131,7 @@ class TestWaitNodeIntegration:
                 temporal_env.client,
                 task_queue=task_queue,
                 workflows=[NexusWorkflow],
-                activities=[manual_trigger, _test_wait_activity, complete_wait],
+                activities=[manual_trigger, _test_wait_activity, complete_wait, fetch_workflow_runtime_settings],
             ):
                 execution_service = TemporalExecutionService(
                     temporal_client=temporal_env.client,
@@ -176,7 +172,7 @@ class TestWaitNodeIntegration:
                 temporal_env.client,
                 task_queue=task_queue,
                 workflows=[NexusWorkflow],
-                activities=[manual_trigger, _test_wait_activity, complete_wait],
+                activities=[manual_trigger, _test_wait_activity, complete_wait, fetch_workflow_runtime_settings],
             ):
                 execution_service = TemporalExecutionService(
                     temporal_client=temporal_env.client,

@@ -16,32 +16,7 @@ from nexus.authz.engine import (
     init_opa_cache,
     resolve_allowed_projects,
 )
-from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
-
-
-@pytest.fixture
-async def seeded_db(test_db_session: AsyncSession) -> AsyncSession:
-    """Seed authz data and return the session."""
-    await seed_authz_data(test_db_session)
-    return test_db_session
-
-
-@pytest.fixture
-def mock_opa() -> AsyncMock:
-    """Create a mock OPA client."""
-    opa = AsyncMock()
-    opa.evaluate = AsyncMock(
-        return_value={
-            "allow": True,
-            "deny": False,
-            "matched_policy": "test-allow",
-            "denial_reason": "",
-            "denied_by": "",
-            "allowed_projects": ["*"],
-        }
-    )
-    return opa
 
 
 @pytest.fixture(autouse=True)

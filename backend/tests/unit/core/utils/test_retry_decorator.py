@@ -466,6 +466,12 @@ class TestRetryDecorator:
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that delays follow exponential backoff pattern."""
+        recorded_delays: list[float] = []
+        original_sleep = asyncio.sleep
+
+        async def mock_sleep(delay: float) -> None:
+            recorded_delays.append(delay)
+            await original_sleep(0)
 
         @retry_with_backoff
         async def mock_llm_call(invocation_id: UUID, **kwargs: Any) -> str:
@@ -477,23 +483,24 @@ class TestRetryDecorator:
                 body=None,
             )
 
-        import time
+        from unittest.mock import patch
 
-        start_time = time.time()
         with (
             override_settings(
                 adapter_max_retries=3,
                 adapter_initial_backoff_seconds=0.1,
                 adapter_backoff_growth_factor=2.0,
             ),
+            patch("nexus.core.utils.retry.asyncio.sleep", side_effect=mock_sleep),
             pytest.raises(openai.APIStatusError),
         ):
             await mock_llm_call(invocation_id=uuid4())
-        elapsed = time.time() - start_time
 
         # Expected delays: 0.1s, 0.2s, 0.4s (with jitter ±10%)
-        # Total: ~0.7s (allowing for jitter and execution time)
-        assert elapsed == pytest.approx(0.7, abs=0.3)
+        assert len(recorded_delays) == 3
+        assert recorded_delays[0] == pytest.approx(0.1, abs=0.01)
+        assert recorded_delays[1] == pytest.approx(0.2, abs=0.02)
+        assert recorded_delays[2] == pytest.approx(0.4, abs=0.04)
 
     @pytest.mark.asyncio
     async def test_max_retries_zero_disables_retry(

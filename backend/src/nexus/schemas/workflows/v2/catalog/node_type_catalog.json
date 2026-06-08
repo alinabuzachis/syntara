@@ -56,6 +56,17 @@
       "since": "2.0.0"
     },
     {
+      "type": "eda_trigger",
+      "name": "EDA Trigger",
+      "description": "Workflow entry point triggered by Event-Driven Ansible events",
+      "labels": {
+        "category": "trigger"
+      },
+      "schema_ref": "../triggers/eda.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
       "type": "aap_job_template",
       "name": "AAP Job Template",
       "description": "Launch Ansible Automation Platform job templates",
@@ -140,6 +151,17 @@
         "category": "control"
       },
       "schema_ref": "../control-nodes/converge.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
+      "type": "switch",
+      "name": "Switch",
+      "description": "Multi-case expression-based branching with first-match-wins evaluation",
+      "labels": {
+        "category": "control"
+      },
+      "schema_ref": "../control-nodes/switch.schema.json",
       "deprecated": false,
       "since": "2.0.0"
     },

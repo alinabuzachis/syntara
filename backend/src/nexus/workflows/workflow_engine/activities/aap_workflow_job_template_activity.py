@@ -16,7 +16,7 @@ from temporalio import activity
 from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.core.config.base import get_settings
-from nexus.settings.cache.settings_cache import get_runtime_settings
+from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AAPWorkflowJobTemplateExecutorConfig
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
@@ -344,9 +344,7 @@ async def execute_aap_workflow_job_template_activity(
         ) as client:
             job_id = await _launch_aap_workflow_job(client, config, auth_headers, basic_auth, base_url)
 
-            # TODO(engine-wiring): use node.settings.timeout when non-None.  # noqa: TD003
-            runtime_settings = get_runtime_settings()
-            aap_timeout = await runtime_settings.get_int("workflow_engine.aap_timeout_seconds", default=3600)
+            aap_timeout = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 3600))
             job_data = await poll_until_complete(
                 client,
                 settings,

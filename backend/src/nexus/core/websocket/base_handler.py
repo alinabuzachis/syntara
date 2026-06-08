@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
 from nexus.core.cache.stream import StreamClient
+from nexus.core.constants import FieldLimits
 from nexus.core.models.error import ErrorData
 from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
 from nexus.core.websocket.exceptions import StreamingValidationError, WaitForStreamTimeoutError
@@ -341,15 +342,24 @@ class BaseWebSocketStreamingHandler(ABC):
             await self._close_websocket(websocket, error.close_code, error.error_data.title)
         else:
             # Handle unexpected errors
-            logger.exception("Error streaming events to connection", connection_id=conn_id)
+            resource_id = self.get_resource_id(session_state) if session_state else "unknown"
+            logger.exception(
+                "Error streaming events to connection",
+                connection_id=conn_id,
+                resource_id=resource_id,
+                channel=self._channel_name,
+                error_type=type(error).__name__,
+            )
 
             # Try to send error to client if possible
             try:
-                resource_id = self.get_resource_id(session_state) if session_state else "unknown"
+                max_detail = FieldLimits.DESCRIPTION_MAX_LENGTH
+                detail_prefix = "An unexpected error occurred during streaming: "
+                error_msg = str(error)[: max_detail - len(detail_prefix)]
                 error_data = ErrorData(
                     type="https://api.nexus.com/errors/internal-error",
                     title="Internal Server Error",
-                    detail=f"An unexpected error occurred during streaming: {error!s}",
+                    detail=f"{detail_prefix}{error_msg}",
                     code="INTERNAL_ERROR",
                     retryable=True,
                     instance=f"/{self._channel_name}/{resource_id}",
@@ -357,8 +367,13 @@ class BaseWebSocketStreamingHandler(ABC):
                 await self._send_error_event(websocket, error_data, resource_id)
                 await self._close_websocket(websocket, INTERNAL_ERROR, "Internal error")
             except Exception:
-                # If we can't send error, just log it
-                logger.exception("Failed to send error to client")
+                logger.exception(
+                    "Failed to send error event to client",
+                    connection_id=conn_id,
+                    resource_id=resource_id,
+                    original_error_type=type(error).__name__,
+                    original_error=str(error)[:500],
+                )
 
     async def _send_error_event(self, websocket: WebSocket, error_data: ErrorData, resource_id: str) -> None:
         """Send error event to WebSocket client.
@@ -370,6 +385,7 @@ class BaseWebSocketStreamingHandler(ABC):
 
         """
         error_event = {
+            "type": "error",
             "event_type": "error",
             "resource_id": resource_id,
             "timestamp": datetime.now(UTC).isoformat(),

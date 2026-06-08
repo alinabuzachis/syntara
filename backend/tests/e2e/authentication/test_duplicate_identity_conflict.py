@@ -17,15 +17,13 @@ from urllib.parse import parse_qs, urlparse
 from uuid import UUID
 
 import httpx
-from nexus_api_client import Client
-from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
 from nexus_api_client.api.authentication.oidc_authorize import sync_detailed as oidc_authorize_sync
 from nexus_api_client.api.authentication.oidc_callback import sync_detailed as oidc_callback_sync
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.access_token_response import AccessTokenResponse
-from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.oidc_authorize_flow_type_0 import OidcAuthorizeFlowType0
 
+from tests.e2e.conftest import client_with_csrf_cookies
 from tests.fixtures.external_services.oidc_login import _idp_form_user_login
 
 if TYPE_CHECKING:
@@ -93,17 +91,7 @@ class TestDuplicateIdentityConflict:
             "ao_csrf_token": csrf_match.group(1),
         }
 
-        # Obtain CSRF form token, then verify User B can refresh
-        csrf_client = Client(
-            base_url=f"{nexus_base_url}/api/v1",
-            cookies=user_b_cookies,
-            verify_ssl=False,
-        )
-        csrf_resp = csrf_token_sync(client=csrf_client)
-        assert csrf_resp.status_code == HTTPStatus.OK
-        assert isinstance(csrf_resp.parsed, CsrfTokenResponse)
-
-        user_b_client = csrf_client.with_headers({"X-CSRF-Token": csrf_resp.parsed.csrf_token})
+        user_b_client = client_with_csrf_cookies(nexus_base_url, user_b_cookies)
         refresh_resp = refresh_sync(client=user_b_client)
         assert refresh_resp.status_code == HTTPStatus.OK
         assert isinstance(refresh_resp.parsed, AccessTokenResponse)

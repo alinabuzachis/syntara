@@ -240,8 +240,7 @@ def _validate_ssl_fields(
 ) -> None:
     """Shared validation for SSL field combinations.
 
-    Raises :class:`ValueError` for invalid combinations; emits a
-    :class:`UserWarning` for risky-but-legal ones.
+    Raises :class:`ValueError` for invalid or incomplete combinations.
     """
     if ssl_key is not None and ssl_cert is None:
         msg = "SSL client key (ssl_key) requires a client certificate (ssl_cert)"
@@ -515,6 +514,60 @@ class AuditDatabaseSettings(BaseSettings):
             port=self.audit_db_port,
             database=self.audit_db_name,
         )
+
+
+class AuditExportSettings(BaseSettings):
+    """Audit data export configuration settings.
+
+    Configures the directory where exported audit CSV files are written and
+    the Temporal task queue used for export jobs.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    audit_export_dir: str = Field(
+        default=str(Path(tempfile.gettempdir()) / "nexus-audit-exports"),
+        description="Directory for audit export files",
+    )
+
+    audit_export_task_queue: str = Field(
+        default="nexus-workflow-queue",
+        description="Temporal task queue for audit export jobs (defaults to the main workflow queue)",
+    )
+
+    audit_export_batch_size: int = Field(
+        default=5000,
+        description="Number of rows fetched per batch during export",
+        ge=100,
+        le=50000,
+    )
+
+
+# =============================================================================
+# Audit Retention Configuration
+# =============================================================================
+
+
+class AuditRetentionSettings(BaseSettings):
+    """Audit event retention and purge configuration.
+
+    Controls how long audit events are kept and how the background purge worker
+    operates.  Set ``audit_retention_days`` to ``0`` to disable automatic purging.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    audit_retention_days: int = Field(
+        default=30,
+        description="Delete audit events older than this many days (0 to disable purging)",
+        ge=0,
+    )
+
+    audit_purge_interval_seconds: float = Field(
+        default=3600.0,
+        description="Seconds between audit purge worker cycles",
+        gt=0,
+    )
 
 
 # =============================================================================
@@ -1568,7 +1621,8 @@ class CredentialEncryptionSettings(BaseSettings):
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
-    secret_encryption_key: SecretStr = Field(
+    secret_encryption_key: SecretStr | None = Field(
+        default=None,
         description="64-character hex string (32 bytes) for AES-256-GCM secret encryption.",
     )
 
@@ -1597,8 +1651,10 @@ class CredentialEncryptionSettings(BaseSettings):
 
     @field_validator("secret_encryption_key")
     @classmethod
-    def validate_encryption_key(cls, v: SecretStr) -> SecretStr:
-        """Validate that the encryption key is a valid, non-default 64-character hex string."""
+    def validate_encryption_key(cls, v: SecretStr | None) -> SecretStr | None:
+        """Validate the encryption key format when provided."""
+        if v is None:
+            return None
         key_value = v.get_secret_value()
         expected_hex_length = 64  # 32 bytes = 64 hex chars
         if len(key_value) != expected_hex_length:
@@ -1677,6 +1733,8 @@ class Settings(
     DatabaseSettings,
     AuditDatabaseSettings,
     AuditWriterSettings,
+    AuditRetentionSettings,
+    AuditExportSettings,
     ServerSettings,
     RetrieverServiceSettings,
     AdapterRetrySettings,
@@ -1760,4 +1818,35 @@ def get_settings() -> Settings:
         Clear cache in tests if needed: get_settings.cache_clear()
 
     """
-    return Settings()  # type: ignore[call-arg]  # secret_encryption_key populated from env
+    return Settings()
+
+
+def validate_encryption_key_at_startup() -> None:
+    """Validate that a valid encryption key is configured.
+
+    Must be called during app/worker startup, before serving requests.
+    Raises RuntimeError if the key is missing or invalid.
+    """
+    settings = get_settings()
+    if settings.secret_encryption_key is None:
+        msg = (
+            "APP_SECRET_ENCRYPTION_KEY (or APP_SECRET_ENCRYPTION_KEY_PATH) is required. "
+            "Generate a key with:\n"
+            "  openssl rand -hex 32\n"
+            '  python -c "import secrets; print(secrets.token_hex(32))"'
+        )
+        raise RuntimeError(msg)
+
+
+def get_encryption_key() -> SecretStr:
+    """Get the encryption key, raising if not configured.
+
+    Callers that need the encryption key should use this instead of
+    accessing settings.secret_encryption_key directly to satisfy
+    type narrowing (the field is Optional to allow import without secrets).
+    """
+    key = get_settings().secret_encryption_key
+    if key is None:
+        msg = "secret_encryption_key is not configured — was validate_encryption_key_at_startup() called?"
+        raise RuntimeError(msg)
+    return key

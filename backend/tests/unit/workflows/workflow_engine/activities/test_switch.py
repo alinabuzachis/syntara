@@ -404,3 +404,232 @@ class TestSwitchWithNamespace:
         config = _make_config(cases=cases, namespace={"priority": "high"})
         result = await switch(config, None)
         assert result["control"]["next_port"] == "case_1"
+
+
+class TestSwitchComplexExpressions:
+    """Test switch with complex AND/OR/NOT expressions (custom expression support)."""
+
+    @pytest.mark.asyncio
+    async def test_and_expression_both_true(self) -> None:
+        """AND expression where both operands are truthy routes to case port."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "Urgent & Approved",
+                "condition": "${priority} > 7 and ${approved} == True",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"priority": 9, "approved": True})
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "case_0"
+        assert result["output"]["status"] == "completed"
+        assert result["output"]["matched_port"] == "case_0"
+
+    @pytest.mark.asyncio
+    async def test_and_expression_one_false_falls_to_default(self) -> None:
+        """AND expression with one falsy operand falls through to default."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "Urgent & Approved",
+                "condition": "${priority} > 7 and ${approved} == True",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"priority": 9, "approved": False})
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "default"
+        assert result["output"]["matched_port"] == "default"
+
+    @pytest.mark.asyncio
+    async def test_or_expression_second_true(self) -> None:
+        """OR expression where second operand is truthy routes to case port."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "VIP or Premium",
+                "condition": "${tier} == 'vip' or ${tier} == 'premium'",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"tier": "premium"})
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "case_0"
+        assert result["output"]["matched_port"] == "case_0"
+
+    @pytest.mark.asyncio
+    async def test_or_expression_both_false_falls_to_default(self) -> None:
+        """OR expression where both operands are falsy falls through to default."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "VIP or Premium",
+                "condition": "${tier} == 'vip' or ${tier} == 'premium'",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"tier": "standard"})
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "default"
+        assert result["output"]["matched_port"] == "default"
+
+    @pytest.mark.asyncio
+    async def test_nested_and_or_groups(self) -> None:
+        """Nested (AND) OR expression evaluates grouped conditions correctly."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "Complex",
+                "condition": "(${priority} > 5 and ${approved} == True) or ${is_admin} == True",
+            },
+        ]
+        config = _make_config(
+            cases=cases,
+            namespace={"priority": 3, "approved": False, "is_admin": True},
+        )
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "case_0"
+        assert result["output"]["matched_port"] == "case_0"
+
+    @pytest.mark.asyncio
+    async def test_not_with_and_group(self) -> None:
+        """Negated AND group evaluates correctly."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "Not blocked",
+                "condition": "not (${status} == 'blocked' and ${retries} > 3)",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"status": "blocked", "retries": 2})
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "case_0"
+        assert result["output"]["matched_port"] == "case_0"
+
+    @pytest.mark.asyncio
+    async def test_complex_multi_case_first_match_wins(self) -> None:
+        """Multiple cases with complex conditions — first match wins."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "High & Approved",
+                "condition": "${priority} > 7 and ${approved} == True",
+            },
+            {
+                "port": "case_1",
+                "label": "VIP or Premium",
+                "condition": "${tier} == 'vip' or ${tier} == 'premium'",
+            },
+            {
+                "port": "case_2",
+                "label": "Low risk",
+                "condition": "${risk_score} < 0.3 and ${verified} == True",
+            },
+        ]
+        config = _make_config(
+            cases=cases,
+            namespace={
+                "priority": 5,
+                "approved": False,
+                "tier": "vip",
+                "risk_score": 0.5,
+                "verified": True,
+            },
+        )
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "case_1"
+        assert result["output"]["matched_port"] == "case_1"
+
+    @pytest.mark.asyncio
+    async def test_complex_false_then_complex_true_routes_to_second(self) -> None:
+        """First case complex expression is false, second case complex expression matches."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "High & Approved",
+                "condition": "${priority} > 7 and ${approved} == True",
+            },
+            {
+                "port": "case_1",
+                "label": "Low & Verified",
+                "condition": "${priority} <= 3 and ${verified} == True",
+            },
+        ]
+        config = _make_config(
+            cases=cases,
+            namespace={"priority": 2, "approved": False, "verified": True},
+        )
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "case_1"
+        assert result["output"]["matched_port"] == "case_1"
+
+    @pytest.mark.asyncio
+    async def test_complex_expression_error_stops_evaluation(self) -> None:
+        """Error in case_0 complex expression stops evaluation — case_1 never runs."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "Bad",
+                "condition": "${priority} > 5 and ${missing_var} == True",
+            },
+            {
+                "port": "case_1",
+                "label": "Would match",
+                "condition": "${status} == 'active'",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"priority": 9, "status": "active"})
+        with pytest.raises(ApplicationError) as exc_info:
+            await switch(config, None)
+        assert exc_info.value.type == "SwitchEvaluationError"
+        assert "missing_var" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_and_short_circuit_skips_missing_var(self) -> None:
+        """AND short-circuits when first operand is falsy — missing var in second operand is never evaluated."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "Skip",
+                "condition": "${priority} > 100 and ${missing_var} == True",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"priority": 5})
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "default"
+        assert result["output"]["matched_port"] == "default"
+
+    @pytest.mark.asyncio
+    async def test_or_short_circuit_skips_missing_var(self) -> None:
+        """OR short-circuits when first operand is truthy — missing var in second operand is never evaluated."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "Match",
+                "condition": "${priority} > 5 or ${missing_var} == True",
+            },
+        ]
+        config = _make_config(cases=cases, namespace={"priority": 9})
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "case_0"
+        assert result["output"]["matched_port"] == "case_0"
+
+    @pytest.mark.asyncio
+    async def test_complex_expression_all_false_falls_to_default(self) -> None:
+        """All cases with complex expressions are false — routes to default."""
+        cases = [
+            {
+                "port": "case_0",
+                "label": "High & Approved",
+                "condition": "${priority} > 7 and ${approved} == True",
+            },
+            {
+                "port": "case_1",
+                "label": "VIP or Premium",
+                "condition": "${tier} == 'vip' or ${tier} == 'premium'",
+            },
+        ]
+        config = _make_config(
+            cases=cases,
+            namespace={"priority": 3, "approved": False, "tier": "standard"},
+        )
+        result = await switch(config, None)
+        assert result["control"]["next_port"] == "default"
+        assert result["output"]["matched_port"] == "default"

@@ -113,13 +113,11 @@ Tests cover:
 - Role enum validation
 """
 
-async def test_create_user_with_required_fields(
-    test_db_session: AsyncSession, default_user_data: dict[str, Any]
+def test_create_user_with_required_fields(
+    default_user_data: dict[str, Any],
 ) -> None:
     """Test creating a user with all required fields."""
     user = User(id=uuid4(), **default_user_data)
-    test_db_session.add(user)
-    await test_db_session.commit()
 
     assert user.id is not None
     assert user.username == default_user_data["username"]

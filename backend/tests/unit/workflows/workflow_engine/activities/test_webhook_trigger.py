@@ -48,3 +48,35 @@ async def test_webhook_trigger_with_empty_output_mapping() -> None:
 
     output = result["output"]
     assert output["status"] == "completed"
+
+
+async def test_webhook_trigger_status_cannot_be_overridden() -> None:
+    """User-supplied status in payload must not override the activity status."""
+    input_config = {"payload": {"data": "test"}, "status": "failed"}
+    result = await webhook_trigger(input_config, None)
+
+    assert result["output"]["status"] == "completed"
+
+
+async def test_webhook_trigger_no_control_in_result() -> None:
+    """Webhook trigger result should only contain output, not control."""
+    input_config = {"payload": {"event": "push"}}
+    result = await webhook_trigger(input_config, None)
+
+    assert "output" in result
+    assert "control" not in result
+
+
+async def test_webhook_trigger_nested_payload() -> None:
+    """Nested structures in payload pass through unchanged."""
+    input_config = {
+        "payload": {
+            "repository": {"owner": "org", "name": "repo"},
+            "commits": [{"id": "abc123"}, {"id": "def456"}],
+        }
+    }
+    result = await webhook_trigger(input_config, None)
+
+    output = result["output"]
+    assert output["payload"]["repository"]["owner"] == "org"
+    assert len(output["payload"]["commits"]) == 2

@@ -206,11 +206,11 @@ class TestGetTokenPayload:
 # =============================================================================
 
 
-def _mock_csrf_settings() -> MagicMock:
-    """Return mock settings with secret_encryption_key for CSRF derivation."""
-    settings = MagicMock()
-    settings.secret_encryption_key.get_secret_value.return_value = "test-csrf-server-secret"
-    return settings
+def _mock_csrf_encryption_key() -> MagicMock:
+    """Return mock SecretStr for CSRF encryption key."""
+    key = MagicMock()
+    key.get_secret_value.return_value = "test-csrf-server-secret"
+    return key
 
 
 class TestGetRefreshTokenCSRF:
@@ -240,7 +240,7 @@ class TestGetRefreshTokenCSRF:
         request.headers.get = MagicMock(return_value=None)
 
         with (
-            patch("nexus.auth.csrf.get_settings", return_value=_mock_csrf_settings()),
+            patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_csrf_encryption_key()),
             pytest.raises(CSRFValidationError, match="CSRF token header missing") as exc_info,
         ):
             await get_refresh_token(request)
@@ -258,7 +258,7 @@ class TestGetRefreshTokenCSRF:
         request.headers.get = MagicMock(return_value="wrong-token")
 
         with (
-            patch("nexus.auth.csrf.get_settings", return_value=_mock_csrf_settings()),
+            patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_csrf_encryption_key()),
             pytest.raises(CSRFValidationError, match="CSRF token mismatch") as exc_info,
         ):
             await get_refresh_token(request)
@@ -270,8 +270,8 @@ class TestGetRefreshTokenCSRF:
         from nexus.auth.csrf import derive_csrf_form_token
 
         seed = "good-seed"
-        settings = _mock_csrf_settings()
-        with patch("nexus.auth.csrf.get_settings", return_value=settings):
+        settings = _mock_csrf_encryption_key()
+        with patch("nexus.auth.csrf.get_encryption_key", return_value=settings):
             valid_token = derive_csrf_form_token(seed)
 
         payload = MagicMock()
@@ -287,7 +287,7 @@ class TestGetRefreshTokenCSRF:
         request.headers.get = MagicMock(return_value=valid_token)
 
         with (
-            patch("nexus.auth.csrf.get_settings", return_value=settings),
+            patch("nexus.auth.csrf.get_encryption_key", return_value=settings),
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.services.global_revocation.is_token_globally_revoked", return_value=None),
         ):

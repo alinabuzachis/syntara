@@ -72,7 +72,7 @@ def create_workflow_definition_with_activities(
         activities: List of activity/node definitions
 
     Returns:
-        Dict matching V2 WorkflowDefinition schema
+        Dict with V2 workflow definition structure
 
     """
     trigger_id = "trigger_manual"

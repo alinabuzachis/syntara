@@ -3,6 +3,11 @@
 This module provides the WebhookTrigger table model for the operational lookup table
 that maps webhook paths to workflows and stores JSON schemas for payload validation.
 
+The table supports multiple trigger types (webhook_trigger, eda_trigger) via the
+``trigger_type`` discriminator column. Uniqueness is scoped per type — the same
+webhook_path can exist for both a webhook trigger and an EDA trigger because they
+live under different URL namespaces (``/webhooks/{path}`` vs ``/webhooks/eda/{path}``).
+
 The webhook trigger configuration (webhook_path, input_schema) is the source of truth
 in the workflow definition JSONB. This table is a derived index for fast lookup and
 stores operational data (enabled state) not present in the definition.
@@ -14,10 +19,11 @@ from uuid import UUID
 
 from pydantic import ConfigDict
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Index, SQLModel
+from sqlmodel import CheckConstraint, Field, Index, SQLModel
 
 from nexus.core.constants import WebhookLimits
 from nexus.core.models.base import BaseResource
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 
 class WebhookTrigger(BaseResource, table=True):
@@ -29,7 +35,8 @@ class WebhookTrigger(BaseResource, table=True):
 
     Attributes:
         id: Primary key UUID (from BaseResource)
-        webhook_path: Unique URL slug for the webhook endpoint
+        trigger_type: Discriminator — "webhook_trigger" or "eda_trigger"
+        webhook_path: URL slug for the webhook endpoint (unique per trigger_type)
         workflow_id: FK to the workflow that owns this trigger
         trigger_node_id: The node ID within the workflow definition
         input_schema: Optional JSON Schema (Draft-07) for payload validation
@@ -43,6 +50,7 @@ class WebhookTrigger(BaseResource, table=True):
 
     __filterable_fields__: ClassVar[list[str]] = [
         *BaseResource.__filterable_fields__,
+        "trigger_type",
         "webhook_path",
         "workflow_id",
         "is_enabled",
@@ -52,10 +60,18 @@ class WebhookTrigger(BaseResource, table=True):
         *BaseResource.__sortable_fields__,
     ]
 
+    # Trigger type discriminator
+    trigger_type: str = Field(
+        default=NodeType.WEBHOOK_TRIGGER,
+        max_length=50,
+        description="Trigger type: 'webhook_trigger' or 'eda_trigger'",
+        index=True,
+    )
+
     # Webhook endpoint configuration
     webhook_path: str = Field(
         max_length=WebhookLimits.PATH_MAX_LENGTH,
-        description="Unique URL slug for the webhook endpoint",
+        description="URL slug for the webhook endpoint (unique per trigger_type)",
     )
 
     # Workflow association
@@ -87,8 +103,14 @@ class WebhookTrigger(BaseResource, table=True):
 
     # Table arguments for indexes and constraints
     __table_args__ = (
-        # Unique index on webhook_path (each path maps to exactly one trigger)
-        Index("ix_webhook_triggers_webhook_path_unique", "webhook_path", unique=True),
+        # NOTE: When adding a new webhook trigger type, also create a migration
+        # to update the DB check constraint.  See 05d8708c4137 for the pattern.
+        CheckConstraint(
+            "trigger_type IN ('webhook_trigger', 'eda_trigger')",
+            name="ck_webhook_triggers_trigger_type_valid",
+        ),
+        # Composite unique index: same path allowed across different trigger types
+        Index("ix_webhook_triggers_type_path_unique", "trigger_type", "webhook_path", unique=True),
         # Composite index for workflow lookup
         Index("ix_webhook_triggers_workflow_id_enabled", "workflow_id", "is_enabled"),
         # GIN index on labels for JSONB containment queries
@@ -102,8 +124,9 @@ class WebhookTrigger(BaseResource, table=True):
     def __repr__(self) -> str:
         """Return string representation of WebhookTrigger."""
         return (
-            f"<WebhookTrigger(id={self.id}, webhook_path={self.webhook_path}, "
-            f"workflow_id={self.workflow_id}, trigger_node_id={self.trigger_node_id})>"
+            f"<WebhookTrigger(id={self.id}, trigger_type={self.trigger_type}, "
+            f"webhook_path={self.webhook_path}, workflow_id={self.workflow_id}, "
+            f"trigger_node_id={self.trigger_node_id})>"
         )
 
 
@@ -121,6 +144,7 @@ class WebhookTriggerRead(SQLModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
 
     id: UUID
+    trigger_type: str
     webhook_path: str
     workflow_id: UUID
     trigger_node_id: str

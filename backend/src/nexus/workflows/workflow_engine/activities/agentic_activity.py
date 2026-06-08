@@ -56,11 +56,12 @@ async def _inject_runtime_settings(input_config: dict[str, Any]) -> None:
         ValueError: If the prompt exceeds the configured max length.
 
     """
-    # TODO(engine-wiring): use node.settings.timeout when non-None.  # noqa: TD003
-    cache = get_runtime_settings()
+    # Pop the engine-injected timeout so it isn't forwarded to the orchestrator.
+    engine_timeout = int(input_config.pop(constants.ENGINE_TIMEOUT_SECONDS_KEY, 300))
     if "timeout" not in input_config:
-        input_config["timeout"] = await cache.get_int("workflow_engine.agentic_timeout_seconds", default=300)
+        input_config["timeout"] = engine_timeout
 
+    cache = get_runtime_settings()
     prompt = input_config.get("prompt", "")
     if isinstance(prompt, str):
         max_len = await cache.get_int("workflow_engine.max_prompt_length", default=100000)

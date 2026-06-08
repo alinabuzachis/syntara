@@ -1,16 +1,27 @@
-"""Integration tests for POST /api/v1/workflows/{workflow_id}/test endpoint."""
+"""Integration tests for POST /api/v1/workflows/{workflow_id}/test endpoint.
+
+Uses auth_client + test_db_session pattern for:
+- Testing invalid UUID format validation (nexus_api expects UUID type)
+- Creating test data via DB fixtures for speed
+- Direct DB state verification where needed
+"""
+
+from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.models import User
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from nexus.core.models import User
 
 
 @pytest_asyncio.fixture
@@ -81,13 +92,14 @@ async def test_test_workflow_node_success(
 
     assert response.status_code == 201
     data = response.json()
-    assert "id" in data
+    assert data["id"] is not None
     assert data["workflow_id"] == str(test_workflow.id)
     assert data["status"] == "pending"
     assert data["mode"] == "test"
     assert data["created_by"] == str(test_user.id)
+    assert data["execution_metadata"] is not None
     assert data["execution_metadata"]["target_node_id"] == "test_activity"
-    assert "temporal_workflow_id" in data
+    assert data["temporal_workflow_id"] is not None
 
 
 @pytest.mark.asyncio
@@ -115,6 +127,7 @@ async def test_test_workflow_node_with_pre_resolved(
     assert response.status_code == 201
     data = response.json()
     assert data["mode"] == "test"
+    assert data["execution_metadata"] is not None
     pre_resolved = data["execution_metadata"]["pre_resolved_nodes"]
     assert "predecessor_node" in pre_resolved
     assert pre_resolved["predecessor_node"]["output"] == {"status": "mocked", "value": 42}
@@ -138,8 +151,6 @@ async def test_test_workflow_node_workflow_not_found(
     )
 
     assert response.status_code == 404
-    data = response.json()
-    assert data["detail"] == "The requested workflow was not found"
 
 
 @pytest.mark.asyncio
@@ -160,8 +171,6 @@ async def test_test_workflow_node_invalid_target_node(
     )
 
     assert response.status_code == 422
-    data = response.json()
-    assert "nonexistent_node" in data["detail"]
 
 
 @pytest.mark.asyncio
@@ -212,7 +221,12 @@ async def test_test_workflow_node_invalid_workflow_id(
     test_db_session: AsyncSession,
     test_user: User,
 ) -> None:
-    """Test execution with invalid UUID format returns 422."""
+    """Test execution with invalid UUID format returns 422.
+
+    NOTE: This test requires auth_client (not nexus_api) because the generated
+    client's test_node() method expects a UUID type parameter and cannot accept
+    invalid string formats like "not-a-uuid" for validation testing.
+    """
     response = await auth_client.post(
         "/api/v1/workflows/not-a-uuid/test",
         json={

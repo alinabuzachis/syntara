@@ -9,9 +9,11 @@ API mapping:
 - API-8: Auto group mapping from IdP ``groups`` claim (KEYCLOAK)
 - API-10: Manual group mapping (KEYCLOAK)
 - API-11: JMESPath filter - group filtering (KEYCLOAK)
+- API-12: JMESPath filter - nested claims (KEYCLOAK)
 - API-13: JMESPath filter - invalid expression rejected at config time (KEYCLOAK)
 - API-14: JMESPath filter - no results denies login (KEYCLOAK)
 - API-15: Claim data configuration (KEYCLOAK)
+- API-21: Group mapping updates on re-authentication (KEYCLOAK)
 - API-45: Default builtin groups on fresh deployment (LOCAL)
 """
 
@@ -276,6 +278,58 @@ class TestAPI11JmespathGroupFiltering:
         assert other_name not in idp_groups
 
 
+class TestAPI12JmespathNestedClaims:
+    """API-12: JMESPath expression targeting nested claim structures (KEYCLOAK)."""
+
+    def test_jmespath_nested_claim_maps_realm_roles(
+        self,
+        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        keycloak_service_with_group_mapping: HttpApiService,
+        keycloak_user_factory: Callable[[], tuple[str, str]],
+        group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
+        nexus_group_factory: Callable[[str], UUID],
+    ) -> None:
+        """API-12: ``realm_access.roles[*]`` extracts nested roles into group mapping."""
+        kc_url = keycloak_service_with_group_mapping.url
+        ensure_user_attribute_claim_mapper(kc_url, attribute="roles", claim_name="realm_access.roles")
+
+        username, password = keycloak_user_factory()
+        set_keycloak_user_attributes(kc_url, username, {"roles": ["viewer", "editor"]})
+
+        viewer_group_id = nexus_group_factory(unique_name("e2e-viewer"))
+        editor_group_id = nexus_group_factory(unique_name("e2e-editor"))
+
+        provider = group_mapping_provider_factory(
+            group_jmespath_expression="realm_access.roles[*]",
+            group_mapping_entries=[
+                OIDCGroupMappingEntry(idp_group_value="viewer", nexus_group_id=viewer_group_id),
+                OIDCGroupMappingEntry(idp_group_value="editor", nexus_group_id=editor_group_id),
+            ],
+        )
+        assert isinstance(provider.id, UUID)
+        provider_id = provider.id
+
+        viewer_resp = nexus_api.groups.get(group_id=viewer_group_id)
+        editor_resp = nexus_api.groups.get(group_id=editor_group_id)
+        assert viewer_resp.parsed is not None
+        assert editor_resp.parsed is not None
+        viewer_name = viewer_resp.parsed.name
+        editor_name = editor_resp.parsed.name
+
+        create_oidc_auth_client(
+            nexus_base_url=nexus_base_url,
+            nexus_api=nexus_api,
+            oidc_provider_id=provider_id,
+            username=username,
+            password=password,
+        )
+        user_id = get_user_id_by_username(nexus_api, username)
+        idp_groups = idp_membership_group_names(nexus_api, user_id, provider_id=provider_id)
+        assert viewer_name in idp_groups
+        assert editor_name in idp_groups
+
+
 class TestAPI14JmespathNoResultsDeniesLogin:
     """API-14: Valid JMESPath with no matches denies login (KEYCLOAK)."""
 
@@ -363,3 +417,73 @@ class TestAPI15ClaimDataConfiguration:
         )
         user_id = get_user_id_by_username(nexus_api, username)
         assert dept_group_name in idp_membership_group_names(nexus_api, user_id, provider_id=provider_id)
+
+
+class TestAPI21GroupMappingUpdatesOnReauth:
+    """API-21: Group assignments update when IdP attributes change on re-authentication (KEYCLOAK)."""
+
+    def test_group_membership_updates_on_reauth_with_changed_attributes(
+        self,
+        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        keycloak_service_with_group_mapping: HttpApiService,
+        keycloak_user_factory: Callable[[], tuple[str, str]],
+        group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
+        nexus_group_factory: Callable[[str], UUID],
+    ) -> None:
+        """API-21: Re-login after IdP attribute change updates group membership."""
+        kc_url = keycloak_service_with_group_mapping.url
+        ensure_user_attribute_claim_mapper(kc_url, attribute="role", claim_name="role")
+
+        username, password = keycloak_user_factory()
+        admin_value = unique_name("admin")
+        viewer_value = unique_name("viewer")
+        set_keycloak_user_attributes(kc_url, username, {"role": [admin_value]})
+
+        admin_group_id = nexus_group_factory(unique_name("e2e-role-admin"))
+        viewer_group_id = nexus_group_factory(unique_name("e2e-role-viewer"))
+
+        provider = group_mapping_provider_factory(
+            group_jmespath_expression="role",
+            group_mapping_entries=[
+                OIDCGroupMappingEntry(idp_group_value=admin_value, nexus_group_id=admin_group_id),
+                OIDCGroupMappingEntry(idp_group_value=viewer_value, nexus_group_id=viewer_group_id),
+            ],
+        )
+        assert isinstance(provider.id, UUID)
+        provider_id = provider.id
+
+        admin_resp = nexus_api.groups.get(group_id=admin_group_id)
+        viewer_resp = nexus_api.groups.get(group_id=viewer_group_id)
+        assert admin_resp.parsed is not None
+        assert viewer_resp.parsed is not None
+        admin_name = admin_resp.parsed.name
+        viewer_name = viewer_resp.parsed.name
+
+        # First login with role=admin
+        create_oidc_auth_client(
+            nexus_base_url=nexus_base_url,
+            nexus_api=nexus_api,
+            oidc_provider_id=provider_id,
+            username=username,
+            password=password,
+        )
+        user_id = get_user_id_by_username(nexus_api, username)
+        idp_groups = idp_membership_group_names(nexus_api, user_id, provider_id=provider_id)
+        assert admin_name in idp_groups
+        assert viewer_name not in idp_groups
+
+        # Change IdP attribute to role=viewer
+        set_keycloak_user_attributes(kc_url, username, {"role": [viewer_value]})
+
+        # Second login — membership should reflect the updated attribute
+        create_oidc_auth_client(
+            nexus_base_url=nexus_base_url,
+            nexus_api=nexus_api,
+            oidc_provider_id=provider_id,
+            username=username,
+            password=password,
+        )
+        idp_groups = idp_membership_group_names(nexus_api, user_id, provider_id=provider_id)
+        assert viewer_name in idp_groups
+        assert admin_name not in idp_groups

@@ -3,11 +3,16 @@
 Covers:
 - Model instantiation with valid fields
 - Field constraints and defaults
+- Trigger type consistency between Python constants and DB constraint
 """
 
+import re
 from uuid import uuid4
 
+from sqlalchemy import CheckConstraint
+
 from nexus.workflows.models.webhook_trigger import WebhookTrigger, WebhookTriggerRead
+from nexus.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES
 
 
 async def test_webhook_trigger_creation() -> None:
@@ -64,3 +69,15 @@ async def test_webhook_trigger_disabled() -> None:
         is_enabled=False,
     )
     assert trigger.is_enabled is False
+
+
+def test_check_constraint_matches_webhook_trigger_types() -> None:
+    """DB check constraint must list exactly the same types as WEBHOOK_TRIGGER_TYPES."""
+    constraints = [arg for arg in WebhookTrigger.__table_args__ if isinstance(arg, CheckConstraint)]
+    trigger_type_constraint = next(c for c in constraints if c.name == "ck_webhook_triggers_trigger_type_valid")
+    constraint_text = str(trigger_type_constraint.sqltext)
+    values_in_constraint = set(re.findall(r"'([^']+)'", constraint_text))
+    assert values_in_constraint == set(WEBHOOK_TRIGGER_TYPES), (
+        f"CheckConstraint has {values_in_constraint} but WEBHOOK_TRIGGER_TYPES has {set(WEBHOOK_TRIGGER_TYPES)}. "
+        "Update both when adding a new trigger type."
+    )

@@ -1,11 +1,16 @@
 """Test fixtures and helpers for audit event tests."""
 
 from typing import Any
-from uuid import uuid4
+from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
+from uuid_utils import uuid7 as _uuid7_native
 
 from nexus.audit.models.audit_event_record import AuditEventRecord
+
+
+def _uuid7() -> UUID:
+    return UUID(str(_uuid7_native()))
 
 
 class AuditEventsFactory:
@@ -31,7 +36,7 @@ class AuditEventsFactory:
 
         """
         defaults: dict[str, Any] = {
-            "id": uuid4(),
+            "id": _uuid7(),
             "event_category": "user_action",
             "event_action": "test_action",
             "actor_type": "system",
