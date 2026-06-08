@@ -156,59 +156,62 @@ test.describe('Workflow Filtering', () => {
   })
 
   test('pagination works with active filters', async ({ app }) => {
-    // Navigate to workflows
-    await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    const project = await ensureProject(app)
+    const projectId = project?.id
+    const prefix = buildUniqueName('e2e-wffilt-pag')
+    const paginationWorkflows: SeededWorkflow[] = []
 
-    // Check if pagination controls exist (requires 20+ workflows in mock data)
-    const nextButton = app.getByRole('button', { name: 'Next page' })
-    const hasPagination = (await nextButton.count()) > 0
+    for (let i = 1; i <= 22; i++) {
+      const wf = await createWorkflowViaApi(app, {
+        name: `${prefix}-workflow-${i}`,
+        projectId,
+      })
+      if (wf) paginationWorkflows.push(wf)
+    }
+    expect(paginationWorkflows).toHaveLength(22)
 
-    // Skip test if no pagination available
-    test.skip(!hasPagination, 'Mock API has insufficient data for pagination test')
+    const filterUrlPattern = new RegExp(`name%5Bcontains%5D=${encodeURIComponent(prefix)}`)
 
-    // Apply a name filter
-    await app.getByPlaceholder('Filter by name').fill('workflow')
-    await app.getByRole('button', { name: 'Apply filter' }).click()
-    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
-    await expect(nameChipGroup.getByText('workflow')).toBeVisible()
+    try {
+      // Navigate to workflows
+      await app.goto(toAppUrl('/workflows'))
+      await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
 
-    // Verify filter applied and results shown (skip if no matches)
-    const table = app.getByRole('grid', { name: 'Workflows table' })
-    const hasFilteredResults = await table
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false)
-    test.skip(!hasFilteredResults, 'No workflows matching "workflow" filter; insufficient seed data')
+      // Apply a filter scoped to test workflows (22 items → 2 pages at default limit 20)
+      await app.getByPlaceholder('Filter by name').fill(prefix)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      await expect(nameChipGroup.getByText(prefix)).toBeVisible()
 
-    // Verify filter in URL
-    await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
+      const table = app.getByRole('grid', { name: 'Workflows table' })
+      await expect(table).toBeVisible()
+      await expect(app).toHaveURL(filterUrlPattern)
 
-    // Check if next page button is still available with filter
-    const hasNextWithFilter = (await nextButton.count()) > 0 && !(await nextButton.isDisabled())
+      const nextButton = app.getByRole('button', { name: 'Next page' })
+      await expect(nextButton).toBeEnabled()
 
-    if (hasNextWithFilter) {
-      // Act - Navigate to next page
+      // Act - Navigate to next page (cursor stays in component state, not the URL)
       await nextButton.click()
 
-      // Assert - Filter persists in URL with pagination cursor
-      await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
-      await expect(app).toHaveURL(/cursor=/)
-
-      // Assert - Filter chip still visible
-      await expect(nameChipGroup.getByText('workflow')).toBeVisible()
-
-      // Assert - Table still shows filtered results
+      // Assert - Filter persists in URL and UI while paginating
+      await expect(app).toHaveURL(filterUrlPattern)
+      await expect(nameChipGroup.getByText(prefix)).toBeVisible()
       await expect(table).toBeVisible()
 
-      // Act - Navigate to previous page
       const prevButton = app.getByRole('button', { name: 'Previous page' })
       await expect(prevButton).not.toBeDisabled()
+
+      // Act - Navigate to previous page
       await prevButton.click()
 
       // Assert - Back to first page with filter still active
-      await expect(nameChipGroup.getByText('workflow')).toBeVisible()
-      await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
+      await expect(nameChipGroup.getByText(prefix)).toBeVisible()
+      await expect(app).toHaveURL(filterUrlPattern)
+      await expect(nextButton).not.toBeDisabled()
+    } finally {
+      for (const wf of paginationWorkflows) {
+        await deleteWorkflowViaApi(app, wf.id)
+      }
     }
   })
 
