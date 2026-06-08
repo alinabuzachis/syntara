@@ -77,13 +77,13 @@ describe('AAPSetupModal', () => {
       renderModal()
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Add Ansible Automation Platform' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Add Ansible Automation Platform as a provider' })).toBeInTheDocument()
     })
 
     it('renders common form fields and auth method select', () => {
       renderModal()
 
-      expect(screen.getByLabelText('AAP URL')).toBeInTheDocument()
+      expect(screen.getByLabelText('Ansible Automation Platform URL')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Personal access token' })).toBeInTheDocument()
       expect(screen.getByLabelText('Disable TLS certificate verification')).toBeInTheDocument()
     })
@@ -139,7 +139,7 @@ describe('AAPSetupModal', () => {
 
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
-      expect(await screen.findByText('AAP URL is required')).toBeInTheDocument()
+      expect(await screen.findByText('Ansible Automation Platform URL is required')).toBeInTheDocument()
       expect(screen.getByText('Personal access token is required')).toBeInTheDocument()
       expect(mockMutate).not.toHaveBeenCalled()
     })
@@ -149,7 +149,7 @@ describe('AAPSetupModal', () => {
       renderModal()
 
       await selectAuthMethod(user, 'credentials')
-      await user.type(screen.getByLabelText('AAP URL'), 'https://aap.example.com')
+      await user.type(screen.getByLabelText('Ansible Automation Platform URL'), 'https://aap.example.com')
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
       expect(await screen.findByText('Platform admin username is required')).toBeInTheDocument()
@@ -161,7 +161,7 @@ describe('AAPSetupModal', () => {
       const user = userEvent.setup()
       renderModal()
 
-      await user.type(screen.getByLabelText('AAP URL'), 'not-a-url')
+      await user.type(screen.getByLabelText('Ansible Automation Platform URL'), 'not-a-url')
       await user.type(screen.getByLabelText('Personal access token'), 'my-token')
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
@@ -175,7 +175,7 @@ describe('AAPSetupModal', () => {
       const user = userEvent.setup()
       renderModal()
 
-      await user.type(screen.getByLabelText('AAP URL'), 'https://aap.example.com')
+      await user.type(screen.getByLabelText('Ansible Automation Platform URL'), 'https://aap.example.com')
       await user.type(screen.getByLabelText('Personal access token'), 'my-secret-pat')
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
@@ -193,7 +193,7 @@ describe('AAPSetupModal', () => {
       const user = userEvent.setup()
       renderModal()
 
-      await user.type(screen.getByLabelText('AAP URL'), 'https://aap.example.com')
+      await user.type(screen.getByLabelText('Ansible Automation Platform URL'), 'https://aap.example.com')
       await selectAuthMethod(user, 'credentials')
       await user.type(screen.getByLabelText('Platform admin username'), 'admin')
       await user.type(screen.getByLabelText('Platform admin password'), 'secret123')
@@ -214,7 +214,7 @@ describe('AAPSetupModal', () => {
       const user = userEvent.setup()
       renderModal()
 
-      await user.type(screen.getByLabelText('AAP URL'), 'https://aap.example.com')
+      await user.type(screen.getByLabelText('Ansible Automation Platform URL'), 'https://aap.example.com')
       await user.type(screen.getByLabelText('Personal access token'), 'my-token')
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
@@ -230,7 +230,7 @@ describe('AAPSetupModal', () => {
       })
       renderModal()
 
-      await user.type(screen.getByLabelText('AAP URL'), 'https://aap.example.com')
+      await user.type(screen.getByLabelText('Ansible Automation Platform URL'), 'https://aap.example.com')
       await user.type(screen.getByLabelText('Personal access token'), 'my-token')
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
@@ -268,7 +268,7 @@ describe('AAPSetupModal', () => {
       const user = userEvent.setup()
       renderModal()
 
-      await user.type(screen.getByLabelText('AAP URL'), 'https://aap.example.com')
+      await user.type(screen.getByLabelText('Ansible Automation Platform URL'), 'https://aap.example.com')
       await user.type(screen.getByLabelText('Personal access token'), 'my-token')
       await user.click(screen.getByLabelText('Disable TLS certificate verification'))
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
