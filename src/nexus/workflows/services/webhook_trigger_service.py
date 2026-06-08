@@ -1,7 +1,8 @@
 """Service for managing webhook trigger registrations.
 
 Webhook triggers are auto-synced from workflow definitions. This service handles
-the lookup table CRUD and payload validation.
+the lookup table CRUD and payload validation. Supports multiple trigger types
+(webhook_trigger, eda_trigger) via the ``trigger_type`` discriminator.
 """
 
 import re
@@ -23,9 +24,14 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.models.webhook_trigger import WebhookTrigger, WebhookTriggerRead
 from nexus.workflows.models.workflow import Workflow
-from nexus.workflows.workflow_engine.models.workflow_definition import WebhookTriggerConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType, WebhookTriggerConfig
 
 logger = structlog.stdlib.get_logger(__name__)
+
+WEBHOOK_TRIGGER_TYPES: tuple[str, ...] = (
+    NodeType.WEBHOOK_TRIGGER,
+    NodeType.EDA_TRIGGER,
+)
 
 
 class WebhookTriggerService(BaseService):
@@ -39,23 +45,29 @@ class WebhookTriggerService(BaseService):
         """Initialize WebhookTriggerService."""
         super().__init__(session, user)
 
-    async def get_by_webhook_path(self, webhook_path: str) -> WebhookTrigger:
-        """Look up a webhook trigger by its path.
+    async def get_by_webhook_path(
+        self,
+        webhook_path: str,
+        trigger_type: str = NodeType.WEBHOOK_TRIGGER,
+    ) -> WebhookTrigger:
+        """Look up a webhook trigger by its path and type.
 
         Args:
             webhook_path: The URL slug to look up.
+            trigger_type: The trigger type to filter by (default: "webhook_trigger").
 
         Returns:
             The matching WebhookTrigger record.
 
         Raises:
-            WebhookTriggerNotFoundError: If no trigger exists for this path.
+            WebhookTriggerNotFoundError: If no trigger exists for this path/type.
 
         """
         result = await self.session.exec(
             select(WebhookTrigger)
             .join(Workflow, WebhookTrigger.workflow_id == Workflow.id)  # type: ignore[arg-type]
             .where(
+                WebhookTrigger.trigger_type == trigger_type,
                 WebhookTrigger.webhook_path == webhook_path,
                 WebhookTrigger.is_enabled == True,  # noqa: E712
                 Workflow.is_enabled == True,  # noqa: E712
@@ -64,7 +76,7 @@ class WebhookTriggerService(BaseService):
         )
         trigger = result.one_or_none()
         if trigger is None:
-            raise WebhookTriggerNotFoundError(webhook_path)
+            raise WebhookTriggerNotFoundError(webhook_path, trigger_type=trigger_type)
         return trigger
 
     async def sync_webhook_triggers(
@@ -73,16 +85,19 @@ class WebhookTriggerService(BaseService):
         workflow_definition: dict[str, Any],
         *,
         is_enabled: bool = True,
+        trigger_type: str = NodeType.WEBHOOK_TRIGGER,
     ) -> list[WebhookTriggerRead]:
         """Synchronise webhook trigger lookup rows from a workflow definition.
 
-        Compares trigger nodes in the definition against existing DB rows.
-        Creates new rows, updates existing ones, and deletes removed ones.
+        Compares trigger nodes in the definition against existing DB rows
+        for the given ``trigger_type``. Creates new rows, updates existing
+        ones, and deletes removed ones.
 
         Args:
             workflow_id: The workflow ID.
             workflow_definition: The full workflow definition dict.
             is_enabled: Whether the workflow is enabled.
+            trigger_type: The trigger type to sync (default: "webhook_trigger").
 
         Returns:
             List of WebhookTriggerRead for synced triggers.
@@ -94,19 +109,28 @@ class WebhookTriggerService(BaseService):
                 by a different workflow.
 
         """
-        # Extract webhook trigger nodes from definition
+        # Extract trigger nodes matching the given type from definition
         triggers = workflow_definition.get("triggers", [])
         webhook_nodes: dict[str, dict[str, Any]] = {}
         for trigger in triggers:
-            if trigger.get("type") == "webhook_trigger":
+            if trigger.get("type") == trigger_type:
                 node_id = trigger.get("id")
                 if not node_id:
-                    logger.warning("Skipping webhook trigger with missing id", workflow_id=str(workflow_id))
+                    logger.warning(
+                        "Skipping trigger with missing id",
+                        workflow_id=str(workflow_id),
+                        trigger_type=trigger_type,
+                    )
                     continue
                 webhook_nodes[node_id] = trigger.get("config", {})
 
-        # Fetch existing webhook triggers for this workflow
-        result = await self.session.exec(select(WebhookTrigger).where(WebhookTrigger.workflow_id == workflow_id))
+        # Fetch existing triggers for this workflow and type
+        result = await self.session.exec(
+            select(WebhookTrigger).where(
+                WebhookTrigger.workflow_id == workflow_id,
+                WebhookTrigger.trigger_type == trigger_type,
+            )
+        )
         existing_triggers = {t.trigger_node_id: t for t in result.all()}
 
         results: list[WebhookTriggerRead] = []
@@ -133,6 +157,7 @@ class WebhookTriggerService(BaseService):
                 # Create new trigger
                 trigger = WebhookTrigger(
                     id=uuid4(),
+                    trigger_type=trigger_type,
                     webhook_path=webhook_path,
                     workflow_id=workflow_id,
                     trigger_node_id=node_id,
@@ -158,9 +183,9 @@ class WebhookTriggerService(BaseService):
         except IntegrityError as e:
             await self.session.rollback()
             error_str = str(e)
-            if "ix_webhook_triggers_webhook_path_unique" in error_str or "webhook_path" in error_str:
+            if "ix_webhook_triggers_type_path_unique" in error_str or "webhook_path" in error_str:
                 # Extract the actual conflicting path from PostgreSQL DETAIL
-                match = re.search(r"Key \(webhook_path\)=\((.+?)\)", error_str)
+                match = re.search(r"Key \(trigger_type, webhook_path\)=\([^,]+, ([^)]+)\)", error_str)
                 conflicting_path = match.group(1) if match else "<unknown>"
                 raise WebhookTriggerPathConflictError(conflicting_path) from e
             raise
@@ -168,6 +193,7 @@ class WebhookTriggerService(BaseService):
         logger.info(
             "Synced webhook triggers",
             workflow_id=workflow_id,
+            trigger_type=trigger_type,
             total=len(results),
             deleted=len(existing_triggers),
         )

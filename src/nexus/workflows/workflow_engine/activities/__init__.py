@@ -12,6 +12,7 @@ from .approval_activity import create_approval_request_activity
 from .condition import condition
 from .converge import converge
 from .credential_resolution_activity import resolve_workflow_credentials
+from .eda_trigger import eda_trigger
 from .execution_tracker import (
     cancel_execution_activities,
     create_activity_execution,
@@ -39,6 +40,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     create_approval_request_activity,
     condition,
     converge,
+    eda_trigger,
     switch,
     execute_http_request_activity,
     loop,

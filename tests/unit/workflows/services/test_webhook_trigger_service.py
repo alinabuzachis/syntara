@@ -20,6 +20,7 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.models.webhook_trigger import WebhookTrigger, WebhookTriggerRead
 from nexus.workflows.services.webhook_trigger_service import WebhookTriggerService
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 # ============================================================================
 # Helpers
@@ -161,6 +162,23 @@ class TestGetByWebhookPath:
             await service.get_by_webhook_path("disabled-workflow-hook")
 
     @pytest.mark.asyncio
+    async def test_returns_eda_trigger_when_found(self) -> None:
+        """Test that an EDA trigger is returned when queried with trigger_type=eda_trigger."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        trigger = _make_trigger(webhook_path="eda-hook")
+        trigger.trigger_type = NodeType.EDA_TRIGGER
+
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = trigger
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        service = _make_service(session=mock_session)
+        result = await service.get_by_webhook_path("eda-hook", trigger_type=NodeType.EDA_TRIGGER)
+
+        assert result is trigger
+        mock_session.exec.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_raises_not_found_when_workflow_deleted(self) -> None:
         """Trigger for a soft-deleted workflow should return not-found.
 
@@ -282,8 +300,8 @@ class TestSyncWebhookTriggers:
                 "INSERT",
                 {},
                 Exception(
-                    'duplicate key value violates unique constraint "ix_webhook_triggers_webhook_path_unique"\n'
-                    "DETAIL:  Key (webhook_path)=(duplicate-path) already exists."
+                    'duplicate key value violates unique constraint "ix_webhook_triggers_type_path_unique"\n'
+                    "DETAIL:  Key (trigger_type, webhook_path)=(webhook_trigger, duplicate-path) already exists."
                 ),
             )
         )
@@ -324,7 +342,7 @@ class TestSyncWebhookTriggers:
             side_effect=IntegrityError(
                 "INSERT",
                 {},
-                Exception("ix_webhook_triggers_webhook_path_unique"),
+                Exception("ix_webhook_triggers_type_path_unique"),
             )
         )
         mock_session.rollback = AsyncMock()
@@ -597,6 +615,68 @@ class TestSyncWebhookTriggers:
         mock_session.add.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_creates_eda_trigger(self) -> None:
+        """Test that an EDA trigger is created when trigger_type=eda_trigger."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = Mock()
+        mock_result.all.return_value = []
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.flush = AsyncMock()
+
+        service = _make_service(session=mock_session)
+
+        definition = _make_workflow_definition(
+            triggers=[
+                {
+                    "id": "eda-1",
+                    "type": "eda_trigger",
+                    "config": {"webhook_path": "jira-updates"},
+                }
+            ]
+        )
+
+        results = await service.sync_webhook_triggers(
+            uuid4(),
+            definition,
+            trigger_type=NodeType.EDA_TRIGGER,
+        )
+
+        assert len(results) == 1
+        assert results[0].webhook_path == "jira-updates"
+        mock_session.add.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_eda_trigger_with_input_schema(self) -> None:
+        """Test that input_schema is stored on EDA triggers."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = Mock()
+        mock_result.all.return_value = []
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.flush = AsyncMock()
+
+        service = _make_service(session=mock_session)
+
+        schema = {"type": "object", "required": ["event"]}
+        definition = _make_workflow_definition(
+            triggers=[
+                {
+                    "id": "eda-1",
+                    "type": "eda_trigger",
+                    "config": {"webhook_path": "with-schema", "input_schema": schema},
+                }
+            ]
+        )
+
+        results = await service.sync_webhook_triggers(
+            uuid4(),
+            definition,
+            trigger_type=NodeType.EDA_TRIGGER,
+        )
+
+        assert len(results) == 1
+        assert results[0].input_schema == schema
+
+    @pytest.mark.asyncio
     async def test_schema_with_dangerous_pattern_raises_validation_error(self) -> None:
         """Test that a schema with a ReDoS pattern is rejected at definition time."""
         mock_session = AsyncMock(spec=AsyncSession)
@@ -628,6 +708,42 @@ class TestSyncWebhookTriggers:
             await service.sync_webhook_triggers(uuid4(), definition)
 
         mock_session.add.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_sync_filters_by_trigger_type(self) -> None:
+        """Sync with trigger_type only processes matching trigger nodes."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = Mock()
+        mock_result.all.return_value = []
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.flush = AsyncMock()
+
+        service = _make_service(session=mock_session)
+
+        definition = _make_workflow_definition(
+            triggers=[
+                {
+                    "id": "wh-1",
+                    "type": "webhook_trigger",
+                    "config": {"webhook_path": "generic-hook"},
+                },
+                {
+                    "id": "eda-1",
+                    "type": "eda_trigger",
+                    "config": {"webhook_path": "eda-hook"},
+                },
+            ]
+        )
+
+        results = await service.sync_webhook_triggers(
+            uuid4(),
+            definition,
+            trigger_type=NodeType.EDA_TRIGGER,
+        )
+
+        assert len(results) == 1
+        assert results[0].webhook_path == "eda-hook"
+        assert results[0].trigger_type == NodeType.EDA_TRIGGER
 
 
 # ============================================================================

@@ -33,6 +33,7 @@ with workflow.unsafe.imports_passed_through():
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
     ConvergeStrategy,
     DoWhileLoopState,
     ForEachLoopState,
@@ -45,6 +46,7 @@ from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespac
 # Trigger types allowed for dynamic dispatch via Temporal activities.
 # Each entry must have a corresponding @activity.defn with a matching name.
 ALLOWED_TRIGGER_TYPES: set[str] = {
+    ActivityName.EDA_TRIGGER,
     ActivityName.MANUAL_TRIGGER,
     ActivityName.WEBHOOK_TRIGGER,
 }

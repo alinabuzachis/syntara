@@ -161,6 +161,88 @@ class TestStartWorkflow:
                 workflow_name="test-workflow",
             )
 
+    @pytest.mark.asyncio
+    async def test_start_workflow_defaults_to_manual_trigger(self) -> None:
+        """Test that default trigger selection prefers manual_trigger over other types.
+
+        When trigger_node_id is not specified (e.g., from the executions API),
+        the service should select the first manual_trigger rather than blindly
+        using triggers[0], which could be an eda_trigger or other type.
+        """
+        multi_trigger_workflow = {
+            "schema_version": "2.0.0",
+            "name": "multi-trigger-workflow",
+            "triggers": [
+                {"id": "eda_1", "type": "eda_trigger", "config": {"webhook_path": "my-hook"}},
+                {"id": "manual_1", "type": "manual_trigger", "config": {}},
+            ],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_client = Mock()
+        mock_handle = Mock()
+        mock_handle.first_execution_run_id = "run-789"
+        mock_client.start_workflow = AsyncMock(return_value=mock_handle)
+
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
+
+        await service.start_workflow(
+            workflow_def=multi_trigger_workflow,
+            workflow_name="multi-trigger-workflow",
+        )
+
+        # Verify the trigger_node_id passed to Temporal is the manual_trigger, not triggers[0]
+        call_kwargs = mock_client.start_workflow.call_args
+        temporal_args = call_kwargs.kwargs.get("args") or call_kwargs[1].get("args")
+        # args layout: [workflow_def, execution_id, trigger_node_id, input_data, include_node_results, request_id]
+        trigger_node_id_arg = temporal_args[2]
+        assert trigger_node_id_arg == "manual_1"
+
+    @pytest.mark.asyncio
+    async def test_start_workflow_raises_when_no_manual_trigger(self) -> None:
+        """Test that start_workflow raises when no manual trigger exists and trigger_node_id is None."""
+        single_eda_workflow = {
+            "schema_version": "2.0.0",
+            "name": "eda-only-workflow",
+            "triggers": [
+                {"id": "eda_1", "type": "eda_trigger", "config": {"webhook_path": "my-hook"}},
+            ],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_client = Mock()
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
+
+        with pytest.raises(SafeValueError, match="No manual trigger found"):
+            await service.start_workflow(
+                workflow_def=single_eda_workflow,
+                workflow_name="eda-only-workflow",
+            )
+
+    @pytest.mark.asyncio
+    async def test_start_workflow_raises_when_manual_trigger_missing_id(self) -> None:
+        """Test that start_workflow raises when the manual trigger has no id field."""
+        workflow_def = {
+            "schema_version": "2.0.0",
+            "name": "bad-trigger-workflow",
+            "triggers": [
+                {"type": "manual_trigger", "config": {}},
+            ],
+            "nodes": [],
+            "edges": [],
+        }
+
+        mock_client = Mock()
+        service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
+
+        with pytest.raises(SafeValueError, match="Manual trigger node must have an id field"):
+            await service.start_workflow(
+                workflow_def=workflow_def,
+                workflow_name="bad-trigger-workflow",
+            )
+
 
 class TestTriggerSelection:
     """Test trigger node selection logic for multi-trigger workflows."""

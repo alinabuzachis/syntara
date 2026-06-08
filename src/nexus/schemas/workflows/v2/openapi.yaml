@@ -536,6 +536,64 @@ paths:
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
         '409':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '413':
+          description: Payload exceeds the 1 MB size limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
+  /webhooks/eda/{webhook_path}:
+    post:
+      summary: Receive EDA webhook event
+      description: >-
+        Receive a webhook event from Event-Driven Ansible and trigger the
+        matching workflow. Each EDA trigger node has its own unique webhook
+        path. The payload can be any JSON structure.
+      operationId: receive_eda_webhook
+      tags: [webhooks]
+      security: []
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: webhook_path
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+            pattern: ^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$
+            title: Webhook Path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              title: Payload
+      responses:
+        '202':
+          description: Webhook accepted and workflow execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '413':
+          description: Payload exceeds the 1 MB size limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
         '422':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
         '500':

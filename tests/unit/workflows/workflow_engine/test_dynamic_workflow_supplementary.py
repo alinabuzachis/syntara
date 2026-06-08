@@ -21,11 +21,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from temporalio.exceptions import ApplicationError
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
-from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
+from nexus.workflows.workflow_engine.dynamic_workflow import (
+    ALLOWED_TRIGGER_TYPES,
+    NexusWorkflow,
+)
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
     DoWhileLoopState,
     ForEachLoopState,
     NodeSettings,
@@ -42,6 +47,7 @@ def _mock_temporal_workflow() -> Generator[MagicMock]:
     with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
         mock_wf.logger = mock_logger
         mock_wf.info.return_value = MagicMock(workflow_id="test-wf-id")
+        mock_wf.execute_activity = AsyncMock(return_value={"output": {}})
         yield mock_wf
 
 
@@ -389,6 +395,31 @@ class TestUnselectedTriggerSkipping:
 
         assert len(wf.skipped_nodes) == 0
 
+
+class TestAllowedTriggerTypes:
+    """Tests for trigger type allowlist security control."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_trigger_type_raises_safe_value_error(self) -> None:
+        """Trigger type not in ALLOWED_TRIGGER_TYPES raises SafeValueError."""
+        backend = InMemoryGraphBackend()
+        backend.add_node(
+            "trigger",
+            {"id": "trigger", "type": "malicious_trigger", "config": {}},
+        )
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_edge("trigger", "node_a", None)
+        graph = WorkflowGraph(backend)
+
+        wf = _make_workflow()
+        with pytest.raises(SafeValueError, match="Invalid trigger type"):
+            await wf._execute_trigger(
+                trigger_node_id="trigger",
+                trigger_inputs={},
+                graph=graph,
+                pending_tasks={},
+            )
+
     @pytest.mark.asyncio
     async def test_three_triggers_only_selected_runs(self) -> None:
         """With 3 triggers, all non-selected triggers and their exclusive downstream are skipped."""
@@ -423,6 +454,15 @@ class TestUnselectedTriggerSkipping:
         assert "shared_bc" in wf.skipped_nodes
         assert "trigger_a" not in wf.skipped_nodes
         assert "node_a" not in wf.skipped_nodes
+
+    @pytest.mark.asyncio
+    async def test_allowed_trigger_types_contains_expected_entries(self) -> None:
+        """ALLOWED_TRIGGER_TYPES matches the expected trigger activity set."""
+        assert {
+            ActivityName.MANUAL_TRIGGER,
+            ActivityName.EDA_TRIGGER,
+            ActivityName.WEBHOOK_TRIGGER,
+        } == ALLOWED_TRIGGER_TYPES
 
 
 class TestLoopBodyCompleteEdgeCases:

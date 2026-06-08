@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/triggers/eda",
+  "title": "EDA Trigger Node",
+  "description": "Workflow entry point triggered by Event-Driven Ansible webhook events",
+  "configSchema": {
+    "type": "object",
+    "required": ["webhook_path"],
+    "properties": {
+      "webhook_path": {
+        "type": "string",
+        "description": "Unique URL slug identifying this EDA webhook endpoint (e.g., 'jira-updates'). Becomes part of the final URL: /api/v1/webhooks/eda/{webhook_path}",
+        "pattern": "^[a-z0-9]([a-z0-9\\-_]*[a-z0-9])?$",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "input_schema": {
+        "type": "object",
+        "description": "Optional JSON Schema (Draft-07) for validating incoming EDA webhook payloads. If set, requests with non-conforming payloads are rejected with 422 Unprocessable Content.",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "resultSchema": {
+    "description": "EDA trigger result contains the webhook payload from the Event-Driven Ansible event",
+    "type": "object",
+    "required": ["payload"],
+    "properties": {
+      "payload": {
+        "type": "object",
+        "description": "The webhook payload from EDA (arbitrary JSON object)",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": true
+  }
+}

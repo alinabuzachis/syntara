@@ -34,6 +34,7 @@ PROBLEM_TYPES = {
     "integrity_constraint": "https://api.nexus.com/errors/integrity-constraint",
     "service_unavailable": "https://api.nexus.com/errors/service-unavailable",
     "resource_not_published": "https://api.nexus.com/errors/resource-not-published",
+    "payload_too_large": "https://api.nexus.com/errors/payload-too-large",
     "provider_error": "https://api.nexus.com/errors/provider-error",
     "integration_error": "https://api.nexus.com/errors/integration-error",
     "internal_error": "https://api.nexus.com/errors/internal-error",

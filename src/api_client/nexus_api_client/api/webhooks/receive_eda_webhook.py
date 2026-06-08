@@ -19,7 +19,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": f"/webhooks/{webhook_path}",
+        "url": f"/webhooks/eda/{webhook_path}",
     }
 
     _kwargs["json"] = body
@@ -93,10 +93,10 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     body: Any,
 ) -> Response[ErrorData | WebhookResponse]:
-    """Receive webhook event
+    """Receive EDA webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Each EDA
+    trigger node has its own unique webhook path. The payload can be any JSON structure.
 
     Args:
         webhook_path (str):
@@ -128,10 +128,10 @@ def sync(
     client: AuthenticatedClient | Client,
     body: Any,
 ) -> ErrorData | WebhookResponse | None:
-    """Receive webhook event
+    """Receive EDA webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Each EDA
+    trigger node has its own unique webhook path. The payload can be any JSON structure.
 
     Args:
         webhook_path (str):
@@ -158,10 +158,10 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     body: Any,
 ) -> Response[ErrorData | WebhookResponse]:
-    """Receive webhook event
+    """Receive EDA webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Each EDA
+    trigger node has its own unique webhook path. The payload can be any JSON structure.
 
     Args:
         webhook_path (str):
@@ -191,10 +191,10 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     body: Any,
 ) -> ErrorData | WebhookResponse | None:
-    """Receive webhook event
+    """Receive EDA webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Each EDA
+    trigger node has its own unique webhook path. The payload can be any JSON structure.
 
     Args:
         webhook_path (str):

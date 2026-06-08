@@ -23027,6 +23027,113 @@ paths:
                 detail: The request conflicts with the current state of the resource
                 code: CONFLICT
                 retryable: false
+        '413':
+          description: Payload exceeds the 1 MB size limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+  /webhooks/eda/{webhook_path}:
+    post:
+      summary: Receive EDA webhook event
+      description: Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Each EDA trigger node has its own unique webhook path. The payload can be any JSON structure.
+      operationId: receive_eda_webhook
+      tags:
+        - webhooks
+      security: []
+      x-app-permission:
+        resource: null
+        action: null
+      parameters:
+        - name: webhook_path
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 128
+            pattern: ^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$
+            title: Webhook Path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              title: Payload
+      responses:
+        '202':
+          description: Webhook accepted and workflow execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '413':
+          description: Payload exceeds the 1 MB size limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
         '422':
           description: Validation Error
           content:

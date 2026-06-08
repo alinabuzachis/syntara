@@ -111,6 +111,15 @@ class TriggerValidationError(WorkflowError):
         super().__init__(message)
 
 
+@fastapi_exception(handler="nexus.workflows.error_handlers.payload_too_large_handler")
+class PayloadTooLargeError(WorkflowError):
+    """Raised when a webhook payload exceeds the size limit."""
+
+    def __init__(self, message: str) -> None:
+        """Initialize exception with size details."""
+        super().__init__(message)
+
+
 # ============================================================================
 # Webhook Trigger Exceptions
 # ============================================================================
@@ -124,10 +133,11 @@ class WebhookTriggerError(WorkflowError):
 class WebhookTriggerNotFoundError(WebhookTriggerError):
     """Raised when a webhook trigger is not found for the given path."""
 
-    def __init__(self, webhook_path: str) -> None:
-        """Initialize exception with webhook path."""
+    def __init__(self, webhook_path: str, trigger_type: str) -> None:
+        """Initialize exception with webhook path and trigger type."""
         self.webhook_path = webhook_path
-        super().__init__(f"Webhook trigger not found for path '{webhook_path}'")
+        self.trigger_type = trigger_type
+        super().__init__(f"Webhook trigger not found for path '{webhook_path}' (type={trigger_type})")
 
 
 @fastapi_exception(handler="nexus.workflows.error_handlers.webhook_trigger_path_conflict_handler")

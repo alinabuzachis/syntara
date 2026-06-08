@@ -1629,6 +1629,8 @@ class ActivitySyncService:
                     if activity_type in [
                         # V2 triggers
                         NodeType.MANUAL_TRIGGER,
+                        NodeType.WEBHOOK_TRIGGER,
+                        NodeType.EDA_TRIGGER,
                         # V2 control nodes
                         NodeType.CONDITION,
                         NodeType.CONVERGE,
