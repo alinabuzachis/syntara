@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "pip_requirements": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["pep621"],
+      "groupName": "python dependencies",
+      "matchFileNames": ["backend/**"],
+      "schedule": ["before 6am on Monday"],
+      "rangeStrategy": "in-range-only"
+    },
+    {
+      "matchManagers": ["npm"],
+      "groupName": "npm dependencies",
+      "matchFileNames": ["frontend/**"],
+      "schedule": ["before 6am on Monday"],
+      "rangeStrategy": "in-range-only"
+    },
+    {
+      "matchPackageNames": ["quay.io/aap-ci/*"],
+      "automerge": true
+    }
+  ]
+}
