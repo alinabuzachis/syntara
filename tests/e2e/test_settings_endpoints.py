@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
@@ -15,7 +14,7 @@ from nexus_api_client.models.setting_bulk_update_request import SettingBulkUpdat
 from nexus_api_client.models.setting_update import SettingUpdate
 
 from nexus.core.config.base import get_settings
-from tests.e2e.helpers import _retry_api_call
+from tests.e2e.helpers import _retry_api_call, poll_audit_events
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
@@ -31,9 +30,6 @@ _TIMEOUT_SECONDS_KEY = "document_conversion.timeout_seconds"
 _SCRIPT_TIMEOUT_KEY = "workflow_engine.script_timeout_seconds"
 _OVERWRITE_KEY = "document_conversion.overwrite_existing"
 _RETRIEVER_MODEL_KEY = "retriever.llm_model"
-
-_AUDIT_POLL_INTERVAL = 0.5
-_AUDIT_POLL_TIMEOUT = 20.0
 
 
 def _get_setting(api: NexusApiRegistry, key: str) -> RuntimeSettingRead:
@@ -64,55 +60,6 @@ def _update_setting(
 def _restore_setting(api: NexusApiRegistry, key: str, value: object) -> None:
     """Restore a setting to a previous value (best-effort, no assertions)."""
     api.settings.update(key=key, body=SettingUpdate(value=value))
-
-
-def _poll_audit_events(
-    api: NexusApiRegistry,
-    event_action: str,
-    *,
-    resource_urn: str | None = None,
-    min_version: int | None = None,
-    timeout: float = _AUDIT_POLL_TIMEOUT,
-    limit: int = 500,
-) -> list[Any]:
-    """Poll GET /audit until a matching event appears.
-
-    Args:
-        api: NexusApiRegistry instance for making API calls.
-        event_action: Filter events by this action value.
-        resource_urn: Filter events by this optional Resource URN.
-        min_version: If set, keep polling until an event with version >= this value appears.
-        timeout: Maximum time to poll in seconds.
-        limit: Number of events to retrieve. Should be > audit_outbox_batch_size
-               to account for concurrent test activity. Defaults to 500.
-
-    """
-    elapsed = 0.0
-    while elapsed < timeout:
-        time.sleep(_AUDIT_POLL_INTERVAL)
-        elapsed += _AUDIT_POLL_INTERVAL
-        query_params: dict[str, Any] = {
-            "event_action": event_action,
-            "sort": "-created_at",
-            "limit": limit,
-        }
-        if resource_urn is not None:
-            query_params = {**query_params, "resource_urn": resource_urn}
-        resp = api.audit_events.list(**query_params)
-        if resp.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
-            detail = resp.content.decode() if resp.content else "no detail returned"
-            pytest.fail(f"Audit database unavailable (503): {detail}")
-        if resp.status_code == HTTPStatus.OK and resp.parsed is not None:
-            events: list[Any] = resp.parsed.resources
-            if events:
-                if min_version is not None:
-                    has_target = any(
-                        e.structured_data.additional_properties.get("version", 0) >= min_version for e in events
-                    )
-                    if not has_target:
-                        continue
-                return events
-    return []
 
 
 def _find_audit_event_by_key(events: list[Any], key: str) -> Any:  # noqa: ANN401
@@ -683,7 +630,6 @@ class TestAdminSettingsAccess:
 class TestSettingsAuditLog:
     """E2E tests verifying audit events are created for settings changes."""
 
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
     async def test_audit_single_update(
         self,
         nexus_api: NexusApiRegistry,
@@ -699,14 +645,13 @@ class TestSettingsAuditLog:
 
             # Sleep for full poll interval + buffer to ensure worker has run
             settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
+            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 3)
 
             # Retrieve MORE than batch_size to account for concurrent activity
-            events = _poll_audit_events(
+            events = poll_audit_events(
                 auditor_api,
                 "setting_changed",
                 resource_urn="urn:nexus:setting:context_manager.compression_temperature",
-                min_version=version_before + 1,
             )
 
             # Match on both key AND version for determinism
@@ -731,7 +676,6 @@ class TestSettingsAuditLog:
         finally:
             _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
 
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
     async def test_audit_bulk_update(
         self,
         nexus_api: NexusApiRegistry,
@@ -759,7 +703,7 @@ class TestSettingsAuditLog:
             await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
 
             # Retrieve MORE events
-            events = _poll_audit_events(
+            events = poll_audit_events(
                 auditor_api,
                 "setting_bulk_changed",
             )
@@ -775,7 +719,6 @@ class TestSettingsAuditLog:
             for k, v in originals.items():
                 _restore_setting(nexus_api, k, v)
 
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
     async def test_audit_old_and_new_values(
         self,
         nexus_api: NexusApiRegistry,
@@ -798,7 +741,7 @@ class TestSettingsAuditLog:
             await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
 
             # Retrieve MORE events
-            events = _poll_audit_events(
+            events = poll_audit_events(
                 auditor_api,
                 "setting_changed",
                 resource_urn="urn:nexus:setting:context_manager.compression_temperature",
@@ -821,7 +764,6 @@ class TestSettingsAuditLog:
         finally:
             _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
 
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
     async def test_audit_reset_to_default(
         self,
         nexus_api: NexusApiRegistry,
@@ -845,7 +787,7 @@ class TestSettingsAuditLog:
             await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
 
             # Retrieve MORE events
-            events = _poll_audit_events(
+            events = poll_audit_events(
                 auditor_api,
                 "setting_changed",
                 resource_urn="urn:nexus:setting:context_manager.max_total_tokens",

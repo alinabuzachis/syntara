@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import pytest
 
+from tests.e2e.helpers import poll_audit_events
+
 pytest.importorskip("external_services")
 
+import asyncio
 import re
 from http import HTTPStatus
 from typing import TYPE_CHECKING
@@ -23,9 +26,9 @@ from nexus_api_client import Client
 from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
-from nexus_api_client.models.event_category import EventCategory
 from nexus_api_client.models.user_identity_attach import UserIdentityAttach
 
+from nexus.core.config.base import get_settings
 from tests.fixtures.external_services.oidc_login import _idp_form_user_login
 
 if TYPE_CHECKING:
@@ -84,11 +87,10 @@ def _oidc_refresh_client(
     return csrf_client.with_headers({"X-CSRF-Token": csrf_resp.parsed.csrf_token})
 
 
-@pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
 class TestAdminDetachIdentity:
     """API-33: Verify admin can hard-delete a federated identity from a user."""
 
-    def test_admin_detach_identity(
+    async def test_admin_detach_identity(
         self,
         nexus_api: NexusApiRegistry,
         nexus_base_url: str,
@@ -153,11 +155,13 @@ class TestAdminDetachIdentity:
         # All sessions for the user are revoked
         assert refresh_sync(client=user_a_refresh_client).status_code == HTTPStatus.UNAUTHORIZED
 
+        # Sleep for full poll interval + buffer to ensure worker has run
+        settings = get_settings()
+        await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
+
         # An audit log entry is created for the detach action
-        audit_resp = nexus_api.audit_events.list(
-            event_category=EventCategory.USER_ACTION,
-            event_action="identity_detach",
+        events = poll_audit_events(
+            nexus_api,
+            "identity_detach",
         )
-        assert audit_resp.status_code == HTTPStatus.OK
-        assert audit_resp.parsed is not None
-        assert len(audit_resp.parsed.resources) >= 1
+        assert len(events) >= 1, "No audit event found for identity_detach action"

@@ -1,6 +1,7 @@
 """Shared utility functions for E2E tests."""
 
 import time
+from http import HTTPStatus
 from typing import Any
 from uuid import UUID
 
@@ -93,3 +94,44 @@ def create_and_run_workflow(
     assert exec_response.is_success, f"Failed to start execution for {name}"
     assert exec_response.parsed is not None, f"Failed to start execution for {name}"
     return _poll_execution(api, str(exec_response.parsed.id), timeout=timeout)
+
+
+def poll_audit_events(
+    api: NexusApiRegistry,
+    event_action: str,
+    *,
+    resource_urn: str | None = None,
+    timeout: float = POLL_TIMEOUT,
+    limit: int = 500,
+) -> list[Any]:
+    """Poll GET /audit until a matching event appears.
+
+    Args:
+        api: NexusApiRegistry instance for making API calls.
+        event_action: Filter events by this action value.
+        resource_urn: Filter events by this optional Resource URN.
+        timeout: Maximum time to poll in seconds.
+        limit: Number of events to retrieve. Should be > audit_outbox_batch_size
+               to account for concurrent test activity. Defaults to 500.
+
+    """
+    elapsed = 0.0
+    while elapsed < timeout:
+        time.sleep(POLL_INTERVAL)
+        elapsed += POLL_INTERVAL
+        query_params: dict[str, Any] = {
+            "event_action": event_action,
+            "sort": "-created_at",
+            "limit": limit,
+        }
+        if resource_urn is not None:
+            query_params = {**query_params, "resource_urn": resource_urn}
+        resp = api.audit_events.list(**query_params)
+        if resp.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
+            detail = resp.content.decode() if resp.content else "no detail returned"
+            pytest.fail(f"Audit database unavailable (503): {detail}")
+        if resp.status_code == HTTPStatus.OK and resp.parsed is not None:
+            events: list[Any] = resp.parsed.resources
+            if events:
+                return events
+    return []
