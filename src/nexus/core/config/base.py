@@ -569,6 +569,11 @@ class AuditRetentionSettings(BaseSettings):
         gt=0,
     )
 
+    audit_purge_backup_enabled: bool = Field(
+        default=True,
+        description="Create a CSV backup of expired audit events before purging",
+    )
+
 
 # =============================================================================
 # Audit Writer Configuration
