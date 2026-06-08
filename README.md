@@ -1,0 +1,79 @@
+# Nexus Combined Monorepo
+
+Monorepo combining the Nexus backend (Python/FastAPI) and frontend (React/TypeScript) into a single development and deployment environment.
+
+## Repository Structure
+
+```
+syntara/
+├── backend/          # Python 3.12+ / FastAPI API server, Temporal workflows
+├── frontend/         # React 19 / TypeScript UI (npm workspaces)
+├── Makefile          # Root orchestration (delegates to backend/ and frontend/)
+├── podman-compose.yml # Full-stack local development
+└── .env.example      # Combined environment variables
+```
+
+See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md) for component-specific documentation.
+
+## Prerequisites
+
+- **Python 3.12+** and [uv](https://docs.astral.sh/uv/) (backend)
+- **Node.js 22+** and npm (frontend)
+- **Podman** or Docker (container-based development)
+- **Make** (orchestration)
+
+## Quick Start
+
+```bash
+# Install all dependencies
+make install
+
+# Start full-stack development (backend API + frontend UI)
+make dev
+
+# Or use containers for the full stack
+podman-compose up --build
+```
+
+## Common Commands
+
+| Command | Description |
+|---|---|
+| `make install` | Install backend and frontend dependencies |
+| `make dev` | Start backend and frontend dev servers |
+| `make test` | Run backend and frontend tests |
+| `make test-all` | Run all tests including integration |
+| `make lint` | Lint both codebases |
+| `make format` | Format both codebases |
+| `make typecheck` | Type-check both codebases |
+| `make gen-contracts` | Regenerate TypeScript types from backend OpenAPI specs |
+
+## Contract Generation
+
+TypeScript API types are generated from the backend's OpenAPI specifications. In this monorepo, the specs are read directly from the local tree — no cross-repo cloning needed:
+
+```bash
+make gen-contracts
+```
+
+This reads specs from `backend/src/nexus/schemas/` and generates types in `frontend/packages/nexus-contracts/src/`.
+
+## Container Development
+
+The root `podman-compose.yml` provides the full stack: PostgreSQL, Redis, Temporal, OPA, the Nexus API, and the UI. The UI service builds from `frontend/` instead of pulling a pre-built image.
+
+```bash
+# Start all services
+podman-compose up --build
+
+# Start specific services
+podman-compose up database redis temporal nexus
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Component-specific details are in [backend/CONTRIBUTING.md](backend/CONTRIBUTING.md) and [frontend/CONTRIBUTING.md](frontend/CONTRIBUTING.md).
+
+## License
+
+[Apache License 2.0](LICENSE)
