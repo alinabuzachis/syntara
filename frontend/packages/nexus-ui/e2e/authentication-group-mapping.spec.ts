@@ -10,12 +10,11 @@ import { type Page } from '@playwright/test'
 
 import { test, expect } from './fixtures'
 import {
-  enterGroupMappingEditMode,
   expandGroupMappingAdvanced,
   fillMinimalOidcProviderFields,
   gotoAddOidcProviderWizard,
   gotoClaimMappingWizardStep,
-  gotoIdentityProviderDetail,
+  gotoGroupMappingEdit,
   MINIMAL_OIDC_PROVIDER_CONFIGURATION,
 } from './helpers/identity-providers'
 import { buildUniqueName } from './helpers/workflows'
@@ -59,8 +58,7 @@ test.describe('UI-11: Auto group mapping — configuration screen', () => {
   test('saves auto group extraction expression without manual mapping rows', async ({ app }) => {
     const providerId = await createMappingTestProvider(app, 'e2e-auto-mapping')
     try {
-      await gotoIdentityProviderDetail(app, providerId, 'group-mapping')
-      await enterGroupMappingEditMode(app)
+      await gotoGroupMappingEdit(app, providerId, 'new=1')
 
       const removeBtn = app.getByRole('button', { name: /Remove mapping 1/i })
       if (await removeBtn.isVisible()) {
@@ -84,8 +82,7 @@ test.describe('UI-12: Manual group mapping — configuration screen', () => {
   test('creates manual mapping from IdP group value to Nexus group', async ({ app }) => {
     const providerId = await createMappingTestProvider(app, 'e2e-manual-mapping')
     try {
-      await gotoIdentityProviderDetail(app, providerId, 'group-mapping')
-      await enterGroupMappingEditMode(app)
+      await gotoGroupMappingEdit(app, providerId, 'new=1')
 
       await app.getByRole('textbox', { name: 'IdP group value 1' }).fill(idpGroupValue)
       await selectNexusGroupForRow(app, 'admins')
@@ -106,8 +103,7 @@ test.describe('UI-13: JMESPath filter — entry and validation error', () => {
     test('saves a valid JMESPath expression', async ({ app }) => {
       const providerId = await createMappingTestProvider(app, 'e2e-jmespath-tab')
       try {
-        await gotoIdentityProviderDetail(app, providerId, 'group-mapping')
-        await enterGroupMappingEditMode(app)
+        await gotoGroupMappingEdit(app, providerId)
 
         await setGroupMappingExpression(app, VALID_JMESPATH)
         await saveGroupMapping(app)
@@ -120,8 +116,7 @@ test.describe('UI-13: JMESPath filter — entry and validation error', () => {
     test('shows validation error for invalid JMESPath and does not save', async ({ app }) => {
       const providerId = await createMappingTestProvider(app, 'e2e-jmespath-tab')
       try {
-        await gotoIdentityProviderDetail(app, providerId, 'group-mapping')
-        await enterGroupMappingEditMode(app)
+        await gotoGroupMappingEdit(app, providerId)
 
         await setGroupMappingExpression(app, INVALID_JMESPATH)
         await saveGroupMapping(app)

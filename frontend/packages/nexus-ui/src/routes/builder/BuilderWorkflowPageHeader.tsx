@@ -1,5 +1,5 @@
 import type { ExecutionStatus } from '@ansible/nexus-contracts'
-import { Button, Flex, FlexItem, TextInput } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, TextInput, Tooltip } from '@patternfly/react-core'
 import { type Dispatch, type ReactNode } from 'react'
 
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
@@ -12,6 +12,7 @@ import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 import type { BuilderAction } from './builderReducer'
 import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
 import { PublishWorkflowDialog } from './PublishWorkflowDialog'
+import type { BuilderPermissions } from './useBuilderPermissions'
 
 type BuilderToolbarContentProps = Readonly<{
   isLiveRunActive?: boolean
@@ -38,6 +39,7 @@ type BuilderToolbarContentProps = Readonly<{
   triggers?: { id: string; name?: string }[]
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
+  builderPermissions: BuilderPermissions
 }>
 
 /**
@@ -70,6 +72,7 @@ function BuilderToolbarContent({
   triggers,
   isAddNodePanelOpen,
   hasNoWorkflowNodes,
+  builderPermissions,
 }: BuilderToolbarContentProps) {
   if (isLiveRunActive && onBackToEditor) {
     const isCancellable = isExecutionCancellable(executionStatus)
@@ -107,6 +110,7 @@ function BuilderToolbarContent({
       triggers={triggers}
       isAddNodePanelOpen={isAddNodePanelOpen}
       hasNoWorkflowNodes={hasNoWorkflowNodes}
+      builderPermissions={builderPermissions}
     />
   )
 }
@@ -139,6 +143,7 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   triggers?: { id: string; name?: string }[]
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
+  builderPermissions: BuilderPermissions
   ProjectSelector: ReactNode
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
@@ -175,6 +180,7 @@ export function BuilderWorkflowPageHeader({
   triggers,
   isAddNodePanelOpen,
   hasNoWorkflowNodes,
+  builderPermissions,
   ProjectSelector,
   dispatch,
   markDirty,
@@ -197,40 +203,49 @@ export function BuilderWorkflowPageHeader({
             flexWrap={{ default: 'nowrap' }}
           >
             <FlexItem style={{ flexShrink: 1, minWidth: 0 }}>
-              <TextInput
-                id="workflow-name-input"
-                type="text"
-                aria-label="Workflow name"
-                value={workflowName}
-                onChange={(_event, value) => {
-                  dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
-                  markDirty()
-                }}
-                placeholder="Workflow name"
-              />
+              <Tooltip
+                content={builderPermissions.tooltips.edit}
+                trigger={builderPermissions.canEdit ? 'manual' : 'mouseenter focus'}
+              >
+                <TextInput
+                  id="workflow-name-input"
+                  type="text"
+                  aria-label="Workflow name"
+                  value={workflowName}
+                  isDisabled={!builderPermissions.canEdit}
+                  onChange={(_event, value) => {
+                    dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
+                    markDirty()
+                  }}
+                  placeholder="Workflow name"
+                />
+              </Tooltip>
             </FlexItem>
-            <FlexItem style={{ flexShrink: 0 }}>
-              <EditWorkflowDetailsPopover
-                name={workflowName}
-                description={workflowDescription}
-                tags={workflowTags}
-                onApply={(name, description, tags) => {
-                  const nameChanged = name !== workflowName
-                  const descriptionChanged = description !== workflowDescription
-                  const tagsChanged = tags.length !== workflowTags.length || tags.some((t, i) => t !== workflowTags[i])
-                  if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
-                  if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
-                  if (tagsChanged) dispatch({ type: 'SET_WORKFLOW_TAGS', payload: tags })
-                  if (nameChanged || descriptionChanged || tagsChanged) markDirty()
-                }}
-              />
-            </FlexItem>
+            {builderPermissions.canEdit && (
+              <FlexItem style={{ flexShrink: 0 }}>
+                <EditWorkflowDetailsPopover
+                  name={workflowName}
+                  description={workflowDescription}
+                  tags={workflowTags}
+                  onApply={(name, description, tags) => {
+                    const nameChanged = name !== workflowName
+                    const descriptionChanged = description !== workflowDescription
+                    const tagsChanged =
+                      tags.length !== workflowTags.length || tags.some((t, i) => t !== workflowTags[i])
+                    if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
+                    if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
+                    if (tagsChanged) dispatch({ type: 'SET_WORKFLOW_TAGS', payload: tags })
+                    if (nameChanged || descriptionChanged || tagsChanged) markDirty()
+                  }}
+                />
+              </FlexItem>
+            )}
             {!isNew && (
               <FlexItem style={{ flexShrink: 0 }}>
                 <WorkflowPublishStatusBadge publishedVersion={publishedVersion} currentVersion={currentVersion} />
               </FlexItem>
             )}
-            <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
+            {builderPermissions.canEdit && <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>}
           </Flex>
         }
         toolbar={
@@ -259,6 +274,7 @@ export function BuilderWorkflowPageHeader({
             triggers={triggers}
             isAddNodePanelOpen={isAddNodePanelOpen}
             hasNoWorkflowNodes={hasNoWorkflowNodes}
+            builderPermissions={builderPermissions}
           />
         }
       />

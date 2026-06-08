@@ -1,11 +1,12 @@
 import { Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
-import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
@@ -23,6 +24,8 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { AddRoleDialog } from '../../access/AddRoleDialog'
+import { useAssignmentPermissions } from '../../access/useAssignmentPermissions'
+import { useRolePermissions } from '../../access/useRolePermissions'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
 
@@ -116,11 +119,17 @@ type ProjectRoleAssignmentsTabProps = {
   projectId: string
 }
 
-function getAssignmentActions(row: RoleAssignmentRow, onUnassign: (row: RoleAssignmentRow) => void): IAction[] {
+function getAssignmentActions(
+  row: RoleAssignmentRow,
+  onUnassign: (row: RoleAssignmentRow) => void,
+  permissions: ReturnType<typeof useAssignmentPermissions>
+): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Unassign</IconLabel>,
-      onClick: () => onUnassign(row),
+      isAriaDisabled: !permissions.canRevoke,
+      tooltipProps: permissions.canRevoke ? undefined : { content: permissions.tooltips.revoke },
+      onClick: permissions.canRevoke ? () => onUnassign(row) : undefined,
     },
   ]
 }
@@ -135,6 +144,7 @@ function RoleAssignmentsTable({
   onPrev,
   onNext,
   onPerPageChange,
+  permissions,
 }: Readonly<{
   rows: RoleAssignmentRow[]
   sortedRows: RoleAssignmentRow[]
@@ -145,6 +155,7 @@ function RoleAssignmentsTable({
   onPrev: () => void
   onNext: () => void
   onPerPageChange: (perPage: number) => void
+  permissions: ReturnType<typeof useAssignmentPermissions>
 }>) {
   return (
     <NxScrollableTableContainer
@@ -196,7 +207,7 @@ function RoleAssignmentsTable({
               )}
             </Td>
             <Td isActionCell>
-              <ActionsColumn items={getAssignmentActions(row, onUnassign)} />
+              <ActionsColumn items={getAssignmentActions(row, onUnassign, permissions)} />
             </Td>
           </Tr>
         ))}
@@ -205,38 +216,19 @@ function RoleAssignmentsTable({
   )
 }
 
-export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAssignmentsTabProps>) {
+function useProjectAssignmentData(projectId: string) {
   const queryClient = useQueryClient()
-  const [assignModalOpen, setAssignModalOpen] = useState(false)
-  const [createRoleOpen, setCreateRoleOpen] = useState(false)
-  const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
-  const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortFieldByColumn)
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(20)
   const { showAlert } = useAlerts()
 
-  const handleFilterChange = (newFilters: typeof filters) => {
-    setAllFilters(newFilters)
-    setPage(1)
-  }
-
-  const handlePerPageChange = (newPerPage: number) => {
-    setPerPage(newPerPage)
-    setPage(1)
-  }
-
-  const allAssignmentsQuery = accessClient.useQuery('get', '/projects/{project_id}/role_assignments', {
+  const query = accessClient.useQuery('get', '/projects/{project_id}/role_assignments', {
     params: { path: { project_id: projectId } },
   })
-
   const { mutate: deleteAssignment } = accessClient.useMutation(
     'delete',
     '/projects/{project_id}/role_assignments/{assignment_id}'
   )
 
-  const assignments = useMemo(() => allAssignmentsQuery.data?.resources ?? [], [allAssignmentsQuery.data])
-
+  const assignments = useMemo(() => query.data?.resources ?? [], [query.data])
   const rows = useMemo(
     (): RoleAssignmentRow[] =>
       assignments.map((a) => ({
@@ -248,7 +240,6 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
       })),
     [assignments]
   )
-
   const assignedRolesByPrincipal = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const a of assignments) {
@@ -262,60 +253,137 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
     return map
   }, [assignments])
 
-  const filteredRows = useMemo(() => applyFilters(rows, filters), [rows, filters])
+  const refetch = () => detachPromise(query.refetch())
+  const handleRoleCreated = () => {
+    detachPromise(queryClient.invalidateQueries({ queryKey: ['all-project-roles', projectId] }))
+    refetch()
+  }
+  const unassign = (row: RoleAssignmentRow, onSettled: () => void) => {
+    deleteAssignment(
+      { params: { path: { project_id: projectId, assignment_id: row.id } } },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: 'Role unassigned',
+            description: `Role "${row.roleName}" has been unassigned from ${row.principalName}.`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          refetch()
+        },
+        onError: (err: unknown) => {
+          showAlert({
+            title: 'Failed to unassign role',
+            description: getErrorMessage(err),
+            variant: 'error',
+            autoDismiss: true,
+          })
+        },
+        onSettled,
+      }
+    )
+  }
 
+  return { query, rows, assignedRolesByPrincipal, refetch, handleRoleCreated, unassign }
+}
+
+function ProjectAssignmentToolbar({
+  rolePermissions,
+  assignmentPermissions,
+  onCreateRole,
+  onAssignRole,
+  filters,
+  onFilterChange,
+  onClearFilters,
+}: Readonly<{
+  rolePermissions: ReturnType<typeof useRolePermissions>
+  assignmentPermissions: ReturnType<typeof useAssignmentPermissions>
+  onCreateRole: () => void
+  onAssignRole: () => void
+  filters: FilterConfig[]
+  onFilterChange: (f: FilterConfig[]) => void
+  onClearFilters: () => void
+}>) {
+  return (
+    <StackItem>
+      <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+        <FlexItem grow={{ default: 'grow' }}>
+          <FilterBar
+            fieldDefinitions={filterFieldDefinitions}
+            filters={filters}
+            onFilterChange={onFilterChange}
+            showClearAll={true}
+            clearAllFilters={onClearFilters}
+          />
+        </FlexItem>
+        <FlexItem>
+          <DisabledWithTooltip isDisabled={!rolePermissions.canCreate} content={rolePermissions.tooltips.create}>
+            <Button
+              variant="secondary"
+              isAriaDisabled={!rolePermissions.canCreate}
+              onClick={rolePermissions.canCreate ? onCreateRole : undefined}
+            >
+              Create role
+            </Button>
+          </DisabledWithTooltip>
+        </FlexItem>
+        <FlexItem>
+          <DisabledWithTooltip
+            isDisabled={!assignmentPermissions.canAssign}
+            content={assignmentPermissions.tooltips.assign}
+          >
+            <Button
+              variant="primary"
+              icon={<RhUiAddIcon />}
+              isAriaDisabled={!assignmentPermissions.canAssign}
+              onClick={assignmentPermissions.canAssign ? onAssignRole : undefined}
+            >
+              Assign role
+            </Button>
+          </DisabledWithTooltip>
+        </FlexItem>
+      </Flex>
+    </StackItem>
+  )
+}
+
+export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAssignmentsTabProps>) {
+  const assignmentPermissions = useAssignmentPermissions()
+  const rolePermissions = useRolePermissions()
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [createRoleOpen, setCreateRoleOpen] = useState(false)
+  const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
+  const { filters, setAllFilters, clearAllFilters } = useFilterState()
+  const { activeSortIndex, sortDirection, getSortParams } = useSortState(sortFieldByColumn)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const { query, rows, assignedRolesByPrincipal, refetch, handleRoleCreated, unassign } =
+    useProjectAssignmentData(projectId)
+
+  const filteredRows = useMemo(() => applyFilters(rows, filters), [rows, filters])
   const sortedRows = useMemo(
     () => sortRows(filteredRows, activeSortIndex, sortDirection),
     [filteredRows, activeSortIndex, sortDirection]
   )
-
   const paginatedRows = useMemo(() => {
     const start = (page - 1) * perPage
     return sortedRows.slice(start, start + perPage)
   }, [sortedRows, page, perPage])
 
-  const refetch = () => {
-    detachPromise(allAssignmentsQuery.refetch())
-  }
-
-  const handleRoleCreated = () => {
-    detachPromise(queryClient.invalidateQueries({ queryKey: ['all-project-roles', projectId] }))
-    refetch()
-  }
-
   const handleUnassign = () => {
     if (!rowToUnassign) return
-    const callbacks = {
-      onSuccess: () => {
-        showAlert({
-          title: 'Role unassigned',
-          description: `Role "${rowToUnassign.roleName}" has been unassigned from ${rowToUnassign.principalName}.`,
-          variant: 'success',
-          autoDismiss: true,
-        })
-        refetch()
-      },
-      onError: (err: unknown) => {
-        showAlert({
-          title: 'Failed to unassign role',
-          description: getErrorMessage(err),
-          variant: 'error',
-          autoDismiss: true,
-        })
-      },
-      onSettled: () => setRowToUnassign(null),
-    }
-    deleteAssignment({ params: { path: { project_id: projectId, assignment_id: rowToUnassign.id } } }, callbacks)
+    unassign(rowToUnassign, () => setRowToUnassign(null))
   }
 
-  const queryState = useQueryState(allAssignmentsQuery, {
+  const queryState = useQueryState(query, {
     title: 'Error loading role assignments',
-    onRetry: () => detachPromise(allAssignmentsQuery.refetch()),
+    onRetry: refetch,
   })
 
   if (queryState) return queryState
 
   const hasActiveFilters = filters.length > 0
+  const resetPage = () => setPage(1)
 
   return (
     <>
@@ -324,48 +392,43 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
           title="No role assignments"
           description="No roles have been assigned in this project."
           buttonText="Assign role"
-          addData={() => setAssignModalOpen(true)}
+          addData={assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined}
           secondaryActions={
-            <Button variant="link" onClick={() => setCreateRoleOpen(true)}>
-              Create role
-            </Button>
+            <DisabledWithTooltip isDisabled={!rolePermissions.canCreate} content={rolePermissions.tooltips.create}>
+              <Button
+                variant="link"
+                isAriaDisabled={!rolePermissions.canCreate}
+                onClick={rolePermissions.canCreate ? () => setCreateRoleOpen(true) : undefined}
+              >
+                Create role
+              </Button>
+            </DisabledWithTooltip>
           }
         />
       ) : (
         <NxPanelContentStack>
-          <StackItem>
-            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-              <FlexItem grow={{ default: 'grow' }}>
-                <FilterBar
-                  fieldDefinitions={filterFieldDefinitions}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  showClearAll={true}
-                  clearAllFilters={() => {
-                    clearAllFilters()
-                    setPage(1)
-                  }}
-                />
-              </FlexItem>
-              <FlexItem>
-                <Button variant="secondary" onClick={() => setCreateRoleOpen(true)}>
-                  Create role
-                </Button>
-              </FlexItem>
-              <FlexItem>
-                <Button variant="primary" icon={<PlusIcon />} onClick={() => setAssignModalOpen(true)}>
-                  Assign role
-                </Button>
-              </FlexItem>
-            </Flex>
-          </StackItem>
+          <ProjectAssignmentToolbar
+            rolePermissions={rolePermissions}
+            assignmentPermissions={assignmentPermissions}
+            onCreateRole={() => setCreateRoleOpen(true)}
+            onAssignRole={() => setAssignModalOpen(true)}
+            filters={filters}
+            onFilterChange={(f) => {
+              setAllFilters(f)
+              resetPage()
+            }}
+            onClearFilters={() => {
+              clearAllFilters()
+              resetPage()
+            }}
+          />
 
           {sortedRows.length === 0 ? (
             <NxPageBody isCentered>
               <NxEmptyStateFilter
                 clearAllFilters={() => {
                   clearAllFilters()
-                  setPage(1)
+                  resetPage()
                 }}
               />
             </NxPageBody>
@@ -379,7 +442,11 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
               onUnassign={setRowToUnassign}
               onPrev={() => setPage((p) => Math.max(1, p - 1))}
               onNext={() => setPage((p) => p + 1)}
-              onPerPageChange={handlePerPageChange}
+              onPerPageChange={(n: number) => {
+                setPerPage(n)
+                resetPage()
+              }}
+              permissions={assignmentPermissions}
             />
           )}
         </NxPanelContentStack>

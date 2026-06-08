@@ -49,7 +49,7 @@ export function CompactActivityList({
   return (
     <Table aria-label="Activity list" isPlain variant="compact" style={COMPACT_TABLE_STYLE}>
       <Tbody>
-        {activityOrder.map(({ id, name }) => {
+        {activityOrder.map(({ id, name, type }) => {
           const state = activityStates.get(id)
           const timeRange = formatTimeRange(state?.startedAt, state?.completedAt)
           const displayName = name ?? id
@@ -75,7 +75,7 @@ export function CompactActivityList({
                 </Stack>
               </Td>
               <Td dataLabel="Status" modifier="nowrap" style={COMPACT_STATUS_CELL}>
-                <ActivityStatusLabel status={state?.status ?? 'pending'} />
+                <ActivityStatusLabel status={state?.status ?? 'pending'} nodeType={type} />
               </Td>
             </Tr>
           )

@@ -4,7 +4,48 @@ export type UserRead = UsersAPI.components['schemas']['UserRead']
 export type UserIdentityRead = UsersAPI.components['schemas']['UserIdentityRead']
 
 /** Mutable map of user_id → identities for the mock API */
-export const userIdentities: Map<string, UserIdentityRead[]> = new Map()
+export const userIdentities: Map<string, UserIdentityRead[]> = new Map([
+  [
+    'c3d4e5f6-a7b8-9012-cdef-123456789012',
+    [
+      {
+        id: 'ident-0001-aaaa-bbbb-ccccddddeeee',
+        user_id: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
+        identity_provider_id: '550e8400-e29b-41d4-a716-446655440001',
+        issuer: 'https://sso.example.com/realms/corporate',
+        subject: 'asmith@example.com',
+        provider_name: 'Corporate SSO',
+        created_at: '2026-02-05T10:00:00Z',
+        last_used_at: '2026-03-30T16:45:00Z',
+      },
+      {
+        id: 'ident-0002-aaaa-bbbb-ccccddddeeee',
+        user_id: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
+        identity_provider_id: '550e8400-e29b-41d4-a716-446655440002',
+        issuer: 'https://token.actions.githubusercontent.com',
+        subject: 'asmith-gh',
+        provider_name: 'GitHub OAuth',
+        created_at: '2026-02-10T14:30:00Z',
+        last_used_at: '2026-03-28T09:00:00Z',
+      },
+    ],
+  ],
+  [
+    'b2c3d4e5-f6a7-8901-bcde-f12345678901',
+    [
+      {
+        id: 'ident-0003-aaaa-bbbb-ccccddddeeee',
+        user_id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
+        identity_provider_id: '550e8400-e29b-41d4-a716-446655440001',
+        issuer: 'https://sso.example.com/realms/corporate',
+        subject: 'jdoe@example.com',
+        provider_name: 'Corporate SSO',
+        created_at: '2026-01-20T08:00:00Z',
+        last_used_at: '2026-03-28T09:15:00Z',
+      },
+    ],
+  ],
+])
 
 export const users: UserRead[] = [
   {

@@ -36,7 +36,7 @@ test('user searches, views, and deletes a workflow', async ({ app }) => {
     await expect(targetRow).toBeVisible()
 
     // Act - View details via the workflow button
-    await targetRow.getByRole('button', { name: workflowName }).click()
+    await targetRow.getByRole('button', { name: workflowName, exact: true }).click()
 
     // Assert - Builder shows the expected workflow
     await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)

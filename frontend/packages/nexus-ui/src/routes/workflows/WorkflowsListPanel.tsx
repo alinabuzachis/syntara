@@ -1,7 +1,6 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { StackItem } from '@patternfly/react-core'
 import { Th, Thead, Tr } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
 
 import { FilterBar } from '../../components/filters'
 import { NxPageBody } from '../../components/layout/NxPage'
@@ -12,7 +11,7 @@ import { NxScrollableTableContainer, type TableFooterProps } from '../../compone
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import type { ProjectRead } from '../access/types'
 
-import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody } from './WorkflowsTableBody'
+import { FlatWorkflowsTableBody, GroupedWorkflowsTableBody, type RowAction } from './WorkflowsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
@@ -25,13 +24,13 @@ export type WorkflowsListPanelProps = Readonly<{
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
   onClearAllFilters: () => void
-  onCreateWorkflow: () => void
+  onCreateWorkflow?: () => void
   footer?: TableFooterProps
   isAllProjects: boolean
   groupedWorkflows: GroupedWorkflows | null
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
-  getRowActions: (workflow: Workflow) => IAction[]
+  getRowActions: (workflow: Workflow) => RowAction[]
 }>
 
 export function WorkflowsListPanel({

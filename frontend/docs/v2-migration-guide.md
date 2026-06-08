@@ -97,11 +97,11 @@ Every API call is type-checked at compile time. If the backend changes a field n
 
 **4. Factory functions create workflow data**
 
-`packages/nexus-ui/src/stores/workflowFactories.ts` contains pure functions that create properly-typed workflow entities (nodes, triggers, edges). These are what the builder UI calls when a user adds a node.
+`packages/nexus-ui/src/stores/workflowFactories.ts` contains pure functions that create properly-typed workflow entities (nodes, triggers, edges). These are what the builder UI calls when a user adds a step.
 
-**5. Node types are hardcoded in the UI**
+**5. Step types are hardcoded in the UI**
 
-The available node types (Script, REST API, AI Agent, etc.) are defined in the UI's node registry (`src/routes/builder/registry/nodes/register*.ts`), not derived from the contracts. Each registration wires up the icon, form component, and factory function.
+The available step types (Script, REST API, AI Agent, etc.) are defined in the UI's `NodeRegistry` (`src/routes/builder/registry/nodes/register*.ts`), not derived from the contracts. Each registration wires up the icon, form component, and factory function.
 
 ### What changes for v2
 

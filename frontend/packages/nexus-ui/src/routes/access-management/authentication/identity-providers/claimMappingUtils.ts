@@ -6,7 +6,6 @@ export type ClaimMappingField =
   | 'claimMapping.username'
   | 'claimMapping.firstName'
   | 'claimMapping.lastName'
-  | 'claimMapping.groups'
 
 const CLAIM_FIELD_MAPPINGS: {
   key: string
@@ -18,7 +17,6 @@ const CLAIM_FIELD_MAPPINGS: {
   { key: 'username', formField: 'claimMapping.username', formKey: 'username' },
   { key: 'first_name', formField: 'claimMapping.firstName', formKey: 'firstName' },
   { key: 'last_name', formField: 'claimMapping.lastName', formKey: 'lastName' },
-  { key: 'groups', formField: 'claimMapping.groups', formKey: 'groups' },
 ]
 
 export function autoSelectClaimMappings(

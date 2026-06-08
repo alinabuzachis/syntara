@@ -63,7 +63,7 @@ function getMockEditorDescription(predecessors: readonly PredecessorNode[], node
   if (predecessors.length === 1) {
     return `Provide mock output data for the previous step (${predecessors[0].name}). This data will be used as input for ${nodeName}, and only ${nodeName} will execute.`
   }
-  return `Provide mock output data for the previous steps. This data will be applied to all ${predecessors.length} predecessor nodes, and only ${nodeName} will execute.`
+  return `Provide mock output data for the previous steps. This data will be applied to all ${predecessors.length} predecessor steps, and only ${nodeName} will execute.`
 }
 
 export function TestStepDialog({
@@ -189,9 +189,8 @@ export function TestStepDialog({
           <Stack hasGutter>
             <StackItem>
               <Content component="p">
-                You are about to manually run this node. Do you want to run all the previous nodes up until this node or
-                set mock output data for the previous nodes output, so it is used for the input for this node and only
-                this node runs?
+                You are about to run this step manually. Run all previous steps up to this one, or set mock output for
+                previous steps so only this step runs.
               </Content>
             </StackItem>
             {runState === 'error' && runError && (
@@ -210,7 +209,7 @@ export function TestStepDialog({
             isDisabled={runState !== 'idle'}
             isLoading={runState === 'running'}
           >
-            {runState === 'running' ? 'Running...' : 'Run all previous nodes'}
+            {runState === 'running' ? 'Running...' : 'Run all previous steps'}
           </Button>
           <Button
             variant="secondary"

@@ -203,6 +203,13 @@ function validateCredentialId(url: URL): ReturnType<typeof HttpResponse.json> | 
   return null
 }
 
+function filterByPolicyName<T extends { policies: string[] }>(items: T[], url: URL): T[] {
+  const term = url.searchParams.get('policy_name[contains]')
+  if (!term) return items
+  const lower = term.toLowerCase()
+  return items.filter((r) => r.policies.some((p) => p.toLowerCase().includes(lower)))
+}
+
 function createExecutionNotFoundResponse(executionId: string, subPath?: string) {
   const instance = subPath ? `/api/v1/executions/${executionId}/${subPath}` : `/api/v1/executions/${executionId}`
   return HttpResponse.json(
@@ -587,7 +594,7 @@ export const handlers = [
         { status: 404 }
       )
     }
-    const body = (await request.request.json()) as { publish_name?: string | null; description?: string | null }
+    const body = (await request.request.json()) as { publish_name?: string | null; change_description?: string | null }
     const version = parseInt(String(request.params.version), 10)
     if (isNaN(version) || version < 1) {
       return HttpResponse.json(
@@ -618,6 +625,7 @@ export const handlers = [
     mutableWorkflow.updated_at = new Date().toISOString()
     const versionObj = mutableWorkflow.version as Record<string, unknown>
     versionObj.publish_name = body?.publish_name ?? null
+    versionObj.change_description = body?.change_description ?? null
     versionObj.status = WorkflowVersionStatusEnum.PUBLISHED
     return HttpResponse.json(mutableWorkflow)
   }),
@@ -993,7 +1001,7 @@ export const handlers = [
   }),
 
   // CSRF token — return a mock form token
-  http.post('/api/v1/auth/csrf-token', () => {
+  http.post('/api/v1/auth/csrf_token', () => {
     return HttpResponse.json({ csrf_token: 'mock-csrf-form-token' })
   }),
 
@@ -1269,6 +1277,77 @@ export const handlers = [
     }
     identityProviders.splice(index, 1)
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post('/api/v1/identity_providers/setup_aap_oidc', async ({ request }) => {
+    const body = (await request.json()) as {
+      aap_url?: string
+      organization?: string
+      admin_username?: string
+      admin_password?: string
+      personal_access_token?: string
+      insecure_skip_tls_verify?: boolean
+    }
+
+    const hasBasicAuth = body.admin_username && body.admin_password
+    const hasToken = body.personal_access_token
+
+    if (!body.aap_url || (!hasBasicAuth && !hasToken)) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: 'aap_url and either admin credentials or a personal access token are required',
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+        },
+        { status: 422 }
+      )
+    }
+
+    const existing = identityProviders.find((p) => p.configuration?.idp_type === 'aap')
+    if (existing) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/name-conflict',
+          title: 'Identity Provider Name Conflict',
+          detail: "Identity provider with name 'Ansible Automation Platform' already exists",
+          code: 'IDENTITY_PROVIDER_NAME_CONFLICT',
+          retryable: false,
+        },
+        { status: 409 }
+      )
+    }
+
+    const provider: IdentityProvider = {
+      id: crypto.randomUUID(),
+      name: 'Ansible Automation Platform',
+      description: 'Auto-configured AAP OIDC provider',
+      enabled: true,
+      configuration: {
+        provider_type: 'oidc',
+        idp_type: 'aap',
+        auto_discovery: true,
+        issuer_url: `${body.aap_url.replace(/\/+$/, '')}/o/`,
+        client_id: `mock-${crypto.randomUUID().slice(0, 8)}`,
+        redirect_uri: 'http://localhost:8000/api/v1/auth/oidc/callback',
+        scopes: 'read write openid roles',
+        claim_mapping: { subject: 'sub', email: 'email', username: 'preferred_username', full_name: 'name' },
+        aap_role_mapping_enabled: true,
+        enable_rp_initiated_logout: true,
+        allow_all_authenticated: false,
+        disable_tls_verify: body.insecure_skip_tls_verify ?? false,
+        group_jmespath_expression: "[aap_teams[*].join('/', [organization, name]), aap_organizations[*].name] | []",
+        group_mapping_entries: [],
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: 'admin',
+      updated_by: 'admin',
+    }
+
+    identityProviders.push(provider)
+    return HttpResponse.json(provider, { status: 201 })
   }),
 
   http.post('/api/v1/identity_providers/test', async ({ request }) => {
@@ -2817,7 +2896,9 @@ export const handlers = [
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
     const projectId = params.project_id as string
-    const filtered = mockRoles.filter((r) => r.project_id === projectId)
+    let filtered = mockRoles.filter((r) => r.project_id === projectId)
+
+    filtered = filterByPolicyName(filtered, url)
 
     return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
   }),
@@ -3094,6 +3175,8 @@ export const handlers = [
       const builtin = isBuiltin === 'true'
       filtered = filtered.filter((r) => r.is_builtin === builtin)
     }
+
+    filtered = filterByPolicyName(filtered, url)
 
     const sort = url.searchParams.get('sort')
     if (sort) {
@@ -3601,7 +3684,7 @@ export const handlers = [
     let allowed = true
 
     if (username === 'viewer') {
-      const readableResources = new Set(['workflow', 'execution', 'approval', 'credential'])
+      const readableResources = new Set(['workflow', 'execution', 'approval', 'credential', 'integration'])
       if (readableResources.has(resourceType)) {
         allowed = action === 'read'
       } else {
@@ -3684,7 +3767,7 @@ export const handlers = [
     return HttpResponse.json({ message: `Tokens for user "${username}" have been revoked.` })
   }),
 
-  http.post('/api/v1/admin/revocation/identity-providers/:idp_name', ({ params }) => {
+  http.post('/api/v1/admin/revocation/identity_providers/:idp_name', ({ params }) => {
     const idpName = params.idp_name as string
     const provider = identityProviders.find((p) => p.name === idpName)
     if (!provider) {
@@ -3722,13 +3805,37 @@ export const handlers = [
     return HttpResponse.json({ users, next_cursor: null })
   }),
 
-  http.post('/api/v1/authz/what_can_i', () => {
+  http.post('/api/v1/authz/what_can_i', async ({ request }) => {
+    const username = getUsernameFromRequest(request)
+
+    if (username === 'viewer') {
+      return HttpResponse.json({
+        permissions: [
+          { policy_name: 'viewer-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+        ],
+      })
+    }
+
+    if (username === 'user') {
+      return HttpResponse.json({
+        permissions: [{ policy_name: 'user-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' }],
+      })
+    }
+
+    if (username === 'auditor') {
+      return HttpResponse.json({
+        permissions: [
+          { policy_name: 'auditor-policy', effect: 'allow', actions: ['read'], scope: 'system', project: '' },
+        ],
+      })
+    }
+
     return HttpResponse.json({
       permissions: [
         {
           policy_name: 'admin-policy',
           effect: 'allow',
-          actions: ['create', 'read', 'update', 'delete'],
+          actions: ['create', 'read', 'update', 'delete', 'approval:decide'],
           scope: 'system',
           project: '',
         },

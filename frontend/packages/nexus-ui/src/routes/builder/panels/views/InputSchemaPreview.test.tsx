@@ -78,7 +78,7 @@ describe('InputSchemaPreview', () => {
   it('renders the info banner about expected output fields', () => {
     render(<InputSchemaPreview fields={sampleFields} nodeId="step-1" />)
 
-    expect(screen.getByText('Expected output fields (run node to see actual values)')).toBeInTheDocument()
+    expect(screen.getByText('Expected output fields (run step to see actual values)')).toBeInTheDocument()
   })
 
   it('renders a tree with the schema preview aria-label', () => {

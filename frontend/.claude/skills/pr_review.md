@@ -136,17 +136,22 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 
 **Also check these review-specific items:**
 
-| Check                                    | How to verify                                                                                            |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **UI PRs include screenshots**           | PRs changing visible UI must include screenshots or recordings of key states                             |
-| **New API endpoints have mock handlers** | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged                |
-| **`useQueryState` object form**          | Verify `useQueryState(query, { title, onRetry })` -- not bare string form (see coding_standards.md §2)   |
-| **Error handling consistency**           | Verify `useQueryState` / `useMutationErrorHandler` -- no ad-hoc try/catch with custom error display      |
-| **userEvent regressions**                | Check if PR replaces existing `userEvent` calls with `fireEvent` -- that is a regression                 |
-| **Unreachable dead code in tests**       | Look for nested `it()` blocks inside other `it()` blocks (after `return` statements)                     |
-| **Stale JSDoc/comments after renames**   | When components are renamed, check JSDoc references, `describe` block names, and CSS comments            |
-| **Query invalidation completeness**      | After mutations, verify ALL related queries are invalidated (not just the primary entity)                |
-| **Zero new ESLint warnings**             | New code must not introduce warnings, even for rules currently set to `warn` -- they will become `error` |
+| Check                                           | How to verify                                                                                                                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **UI PRs include screenshots**                  | PRs changing visible UI must include screenshots or recordings of key states                                                                                       |
+| **New API endpoints have mock handlers**        | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged                                                                          |
+| **`useQueryState` object form**                 | Verify `useQueryState(query, { title, onRetry })` -- not bare string form (see coding_standards.md §2)                                                             |
+| **Error handling consistency**                  | Verify `useQueryState` / `useMutationErrorHandler` -- no ad-hoc try/catch with custom error display                                                                |
+| **userEvent regressions**                       | Check if PR replaces existing `userEvent` calls with `fireEvent` -- that is a regression                                                                           |
+| **Unreachable dead code in tests**              | Look for nested `it()` blocks inside other `it()` blocks (after `return` statements)                                                                               |
+| **Stale JSDoc/comments after renames**          | When components are renamed, check JSDoc references, `describe` block names, and CSS comments                                                                      |
+| **Query invalidation completeness**             | After mutations, verify ALL related queries are invalidated (not just the primary entity)                                                                          |
+| **Zero new ESLint warnings**                    | New code must not introduce warnings, even for rules currently set to `warn` -- they will become `error`                                                           |
+| **New routes have `requiredPermissions`**       | Every route with access requirements must set `requiredPermissions` in `navigationItems.tsx`; create/edit routes need `routePermission` for `ProtectedRoute` guard |
+| **New write actions use `DisabledWithTooltip`** | Create/edit/delete buttons must be wrapped with `DisabledWithTooltip` + domain permission hook; use `permissionTooltip()` for copy                                 |
+| **New resources have mock `can_i` handlers**    | `packages/nexus-mock-api/src/handlers.ts` must include role-aware responses for all 4 roles (admin, viewer, auditor, user)                                         |
+| **Permission hooks include `isError`**          | Any `useCanI` mock must include `isError: false`; real hook returns `{ allowed, isChecking, isError }`                                                             |
+| **Permission cache invalidation**               | After role/assignment mutations, verify `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })` is called                                                |
 
 ### HTML -> PF6 Component Mapping
 
@@ -288,6 +293,7 @@ When reviewing your own implementation before committing, verify these gates pas
 7. Zero `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, or `// TODO` in new code
 8. Zero disabled axe rules in test files
 9. No re-implemented library functionality (TanStack Query, react-hook-form, Zod, PatternFly)
+10. New routes have `requiredPermissions` / `routePermission` set; new CRUD actions use `DisabledWithTooltip`
 
 ### Independent Review (High-Risk Changes)
 

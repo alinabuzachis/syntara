@@ -5,19 +5,19 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { builtinFilterDefinitions } from './builtinFilterDefinitions'
 
 describe('builtinFilterDefinitions', () => {
-  it('has exactly 3 filter definitions', () => {
-    expect(builtinFilterDefinitions).toHaveLength(3)
+  it('has exactly 4 filter definitions', () => {
+    expect(builtinFilterDefinitions).toHaveLength(4)
   })
 
-  it('contains name, description, and type keys', () => {
+  it('contains name, description, policy_name, and type keys', () => {
     const keys = builtinFilterDefinitions.map((d) => d.key)
-    expect(keys).toEqual(['name', 'description', 'type'])
+    expect(keys).toEqual(['name', 'description', 'policy_name', 'type'])
   })
 
-  describe('text filters (name, description)', () => {
+  describe('text filters (name, description, policy_name)', () => {
     it('uses TEXT type with CONTAINS operator', () => {
       const textFilters = builtinFilterDefinitions.filter((d) => d.type === FilterTypeEnum.TEXT)
-      expect(textFilters).toHaveLength(2)
+      expect(textFilters).toHaveLength(3)
 
       for (const filter of textFilters) {
         expect(filter.operators).toEqual([FilterOperatorEnum.CONTAINS])

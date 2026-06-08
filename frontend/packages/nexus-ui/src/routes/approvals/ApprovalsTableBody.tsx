@@ -1,4 +1,5 @@
 import {
+  Checkbox,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -6,6 +7,7 @@ import {
   Flex,
   FlexItem,
   Label,
+  Tooltip,
 } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr, ExpandableRowContent } from '@patternfly/react-table'
@@ -14,6 +16,7 @@ import { Fragment } from 'react'
 import groupedTableStyles from '../../components/groupedTable.module.css'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
+import { permissionTooltip } from '../../hooks/permissionUtils'
 import type { ProjectRead } from '../access/types'
 
 import type { ApprovalWithDetails } from './Approvals'
@@ -40,6 +43,8 @@ function DecidedCell({ approval }: Readonly<{ approval: ApprovalWithDetails }>) 
   )
 }
 
+const DECIDE_TOOLTIP = permissionTooltip('approve or reject this approval', 'approval:decide')
+
 function ApprovalRow({
   approval,
   rowIndex,
@@ -62,24 +67,40 @@ function ApprovalRow({
   isLoadingPermissions?: boolean
 }>) {
   const isPending = approval.status === 'pending'
+  const showDisabledWithTooltip = showSelect && isPending && !canDecideOnThisApproval && !isLoadingPermissions
 
   return (
     <Fragment key={approval.id}>
       <Tr isContentExpanded={isExpanded}>
-        {showSelect && (
-          <Td
-            select={
-              isPending
-                ? {
-                    rowIndex,
-                    onSelect: (_event, isSelecting) => onSelectRow?.(approval, isSelecting),
-                    isSelected,
-                    isDisabled: !canDecideOnThisApproval || isLoadingPermissions,
-                  }
-                : undefined
-            }
-          />
-        )}
+        {showSelect &&
+          (showDisabledWithTooltip ? (
+            <Td aria-label={`Select row ${rowIndex}`}>
+              <Tooltip content={DECIDE_TOOLTIP}>
+                <span>
+                  <Checkbox
+                    id={`select-approval-${approval.id}`}
+                    isChecked={false}
+                    isDisabled
+                    aria-label={`Select row ${rowIndex}`}
+                    onChange={() => undefined}
+                  />
+                </span>
+              </Tooltip>
+            </Td>
+          ) : (
+            <Td
+              select={
+                isPending
+                  ? {
+                      rowIndex,
+                      onSelect: (_event, isSelecting) => onSelectRow?.(approval, isSelecting),
+                      isSelected,
+                      isDisabled: isLoadingPermissions,
+                    }
+                  : undefined
+              }
+            />
+          ))}
         <Td
           expand={{
             rowIndex,
@@ -157,7 +178,13 @@ export function GroupedApprovalsTableBody({
   approvalPermissions,
   isLoadingPermissions,
 }: Readonly<GroupedApprovalsTableBodyProps>) {
-  let rowIndex = 0
+  const approvalIndexMap = new Map<string, number>()
+  let globalIndex = 0
+  for (const { approvals } of groupedApprovals.values()) {
+    for (const approval of approvals) {
+      approvalIndexMap.set(approval.id, globalIndex++)
+    }
+  }
 
   return (
     <>
@@ -179,23 +206,20 @@ export function GroupedApprovalsTableBody({
             </Td>
           </Tr>
           {!collapsedProjects.has(projectId) &&
-            approvals.map((approval) => {
-              const currentIndex = rowIndex++
-              return (
-                <ApprovalRow
-                  key={approval.id}
-                  approval={approval}
-                  rowIndex={currentIndex}
-                  isExpanded={expandedRows.has(approval.id)}
-                  onToggleRow={onToggleRow}
-                  showSelect={showSelect}
-                  isSelected={selectedApprovalIds?.has(approval.id)}
-                  onSelectRow={onSelectRow}
-                  canDecideOnThisApproval={approvalPermissions.get(approval.id) ?? false}
-                  isLoadingPermissions={isLoadingPermissions}
-                />
-              )
-            })}
+            approvals.map((approval) => (
+              <ApprovalRow
+                key={approval.id}
+                approval={approval}
+                rowIndex={approvalIndexMap.get(approval.id) ?? 0}
+                isExpanded={expandedRows.has(approval.id)}
+                onToggleRow={onToggleRow}
+                showSelect={showSelect}
+                isSelected={selectedApprovalIds?.has(approval.id)}
+                onSelectRow={onSelectRow}
+                canDecideOnThisApproval={approvalPermissions.get(approval.id) ?? false}
+                isLoadingPermissions={isLoadingPermissions}
+              />
+            ))}
         </Tbody>
       ))}
     </>

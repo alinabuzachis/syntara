@@ -8,6 +8,7 @@ import type { ActivityOrderItem } from './ExecutionActivityTable'
 type ActivityLike = {
   id?: string
   name?: string
+  type?: string
   branches?: (ActivityLike[] | ActivityLike | string)[]
   steps?: ActivityLike[]
   then?: ActivityLike[]
@@ -30,63 +31,82 @@ function normalizeBranches(branches: (ActivityLike[] | ActivityLike | string)[])
     .map((b) => (Array.isArray(b) ? b : [b]))
 }
 
-function collectNamesFromActivityList(acts: ActivityLike[], map: Map<string, string>): void {
+function collectNamesFromActivityList(
+  acts: ActivityLike[],
+  nameMap: Map<string, string>,
+  typeMap: Map<string, string>
+): void {
   for (const act of acts) {
-    collectNamesFromActivity(act, map)
+    collectNamesFromActivity(act, nameMap, typeMap)
   }
 }
 
-function collectNamesFromActivity(act: ActivityLike, map: Map<string, string>): void {
-  if (act.id && act.name) map.set(act.id, act.name)
+function collectNamesFromActivity(act: ActivityLike, nameMap: Map<string, string>, typeMap: Map<string, string>): void {
+  if (act.id && act.name) nameMap.set(act.id, act.name)
+  if (act.id && act.type) typeMap.set(act.id, act.type)
 
   if (act.branches) {
     for (const branch of normalizeBranches(act.branches)) {
-      collectNamesFromActivityList(branch, map)
+      collectNamesFromActivityList(branch, nameMap, typeMap)
     }
   }
 
   for (const key of CHILD_KEYS) {
     const children = act[key]
     if (Array.isArray(children)) {
-      collectNamesFromActivityList(children as ActivityLike[], map)
+      collectNamesFromActivityList(children as ActivityLike[], nameMap, typeMap)
     }
   }
 
   if (act.loop?.do) {
-    collectNamesFromActivityList(act.loop.do, map)
+    collectNamesFromActivityList(act.loop.do, nameMap, typeMap)
   }
 }
 
-function buildNameMap(activities: ActivityLike[] | undefined): Map<string, string> {
-  const map = new Map<string, string>()
-  if (!activities) return map
-  collectNamesFromActivityList(activities, map)
-  return map
+function buildNameMap(activities: ActivityLike[] | undefined): {
+  nameMap: Map<string, string>
+  typeMap: Map<string, string>
+} {
+  const nameMap = new Map<string, string>()
+  const typeMap = new Map<string, string>()
+  if (!activities) return { nameMap, typeMap }
+  collectNamesFromActivityList(activities, nameMap, typeMap)
+  return { nameMap, typeMap }
 }
 
 function buildStoreNameMap(
-  activities: Array<{ id?: string; name?: string }>,
-  triggers: Array<{ id?: string; name?: string }>
-): Map<string, string> {
-  const map = new Map<string, string>()
+  activities: Array<{ id?: string; name?: string; type?: string }>,
+  triggers: Array<{ id?: string; name?: string; type?: string }>
+): { nameMap: Map<string, string>; typeMap: Map<string, string> } {
+  const nameMap = new Map<string, string>()
+  const typeMap = new Map<string, string>()
   for (const act of activities) {
-    if (act.id && act.name) map.set(act.id, act.name)
+    if (act.id && act.name) nameMap.set(act.id, act.name)
+    if (act.id && act.type) typeMap.set(act.id, act.type)
   }
   for (const trigger of triggers) {
-    if (trigger.id && trigger.name) map.set(trigger.id, trigger.name)
+    if (trigger.id && trigger.name) nameMap.set(trigger.id, trigger.name)
+    if (trigger.id && trigger.type) typeMap.set(trigger.id, trigger.type)
   }
-  return map
+  return { nameMap, typeMap }
 }
 
-function buildDefinitionNameMap(def: WorkflowDefShape | null | undefined): Map<string, string> {
+function buildDefinitionNameMap(def: WorkflowDefShape | null | undefined): {
+  nameMap: Map<string, string>
+  typeMap: Map<string, string>
+} {
   const fromActivities = buildNameMap(def?.workflow?.activities)
   const fromNodes = buildNameMap(def?.nodes)
-  if (fromNodes.size === 0) return fromActivities
-  const merged = new Map(fromActivities)
-  for (const [id, name] of fromNodes) {
-    merged.set(id, name)
+  if (fromNodes.nameMap.size === 0) return fromActivities
+  const mergedNames = new Map(fromActivities.nameMap)
+  const mergedTypes = new Map(fromActivities.typeMap)
+  for (const [id, name] of fromNodes.nameMap) {
+    mergedNames.set(id, name)
   }
-  return merged
+  for (const [id, type] of fromNodes.typeMap) {
+    mergedTypes.set(id, type)
+  }
+  return { nameMap: mergedNames, typeMap: mergedTypes }
 }
 
 export function useActivityNameMap(
@@ -96,7 +116,7 @@ export function useActivityNameMap(
   const storeActivities = useActivities()
   const storeTriggers = useTriggers()
 
-  const nameMap = useMemo(() => {
+  const { nameMap, typeMap } = useMemo(() => {
     const hasStoreData = (storeActivities && storeActivities.length > 0) || (storeTriggers && storeTriggers.length > 0)
     if (hasStoreData) {
       return buildStoreNameMap(storeActivities ?? [], storeTriggers ?? [])
@@ -105,8 +125,8 @@ export function useActivityNameMap(
   }, [storeActivities, storeTriggers, workflowDefinition])
 
   const activityOrder = useMemo<ActivityOrderItem[]>(
-    () => Array.from(activityStates.keys()).map((id) => ({ id, name: nameMap.get(id) })),
-    [activityStates, nameMap]
+    () => Array.from(activityStates.keys()).map((id) => ({ id, name: nameMap.get(id), type: typeMap.get(id) })),
+    [activityStates, nameMap, typeMap]
   )
 
   return { nameMap, activityOrder }

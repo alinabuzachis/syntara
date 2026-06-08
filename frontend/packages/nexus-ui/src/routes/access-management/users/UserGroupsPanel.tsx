@@ -260,11 +260,22 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
   const groups = useMemo(() => {
     const userGroups = query.data?.resources ?? []
     const hasAuthenticated = userGroups.some((g) => g.name === BUILTIN_AUTHENTICATED_GROUP_NAME)
-    if (hasAuthenticated) return userGroups
+    if (hasAuthenticated || userGroups.length === 0) return userGroups
 
     const authenticatedGroup = allGroupsList.find((g) => g.name === BUILTIN_AUTHENTICATED_GROUP_NAME)
     if (authenticatedGroup) return [authenticatedGroup, ...userGroups]
-    return userGroups
+
+    // Fallback: synthetic entry when useAllGroups() is unavailable (e.g. no group:read permission)
+    return [
+      {
+        id: `builtin-${BUILTIN_AUTHENTICATED_GROUP_NAME}`,
+        name: BUILTIN_AUTHENTICATED_GROUP_NAME,
+        description: 'Implicit group containing all authenticated users',
+        is_builtin: true,
+        source: 'local',
+      },
+      ...userGroups,
+    ]
   }, [query.data, allGroupsList])
 
   const filteredGroups = useMemo(() => applyGroupFilters(groups, filters), [groups, filters])

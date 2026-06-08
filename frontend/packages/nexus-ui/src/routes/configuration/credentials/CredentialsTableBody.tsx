@@ -7,15 +7,17 @@ import {
   FlexItem,
   Label,
   Switch,
+  Tooltip,
   Truncate,
 } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
-import { ActionsColumn, ExpandableRowContent, Tbody, Td, Tr } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
+import { ExpandableRowContent, Tbody, Td, Tr } from '@patternfly/react-table'
 import { Fragment } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
 import groupedTableStyles from '../../../components/groupedTable.module.css'
+import type { KebabAction } from '../../../components/NxKebabMenu'
+import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { LinkCell } from '../../../components/table/LinkCell'
 import type { ProjectRead } from '../../access/types'
 
@@ -25,14 +27,17 @@ import { UserTimestamp } from './UserTimestamp'
 /** Total visible columns including expand toggle and actions. */
 const COLUMN_COUNT = 8
 
+export type CredentialRowAction = KebabAction
+
 type CredentialRowProps = {
   credential: CredentialExtended
   credType: CredentialType | undefined
   rowIndex: number
   isExpanded: boolean
   onToggleRow: (id: string) => void
-  getRowActions: (credential: Credential) => IAction[]
+  getRowActions: (credential: Credential) => CredentialRowAction[]
   onToggleEnabled: (credential: Credential) => void
+  toggleDisabledTooltip?: string
 }
 
 function CredentialRow({
@@ -43,8 +48,11 @@ function CredentialRow({
   onToggleRow,
   getRowActions,
   onToggleEnabled,
+  toggleDisabledTooltip,
 }: Readonly<CredentialRowProps>) {
   const hasDescription = Boolean(credential.description?.trim())
+  const actions = getRowActions(credential)
+
   return (
     <Tbody isExpanded={isExpanded}>
       <Tr isContentExpanded={isExpanded}>
@@ -75,15 +83,26 @@ function CredentialRow({
           <UserTimestamp user={credential.updated_by} timestamp={credential.updated_at} inline />
         </Td>
         <Td dataLabel="State" onClick={(e) => e.stopPropagation()}>
-          <Switch
-            id={`credential-toggle-${credential.id}`}
-            label="Enabled"
-            isChecked={credential.enabled}
-            onChange={() => onToggleEnabled(credential)}
-          />
+          {toggleDisabledTooltip ? (
+            <Tooltip content={toggleDisabledTooltip}>
+              <Switch
+                id={`credential-toggle-${credential.id}`}
+                label="Enabled"
+                isChecked={credential.enabled}
+                isDisabled
+              />
+            </Tooltip>
+          ) : (
+            <Switch
+              id={`credential-toggle-${credential.id}`}
+              label="Enabled"
+              isChecked={credential.enabled}
+              onChange={() => onToggleEnabled(credential)}
+            />
+          )}
         </Td>
         <Td isActionCell onClick={(e) => e.stopPropagation()}>
-          <ActionsColumn items={getRowActions(credential)} />
+          <NxKebabMenu actions={actions} aria-label={`Actions for ${credential.name}`} />
         </Td>
       </Tr>
       {hasDescription && (
@@ -116,8 +135,9 @@ type GroupedCredentialsTableBodyProps = {
   typeMap: Map<string, CredentialType>
   expandedRows: Set<string>
   onToggleRow: (id: string) => void
-  getRowActions: (credential: Credential) => IAction[]
+  getRowActions: (credential: Credential) => CredentialRowAction[]
   onToggleEnabled: (credential: Credential) => void
+  toggleDisabledTooltip?: string
 }
 
 export function GroupedCredentialsTableBody({
@@ -129,8 +149,15 @@ export function GroupedCredentialsTableBody({
   onToggleRow,
   getRowActions,
   onToggleEnabled,
+  toggleDisabledTooltip,
 }: Readonly<GroupedCredentialsTableBodyProps>) {
-  const allCredentials = [...groupedCredentials.values()].flatMap(({ credentials }) => credentials)
+  const credentialIndexMap = new Map<string, number>()
+  let globalIndex = 0
+  for (const { credentials } of groupedCredentials.values()) {
+    for (const credential of credentials) {
+      if (credential.id) credentialIndexMap.set(credential.id, globalIndex++)
+    }
+  }
 
   return (
     <>
@@ -161,11 +188,12 @@ export function GroupedCredentialsTableBody({
                   key={credential.id}
                   credential={credential}
                   credType={typeMap.get(credential.credential_type_id)}
-                  rowIndex={allCredentials.indexOf(credential)}
+                  rowIndex={(credential.id ? credentialIndexMap.get(credential.id) : undefined) ?? 0}
                   isExpanded={expandedRows.has(credential.id!)}
                   onToggleRow={onToggleRow}
                   getRowActions={getRowActions}
                   onToggleEnabled={onToggleEnabled}
+                  toggleDisabledTooltip={toggleDisabledTooltip}
                 />
               ))}
           </Fragment>
@@ -180,8 +208,9 @@ type FlatCredentialsTableBodyProps = {
   typeMap: Map<string, CredentialType>
   expandedRows: Set<string>
   onToggleRow: (id: string) => void
-  getRowActions: (credential: Credential) => IAction[]
+  getRowActions: (credential: Credential) => CredentialRowAction[]
   onToggleEnabled: (credential: Credential) => void
+  toggleDisabledTooltip?: string
 }
 
 export function FlatCredentialsTableBody({
@@ -191,6 +220,7 @@ export function FlatCredentialsTableBody({
   onToggleRow,
   getRowActions,
   onToggleEnabled,
+  toggleDisabledTooltip,
 }: Readonly<FlatCredentialsTableBodyProps>) {
   return (
     <>
@@ -204,6 +234,7 @@ export function FlatCredentialsTableBody({
           onToggleRow={onToggleRow}
           getRowActions={getRowActions}
           onToggleEnabled={onToggleEnabled}
+          toggleDisabledTooltip={toggleDisabledTooltip}
         />
       ))}
     </>

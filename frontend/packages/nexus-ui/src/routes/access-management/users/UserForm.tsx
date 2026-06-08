@@ -135,7 +135,7 @@ function UserFormMainPanel({
   onFormSubmit,
 }: Readonly<UserFormMainPanelProps>) {
   return (
-    <NxPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+    <NxPanel isFullHeight isScrollable panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
       <Stack hasGutter style={{ maxWidth: '600px' }}>
         <UserFormWarningAlerts
           showDisableWarning={showDisableWarning}

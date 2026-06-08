@@ -30,6 +30,17 @@ vi.mock('../../access/useAllUsers', () => ({
   useAllUsers: vi.fn(),
 }))
 
+vi.mock('../useGroupPermissions', () => ({
+  useGroupPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canManageMembers: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '', manageMembers: '' },
+  }),
+}))
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })

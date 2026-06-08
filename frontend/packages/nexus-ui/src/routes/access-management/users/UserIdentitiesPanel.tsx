@@ -11,6 +11,7 @@ import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
 import type { AuthProvider } from '../../../app/useAuthProviders'
 import { useAuthProviders } from '../../../app/useAuthProviders'
 import { OIDC_AUTHORIZE_PATH, identityProvidersClient, usersClient } from '../../../client'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { ProviderIcon } from '../../../components/ProviderIcon'
@@ -29,6 +30,7 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { IdentityActionsKebab, IdentityDialogs, type ConvertProviderInfo } from './IdentityDialogs'
 import type { UserIdentity } from './identityUtils'
 import { applyLocalFilters, useLocalFilterState } from './identityUtils'
+import { useUserIdentityPermissions } from './useUserIdentityPermissions'
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
@@ -106,11 +108,15 @@ function ConnectedIdentityRow({
   isLastIdentity,
   isDetaching,
   onDisconnect,
+  canDetach,
+  detachTooltip,
 }: {
   identity: UserIdentity
   isLastIdentity: boolean
   isDetaching: boolean
   onDisconnect: () => void
+  canDetach: boolean
+  detachTooltip: string
 }) {
   return (
     <Tr>
@@ -131,6 +137,8 @@ function ConnectedIdentityRow({
           isLastIdentity={isLastIdentity}
           isDetaching={isDetaching}
           onDisconnect={onDisconnect}
+          canDetach={canDetach}
+          detachTooltip={detachTooltip}
         />
       </Td>
     </Tr>
@@ -197,11 +205,14 @@ function useIdentityPagination() {
   return { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange }
 }
 
-function renderIdentityDialogs(props: {
-  isAttachOpen: boolean
-  onCloseAttach: () => void
-  userId: string
-  query: { refetch: () => Promise<unknown> }
+function IdentityDialogsWrapper({
+  identityToDetach,
+  isDetaching,
+  confirmDetach,
+  onCancelDetach,
+  convertProvider,
+  onCloseConvert,
+}: {
   identityToDetach: UserIdentity | null
   isDetaching: boolean
   confirmDetach: () => void
@@ -211,19 +222,15 @@ function renderIdentityDialogs(props: {
 }) {
   return (
     <IdentityDialogs
-      isAttachOpen={props.isAttachOpen}
-      onCloseAttach={props.onCloseAttach}
-      currentUserId={props.userId}
-      onAttached={() => detachPromise(props.query.refetch())}
-      identityToDetach={props.identityToDetach}
-      isDetaching={props.isDetaching}
-      onConfirmDetach={props.confirmDetach}
-      onCancelDetach={props.onCancelDetach}
-      convertProvider={props.convertProvider}
-      onCloseConvert={props.onCloseConvert}
+      identityToDetach={identityToDetach}
+      isDetaching={isDetaching}
+      onConfirmDetach={confirmDetach}
+      onCancelDetach={onCancelDetach}
+      convertProvider={convertProvider}
+      onCloseConvert={onCloseConvert}
       onConfirmConvert={() => {
-        if (props.convertProvider) {
-          globalThis.location.href = props.convertProvider.authorizeUrl
+        if (convertProvider) {
+          globalThis.location.href = convertProvider.authorizeUrl
         }
       }}
     />
@@ -251,9 +258,9 @@ export function UserIdentitiesPanel({
   isLocalUser = false,
   hasPassword,
 }: Readonly<UserIdentitiesPanelProps>) {
+  const identityPermissions = useUserIdentityPermissions()
   const { showAlert } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
-  const [isAttachOpen, setIsAttachOpen] = useState(false)
   const [identityToDetach, setIdentityToDetach] = useState<UserIdentity | null>(null)
   const [convertProvider, setConvertProvider] = useState<ConvertProviderInfo | null>(null)
   const { identitiesFilter, page, setPage, perPage, handlePerPageChange, handleFilterChange } = useIdentityPagination()
@@ -319,9 +326,7 @@ export function UserIdentitiesPanel({
           detachPromise(query.refetch())
         },
         onError: handleMutationError({ title: 'Failed to disconnect identity' }),
-        onSettled: () => {
-          setIdentityToDetach(null)
-        },
+        onSettled: () => setIdentityToDetach(null),
       }
     )
   }
@@ -329,18 +334,16 @@ export function UserIdentitiesPanel({
   const hasActiveFilters = identitiesFilter.filters.length > 0
   const showTable = identities.length > 0 || (!isBuiltinUser && unlinkedProviders.length > 0) || hasActiveFilters
 
-  const dialogs = renderIdentityDialogs({
-    isAttachOpen,
-    onCloseAttach: () => setIsAttachOpen(false),
-    userId,
-    query,
-    identityToDetach,
-    isDetaching,
-    confirmDetach,
-    onCancelDetach: () => setIdentityToDetach(null),
-    convertProvider,
-    onCloseConvert: () => setConvertProvider(null),
-  })
+  const dialogs = (
+    <IdentityDialogsWrapper
+      identityToDetach={identityToDetach}
+      isDetaching={isDetaching}
+      confirmDetach={confirmDetach}
+      onCancelDetach={() => setIdentityToDetach(null)}
+      convertProvider={convertProvider}
+      onCloseConvert={() => setConvertProvider(null)}
+    />
+  )
 
   if (isBuiltinUser && identities.length === 0) {
     return (
@@ -383,9 +386,23 @@ export function UserIdentitiesPanel({
           </FlexItem>
           {!isBuiltinUser && (
             <FlexItem>
-              <Button variant="secondary" icon={<RhUiLinkIcon />} onClick={() => setIsAttachOpen(true)}>
-                Attach identity
-              </Button>
+              <DisabledWithTooltip
+                isDisabled={!identityPermissions.canAttach}
+                content={identityPermissions.tooltips.attach}
+              >
+                <Button
+                  variant="primary"
+                  icon={<RhUiLinkIcon />}
+                  isAriaDisabled={!identityPermissions.canAttach}
+                  onClick={
+                    identityPermissions.canAttach
+                      ? () => navigate(AppRoute.AccessManagement.TransferIdentity.replace(':userId', userId))
+                      : undefined
+                  }
+                >
+                  Transfer identity
+                </Button>
+              </DisabledWithTooltip>
             </FlexItem>
           )}
         </Flex>
@@ -427,6 +444,8 @@ export function UserIdentitiesPanel({
                     isLastIdentity={identities.length === 1 && !hasPassword}
                     isDetaching={isDetaching}
                     onDisconnect={() => setIdentityToDetach(row.identity)}
+                    canDetach={identityPermissions.canDetach}
+                    detachTooltip={identityPermissions.tooltips.detach}
                   />
                 )
               }

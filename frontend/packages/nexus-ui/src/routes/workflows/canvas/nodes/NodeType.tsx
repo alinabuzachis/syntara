@@ -10,6 +10,7 @@ import { type LoopNode, LoopNodeComponent } from './LoopNode'
 import { type TaskNode, TaskNodeComponent } from './TaskNode'
 import { type TaskReversedNode, TaskReversedNodeComponent } from './TaskReversedNode'
 import { type TriggerNode, TriggerNodeComponent } from './TriggerNode'
+import { type WaitNode, WaitNodeComponent } from './WaitNode'
 
 /** Invisible React Flow node used only as a valid target for button edges (not a workflow step). */
 export type ButtonEdgePlaceholderNode = Node<Record<string, unknown>, typeof FlowNodeType.PLACEHOLDER>
@@ -22,6 +23,7 @@ export type NodeType =
   | ConditionNode
   | ConvergeNode
   | LoopNode
+  | WaitNode
   | GenericNode
   | ButtonEdgePlaceholderNode
 
@@ -33,5 +35,6 @@ export const nodeTypes: NodeTypes = {
   [FlowNodeType.CONDITION]: ConditionNodeComponent,
   [FlowNodeType.CONVERGE]: ConvergeNodeComponent,
   [FlowNodeType.LOOP]: LoopNodeComponent,
+  [FlowNodeType.WAIT]: WaitNodeComponent,
   [FlowNodeType.GENERIC]: GenericNodeComponent,
 }

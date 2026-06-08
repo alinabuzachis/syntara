@@ -121,6 +121,7 @@ packages/nexus-contracts/
     ├── tool-manager.ts    # Generated tool manager types (unified tools & providers)
     ├── files-api.ts       # Generated files API types
     ├── approvals-api.ts   # Generated approvals types
+    ├── authz-api.ts       # Generated authorization types (can_i, what_can_i)
     ├── interfaces.ts      # Shared interfaces and enum constants
     └── index.ts           # Exports all types
 ```
@@ -171,6 +172,18 @@ const settingsFetchClient = createFetchClient<SettingsAPI.paths>({
 settingsFetchClient.use(authMiddleware)
 export const settingsClient = createClient(settingsFetchClient)
 ```
+
+The authorization API client is defined separately in `routes/access/accessClient.ts`:
+
+```typescript
+// Authorization API client (can_i, what_can_i)
+const accessFetchClient = createFetchClient<AuthzAPI.paths>({
+  baseUrl: '/api/v1/',
+})
+accessFetchClient.use(authMiddleware)
+```
+
+This client is consumed by `useCanI` (single permission check) and `usePermissionChecks` (batch checks for nav filtering). Permissions are cached with `staleTime: Infinity` and cleared on logout via `queryClient.clear()`. See [`docs/permissions-rbac.md`](permissions-rbac.md) for the full authorization data flow.
 
 > **Note:** File uploads use a direct fetch call via the `useFileUploadWithProgress` hook (not a generated client), since `openapi-react-query` doesn't support upload progress tracking.
 

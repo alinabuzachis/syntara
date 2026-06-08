@@ -25,7 +25,7 @@ vi.mock('../../../client', () => ({
 }))
 
 vi.mock('../../../hooks/useCanI', () => ({
-  useCanI: vi.fn(() => ({ allowed: true, isChecking: false })),
+  useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
 }))
 
 vi.mock('wouter', () => ({
@@ -66,7 +66,7 @@ function setupEmptyProviders() {
 
 describe('Authentication', () => {
   beforeEach(() => {
-    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false })
+    vi.mocked(useCanI).mockReturnValue({ allowed: true, isChecking: false, isError: false })
   })
 
   it('renders the page header', () => {
@@ -93,7 +93,7 @@ describe('Authentication', () => {
   })
 
   it('does not show access denied while permission is loading', () => {
-    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true })
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true, isError: false })
     setupEmptyProviders()
     render(<Authentication />, { wrapper })
 
@@ -103,7 +103,7 @@ describe('Authentication', () => {
 
   describe('no access', () => {
     beforeEach(() => {
-      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false })
+      vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: false, isError: false })
     })
 
     it('shows access denied when user cannot read identity providers', () => {

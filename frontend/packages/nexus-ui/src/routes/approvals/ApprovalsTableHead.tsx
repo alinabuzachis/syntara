@@ -1,5 +1,10 @@
+import { Checkbox, Tooltip } from '@patternfly/react-core'
 import { Thead, Th, Tr } from '@patternfly/react-table'
 import type { ThProps } from '@patternfly/react-table'
+
+import { permissionTooltip } from '../../hooks/permissionUtils'
+
+const DECIDE_TOOLTIP = permissionTooltip('approve or reject approvals', 'approval:decide')
 
 export type ApprovalsTableHeadProps = {
   getSortParams: (columnIndex: number) => ThProps['sort']
@@ -10,6 +15,8 @@ export type ApprovalsTableHeadProps = {
   allPendingSelected?: boolean
   onSelectAll?: (checked: boolean) => void
   hasPendingApprovals?: boolean
+  canDecideAnyApproval?: boolean
+  isLoadingPermissions?: boolean
 }
 
 export function ApprovalsTableHead(props: Readonly<ApprovalsTableHeadProps>) {
@@ -22,20 +29,40 @@ export function ApprovalsTableHead(props: Readonly<ApprovalsTableHeadProps>) {
     allPendingSelected = false,
     onSelectAll,
     hasPendingApprovals = false,
+    canDecideAnyApproval = true,
+    isLoadingPermissions = false,
   } = props
+
+  const showDisabledWithTooltip = showSelect && !canDecideAnyApproval && !isLoadingPermissions
+
   return (
     <Thead>
       <Tr>
-        {showSelect && (
-          <Th
-            select={{
-              onSelect: (_event, isSelecting) => onSelectAll?.(isSelecting),
-              isSelected: allPendingSelected,
-              isHeaderSelectDisabled: !hasPendingApprovals,
-            }}
-            screenReaderText="Select all pending approvals"
-          />
-        )}
+        {showSelect &&
+          (showDisabledWithTooltip ? (
+            <Th aria-label="Select all approvals">
+              <Tooltip content={DECIDE_TOOLTIP}>
+                <span>
+                  <Checkbox
+                    id="select-all-approvals"
+                    isChecked={false}
+                    isDisabled
+                    aria-label="Select all approvals"
+                    onChange={() => undefined}
+                  />
+                </span>
+              </Tooltip>
+            </Th>
+          ) : (
+            <Th
+              select={{
+                onSelect: (_event, isSelecting) => onSelectAll?.(isSelecting),
+                isSelected: allPendingSelected,
+                isHeaderSelectDisabled: !hasPendingApprovals,
+              }}
+              screenReaderText="Select all pending approvals"
+            />
+          ))}
         <Th
           expand={{
             areAllExpanded: !allRowsExpanded,

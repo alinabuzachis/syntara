@@ -91,8 +91,14 @@ export function breadcrumbsEditUser(displayName: string, userBasePath: string): 
 /** `useUrlTab` default; URL with no trailing segment is the same as this tab — omit a redundant last crumb. */
 const DEFAULT_ENTITY_TAB = 'details'
 
-export function breadcrumbsUserDetail(displayName: string, userBasePath: string, tab: string): AppBreadcrumbItem[] {
-  const prefix = [crumbAccessManagement(), crumbUsersList()]
+export function breadcrumbsUserDetail(
+  displayName: string,
+  userBasePath: string,
+  tab: string,
+  options?: { showParentCrumbs?: boolean }
+): AppBreadcrumbItem[] {
+  const showParent = options?.showParentCrumbs ?? true
+  const prefix = showParent ? [crumbAccessManagement(), crumbUsersList()] : []
   if (tab === DEFAULT_ENTITY_TAB) {
     return [...prefix, { label: displayName }]
   }
@@ -125,6 +131,20 @@ export function breadcrumbsIdentityProviderAdd(): AppBreadcrumbItem[] {
 
 export function breadcrumbsIdentityProviderEdit(providerName: string, detailBasePath: string): AppBreadcrumbItem[] {
   return [crumbIdentityProvidersList(), { label: providerName, href: detailBasePath }, { label: 'Edit OIDC provider' }]
+}
+
+export function breadcrumbsIdentityProviderGroupMappingForm(
+  providerName: string,
+  detailBasePath: string,
+  groupMappingTabPath: string,
+  formTitle: string
+): AppBreadcrumbItem[] {
+  return [
+    crumbIdentityProvidersList(),
+    { label: providerName, href: detailBasePath },
+    { label: 'Group mapping', href: groupMappingTabPath },
+    { label: formTitle },
+  ]
 }
 
 export function breadcrumbsIdentityProviderDetail(
@@ -189,7 +209,8 @@ export function breadcrumbsUserFormLoading(currentLabel: string): AppBreadcrumbI
   return [crumbAccessManagement(), crumbUsersList(), { label: currentLabel }]
 }
 
-export function breadcrumbsUserDetailEarlyShell(): AppBreadcrumbItem[] {
+export function breadcrumbsUserDetailEarlyShell(options?: { showParentCrumbs?: boolean }): AppBreadcrumbItem[] {
+  if (options?.showParentCrumbs === false) return []
   return [crumbAccessManagement(), crumbUsersList(), { label: 'User details' }]
 }
 

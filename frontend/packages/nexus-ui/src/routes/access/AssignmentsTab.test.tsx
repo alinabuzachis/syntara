@@ -63,6 +63,15 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
+vi.mock('./useAssignmentPermissions', () => ({
+  useAssignmentPermissions: () => ({
+    canAssign: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { assign: '', revoke: '' },
+  }),
+}))
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })

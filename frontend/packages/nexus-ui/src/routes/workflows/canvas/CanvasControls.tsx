@@ -74,7 +74,7 @@ function CanvasLegendPopoverBlock() {
           variant="plain"
           isCircle
           isClicked={legendOpen}
-          aria-label={legendOpen ? 'Hide node legend' : 'Show node legend'}
+          aria-label={legendOpen ? 'Hide step legend' : 'Show step legend'}
           aria-expanded={legendOpen}
           aria-controls={legendOpen ? LEGEND_REGION_ID : undefined}
           aria-pressed={legendOpen}

@@ -183,7 +183,7 @@ export function NodeExecutionDetailsPanel({
                 </FlexItem>
               )}
               <FlexItem>
-                <Button variant="plain" onClick={onClose} aria-label="Close node details">
+                <Button variant="plain" onClick={onClose} aria-label="Close step details">
                   <RhUiCloseIcon />
                 </Button>
               </FlexItem>

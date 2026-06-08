@@ -1,0 +1,281 @@
+import { Content, ContentVariants, EmptyState, EmptyStateBody, Label, StackItem, Title } from '@patternfly/react-core'
+import { RhUiKeyIcon } from '@patternfly/react-icons'
+import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { useCallback, useState } from 'react'
+import { Link } from 'wouter'
+
+import { AppRoute } from '../../../app/AppRoute'
+import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
+import { FilterBar } from '../../../components/filters/FilterBar'
+import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
+import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
+import type { PaginationFooterProps } from '../../../components/table/PaginationFooter'
+import { useTableSort } from '../../../hooks/useTableSort'
+import type { FilterFieldDefinition } from '../../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
+import { formatDateTime } from '../../../utils/dateUtils'
+import { getUserDetailPath } from '../accessManagementPaths'
+import { AUTH_SOURCE_LOCAL } from '../adminConstants'
+
+import type { UserIdentity, UserSummary } from './identityUtils'
+import { useLocalFilterState } from './identityUtils'
+import styles from './TransferIdentityWizard.module.css'
+
+const USER_FILTER_DEFS: FilterFieldDefinition[] = [
+  {
+    key: 'username',
+    label: 'Username',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by username',
+  },
+  {
+    key: 'email',
+    label: 'Email',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by email',
+  },
+]
+
+const IDENTITY_FILTER_DEFS: FilterFieldDefinition[] = [
+  {
+    key: 'provider_name',
+    label: 'Provider',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by provider',
+  },
+]
+
+/** Step 1: table of non-builtin users with radio selection, filtering, sorting, and pagination. */
+export function SelectUserStep({
+  targetUsername,
+  users,
+  selectedUser,
+  usersFilter,
+  usersSort,
+  footerProps,
+  onResetPage,
+  onSelect,
+}: Readonly<{
+  targetUsername: string
+  users: UserSummary[]
+  selectedUser: UserSummary | null
+  usersFilter: ReturnType<typeof useLocalFilterState>
+  usersSort: ReturnType<typeof useTableSort>
+  footerProps: PaginationFooterProps
+  onResetPage: () => void
+  onSelect: (user: UserSummary) => void
+}>) {
+  const hasActiveFilters = usersFilter.filters.length > 0
+
+  return (
+    <NxPanelContentStack>
+      <StackItem>
+        <Title headingLevel="h2" className={styles.stepTitle}>
+          Select a user
+        </Title>
+        <Content component={ContentVariants.p} className={styles.stepDescription}>
+          Choose the user whose federated identity you want to transfer. The selected identity will be moved from this
+          user to <strong>{targetUsername}</strong>.
+        </Content>
+      </StackItem>
+      <StackItem className={styles.filterBar}>
+        <FilterBar
+          fieldDefinitions={USER_FILTER_DEFS}
+          filters={usersFilter.filters}
+          onFilterChange={(f) => {
+            usersFilter.setAllFilters(f)
+            onResetPage()
+          }}
+          showClearAll
+          isCompact
+        />
+      </StackItem>
+      {users.length === 0 && hasActiveFilters ? (
+        <StackItem isFilled style={flexCenteredBothAxes}>
+          <NxEmptyStateFilter clearAllFilters={usersFilter.clearAllFilters} />
+        </StackItem>
+      ) : (
+        <NxScrollableTableContainer aria-label="Select a user" footer={footerProps} useFixedLayout={false}>
+          <Thead>
+            <Tr>
+              <Th screenReaderText="Select" className="pf-v6-c-table__check" />
+              <Th sort={usersSort.getSortParams(0)}>Username</Th>
+              <Th sort={usersSort.getSortParams(1)}>Email</Th>
+              <Th>Authentication</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {users.map((user, index) => {
+              const isSelected = selectedUser?.id === user.id
+              return (
+                <Tr key={user.id} isClickable onRowClick={() => onSelect(user)} isRowSelected={isSelected}>
+                  <Td
+                    select={{
+                      rowIndex: index,
+                      onSelect: () => onSelect(user),
+                      isSelected,
+                      variant: 'radio',
+                    }}
+                  />
+                  <Td dataLabel="Username">
+                    <Link
+                      href={getUserDetailPath(user.id)}
+                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      className="pf-v6-c-button pf-m-link pf-m-inline"
+                    >
+                      {user.username}
+                    </Link>
+                  </Td>
+                  <Td dataLabel="Email">{user.email}</Td>
+                  <Td dataLabel="Authentication">
+                    {(user.auth_sources ?? [AUTH_SOURCE_LOCAL]).map((source) => (
+                      <Label key={source} isCompact color={source === AUTH_SOURCE_LOCAL ? 'grey' : 'blue'}>
+                        {source}
+                      </Label>
+                    ))}
+                  </Td>
+                </Tr>
+              )
+            })}
+          </Tbody>
+        </NxScrollableTableContainer>
+      )}
+    </NxPanelContentStack>
+  )
+}
+
+/** Step 2: table of the selected user's federated identities with radio selection, filtering, and client-side pagination. */
+export function SelectIdentityStep({
+  selectedUserDisplayName,
+  identities,
+  selectedIdentityId,
+  identitiesFilter,
+  identitiesSort,
+  onSelect,
+}: Readonly<{
+  selectedUserDisplayName: string
+  identities: UserIdentity[]
+  selectedIdentityId: string | null
+  identitiesFilter: ReturnType<typeof useLocalFilterState>
+  identitiesSort: ReturnType<typeof useTableSort>
+  onSelect: (id: string | null) => void
+}>) {
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const handlePerPageChange = useCallback((n: number) => {
+    setPerPage(n)
+    setPage(1)
+  }, [])
+  const paginatedIdentities = identities.slice((page - 1) * perPage, page * perPage)
+
+  const hasActiveFilters = identitiesFilter.filters.length > 0
+
+  return (
+    <NxPanelContentStack>
+      <StackItem>
+        <Title headingLevel="h2" className={styles.stepTitle}>
+          Select an identity
+        </Title>
+        <Content component={ContentVariants.p} className={styles.stepDescription}>
+          Choose one of <strong>{selectedUserDisplayName}</strong>&apos;s federated identities to attach to the current
+          user. This will log <strong>{selectedUserDisplayName}</strong> out of any pre-existing sessions.
+        </Content>
+      </StackItem>
+      <StackItem className={styles.filterBar}>
+        <FilterBar
+          fieldDefinitions={IDENTITY_FILTER_DEFS}
+          filters={identitiesFilter.filters}
+          onFilterChange={(f) => {
+            identitiesFilter.setAllFilters(f)
+            setPage(1)
+          }}
+          clearAllFilters={() => {
+            identitiesFilter.clearAllFilters()
+            setPage(1)
+          }}
+          showClearAll
+          isCompact
+        />
+      </StackItem>
+      {identities.length === 0 && hasActiveFilters && (
+        <StackItem isFilled style={flexCenteredBothAxes}>
+          <NxEmptyStateFilter clearAllFilters={identitiesFilter.clearAllFilters} />
+        </StackItem>
+      )}
+      {identities.length === 0 && !hasActiveFilters && (
+        <StackItem isFilled style={flexCenteredBothAxes}>
+          <EmptyState headingLevel="h4" titleText="No identities" icon={RhUiKeyIcon}>
+            <EmptyStateBody>This user has no federated identities to attach.</EmptyStateBody>
+          </EmptyState>
+        </StackItem>
+      )}
+      {identities.length > 0 && (
+        <NxScrollableTableContainer
+          aria-label="Select an identity"
+          useFixedLayout={false}
+          footer={{
+            page,
+            perPage,
+            total: identities.length,
+            hasNext: page * perPage < identities.length,
+            onPrev: () => setPage((p) => Math.max(1, p - 1)),
+            onNext: () => setPage((p) => p + 1),
+            onPerPageChange: handlePerPageChange,
+          }}
+        >
+          <Thead>
+            <Tr>
+              <Th screenReaderText="Select" className="pf-v6-c-table__check" />
+              <Th sort={identitiesSort.getSortParams(0)}>Provider</Th>
+              <Th sort={identitiesSort.getSortParams(1)}>Subject</Th>
+              <Th sort={identitiesSort.getSortParams(2)}>Linked</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {paginatedIdentities.map((identity, index) => {
+              const isSelected = selectedIdentityId === identity.id
+              return (
+                <Tr
+                  key={identity.id}
+                  isClickable
+                  isRowSelected={isSelected}
+                  onRowClick={() => onSelect(isSelected ? null : identity.id)}
+                >
+                  <Td
+                    select={{
+                      rowIndex: index,
+                      onSelect: () => onSelect(isSelected ? null : identity.id),
+                      isSelected,
+                      variant: 'radio',
+                    }}
+                  />
+                  <Td dataLabel="Provider">
+                    <Link
+                      href={AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
+                        ':providerId',
+                        identity.identity_provider_id
+                      ).replace('/:tab?', '')}
+                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      className="pf-v6-c-button pf-m-link pf-m-inline"
+                    >
+                      {identity.provider_name}
+                    </Link>
+                  </Td>
+                  <Td dataLabel="Subject">{identity.subject}</Td>
+                  <Td dataLabel="Linked">{formatDateTime(identity.created_at)}</Td>
+                </Tr>
+              )
+            })}
+          </Tbody>
+        </NxScrollableTableContainer>
+      )}
+    </NxPanelContentStack>
+  )
+}

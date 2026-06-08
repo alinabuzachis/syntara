@@ -2,9 +2,16 @@ import { Fragment, Suspense } from 'react'
 import { Redirect, Route, Switch } from 'wouter'
 
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { ProtectedRoute } from '../components/ProtectedRoute'
 import { NxLoadingState } from '../components/states/NxLoadingState'
 
 import { NAV_ITEMS } from './navigationItems'
+import type { TNavigationItem } from './navigationItems'
+
+function renderElement(item: TNavigationItem) {
+  if (!item.routePermission) return item.element
+  return <ProtectedRoute {...item.routePermission}>{item.element}</ProtectedRoute>
+}
 
 export function AppRouter() {
   return (
@@ -17,15 +24,15 @@ export function AppRouter() {
                 <Fragment key={child.path}>
                   {child.children?.map((grandchild) => (
                     <Route key={grandchild.path} path={grandchild.path}>
-                      {grandchild.element}
+                      {renderElement(grandchild)}
                     </Route>
                   ))}
-                  <Route path={child.path}>{child.element}</Route>
+                  <Route path={child.path}>{renderElement(child)}</Route>
                 </Fragment>
               ))}
               {item.element && (
                 <Route key={item.path} path={item.path}>
-                  {item.element}
+                  {renderElement(item)}
                 </Route>
               )}
             </Fragment>

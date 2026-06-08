@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { ConditionNodeForm, type ConditionFormData } from './ConditionNodeForm'
 import { ConvergeNodeForm, type ConvergeFormData } from './ConvergeNodeForm'
 import { LoopNodeForm, type LoopFormData } from './LoopNodeForm'
+import { WaitNodeForm, type WaitFormData } from './WaitNodeForm'
 
 /** Converge strategy: when to continue after branches (re-exported from ConvergeNodeForm) */
 export type { ConvergeStrategy } from './ConvergeNodeForm'
@@ -34,6 +35,11 @@ export type LogicFormData = {
   onTimeout?: 'continue' | 'fail'
   strategy?: 'all' | 'any'
   requiredPathCount?: number
+  // Wait fields
+  days?: number
+  hours?: number
+  minutes?: number
+  seconds?: number
 }
 
 type LogicNodeFormProps = Readonly<{
@@ -136,6 +142,32 @@ export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: 
         initialData={convergeData}
         onHeaderContentChange={onHeaderContentChange}
       />
+    )
+  }
+
+  // Handle Wait node
+  if (logicType === ActivityTypeEnum.WAIT) {
+    const waitData: Partial<WaitFormData> = {
+      name: initialData?.name,
+      days: initialData?.days ?? 0,
+      hours: initialData?.hours ?? 0,
+      minutes: initialData?.minutes ?? 0,
+      seconds: initialData?.seconds ?? 0,
+    }
+
+    const handleWaitSubmit = (data: WaitFormData) => {
+      onSubmit({
+        name: data.name,
+        days: data.days,
+        hours: data.hours,
+        minutes: data.minutes,
+        seconds: data.seconds,
+        logicType: ActivityTypeEnum.WAIT,
+      })
+    }
+
+    return (
+      <WaitNodeForm onSubmit={handleWaitSubmit} initialData={waitData} onHeaderContentChange={onHeaderContentChange} />
     )
   }
 

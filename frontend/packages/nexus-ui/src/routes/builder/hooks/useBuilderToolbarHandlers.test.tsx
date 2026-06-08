@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest'
 
@@ -7,6 +7,11 @@ import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 
 import type { UseBuilderToolbarHandlersOptions } from './useBuilderToolbarHandlers'
 import { useBuilderToolbarHandlers } from './useBuilderToolbarHandlers'
+
+vi.mock('../node-forms/useMaxWaitDuration', () => ({
+  DEFAULT_MAX_WAIT_SECONDS: 2_592_000,
+  fetchMaxWaitDuration: () => Promise.resolve(2_592_000),
+}))
 
 vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStore: {
@@ -514,6 +519,135 @@ describe('useBuilderToolbarHandlers', () => {
     const [variables] = executeWorkflow.mock.calls[0]
     expect(variables.body).not.toHaveProperty('trigger_node_id')
     expect(variables.body.input_data).toEqual({})
+  })
+
+  it('handleRunWorkflow shows error when currentWorkflow is null', async () => {
+    const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
+    const showError = vi.fn()
+    const dispatch = vi.fn()
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ executeWorkflow, showError, dispatch, currentWorkflow: null }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Cannot run workflow',
+      description: 'No workflow data available',
+    })
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
+    expect(executeWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow handles wait node with no name (falls back to Untitled)', async () => {
+    const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
+    const showError = vi.fn()
+    const dispatch = vi.fn()
+    const currentWorkflow = minimalWorkflow({
+      workflow: {
+        activities: [
+          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: '', config: { duration: 99_999_999 } },
+        ] as Activity[],
+      },
+      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+    })
+
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+      edges: [{ id: 'e1', source: 'trigger-1', target: 'wait-1', sourceHandle: 'source', targetHandle: 'target' }],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ executeWorkflow, showError, dispatch, currentWorkflow }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Cannot run workflow',
+      description: expect.stringContaining('Untitled') as unknown as string,
+    })
+    expect(executeWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow shows error when wait node exceeds max duration', async () => {
+    const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
+    const showError = vi.fn()
+    const dispatch = vi.fn()
+    const currentWorkflow = minimalWorkflow({
+      workflow: {
+        activities: [
+          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'Long Wait', config: { duration: 99_999_999 } },
+        ] as Activity[],
+      },
+      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+    })
+
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+      edges: [{ id: 'e1', source: 'trigger-1', target: 'wait-1', sourceHandle: 'source', targetHandle: 'target' }],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ executeWorkflow, showError, dispatch, currentWorkflow }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    expect(showError).toHaveBeenCalledWith({
+      title: 'Cannot run workflow',
+      description: expect.stringContaining('exceeds maximum allowed') as unknown as string,
+    })
+    expect(executeWorkflow).not.toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow passes validation when wait node is within max duration', async () => {
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+      args[1]?.onSuccess?.({ id: 'exec-1' })
+    }) as MockedFunction<ExecuteWorkflow>
+    const currentWorkflow = minimalWorkflow({
+      workflow: {
+        activities: [
+          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'Short Wait', config: { duration: 300 } },
+        ] as Activity[],
+      },
+      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+    })
+
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+      edges: [{ id: 'e1', source: 'trigger-1', target: 'wait-1', sourceHandle: 'source', targetHandle: 'target' }],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() => useBuilderToolbarHandlers(buildOptions({ executeWorkflow, currentWorkflow })))
+
+    await result.current.handleRunWorkflow()
+
+    expect(executeWorkflow).toHaveBeenCalled()
+  })
+
+  it('handleRunWorkflow handles wait node with missing config gracefully', async () => {
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+      args[1]?.onSuccess?.({ id: 'exec-1' })
+    }) as MockedFunction<ExecuteWorkflow>
+    const currentWorkflow = minimalWorkflow({
+      workflow: {
+        activities: [{ type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'No Config' }] as Activity[],
+      },
+      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+    })
+
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      isDirty: false,
+      edges: [{ id: 'e1', source: 'trigger-1', target: 'wait-1', sourceHandle: 'source', targetHandle: 'target' }],
+    } as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() => useBuilderToolbarHandlers(buildOptions({ executeWorkflow, currentWorkflow })))
+
+    await result.current.handleRunWorkflow()
+
+    expect(executeWorkflow).toHaveBeenCalled()
   })
 
   it('handleDeleteWorkflow shows error and dispatches SET_DELETE_DIALOG on failure', () => {

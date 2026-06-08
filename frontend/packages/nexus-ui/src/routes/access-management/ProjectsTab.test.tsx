@@ -27,6 +27,16 @@ vi.mock('../access/useAllProjects', () => ({
   useAllProjects: vi.fn(),
 }))
 
+vi.mock('./useProjectPermissions', () => ({
+  useProjectPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '' },
+  }),
+}))
+
 vi.mock('wouter/use-browser-location', () => ({
   navigate: vi.fn(),
 }))

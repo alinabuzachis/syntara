@@ -81,7 +81,7 @@ The study identified several "table stakes" features that users expect as standa
 Research revealed critical friction points in competitor products — specifically around fragmented AI integration and poor observability:
 
 - **Hybrid Workflow Debugging:** Unlike competitors who struggle to differentiate between probabilistic (AI) and deterministic (code) failures, Orchestrator provides superior debugging and observability for hybrid workflows.
-- **Safety as a First-Class Object:** "Gating" nodes and Human-In-The-Loop (HITL) checkpoints build trust, ensuring users can safely manage non-deterministic AI outputs before they execute against critical infrastructure.
+- **Safety as a First-Class Object:** "Gating" steps and Human-In-The-Loop (HITL) checkpoints build trust, ensuring users can safely manage non-deterministic AI outputs before they execute against critical infrastructure.
 - **In-Context Documentation:** Context-aware help and documentation integrated directly into configuration panels to save users from switching tabs.
 
 ### Accessibility & Compliance
@@ -99,7 +99,7 @@ While PatternFly provides flexible building blocks, this project follows an **op
 **Key principles:**
 
 - **Standardized compositions** — Atomic PatternFly components are combined into larger, opinionated compositions (e.g., a "complete table view" with prescribed pagination, filtering, and bulk action patterns). These compositions are the unit of consistency, not individual components.
-- **Data-driven adjustments** — Side-out panels instead of modals for node configuration, preserving workflow canvas context.
+- **Data-driven adjustments** — Side-out panels instead of modals for step configuration, preserving workflow canvas context.
 - **No custom one-offs** — When PatternFly does not meet a requirement, collaborate via the PatternFly liaison path rather than building a custom component. This keeps the product upgrade-compatible.
 
 ### Framework & Source of Truth
@@ -290,6 +290,12 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - `NxScrollableTableContainer` uses `table-layout: fixed` for equal column distribution — do not opt out with `useFixedLayout={false}`
   - Wrap cell text in `<Truncate content={value} />` for any column that may contain user-generated or variable-length content
   - `LinkCell` children support `<Truncate>` — the link button constrains overflow automatically
+- **`NxKebabMenu` component** — Use `NxKebabMenu` (from `src/components/NxKebabMenu.tsx`) for table row actions and contextual overflow menus. API:
+  - `actions`: array of `{ key, title, onClick, isSeparator?, isDanger?, isAriaDisabled?, tooltipProps? }`
+  - `aria-label`: must be unique per row (e.g., `` `Actions for ${resource.name}` ``)
+  - Action ordering: non-destructive first → `isSeparator: true` → destructive last (`isDanger: true`)
+  - Use `IconLabel` for action titles: `<IconLabel icon={<RhUiEditIcon />}>Edit workflow</IconLabel>`
+  - Permission-gated items: `isAriaDisabled: true` + `tooltipProps: { content: tooltip }` (visible but non-actionable, stays focusable)
 - **Expandable rows** — When a table uses expandable rows to show nested detail (e.g., policies under a role, event details in an audit log):
   - Pass `isExpandable` to `NxScrollableTableContainer` for proper PF6 table styling
   - Include an expand-all / collapse-all toggle in the `<Thead>` using the `expand` prop on the first `<Th>`
@@ -317,6 +323,11 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Selecting/filling the required field clears the danger styling immediately
   - **Human-readable validation copy:** Never expose raw regex patterns or API validation strings to users. Use plain-language error messages (e.g., "Project name can only contain letters, numbers, hyphens, underscores, or colons. It must start and end with a letter or number."). Provide proactive field guidance via inline hint text (using `HintOrError` or `HelperText`) that displays before the user triggers an error; the hint is replaced by the error message on validation failure. Use example-style placeholders (e.g., `'my-project-name'`) instead of generic `"Enter project name"`.
 - **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler — not in a `useEffect` watching the field value. See [coding_standards.md §23](../../.claude/skills/coding_standards.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
+- **FormSection for complex forms:** When a single form step has 10+ fields spanning logical domains, group them with PatternFly `FormSection`:
+  - `title="Section Name"` + `titleElement="h3"` for each group
+  - **Grouping logic:** General (identity/metadata) → Connection (endpoints/secrets) → Options (toggles/advanced)
+  - Section-scoped actions belong inside their section (e.g., "Test connection" inside the Connection section, not the global footer)
+- **Scrollable form panels:** Full-page forms that may exceed viewport height need `NxPanel isFullHeight isScrollable`. Without `isScrollable`, bottom fields overflow outside the panel boundary. Constrain form width with `maxWidth: '600px'` inside a `Stack hasGutter`.
 
 ### Typeahead Selector Patterns
 
@@ -355,7 +366,7 @@ For fields where users can select multiple items (e.g., group assignment on user
 
 - Use `NxDetailList` + `NxDetail` for detail page fields (from `src/components/details/`)
   - **Vertical** (default) for standard detail pages
-  - **`isHorizontal`** for compact contexts (e.g., canvas node detail panels)
+  - **`isHorizontal`** for compact contexts (e.g., canvas step detail panels)
 - `NxDetail` with empty/null/undefined children **renders nothing automatically** — optional fields can be passed unconditionally without manual null checks
 - Use `NxCodeBlock` (from `src/components/details/NxCodeBlock.tsx`) for scripts, JSON payloads, or log output
   - Supports `enableCopy` (clipboard), `enableExpand` (full-screen modal), and `jsonObject` (auto-formatted JSON)
@@ -365,6 +376,13 @@ For fields where users can select multiple items (e.g., group assignment on user
 - **Title:** Pass the resource name as a plain string to `NxPageHeader` / `title` — no decorative icons in h1
 - **Informational metadata as plain text:** Attributes like credential type, authentication method, or resource category are plain text — not `Label` badges. Use `Label` only when visual distinction or status communication is needed (see §11).
 - **Created / Modified columns in tables:** Use inline `UserTimestamp` mode — `username · date` on one line. Stacked mode is for detail views only.
+- **User name display:**
+  - Table "Name" column: composed display name via `userDisplayName(user)` — `[first_name, last_name].filter(Boolean).join(' ')`
+  - Detail pages: separate "First Name" / "Last Name" fields in `DescriptionList`
+  - Forms: separate inputs — "First Name" (required), "Last Name" (optional)
+  - Breadcrumbs: `userDisplayName(user) || user.username` (fallback to username)
+  - Sorting: by `first_name` (not composed name)
+  - Filtering: separate "First Name" / "Last Name" filters (not a single "Name" filter)
 
 For live examples and story-driven documentation:
 
@@ -407,6 +425,11 @@ Each empty state scenario maps to a specific icon, optional `status` prop, and s
 - Variant sizing: `sm` inside tables, modals, or wizards; `lg` for full-page empty states; `xl` for getting started or full-page success
 - **CTA deduplication:** When the empty state includes a primary create/configure CTA button, **hide the page-header primary button** to avoid duplicate CTAs. The empty state CTA is sufficient — the header button reappears once data exists.
 - **Tab-level empty states:** Use the shared `NxEmptyStateNoData` component (not ad-hoc `EmptyState`) with the correct heading level (`h2` inside tabs) and `isFullHeight` prop
+- **Three-state list page pattern:** Every list page must handle three states in this order:
+  1. Query error/loading → `useQueryState(query, { title, onRetry })` returns a loading or error component
+  2. Truly empty (no data AND no active filters) → `NxEmptyStateNoData` with create CTA; **hide FilterBar entirely**
+  3. Has data OR has active filters → show `FilterBar`; if data is empty with filters, show `NxEmptyStateFilter` inside the scroll area
+- **Access denied empty state:** Use `EmptyStateAccessDenied` (with `RhUiLockIcon`) when a user navigates directly to a page they cannot read. Message format: "You don't have permission to view {resource}. Contact your administrator to request access."
 
 ---
 
@@ -476,6 +499,7 @@ Use consistent action verb pairings across the UI:
 - "Add" is paired with "Remove" — when the resources being added and removed exist in the Automation Orchestrator
 - "Add" is paired with "Disconnect" — when the resource is coming from an external source
 - "Assign" is paired with "Unassign"
+- "Transfer" is used when moving ownership of a resource between entities (e.g., "Transfer identity" — moving a federated identity from one user to another). Not "Attach" or "Connect".
 - "Configure" is used for integrations — not "Add integration". Integrations are external connections being configured, not in-platform resources being created. Use "Configure integration" for list header button, empty state CTA, and form submit button.
 
 ### Create: Full Page
@@ -484,6 +508,39 @@ Use for complex resources with many fields or multi-step creation.
 
 - Multi-step wizards
 - Forms with 5+ fields
+
+### Create: Full-Page Wizard
+
+Use a full-page PatternFly Wizard (at a dedicated route) when:
+
+- Flow has 2+ steps with independent data requirements
+- Each step needs tables with filter, sort, and pagination (too large for a modal)
+- UX prototype specifies a dedicated route
+
+**Wizard step anatomy:**
+
+```text
+h2 step title
+  → explanatory paragraph (with bolded target entity name)
+  → compact FilterBar
+  → ScrollableTableContainer (radio selection, sortable columns, pagination)
+```
+
+**Footer conventions:**
+
+- Step 1: disabled Back, conditional Next, Cancel as `variant="link"` (not button)
+- Final step: Back, primary action with loading state, Cancel link
+- Cancel navigates back to origin route (not `onClose`)
+
+**State management:**
+
+- Going back clears current step's selection + filters
+- Changing selection on step 1 resets step 2 selections
+- `isVisitRequired` on wizard prevents skipping ahead
+
+**Layout:** `NxPage` → `NxPageHeader` → `NxPanel isFullHeight hasNoPadding` → `Wizard height="100%"`
+
+**Terminology alignment:** Action verb must be consistent across button text, loading state, toast, and error message (e.g., "Transfer identity" → "Transferring..." → "Identity transferred" → "Failed to transfer identity").
 
 ### Create: Modal
 
@@ -520,6 +577,23 @@ Use for simple resources with few fields.
 - Quick creation without leaving context
 - Tags, labels, simple configurations
 - If the create form is a modal
+
+### Update/Edit: Dedicated Edit Page (from Read-Only Tab)
+
+Use when the edit experience is too complex for inline editing on a detail tab:
+
+- Form has many editable rows + advanced sections + nested modals (e.g., create sub-resource)
+- Flow includes external actions (e.g., test sign-in popup, group discovery)
+- Save/Cancel toolbar with unsaved state tracking is needed
+- Permission gating requires a full-page access-denied state
+
+**Pattern:**
+
+- Detail tab stays **read-only** with an "Edit [resource]" button navigating to the edit route
+- Edit page at a dedicated route (e.g., `.../group-mapping/edit`)
+- Page shell: `NxPage` → `NxPageHeader` with breadcrumbs + toolbar (Save primary + Cancel link)
+- Permission check: `useCanI('update', 'resource')` → `EmptyStateAccessDenied` if denied
+- Query params for entry mode variants: `?discover=1`, `?new=1`
 
 ### Update/Edit: Inline
 
@@ -633,6 +707,20 @@ For title and body copy patterns → see Storybook `NxConfirmationDialog` → **
 - From details page → stay on details page
 - Show feedback → PatternFly's [Dismissible Success Toast Alert](https://www.patternfly.org/components/alert#alert-variations)
 
+### Scoped Destructive Actions (e.g., Token Revocation)
+
+When the same destructive action exists at multiple scopes (global, user, resource), use escalating severity:
+
+| Scope                      | Location           | Trigger                      | Confirmation depth                                                |
+| -------------------------- | ------------------ | ---------------------------- | ----------------------------------------------------------------- |
+| **Global** (platform-wide) | Dedicated page/tab | `variant="danger"` button    | `NxConfirmationDialog` + **destructive acknowledgement checkbox** |
+| **User-scoped**            | Table kebab menu   | `RhUiBanIcon` + action label | Standard danger confirmation naming the user                      |
+| **Resource-scoped**        | Table kebab menu   | Same icon/label              | Standard danger confirmation naming the resource                  |
+
+- Global actions may trigger auto-logout (admin's own tokens invalidated)
+- Scoped confirmations bold the affected entity name: `"All tokens for **{username}** will be revoked."`
+- Global actions get a status card showing current state (e.g., "Last revoked: {date}") before the action button
+
 ### Disable: Standard Confirmation Modal
 
 Disable is **not** a destructive action — use a standard confirmation modal (no warning icon, no danger button). **Enable does not require a confirmation dialog** — the toggle takes effect immediately. Only **disable** requires confirmation because it has user-facing consequences (e.g., users can no longer sign in via a disabled identity provider).
@@ -685,6 +773,7 @@ When a user attempts to navigate away from a form or builder with unsaved change
 - **Secondary / tertiary / link buttons**: `Action + Resource` — e.g., "Edit project" (no icon required)
 - When multiple buttons appear together, primary comes first then secondary — unless PatternFly specifies otherwise (e.g., wizards)
 - Delete should always use `variant="danger"` and must always be the last item in a dropdown menu, separated by a divider
+- **Login button text:** Always "Log in" — never role-specific (e.g., not "Log in as administrator"). Non-admin users can log in locally; role assumptions in button text are misleading.
 
 ---
 
@@ -718,6 +807,18 @@ Success toasts are **not required** when the UI already communicates the outcome
 - For mutation errors (create/update/delete), use `useMutationErrorHandler` — this wires up `NxErrorState` and toast alerts automatically
 - For form validation errors, use inline field-level errors via PatternFly's Validated component (see Form Component section)
 - **Error state placement:** Error states render **inside `NxPanel`** using `NxPageBody isCentered` + `NxErrorState` — not as a bare centered message outside the content frame. The page header and app shell remain visible so the user can navigate away.
+
+### Session Timeout Warning
+
+For security-critical time-based warnings, use a non-dismissible alert dialog pattern:
+
+- PatternFly `Modal` with `variant="small"`, `role="alertdialog"`, `titleIconVariant="warning"`
+- **Non-dismissible:** `onClose={undefined}`, empty `onEscapePress` — user must explicitly choose
+- **Live countdown:** Body text with `aria-live="assertive"` + `aria-atomic="true"` for screen reader updates
+- **Actions:** Primary "Continue session" (`variant="primary"`) + "Log out" (`variant="link"`)
+- **Centralized constants:** All timing thresholds in a constants file with JSDoc — no inline magic numbers
+- **Idle detection:** Activity-based via refs (no re-renders on `mousemove`), passive event listeners, visibility API integration
+- **Post-expiry:** Preserve return path (relative path only, validated against application routes) in sessionStorage before logout redirect to prevent open redirect attacks
 
 ### Loading States
 
@@ -773,7 +874,21 @@ For high-frequency bulk decisions where speed matters (e.g., Approvals), bulk ac
 
 Use `Label` only when visual distinction is needed — for statuses, categorical metadata where users need to differentiate between types at a glance (e.g., User vs. Group), and user-authored tags. For informational text that doesn't require visual emphasis, use plain text.
 
-### Component selection
+### Component Selection
+
+| Content type                                         | Component                                           | Visual treatment            |
+| ---------------------------------------------------- | --------------------------------------------------- | --------------------------- |
+| Status indicators (success, danger, warning)         | `NxLabel` with `status` + icon                      | Filled                      |
+| Categorical metadata (System, Project, Built-in)     | `NxLabel` with `color`                              | Filled                      |
+| Counts, callouts (single-value, no type distinction) | `NxLabel color="grey"`                              | Filled grey                 |
+| User-authored tags, workflow tags                    | `NxUserTag`                                         | Outlined compact            |
+| Filter chips (active filters)                        | `Label variant="outline" isCompact` in `LabelGroup` | Outlined compact, removable |
+
+**`NxLabel`** (from `src/components/NxLabel.tsx`) — thin wrapper over PF `Label` with UX defaults: `isCompact={true}`, `variant="filled"`.
+
+**`NxUserTag`** (from `src/components/NxUserTag.tsx`) — outline-only wrapper for user-authored content. Always use for content typed by users (workflow tags, custom labels).
+
+### Statuses
 
 | Use case                                                                           | Component   | Variant               |
 | ---------------------------------------------------------------------------------- | ----------- | --------------------- |
@@ -784,7 +899,25 @@ Use `Label` only when visual distinction is needed — for statuses, categorical
 - Use outline (unfilled) `RhUi*Icon` variants when passing icons to `NxLabel`
 - If a label is used for a single thing (a count, a callout) and not to distinguish between 2+ types, use a filled gray label (`color="grey"`)
 
-### Label colors
+#### System-generated labels
+
+- Use `NxLabel` (defaults to filled, compact) and default to gray
+- If used to categorize types (e.g., User vs. Group), use a colored variant
+- Color variants should have enough contrast to distinguish between them
+
+#### Filter labels
+
+- Use PatternFly's gray Filled Non-status Label component
+
+#### User-generated labels
+
+- Use `NxUserTag` (outlined, compact) for any user-entered values (tags, custom names in filter chips)
+
+#### Label colors
+
+**General**
+
+- If a label is used for a single thing (a count, a callout) and not to distinguish between 2+ different types, use a filled gray label
 
 **Workflow versioning**
 
@@ -867,20 +1000,141 @@ Never use raw `<span>`, `<p>`, or `<div>` for text content. Use PatternFly typog
 
 ---
 
-## 15. Role-Based UI States
+## 15. Role-Based UI States & Permission Gating
 
-Pages that support role-based access must adapt their UI based on the authenticated user's permissions. Three tiers:
+Pages that support role-based access must adapt their UI based on the authenticated user's permissions. The platform uses a layered gating strategy with shared infrastructure.
 
-| Permission Level         | Navigation             | Controls                               | Actions                         |
-| ------------------------ | ---------------------- | -------------------------------------- | ------------------------------- |
-| **No read permission**   | Hidden from navigation | Nothing rendered (empty screen)        | None                            |
-| **Read only** (auditor)  | Visible in navigation  | All controls rendered as **read-only** | No save, reset, or edit buttons |
-| **Read + write** (admin) | Visible in navigation  | All controls editable                  | Full CRUD actions available     |
+### Permission Tiers
 
-- Use a permission hook (e.g., `useSettingsPermissions`) to determine the user's access level
-- Gate navigation items with the `canView` flag — hide items the user cannot access
-- Pass `isDisabled` / `isReadOnly` props to form controls for read-only users
-- Hide action buttons (Save, Reset, Delete) entirely for read-only users — do not disable them
+| Permission Level         | Navigation             | Controls                               | Actions                               |
+| ------------------------ | ---------------------- | -------------------------------------- | ------------------------------------- |
+| **No read permission**   | Hidden from navigation | `EmptyStateAccessDenied` on direct URL | None                                  |
+| **Read only** (auditor)  | Visible in navigation  | All controls rendered as **read-only** | Action buttons disabled with tooltips |
+| **Read + write** (admin) | Visible in navigation  | All controls editable                  | Full CRUD actions available           |
+
+### Permission Hook Pattern
+
+Every domain creates a `use{Domain}Permissions()` hook that encapsulates all permission checks:
+
+```tsx
+// Return type pattern
+type WorkflowPermissions = {
+  canCreate: boolean
+  canUpdate: boolean
+  canDelete: boolean
+  canRun: boolean
+  isLoading: boolean
+  tooltips: {
+    create: string
+    update: string
+    delete: string
+    run: string
+  }
+}
+```
+
+**Naming conventions:**
+
+- List/page actions: `use{Entity}Permissions()` (e.g., `useWorkflowPermissions`, `useUserPermissions`)
+- Detail page tabs: `use{Entity}DetailPermissions()` (e.g., `useUserDetailPermissions`)
+- Specialized domains: `useBuilderPermissions(isNew)`, `useSettingsPermissions()`
+
+**Implementation rules:**
+
+- Use `useCanI(action, resourceType)` for individual checks
+- Default to **deny** while `isLoading` (safe-false principle — prevents flash of unauthorized content)
+- Build tooltip text via `permissionTooltip(actionDescription, policyName)` for consistent messaging
+- Always use `isAriaDisabled` (not `isDisabled`) on gated buttons — keeps elements focusable for tooltip hover and screen readers
+- Set `onClick` to `undefined` when permission denied (defense in depth)
+
+### Gating Strategy Decision Tree
+
+```text
+Can user read this section?
+├─ No → Hide nav item / tab OR show EmptyStateAccessDenied (if direct URL)
+└─ Yes → Can user perform action?
+    ├─ No, action is primary CTA in empty state → Hide button (pass undefined callback)
+    ├─ No, action is toolbar/button → Disable with isAriaDisabled + DisabledWithTooltip
+    ├─ No, action is row/kebab item → isAriaDisabled + tooltipProps, onClick undefined
+    ├─ No, action is form field → readOnly prop / hide save toolbar
+    └─ No, action is create/edit route → ProtectedRoute → EmptyStateAccessDenied
+```
+
+### Navigation Gating
+
+- Nav items declare `requiredPermissions` (OR logic — visible if **any** granted)
+- `useFilteredNavigationItems()` batch-checks all permissions and filters the tree
+- Parent sections auto-hide when all children are filtered out
+- Hidden routes (create/edit forms) use `routePermission` + `ProtectedRoute` for direct-URL access
+
+### Tab Gating
+
+- Hub pages (Access Management): filter tab array by permission; redirect to first visible tab
+- Detail pages: use `NxUrlTabs validTabs={visibleTabs}` to hide unauthorized tabs
+- **Loading stability:** Show all tabs while permissions load to avoid layout shift; filter after resolution
+- **Self-permission override:** Users viewing their own profile always see their Groups/Identities/Assignments tabs
+
+### Action Gating
+
+**Toolbar buttons — `DisabledWithTooltip` wrapper:**
+
+```tsx
+<DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+  <Button
+    variant="primary"
+    isAriaDisabled={!permissions.canCreate}
+    onClick={permissions.canCreate ? handleCreate : undefined}
+  >
+    Create user
+  </Button>
+</DisabledWithTooltip>
+```
+
+**Row actions — `isAriaDisabled` + `tooltipProps`:**
+
+```tsx
+{
+  title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
+  isAriaDisabled: !permissions.canUpdate,
+  tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.update },
+  onClick: permissions.canUpdate ? () => navigate(...) : undefined,
+}
+```
+
+**Empty state CTA — hide button entirely:**
+
+```tsx
+onCreateWorkflow={permissions.canCreate ? handler : undefined}
+// NxEmptyStateNoData only renders button when addData callback is defined
+```
+
+### Read-Only Mode (Builder)
+
+When a user can view but not edit a workflow:
+
+1. **Info banner** — `Alert variant="info" isInline` explaining read-only mode
+2. **Hide editing affordances** — Add Node panel hidden, toolbar actions disabled
+3. **Canvas lockdown** — `nodesDraggable={false}`, `nodesConnectable={false}`, `deleteKeyCode={null}`
+4. **Toolbar actions** — Save/Publish disabled via `DisabledWithTooltip`; Run has its own `canRun` check
+
+### Permission Tooltip Message Format
+
+Standard format via `permissionTooltip()`:
+
+> "To {action}, you need a role with the {policy} policy. Contact your Admin to request access."
+
+### Route Guards (`ProtectedRoute`)
+
+For create/edit forms accessible via direct URL:
+
+1. `isChecking` → `NxLoadingState`
+2. `isError` → `NxErrorState title="Unable to verify permissions"`
+3. `!allowed` → `EmptyStateAccessDenied`
+4. `allowed` → render children
+
+**Note:** List/detail pages use in-page empty states or tab filtering — not route guards. Route guards target mutation form routes only.
+
+See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for the full permission gating architecture.
 
 ---
 
@@ -994,8 +1248,12 @@ These badges use `Label` with no icons — text and color only.
 - Via "Add step" action from canvas toolbar
 - Clicking `+` on the connector line after a step adds a new connected step
 - Clicking `+` on the connector line between two steps inserts a new step in between
-- **Empty workflow onboarding:** When a workflow has no triggers and no steps, the "Add step" toolbar button is shown as active and the add-step panel is forced open.
-- **Toggle-style button:** When the add-step panel is open, the toolbar button uses `isClicked` + `aria-pressed` for visible active/inactive feedback
+- **Empty workflow onboarding:** When a workflow has no triggers and no steps (`hasNoWorkflowNodes`):
+  - The "Add step" toolbar button is **hidden entirely** (not disabled — hidden) to prevent confusion when the user should be selecting a trigger first
+  - The add-step side panel is **forced open** automatically (showing trigger options)
+  - The toolbar returns `null` when `!canEdit && hasNoWorkflowNodes && isNew` (brand-new workflow with no permission and no steps)
+  - Once the user adds their first trigger or step, the "Add step" button appears in the toolbar
+- **Toggle-style button:** When the add-step panel is open (and the workflow has steps), the toolbar button uses `isClicked` + `aria-pressed` for visible active/inactive feedback. Clicking the button toggles the panel open/closed.
 
 ### Duplicate Workflow
 
@@ -1017,11 +1275,11 @@ These badges use `Label` with no icons — text and color only.
 
 ### Test Step (Run Step)
 
-- Triggered from a node's kebab menu → "Run step"
+- Triggered from a step's kebab menu → "Run step"
 - Opens a two-step dialog flow:
-  1. **Choice dialog** — "Run all previous nodes" (future) or "Set mock input data"
+  1. **Choice dialog** — "Run all previous steps" or "Set mock input data"
   2. **Mock data editor** — PatternFly `CodeEditor` with JSON syntax highlighting, validate/format/clear toolbar actions
-- All upstream nodes in the graph are mocked and show as "skipped" in execution details
+- All upstream steps in the graph are mocked and show as "skipped" in execution details
 - After clicking "Run", the execution visualizer panel opens (same as full workflow Run) showing real-time results
 - Test executions are visible in run history
 
@@ -1037,12 +1295,13 @@ These badges use `Label` with no icons — text and color only.
 ### Canvas Controls
 
 - Should be anchored to the **bottom-left corner** of the canvas view
-- Canvas overlays (controls, legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
-- Workflow step nodes also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
+- Canvas overlays (controls, step legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
+- Legend toggle uses accessible labels **Show step legend** / **Hide step legend**
+- Workflow steps on the canvas also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
 
-### Canvas Node Styling
+### Canvas step styling
 
-- Node cards have a fixed width (240px) — all dynamic text elements (`Title`, `Content`) must use `overflow-wrap: anywhere` to prevent text overflow from long expressions, template names, or URLs
+- Step cards have a fixed width (240px) — all dynamic text elements (`Title`, `Content`) must use `overflow-wrap: anywhere` to prevent text overflow from long expressions, template names, or URLs
 - Use `anywhere` instead of `break-word` because it also influences `min-content` intrinsic sizing, preventing overflow in fixed-width flex containers
 
 ### Execution View Panels
@@ -1279,9 +1538,21 @@ What are you building?
 │   └── Handle 2 empty states (no events yet / no filter results)
 │
 ├── Role-based access page
-│   ├── No read → hide from nav, empty screen on direct visit
-│   ├── Read only → controls disabled, no action buttons
-│   └── Read + write → full edit capability
+│   ├── No read → hide from nav/tab; EmptyStateAccessDenied on direct URL
+│   ├── Read only → controls disabled via isAriaDisabled + DisabledWithTooltip
+│   ├── Read + write → full edit capability
+│   └── Use permission hooks (use{Domain}Permissions) for all gating
+│
+├── Full-page wizard (multi-step with tables)
+│   ├── Dedicated route (not modal)
+│   ├── Each step: title + description + FilterBar + ScrollableTableContainer
+│   ├── Footer: Back/Next/Cancel (link) per step
+│   └── Cancel navigates back to origin route
+│
+├── Dedicated edit page (complex inline editing)
+│   ├── Parent tab stays read-only with "Edit" button
+│   ├── Edit page at sub-route with Save/Cancel toolbar
+│   └── Permission-gated with EmptyStateAccessDenied fallback
 │
 └── Canvas/builder view
     ├── Use React Flow + PatternFly wrapper

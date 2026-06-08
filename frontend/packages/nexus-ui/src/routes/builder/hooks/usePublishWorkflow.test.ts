@@ -58,7 +58,7 @@ describe('usePublishWorkflow', () => {
     expect(mockPublishMutate).toHaveBeenCalledWith(
       {
         params: { path: { workflow_id: 'wf-123', version: 3 } },
-        body: { publish_name: 'v1.0', description: null },
+        body: { publish_name: 'v1.0', change_description: null },
       },
       expect.objectContaining({
         onSuccess: expect.any(Function) as unknown,
@@ -78,7 +78,7 @@ describe('usePublishWorkflow', () => {
 
     expect(mockPublishMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: { publish_name: null, description: null },
+        body: { publish_name: null, change_description: null },
       }),
       expect.any(Object)
     )
@@ -178,7 +178,7 @@ describe('usePublishWorkflow', () => {
 
     expect(mockPublishMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: { publish_name: 'v2.0', description: 'My description' },
+        body: { publish_name: 'v2.0', change_description: 'My description' },
       }),
       expect.any(Object)
     )

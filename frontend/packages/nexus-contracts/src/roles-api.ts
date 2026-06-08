@@ -421,6 +421,8 @@ export interface operations {
         /** @description Filter by project scope */
         project_id?: string | null
         scope?: string | null
+        /** @description Filter by policy name */
+        policy_name?: string | null
       }
       header?: never
       path?: never

@@ -14,6 +14,9 @@ export type GroupMappingEntry = {
   nexusGroupId: string
 }
 
+/** Form/API row shape without react-hook-form field-array id */
+export type GroupMappingFormEntry = Pick<GroupMappingEntry, 'idpGroupValue' | 'nexusGroupId'>
+
 export type NexusGroup = {
   id?: string
   name?: string
@@ -36,9 +39,36 @@ export function searchGroups(claims: Record<string, unknown>, expression: string
   return items.filter((v) => v != null).map((v) => (typeof v === 'string' ? v : JSON.stringify(v)))
 }
 
+/** Returns null when valid, or an error message when the expression is invalid JMESPath syntax. */
+export function validateGroupJmespathExpression(expression: string): string | null {
+  try {
+    jmespath.search({}, expression)
+    return null
+  } catch {
+    return `Invalid group extraction expression: '${expression}' is not a valid JMESPath expression`
+  }
+}
+
 export type GroupMappingConfig = {
   group_jmespath_expression?: string | null
   group_mapping_entries?: { idp_group_value: string; nexus_group_id: string }[]
+}
+
+type GroupMappingConfigSource = {
+  group_jmespath_expression?: string | null
+  group_mapping_entries?: { idp_group_value: string; nexus_group_id: string }[]
+}
+
+export function buildGroupMappingConfig(config: GroupMappingConfigSource | undefined): GroupMappingConfig | null {
+  if (!config?.group_jmespath_expression && !config?.group_mapping_entries?.length) return null
+  return {
+    group_jmespath_expression: config.group_jmespath_expression,
+    group_mapping_entries: config.group_mapping_entries,
+  }
+}
+
+export function hasServerMappingEntries(groupMapping: GroupMappingConfig | null | undefined): boolean {
+  return (groupMapping?.group_mapping_entries?.length ?? 0) > 0
 }
 
 export function toFormEntries(config: GroupMappingConfig | null | undefined): GroupMappingEntry[] {
@@ -53,7 +83,7 @@ export function toFormEntries(config: GroupMappingConfig | null | undefined): Gr
 export function buildSavePayload(
   providerConfig: OIDCConfigurationResponse,
   expression: string,
-  entries: GroupMappingEntry[]
+  entries: GroupMappingFormEntry[]
 ): IdentityProviderPatch {
   return {
     configuration: {
@@ -73,9 +103,9 @@ export function buildSavePayload(
 export function processDiscoveredGroups(
   claims: Record<string, unknown>,
   expression: string,
-  entries: GroupMappingEntry[],
+  entries: GroupMappingFormEntry[],
   nexusGroups: NexusGroup[]
-): { newEntries: GroupMappingEntry[]; message: string; variant: 'success' | 'warning' } {
+): { newEntries: GroupMappingFormEntry[]; message: string; variant: 'success' | 'warning' } {
   const groups = searchGroups(claims, expression)
 
   if (groups.length === 0) {
@@ -92,7 +122,7 @@ export function processDiscoveredGroups(
     if (g.name && g.id) nexusGroupByName.set(g.name, g.id)
   }
 
-  const existingByValue = new Map<string, GroupMappingEntry>()
+  const existingByValue = new Map<string, GroupMappingFormEntry>()
   for (const e of entries) {
     existingByValue.set(e.idpGroupValue, e)
   }
@@ -103,7 +133,7 @@ export function processDiscoveredGroups(
       existingByValue.delete(g)
       return existing
     }
-    return { key: nextKey(), idpGroupValue: g, nexusGroupId: nexusGroupByName.get(g) ?? '' }
+    return { idpGroupValue: g, nexusGroupId: nexusGroupByName.get(g) ?? '' }
   })
 
   const newEntries = [...discoveredEntries, ...existingByValue.values()]

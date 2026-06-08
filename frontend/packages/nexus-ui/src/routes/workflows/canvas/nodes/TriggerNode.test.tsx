@@ -6,13 +6,16 @@ import { ExecutionViewContext } from '../../../builder/ExecutionViewContext'
 
 import { TriggerNodeComponent } from './TriggerNode'
 
+const mockNodesConnectable = vi.hoisted(() => ({ value: true }))
+
 vi.mock('@xyflow/react', () => ({
   useReactFlow: () => ({
     deleteElements: vi.fn(),
     updateNode: vi.fn(),
     getNode: vi.fn(),
   }),
-  useStore: (selector: (s: { transform: [number, number, number] }) => unknown) => selector({ transform: [0, 0, 1] }),
+  useStore: (selector: (s: { transform: [number, number, number]; nodesConnectable: boolean }) => unknown) =>
+    selector({ transform: [0, 0, 1], nodesConnectable: mockNodesConnectable.value }),
   useUpdateNodeInternals: () => vi.fn(),
   Handle: () => null,
   Position: {
@@ -159,6 +162,13 @@ describe('TriggerNodeComponent', () => {
 
     expect(screen.getByText('Webhook: /jira-updates')).toBeInTheDocument()
     expect(screen.queryByText('Webhook trigger')).not.toBeInTheDocument()
+  })
+
+  it('hides node menu when nodesConnectable is false', () => {
+    mockNodesConnectable.value = false
+    render(<TriggerNodeComponent {...createNodeProps()} />)
+    expect(screen.queryByRole('button', { name: /step actions menu/i })).not.toBeInTheDocument()
+    mockNodesConnectable.value = true
   })
 
   it('has no accessibility violations', async () => {

@@ -9,10 +9,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { approvalsClient, executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../providers/alerts'
 
-import { BuilderContent } from './BuilderContent'
-
-type BuilderContentProps = ComponentProps<typeof BuilderContent>
-
 vi.mock('./components/NodeEditorOverlay', () => ({
   NodeEditorOverlay: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="node-editor-overlay" /> : null),
 }))
@@ -54,6 +50,20 @@ vi.mock('../../app/useUnsavedChanges', () => ({
     unregisterSaveHandler: vi.fn(),
   }),
 }))
+
+vi.mock('./useBuilderPermissions', () => ({
+  useBuilderPermissions: () => ({
+    canEdit: true,
+    canRun: true,
+    canDelete: true,
+    isLoading: false,
+    tooltips: { edit: '', save: '', publish: '', unpublish: '', run: '', delete: '' },
+  }),
+}))
+
+import { BuilderContent } from './BuilderContent'
+
+type BuilderContentProps = ComponentProps<typeof BuilderContent>
 
 const queryClient = new QueryClient({
   defaultOptions: {

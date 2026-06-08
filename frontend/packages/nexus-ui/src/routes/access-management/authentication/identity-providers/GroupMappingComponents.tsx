@@ -5,20 +5,23 @@ import {
   EmptyStateBody,
   EmptyStateFooter,
   ExpandableSection,
-  Flex,
-  FlexItem,
+  Form,
   FormGroup,
   FormHelperText,
   HelperText,
   HelperTextItem,
   CodeBlock,
   CodeBlockCode,
+  Split,
+  SplitItem,
+  Stack,
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
-import { RhUiAddIcon, RhUiEditIcon } from '@patternfly/react-icons'
-import { Table, Tbody } from '@patternfly/react-table'
+import { RhUiAddIcon, RhUiEditIcon, RhUiSyncIcon } from '@patternfly/react-icons'
+import { Tbody, Table } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
+import { Controller, type Control } from 'react-hook-form'
 
 import { FilterBar } from '../../../../components/filters/FilterBar'
 import { NxPanelContentStack } from '../../../../components/layout/NxPanelContentStack'
@@ -28,10 +31,28 @@ import { NxScrollableTableContainer } from '../../../../components/table/NxScrol
 import type { FilterConfig, FilterFieldDefinition } from '../../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../../types/filters'
 
-import { MappingRow } from './groupMappingFields'
+import { HintOrError } from './formFieldHelpers'
+import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
+import { EditMappingRow, MappingRow } from './groupMappingFields'
 import { GroupMappingTableHead } from './groupMappingTableHead'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
 import { IDP_TYPE_PRESETS } from './idpTypePresets'
+
+function entryFieldErrorMessage(
+  entryErrors: GroupMappingEditFormValues['entries'] | undefined,
+  index: number,
+  field: 'idpGroupValue' | 'nexusGroupId'
+): string | undefined {
+  if (!Array.isArray(entryErrors)) return undefined
+  const row = entryErrors[index]
+  if (!row || typeof row !== 'object') return undefined
+  const fieldError: unknown = row[field]
+  if (fieldError && typeof fieldError === 'object' && 'message' in fieldError) {
+    const message: unknown = fieldError.message
+    return typeof message === 'string' ? message : undefined
+  }
+  return undefined
+}
 
 const GROUP_MAPPING_KEYWORD_FILTER_FIELDS: FilterFieldDefinition[] = [
   {
@@ -86,89 +107,101 @@ export function EmptyMappingState({ onTestSignIn, onAddManually }: Readonly<Empt
 }
 
 export type AdvancedSectionProps = {
-  expression: string
-  onExpressionChange: (value: string) => void
+  control: Control<GroupMappingEditFormValues>
   defaultExpression: string | null
   idpType?: string | null
   rawClaims: string | null
 }
 
-export function AdvancedSection({
-  expression,
-  onExpressionChange,
-  defaultExpression,
-  idpType,
-  rawClaims,
-}: Readonly<AdvancedSectionProps>) {
+export function AdvancedSection({ control, defaultExpression, idpType, rawClaims }: Readonly<AdvancedSectionProps>) {
   return (
-    <ExpandableSection toggleText="Advanced">
-      <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
-        <FlexItem>
-          <FormGroup label="Group extraction expression" fieldId="jmespath-expression-tab">
-            <TextInput
-              id="jmespath-expression-tab"
-              placeholder="groups[*]"
-              value={expression}
-              onChange={(_event, value) => onExpressionChange(value)}
+    <ExpandableSection toggleText="Advanced" isIndented>
+      <Form>
+        <Stack hasGutter>
+          <StackItem>
+            <Controller
+              name="expression"
+              control={control}
+              render={({ field, fieldState }) => (
+                <Stack hasGutter>
+                  <StackItem>
+                    <FormGroup label="Group extraction expression" fieldId="jmespath-expression-tab">
+                      <TextInput
+                        id="jmespath-expression-tab"
+                        placeholder="groups[*]"
+                        validated={fieldState.error ? 'error' : 'default'}
+                        {...field}
+                      />
+                      <HintOrError
+                        error={fieldState.error}
+                        hint="JMESPath expression to extract group values from the ID token. Changes are included when you click Save mapping."
+                      />
+                    </FormGroup>
+                  </StackItem>
+                  {defaultExpression && field.value !== defaultExpression && (
+                    <StackItem>
+                      <Button variant="link" onClick={() => field.onChange(defaultExpression)}>
+                        Reset to default for {IDP_TYPE_PRESETS[idpType ?? '']?.label ?? 'this provider'}
+                      </Button>
+                    </StackItem>
+                  )}
+                </Stack>
+              )}
             />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>
-                  JMESPath expression to extract group values from the ID token. Changes are included when you click
-                  Save mapping.
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-          {defaultExpression && expression !== defaultExpression && (
-            <Button
-              variant="link"
-              onClick={() => onExpressionChange(defaultExpression)}
-              style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}
-            >
-              Reset to default for {IDP_TYPE_PRESETS[idpType ?? '']?.label ?? 'this provider'}
-            </Button>
+          </StackItem>
+          {rawClaims && (
+            <StackItem>
+              <FormGroup label="Raw token claims" fieldId="raw-claims">
+                <CodeBlock>
+                  <CodeBlockCode id="raw-claims">{rawClaims}</CodeBlockCode>
+                </CodeBlock>
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem>Full token claims from the last group discovery</HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </FormGroup>
+            </StackItem>
           )}
-        </FlexItem>
-        {rawClaims && (
-          <FlexItem>
-            <FormGroup label="Raw token claims" fieldId="raw-claims">
-              <CodeBlock>
-                <CodeBlockCode id="raw-claims">{rawClaims}</CodeBlockCode>
-              </CodeBlock>
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem>Full token claims from the last group discovery</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            </FormGroup>
-          </FlexItem>
-        )}
-      </Flex>
+        </Stack>
+      </Form>
     </ExpandableSection>
   )
 }
 
+export type MappingTableRow = {
+  rowId: string
+  index: number
+  /** Read-only list rows include display values */
+  idpGroupValue?: string
+  nexusGroupId?: string
+}
+
 export type MappingTableProps = {
-  entries: GroupMappingEntry[]
+  rows: MappingTableRow[]
+  control?: Control<GroupMappingEditFormValues>
   nexusGroups: NexusGroup[]
   isReadOnly?: boolean
   showValidation?: boolean
-  onChange: (index: number, entry: GroupMappingEntry) => void
-  onRemove: (entryKey: string) => void
+  entryErrors?: GroupMappingEditFormValues['entries']
+  onRemove: (index: number) => void
   onAdd: () => void
   onCreateGroup: (index: number) => void
+  /** When false, only the table is rendered (actions row is composed by the parent). Defaults to true in edit mode. */
+  showAddMappingAction?: boolean
 }
 
 export function MappingTable({
-  entries,
+  rows,
+  control,
   nexusGroups,
   isReadOnly,
   showValidation,
-  onChange,
+  entryErrors,
   onRemove,
   onAdd,
   onCreateGroup,
+  showAddMappingAction = true,
 }: Readonly<MappingTableProps>) {
   /**
    * Align with `MappingRow` action column: `showActionColumn` is true only when `isReadOnly !== true`
@@ -176,49 +209,110 @@ export function MappingTable({
    */
   const showActionsColumn = isReadOnly !== true
   const showWildcardHelp = isReadOnly !== true
+  const showAddButton = !isReadOnly && showAddMappingAction
 
-  return (
-    <>
-      <Table aria-label="Group mappings" variant="compact">
-        <GroupMappingTableHead showActionsColumn={showActionsColumn} showWildcardHelp={showWildcardHelp} />
-        <Tbody>
-          {entries.map((entry, index) => (
-            <MappingRow
-              key={entry.key}
-              entry={entry}
-              index={index}
+  const table = (
+    <Table aria-label="Group mappings" variant="compact">
+      <GroupMappingTableHead showActionsColumn={showActionsColumn} showWildcardHelp={showWildcardHelp} />
+      <Tbody>
+        {rows.map((row) => {
+          if (isReadOnly) {
+            const entry: GroupMappingEntry = {
+              key: row.rowId,
+              idpGroupValue: row.idpGroupValue ?? '',
+              nexusGroupId: row.nexusGroupId ?? '',
+            }
+            return (
+              <MappingRow
+                key={row.rowId}
+                entry={entry}
+                index={row.index}
+                nexusGroups={nexusGroups}
+                isReadOnly={isReadOnly}
+                readOnlyPlainCells={Boolean(isReadOnly)}
+                showValidation={showValidation}
+                idpErrorMessage={entryFieldErrorMessage(entryErrors, row.index, 'idpGroupValue')}
+                nexusErrorMessage={entryFieldErrorMessage(entryErrors, row.index, 'nexusGroupId')}
+                onRemove={onRemove}
+                onCreateGroup={onCreateGroup}
+              />
+            )
+          }
+
+          if (!control) return null
+
+          return (
+            <EditMappingRow
+              key={row.rowId}
+              rowId={row.rowId}
+              index={row.index}
+              control={control}
               nexusGroups={nexusGroups}
-              isReadOnly={isReadOnly}
-              readOnlyPlainCells={Boolean(isReadOnly)}
-              showValidation={showValidation}
-              onChange={onChange}
               onRemove={onRemove}
               onCreateGroup={onCreateGroup}
             />
-          ))}
-        </Tbody>
-      </Table>
-      {!isReadOnly && (
-        <Button
-          variant="link"
-          icon={<RhUiAddIcon />}
-          onClick={onAdd}
-          style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}
-        >
+          )
+        })}
+      </Tbody>
+    </Table>
+  )
+
+  if (!showAddButton) {
+    return table
+  }
+
+  return (
+    <Stack hasGutter>
+      <StackItem>{table}</StackItem>
+      <StackItem>
+        <Button variant="link" icon={<RhUiAddIcon />} onClick={onAdd}>
           Add mapping
         </Button>
-      )}
-    </>
+      </StackItem>
+    </Stack>
   )
 }
 
-const noopMappingChange: (index: number, entry: GroupMappingEntry) => void = () => {
+export type GroupMappingFormActionsProps = {
+  onAdd: () => void
+  onReDiscover: () => void
+  isListening: boolean
+}
+
+/** Add mapping and Re-discover controls below the mapping table (inline edit / dedicated form page). */
+export function GroupMappingFormActions({ onAdd, onReDiscover, isListening }: Readonly<GroupMappingFormActionsProps>) {
+  return (
+    <Split hasGutter>
+      <SplitItem>
+        <Button variant="link" icon={<RhUiAddIcon />} onClick={onAdd}>
+          Add mapping
+        </Button>
+      </SplitItem>
+      <SplitItem>
+        <Button
+          variant="link"
+          onClick={onReDiscover}
+          icon={<RhUiSyncIcon />}
+          isLoading={isListening}
+          isDisabled={isListening}
+        >
+          {isListening ? 'Waiting for sign-in...' : 'Re-discover groups'}
+        </Button>
+      </SplitItem>
+    </Split>
+  )
+}
+
+const noopIdpGroupValueChange: (index: number, value: string) => void = () => {
   /* Read-only list view: controls are disabled; handler required by MappingRow */
+}
+const noopNexusGroupIdChange: (index: number, nexusGroupId: string) => void = () => {
+  /* Read-only list view */
 }
 const noopCreateGroup: (index: number) => void = () => {
   /* Read-only list view */
 }
-const noopRemoveMapping: (entryKey: string) => void = () => {
+const noopRemoveMapping: (index: number) => void = () => {
   /* Read-only list view: remove action intentionally hidden outside edit mode */
 }
 
@@ -351,7 +445,8 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
                 isReadOnly
                 readOnlyPlainCells
                 showValidation={false}
-                onChange={noopMappingChange}
+                onIdpGroupValueChange={noopIdpGroupValueChange}
+                onNexusGroupIdChange={noopNexusGroupIdChange}
                 onRemove={noopRemoveMapping}
                 onCreateGroup={noopCreateGroup}
               />

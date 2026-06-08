@@ -15,6 +15,7 @@ import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
@@ -30,6 +31,7 @@ import { EditAssignmentDialog } from './EditAssignmentDialog'
 import { buildProjectFilterDefs } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { PermissionRow } from './types'
+import { useAssignmentPermissions } from './useAssignmentPermissions'
 import { useAssignmentsData } from './useAssignmentsData'
 
 const baseFilterDefs: FilterFieldDefinition[] = [
@@ -78,9 +80,33 @@ const baseFilterDefs: FilterFieldDefinition[] = [
   },
 ]
 
+function getAssignmentRowActions(
+  row: PermissionRow,
+  permissions: ReturnType<typeof useAssignmentPermissions>,
+  onEdit: (row: PermissionRow) => void,
+  onDelete: (row: PermissionRow) => void
+): IAction[] {
+  return [
+    {
+      title: <IconLabel icon={<RhUiEditFillIcon />}>Edit assignment</IconLabel>,
+      isAriaDisabled: !permissions.canAssign,
+      tooltipProps: permissions.canAssign ? undefined : { content: permissions.tooltips.assign },
+      onClick: permissions.canAssign ? () => onEdit(row) : undefined,
+    },
+    { isSeparator: true },
+    {
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete assignment</IconLabel>,
+      isAriaDisabled: !permissions.canRevoke,
+      tooltipProps: permissions.canRevoke ? undefined : { content: permissions.tooltips.revoke },
+      onClick: permissions.canRevoke ? () => onDelete(row) : undefined,
+    },
+  ]
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function AssignmentsTab() {
+  const permissions = useAssignmentPermissions()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [rowToDelete, setRowToDelete] = useState<PermissionRow | null>(null)
   const [rowToEdit, setRowToEdit] = useState<PermissionRow | null>(null)
@@ -123,18 +149,6 @@ export function AssignmentsTab() {
 
   const paginatedRows = sortedRows.slice((page - 1) * perPage, page * perPage)
 
-  const getAssignmentActions = (row: PermissionRow): IAction[] => [
-    {
-      title: <IconLabel icon={<RhUiEditFillIcon />}>Edit assignment</IconLabel>,
-      onClick: () => setRowToEdit(row),
-    },
-    { isSeparator: true },
-    {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Delete assignment</IconLabel>,
-      onClick: () => setRowToDelete(row),
-    },
-  ]
-
   if (allRows.length === 0 && !hasActiveFilters) {
     return (
       <>
@@ -142,7 +156,7 @@ export function AssignmentsTab() {
           title="No assignments found"
           description="Assign roles to users or groups to grant access."
           buttonText="Add assignment"
-          addData={() => setIsAddDialogOpen(true)}
+          addData={permissions.canAssign ? () => setIsAddDialogOpen(true) : undefined}
         />
         {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}
       </>
@@ -171,9 +185,16 @@ export function AssignmentsTab() {
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setIsAddDialogOpen(true)}>
-                Add assignment
-              </Button>
+              <DisabledWithTooltip isDisabled={!permissions.canAssign} content={permissions.tooltips.assign}>
+                <Button
+                  variant="primary"
+                  icon={<RhUiAddIcon />}
+                  isAriaDisabled={!permissions.canAssign}
+                  onClick={permissions.canAssign ? () => setIsAddDialogOpen(true) : undefined}
+                >
+                  Add assignment
+                </Button>
+              </DisabledWithTooltip>
             </FlexItem>
           </Flex>
         </StackItem>
@@ -248,7 +269,7 @@ export function AssignmentsTab() {
                     )}
                   </Td>
                   <Td isActionCell>
-                    <ActionsColumn items={getAssignmentActions(row)} />
+                    <ActionsColumn items={getAssignmentRowActions(row, permissions, setRowToEdit, setRowToDelete)} />
                   </Td>
                 </Tr>
               ))}

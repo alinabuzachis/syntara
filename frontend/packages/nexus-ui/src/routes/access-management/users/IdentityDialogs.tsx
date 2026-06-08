@@ -17,7 +17,6 @@ import { useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
-import { AttachIdentityModal } from './AttachIdentityModal'
 import type { UserIdentity } from './identityUtils'
 
 function DetachConfirmModal({
@@ -66,10 +65,6 @@ function DetachConfirmModal({
 export type ConvertProviderInfo = { name: string; authorizeUrl: string }
 
 export function IdentityDialogs({
-  isAttachOpen,
-  onCloseAttach,
-  currentUserId,
-  onAttached,
   identityToDetach,
   isDetaching,
   onConfirmDetach,
@@ -78,10 +73,6 @@ export function IdentityDialogs({
   onCloseConvert,
   onConfirmConvert,
 }: Readonly<{
-  isAttachOpen: boolean
-  onCloseAttach: () => void
-  currentUserId: string
-  onAttached: () => void
   identityToDetach: UserIdentity | null
   isDetaching: boolean
   onConfirmDetach: () => void
@@ -92,12 +83,6 @@ export function IdentityDialogs({
 }>) {
   return (
     <>
-      <AttachIdentityModal
-        isOpen={isAttachOpen}
-        onClose={onCloseAttach}
-        currentUserId={currentUserId}
-        onAttached={onAttached}
-      />
       <DetachConfirmModal
         identity={identityToDetach}
         isDetaching={isDetaching}
@@ -135,6 +120,14 @@ type ConnectedKebabProps = {
   isLastIdentity: boolean
   isDetaching: boolean
   onDisconnect: () => void
+  /**
+   * Defaults to `true` (unlike other `canX` permission props) because disconnecting an
+   * identity is a self-service action — users can always disconnect their own identities
+   * unless explicitly denied. The `false` case is only hit when viewing another user's
+   * profile without `identity:detach` permission.
+   */
+  canDetach?: boolean
+  detachTooltip?: string
 }
 
 type DisconnectedKebabProps = {
@@ -170,17 +163,30 @@ export function IdentityActionsKebab(props: Readonly<IdentityKebabProps>) {
   let actionItem: React.ReactNode
 
   if (props.kind === 'connected') {
-    const { isLastIdentity, isDetaching, onDisconnect } = props
+    const { isLastIdentity, isDetaching, onDisconnect, canDetach = true, detachTooltip } = props
+    const isDisconnectDisabled = isLastIdentity || isDetaching || !canDetach
+
+    let disconnectTooltipProps: { content: string } | undefined
+    if (isLastIdentity) {
+      disconnectTooltipProps = { content: 'Cannot disconnect the only sign-in method' }
+    } else if (!canDetach && detachTooltip) {
+      disconnectTooltipProps = { content: detachTooltip }
+    }
+
     actionItem = (
       <DropdownItem
         isDanger
         icon={<RhUiLinkBrokenIcon />}
-        isAriaDisabled={isLastIdentity || isDetaching}
-        tooltipProps={isLastIdentity ? { content: 'Cannot disconnect the only sign-in method' } : undefined}
-        onClick={() => {
-          onDisconnect()
-          setIsOpen(false)
-        }}
+        isAriaDisabled={isDisconnectDisabled}
+        tooltipProps={disconnectTooltipProps}
+        onClick={
+          isDisconnectDisabled
+            ? undefined
+            : () => {
+                onDisconnect()
+                setIsOpen(false)
+              }
+        }
       >
         Disconnect
       </DropdownItem>

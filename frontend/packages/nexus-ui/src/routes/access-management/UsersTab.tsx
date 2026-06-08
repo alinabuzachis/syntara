@@ -9,6 +9,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../app/flexCenteredBothAxes'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxLabel } from '../../components/labels/NxLabel'
@@ -35,6 +36,7 @@ import { useAdminToggle } from './useAdminToggle'
 import { useRevokeUserTokens } from './useRevokeUserTokens'
 import { getAuthSourceFilterDefinition } from './userFilters'
 import { userDisplayName } from './users/userDisplayName'
+import { useUserPermissions } from './useUserPermissions'
 
 const SORT_FIELDS = ['username', 'first_name', 'last_name', 'email', 'last_login'] as const
 
@@ -74,25 +76,40 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   getAuthSourceFilterDefinition(),
 ]
 
-function getRowActions(user: User, onDelete: (user: User) => void, onRevoke: (user: User) => void): IAction[] {
+function getRowActions(
+  user: User,
+  onDelete: (user: User) => void,
+  onRevoke: (user: User) => void,
+  permissions: ReturnType<typeof useUserPermissions>
+): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
-      onClick: () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', user.id)),
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.update },
+      onClick: permissions.canUpdate
+        ? () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', user.id))
+        : undefined,
     },
     {
       title: <IconLabel icon={<RhUiBanIcon />}>Revoke tokens</IconLabel>,
-      onClick: () => onRevoke(user),
+      isAriaDisabled: !permissions.canRevoke,
+      tooltipProps: permissions.canRevoke ? undefined : { content: permissions.tooltips.revoke },
+      onClick: permissions.canRevoke ? () => onRevoke(user) : undefined,
     },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-      onClick: () => onDelete(user),
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+      onClick: permissions.canDelete ? () => onDelete(user) : undefined,
     },
   ]
 }
 
 export function UsersTab() {
+  const permissions = useUserPermissions()
+
   const {
     cursor,
     resetPagination,
@@ -152,7 +169,7 @@ export function UsersTab() {
         title="No users"
         description="Create a user to manage access to the platform."
         buttonText="Create user"
-        addData={() => navigate(AppRoute.AccessManagement.CreateUser)}
+        addData={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
       />
     )
   }
@@ -192,13 +209,16 @@ export function UsersTab() {
             showClearAll={true}
             clearAllFilters={handleClearAllFilters}
             toolbarEnd={
-              <Button
-                variant="primary"
-                icon={<RhUiAddIcon />}
-                onClick={() => navigate(AppRoute.AccessManagement.CreateUser)}
-              >
-                Create user
-              </Button>
+              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                <Button
+                  variant="primary"
+                  icon={<RhUiAddIcon />}
+                  isAriaDisabled={!permissions.canCreate}
+                  onClick={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
+                >
+                  Create user
+                </Button>
+              </DisabledWithTooltip>
             }
           />
         </StackItem>
@@ -245,7 +265,7 @@ export function UsersTab() {
                   <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
                   <Td isActionCell>
                     {!user.is_builtin && (
-                      <ActionsColumn items={getRowActions(user, deleteDialog.open, revokeDialog.open)} />
+                      <ActionsColumn items={getRowActions(user, deleteDialog.open, revokeDialog.open, permissions)} />
                     )}
                   </Td>
                 </Tr>

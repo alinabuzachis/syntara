@@ -41,7 +41,22 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
 
   for (const entry of pages) {
     test(`${entry.section}/${entry.name}`, async ({ page }) => {
-      // Login first — navigating to the base URL auto-authenticates with the mock API
+      // For role-specific entries, intercept auth to return a role-scoped token
+      if (entry.role) {
+        await page.route('**/api/v1/auth/refresh', (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              access_token: `mock-token-${entry.role}`,
+              token_type: 'bearer',
+              expires_in: 3600,
+            }),
+          })
+        )
+      }
+
+      // Login — navigating to the base URL auto-authenticates with the mock API
       await page.goto(appBaseUrl)
       await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
 

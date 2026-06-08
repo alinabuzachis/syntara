@@ -9,7 +9,7 @@ describe('InputEmptyState', () => {
     it('renders the correct message text', () => {
       render(<InputEmptyState variant="not-connected" />)
 
-      expect(screen.getByText('Input data can only be displayed when a node is connected and run')).toBeInTheDocument()
+      expect(screen.getByText('Input data can only be displayed when a step is connected and run')).toBeInTheDocument()
     })
 
     it('has no accessibility violations', async () => {
@@ -24,7 +24,7 @@ describe('InputEmptyState', () => {
     it('renders the correct message text', () => {
       render(<InputEmptyState variant="connected-not-run" />)
 
-      expect(screen.getByText('Run previous node to populate input')).toBeInTheDocument()
+      expect(screen.getByText('Run previous step to populate input')).toBeInTheDocument()
     })
 
     it('has no accessibility violations', async () => {

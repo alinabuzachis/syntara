@@ -27,7 +27,7 @@ export const Default: Story = {
 
 /**
  * `isHorizontal` places the term and description side-by-side.
- * Used inside compact spaces such as workflow canvas node cards.
+ * Used inside compact spaces such as workflow canvas step cards.
  */
 export const Horizontal: Story = {
   render: () => (

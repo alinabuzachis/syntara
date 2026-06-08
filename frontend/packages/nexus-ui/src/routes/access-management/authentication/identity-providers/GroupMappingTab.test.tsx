@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { identityProvidersClient, usersClient } from '../../../../client'
+import { usersClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
 import { useAllGroups } from '../../../access/useAllGroups'
 
@@ -19,27 +19,18 @@ vi.mock('../../../../client', () => ({
   usersClient: {
     useQuery: vi.fn(),
   },
-  OIDC_AUTHORIZE_PATH: '/api/v1/auth/oidc/authorize',
   authMiddleware: { onRequest: vi.fn() },
-}))
-
-const mockHandleError = vi.fn(() => vi.fn())
-vi.mock('../../../../hooks/useMutationErrorHandler', () => ({
-  useMutationErrorHandler: () => mockHandleError,
-}))
-
-vi.mock('../../access/accessClient', () => ({
-  accessClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
-  },
-  accessFetchClient: {
-    POST: vi.fn(),
-  },
 }))
 
 vi.mock('../../../access/useAllGroups', () => ({
   useAllGroups: vi.fn(),
+}))
+
+const mockNavigate = vi.fn()
+vi.mock('wouter/use-browser-location', () => ({
+  navigate: (...args: unknown[]): void => {
+    mockNavigate(...args)
+  },
 }))
 
 const queryClient = new QueryClient({
@@ -57,29 +48,20 @@ const mockNexusGroups = [
   { id: 'g2', name: 'users', description: 'Users', created_at: '2026-01-02T00:00:00Z' },
 ]
 
-const mockAllGroups = mockNexusGroups.map((g) => ({
-  ...g,
-  is_builtin: false,
-  updated_at: g.created_at,
-}))
-
 const defaultProps = {
   providerId: 'provider-123',
-  idpType: 'custom',
-  providerConfig: {
-    issuer_url: 'https://example.com',
-    provider_type: 'oidc' as const,
-    client_id: 'test-client',
-    redirect_uri: 'http://localhost/callback',
-  },
   groupMapping: null,
-  onSaved: vi.fn(),
 }
 
 describe('GroupMappingTab', () => {
   beforeEach(() => {
+    mockNavigate.mockClear()
     vi.mocked(useAllGroups).mockReturnValue({
-      groups: mockAllGroups,
+      groups: mockNexusGroups.map((g) => ({
+        ...g,
+        is_builtin: false,
+        updated_at: g.created_at,
+      })),
       isLoading: false,
       error: null,
       refetch: vi.fn(),
@@ -91,12 +73,7 @@ describe('GroupMappingTab', () => {
       isError: false,
       error: null,
       isFetching: false,
-      refetch: vi.fn().mockResolvedValue({ data: { resources: mockNexusGroups } }),
-    } as never)
-
-    vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
+      refetch: vi.fn(),
     } as never)
   })
 
@@ -109,14 +86,26 @@ describe('GroupMappingTab', () => {
       expect(screen.getByRole('button', { name: /add manually/i })).toBeInTheDocument()
     })
 
-    it('opens edit mode with one blank row when Add manually is clicked', async () => {
+    it('navigates to edit page with new=1 when Add manually is clicked', async () => {
       const user = userEvent.setup()
       render(<GroupMappingTab {...defaultProps} />, { wrapper })
 
       await user.click(screen.getByRole('button', { name: /add manually/i }))
 
-      expect(screen.getByRole('button', { name: /save mapping/i })).toBeInTheDocument()
-      expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toBeInTheDocument()
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit?new=1'
+      )
+    })
+
+    it('navigates to edit page with discover=1 when Discover groups is clicked', async () => {
+      const user = userEvent.setup()
+      render(<GroupMappingTab {...defaultProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /discover groups/i }))
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit?discover=1'
+      )
     })
   })
 
@@ -129,298 +118,44 @@ describe('GroupMappingTab', () => {
       ],
     }
 
-    it('shows read-only view when mappings exist and not editing', () => {
+    it('shows read-only view when mappings exist', () => {
       render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} />, { wrapper })
 
-      // Read-only view uses shared FilterBar + table; keyword filter and Edit mapping are visible
       expect(screen.getByPlaceholderText('Filter by keyword')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /edit mapping/i })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Remove mapping 1' })).not.toBeInTheDocument()
-      expect(screen.queryByRole('textbox', { name: 'IdP group value 1' })).not.toBeInTheDocument()
       expect(screen.getByText('idp-admin')).toBeInTheDocument()
     })
 
-    it('switches to editing mode when editMappingTrigger is incremented', () => {
-      const { rerender } = render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} />, { wrapper })
+    it('navigates to edit page when Edit mapping is clicked', async () => {
+      const user = userEvent.setup()
+      render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} />, { wrapper })
 
-      // Re-render with editMappingTrigger to enter edit mode
-      rerender(
-        <QueryClientProvider client={queryClient}>
-          <AlertProvider>
-            <GroupMappingTab {...defaultProps} groupMapping={existingMapping} editMappingTrigger={1} />
-          </AlertProvider>
-        </QueryClientProvider>
+      await user.click(screen.getByRole('button', { name: /edit mapping/i }))
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/system-administration/authentication/identity-providers/provider-123/group-mapping/edit'
       )
-
-      expect(screen.getByRole('button', { name: /save mapping/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
   })
 
-  describe('Edit mode', () => {
-    it('shows Save mapping, Cancel, and Re-discover buttons', () => {
-      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
+  describe('Read-only permission mode', () => {
+    it('hides empty-state actions when readOnly', () => {
+      render(<GroupMappingTab {...defaultProps} readOnly />, { wrapper })
 
-      expect(screen.getByRole('button', { name: /save mapping/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /re-discover groups/i })).toBeInTheDocument()
-    })
-
-    it('reverts to initial state when Cancel is clicked', async () => {
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: 'Cancel' }))
-
-      // Should go back to empty state
       expect(screen.getByRole('heading', { name: /no group mappings configured/i })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /discover groups/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /add manually/i })).not.toBeInTheDocument()
     })
 
-    it('shows validation when saving with incomplete entries', async () => {
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: /add mapping/i }))
-
-      // Type only the IdP value, leaving nexus group empty
-      const idpInput = screen.getByRole('textbox', { name: 'IdP group value 1' })
-      await user.type(idpInput, 'admin')
-
-      // Try to save
-      await user.click(screen.getByRole('button', { name: /save mapping/i }))
-
-      // Mutation should NOT have been called
-      const { mutate } = vi.mocked(identityProvidersClient.useMutation).mock.results[0].value as {
-        mutate: ReturnType<typeof vi.fn>
-      }
-      expect(mutate).not.toHaveBeenCalled()
-    })
-
-    it('calls patchProvider on save with complete entries', async () => {
-      const mockMutate = vi.fn()
-      vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        isPending: false,
-      } as never)
-
+    it('hides Edit mapping when readOnly and mappings exist', () => {
       const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
-        group_mapping_entries: [{ idp_group_value: 'admin', nexus_group_id: 'g1' }],
+        group_mapping_entries: [{ idp_group_value: 'idp-admin', nexus_group_id: 'g1' }],
       }
+      render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} readOnly />, { wrapper })
 
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} editMappingTrigger={1} />, { wrapper })
-
-      // Save
-      await user.click(screen.getByRole('button', { name: /save mapping/i }))
-
-      expect(mockMutate).toHaveBeenCalled()
-    })
-  })
-
-  describe('Save flow', () => {
-    it('calls onSaved after successful save', async () => {
-      const onSaved = vi.fn()
-      const mockMutate = vi.fn((_params: unknown, callbacks?: { onSuccess?: () => void }) => {
-        callbacks?.onSuccess?.()
-      })
-      vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        isPending: false,
-      } as never)
-
-      const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
-        group_mapping_entries: [{ idp_group_value: 'admin', nexus_group_id: 'g1' }],
-      }
-
-      const user = userEvent.setup()
-      render(
-        <GroupMappingTab {...defaultProps} groupMapping={existingMapping} onSaved={onSaved} editMappingTrigger={1} />,
-        { wrapper }
-      )
-
-      await user.click(screen.getByRole('button', { name: /save mapping/i }))
-
-      await waitFor(() => {
-        expect(onSaved).toHaveBeenCalled()
-      })
-    })
-
-    it('shows error alert when save fails', async () => {
-      const mockMutate = vi.fn((_params: unknown, callbacks?: { onError?: () => void }) => {
-        callbacks?.onError?.()
-      })
-      vi.mocked(identityProvidersClient.useMutation).mockReturnValue({
-        mutate: mockMutate,
-        isPending: false,
-      } as never)
-
-      const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
-        group_mapping_entries: [{ idp_group_value: 'admin', nexus_group_id: 'g1' }],
-      }
-
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} editMappingTrigger={1} />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: /save mapping/i }))
-
-      await waitFor(() => {
-        expect(mockMutate).toHaveBeenCalled()
-      })
-    })
-  })
-
-  describe('Entry management', () => {
-    it('removes a mapping entry when remove button is clicked', async () => {
-      const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
-        group_mapping_entries: [
-          { idp_group_value: 'admin', nexus_group_id: 'g1' },
-          { idp_group_value: 'users', nexus_group_id: 'g2' },
-        ],
-      }
-
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} editMappingTrigger={1} />, { wrapper })
-
-      // Should have 2 entries
-      expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toHaveValue('admin')
-      expect(screen.getByRole('textbox', { name: 'IdP group value 2' })).toHaveValue('users')
-
-      // Remove first entry
-      await user.click(screen.getByRole('button', { name: 'Remove mapping 1' }))
-
-      // Now only one entry
-      expect(screen.queryByRole('textbox', { name: 'IdP group value 2' })).not.toBeInTheDocument()
-    })
-
-    it('adds a new empty mapping entry', async () => {
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: /add mapping/i }))
-      expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toBeInTheDocument()
-
-      // Add another
-      await user.click(screen.getByRole('button', { name: /add mapping/i }))
-
-      expect(screen.getByRole('textbox', { name: 'IdP group value 2' })).toBeInTheDocument()
-    })
-  })
-
-  describe('Discover groups', () => {
-    it('opens popup when Discover groups is clicked from empty state', async () => {
-      const mockOpen = vi.fn()
-      const originalOpen = globalThis.open
-      globalThis.open = mockOpen
-
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: /discover groups/i }))
-
-      expect(mockOpen).toHaveBeenCalledWith(
-        expect.stringContaining('provider_id=provider-123'),
-        'test-signin',
-        expect.any(String)
-      )
-
-      globalThis.open = originalOpen
-    })
-  })
-
-  describe('Advanced section', () => {
-    it('renders advanced section in edit mode', () => {
-      render(<GroupMappingTab {...defaultProps} editMappingTrigger={1} />, { wrapper })
-
-      expect(screen.getByText('Advanced')).toBeInTheDocument()
-    })
-  })
-
-  describe('Sign-in alert flow', () => {
-    it('shows sign-in alert after test sign-in discovers groups', async () => {
-      const mockOpen = vi.spyOn(globalThis, 'open').mockReturnValue({ closed: false } as Window)
-
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} />, { wrapper })
-
-      // Click "Discover groups" which enters edit mode and opens popup
-      await user.click(screen.getByRole('button', { name: /discover groups/i }))
-
-      // Extract the nonce that was stored in localStorage
-      const nonce = localStorage.getItem('nexus-test-signin-nonce')
-      expect(nonce).toBeTruthy()
-
-      // Simulate the popup writing claims to localStorage (picked up by polling)
-      localStorage.setItem(
-        'nexus-test-signin',
-        JSON.stringify({
-          type: 'test-signin',
-          nonce,
-          claims: { groups: ['idp-admin', 'idp-users', 'unknown-group'] },
-        })
-      )
-
-      // The sign-in alert should appear
-      await waitFor(() => {
-        expect(screen.getByText(/groups discovered/i)).toBeInTheDocument()
-      })
-
-      // Dismiss the alert
-      const closeButton = screen.getByRole('button', { name: /close/i })
-      await user.click(closeButton)
-
-      await waitFor(() => {
-        expect(screen.queryByText(/groups discovered/i)).not.toBeInTheDocument()
-      })
-
-      mockOpen.mockRestore()
-    })
-  })
-
-  describe('Edit mode rendering', () => {
-    it('renders all edit mode controls with existing mappings', () => {
-      const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
-        group_mapping_entries: [{ idp_group_value: 'admin', nexus_group_id: 'g1' }],
-      }
-
-      render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} editMappingTrigger={1} />, { wrapper })
-
-      // Verify edit mode controls
-      expect(screen.getByRole('button', { name: /save mapping/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /re-discover groups/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /add mapping/i })).toBeInTheDocument()
-      expect(screen.getByText('Advanced')).toBeInTheDocument()
-
-      // Verify IdP group value is populated
-      expect(screen.getByRole('textbox', { name: 'IdP group value 1' })).toHaveValue('admin')
-    })
-
-    it('renders GroupFormModal when Create new group option is selected', async () => {
-      const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
-        group_mapping_entries: [{ idp_group_value: 'test-group', nexus_group_id: '' }],
-      }
-
-      const user = userEvent.setup()
-      render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} editMappingTrigger={1} />, { wrapper })
-
-      // Open the nexus group select dropdown by clicking the input placeholder
-      const selectInput = screen.getByPlaceholderText('Select a group...')
-      await user.click(selectInput)
-
-      // Click "Create new group" option
-      const createOption = await screen.findByText('Create new group')
-      await user.click(createOption)
-
-      // The GroupFormModal should be open with the pre-filled name
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Create group' })).toBeInTheDocument()
-      })
+      expect(screen.getByPlaceholderText('Filter by keyword')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /edit mapping/i })).not.toBeInTheDocument()
+      expect(screen.getByText('idp-admin')).toBeInTheDocument()
     })
   })
 
@@ -431,23 +166,8 @@ describe('GroupMappingTab', () => {
       expect(results).toHaveNoViolations()
     })
 
-    it('has no accessibility violations in edit mode', async () => {
-      const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
-        group_mapping_entries: [{ idp_group_value: 'admin', nexus_group_id: 'g1' }],
-      }
-      const { container } = render(
-        <GroupMappingTab {...defaultProps} groupMapping={existingMapping} editMappingTrigger={1} />,
-        { wrapper }
-      )
-
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
-    })
-
     it('has no accessibility violations in read-only view', async () => {
       const existingMapping = {
-        group_jmespath_expression: 'groups[*]',
         group_mapping_entries: [{ idp_group_value: 'admin', nexus_group_id: 'g1' }],
       }
       const { container } = render(<GroupMappingTab {...defaultProps} groupMapping={existingMapping} />, { wrapper })

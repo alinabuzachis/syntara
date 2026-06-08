@@ -7,6 +7,7 @@ const {
   mockCreateConvergeActivity,
   mockCreateGenericActivity,
   mockCreateLoopActivity,
+  mockCreateWaitActivity,
   mockRegister,
 } = vi.hoisted(() => ({
   mockAddActivity: vi.fn(),
@@ -31,6 +32,12 @@ const {
     loopType: type,
     ...opts,
   })),
+  mockCreateWaitActivity: vi.fn((id: string, name: string, config: Record<string, unknown>) => ({
+    type: 'wait',
+    id,
+    name,
+    config,
+  })),
   mockRegister: vi.fn(),
 }))
 
@@ -39,6 +46,7 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
   createConvergeActivity: mockCreateConvergeActivity,
   createGenericActivity: mockCreateGenericActivity,
   createLoopActivity: mockCreateLoopActivity,
+  createWaitActivity: mockCreateWaitActivity,
   useWorkflowStore: {
     getState: vi.fn(() => ({
       addActivity: mockAddActivity,
@@ -227,6 +235,52 @@ describe('registerLogicNode', () => {
     })
   })
 
+  describe('Wait', () => {
+    it('calls onSuccess for valid wait data', () => {
+      const onSuccess = vi.fn()
+      const onError = vi.fn()
+      getHandler()(
+        { logicType: 'wait', name: 'Pause 5m', days: 0, hours: 0, minutes: 5, seconds: 0 },
+        onSuccess,
+        onError
+      )
+
+      expect(onSuccess).toHaveBeenCalledWith(expect.stringMatching(/^logic_\d+_[a-z0-9]+$/))
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('defaults missing time fields to zero', () => {
+      const onSuccess = vi.fn()
+      const onError = vi.fn()
+      getHandler()({ logicType: 'wait', name: 'Quick Wait' }, onSuccess, onError)
+
+      expect(onSuccess).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Loop (valid)', () => {
+    it('calls onSuccess for valid forEach loop', () => {
+      const onSuccess = vi.fn()
+      const onError = vi.fn()
+      getHandler()({ logicType: 'loop', name: 'Each Item', type: 'forEach', items: 'ctx.list' }, onSuccess, onError)
+
+      expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('calls onSuccess for valid while loop', () => {
+      const onSuccess = vi.fn()
+      const onError = vi.fn()
+      getHandler()({ logicType: 'loop', name: 'While', type: 'while', condition: 'count < 10' }, onSuccess, onError)
+
+      expect(mockBatchAddActivitiesAndEdges).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
+    })
+  })
+
   describe('Invalid logicType', () => {
     it('calls onError for invalid logicType', () => {
       const onSuccess = vi.fn()
@@ -234,6 +288,34 @@ describe('registerLogicNode', () => {
       getHandler()({ logicType: 'invalid', name: 'Bad' } as unknown as Record<string, unknown>, onSuccess, onError)
 
       expect(onError).toHaveBeenCalledWith('Invalid logic type')
+      expect(onSuccess).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Error handling', () => {
+    it('catches thrown Error and calls onError with message', () => {
+      mockAddActivity.mockImplementation(() => {
+        throw new Error('Store error')
+      })
+      const onSuccess = vi.fn()
+      const onError = vi.fn()
+      getHandler()({ logicType: 'condition', name: 'Crash', condition: 'x > 0' }, onSuccess, onError)
+
+      expect(onError).toHaveBeenCalledWith('Store error')
+      expect(onSuccess).not.toHaveBeenCalled()
+    })
+
+    it('catches non-Error throw and calls onError with generic message', () => {
+      mockAddActivity.mockImplementation(() => {
+        // Simulate a non-Error throwable reaching the catch block
+        const nonError = Object.create(null) as Error
+        throw nonError
+      })
+      const onSuccess = vi.fn()
+      const onError = vi.fn()
+      getHandler()({ logicType: 'condition', name: 'Crash', condition: 'x > 0' }, onSuccess, onError)
+
+      expect(onError).toHaveBeenCalledWith('Failed to add logic step')
       expect(onSuccess).not.toHaveBeenCalled()
     })
   })

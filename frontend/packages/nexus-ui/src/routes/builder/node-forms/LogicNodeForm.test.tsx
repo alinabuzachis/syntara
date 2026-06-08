@@ -7,6 +7,10 @@ import type { LogicFormData } from './LogicNodeForm'
 import { LogicNodeForm } from './LogicNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
+vi.mock('./useMaxWaitDuration', () => ({
+  useMaxWaitDuration: () => ({ maxSeconds: 2_592_000, isLoading: false }),
+}))
+
 describe('LogicNodeForm', () => {
   const mockOnSubmit = vi.fn()
 
@@ -65,6 +69,28 @@ describe('LogicNodeForm', () => {
       // Verify ConvergeNodeForm is rendered by checking for its unique elements
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Converge')
       expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toBeInTheDocument()
+    })
+
+    it('renders WaitNodeForm when logicType is wait', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.WAIT,
+            name: 'Test Wait',
+            days: 1,
+            hours: 2,
+            minutes: 30,
+            seconds: 15,
+          }}
+        />
+      )
+
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Wait')
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(1)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(2)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(30)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(15)
     })
 
     it('returns null when logicType is unknown', () => {
@@ -181,6 +207,49 @@ describe('LogicNodeForm', () => {
       })
     })
 
+    it('maps wait data correctly and adds logicType on submit', async () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.WAIT,
+            name: 'Wait Step',
+            days: 0,
+            hours: 0,
+            minutes: 5,
+            seconds: 0,
+          }}
+        />
+      )
+
+      fireEvent.submit(screen.getByTestId('wait-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+        const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
+        expect(submittedData.logicType).toBe(ActivityTypeEnum.WAIT)
+        expect(submittedData.name).toBe('Wait Step')
+        expect(submittedData.minutes).toBe(5)
+      })
+    })
+
+    it('defaults wait time fields to 0 when not provided', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.WAIT,
+            name: 'Minimal Wait',
+          }}
+        />
+      )
+
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(0)
+    })
+
     it("defaults converge strategy to 'all' when initialData has undefined strategy", () => {
       renderWithHeader(
         <LogicNodeForm
@@ -244,6 +313,28 @@ describe('LogicNodeForm', () => {
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Loop Node')
       expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
+    })
+
+    it('maps all wait fields from initialData', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.WAIT,
+            name: 'Wait Node',
+            days: 2,
+            hours: 3,
+            minutes: 15,
+            seconds: 45,
+          }}
+        />
+      )
+
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Wait Node')
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(2)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(3)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(15)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(45)
     })
 
     it('maps all converge fields from initialData', () => {

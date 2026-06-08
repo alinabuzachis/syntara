@@ -68,14 +68,12 @@ export default tseslint.config(
             'Pass an object { title, onRetry } to useQueryState instead of a plain string. The object form enables retry buttons in error states.',
         },
         {
-          selector:
-            'MemberExpression[object.name="formState"][property.name="isSubmitting"]',
+          selector: 'MemberExpression[object.name="formState"][property.name="isSubmitting"]',
           message:
             'Do not use formState.isSubmitting -- it only covers the synchronous handleSubmit wrapper. Use isPending from the mutation hook (e.g. useMutation) to track the actual async mutation lifecycle.',
         },
         {
-          selector:
-            'JSXOpeningElement[name.name="span"] JSXAttribute[name.name="aria-label"]',
+          selector: 'JSXOpeningElement[name.name="span"] JSXAttribute[name.name="aria-label"]',
           message:
             'Do not use aria-label on <span> — assistive technologies ignore it on non-interactive elements. The inner text content is sufficient. Use aria-label only on interactive elements, widgets, landmarks, images, or iframes.',
         },
@@ -87,7 +85,8 @@ export default tseslint.config(
             {
               group: ['@patternfly/react-icons'],
               importNamePattern: '^(?!RhUi)',
-              message: 'Use RhUi* icons from @patternfly/react-icons (e.g. RhUiAddIcon, RhUiTrashIcon, RhUiEditIcon). Non-RhUi icons are being phased out.',
+              message:
+                'Use RhUi* icons from @patternfly/react-icons (e.g. RhUiAddIcon, RhUiTrashIcon, RhUiEditIcon). Non-RhUi icons are being phased out.',
             },
           ],
         },

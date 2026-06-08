@@ -16,6 +16,7 @@ import { type Page, expect } from '@playwright/test'
 
 import { AppRoute } from '../../src/app/AppRoute'
 
+import { MOCK_IDENTITY_PROVIDER_ID } from './mock-ids'
 import {
   approvalInteractivePages,
   authenticationInteractivePages,
@@ -25,6 +26,7 @@ import {
   integrationDialogPages,
   settingsTabPages,
   statusVariantPages,
+  transferIdentityWizardPages,
   workflowDialogPages,
 } from './page-entries-interactive'
 
@@ -41,6 +43,8 @@ export type PageEntry = {
   setup?: (page: Page) => Promise<void>
   /** Override the default maxDiffPixelRatio for pages with non-deterministic rendering (e.g. canvas) */
   maxDiffPixelRatio?: number
+  /** Mock API role to log in as (default: admin). Used for permission gating screenshots. */
+  role?: 'viewer' | 'auditor' | 'user'
 }
 
 async function applyNameFilter(page: Page, value: string) {
@@ -247,6 +251,8 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Edit User' })).toBeVisible()
     },
   },
+
+  ...transferIdentityWizardPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // ACCESS MANAGEMENT — Groups
@@ -535,6 +541,19 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('option', { name: /Ansible Automation Platform/i })).toBeVisible()
     },
   },
+  {
+    section: 'authentication',
+    name: 'identity-provider-group-mapping-edit',
+    path: AppRoute.SystemAdministration.Authentication.EditGroupMapping.replace(
+      ':providerId',
+      MOCK_IDENTITY_PROVIDER_ID
+    ),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Add group mapping' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Save mapping' })).toBeVisible()
+      await expect(page.getByRole('textbox', { name: 'IdP group value 1' })).toBeVisible()
+    },
+  },
   // ══════════════════════════════════════════════════════════════════════════
   // ACCESS MANAGEMENT — Audit Log
   // ══════════════════════════════════════════════════════════════════════════
@@ -720,6 +739,94 @@ export const pages: PageEntry[] = [
   ...detailTabPages,
   ...settingsTabPages,
   ...authenticationInteractivePages,
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PERMISSION GATING — restricted role screenshots
+  // ══════════════════════════════════════════════════════════════════════════
+  {
+    section: 'permission-gating',
+    name: 'viewer-workflows-list',
+    path: AppRoute.Workflows.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-credentials-list',
+    path: AppRoute.Configuration.Credentials.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'auditor-users-list',
+    path: AppRoute.AccessManagement.Users,
+    role: 'auditor',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-access-denied',
+    path: AppRoute.AccessManagement.Users,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: /access denied/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-builder-read-only',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    role: 'viewer',
+    maxDiffPixelRatio: 0.01,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'auditor-authentication-list',
+    path: AppRoute.SystemAdministration.Authentication.Root,
+    role: 'auditor',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Identity Providers' })).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'user-workflows-list',
+    path: AppRoute.Workflows.Root,
+    role: 'user',
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-workflows-kebab-disabled',
+    path: AppRoute.Workflows.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+    setup: async (page) => {
+      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      await kebab.click({ force: true })
+      await expect(page.getByRole('menuitem').first()).toBeVisible()
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -757,7 +864,7 @@ export const loginPages: PageEntry[] = [
       }
       // Submit with username but no password to trigger client-side validation error
       await page.getByLabel('Username').fill('admin')
-      await page.getByRole('button', { name: 'Log in as administrator' }).click()
+      await page.getByRole('button', { name: 'Log in', exact: true }).click()
       await expect(page.getByText('Enter your password')).toBeVisible()
     },
   },
@@ -782,6 +889,7 @@ export const excludedDynamic: string[] = [
   AppRoute.SystemAdministration.Authentication.EditIdentityProvider,
   AppRoute.AccessManagement.Root,
   AppRoute.Auth.TestSignInCallback,
+  AppRoute.AccessManagement.TransferIdentity, // covered by transferIdentityWizardPages (interactive entries)
   AppRoute.Profile, // redirects to user detail — no longer a standalone page
 ]
 

@@ -31,7 +31,7 @@ const FieldHelp = () => (
     bodyContent={
       <div>
         The data point you want to evaluate. You can type a value manually or drag and drop a variable (like a status
-        code, ID, or name) from a previous node's output.
+        code, ID, or name) from a previous step's output.
       </div>
     }
   />

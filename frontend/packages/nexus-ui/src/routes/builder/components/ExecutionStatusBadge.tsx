@@ -1,3 +1,4 @@
+import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import { Icon, Spinner } from '@patternfly/react-core'
 import {
   RhUiCheckCircleFillIcon,
@@ -17,6 +18,7 @@ export const EXECUTION_BADGE_SELECTOR = `[${EXECUTION_BADGE_DATA_ATTR}]`
 type ExecutionStatusBadgeProps = {
   status: ActivityStatus
   retryCount?: number
+  nodeType?: string
 }
 
 type VisualStatus = 'pending' | 'running' | 'waiting' | 'success' | 'error' | 'skipped' | 'cancelled'
@@ -62,13 +64,16 @@ const visualStatusConfig: Record<
   },
 }
 
-function normalizeStatus(status: ActivityStatus): { visualStatus: VisualStatus; label: string } {
+function normalizeStatus(status: ActivityStatus, nodeType?: string): { visualStatus: VisualStatus; label: string } {
   switch (status) {
     case 'completed':
       return { visualStatus: 'success', label: 'Success' }
     case 'failed':
       return { visualStatus: 'error', label: 'Error' }
     case 'waiting':
+      if (nodeType === ActivityTypeEnum.WAIT) {
+        return { visualStatus: 'running', label: 'Running' }
+      }
       return { visualStatus: 'waiting', label: 'Waiting for approval' }
     case 'retrying':
       return { visualStatus: 'running', label: 'Retrying' }
@@ -89,8 +94,8 @@ function normalizeStatus(status: ActivityStatus): { visualStatus: VisualStatus; 
  * Visual indicator for activity execution status on workflow steps (canvas).
  * Renders as a circular badge positioned in the bottom-right corner of the step.
  */
-export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadgeProps) {
-  const normalized = normalizeStatus(status)
+export function ExecutionStatusBadge({ status, retryCount, nodeType }: Readonly<ExecutionStatusBadgeProps>) {
+  const normalized = normalizeStatus(status, nodeType)
   const config = visualStatusConfig[normalized.visualStatus]
   const title = retryCount ? `${normalized.label} (${retryCount} retries)` : normalized.label
 

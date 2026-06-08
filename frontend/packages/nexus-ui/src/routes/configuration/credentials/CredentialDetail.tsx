@@ -1,7 +1,5 @@
 import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
@@ -9,10 +7,13 @@ import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsCredentialDetail, breadcrumbsCredentialEarlyShell } from '../../../app/breadcrumbBuilders'
 import { credentialsClient } from '../../../client'
 import { NxDetail } from '../../../components/details/NxDetail'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
+import type { KebabAction } from '../../../components/NxKebabMenu'
+import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
@@ -29,6 +30,7 @@ import { DisableCredentialDialog } from './DisableCredentialDialog'
 import { CredentialFormModal } from './form/CredentialFormModal'
 import type { FieldDefinition } from './form/DynamicFieldRenderer'
 import { useCredentialDetailPermissions } from './useCredentialDetailPermissions'
+import { useCredentialPermissions } from './useCredentialPermissions'
 import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
 import { UserTimestamp } from './UserTimestamp'
@@ -36,7 +38,13 @@ import { UserTimestamp } from './UserTimestamp'
 type CredentialTab = 'details' | 'workflows'
 const ALL_CREDENTIAL_TABS: CredentialTab[] = ['details', 'workflows']
 
-// eslint-disable-next-line max-lines-per-function
+function getTypeDisplayText(typeName: string | undefined, typeLoadError: boolean): string {
+  if (typeName) return typeName
+  if (typeLoadError) return 'Failed to load type'
+  return '\u2014'
+}
+
+// eslint-disable-next-line max-lines-per-function -- detail page with multiple tabs, dialogs, and toolbar actions
 export default function CredentialDetail() {
   const { credentialId } = useParams<{ credentialId: string }>()
   const [, navigate] = useLocation()
@@ -50,6 +58,7 @@ export default function CredentialDetail() {
     return ALL_CREDENTIAL_TABS.filter((tab) => tab !== 'workflows')
   }, [canReadWorkflows, permissionsLoading])
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const { canUpdate, canDelete, tooltips } = useCredentialPermissions()
   const {
     credentialToDelete,
     affectedWorkflows: deleteAffectedWorkflows,
@@ -163,10 +172,13 @@ export default function CredentialDetail() {
     onSettled: closeDeleteDialog,
   })
 
-  const kebabActions: IAction[] = [
+  const kebabActions: KebabAction[] = [
     {
+      key: 'delete',
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete credential</IconLabel>,
       isDanger: true,
+      isAriaDisabled: !canDelete,
+      tooltipProps: canDelete ? undefined : { content: tooltips.delete },
       onClick: () => openDeleteDialog(credential!),
     },
   ]
@@ -205,12 +217,7 @@ export default function CredentialDetail() {
   if (!credential.id) return null
 
   const credInputs = credential.inputs ?? {}
-  let credentialTypeDisplayText = '\u2014'
-  if (credType) {
-    credentialTypeDisplayText = credType.name
-  } else if (typeLoadError) {
-    credentialTypeDisplayText = 'Failed to load type'
-  }
+  const credentialTypeDisplayText = getTypeDisplayText(credType?.name, typeLoadError)
 
   const hasDescription = credential.description != null && credential.description.trim().length > 0
 
@@ -223,16 +230,26 @@ export default function CredentialDetail() {
         title={credential.name}
         toolbar={
           <>
-            <Switch
-              id="credential-detail-toggle"
-              label="Enabled"
-              isChecked={credential.enabled}
-              onChange={handleToggleEnabled}
-            />
-            <Button variant="primary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
-              Edit credential
-            </Button>
-            <ActionsColumn items={kebabActions} />
+            <DisabledWithTooltip isDisabled={!canUpdate} content={tooltips.enable}>
+              <Switch
+                id="credential-detail-toggle"
+                label="Enabled"
+                isChecked={credential.enabled}
+                isDisabled={!canUpdate}
+                onChange={handleToggleEnabled}
+              />
+            </DisabledWithTooltip>
+            <DisabledWithTooltip isDisabled={!canUpdate} content={tooltips.update}>
+              <Button
+                variant="primary"
+                icon={<RhUiEditIcon />}
+                isAriaDisabled={!canUpdate}
+                onClick={() => setEditModalOpen(true)}
+              >
+                Edit credential
+              </Button>
+            </DisabledWithTooltip>
+            <NxKebabMenu actions={kebabActions} aria-label="Credential actions" />
           </>
         }
       />

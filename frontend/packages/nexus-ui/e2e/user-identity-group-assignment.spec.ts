@@ -53,10 +53,10 @@ async function mockAllGroups(app: Page, response: unknown): Promise<void> {
 test.describe('User Detail — Local User Controls and Group Assignment (UI-27)', () => {
   /**
    * UI-27 Steps 1–3: Admin views a local user's Identities tab.
-   * Self-service Connect button must not appear (isSelf=false); Attach identity
+   * Self-service Connect button must not appear (isSelf=false); Transfer identity
    * (admin-level action) is the only control available.
    */
-  test('admin views local user identities tab — Attach identity available, Connect hidden', async ({ app }) => {
+  test('admin views local user identities tab — Transfer identity available, Connect hidden', async ({ app }) => {
     await mockUserIdentities(app, NON_BUILTIN_USER_ID)
     await mockUser(app, NON_BUILTIN_USER_ID, nonBuiltinUserResponse)
     // auth/me returns the admin — different id from the page user, so isSelf=false
@@ -66,7 +66,7 @@ test.describe('User Detail — Local User Controls and Group Assignment (UI-27)'
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${NON_BUILTIN_USER_ID}/identities`))
 
-    await expect(app.getByRole('button', { name: 'Attach identity' })).toBeVisible({ timeout: 15_000 })
+    await expect(app.getByRole('button', { name: 'Transfer identity' })).toBeVisible({ timeout: 15_000 })
     // ConnectAction returns <span>—</span> when !isSelf — the button is never mounted.
     // not.toBeAttached() asserts DOM non-presence, stronger than not.toBeVisible().
     await expect(app.getByRole('button', { name: 'Connect' })).not.toBeAttached()

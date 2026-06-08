@@ -210,7 +210,7 @@ export function buildWorkflowDefinition(
       }
     }),
     nodes: activities.map((a) => {
-      validateNameLength(a.name, 'Node name')
+      validateNameLength(a.name, 'Step name')
       const sanitizedNodeName = a.name?.replace(CONTROL_CHAR_PATTERN, '')
       const inputs = hasInputs(a) ? a.inputs : undefined
 

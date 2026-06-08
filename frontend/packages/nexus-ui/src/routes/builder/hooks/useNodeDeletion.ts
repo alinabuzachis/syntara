@@ -359,7 +359,7 @@ export function useNodeDeletion({
           const message =
             error instanceof Error
               ? error.message
-              : 'Failed to delete nodes. The workflow structure may be too complex.'
+              : 'Failed to delete steps. The workflow structure may be too complex.'
           onError(message)
         }
         // Re-throw if no error handler to maintain existing behavior in tests

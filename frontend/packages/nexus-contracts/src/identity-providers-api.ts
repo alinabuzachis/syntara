@@ -56,6 +56,26 @@ export interface paths {
     patch: operations['patch_identity_provider']
     trace?: never
   }
+  '/identity_providers/setup_aap_oidc': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Setup AAP OIDC Provider
+     * @description Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity provider with AAP defaults.
+     */
+    post: operations['setup_aap_oidc_provider']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/identity_providers/test': {
     parameters: {
       query?: never
@@ -110,8 +130,6 @@ export interface components {
        * @default family_name
        */
       last_name?: string
-      /** Groups */
-      groups?: string | null
     }
     /**
      * OIDCGroupMappingEntry
@@ -571,6 +589,46 @@ export interface components {
        * @default false
        */
       end_session_endpoint_supported?: boolean
+    }
+    /**
+     * AAPOIDCSetupRequest
+     * @description Request body for push-button AAP OIDC identity provider setup.
+     */
+    AAPOIDCSetupRequest: {
+      /**
+       * AAP URL
+       * @description AAP base URL (e.g., https://aap.example.com)
+       */
+      aap_url: string
+      /**
+       * Organization
+       * @description AAP organization name to create the OAuth2 application in
+       * @default Default
+       */
+      organization?: string
+      /**
+       * Platform Admin Username
+       * @description AAP platform admin username (required when using basic auth)
+       */
+      admin_username?: string | null
+      /**
+       * Platform Admin Password
+       * Format: password
+       * @description AAP platform admin password (used only for setup, never stored)
+       */
+      admin_password?: string | null
+      /**
+       * Personal Access Token
+       * Format: password
+       * @description AAP personal access token (alternative to username/password, never stored)
+       */
+      personal_access_token?: string | null
+      /**
+       * Insecure Skip TLS Verify
+       * @description Skip TLS certificate verification for the AAP connection
+       * @default false
+       */
+      insecure_skip_tls_verify?: boolean
     }
     /**
      * Paginated Response Base
@@ -1046,6 +1104,37 @@ export interface operations {
     responses: {
       /** @description Successful Response */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['IdentityProviderResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  setup_aap_oidc_provider: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AAPOIDCSetupRequest']
+      }
+    }
+    responses: {
+      /** @description AAP OIDC provider created */
+      201: {
         headers: {
           [name: string]: unknown
         }

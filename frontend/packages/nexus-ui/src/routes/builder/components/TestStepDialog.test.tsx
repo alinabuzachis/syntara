@@ -87,16 +87,16 @@ describe('TestStepDialog', () => {
       // Assert
       expect(screen.getByRole('heading', { name: 'Run Test Script?' })).toBeInTheDocument()
       expect(
-        screen.getByText(/You are about to manually run this node\. Do you want to run all the previous nodes/)
+        screen.getByText(/You are about to run this step manually\. Run all previous steps up to this one/)
       ).toBeInTheDocument()
     })
 
-    it('shows "Run all previous nodes" button as enabled', () => {
+    it('shows "Run all previous steps" button as enabled', () => {
       // Arrange
       render(<TestStepDialog {...defaultProps} />, { wrapper })
 
       // Assert
-      const runAllButton = screen.getByRole('button', { name: 'Run all previous nodes' })
+      const runAllButton = screen.getByRole('button', { name: 'Run all previous steps' })
       expect(runAllButton).toBeEnabled()
     })
 
@@ -313,11 +313,11 @@ describe('TestStepDialog', () => {
       // Act — filter to named action buttons within the dialog
       const dialog = screen.getByRole('dialog')
       const allButtons = within(dialog).getAllByRole('button')
-      const actionNames = ['Run all previous nodes', 'Set mock data', 'Cancel']
+      const actionNames = ['Run all previous steps', 'Set mock data', 'Cancel']
       const actionButtons = allButtons.filter((btn) => actionNames.some((name) => btn.textContent?.includes(name)))
 
       // Assert — Primary (Run all) | Secondary (Set mock) | Link (Cancel)
-      expect(actionButtons[0]).toHaveTextContent('Run all previous nodes')
+      expect(actionButtons[0]).toHaveTextContent('Run all previous steps')
       expect(actionButtons[1]).toHaveTextContent('Set mock data')
       expect(actionButtons[2]).toHaveTextContent('Cancel')
     })
@@ -359,7 +359,7 @@ describe('TestStepDialog', () => {
 
         // Assert
         expect(screen.getByRole('heading', { name: 'Run Check Environment?' })).toBeInTheDocument()
-        expect(screen.getByText(/You are about to manually run this node/)).toBeInTheDocument()
+        expect(screen.getByText(/You are about to run this step manually/)).toBeInTheDocument()
       })
 
       it('enables mock data button for condition node with predecessors', () => {
@@ -401,7 +401,7 @@ describe('TestStepDialog', () => {
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
         // Assert — description mentions predecessor count, not individual names
-        expect(screen.getByText(/2 predecessor nodes/)).toBeInTheDocument()
+        expect(screen.getByText(/2 predecessor steps/)).toBeInTheDocument()
         expect(screen.getByText(/Check Environment will execute/)).toBeInTheDocument()
       })
 
@@ -437,7 +437,7 @@ describe('TestStepDialog', () => {
 
         // Assert
         expect(screen.getByRole('heading', { name: 'Run Join Results?' })).toBeInTheDocument()
-        expect(screen.getByText(/You are about to manually run this node/)).toBeInTheDocument()
+        expect(screen.getByText(/You are about to run this step manually/)).toBeInTheDocument()
       })
 
       it('enables mock data for converge with multiple inputs', () => {
@@ -459,7 +459,7 @@ describe('TestStepDialog', () => {
 
         // Assert — description mentions predecessor count, not individual names
         expect(screen.getByRole('heading', { name: 'Set mock data for Join Results' })).toBeInTheDocument()
-        expect(screen.getByText(/3 predecessor nodes/)).toBeInTheDocument()
+        expect(screen.getByText(/3 predecessor steps/)).toBeInTheDocument()
         expect(screen.getByText(/Join Results will execute/)).toBeInTheDocument()
       })
 
@@ -537,7 +537,7 @@ describe('TestStepDialog', () => {
 
         // Assert
         expect(screen.getByRole('heading', { name: 'Run Process Items?' })).toBeInTheDocument()
-        expect(screen.getByText(/You are about to manually run this node/)).toBeInTheDocument()
+        expect(screen.getByText(/You are about to run this step manually/)).toBeInTheDocument()
       })
 
       it('enables mock data for loop node with predecessors', () => {
@@ -559,7 +559,7 @@ describe('TestStepDialog', () => {
 
         // Assert — description mentions predecessor count, not individual names
         expect(screen.getByRole('heading', { name: 'Set mock data for Process Items' })).toBeInTheDocument()
-        expect(screen.getByText(/2 predecessor nodes/)).toBeInTheDocument()
+        expect(screen.getByText(/2 predecessor steps/)).toBeInTheDocument()
         expect(screen.getByText(/Process Items will execute/)).toBeInTheDocument()
       })
 
@@ -644,7 +644,7 @@ describe('TestStepDialog', () => {
 
         // Assert — description mentions predecessor count, not individual names
         expect(screen.getByRole('heading', { name: 'Set mock data for Final Step' })).toBeInTheDocument()
-        expect(screen.getByText(/5 predecessor nodes/)).toBeInTheDocument()
+        expect(screen.getByText(/5 predecessor steps/)).toBeInTheDocument()
         expect(screen.getByText(/Final Step will execute/)).toBeInTheDocument()
       })
 
@@ -741,7 +741,7 @@ describe('TestStepDialog', () => {
         render(<TestStepDialog {...conditionNodeProps} />, { wrapper })
 
         // Act
-        await user.click(screen.getByRole('button', { name: 'Run all previous nodes' }))
+        await user.click(screen.getByRole('button', { name: 'Run all previous steps' }))
 
         // Assert — uses /workflows/{workflow_id}/test with empty pre_resolved_nodes
         expect(mockPost).toHaveBeenCalledWith('/workflows/{workflow_id}/test', {

@@ -23,7 +23,7 @@ export function ApprovalSummaryList(props: ApprovalSummaryListProps) {
       <DescriptionListGroup>
         <DescriptionListTerm>Approval type</DescriptionListTerm>
         <DescriptionListDescription>
-          Approval Node {/** TODO: make this use real type when we have multiple types implemented */}
+          Approval step {/** TODO: make this use real type when we have multiple types implemented */}
         </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>

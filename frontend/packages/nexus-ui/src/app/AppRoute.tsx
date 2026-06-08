@@ -38,6 +38,7 @@ export const AppRoute = {
       AddIdentityProvider: '/system-administration/authentication/identity-providers/add',
       IdentityProviderDetail: '/system-administration/authentication/identity-providers/:providerId/:tab?',
       EditIdentityProvider: '/system-administration/authentication/identity-providers/:providerId/edit',
+      EditGroupMapping: '/system-administration/authentication/identity-providers/:providerId/group-mapping/edit',
     },
   },
   AccessManagement: {
@@ -47,6 +48,7 @@ export const AppRoute = {
     UserDetail: '/system-administration/access-management/users/:userId',
     UserDetailTab: '/system-administration/access-management/users/:userId/:tab',
     EditUser: '/system-administration/access-management/users/:userId/edit',
+    TransferIdentity: '/system-administration/access-management/users/:userId/transfer-identity',
     Groups: '/system-administration/access-management/groups',
     GroupDetail: '/system-administration/access-management/groups/:groupId',
     GroupDetailTab: '/system-administration/access-management/groups/:groupId/:tab',

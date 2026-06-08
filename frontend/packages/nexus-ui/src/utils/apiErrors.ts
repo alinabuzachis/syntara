@@ -536,6 +536,10 @@ const ERROR_TITLES: Record<string, string> = {
   // Auth errors
   AUTHENTICATION_REQUIRED: 'Authentication Required',
   REQUEST_VALIDATION_ERROR: 'Request Validation Error',
+  // AAP setup errors
+  AAP_CONNECTION_ERROR: 'AAP Connection Error',
+  AAP_AUTHENTICATION_ERROR: 'AAP Authentication Failed',
+  AAP_SETUP_ERROR: 'AAP Setup Error',
   // System errors
   LLM_CONFIGURATION_ERROR: 'Configuration Error',
   TEMPORAL_UNAVAILABLE: 'Workflow Engine Unavailable',

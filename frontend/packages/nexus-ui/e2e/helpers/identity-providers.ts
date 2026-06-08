@@ -20,6 +20,11 @@ export function identityProviderDetailUrl(providerId: string, tab: 'details' | '
   return `${AUTH_ROOT}/identity-providers/${providerId}/${tab}`
 }
 
+export function identityProviderGroupMappingEditUrl(providerId: string, query?: string): string {
+  const base = `${AUTH_ROOT}/identity-providers/${providerId}/group-mapping/edit`
+  return query ? `${base}?${query}` : base
+}
+
 /** Navigate to the identity providers list. */
 export async function gotoIdentityProvidersList(app: Page): Promise<void> {
   await app.goto(toAppUrl(AUTH_ROOT))
@@ -37,10 +42,7 @@ export async function gotoIdentityProviderDetail(
   if (tab === 'group-mapping') {
     await expect(app.getByRole('tab', { name: /Group mapping/i })).toHaveAttribute('aria-selected', 'true')
     await expect(
-      app
-        .getByRole('button', { name: /Add manually/i })
-        .or(app.getByRole('button', { name: /Edit mapping/i }))
-        .or(app.getByRole('button', { name: /Save mapping/i }))
+      app.getByRole('button', { name: /Add manually/i }).or(app.getByRole('button', { name: /Edit mapping/i }))
     ).toBeVisible({ timeout: 15_000 })
   }
 }
@@ -86,15 +88,24 @@ export async function gotoClaimMappingWizardStep(app: Page): Promise<void> {
   await expect(app.getByText('Subject claim')).toBeVisible()
 }
 
-/** Enter edit mode on the group mapping tab via Add manually. */
+/** Open the dedicated group mapping form (via Add manually or Edit mapping on the tab). */
 export async function enterGroupMappingEditMode(app: Page): Promise<void> {
   const addManually = app.getByRole('button', { name: /Add manually/i })
-  if (await addManually.isVisible()) {
+  const fromEmptyState = await addManually.isVisible()
+  if (fromEmptyState) {
     await addManually.click()
   } else {
     await app.getByRole('button', { name: /Edit mapping/i }).click()
   }
+  const expectedHeading = fromEmptyState ? 'Add group mapping' : 'Edit group mapping'
+  await expect(app.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible()
   await expect(app.getByRole('button', { name: /Save mapping/i })).toBeVisible()
+}
+
+/** Navigate directly to the group mapping edit form. */
+export async function gotoGroupMappingEdit(app: Page, providerId: string, query?: string): Promise<void> {
+  await app.goto(toAppUrl(identityProviderGroupMappingEditUrl(providerId, query)))
+  await expect(app.getByRole('button', { name: /Save mapping/i })).toBeVisible({ timeout: 15_000 })
 }
 
 /** Expand the Advanced section on the group mapping tab. */

@@ -1,4 +1,4 @@
-import { getBezierPath } from '@xyflow/react'
+import { getBezierPath, useStore } from '@xyflow/react'
 
 import { EdgeActions } from './EdgeActions'
 import { EdgeLabel } from './EdgeLabel'
@@ -29,6 +29,7 @@ export function DefaultEdge(props: BaseEdgeProps) {
     selected,
     sourceHandleId,
   } = props
+  const nodesConnectable = useStore((s) => s.nodesConnectable)
   const {
     isHovered,
     isEdgeHovered,
@@ -79,7 +80,7 @@ export function DefaultEdge(props: BaseEdgeProps) {
         onMouseLeave={handleEdgeMouseLeave}
       />
       <EdgeLabel labelX={labelX} labelY={labelY} label={label} />
-      {(isHovered || data?.isActive) && !data?.isPending && !data?.executionStatus && (
+      {(isHovered || data?.isActive) && !data?.isPending && !data?.executionStatus && nodesConnectable && (
         <EdgeActions
           labelX={labelX}
           labelY={labelY}

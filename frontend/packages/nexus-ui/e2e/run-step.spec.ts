@@ -2,7 +2,7 @@
  * E2E Tests: Run Step Feature
  *
  * Critical paths covered:
- * - Opening "Run step" from node kebab menu
+ * - Opening "Run step" from step kebab menu
  * - Choice dialog display with both options
  * - Transitioning to mock data editor
  * - Entering JSON and running the step
@@ -101,7 +101,7 @@ async function openRunStepDialog(app: import('@playwright/test').Page, nodeText:
 }
 
 test.describe('Run Step', () => {
-  test('opens "Run step" dialog from node kebab menu', async ({ app }) => {
+  test('opens "Run step" dialog from step kebab menu', async ({ app }) => {
     // Arrange - Create a workflow with a script node
     const workflowName = buildUniqueName('e2e-run-step')
     await createBasicWorkflow(app, workflowName, 'Test action')
@@ -129,7 +129,7 @@ test.describe('Run Step', () => {
       // Assert - Verify dialog appears with correct title (openRunStepDialog already waited)
 
       // Assert - Verify both option buttons exist
-      const runAllButton = app.getByRole('button', { name: 'Run all previous nodes' })
+      const runAllButton = app.getByRole('button', { name: 'Run all previous steps' })
       const mockDataButton = app.getByRole('button', { name: 'Set mock data' })
       const cancelButton = app.getByRole('button', { name: 'Cancel' })
 
@@ -137,7 +137,7 @@ test.describe('Run Step', () => {
       await expect(mockDataButton).toBeVisible()
       await expect(cancelButton).toBeVisible()
 
-      // Assert - "Run all previous nodes" is enabled
+      // Assert - "Run all previous steps" is enabled
       await expect(runAllButton).toBeEnabled()
     } finally {
       await deleteWorkflow(app, workflowName)

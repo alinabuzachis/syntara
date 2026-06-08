@@ -8,6 +8,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
@@ -26,8 +27,10 @@ import { detachPromise } from '../../utils/detachPromise'
 
 import { getGroupDescriptionFilterDefinition, getGroupNameFilterDefinition } from './groupFilters'
 import { GroupFormModal } from './GroupFormModal'
+import { useGroupPermissions } from './useGroupPermissions'
 
 export function GroupsTab() {
+  const permissions = useGroupPermissions()
   const deleteDialog = useDialogState<Group>()
   const formDialog = useDialogState<Group | null>()
 
@@ -106,7 +109,7 @@ export function GroupsTab() {
           title="No groups"
           description="Create a group to organize users and manage access."
           buttonText="Create group"
-          addData={() => formDialog.open(null)}
+          addData={permissions.canCreate ? () => formDialog.open(null) : undefined}
         />
       ) : (
         <NxPanelContentStack>
@@ -128,9 +131,16 @@ export function GroupsTab() {
                 />
               </FlexItem>
               <FlexItem>
-                <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => formDialog.open(null)}>
-                  Create group
-                </Button>
+                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                  <Button
+                    variant="primary"
+                    icon={<RhUiAddIcon />}
+                    isAriaDisabled={!permissions.canCreate}
+                    onClick={permissions.canCreate ? () => formDialog.open(null) : undefined}
+                  >
+                    Create group
+                  </Button>
+                </DisabledWithTooltip>
               </FlexItem>
             </Flex>
           </StackItem>
@@ -179,12 +189,20 @@ export function GroupsTab() {
                           items={[
                             {
                               title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
-                              onClick: () => formDialog.open(group as Group),
+                              isAriaDisabled: !permissions.canUpdate,
+                              tooltipProps: permissions.canUpdate
+                                ? undefined
+                                : { content: permissions.tooltips.update },
+                              onClick: permissions.canUpdate ? () => formDialog.open(group as Group) : undefined,
                             },
                             { isSeparator: true },
                             {
                               title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-                              onClick: () => deleteDialog.open(group as Group),
+                              isAriaDisabled: !permissions.canDelete,
+                              tooltipProps: permissions.canDelete
+                                ? undefined
+                                : { content: permissions.tooltips.delete },
+                              onClick: permissions.canDelete ? () => deleteDialog.open(group as Group) : undefined,
                             },
                           ]}
                         />

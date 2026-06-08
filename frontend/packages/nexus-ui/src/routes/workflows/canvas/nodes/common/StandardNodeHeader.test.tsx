@@ -2,6 +2,17 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+const mockNodesConnectable = vi.hoisted(() => ({ value: true }))
+
+vi.mock('@xyflow/react', async () => {
+  const actual = await vi.importActual('@xyflow/react')
+  return {
+    ...actual,
+    useStore: (selector: (s: { nodesConnectable: boolean }) => boolean) =>
+      selector({ nodesConnectable: mockNodesConnectable.value }),
+  }
+})
+
 import { StandardNodeHeader } from './StandardNodeHeader'
 
 describe('StandardNodeHeader', () => {
@@ -149,6 +160,16 @@ describe('StandardNodeHeader', () => {
     await waitFor(() => {
       expect(screen.getByTestId('node-menu-item-delete')).toHaveClass('pf-m-danger')
     })
+  })
+
+  it('hides menu when nodesConnectable is false', () => {
+    mockNodesConnectable.value = false
+    const menuActions = [{ id: 'delete', label: 'Delete', onClick: vi.fn(), variant: 'danger' as const }]
+
+    render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
+
+    expect(screen.queryByRole('button', { name: /step actions menu/i })).not.toBeInTheDocument()
+    mockNodesConnectable.value = true
   })
 
   it('prevents event propagation from menu trigger', async () => {

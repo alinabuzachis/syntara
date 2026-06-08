@@ -11,7 +11,7 @@ import {
   TextInputGroup,
   TextInputGroupMain,
 } from '@patternfly/react-core'
-import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Td, Tr } from '@patternfly/react-table'
 import {
   type Dispatch,
@@ -23,7 +23,9 @@ import {
   useRef,
   useState,
 } from 'react'
+import { Controller, useWatch, type Control } from 'react-hook-form'
 
+import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
 
 const CREATE_GROUP_VALUE = '__create__' as const
@@ -35,9 +37,17 @@ export type IdpGroupValueInputProps = {
   isReadOnly?: boolean
   /** When set, associates with a surrounding FormGroup; aria-label is omitted */
   inputId?: string
+  errorMessage?: string
 }
 
-export function IdpGroupValueInput({ index, value, onChange, isReadOnly, inputId }: Readonly<IdpGroupValueInputProps>) {
+export function IdpGroupValueInput({
+  index,
+  value,
+  onChange,
+  isReadOnly,
+  inputId,
+  errorMessage,
+}: Readonly<IdpGroupValueInputProps>) {
   return (
     <TextInput
       id={inputId}
@@ -46,7 +56,7 @@ export function IdpGroupValueInput({ index, value, onChange, isReadOnly, inputId
       value={value}
       onChange={(_event, nextValue) => onChange(nextValue)}
       isDisabled={isReadOnly}
-      validated="default"
+      validated={errorMessage ? 'error' : 'default'}
     />
   )
 }
@@ -56,6 +66,7 @@ export type NexusGroupMappingSelectProps = {
   nexusGroups: NexusGroup[]
   isReadOnly?: boolean
   showValidation?: boolean
+  errorMessage?: string
   onChange: (entry: GroupMappingEntry) => void
   onCreateGroup: () => void
   toggleId?: string
@@ -125,6 +136,7 @@ export function NexusGroupMappingSelect({
   nexusGroups,
   isReadOnly,
   showValidation,
+  errorMessage,
   onChange,
   onCreateGroup,
   toggleId,
@@ -133,7 +145,8 @@ export function NexusGroupMappingSelect({
   const [filterValue, setFilterValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const selectedGroup = nexusGroups.find((g) => g.id === entry.nexusGroupId)
-  const missingGroup = showValidation === true && Boolean(entry.idpGroupValue && entry.nexusGroupId === '')
+  const missingGroup =
+    Boolean(errorMessage) || (showValidation === true && Boolean(entry.idpGroupValue) && entry.nexusGroupId === '')
 
   const filteredGroups = useMemo(() => {
     if (filterValue === '') return nexusGroups
@@ -183,7 +196,7 @@ export function NexusGroupMappingSelect({
       }}
       toggle={renderToggle}
     >
-      <SelectList style={{ maxHeight: 'var(--pf-t--global--spacer--3xl)', overflow: 'auto' }}>
+      <SelectList>
         {filteredGroups.length === 0 && filterValue ? (
           <SelectOption isDisabled>No groups match &quot;{filterValue}&quot;</SelectOption>
         ) : (
@@ -201,7 +214,7 @@ export function NexusGroupMappingSelect({
       </SelectList>
       <Divider />
       <SelectList>
-        <SelectOption value={CREATE_GROUP_VALUE} icon={<PlusIcon />}>
+        <SelectOption value={CREATE_GROUP_VALUE} icon={<RhUiAddIcon />}>
           Create new group
         </SelectOption>
       </SelectList>
@@ -219,8 +232,11 @@ type MappingRowProps = {
   /** When true with isReadOnly, render data cells as text (list view) instead of disabled inputs */
   readOnlyPlainCells?: boolean
   showValidation?: boolean
-  onChange: (index: number, entry: GroupMappingEntry) => void
-  onRemove: (entryKey: string) => void
+  idpErrorMessage?: string
+  nexusErrorMessage?: string
+  onIdpGroupValueChange?: (index: number, value: string) => void
+  onNexusGroupIdChange?: (index: number, nexusGroupId: string) => void
+  onRemove: (index: number) => void
   onCreateGroup: (index: number) => void
 }
 
@@ -232,7 +248,10 @@ export function MappingRow({
   readOnlyAllowRemove,
   readOnlyPlainCells,
   showValidation,
-  onChange,
+  idpErrorMessage,
+  nexusErrorMessage,
+  onIdpGroupValueChange,
+  onNexusGroupIdChange,
   onRemove,
   onCreateGroup,
 }: Readonly<MappingRowProps>) {
@@ -255,7 +274,7 @@ export function MappingRow({
             <Button
               variant="plain"
               aria-label={`Remove mapping ${index + 1}`}
-              onClick={() => onRemove(entry.key)}
+              onClick={() => onRemove(index)}
               icon={<RhUiTrashIcon />}
             />
           </Td>
@@ -270,8 +289,9 @@ export function MappingRow({
         <IdpGroupValueInput
           index={index}
           value={entry.idpGroupValue}
-          onChange={(value) => onChange(index, { ...entry, idpGroupValue: value })}
+          onChange={(value) => onIdpGroupValueChange?.(index, value)}
           isReadOnly={isReadOnly}
+          errorMessage={idpErrorMessage}
         />
       </Td>
       <Td dataLabel="Automation Orchestrator Group">
@@ -280,7 +300,8 @@ export function MappingRow({
           nexusGroups={nexusGroups}
           isReadOnly={isReadOnly}
           showValidation={showValidation}
-          onChange={(updated) => onChange(index, updated)}
+          errorMessage={nexusErrorMessage}
+          onChange={(updated) => onNexusGroupIdChange?.(index, updated.nexusGroupId)}
           onCreateGroup={() => onCreateGroup(index)}
         />
       </Td>
@@ -289,11 +310,73 @@ export function MappingRow({
           <Button
             variant="plain"
             aria-label={`Remove mapping ${index + 1}`}
-            onClick={() => onRemove(entry.key)}
+            onClick={() => onRemove(index)}
             icon={<RhUiTrashIcon />}
           />
         </Td>
       )}
+    </Tr>
+  )
+}
+
+export type EditMappingRowProps = {
+  index: number
+  rowId: string
+  control: Control<GroupMappingEditFormValues>
+  nexusGroups: NexusGroup[]
+  onRemove: (index: number) => void
+  onCreateGroup: (index: number) => void
+}
+
+export function EditMappingRow({
+  index,
+  rowId,
+  control,
+  nexusGroups,
+  onRemove,
+  onCreateGroup,
+}: Readonly<EditMappingRowProps>) {
+  const idpGroupValue = useWatch({ control, name: `entries.${index}.idpGroupValue` }) ?? ''
+
+  return (
+    <Tr>
+      <Td dataLabel="IdP Group Value">
+        <Controller
+          name={`entries.${index}.idpGroupValue`}
+          control={control}
+          render={({ field, fieldState }) => (
+            <IdpGroupValueInput
+              index={index}
+              value={field.value}
+              onChange={field.onChange}
+              errorMessage={fieldState.error?.message}
+            />
+          )}
+        />
+      </Td>
+      <Td dataLabel="Automation Orchestrator Group">
+        <Controller
+          name={`entries.${index}.nexusGroupId`}
+          control={control}
+          render={({ field, fieldState }) => (
+            <NexusGroupMappingSelect
+              entry={{ key: rowId, idpGroupValue, nexusGroupId: field.value }}
+              nexusGroups={nexusGroups}
+              errorMessage={fieldState.error?.message}
+              onChange={(updated) => field.onChange(updated.nexusGroupId)}
+              onCreateGroup={() => onCreateGroup(index)}
+            />
+          )}
+        />
+      </Td>
+      <Td isActionCell>
+        <Button
+          variant="plain"
+          aria-label={`Remove mapping ${index + 1}`}
+          onClick={() => onRemove(index)}
+          icon={<RhUiTrashIcon />}
+        />
+      </Td>
     </Tr>
   )
 }

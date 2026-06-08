@@ -16,20 +16,20 @@ function renderWithFlow(ui: ReactElement) {
 }
 
 describe('CanvasControls', () => {
-  it('toggles the node legend from the toolbar', async () => {
+  it('toggles the step legend from the toolbar', async () => {
     const user = userEvent.setup()
     renderWithFlow(<CanvasControls onLayout={() => undefined} />)
 
     expect(screen.queryByTestId('canvas-legend')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Show node legend' }))
+    await user.click(screen.getByRole('button', { name: 'Show step legend' }))
     expect(screen.getByRole('dialog', { name: 'Legend' })).toBeInTheDocument()
     expect(screen.getByTestId('canvas-legend')).toBeInTheDocument()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Close legend' })).toHaveFocus()
     })
 
-    await user.click(screen.getByRole('button', { name: 'Hide node legend' }))
+    await user.click(screen.getByRole('button', { name: 'Hide step legend' }))
     await waitFor(() => {
       expect(screen.queryByTestId('canvas-legend')).not.toBeInTheDocument()
     })
@@ -39,14 +39,14 @@ describe('CanvasControls', () => {
     const user = userEvent.setup()
     renderWithFlow(<CanvasControls onLayout={() => undefined} />)
 
-    await user.click(screen.getByRole('button', { name: 'Show node legend' }))
+    await user.click(screen.getByRole('button', { name: 'Show step legend' }))
     await user.click(screen.getByRole('button', { name: 'Close legend' }))
 
     await waitFor(() => {
       expect(screen.queryByTestId('canvas-legend')).not.toBeInTheDocument()
     })
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Show node legend' })).toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Show step legend' })).toHaveFocus()
     })
   })
 
@@ -56,7 +56,7 @@ describe('CanvasControls', () => {
     expect(screen.queryByRole('button', { name: 'Collapse all' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Expand all' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Layout' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show node legend' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show step legend' })).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

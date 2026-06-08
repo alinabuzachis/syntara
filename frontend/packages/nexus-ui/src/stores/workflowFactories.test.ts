@@ -14,6 +14,7 @@ import {
   createManualTrigger,
   createScheduledTrigger,
   createScriptActivity,
+  createWaitActivity,
   createWebhookTrigger,
 } from './workflowFactories'
 
@@ -632,6 +633,24 @@ describe('workflowFactories', () => {
         })
 
         expect(activity.config.labels).toEqual(['production'])
+      })
+    })
+
+    describe('createWaitActivity', () => {
+      it('creates a wait activity with duration', () => {
+        const activity = createWaitActivity('wait-1', 'Wait 5 min', { duration: 300 })
+
+        expect(activity.type).toBe('wait')
+        expect(activity.id).toBe('wait-1')
+        expect(activity.name).toBe('Wait 5 min')
+        expect(activity.config).toEqual({ duration: 300 })
+      })
+
+      it('creates a wait activity with zero duration', () => {
+        const activity = createWaitActivity('wait-2', 'No Wait', { duration: 0 })
+
+        expect(activity.type).toBe('wait')
+        expect(activity.config).toEqual({ duration: 0 })
       })
     })
 

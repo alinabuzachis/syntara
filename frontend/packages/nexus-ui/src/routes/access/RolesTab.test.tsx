@@ -33,6 +33,16 @@ vi.mock('../../components/states/useQueryState', () => ({
   useQueryState: vi.fn(),
 }))
 
+vi.mock('./useRolePermissions', () => ({
+  useRolePermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '' },
+  }),
+}))
+
 // Reactive wouter mock: useLocation and useSearch share state so that
 // navigate() updates both the path and the search string.
 const mockUrl = { current: '/system-administration/access-management/roles', listeners: new Set<() => void>() }

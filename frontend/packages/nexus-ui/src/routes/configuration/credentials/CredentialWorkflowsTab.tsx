@@ -89,7 +89,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
             <Tr>
               <Th>Workflow Name</Th>
               <Th>Created By</Th>
-              <Th>Nodes Using Credential</Th>
+              <Th>Steps Using Credential</Th>
               <Th>Last Execution</Th>
               <Th>Status</Th>
             </Tr>
@@ -114,7 +114,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
                 <Td dataLabel="Created By">
                   <Truncate content={workflow.created_by ?? DASH} />
                 </Td>
-                <Td dataLabel="Nodes Using Credential">
+                <Td dataLabel="Steps Using Credential">
                   {workflow.node_names && workflow.node_names.length > 0
                     ? workflow.node_names.map((nodeName: string) => (
                         <Label key={nodeName} variant="outline" isCompact style={labelMarginStyle}>

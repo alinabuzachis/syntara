@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,6 +26,17 @@ vi.mock('../../access/accessClient', () => ({
   accessFetchClient: {
     POST: vi.fn(),
   },
+}))
+
+vi.mock('../useGroupPermissions', () => ({
+  useGroupPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canManageMembers: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '', manageMembers: '' },
+  }),
 }))
 
 const VALID_GROUP_ID = 'g-1234-5678-abcd'
@@ -714,11 +725,9 @@ describe('GroupDetail', () => {
       mockCanI({ group: false })
       render(<GroupDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Members/ })).not.toBeInTheDocument()
       })
-
-      expect(screen.queryByRole('tab', { name: /Members/ })).not.toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
     })
 
@@ -726,11 +735,9 @@ describe('GroupDetail', () => {
       mockCanI({ 'role-assignment': false })
       render(<GroupDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
       })
-
-      expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Members/ })).toBeInTheDocument()
     })
 
@@ -738,10 +745,9 @@ describe('GroupDetail', () => {
       mockCanI({ group: false, 'role-assignment': false })
       render(<GroupDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Members/ })).not.toBeInTheDocument()
       })
-
       expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
     })
   })

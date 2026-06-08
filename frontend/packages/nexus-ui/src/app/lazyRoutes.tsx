@@ -33,6 +33,11 @@ export const EditIdentityProvider = lazy(() =>
     default: m.EditIdentityProvider,
   }))
 )
+export const EditGroupMapping = lazy(() =>
+  import('../routes/access-management/authentication/identity-providers/EditGroupMapping').then((m) => ({
+    default: m.EditGroupMapping,
+  }))
+)
 export const CreateUser = lazy(() =>
   import('../routes/access-management/users/CreateUser').then((m) => ({
     default: m.CreateUser,
@@ -46,6 +51,11 @@ export const UserDetail = lazy(() =>
 export const EditUser = lazy(() =>
   import('../routes/access-management/users/EditUser').then((m) => ({
     default: m.EditUser,
+  }))
+)
+export const TransferIdentityWizard = lazy(() =>
+  import('../routes/access-management/users/TransferIdentityWizard').then((m) => ({
+    default: m.TransferIdentityWizard,
   }))
 )
 export const GroupDetail = lazy(() =>

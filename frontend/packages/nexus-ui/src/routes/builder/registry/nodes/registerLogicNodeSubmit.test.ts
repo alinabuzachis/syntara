@@ -24,6 +24,10 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
     loopType,
     opts,
   })),
+  createWaitActivity: vi.fn((_id: string, _name: string, config: unknown) => ({
+    type: ActivityTypeEnum.WAIT,
+    config,
+  })),
   useWorkflowStore: {
     getState: vi.fn(() => ({
       addActivity: mockAddActivity,
@@ -44,6 +48,7 @@ import {
   submitConditionLogic,
   submitConvergeLogic,
   submitLoopLogic,
+  submitWaitLogic,
 } from './registerLogicNodeSubmit'
 
 describe('registerLogicNodeSubmit', () => {
@@ -88,6 +93,15 @@ describe('registerLogicNodeSubmit', () => {
           name: 'Join',
         } as Parameters<typeof buildLogicStepName>[0])
       ).toBe('Join')
+    })
+
+    it('resolves wait label path', () => {
+      expect(
+        buildLogicStepName({
+          logicType: ActivityTypeEnum.WAIT,
+          name: 'Pause',
+        } as Parameters<typeof buildLogicStepName>[0])
+      ).toBe('Pause')
     })
 
     it('resolves loop label path', () => {
@@ -282,6 +296,45 @@ describe('registerLogicNodeSubmit', () => {
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
       expect(onError).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('submitWaitLogic', () => {
+    it('creates wait activity with computed duration and returns true', () => {
+      const result = submitWaitLogic('w1', 'Wait 5m', {
+        logicType: ActivityTypeEnum.WAIT,
+        name: 'Wait 5m',
+        days: 0,
+        hours: 0,
+        minutes: 5,
+        seconds: 0,
+      } as never)
+
+      expect(result).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
+    })
+
+    it('defaults missing time fields to 0', () => {
+      const result = submitWaitLogic('w2', 'Minimal', {
+        logicType: ActivityTypeEnum.WAIT,
+        name: 'Minimal',
+      } as never)
+
+      expect(result).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
+    })
+
+    it('computes total seconds from all time units', () => {
+      submitWaitLogic('w3', 'Full', {
+        logicType: ActivityTypeEnum.WAIT,
+        name: 'Full',
+        days: 1,
+        hours: 2,
+        minutes: 30,
+        seconds: 15,
+      } as never)
+
+      expect(mockAddActivity).toHaveBeenCalled()
     })
   })
 })

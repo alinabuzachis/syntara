@@ -212,6 +212,7 @@ export function NodeComponent(props: {
           <ExecutionStatusBadge
             status={props.executionState?.status ?? 'pending'}
             retryCount={props.executionState?.retry_count}
+            nodeType={props.nodeProps.type}
           />
         )}
         {!isSemanticZoom && mockDataPinned && (

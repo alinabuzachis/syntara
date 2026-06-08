@@ -17,6 +17,7 @@ vi.mock('../../stores/useWorkflowStore', () => ({
 }))
 
 vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
   executionsClient: {
     useMutation: vi.fn(() => ({
       mutate: vi.fn(),
@@ -71,6 +72,13 @@ describe('BuilderWorkflowPageHeader', () => {
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
     onPublish: vi.fn(),
     onUnpublish: vi.fn(),
+    builderPermissions: {
+      canEdit: true,
+      canRun: true,
+      canDelete: true,
+      isLoading: false,
+      tooltips: { edit: '', save: '', publish: '', unpublish: '', run: '', delete: '' },
+    },
   }
 
   beforeEach(() => {
@@ -454,6 +462,47 @@ describe('BuilderWorkflowPageHeader', () => {
 
     // onPublish should have been called
     expect(onPublish).toHaveBeenCalled()
+  })
+
+  describe('read-only mode (canEdit=false)', () => {
+    const readOnlyPermissions = {
+      ...baseProps.builderPermissions,
+      canEdit: false,
+      tooltips: { ...baseProps.builderPermissions.tooltips, edit: 'No edit permission' },
+    }
+
+    it('disables workflow name input', () => {
+      render(<BuilderWorkflowPageHeader {...baseProps} builderPermissions={readOnlyPermissions} />)
+
+      expect(screen.getByRole('textbox', { name: /Workflow name/i })).toBeDisabled()
+    })
+
+    it('does not dispatch name changes when input is disabled', () => {
+      const dispatch = vi.fn()
+      render(<BuilderWorkflowPageHeader {...baseProps} dispatch={dispatch} builderPermissions={readOnlyPermissions} />)
+
+      const input = screen.getByRole('textbox', { name: /Workflow name/i })
+      expect(input).toBeDisabled()
+      expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_WORKFLOW_NAME' }))
+    })
+
+    it('hides edit workflow details popover', () => {
+      render(<BuilderWorkflowPageHeader {...baseProps} builderPermissions={readOnlyPermissions} />)
+
+      expect(screen.queryByRole('button', { name: /Apply details/i })).not.toBeInTheDocument()
+    })
+
+    it('hides project selector', () => {
+      render(<BuilderWorkflowPageHeader {...baseProps} builderPermissions={readOnlyPermissions} />)
+
+      expect(screen.queryByText('Project')).not.toBeInTheDocument()
+    })
+
+    it('shows project selector when canEdit is true', () => {
+      render(<BuilderWorkflowPageHeader {...baseProps} />)
+
+      expect(screen.getByText('Project')).toBeInTheDocument()
+    })
   })
 
   it('does not show cancel button when executionId is null', () => {

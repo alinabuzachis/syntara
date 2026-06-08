@@ -247,7 +247,7 @@ export async function createIdentityProviderViaApi(
     const token = await getAuthToken(app)
     if (!token) return null
 
-    const resp = await apiRequest(app, 'post', '/identity_providers', {
+    const resp = await apiRequest(app, 'post', '/identity_providers/', {
       token,
       data: {
         name: body.name,
@@ -295,5 +295,134 @@ export async function findIdentityProviderByName(app: Page, name: string): Promi
     return body.resources?.find((p) => p.name === name) ?? null
   } catch {
     return null
+  }
+}
+
+/** Create a user via the API. Returns the user or null. */
+export async function createUserViaApi(
+  app: Page,
+  options: { username: string; email?: string; password: string }
+): Promise<{ id: string; username: string } | null> {
+  try {
+    const token = await getAuthToken(app)
+    if (!token) return null
+    const resp = await apiRequest(app, 'post', '/users', {
+      token,
+      data: {
+        username: options.username,
+        email: options.email ?? `${options.username}@nexus-e2e.redhat.com`,
+        first_name: options.username,
+        password: options.password,
+      },
+    })
+    if (!resp.ok()) {
+      const body = await resp.text().catch(() => '(unreadable)')
+      throw new Error(`POST /users returned ${resp.status()}: ${body}`)
+    }
+    return (await resp.json()) as { id: string; username: string }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('POST /users')) throw e
+    return null
+  }
+}
+
+/** Delete a user via the API (best-effort cleanup). */
+export async function deleteUserViaApi(app: Page, userId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) await apiRequest(app, 'delete', `/users/${userId}`, { token })
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
+/** Create a policy via the API. Returns the policy or null. */
+export async function createPolicyViaApi(
+  app: Page,
+  options: { name: string; actions: string[] }
+): Promise<{ id: string; name: string } | null> {
+  const token = await getAuthToken(app)
+  if (!token) return null
+  const resp = await apiRequest(app, 'post', '/policies', {
+    token,
+    data: {
+      name: options.name,
+      statements: [{ effect: 'allow', actions: options.actions, scope: 'any' }],
+    },
+  })
+  if (!resp.ok()) {
+    const body = await resp.text().catch(() => '(unreadable)')
+    throw new Error(`POST /policies returned ${resp.status()}: ${body}`)
+  }
+  return (await resp.json()) as { id: string; name: string }
+}
+
+/** Delete a policy via the API (best-effort cleanup). */
+export async function deletePolicyViaApi(app: Page, policyId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) await apiRequest(app, 'delete', `/policies/${policyId}`, { token })
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
+/** Create a role via the API. Returns the role or null. */
+export async function createRoleViaApi(
+  app: Page,
+  options: { name: string; policies: string[] }
+): Promise<{ id: string; name: string } | null> {
+  const token = await getAuthToken(app)
+  if (!token) return null
+  const resp = await apiRequest(app, 'post', '/roles', {
+    token,
+    data: { name: options.name, policies: options.policies },
+  })
+  if (!resp.ok()) {
+    const body = await resp.text().catch(() => '(unreadable)')
+    throw new Error(`POST /roles returned ${resp.status()}: ${body}`)
+  }
+  return (await resp.json()) as { id: string; name: string }
+}
+
+/** Delete a role via the API (best-effort cleanup). */
+export async function deleteRoleViaApi(app: Page, roleId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) await apiRequest(app, 'delete', `/roles/${roleId}`, { token })
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
+/** Create a role assignment via the API. Returns the assignment or null. */
+export async function createRoleAssignmentViaApi(
+  app: Page,
+  options: { principal_type: 'user' | 'group'; principal_id: string; role_name: string }
+): Promise<{ id: string } | null> {
+  const token = await getAuthToken(app)
+  if (!token) return null
+  const resp = await apiRequest(app, 'post', '/role_assignments', {
+    token,
+    data: options,
+  })
+  if (!resp.ok()) {
+    const body = await resp.text().catch(() => '(unreadable)')
+    throw new Error(`POST /role_assignments returned ${resp.status()}: ${body}`)
+  }
+  return (await resp.json()) as { id: string }
+}
+
+/** Delete a role assignment via the API (best-effort cleanup). */
+export async function deleteRoleAssignmentViaApi(app: Page, assignmentId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) await apiRequest(app, 'delete', `/role_assignments/${assignmentId}`, { token })
+  } catch {
+    // Best-effort cleanup
   }
 }

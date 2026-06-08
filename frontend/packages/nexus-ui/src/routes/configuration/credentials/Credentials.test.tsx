@@ -56,6 +56,27 @@ vi.mock('wouter', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
+const { mockCredentialPermissions } = vi.hoisted(() => ({
+  mockCredentialPermissions: {
+    current: {
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      isLoading: false,
+      tooltips: {
+        create: 'create tooltip',
+        update: 'update tooltip',
+        enable: 'enable tooltip',
+        delete: 'delete tooltip',
+      },
+    },
+  },
+}))
+
+vi.mock('./useCredentialPermissions', () => ({
+  useCredentialPermissions: () => mockCredentialPermissions.current,
+}))
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
@@ -165,6 +186,18 @@ describe('Credentials', () => {
     vi.clearAllMocks()
     mockMutate = vi.fn()
     mockSelectedProject.current = { id: 'proj-1', name: 'My Project' }
+    mockCredentialPermissions.current = {
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      isLoading: false,
+      tooltips: {
+        create: 'create tooltip',
+        update: 'update tooltip',
+        enable: 'enable tooltip',
+        delete: 'delete tooltip',
+      },
+    }
 
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(mockCredentials))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,7 +277,7 @@ describe('Credentials', () => {
 
   it('renders kebab actions column for each row', () => {
     render(<Credentials />, { wrapper })
-    expect(screen.getAllByRole('button', { name: 'Kebab toggle' })).toHaveLength(3)
+    expect(screen.getAllByRole('button', { name: /^Actions for / })).toHaveLength(3)
   })
 
   it('shows disable confirmation dialog when toggling enabled credential', async () => {
@@ -462,7 +495,7 @@ describe('Credentials', () => {
     const user = userEvent.setup()
     render(<Credentials />, { wrapper })
 
-    const [firstKebab] = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
     await user.click(firstKebab)
 
     const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
@@ -489,7 +522,7 @@ describe('Credentials', () => {
     const user = userEvent.setup()
     render(<Credentials />, { wrapper })
 
-    const [firstKebab] = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
     await user.click(firstKebab)
 
     const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
@@ -506,7 +539,7 @@ describe('Credentials', () => {
     const user = userEvent.setup()
     render(<Credentials />, { wrapper })
 
-    const [firstKebab] = screen.getAllByRole('button', { name: 'Kebab toggle' })
+    const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
     await user.click(firstKebab)
 
     const editItem = await screen.findByRole('menuitem', { name: /Edit credential/ })

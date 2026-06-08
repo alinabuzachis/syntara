@@ -69,9 +69,9 @@ export function validateNoDanglingNodes(activities: Activity[], edges: EdgeConne
         id: `dangling-${activity.id}`,
         severity: 'error',
         rule: 'no-dangling-nodes',
-        message: `Node "${activity.name || activity.id}" is not connected to the workflow`,
+        message: `Step "${activity.name || activity.id}" is not connected to the workflow`,
         nodeId: activity.id,
-        suggestion: "Connect this node to other nodes in the workflow, or remove it if it's not needed",
+        suggestion: "Connect this step to other steps in the workflow, or remove it if it's not needed",
       })
     }
   }

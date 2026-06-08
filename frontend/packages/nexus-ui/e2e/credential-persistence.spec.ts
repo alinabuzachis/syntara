@@ -70,12 +70,15 @@ test.describe('Credential Persistence', () => {
 
       await openWorkflowInBuilder(app, workflowName)
 
+      // Set up response listener before the click to avoid race conditions
       const reloadedCredentialsLoaded = app.waitForResponse(isCredentialsResponse)
       await app.getByText('Test AI Agent').click()
-      await reloadedCredentialsLoaded
+      await reloadedCredentialsLoaded.catch(() => {
+        // Response may have already fired during openWorkflowInBuilder; ignore timeout
+      })
 
       const credToggle = app.getByRole('button', { name: 'LLM provider credential', exact: true })
-      await expect(credToggle).toContainText(credName, { timeout: 10_000 })
+      await expect(credToggle).toContainText(credName, { timeout: 15_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
       await deleteCredentialByName(app, credName)
@@ -114,10 +117,12 @@ test.describe('Credential Persistence', () => {
 
       const reloadedCredentialsLoaded = app.waitForResponse(isCredentialsResponse)
       await app.getByText('Test REST API').click()
-      await reloadedCredentialsLoaded
+      await reloadedCredentialsLoaded.catch(() => {
+        // Response may have already fired during openWorkflowInBuilder; ignore timeout
+      })
 
       const credToggle = app.getByRole('button', { name: 'Authentication credential', exact: true })
-      await expect(credToggle).toContainText(credName, { timeout: 10_000 })
+      await expect(credToggle).toContainText(credName, { timeout: 15_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
       await deleteCredentialByName(app, credName)

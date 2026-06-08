@@ -32,6 +32,8 @@ type UseButtonEdgeMaintenanceOptions = {
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
   executionStatus: string | null
+  /** When true, button edges are suppressed (RBAC read-only mode). */
+  isReadOnly?: boolean
 }
 
 /**
@@ -229,6 +231,7 @@ export function useButtonEdgeMaintenance({
   setNodes,
   setEdges,
   executionStatus,
+  isReadOnly,
 }: UseButtonEdgeMaintenanceOptions) {
   // Memoize real node IDs+types (excluding placeholders and pending targets) to use as stable dependency.
   // Including the node type ensures the effect re-runs when a node is replaced with a different type
@@ -301,17 +304,16 @@ export function useButtonEdgeMaintenance({
     }
   }, [executionStatus])
 
-  // Remove button edges and placeholder nodes when entering execution mode
+  // Remove button edges and placeholder nodes when entering execution or read-only mode
   useEffect(() => {
-    if (!isInitialized || !executionStatus) return
+    if (!isInitialized || (!executionStatus && !isReadOnly)) return
     setEdges((prev) => prev.filter(isRealEdge))
     setNodes((prev) => prev.filter((n) => !isPlaceholderNode(n)))
-  }, [isInitialized, executionStatus, setEdges, setNodes])
+  }, [isInitialized, executionStatus, isReadOnly, setEdges, setNodes])
 
   // Maintain button edges: add to nodes without outgoing edges, remove from nodes with outgoing edges
   useEffect(() => {
-    // Skip button edge creation when in execution view mode
-    if (!isInitialized || executionStatus) {
+    if (!isInitialized || executionStatus || isReadOnly) {
       return
     }
 
@@ -364,6 +366,7 @@ export function useButtonEdgeMaintenance({
     activeEdgeButtonNodeId,
     activeEdgeButtonHandle,
     executionStatus,
+    isReadOnly,
   ])
 
   // Return memoized values that might be useful

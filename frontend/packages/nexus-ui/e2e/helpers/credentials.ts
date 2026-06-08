@@ -174,6 +174,6 @@ export async function navigateToCredentialDetail(app: Page, credentialName: stri
   await app.getByRole('button', { name: 'Apply filter' }).click()
 
   const table = app.getByRole('grid', { name: 'Credentials table' })
-  await table.getByRole('button', { name: credentialName }).click()
+  await table.getByRole('button', { name: credentialName, exact: true }).click()
   await expect(app).toHaveURL(/configuration\/credentials\//)
 }

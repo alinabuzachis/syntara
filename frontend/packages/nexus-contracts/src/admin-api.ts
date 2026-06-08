@@ -53,7 +53,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/admin/revocation/identity-providers/{idp_name}': {
+  '/admin/revocation/identity_providers/{idp_name}': {
     parameters: {
       query?: never
       header?: never

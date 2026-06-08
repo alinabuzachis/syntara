@@ -15,6 +15,7 @@ import type { IAction, ThProps } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { NxPageBody } from '../../components/layout/NxPage'
@@ -30,12 +31,14 @@ import { detachPromise } from '../../utils/detachPromise'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
+import { POLICY_NAME_FILTER_DEF } from './builtinFilterDefinitions'
 import { EditRoleDialog } from './EditRoleDialog'
 import { buildAccessApiQueryParams, buildProjectFilterDefs, ROLE_SCOPE_OPTIONS } from './scopeFilterUtils'
 import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { RoleRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
 import { useProjectNameMap } from './useProjectNameMap'
+import { useRolePermissions } from './useRolePermissions'
 
 const BASE_FILTER_FIELD_DEFS = [
   {
@@ -60,6 +63,7 @@ const BASE_FILTER_FIELD_DEFS = [
     options: [],
     placeholder: 'Filter by project',
   },
+  POLICY_NAME_FILTER_DEF,
   {
     key: 'type',
     label: 'Type',
@@ -80,16 +84,25 @@ const sortFieldByColumn: Record<number, string> = {
   5: 'is_builtin',
 }
 
-function getRoleActions(role: RoleRead, onEdit: (r: RoleRead) => void, onDelete: (r: RoleRead) => void): IAction[] {
+function getRoleActions(
+  role: RoleRead,
+  onEdit: (r: RoleRead) => void,
+  onDelete: (r: RoleRead) => void,
+  permissions: ReturnType<typeof useRolePermissions>
+): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit role</IconLabel>,
-      onClick: () => onEdit(role),
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.update },
+      onClick: permissions.canUpdate ? () => onEdit(role) : undefined,
     },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete role</IconLabel>,
-      onClick: () => onDelete(role),
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+      onClick: permissions.canDelete ? () => onDelete(role) : undefined,
     },
   ]
 }
@@ -106,6 +119,7 @@ function RolesTable({
   getSortParams,
   onEdit,
   onDelete,
+  permissions,
 }: Readonly<{
   roles: RoleRead[]
   projectNameMap: Map<string, string>
@@ -116,6 +130,7 @@ function RolesTable({
   getSortParams: (columnIndex: number) => ThProps['sort']
   onEdit: (role: RoleRead) => void
   onDelete: (role: RoleRead) => void
+  permissions: ReturnType<typeof useRolePermissions>
 }>) {
   return (
     <>
@@ -179,7 +194,7 @@ function RolesTable({
                 )}
               </Td>
               <Td isActionCell>
-                {!role.is_builtin && <ActionsColumn items={getRoleActions(role, onEdit, onDelete)} />}
+                {!role.is_builtin && <ActionsColumn items={getRoleActions(role, onEdit, onDelete, permissions)} />}
               </Td>
             </Tr>
             <Tr isExpanded={isExpanded}>
@@ -203,6 +218,7 @@ function RolesTable({
 }
 
 export function RolesTab() {
+  const permissions = useRolePermissions()
   const {
     filters,
     hasActiveFilters,
@@ -329,9 +345,16 @@ export function RolesTab() {
               />
             </FlexItem>
             <FlexItem>
-              <Button variant="primary" icon={<RhUiAddIcon />} onClick={() => setIsAddDialogOpen(true)}>
-                Create role
-              </Button>
+              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                <Button
+                  variant="primary"
+                  icon={<RhUiAddIcon />}
+                  isAriaDisabled={!permissions.canCreate}
+                  onClick={permissions.canCreate ? () => setIsAddDialogOpen(true) : undefined}
+                >
+                  Create role
+                </Button>
+              </DisabledWithTooltip>
             </FlexItem>
           </Flex>
         </StackItem>
@@ -364,6 +387,7 @@ export function RolesTab() {
               getSortParams={getSortParams}
               onEdit={setRoleToEdit}
               onDelete={setRoleToDelete}
+              permissions={permissions}
             />
           </NxScrollableTableContainer>
         )}

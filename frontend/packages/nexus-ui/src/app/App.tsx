@@ -1,17 +1,17 @@
 import { Compass, CompassContent } from '@patternfly/react-core'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 
+import { SessionTimeoutWarning } from '../components/session/SessionTimeoutWarning'
 import { AlertProvider } from '../providers/alerts'
 import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
 import { UnsavedChangesProvider } from '../providers/unsaved-changes/UnsavedChangesProvider'
+import { queryClient } from '../queryClient'
 import { TestSignInCallback } from '../routes/access-management/authentication/identity-providers/TestSignInCallback'
 
 import { AppDockedNav } from './AppDockedNav'
 import { AppLogin } from './AppLogin'
 import { AppRoute } from './AppRoute'
 import { AppRouter } from './AppRouter'
-
-const queryClient = new QueryClient()
 
 export default function App() {
   // Handle test-signin callback before auth — the popup doesn't need a full session.
@@ -27,6 +27,7 @@ export default function App() {
         <AlertProvider>
           <UnsavedChangesProvider>
             <AppLogin>
+              <SessionTimeoutWarning />
               <Compass
                 className="pf-m-no-screen-warning bg-deep-space"
                 dock={<AppDockedNav />}

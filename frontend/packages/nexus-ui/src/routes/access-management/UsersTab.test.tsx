@@ -37,6 +37,17 @@ vi.mock('../access/accessClient', () => ({
   },
 }))
 
+vi.mock('./useUserPermissions', () => ({
+  useUserPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '', revoke: '' },
+  }),
+}))
+
 const mockNavigate = vi.fn<(path: string) => void>()
 vi.mock('wouter/use-browser-location', () => ({
   navigate: (path: string): void => {

@@ -36,7 +36,7 @@ export function validateLoopNodes(activities: Activity[], edges?: EdgeConnection
         rule: 'loop-must-have-activities',
         message: `Loop "${loopNode.name || 'Untitled'}" must have at least one activity in its body`,
         nodeId: loopNode.id,
-        suggestion: 'Add activities to the loop body by connecting nodes to the loop handle',
+        suggestion: 'Add activities to the loop body by connecting steps to the loop handle',
       })
     }
   }

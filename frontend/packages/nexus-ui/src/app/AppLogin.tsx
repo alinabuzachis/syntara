@@ -13,6 +13,7 @@ import {
 import { ExclamationCircleIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { RETURN_TO_KEY, SESSION_EXPIRED_KEY } from '../components/session/sessionTimeoutConstants'
 import { NxLoadingState } from '../components/states/NxLoadingState'
 import { AuthError, useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
 
@@ -21,6 +22,31 @@ import { IdentityProviderButtons } from './IdentityProviderButtons'
 import { useAuthProviders } from './useAuthProviders'
 
 const INCORRECT_CREDENTIALS_MESSAGE = 'Incorrect login credentials'
+
+/**
+ * After a session timeout, restore the user's previous location.
+ *
+ * Only restores when the `SESSION_EXPIRED_KEY` flag is present — this
+ * ensures manual logout (which never sets the flag) does not accidentally
+ * restore a stale location. Clears both keys after consuming them.
+ */
+function consumeSessionExpiredReturnUrl(): void {
+  const wasTimeout = sessionStorage.getItem(SESSION_EXPIRED_KEY)
+  sessionStorage.removeItem(SESSION_EXPIRED_KEY)
+  const returnTo = sessionStorage.getItem(RETURN_TO_KEY)
+  sessionStorage.removeItem(RETURN_TO_KEY)
+
+  if (!wasTimeout || !returnTo) return
+
+  if (
+    returnTo.startsWith('/') &&
+    !returnTo.includes('://') &&
+    returnTo !== '/' &&
+    returnTo !== window.location.pathname
+  ) {
+    window.history.replaceState({}, '', returnTo)
+  }
+}
 
 function mapLoginError(err: unknown): string {
   if (err instanceof AuthError && err.code === 'AUTHENTICATION_REQUIRED') {
@@ -115,6 +141,12 @@ function AppLoginForm() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [sessionExpiredMessage] = useState(() => {
+    const expired = sessionStorage.getItem(SESSION_EXPIRED_KEY)
+    if (expired) return 'Your session has expired due to inactivity. Please log in again.'
+    return null
+  })
+
   const [initialAuthError] = useState(() => {
     const raw = new URLSearchParams(globalThis.location.search).get('auth_error')
     if (raw) {
@@ -147,6 +179,7 @@ function AppLoginForm() {
     async function bootstrapAuthFromCookie(): Promise<void> {
       try {
         await refresh()
+        consumeSessionExpiredReturnUrl()
       } catch {
         // No valid cookie — user needs to enter credentials
         useAuthStore.setState({ error: null })
@@ -185,13 +218,15 @@ function AppLoginForm() {
       setLoginError(null)
       setLoginErrorField(null)
       setIsLoggingIn(true)
-      login({ username, password }).catch((err: unknown) => {
-        setIsLoggingIn(false)
-        setPassword('')
-        setLoginError(mapLoginError(err))
-        setLoginErrorField(LoginErrorField.Credentials)
-        setIsLogoutError(false)
-      })
+      login({ username, password })
+        .then(consumeSessionExpiredReturnUrl)
+        .catch((err: unknown) => {
+          setIsLoggingIn(false)
+          setPassword('')
+          setLoginError(mapLoginError(err))
+          setLoginErrorField(LoginErrorField.Credentials)
+          setIsLogoutError(false)
+        })
     },
     [username, password, login]
   )
@@ -207,7 +242,7 @@ function AppLoginForm() {
     loginError,
     loginErrorField,
     isLoggingIn,
-    loginButtonLabel: hasProviders ? 'Log in as administrator' : 'Log in',
+    loginButtonLabel: 'Log in',
     onChangeUsername: setUsername,
     onChangePassword: setPassword,
     onClearError: clearError,
@@ -222,6 +257,15 @@ function AppLoginForm() {
     )
   }
 
+  const sessionExpiredAlert = sessionExpiredMessage ? (
+    <Alert
+      variant="info"
+      title={sessionExpiredMessage}
+      isInline
+      style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
+    />
+  ) : null
+
   // State A: No IDPs — show original login form
   if (!hasProviders) {
     return (
@@ -230,6 +274,7 @@ function AppLoginForm() {
         loginTitle="Log in to Automation Orchestrator"
         loginSubtitle="Enter your credentials to continue"
       >
+        {sessionExpiredAlert}
         <LocalLoginForm {...localFormProps} />
       </LoginPage>
     )
@@ -243,6 +288,8 @@ function AppLoginForm() {
       loginSubtitle="Choose your identity provider"
       textContent="Select your identity provider to access Automation Orchestrator. Contact your administrator if you need assistance."
     >
+      {sessionExpiredAlert}
+
       {loginError && loginErrorField === LoginErrorField.Credentials && (
         <Alert
           variant="danger"

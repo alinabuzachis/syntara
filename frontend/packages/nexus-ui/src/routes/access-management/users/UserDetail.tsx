@@ -21,6 +21,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsUserDetail, breadcrumbsUserDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { authClient } from '../../../client'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
@@ -35,6 +36,7 @@ import { AUTH_TYPE_LOCAL } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
+import { useUserPermissions } from '../useUserPermissions'
 
 import type { UserIdentity } from './identityUtils'
 import { computeGroupCount, computeRoleAssignmentCount } from './userDetailUtils'
@@ -181,31 +183,62 @@ function UserDetailsTab({
   )
 }
 
+function EditUserButton({
+  canUpdate,
+  tooltip,
+  onClick,
+}: Readonly<{ canUpdate: boolean; tooltip: string; onClick: () => void }>) {
+  return (
+    <DisabledWithTooltip isDisabled={!canUpdate} content={tooltip}>
+      <Button
+        variant="secondary"
+        icon={<RhUiEditIcon />}
+        isAriaDisabled={!canUpdate}
+        onClick={canUpdate ? onClick : undefined}
+      >
+        Edit user
+      </Button>
+    </DisabledWithTooltip>
+  )
+}
+
 type UserTab = 'details' | 'groups' | 'identities' | 'roles'
 const ALL_USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
+
+function computeVisibleTabs(
+  canReadGroups: boolean,
+  canReadIdentities: boolean,
+  canReadAssignments: boolean,
+  isLoading: boolean
+): UserTab[] {
+  if (isLoading) return ALL_USER_TABS
+  const hidden = new Set<UserTab>()
+  if (!canReadGroups) hidden.add('groups')
+  if (!canReadIdentities) hidden.add('identities')
+  if (!canReadAssignments) hidden.add('roles')
+  if (hidden.size === 0) return ALL_USER_TABS
+  return ALL_USER_TABS.filter((tab) => !hidden.has(tab))
+}
 
 export function UserDetail() {
   const { userId } = useParams<{ userId: string }>()
   const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
   const [activeTab] = useUrlTab<UserTab>(basePath)
 
+  const userPermissions = useUserPermissions()
   const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
   const {
+    canReadUsers,
     canReadGroups,
     canReadIdentities,
     canReadAssignments,
     isLoading: permissionsLoading,
   } = useUserDetailPermissions(userId)
 
-  const validTabs = useMemo(() => {
-    if (permissionsLoading) return ALL_USER_TABS
-    const hidden = new Set<UserTab>()
-    if (!canReadGroups) hidden.add('groups')
-    if (!canReadIdentities) hidden.add('identities')
-    if (!canReadAssignments) hidden.add('roles')
-    if (hidden.size === 0) return ALL_USER_TABS
-    return ALL_USER_TABS.filter((tab) => !hidden.has(tab))
-  }, [canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading])
+  const validTabs = useMemo(
+    () => computeVisibleTabs(canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading),
+    [canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading]
+  )
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
   const navigateEdit = () => navigate(AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? ''))
@@ -219,9 +252,12 @@ export function UserDetail() {
     },
   })
 
+  const breadcrumbOptions = { showParentCrumbs: canReadUsers }
+  const shellBreadcrumbs = breadcrumbsUserDetailEarlyShell(breadcrumbOptions)
+
   if (userQuery.error) {
     return (
-      <DetailPageShell title="User Details" breadcrumbs={breadcrumbsUserDetailEarlyShell()}>
+      <DetailPageShell title="User" breadcrumbs={shellBreadcrumbs}>
         <UserNotFoundState
           onBack={navigateBack}
           onRetry={() => {
@@ -234,7 +270,7 @@ export function UserDetail() {
 
   if (queryState) {
     return (
-      <DetailPageShell title="User Details" breadcrumbs={breadcrumbsUserDetailEarlyShell()}>
+      <DetailPageShell title="User" breadcrumbs={shellBreadcrumbs}>
         {queryState}
       </DetailPageShell>
     )
@@ -243,7 +279,7 @@ export function UserDetail() {
   if (!userData) return null
 
   const displayName = userDisplayName(userData) || userData.username
-  const userBreadcrumbs = breadcrumbsUserDetail(displayName, basePath, activeTab)
+  const userBreadcrumbs = breadcrumbsUserDetail(displayName, basePath, activeTab, breadcrumbOptions)
 
   return (
     <NxPage>
@@ -258,9 +294,11 @@ export function UserDetail() {
           ) : undefined
         }
         toolbar={
-          <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
-            Edit user
-          </Button>
+          <EditUserButton
+            canUpdate={userPermissions.canUpdate}
+            tooltip={userPermissions.tooltips.update}
+            onClick={navigateEdit}
+          />
         }
       />
       <StackItem style={{ flexShrink: 0 }}>

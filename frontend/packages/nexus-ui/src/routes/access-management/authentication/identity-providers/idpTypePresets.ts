@@ -19,7 +19,6 @@ export type IdpTypePreset = {
     username: string
     firstName: string
     lastName: string
-    groups: string | null
   }
   groupMappingExpression: string
   enableRpInitiatedLogout: boolean
@@ -36,7 +35,6 @@ export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
       username: 'preferred_username',
       firstName: 'given_name',
       lastName: 'family_name',
-      groups: null,
     },
     groupMappingExpression: "[aap_teams[*].join('/', [organization, name]), aap_organizations[*].name] | []",
     enableRpInitiatedLogout: true,
@@ -51,7 +49,6 @@ export const IDP_TYPE_PRESETS: Record<string, IdpTypePreset> = {
       username: 'preferred_username',
       firstName: 'given_name',
       lastName: 'family_name',
-      groups: null,
     },
     groupMappingExpression: 'groups[*]',
     enableRpInitiatedLogout: false,

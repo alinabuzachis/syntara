@@ -33,6 +33,15 @@ vi.mock('../access/useAllProjects', () => ({
   useAllProjects: vi.fn(),
 }))
 
+vi.mock('../access/useAssignmentPermissions', () => ({
+  useAssignmentPermissions: () => ({
+    canAssign: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { assign: '', revoke: '' },
+  }),
+}))
+
 const mockDeleteSystemAssignment = vi.fn()
 const mockDeleteProjectAssignment = vi.fn()
 

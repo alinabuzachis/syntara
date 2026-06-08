@@ -1,8 +1,8 @@
 import { DescriptionList } from '@patternfly/react-core'
 
 /**
- * Wraps `NxDetail` rows inside workflow canvas nodes (task, condition, approval, converge).
- * Renders a compact description list that fits within the constrained space of a node card.
+ * Wraps `NxDetail` rows inside workflow canvas steps (task, condition, approval, converge).
+ * Renders a compact description list that fits within the constrained space of a step card.
  */
 export function NxDetailList(props: { children: React.ReactNode; isHorizontal?: boolean; 'data-testid'?: string }) {
   return (

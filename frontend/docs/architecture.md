@@ -331,8 +331,10 @@ This is why adding a new canvas step type is usually just "create a new `registe
 
 **App root**: `packages/nexus-ui/src/app/App.tsx`
 
-- Creates a single `QueryClient` for server state
+- Imports the singleton `QueryClient` from `src/queryClient.ts` and provides it via `QueryClientProvider`
 - Renders the global layout and mounts `AppRouter`
+
+> The `QueryClient` is defined in `src/queryClient.ts` (not inline in `App.tsx`) so that `useAuthStore` can import it directly to call `queryClient.clear()` on logout, session expiry, and auth middleware failures — preventing stale permission cache from leaking across user sessions.
 
 ---
 
@@ -368,6 +370,15 @@ flowchart LR
 | `app/AppRoute.tsx`        | Route path constants (e.g., `/workflows`, `/workflow-builder/:workflowId`) |
 | `app/navigationItems.tsx` | Defines nav tree + lazy-loaded route components                            |
 | `app/AppRouter.tsx`       | Maps `navigationItems` into `<Route>` elements                             |
+
+**Permission gating on routes:**
+
+Each `TNavigationItem` in `navigationItems.tsx` supports two permission fields:
+
+- `requiredPermissions` (array of `{ action, resourceType }`, OR logic): controls navigation visibility. The item is hidden if the user lacks ALL listed permissions. Consumed by `useFilteredNavigationItems`.
+- `routePermission` (single `{ action, resourceType }`): wraps the route component in `ProtectedRoute`, which shows `EmptyStateAccessDenied` when the permission check fails. Used for create/edit routes.
+
+See [`docs/permissions-rbac.md`](permissions-rbac.md) for the full permission gating architecture.
 
 > **Note**: The `/dashboard` route is defined in `AppRoute.tsx` and appears in navigation, but has no component mounted (placeholder for future implementation).
 
@@ -610,7 +621,7 @@ The builder edits nodes + edges directly in the Zustand store. On save, `buildWo
 | `utils/buildNestedStructure.ts`                   | Legacy wrapper (identity function in v2 — returns activities as-is)                                                      |
 | `utils/validation/`                               | Validation rules                                                                                                         |
 
-Floating canvas surfaces (controls, legend, step nodes, undo/redo) use [`NxPanel`](../packages/nexus-ui/src/components/layout/NxPanel.tsx) so they stay readable under the glass theme: compact overlays use `variant="raised"`; large flat panels (for example the node editor shell) use `opaqueFloatingFill` instead of raised chrome.
+Floating canvas surfaces (controls, step legend, steps on the canvas, undo/redo) use [`NxPanel`](../packages/nexus-ui/src/components/layout/NxPanel.tsx) so they stay readable under the glass theme: compact overlays use `variant="raised"`; large flat panels (for example the step editor shell) use `opaqueFloatingFill` instead of raised chrome.
 
 ### Builder internals (advanced): registry, edges, and graph semantics
 
@@ -849,11 +860,11 @@ flowchart LR
 
 - **Edge type**: `routes/builder/edges/ButtonEdge.tsx`
 - **Maintenance**: `routes/builder/hooks/useButtonEdgeMaintenance.ts`
-- **Behavior**: as nodes/edges change, the builder inserts/removes these button edges at valid insertion points so users always have a place to add the next step.
+- **Behavior**: as steps and edges change, the builder inserts/removes these button edges at valid insertion points so users always have a place to add the next step.
 
-#### Converge nodes (fan-in) and parallel wrappers
+#### Converge steps (fan-in)
 
-Converge nodes (also called "join" nodes) are "merge points" with special semantics:
+Converge steps (also called "join" steps) are "merge points" with special semantics:
 
 ```mermaid
 flowchart TB
@@ -863,15 +874,10 @@ flowchart TB
     B3[Task C] --> BJ
   end
 
-  subgraph API["On Save: Nested with parallel wrapper"]
-    direction TB
-    P["parallel_for_converge1<br/>(auto-generated)"]
-    A1[Task A]
-    A2[Task B]
-    A3[Task C]
-    AJ[Converge]
-    P --> A1 & A2 & A3
-    A1 & A2 & A3 --> AJ
+  subgraph API["On Save (v2): Flat graph preserved"]
+    S1[Task A] --> SJ["Converge<br/>branches: A, B, C"]
+    S2[Task B] --> SJ
+    S3[Task C] --> SJ
   end
 
   Editing -->|"buildWorkflowDefinition()"| API
@@ -879,24 +885,25 @@ flowchart TB
 
 **During Editing:**
 
-- Converge nodes store incoming branch activity IDs in `converge.branches: string[]`
+- Converge steps store incoming branch activity IDs in `converge.branches: string[]`
 - `syncConvergeNodeBranches()` updates this array when edges change
 - **No parallel containers are created** — only the `branches` array is updated
 - Activities remain in the flat `activities` array
 
 **On Save (v2):**
 
-- `buildWorkflowDefinition()` sends the flat nodes + edges directly
-- Converge nodes and their `branches` array are preserved as-is in the v2 payload
+- `buildWorkflowDefinition()` sends flat nodes and edges directly
+- Converge steps keep their `branches` array as-is — **no auto-generated parallel wrapper**
+- Task A/B/C edges feed the Converge node in the saved payload the same way they do on the canvas
 
 **On Load (v2):**
 
 - `processExistingWorkflow()` reads flat nodes + edges from the API
-- Converge nodes are loaded directly with their `branches` array intact
+- Converge steps are loaded directly with their `branches` array intact
 
-#### Condition nodes (branching) and source handles
+#### Condition steps (branching) and source handles
 
-Condition nodes stay flat while editing; their branch structure is expressed by edges:
+Condition steps stay flat while editing; their branch structure is expressed by edges:
 
 ```mermaid
 flowchart TB
@@ -927,9 +934,9 @@ flowchart TB
   Editing -->|"buildWorkflowDefinition"| Saved
 ```
 
-- Condition nodes stay flat in both editing and save — v2 API uses the same flat format.
+- Condition steps stay flat in both editing and save — v2 API uses the same flat format.
 - Edges with `sourceHandle='true'` connect to true branch, `sourceHandle='false'` to false branch.
-- Two handles on node: "True" and "False" for branching connections.
+- Two handles on the step: "True" and "False" for branching connections.
 - On save, `buildWorkflowDefinition()` maps `sourceHandle: 'true'` → `from_port: 'when_true'`.
 
 #### Where to look when debugging "graph weirdness"
@@ -937,7 +944,7 @@ flowchart TB
 ```mermaid
 flowchart TB
   subgraph Issues["Common Issues"]
-    I1["Nodes not laying out correctly"]
+    I1["Steps not laying out correctly"]
     I2["Edges duplicating/missing"]
     I3["Join/parallel drift"]
     I4["Save payload wrong"]
@@ -956,7 +963,7 @@ flowchart TB
   I4 --> F4
 ```
 
-- **Nodes not laying out correctly**: `BuilderFlow.tsx` layout + Dagre setup
+- **Steps not laying out correctly**: `BuilderFlow.tsx` layout + Dagre setup
 - **Edges duplicating / missing button edges**: `useButtonEdgeMaintenance.ts` + edge type components
 - **Join/parallel drift**: `useEdgeSynchronization.ts` (and any join/branch sync helpers it calls)
 - **Save payload looks wrong**: `utils/buildNestedStructure.ts` and the validation rules

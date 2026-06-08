@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -56,6 +56,17 @@ vi.mock('../../access/accessClient', () => ({
   accessFetchClient: {
     POST: vi.fn(),
   },
+}))
+
+vi.mock('../useUserPermissions', () => ({
+  useUserPermissions: () => ({
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    canRevoke: true,
+    isLoading: false,
+    tooltips: { create: '', update: '', delete: '', revoke: '' },
+  }),
 }))
 
 const VALID_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
@@ -1352,11 +1363,9 @@ describe('UserDetail', () => {
       mockCanI({ group: false })
       render(<UserDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Groups/ })).not.toBeInTheDocument()
       })
-
-      expect(screen.queryByRole('tab', { name: /Groups/ })).not.toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Identities/ })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Assignments/ })).toBeInTheDocument()
@@ -1366,11 +1375,9 @@ describe('UserDetail', () => {
       mockCanI({ user_identity: false })
       render(<UserDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Identities/ })).not.toBeInTheDocument()
       })
-
-      expect(screen.queryByRole('tab', { name: /Identities/ })).not.toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Groups/ })).toBeInTheDocument()
     })
 
@@ -1378,11 +1385,9 @@ describe('UserDetail', () => {
       mockCanI({ 'role-assignment': false })
       render(<UserDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
       })
-
-      expect(screen.queryByRole('tab', { name: /Assignments/ })).not.toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Groups/ })).toBeInTheDocument()
     })
 
@@ -1396,11 +1401,9 @@ describe('UserDetail', () => {
       mockCanI({ user_identity: false, 'role-assignment': false })
       render(<UserDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Identities/ })).toBeInTheDocument()
       })
-
-      expect(screen.getByRole('tab', { name: /Identities/ })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /Assignments/ })).toBeInTheDocument()
     })
 
@@ -1408,10 +1411,9 @@ describe('UserDetail', () => {
       mockCanI({ group: false, user_identity: false, 'role-assignment': false })
       render(<UserDetail />, { wrapper })
 
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0))
+      await waitFor(() => {
+        expect(screen.queryByRole('tab', { name: /Groups/ })).not.toBeInTheDocument()
       })
-
       expect(screen.getByRole('tab', { name: /Details/ })).toBeInTheDocument()
     })
   })

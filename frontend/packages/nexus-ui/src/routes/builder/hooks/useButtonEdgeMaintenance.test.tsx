@@ -121,6 +121,45 @@ describe('useButtonEdgeMaintenance', () => {
     expect((result as Array<{ id: string }>)[0].id).toBe('real-edge')
   })
 
+  it('skips button edge creation and cleans up in read-only mode', () => {
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        isReadOnly: true,
+        nodes: [{ id: 'node-1', type: 'task', position: { x: 0, y: 0 } }] as never[],
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    expect(mockSetEdges).toHaveBeenCalled()
+    const updater = mockSetEdges.mock.calls[0][0] as (prev: unknown[]) => unknown[]
+    const result = updater([
+      { id: 'real-edge', source: 'a', target: 'b' },
+      { id: 'button-edge-node-1', source: 'node-1', target: 'placeholder-node-1' },
+    ])
+    expect(result).toHaveLength(1)
+    expect((result as Array<{ id: string }>)[0].id).toBe('real-edge')
+  })
+
+  it('creates button edges normally when isReadOnly is false', () => {
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        isReadOnly: false,
+        nodes: [{ id: 'node-1', type: 'task', position: { x: 0, y: 0 } }] as never[],
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    expect(mockSetEdges).toHaveBeenCalled()
+  })
+
   it('creates button edge for node without outgoing edge', () => {
     let capturedEdges: unknown[] = []
     mockSetEdges.mockImplementation((updater) => {

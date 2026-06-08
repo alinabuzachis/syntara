@@ -267,7 +267,7 @@ describe('AppLogin', () => {
         expect(screen.getByRole('button', { name: /log in with okta/i })).toBeInTheDocument()
       })
       expect(screen.queryByRole('textbox', { name: /username/i })).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /log in as administrator/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Log in' })).not.toBeInTheDocument()
     })
 
     it('shows "Sign in using local account" toggle button', async () => {
@@ -301,7 +301,7 @@ describe('AppLogin', () => {
 
       // Assert
       expect(screen.getByRole('textbox', { name: /username/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /log in as administrator/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument()
     })
 
     it('hides local login form when "Hide local account login" is clicked', async () => {
@@ -330,7 +330,7 @@ describe('AppLogin', () => {
       await waitFor(() => {
         expect(screen.queryByRole('textbox', { name: /username/i })).not.toBeInTheDocument()
       })
-      expect(screen.queryByRole('button', { name: /log in as administrator/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Log in' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Sign in using local account' })).toBeInTheDocument()
     })
 
@@ -355,7 +355,7 @@ describe('AppLogin', () => {
       await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'password123')
 
       // Submit
-      await user.click(screen.getByRole('button', { name: /log in as administrator/i }))
+      await user.click(screen.getByRole('button', { name: 'Log in' }))
 
       // Assert
       await waitFor(() => {
@@ -719,7 +719,7 @@ describe('AppLogin', () => {
         await user.click(toggleButton)
 
         // Submit empty form — should show inline error, not the page-level Alert
-        await user.click(screen.getByRole('button', { name: /log in as administrator/i }))
+        await user.click(screen.getByRole('button', { name: 'Log in' }))
 
         await waitFor(() => {
           expect(screen.getByText('Enter your username')).toBeInTheDocument()
@@ -742,7 +742,7 @@ describe('AppLogin', () => {
 
         await user.type(screen.getByRole('textbox', { name: /username/i }), 'admin')
         await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'wrong')
-        await user.click(screen.getByRole('button', { name: /log in as administrator/i }))
+        await user.click(screen.getByRole('button', { name: 'Log in' }))
 
         // The page-level Alert title should render for credentials errors in provider mode
         await waitFor(() => {

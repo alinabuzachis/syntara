@@ -8,6 +8,8 @@
 
 import { create } from 'zustand'
 
+import { queryClient } from '../queryClient'
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -52,7 +54,7 @@ type AuthStore = AuthState & AuthActions
 const AUTH_LOGIN_URL = '/api/v1/auth/login'
 const AUTH_REFRESH_URL = '/api/v1/auth/refresh'
 const AUTH_LOGOUT_URL = '/api/v1/auth/logout'
-const AUTH_CSRF_TOKEN_URL = '/api/v1/auth/csrf-token'
+const AUTH_CSRF_TOKEN_URL = '/api/v1/auth/csrf_token'
 
 /** Refresh the token 30 seconds before it actually expires */
 const EXPIRY_BUFFER_MS = 30_000
@@ -323,6 +325,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           ...INITIAL_STATE,
           error: err instanceof Error ? err.message : String(err),
         })
+        // Prevent stale permission/data cache from leaking to the next user session
+        queryClient.clear()
         throw err
       } finally {
         if (refreshPromise === inFlightRefresh.promise) {
@@ -355,6 +359,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     // Always clear local state, even if the server call failed
     set({ ...INITIAL_STATE, logoutCount: logoutCount + 1 })
+    // Prevent stale permission/data cache from leaking to the next user session
+    queryClient.clear()
 
     if (error) {
       throw error
@@ -389,6 +395,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   clearAuth: () => {
     clearScheduledRefresh()
     set({ ...INITIAL_STATE })
+    // Prevent stale permission/data cache from leaking to the next user session
+    queryClient.clear()
   },
 
   reset: () => {
