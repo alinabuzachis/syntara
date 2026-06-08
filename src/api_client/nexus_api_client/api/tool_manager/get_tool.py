@@ -93,19 +93,6 @@ def sync_detailed(
 
      Get tool details by ID.
 
-    Returns detailed information about a specific tool including
-    parameters, status, and metadata.
-
-    Args:
-        tool_id: UUID of the tool to retrieve
-        service: Tool service
-
-    Returns:
-        ToolWithParameters instance with full details
-
-    Raises:
-        HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
-
     Args:
         tool_id (UUID):
 
@@ -137,19 +124,6 @@ def sync(
 
      Get tool details by ID.
 
-    Returns detailed information about a specific tool including
-    parameters, status, and metadata.
-
-    Args:
-        tool_id: UUID of the tool to retrieve
-        service: Tool service
-
-    Returns:
-        ToolWithParameters instance with full details
-
-    Raises:
-        HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
-
     Args:
         tool_id (UUID):
 
@@ -175,19 +149,6 @@ async def asyncio_detailed(
     """Get Tool
 
      Get tool details by ID.
-
-    Returns detailed information about a specific tool including
-    parameters, status, and metadata.
-
-    Args:
-        tool_id: UUID of the tool to retrieve
-        service: Tool service
-
-    Returns:
-        ToolWithParameters instance with full details
-
-    Raises:
-        HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
 
     Args:
         tool_id (UUID):
@@ -217,19 +178,6 @@ async def asyncio(
     """Get Tool
 
      Get tool details by ID.
-
-    Returns detailed information about a specific tool including
-    parameters, status, and metadata.
-
-    Args:
-        tool_id: UUID of the tool to retrieve
-        service: Tool service
-
-    Returns:
-        ToolWithParameters instance with full details
-
-    Raises:
-        HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
 
     Args:
         tool_id (UUID):

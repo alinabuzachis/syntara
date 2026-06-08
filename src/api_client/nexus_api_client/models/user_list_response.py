@@ -12,12 +12,13 @@ if TYPE_CHECKING:
     from ..models.user_read import UserRead
 
 
-T = TypeVar("T", bound="ResourcesResponseUserRead")
+T = TypeVar("T", bound="UserListResponse")
 
 
 @_attrs_define
-class ResourcesResponseUserRead:
-    """
+class UserListResponse:
+    """Paginated list response for users.
+
     Attributes:
         resources (list[UserRead]): Array of resources in current page
         next_ (None | str | Unset): Cursor for next page of results
@@ -110,15 +111,15 @@ class ResourcesResponseUserRead:
 
         total = _parse_total(d.pop("total", UNSET))
 
-        resources_response_user_read = cls(
+        user_list_response = cls(
             resources=resources,
             next_=next_,
             prev=prev,
             total=total,
         )
 
-        resources_response_user_read.additional_properties = d
-        return resources_response_user_read
+        user_list_response.additional_properties = d
+        return user_list_response
 
     @property
     def additional_keys(self) -> list[str]:

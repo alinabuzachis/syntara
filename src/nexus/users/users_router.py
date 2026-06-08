@@ -140,6 +140,21 @@ async def list_users(
 
 
 @router.get(
+    "/me",
+    dependencies=[NO_PERMISSION],
+    operation_id="get_current_user_profile",
+    response_description="Current user profile",
+)
+async def get_current_user_profile(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[UsersService, Depends(get_user_service)],
+) -> UserRead:
+    """Return information about the currently authenticated user."""
+    user = await service.get_user_by_id(current_user.id)
+    return await service.to_read(user)
+
+
+@router.get(
     "/{user_id}", dependencies=[Depends(_user_read)], operation_id="get_user", response_description="User details"
 )
 async def get_user(

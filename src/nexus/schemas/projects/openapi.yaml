@@ -1290,7 +1290,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CredentialPatch"
+              $ref: "#/components/schemas/CredentialUpdate"
       responses:
         "200":
           description: Successful Response
@@ -1656,8 +1656,8 @@ components:
 
     CredentialRead:
       $ref: "../credentials/openapi.yaml#/components/schemas/CredentialRead"
-    CredentialPatch:
-      $ref: "../credentials/openapi.yaml#/components/schemas/CredentialPatch"
+    CredentialUpdate:
+      $ref: "../credentials/openapi.yaml#/components/schemas/CredentialUpdate"
     CredentialListResponse:
       $ref: "../credentials/openapi.yaml#/components/schemas/CredentialListResponse"
     CredentialWorkflowRef:

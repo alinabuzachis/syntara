@@ -132,8 +132,8 @@ async def test_list_categories_returns_seeded_categories(test_db_session: AsyncS
 
     result = await service.list_categories()
 
-    assert len(result.results) > 0
-    cm_cat = next((c for c in result.results if c.slug == "context_manager"), None)
+    assert len(result.resources) > 0
+    cm_cat = next((c for c in result.resources if c.slug == "context_manager"), None)
     assert cm_cat is not None
     assert cm_cat.name == "Context Manager"
     assert cm_cat.description is not None
@@ -150,7 +150,7 @@ async def test_list_categories_includes_group_names(test_db_session: AsyncSessio
 
     result = await service.list_categories()
 
-    cm_cat = next((c for c in result.results if c.slug == "context_manager"), None)
+    cm_cat = next((c for c in result.resources if c.slug == "context_manager"), None)
     assert cm_cat is not None
     assert "Group A" in cm_cat.group_names
     assert "Group B" in cm_cat.group_names
@@ -165,7 +165,7 @@ async def test_list_categories_sorts_group_names(test_db_session: AsyncSession) 
 
     result = await service.list_categories()
 
-    cm_cat = next((c for c in result.results if c.slug == "context_manager"), None)
+    cm_cat = next((c for c in result.resources if c.slug == "context_manager"), None)
     assert cm_cat is not None
     zulu_idx = cm_cat.group_names.index("Zulu")
     alpha_idx = cm_cat.group_names.index("Alpha")
@@ -185,7 +185,7 @@ async def test_list_categories_ordered_by_display_order(test_db_session: AsyncSe
 
     result = await service.list_categories()
 
-    orders = [c.display_order for c in result.results]
+    orders = [c.display_order for c in result.resources]
     assert orders == sorted(orders)
 
 

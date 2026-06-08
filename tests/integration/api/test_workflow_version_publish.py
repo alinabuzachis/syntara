@@ -253,7 +253,7 @@ async def test_version_list_includes_status(jwt_client: AsyncClient) -> None:
     response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions")
     assert response.status_code == 200
 
-    versions = response.json()["versions"]
+    versions = response.json()["resources"]
     assert len(versions) == 2
 
     # v2 (newest first) should be draft

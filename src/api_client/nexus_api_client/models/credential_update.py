@@ -9,35 +9,35 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.credential_patch_inputs_type_0 import CredentialPatchInputsType0
-    from ..models.credential_patch_labels_type_0 import CredentialPatchLabelsType0
+    from ..models.credential_update_inputs_type_0 import CredentialUpdateInputsType0
+    from ..models.credential_update_labels_type_0 import CredentialUpdateLabelsType0
 
 
-T = TypeVar("T", bound="CredentialPatch")
+T = TypeVar("T", bound="CredentialUpdate")
 
 
 @_attrs_define
-class CredentialPatch:
+class CredentialUpdate:
     """Schema for partially updating a credential. $encrypted$ preserves existing values.
 
     Attributes:
         description (None | str | Unset):
         enabled (bool | None | Unset):
-        inputs (CredentialPatchInputsType0 | None | Unset):
-        labels (CredentialPatchLabelsType0 | None | Unset):
+        inputs (CredentialUpdateInputsType0 | None | Unset):
+        labels (CredentialUpdateLabelsType0 | None | Unset):
         name (None | str | Unset):
     """
 
     description: None | str | Unset = UNSET
     enabled: bool | None | Unset = UNSET
-    inputs: CredentialPatchInputsType0 | None | Unset = UNSET
-    labels: CredentialPatchLabelsType0 | None | Unset = UNSET
+    inputs: CredentialUpdateInputsType0 | None | Unset = UNSET
+    labels: CredentialUpdateLabelsType0 | None | Unset = UNSET
     name: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.credential_patch_inputs_type_0 import CredentialPatchInputsType0
-        from ..models.credential_patch_labels_type_0 import CredentialPatchLabelsType0
+        from ..models.credential_update_inputs_type_0 import CredentialUpdateInputsType0
+        from ..models.credential_update_labels_type_0 import CredentialUpdateLabelsType0
 
         description: None | str | Unset
         if isinstance(self.description, Unset):
@@ -54,7 +54,7 @@ class CredentialPatch:
         inputs: dict[str, Any] | None | Unset
         if isinstance(self.inputs, Unset):
             inputs = UNSET
-        elif isinstance(self.inputs, CredentialPatchInputsType0):
+        elif isinstance(self.inputs, CredentialUpdateInputsType0):
             inputs = self.inputs.to_dict()
         else:
             inputs = self.inputs
@@ -62,7 +62,7 @@ class CredentialPatch:
         labels: dict[str, Any] | None | Unset
         if isinstance(self.labels, Unset):
             labels = UNSET
-        elif isinstance(self.labels, CredentialPatchLabelsType0):
+        elif isinstance(self.labels, CredentialUpdateLabelsType0):
             labels = self.labels.to_dict()
         else:
             labels = self.labels
@@ -91,8 +91,8 @@ class CredentialPatch:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.credential_patch_inputs_type_0 import CredentialPatchInputsType0
-        from ..models.credential_patch_labels_type_0 import CredentialPatchLabelsType0
+        from ..models.credential_update_inputs_type_0 import CredentialUpdateInputsType0
+        from ..models.credential_update_labels_type_0 import CredentialUpdateLabelsType0
 
         d = dict(src_dict)
 
@@ -114,7 +114,7 @@ class CredentialPatch:
 
         enabled = _parse_enabled(d.pop("enabled", UNSET))
 
-        def _parse_inputs(data: object) -> CredentialPatchInputsType0 | None | Unset:
+        def _parse_inputs(data: object) -> CredentialUpdateInputsType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -122,16 +122,16 @@ class CredentialPatch:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                inputs_type_0 = CredentialPatchInputsType0.from_dict(data)
+                inputs_type_0 = CredentialUpdateInputsType0.from_dict(data)
 
                 return inputs_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(CredentialPatchInputsType0 | None | Unset, data)
+            return cast(CredentialUpdateInputsType0 | None | Unset, data)
 
         inputs = _parse_inputs(d.pop("inputs", UNSET))
 
-        def _parse_labels(data: object) -> CredentialPatchLabelsType0 | None | Unset:
+        def _parse_labels(data: object) -> CredentialUpdateLabelsType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -139,12 +139,12 @@ class CredentialPatch:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                labels_type_0 = CredentialPatchLabelsType0.from_dict(data)
+                labels_type_0 = CredentialUpdateLabelsType0.from_dict(data)
 
                 return labels_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(CredentialPatchLabelsType0 | None | Unset, data)
+            return cast(CredentialUpdateLabelsType0 | None | Unset, data)
 
         labels = _parse_labels(d.pop("labels", UNSET))
 
@@ -157,7 +157,7 @@ class CredentialPatch:
 
         name = _parse_name(d.pop("name", UNSET))
 
-        credential_patch = cls(
+        credential_update = cls(
             description=description,
             enabled=enabled,
             inputs=inputs,
@@ -165,8 +165,8 @@ class CredentialPatch:
             name=name,
         )
 
-        credential_patch.additional_properties = d
-        return credential_patch
+        credential_update.additional_properties = d
+        return credential_update
 
     @property
     def additional_keys(self) -> list[str]:

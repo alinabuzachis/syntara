@@ -42,7 +42,7 @@ class TestFilesAPIUpload:
         )
 
         # Assert
-        assert response.status_code == 200
+        assert response.status_code == 201
         response_data = response.json()
         assert "file_ids" in response_data
         assert len(response_data["file_ids"]) == 1
@@ -77,7 +77,7 @@ class TestFilesAPIUpload:
         )
 
         # Assert
-        assert response.status_code == 200
+        assert response.status_code == 201
         response_data = response.json()
         assert len(response_data["file_ids"]) == 3
         assert len(response_data["files"]) == 3
@@ -164,7 +164,7 @@ class TestFilesAPIUpload:
         )
 
         # Assert - Response is successful
-        assert response.status_code == 200
+        assert response.status_code == 201
         response_data = response.json()
         file_id = response_data["file_ids"][0]
 
@@ -195,7 +195,7 @@ class TestFilesAPIUpload:
         )
 
         # Assert
-        assert response.status_code == 200
+        assert response.status_code == 201
         response_data = response.json()
 
         # Required top-level fields
@@ -254,7 +254,7 @@ class TestFilesAPIConversion:
         response = await auth_client.post("/api/v1/files", files=files)
 
         # Assert - Upload successful
-        assert response.status_code == 200
+        assert response.status_code == 201
         response_data = response.json()
         file_id_str = response_data["file_ids"][0]
         file_id = UUID(file_id_str)
@@ -312,7 +312,7 @@ startxref
         response = await auth_client.post("/api/v1/files", files=files)
 
         # Assert - Upload successful
-        assert response.status_code == 200
+        assert response.status_code == 201
         response_data = response.json()
         file_id_str = response_data["file_ids"][0]
         file_id = UUID(file_id_str)
@@ -341,7 +341,7 @@ startxref
         response = await auth_client.post("/api/v1/files", files=files)
 
         # Assert - Upload successful
-        assert response.status_code == 200
+        assert response.status_code == 201
         response_data = response.json()
         assert len(response_data["file_ids"]) == 3
 

@@ -101,19 +101,6 @@ def sync_detailed(
 
      Test Tool Provider definition without saving to database.
 
-    Validates the provider configuration and tests connectivity using the appropriate adapter.
-    This endpoint allows testing provider definitions before registering them.
-
-    Args:
-        provider_create: Provider configuration to test
-        service: Tool provider service
-
-    Returns:
-        ToolProviderValidationResult with test results (always 200)
-
-    Raises:
-        HTTPException: 403 for auth, 500 for unexpected errors
-
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
 
@@ -153,19 +140,6 @@ def sync(
 
      Test Tool Provider definition without saving to database.
 
-    Validates the provider configuration and tests connectivity using the appropriate adapter.
-    This endpoint allows testing provider definitions before registering them.
-
-    Args:
-        provider_create: Provider configuration to test
-        service: Tool provider service
-
-    Returns:
-        ToolProviderValidationResult with test results (always 200)
-
-    Raises:
-        HTTPException: 403 for auth, 500 for unexpected errors
-
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
 
@@ -199,19 +173,6 @@ async def asyncio_detailed(
     """Test Tool Provider
 
      Test Tool Provider definition without saving to database.
-
-    Validates the provider configuration and tests connectivity using the appropriate adapter.
-    This endpoint allows testing provider definitions before registering them.
-
-    Args:
-        provider_create: Provider configuration to test
-        service: Tool provider service
-
-    Returns:
-        ToolProviderValidationResult with test results (always 200)
-
-    Raises:
-        HTTPException: 403 for auth, 500 for unexpected errors
 
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
@@ -249,19 +210,6 @@ async def asyncio(
     """Test Tool Provider
 
      Test Tool Provider definition without saving to database.
-
-    Validates the provider configuration and tests connectivity using the appropriate adapter.
-    This endpoint allows testing provider definitions before registering them.
-
-    Args:
-        provider_create: Provider configuration to test
-        service: Tool provider service
-
-    Returns:
-        ToolProviderValidationResult with test results (always 200)
-
-    Raises:
-        HTTPException: 403 for auth, 500 for unexpected errors
 
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.

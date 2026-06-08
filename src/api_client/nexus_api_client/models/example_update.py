@@ -9,11 +9,11 @@ from attrs import field as _attrs_field
 from ..models.example_status import ExampleStatus
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="UpdateExampleRequest")
+T = TypeVar("T", bound="ExampleUpdate")
 
 
 @_attrs_define
-class UpdateExampleRequest:
+class ExampleUpdate:
     """Schema for updating an example item (PUT /example/{item_id}).
 
     Attributes:
@@ -99,14 +99,14 @@ class UpdateExampleRequest:
 
         status = _parse_status(d.pop("status", UNSET))
 
-        update_example_request = cls(
+        example_update = cls(
             name=name,
             description=description,
             status=status,
         )
 
-        update_example_request.additional_properties = d
-        return update_example_request
+        example_update.additional_properties = d
+        return example_update
 
     @property
     def additional_keys(self) -> list[str]:

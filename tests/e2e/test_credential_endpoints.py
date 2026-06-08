@@ -31,8 +31,8 @@ if not os.environ.get("APP_BASE_URL"):
 
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.credential_patch import CredentialPatch
-from nexus_api_client.models.credential_patch_inputs_type_0 import CredentialPatchInputsType0
+from nexus_api_client.models.credential_update import CredentialUpdate
+from nexus_api_client.models.credential_update_inputs_type_0 import CredentialUpdateInputsType0
 from nexus_api_client.models.execution_status import ExecutionStatus
 
 pytestmark = pytest.mark.e2e
@@ -157,9 +157,9 @@ class TestSecretFieldMasking:
         try:
             resp = nexus_api.credentials.update(
                 credential_id=UUID(cred["id"]),
-                body=CredentialPatch(
+                body=CredentialUpdate(
                     description="updated description",
-                    inputs=CredentialPatchInputsType0.from_dict({"token": ENCRYPTED_SENTINEL}),
+                    inputs=CredentialUpdateInputsType0.from_dict({"token": ENCRYPTED_SENTINEL}),
                 ),
             )
             assert resp.is_success
@@ -277,7 +277,7 @@ class TestRbacAdminFullCrud:
             # Update
             patch_resp = nexus_api.credentials.update(
                 credential_id=cred_id,
-                body=CredentialPatch(description="admin updated"),
+                body=CredentialUpdate(description="admin updated"),
             )
             assert patch_resp.is_success
 

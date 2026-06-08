@@ -21,37 +21,37 @@ class WhoCanResponse:
     """Response body for the Who can? endpoint.
 
     Attributes:
-        users (list[WhoCanUser]):
-        next_cursor (None | Unset | UUID):
+        resources (list[WhoCanUser]):
+        next_ (None | Unset | UUID):
     """
 
-    users: list[WhoCanUser]
-    next_cursor: None | Unset | UUID = UNSET
+    resources: list[WhoCanUser]
+    next_: None | Unset | UUID = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        users = []
-        for users_item_data in self.users:
-            users_item = users_item_data.to_dict()
-            users.append(users_item)
+        resources = []
+        for resources_item_data in self.resources:
+            resources_item = resources_item_data.to_dict()
+            resources.append(resources_item)
 
-        next_cursor: None | str | Unset
-        if isinstance(self.next_cursor, Unset):
-            next_cursor = UNSET
-        elif isinstance(self.next_cursor, UUID):
-            next_cursor = str(self.next_cursor)
+        next_: None | str | Unset
+        if isinstance(self.next_, Unset):
+            next_ = UNSET
+        elif isinstance(self.next_, UUID):
+            next_ = str(self.next_)
         else:
-            next_cursor = self.next_cursor
+            next_ = self.next_
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "users": users,
+                "resources": resources,
             }
         )
-        if next_cursor is not UNSET:
-            field_dict["next_cursor"] = next_cursor
+        if next_ is not UNSET:
+            field_dict["next"] = next_
 
         return field_dict
 
@@ -60,14 +60,14 @@ class WhoCanResponse:
         from ..models.who_can_user import WhoCanUser
 
         d = dict(src_dict)
-        users = []
-        _users = d.pop("users")
-        for users_item_data in _users:
-            users_item = WhoCanUser.from_dict(users_item_data)
+        resources = []
+        _resources = d.pop("resources")
+        for resources_item_data in _resources:
+            resources_item = WhoCanUser.from_dict(resources_item_data)
 
-            users.append(users_item)
+            resources.append(resources_item)
 
-        def _parse_next_cursor(data: object) -> None | Unset | UUID:
+        def _parse_next_(data: object) -> None | Unset | UUID:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -75,18 +75,18 @@ class WhoCanResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                next_cursor_type_0 = UUID(data)
+                next_type_0 = UUID(data)
 
-                return next_cursor_type_0
+                return next_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(None | Unset | UUID, data)
 
-        next_cursor = _parse_next_cursor(d.pop("next_cursor", UNSET))
+        next_ = _parse_next_(d.pop("next", UNSET))
 
         who_can_response = cls(
-            users=users,
-            next_cursor=next_cursor,
+            resources=resources,
+            next_=next_,
         )
 
         who_can_response.additional_properties = d

@@ -93,19 +93,6 @@ def sync_detailed(
 
      Validate Tool Provider connection and capabilities.
 
-    Tests the connection to the tool provider and validates compatibility.
-    Updates the provider status based on validation results.
-
-    Args:
-        provider_id: UUID of the provider to validate
-        service: Tool provider service
-
-    Returns:
-        Validation result with status and capability details (always 200)
-
-    Raises:
-        HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
-
     Args:
         provider_id (UUID):
 
@@ -137,19 +124,6 @@ def sync(
 
      Validate Tool Provider connection and capabilities.
 
-    Tests the connection to the tool provider and validates compatibility.
-    Updates the provider status based on validation results.
-
-    Args:
-        provider_id: UUID of the provider to validate
-        service: Tool provider service
-
-    Returns:
-        Validation result with status and capability details (always 200)
-
-    Raises:
-        HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
-
     Args:
         provider_id (UUID):
 
@@ -175,19 +149,6 @@ async def asyncio_detailed(
     """Validate Tool Provider
 
      Validate Tool Provider connection and capabilities.
-
-    Tests the connection to the tool provider and validates compatibility.
-    Updates the provider status based on validation results.
-
-    Args:
-        provider_id: UUID of the provider to validate
-        service: Tool provider service
-
-    Returns:
-        Validation result with status and capability details (always 200)
-
-    Raises:
-        HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
 
     Args:
         provider_id (UUID):
@@ -217,19 +178,6 @@ async def asyncio(
     """Validate Tool Provider
 
      Validate Tool Provider connection and capabilities.
-
-    Tests the connection to the tool provider and validates compatibility.
-    Updates the provider status based on validation results.
-
-    Args:
-        provider_id: UUID of the provider to validate
-        service: Tool provider service
-
-    Returns:
-        Validation result with status and capability details (always 200)
-
-    Raises:
-        HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
 
     Args:
         provider_id (UUID):

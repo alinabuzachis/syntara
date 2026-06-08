@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Nexus Settings API
   version: 1.0.0
@@ -100,10 +100,7 @@ paths:
           content:
             application/json:
               schema:
-                title: Response Bulk Update Settings
-                type: array
-                items:
-                  $ref: "#/components/schemas/RuntimeSettingRead"
+                $ref: "#/components/schemas/SettingsListResponse"
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -445,10 +442,10 @@ components:
       title: CategoriesListResponse
       description: Response schema for listing setting categories.
       required:
-        - results
+        - resources
       properties:
-        results:
+        resources:
           type: array
-          title: Results
+          title: Resources
           items:
             $ref: "#/components/schemas/SettingCategoryRead"

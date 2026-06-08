@@ -6,8 +6,8 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.credential_patch import CredentialPatch
 from ...models.credential_read import CredentialRead
+from ...models.credential_update import CredentialUpdate
 from ...models.error_data import ErrorData
 from ...types import Response
 
@@ -15,7 +15,7 @@ from ...types import Response
 def _get_kwargs(
     credential_id: UUID,
     *,
-    body: CredentialPatch,
+    body: CredentialUpdate,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -98,7 +98,7 @@ def sync_detailed(
     credential_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: CredentialPatch,
+    body: CredentialUpdate,
 ) -> Response[CredentialRead | ErrorData]:
     """Update Credential
 
@@ -106,7 +106,7 @@ def sync_detailed(
 
     Args:
         credential_id (UUID):
-        body (CredentialPatch): Schema for partially updating a credential. $encrypted$ preserves
+        body (CredentialUpdate): Schema for partially updating a credential. $encrypted$ preserves
             existing values.
 
     Raises:
@@ -133,7 +133,7 @@ def sync(
     credential_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: CredentialPatch,
+    body: CredentialUpdate,
 ) -> CredentialRead | ErrorData | None:
     """Update Credential
 
@@ -141,7 +141,7 @@ def sync(
 
     Args:
         credential_id (UUID):
-        body (CredentialPatch): Schema for partially updating a credential. $encrypted$ preserves
+        body (CredentialUpdate): Schema for partially updating a credential. $encrypted$ preserves
             existing values.
 
     Raises:
@@ -163,7 +163,7 @@ async def asyncio_detailed(
     credential_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: CredentialPatch,
+    body: CredentialUpdate,
 ) -> Response[CredentialRead | ErrorData]:
     """Update Credential
 
@@ -171,7 +171,7 @@ async def asyncio_detailed(
 
     Args:
         credential_id (UUID):
-        body (CredentialPatch): Schema for partially updating a credential. $encrypted$ preserves
+        body (CredentialUpdate): Schema for partially updating a credential. $encrypted$ preserves
             existing values.
 
     Raises:
@@ -196,7 +196,7 @@ async def asyncio(
     credential_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: CredentialPatch,
+    body: CredentialUpdate,
 ) -> CredentialRead | ErrorData | None:
     """Update Credential
 
@@ -204,7 +204,7 @@ async def asyncio(
 
     Args:
         credential_id (UUID):
-        body (CredentialPatch): Schema for partially updating a credential. $encrypted$ preserves
+        body (CredentialUpdate): Schema for partially updating a credential. $encrypted$ preserves
             existing values.
 
     Raises:

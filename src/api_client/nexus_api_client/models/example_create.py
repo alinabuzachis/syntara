@@ -9,11 +9,11 @@ from attrs import field as _attrs_field
 from ..models.example_status import ExampleStatus
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="CreateExampleRequest")
+T = TypeVar("T", bound="ExampleCreate")
 
 
 @_attrs_define
-class CreateExampleRequest:
+class ExampleCreate:
     """Schema for creating a new example item (POST /example).
 
     Attributes:
@@ -75,14 +75,14 @@ class CreateExampleRequest:
         else:
             status = ExampleStatus(_status)
 
-        create_example_request = cls(
+        example_create = cls(
             name=name,
             description=description,
             status=status,
         )
 
-        create_example_request.additional_properties = d
-        return create_example_request
+        example_create.additional_properties = d
+        return example_create
 
     @property
     def additional_keys(self) -> list[str]:

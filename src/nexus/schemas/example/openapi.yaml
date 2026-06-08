@@ -7,10 +7,8 @@ info:
   contact:
     name: Nexus Portal
 servers:
-  - url: http://localhost:8000/api/v1
-    description: Local development server
-  - url: https://api.nexus.example.com/api/v1
-    description: Production server
+  - url: /api/v1
+    description: API server (relative path)
 tags:
   - name: example
     description: Example operations
@@ -32,7 +30,6 @@ paths:
           schema:
             type: integer
             title: Limit
-            description: Maximum number of items to return
             minimum: 1
             maximum: 100
             default: 10
@@ -70,7 +67,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateExampleRequest"
+              $ref: "#/components/schemas/ExampleCreate"
       responses:
         "201":
           description: Item created successfully
@@ -153,7 +150,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateExampleRequest"
+              $ref: "#/components/schemas/ExampleUpdate"
       responses:
         "200":
           description: Item updated successfully
@@ -193,12 +190,8 @@ paths:
             title: Item Id
             description: Example item ID
       responses:
-        "200":
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DeleteResponse"
+        "204":
+          description: Item deleted successfully
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -214,6 +207,13 @@ paths:
         "500":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+
   schemas:
     ExampleStatus:
       type: string
@@ -255,20 +255,33 @@ components:
     ExampleListResponse:
       type: object
       title: ExampleListResponse
-      description: Schema for GET /example response.
+      description: Paginated list response for example items.
       properties:
-        data:
+        resources:
           type: array
-          title: Data
           items:
             $ref: "#/components/schemas/ExampleItem"
+          title: Resources
+        next:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Prev
         total:
-          type: integer
+          anyOf:
+            - type: integer
+            - type: "null"
           title: Total
-      required: [data, total]
-    CreateExampleRequest:
+      required:
+        - resources
+    ExampleCreate:
       type: object
-      title: CreateExampleRequest
+      title: ExampleCreate
       description: Schema for creating a new example item (POST /example).
       properties:
         name:
@@ -289,9 +302,9 @@ components:
           default: active
           description: Status of the example item
       required: [name]
-    UpdateExampleRequest:
+    ExampleUpdate:
       type: object
-      title: UpdateExampleRequest
+      title: ExampleUpdate
       description: Schema for updating an example item (PUT /example/{item_id}).
       properties:
         name:
@@ -311,12 +324,3 @@ components:
           anyOf:
             - $ref: "#/components/schemas/ExampleStatus"
             - type: "null"
-    DeleteResponse:
-      type: object
-      title: DeleteResponse
-      description: Schema for DELETE response.
-      properties:
-        message:
-          type: string
-          title: Message
-      required: [message]

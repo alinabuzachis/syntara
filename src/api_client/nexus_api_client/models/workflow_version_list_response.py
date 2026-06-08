@@ -18,23 +18,23 @@ class WorkflowVersionListResponse:
     """Schema for workflow version list response.
 
     Attributes:
-        versions (list[WorkflowVersionRead]):
+        resources (list[WorkflowVersionRead]):
     """
 
-    versions: list[WorkflowVersionRead]
+    resources: list[WorkflowVersionRead]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        versions = []
-        for versions_item_data in self.versions:
-            versions_item = versions_item_data.to_dict()
-            versions.append(versions_item)
+        resources = []
+        for resources_item_data in self.resources:
+            resources_item = resources_item_data.to_dict()
+            resources.append(resources_item)
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "versions": versions,
+                "resources": resources,
             }
         )
 
@@ -45,15 +45,15 @@ class WorkflowVersionListResponse:
         from ..models.workflow_version_read import WorkflowVersionRead
 
         d = dict(src_dict)
-        versions = []
-        _versions = d.pop("versions")
-        for versions_item_data in _versions:
-            versions_item = WorkflowVersionRead.from_dict(versions_item_data)
+        resources = []
+        _resources = d.pop("resources")
+        for resources_item_data in _resources:
+            resources_item = WorkflowVersionRead.from_dict(resources_item_data)
 
-            versions.append(versions_item)
+            resources.append(resources_item)
 
         workflow_version_list_response = cls(
-            versions=versions,
+            resources=resources,
         )
 
         workflow_version_list_response.additional_properties = d

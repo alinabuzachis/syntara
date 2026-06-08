@@ -90,8 +90,8 @@ class WhoCanUser(SQLModel):
 class WhoCanResponse(SQLModel):
     """Response body for the Who can? endpoint."""
 
-    users: list[WhoCanUser]
-    next_cursor: UUID | None = None
+    resources: list[WhoCanUser]
+    next: UUID | None = None
 
 
 class PermissionEntry(SQLModel):
@@ -272,7 +272,7 @@ async def who_can(
         users_result = await db.exec(query)
         batch = users_result.all()
         if not batch:
-            return WhoCanResponse(users=authorized_users, next_cursor=None)
+            return WhoCanResponse(resources=authorized_users, next=None)
 
         for user in batch:
             result = await authorize(
@@ -293,11 +293,11 @@ async def who_can(
             if result.allowed:
                 authorized_users.append(WhoCanUser(id=user.id, username=user.username))
                 if len(authorized_users) >= limit:
-                    return WhoCanResponse(users=authorized_users, next_cursor=user.id)
+                    return WhoCanResponse(resources=authorized_users, next=user.id)
 
         cursor = batch[-1].id
 
-    return WhoCanResponse(users=authorized_users, next_cursor=None)
+    return WhoCanResponse(resources=authorized_users, next=None)
 
 
 @router.post(

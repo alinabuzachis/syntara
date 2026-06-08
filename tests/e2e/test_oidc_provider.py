@@ -104,7 +104,7 @@ class TestOIDCProviderLifecycle:
             assert auth_resp.status_code == HTTPStatus.OK
             auth_data = auth_resp.parsed
             assert auth_data is not None
-            provider_names = [p.name for p in (auth_data.providers or [])]
+            provider_names = [p.name for p in (auth_data.resources or [])]
             assert "e2e-keycloak-public" in provider_names
         finally:
             nexus_api.identity_providers.delete(provider_id=provider_id)

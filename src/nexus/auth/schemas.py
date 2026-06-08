@@ -60,4 +60,4 @@ class AuthProviderInfo(BaseModel):
 class AuthProvidersResponse(BaseModel):
     """Response for the public providers listing endpoint."""
 
-    providers: list[AuthProviderInfo] = Field(default_factory=list, description="Enabled identity providers")
+    resources: list[AuthProviderInfo] = Field(default_factory=list, description="Enabled identity providers")

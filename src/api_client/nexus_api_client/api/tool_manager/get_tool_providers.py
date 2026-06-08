@@ -12,7 +12,7 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    limit: int | Unset = 100,
+    limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
@@ -116,7 +116,7 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 100,
+    limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
@@ -126,25 +126,8 @@ def sync_detailed(
 
      List tool providers with filtering, sorting, and pagination.
 
-    Supports filtering using query parameters with standard operators:
-    - name: Filter by provider name (name=provider_name, name[contains]=text)
-    - status: Filter by provider status (status=validating|available|error)
-    - enabled: Filter by enabled status (enabled=true|false)
-    - provider_type: Filter by provider type (provider_type=openapi)
-    - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-    Uses cursor-based pagination for scalability and consistency.
-
     Args:
-        request: FastAPI request object containing query parameters
-        service: Tool provider service
-        params: Query parameters for pagination and filtering
-
-    Returns:
-        ToolProviderListResponse with providers, pagination metadata, and optional total
-
-    Args:
-        limit (int | Unset): Maximum number of results per page Default: 100.
+        limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
@@ -171,7 +154,7 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 100,
+    limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
@@ -180,25 +163,8 @@ def sync(
 
      List tool providers with filtering, sorting, and pagination.
 
-    Supports filtering using query parameters with standard operators:
-    - name: Filter by provider name (name=provider_name, name[contains]=text)
-    - status: Filter by provider status (status=validating|available|error)
-    - enabled: Filter by enabled status (enabled=true|false)
-    - provider_type: Filter by provider type (provider_type=openapi)
-    - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-    Uses cursor-based pagination for scalability and consistency.
-
     Args:
-        request: FastAPI request object containing query parameters
-        service: Tool provider service
-        params: Query parameters for pagination and filtering
-
-    Returns:
-        ToolProviderListResponse with providers, pagination metadata, and optional total
-
-    Args:
-        limit (int | Unset): Maximum number of results per page Default: 100.
+        limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
@@ -223,7 +189,7 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 100,
+    limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
@@ -232,25 +198,8 @@ async def asyncio_detailed(
 
      List tool providers with filtering, sorting, and pagination.
 
-    Supports filtering using query parameters with standard operators:
-    - name: Filter by provider name (name=provider_name, name[contains]=text)
-    - status: Filter by provider status (status=validating|available|error)
-    - enabled: Filter by enabled status (enabled=true|false)
-    - provider_type: Filter by provider type (provider_type=openapi)
-    - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-    Uses cursor-based pagination for scalability and consistency.
-
     Args:
-        request: FastAPI request object containing query parameters
-        service: Tool provider service
-        params: Query parameters for pagination and filtering
-
-    Returns:
-        ToolProviderListResponse with providers, pagination metadata, and optional total
-
-    Args:
-        limit (int | Unset): Maximum number of results per page Default: 100.
+        limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
@@ -278,7 +227,7 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 100,
+    limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
@@ -287,25 +236,8 @@ async def asyncio(
 
      List tool providers with filtering, sorting, and pagination.
 
-    Supports filtering using query parameters with standard operators:
-    - name: Filter by provider name (name=provider_name, name[contains]=text)
-    - status: Filter by provider status (status=validating|available|error)
-    - enabled: Filter by enabled status (enabled=true|false)
-    - provider_type: Filter by provider type (provider_type=openapi)
-    - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-    Uses cursor-based pagination for scalability and consistency.
-
     Args:
-        request: FastAPI request object containing query parameters
-        service: Tool provider service
-        params: Query parameters for pagination and filtering
-
-    Returns:
-        ToolProviderListResponse with providers, pagination metadata, and optional total
-
-    Args:
-        limit (int | Unset): Maximum number of results per page Default: 100.
+        limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.

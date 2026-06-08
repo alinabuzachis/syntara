@@ -100,46 +100,10 @@ paths:
         Supports filtering by namespaced_name, status, and time range.
         Uses cursor-based pagination consistent with other Nexus list endpoints.
       parameters:
-        - name: limit
-          in: query
-          description: Maximum number of results per page
-          required: false
-          schema:
-            type: integer
-            exclusiveMinimum: 0
-            maximum: 100
-            default: 20
-            description: Maximum number of results per page
-            title: Limit
-        - name: cursor
-          in: query
-          description: Pagination cursor from previous response
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            description: Pagination cursor from previous response
-            title: Cursor
-        - name: sort
-          in: query
-          description: Sort parameter (e.g., 'name', '-created_at')
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            description: Sort parameter (e.g., 'name', '-created_at')
-            title: Sort
-        - name: include_total
-          in: query
-          description: Include total count in response (expensive)
-          required: false
-          schema:
-            type: boolean
-            default: false
-            description: Include total count in response (expensive)
-            title: Include Total
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
         - name: namespaced_name
           in: query
           description: Filter by tool namespaced name

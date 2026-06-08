@@ -2569,40 +2569,40 @@ paths:
           description: Maximum number of results per page
           schema:
             type: integer
-            maximum: 500
             exclusiveMinimum: 0
+            maximum: 500
             default: 20
             title: Limit
             description: Maximum number of results per page
         - name: cursor
           in: query
           required: false
-          description: Pagination cursor from previous response
           schema:
             anyOf:
               - type: string
               - type: 'null'
-            title: Cursor
             description: Pagination cursor from previous response
+            title: Cursor
+          description: Pagination cursor from previous response
         - name: sort
           in: query
           required: false
-          description: Sort parameter (e.g., 'name', '-created_at')
           schema:
             anyOf:
               - type: string
               - type: 'null'
-            title: Sort
             description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
         - name: include_total
           in: query
           required: false
-          description: Include total count in response (expensive)
           schema:
             type: boolean
             default: false
-            title: Include Total
             description: Include total count in response (expensive)
+            title: Include Total
+          description: Include total count in response (expensive)
         - name: event_category
           in: query
           required: false
@@ -7076,7 +7076,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CredentialPatch'
+              $ref: '#/components/schemas/CredentialUpdate'
       responses:
         '200':
           description: Successful Response
@@ -7307,10 +7307,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                title: Response Get Credential Workflows
-                items:
-                  $ref: '#/components/schemas/CredentialWorkflowRef'
+                $ref: '#/components/schemas/CredentialWorkflowListResponse'
         '400':
           description: Bad Request
           content:
@@ -7638,7 +7635,6 @@ paths:
           schema:
             type: integer
             title: Limit
-            description: Maximum number of items to return
             minimum: 1
             maximum: 100
             default: 10
@@ -7749,7 +7745,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateExampleRequest'
+              $ref: '#/components/schemas/ExampleCreate'
       responses:
         '201':
           description: Item created successfully
@@ -7978,7 +7974,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateExampleRequest'
+              $ref: '#/components/schemas/ExampleUpdate'
       responses:
         '200':
           description: Item updated successfully
@@ -8091,12 +8087,8 @@ paths:
             title: Item Id
             description: Example item ID
       responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeleteResponse'
+        '204':
+          description: Item deleted successfully
         '400':
           description: Bad Request
           content:
@@ -8200,7 +8192,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UploadFilesBody'
       responses:
-        '200':
+        '201':
           description: Files uploaded successfully
           content:
             application/json:
@@ -8306,7 +8298,7 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /identity_providers/:
+  /identity_providers:
     get:
       summary: List Identity Providers
       description: List identity providers with filtering, sorting, and pagination.
@@ -8319,11 +8311,13 @@ paths:
           in: query
           required: false
           schema:
-            default: 100
+            type: integer
             exclusiveMinimum: 0
             maximum: 100
+            default: 20
+            description: Maximum number of results per page
             title: Limit
-            type: integer
+          description: Maximum number of results per page
         - name: cursor
           in: query
           required: false
@@ -14578,7 +14572,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CredentialPatch'
+              $ref: '#/components/schemas/CredentialUpdate'
       responses:
         '200':
           description: Successful Response
@@ -15099,10 +15093,7 @@ paths:
           content:
             application/json:
               schema:
-                title: Response Bulk Update Settings
-                type: array
-                items:
-                  $ref: '#/components/schemas/RuntimeSettingRead'
+                $ref: '#/components/schemas/SettingsListResponse'
         '400':
           description: Bad Request
           content:
@@ -15685,7 +15676,6 @@ paths:
       parameters:
         - name: limit
           in: query
-          description: Maximum number of results per page
           required: false
           schema:
             type: integer
@@ -15694,9 +15684,9 @@ paths:
             default: 20
             description: Maximum number of results per page
             title: Limit
+          description: Maximum number of results per page
         - name: cursor
           in: query
-          description: Pagination cursor from previous response
           required: false
           schema:
             anyOf:
@@ -15704,9 +15694,9 @@ paths:
               - type: 'null'
             description: Pagination cursor from previous response
             title: Cursor
+          description: Pagination cursor from previous response
         - name: sort
           in: query
-          description: Sort parameter (e.g., 'name', '-created_at')
           required: false
           schema:
             anyOf:
@@ -15714,15 +15704,16 @@ paths:
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
         - name: include_total
           in: query
-          description: Include total count in response (expensive)
           required: false
           schema:
             type: boolean
             default: false
             description: Include total count in response (expensive)
             title: Include Total
+          description: Include total count in response (expensive)
         - name: namespaced_name
           in: query
           description: Filter by tool namespaced name
@@ -15865,26 +15856,7 @@ paths:
   /tool_manager/tools:
     get:
       summary: Get Tools
-      description: |-
-        List tools with filtering, sorting, and pagination.
-
-        Supports filtering using query parameters with standard operators:
-        - name: Filter by tool name (name=tool_name, name[contains]=text)
-        - enabled: Filter by enabled status (enabled=true|false)
-        - status: Filter by tool status (status=available|missing|error)
-        - provider_id: Filter by provider ID (provider_id=uuid)
-        - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
-        - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-        Uses cursor-based pagination for scalability and consistency.
-
-        Args:
-            request: FastAPI request object containing query parameters
-            service: Tool service
-            params: Query parameters for pagination and filtering
-
-        Returns:
-            ToolListResponse with tools, pagination metadata, and optional total
+      description: List tools with filtering, sorting, and pagination.
       operationId: get_tools
       x-app-permission:
         resource: null
@@ -15897,7 +15869,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
-            default: 100
+            default: 20
             description: Maximum number of results per page
             title: Limit
           description: Maximum number of results per page
@@ -16030,21 +16002,7 @@ paths:
   /tool_manager/tools/{tool_id}:
     get:
       summary: Get Tool
-      description: |-
-        Get tool details by ID.
-
-        Returns detailed information about a specific tool including
-        parameters, status, and metadata.
-
-        Args:
-            tool_id: UUID of the tool to retrieve
-            service: Tool service
-
-        Returns:
-            ToolWithParameters instance with full details
-
-        Raises:
-            HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
+      description: Get tool details by ID.
       operationId: get_tool
       x-app-permission:
         resource: null
@@ -16156,22 +16114,7 @@ paths:
         - ToolManager
     patch:
       summary: Patch Tool
-      description: |-
-        Update tool status (enable/disable).
-
-        Updates the tool's status to enable or disable it for use.
-        Only admin-controllable status changes are allowed (available/disabled).
-
-        Args:
-            tool_id: UUID of the tool to update
-            tool_update: Tool update data with status
-            service: Tool service
-
-        Returns:
-            Updated Tool instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 404 if not found, 403 for auth
+      description: Update tool status (enable/disable).
       operationId: patch_tool
       x-app-permission:
         resource: null
@@ -16290,21 +16233,7 @@ paths:
   /tool_manager/tools/bulk_update:
     patch:
       summary: Bulk Update Tools
-      description: |-
-        Bulk update tool status (enable/disable multiple tools).
-
-        Updates the status of multiple tools in a single operation.
-        Only admin-controllable status changes are allowed (available/disabled).
-
-        Args:
-            bulk_update: Bulk update request with tool IDs and status
-            service: Tool service
-
-        Returns:
-            Dictionary with update statistics and timestamp
-
-        Raises:
-            HTTPException: 400 for validation errors, 403 for auth
+      description: Bulk update tool status (enable/disable multiple tools).
       operationId: bulk_update_tools
       x-app-permission:
         resource: null
@@ -16417,25 +16346,7 @@ paths:
   /tool_manager/tool_providers:
     get:
       summary: Get Tool Providers
-      description: |-
-        List tool providers with filtering, sorting, and pagination.
-
-        Supports filtering using query parameters with standard operators:
-        - name: Filter by provider name (name=provider_name, name[contains]=text)
-        - status: Filter by provider status (status=validating|available|error)
-        - enabled: Filter by enabled status (enabled=true|false)
-        - provider_type: Filter by provider type (provider_type=openapi)
-        - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-        Uses cursor-based pagination for scalability and consistency.
-
-        Args:
-            request: FastAPI request object containing query parameters
-            service: Tool provider service
-            params: Query parameters for pagination and filtering
-
-        Returns:
-            ToolProviderListResponse with providers, pagination metadata, and optional total
+      description: List tool providers with filtering, sorting, and pagination.
       operationId: get_tool_providers
       x-app-permission:
         resource: null
@@ -16448,7 +16359,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
-            default: 100
+            default: 20
             description: Maximum number of results per page
             title: Limit
           description: Maximum number of results per page
@@ -16580,21 +16491,7 @@ paths:
         - ToolManager
     post:
       summary: Register Tool Provider
-      description: |-
-        Register a new Tool Provider.
-
-        Creates a new tool provider with the specified configuration.
-        The provider starts in 'validating' status.
-
-        Args:
-            provider_create: Provider configuration and metadata
-            service: Tool provider service
-
-        Returns:
-            Created ToolProvider instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
+      description: Register a new Tool Provider.
       operationId: register_tool_provider
       x-app-permission:
         resource: null
@@ -16705,21 +16602,7 @@ paths:
   /tool_manager/tool_providers/{provider_id}:
     get:
       summary: Get Tool Provider
-      description: |-
-        Get Tool Provider details by ID.
-
-        Returns detailed information about a specific Tool Provider including
-        configuration, status, and metadata.
-
-        Args:
-            provider_id: UUID of the provider to retrieve
-            service: Tool provider service
-
-        Returns:
-            ToolProvider instance with full details
-
-        Raises:
-            HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
+      description: Get Tool Provider details by ID.
       operationId: get_tool_provider
       x-app-permission:
         resource: null
@@ -16831,22 +16714,7 @@ paths:
         - ToolManager
     put:
       summary: Update Tool Provider
-      description: |-
-        Update Tool Provider configuration (complete replacement).
-
-        Performs a complete replacement of the provider configuration.
-        All fields in the request body will replace existing values.
-
-        Args:
-            provider_id: UUID of the provider to update
-            provider_update: New provider configuration
-            service: Tool provider service
-
-        Returns:
-            Updated ToolProvider instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
+      description: Update Tool Provider configuration (complete replacement).
       operationId: update_tool_provider
       x-app-permission:
         resource: null
@@ -16964,22 +16832,7 @@ paths:
         - ToolManager
     patch:
       summary: Patch Tool Provider
-      description: |-
-        Patch Tool Provider.
-
-        Performs a partial update of the provider configuration.
-        Only provided fields are updated, configuration objects are replaced.
-
-        Args:
-            provider_id: UUID of the provider to patch
-            provider_patch: Partial update data
-            service: Tool provider service
-
-        Returns:
-            Updated ToolProvider instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
+      description: Patch Tool Provider.
       operationId: patch_tool_provider
       x-app-permission:
         resource: null
@@ -17097,18 +16950,7 @@ paths:
         - ToolManager
     delete:
       summary: Delete Tool Provider
-      description: |-
-        Remove Tool Provider and all associated tools.
-
-        Performs a soft delete of the provider and cascades to associated tools.
-        The provider will no longer be accessible but remains in the database.
-
-        Args:
-            provider_id: UUID of the provider to delete
-            service: Tool provider service
-
-        Raises:
-            HTTPException: 404 if provider not found, 403 for auth
+      description: Remove Tool Provider and all associated tools.
       operationId: delete_tool_provider
       x-app-permission:
         resource: null
@@ -17217,21 +17059,7 @@ paths:
   /tool_manager/tool_providers/{provider_id}/validate:
     post:
       summary: Validate Tool Provider
-      description: |-
-        Validate Tool Provider connection and capabilities.
-
-        Tests the connection to the tool provider and validates compatibility.
-        Updates the provider status based on validation results.
-
-        Args:
-            provider_id: UUID of the provider to validate
-            service: Tool provider service
-
-        Returns:
-            Validation result with status and capability details (always 200)
-
-        Raises:
-            HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
+      description: Validate Tool Provider connection and capabilities.
       operationId: validate_tool_provider
       x-app-permission:
         resource: null
@@ -17344,21 +17172,7 @@ paths:
   /tool_manager/tool_providers/{provider_id}/refresh_tools:
     post:
       summary: Refresh Tool Provider
-      description: |-
-        Refresh tools from Tool Provider.
-
-        Connects to the tool provider and refreshes the list of available tools.
-        Creates new tools, updates existing ones, and disables missing tools.
-
-        Args:
-            provider_id: UUID of the provider to refresh
-            service: Tool provider service
-
-        Returns:
-            Refresh statistics including counts and timestamp
-
-        Raises:
-            HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
+      description: Refresh tools from Tool Provider.
       operationId: refresh_tool_provider
       x-app-permission:
         resource: null
@@ -17471,21 +17285,7 @@ paths:
   /tool_manager/tool_providers/test:
     post:
       summary: Test Tool Provider
-      description: |-
-        Test Tool Provider definition without saving to database.
-
-        Validates the provider configuration and tests connectivity using the appropriate adapter.
-        This endpoint allows testing provider definitions before registering them.
-
-        Args:
-            provider_create: Provider configuration to test
-            service: Tool provider service
-
-        Returns:
-            ToolProviderValidationResult with test results (always 200)
-
-        Raises:
-            HTTPException: 403 for auth, 500 for unexpected errors
+      description: Test Tool Provider definition without saving to database.
       operationId: test_tool_provider
       x-app-permission:
         resource: null
@@ -17695,7 +17495,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserRead_'
+                $ref: '#/components/schemas/UserListResponse'
         '400':
           description: Bad Request
           content:
@@ -17802,6 +17602,111 @@ paths:
       responses:
         '201':
           description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /users/me:
+    get:
+      summary: Get Current User Profile
+      description: Return information about the currently authenticated user.
+      operationId: get_current_user_profile
+      tags:
+        - Users
+      x-app-permission:
+        resource: null
+        action: null
+      responses:
+        '200':
+          description: Current user profile
           content:
             application/json:
               schema:
@@ -18300,7 +18205,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
+                $ref: '#/components/schemas/UserGroupListResponse'
         '400':
           description: Bad Request
           content:
@@ -18422,7 +18327,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
+                $ref: '#/components/schemas/UserGroupListResponse'
         '400':
           description: Bad Request
           content:
@@ -19231,7 +19136,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_GroupRead_'
+                $ref: '#/components/schemas/GroupListResponse'
         '400':
           description: Bad Request
           content:
@@ -19837,7 +19742,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_GroupMemberRead_'
+                $ref: '#/components/schemas/GroupMemberListResponse'
         '400':
           description: Bad Request
           content:
@@ -22347,29 +22252,7 @@ paths:
   /workflows/{workflow_id}/test:
     post:
       summary: Test a single node in a workflow
-      description: |-
-        Test a single node in a workflow with mocked predecessor outputs.
-
-        Creates a test execution that:
-        1. Uses mocked outputs for all nodes in pre_resolved_nodes
-        2. Executes the target_node_id for real with actual logic
-        3. Stops after the target node completes
-        4. Returns results in the execution response
-
-        This enables testing individual nodes in isolation without running the entire workflow.
-
-        Args:
-            workflow_id: Workflow ID to test
-            request: Test execution request with target node and mocked outputs
-            execution_service: Execution service (injected by FastAPI)
-
-        Returns:
-            Created test execution with mode=TEST and status=PENDING
-
-        Raises:
-            HTTPException: 404 if workflow not found
-            HTTPException: 400 if target_node_id not found in workflow
-            HTTPException: 503 if Temporal unavailable
+      description: Test a single node in a workflow with mocked predecessor outputs.
       operationId: test_workflow_node
       tags:
         - workflows
@@ -24814,9 +24697,9 @@ components:
       title: AuthProvidersResponse
       description: Response for the public providers listing endpoint.
       properties:
-        providers:
+        resources:
           type: array
-          title: Providers
+          title: Resources
           items:
             $ref: '#/components/schemas/AuthProviderInfo'
           description: Enabled identity providers
@@ -24957,19 +24840,19 @@ components:
       title: WhoCanResponse
       description: Response body for the Who can? endpoint.
       required:
-        - users
+        - resources
       properties:
-        users:
+        resources:
           type: array
           items:
             $ref: '#/components/schemas/WhoCanUser'
-          title: Users
-        next_cursor:
+          title: Resources
+        next:
           anyOf:
             - type: string
               format: uuid
             - type: 'null'
-          title: Next Cursor
+          title: Next
     PermissionEntry:
       type: object
       title: PermissionEntry
@@ -25645,6 +25528,44 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
+    CredentialWorkflowListResponse:
+      title: CredentialWorkflowListResponse
+      description: Paginated list response for credential workflow references.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CredentialWorkflowRef'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     CredentialCreate:
       description: Schema for creating a new credential.
       properties:
@@ -25688,7 +25609,7 @@ components:
         - project_id
       title: CredentialCreate
       type: object
-    CredentialPatch:
+    CredentialUpdate:
       description: Schema for partially updating a credential. $encrypted$ preserves existing values.
       properties:
         description:
@@ -25721,7 +25642,7 @@ components:
               type: string
             - type: 'null'
           title: Name
-      title: CredentialPatch
+      title: CredentialUpdate
       type: object
     CredentialRead:
       description: Schema for credential API responses. Secret fields masked as $encrypted$.
@@ -25982,22 +25903,33 @@ components:
     ExampleListResponse:
       type: object
       title: ExampleListResponse
-      description: Schema for GET /example response.
+      description: Paginated list response for example items.
       properties:
-        data:
+        resources:
           type: array
-          title: Data
           items:
             $ref: '#/components/schemas/ExampleItem'
+          title: Resources
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
         total:
-          type: integer
+          anyOf:
+            - type: integer
+            - type: 'null'
           title: Total
       required:
-        - data
-        - total
-    CreateExampleRequest:
+        - resources
+    ExampleCreate:
       type: object
-      title: CreateExampleRequest
+      title: ExampleCreate
       description: Schema for creating a new example item (POST /example).
       properties:
         name:
@@ -26019,9 +25951,9 @@ components:
           description: Status of the example item
       required:
         - name
-    UpdateExampleRequest:
+    ExampleUpdate:
       type: object
-      title: UpdateExampleRequest
+      title: ExampleUpdate
       description: Schema for updating an example item (PUT /example/{item_id}).
       properties:
         name:
@@ -26041,16 +25973,6 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ExampleStatus'
             - type: 'null'
-    DeleteResponse:
-      type: object
-      title: DeleteResponse
-      description: Schema for DELETE response.
-      properties:
-        message:
-          type: string
-          title: Message
-      required:
-        - message
     UploadFilesBody:
       type: object
       title: UploadFilesBody
@@ -27577,28 +27499,7 @@ components:
     Invocation:
       title: Invocation
       additionalProperties: false
-      description: |-
-        SQLModel for async workflow invocations.
-
-        Attributes:
-            id: Primary key UUID (inherited from BaseResource)
-            created_at: Timestamp when invocation was created
-                (inherited from BaseResource)
-            updated_at: Timestamp of last update (inherited from BaseResource)
-            created_by: UUID of user who created the invocation
-                (inherited from UserOwnedResource)
-            updated_by: UUID of user who last updated the invocation
-                (inherited from UserOwnedResource)
-            labels: Optional key-value metadata (inherited from BaseResource)
-            prompt: Natural language user request
-            session_id: Session identifier for multi-tenant isolation
-            status: Current invocation status (running, paused, cancelled, completed, failed)
-            started_at: Timestamp when workflow execution started
-            completed_at: Timestamp when workflow completed
-            context_data: Additional context for the request
-            result: Workflow result data
-            error_message: Error message if invocation failed
-            checkpoint_data: Checkpoint data for pause/resume
+      description: SQLModel for async workflow invocations.
       properties:
         id:
           type: string
@@ -28354,11 +28255,11 @@ components:
       title: CategoriesListResponse
       description: Response schema for listing setting categories.
       required:
-        - results
+        - resources
       properties:
-        results:
+        resources:
           type: array
-          title: Results
+          title: Resources
           items:
             $ref: '#/components/schemas/SettingCategoryRead'
     ToolExecutionStatus:
@@ -29504,16 +29405,9 @@ components:
           type: string
           format: date-time
           title: Updated At
-    ResourcesResponse_UserRead_:
-      type: object
-      title: ResourcesResponse[UserRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    UserListResponse:
+      title: UserListResponse
+      description: Paginated list response for users.
       properties:
         next:
           anyOf:
@@ -29538,9 +29432,17 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/UserRead'
-          maxItems: 100
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     UserGroupsSet:
       type: object
       title: UserGroupsSet
@@ -29931,16 +29833,9 @@ components:
             $ref: '#/components/schemas/MembershipSource'
           title: Membership Sources
           description: How this user was assigned to this group
-    ResourcesResponse_GroupRead_:
-      type: object
-      title: ResourcesResponse[GroupRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    GroupListResponse:
+      title: GroupListResponse
+      description: Paginated list response for groups.
       properties:
         next:
           anyOf:
@@ -29965,19 +29860,20 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/GroupRead'
-          maxItems: 100
-    ResourcesResponse_UserGroupRead_:
+      required:
+        - resources
       type: object
-      title: ResourcesResponse[UserGroupRead]
       examples:
         - next: eyJpZCI6InV1aWQifQ
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    UserGroupListResponse:
+      title: UserGroupListResponse
+      description: Paginated list response for user groups.
       properties:
         next:
           anyOf:
@@ -30002,19 +29898,20 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/UserGroupRead'
-          maxItems: 100
-    ResourcesResponse_GroupMemberRead_:
+      required:
+        - resources
       type: object
-      title: ResourcesResponse[GroupMemberRead]
       examples:
         - next: eyJpZCI6InV1aWQifQ
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    GroupMemberListResponse:
+      title: GroupMemberListResponse
+      description: Paginated list response for group members.
       properties:
         next:
           anyOf:
@@ -30039,9 +29936,17 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/GroupMemberRead'
-          maxItems: 100
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     GroupMemberAdd:
       type: object
       title: GroupMemberAdd
@@ -30941,13 +30846,13 @@ components:
       title: WorkflowVersionListResponse
       description: Schema for workflow version list response.
       required:
-        - versions
+        - resources
       properties:
-        versions:
+        resources:
           type: array
           items:
             $ref: '#/components/schemas/WorkflowVersionRead'
-          title: Versions
+          title: Resources
     WorkflowCreate:
       type: object
       title: WorkflowCreate

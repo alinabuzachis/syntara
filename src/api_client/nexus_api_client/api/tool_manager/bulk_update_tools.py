@@ -101,19 +101,6 @@ def sync_detailed(
 
      Bulk update tool status (enable/disable multiple tools).
 
-    Updates the status of multiple tools in a single operation.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        bulk_update: Bulk update request with tool IDs and status
-        service: Tool service
-
-    Returns:
-        Dictionary with update statistics and timestamp
-
-    Raises:
-        HTTPException: 400 for validation errors, 403 for auth
-
     Args:
         body (ToolBulkUpdate): Request model for bulk updating tool status.
 
@@ -149,19 +136,6 @@ def sync(
 
      Bulk update tool status (enable/disable multiple tools).
 
-    Updates the status of multiple tools in a single operation.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        bulk_update: Bulk update request with tool IDs and status
-        service: Tool service
-
-    Returns:
-        Dictionary with update statistics and timestamp
-
-    Raises:
-        HTTPException: 400 for validation errors, 403 for auth
-
     Args:
         body (ToolBulkUpdate): Request model for bulk updating tool status.
 
@@ -191,19 +165,6 @@ async def asyncio_detailed(
     """Bulk Update Tools
 
      Bulk update tool status (enable/disable multiple tools).
-
-    Updates the status of multiple tools in a single operation.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        bulk_update: Bulk update request with tool IDs and status
-        service: Tool service
-
-    Returns:
-        Dictionary with update statistics and timestamp
-
-    Raises:
-        HTTPException: 400 for validation errors, 403 for auth
 
     Args:
         body (ToolBulkUpdate): Request model for bulk updating tool status.
@@ -237,19 +198,6 @@ async def asyncio(
     """Bulk Update Tools
 
      Bulk update tool status (enable/disable multiple tools).
-
-    Updates the status of multiple tools in a single operation.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        bulk_update: Bulk update request with tool IDs and status
-        service: Tool service
-
-    Returns:
-        Dictionary with update statistics and timestamp
-
-    Raises:
-        HTTPException: 400 for validation errors, 403 for auth
 
     Args:
         body (ToolBulkUpdate): Request model for bulk updating tool status.

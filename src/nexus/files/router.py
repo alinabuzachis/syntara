@@ -100,7 +100,7 @@ class FileUploadResponse(BaseModel):
 
 @router.post(
     "",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_201_CREATED,
     summary="Upload Files (Design Time)",
     description="Upload files independently of invocations for later use in agent execution. "
     "Returns file_ids that can be stored in workflow configuration and passed to invocations. "
@@ -110,7 +110,7 @@ class FileUploadResponse(BaseModel):
     response_description="Files uploaded successfully",
     openapi_extra={
         "responses": {
-            "200": {
+            "201": {
                 "content": {
                     "application/json": {
                         "examples": {

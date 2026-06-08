@@ -9,23 +9,24 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.group_member_read import GroupMemberRead
+    from ..models.credential_workflow_ref import CredentialWorkflowRef
 
 
-T = TypeVar("T", bound="ResourcesResponseGroupMemberRead")
+T = TypeVar("T", bound="CredentialWorkflowListResponse")
 
 
 @_attrs_define
-class ResourcesResponseGroupMemberRead:
-    """
+class CredentialWorkflowListResponse:
+    """Paginated list response for credential workflow references.
+
     Attributes:
-        resources (list[GroupMemberRead]): Array of resources in current page
+        resources (list[CredentialWorkflowRef]): Array of resources in current page
         next_ (None | str | Unset): Cursor for next page of results
         prev (None | str | Unset): Cursor for previous page of results
         total (int | None | Unset): Total count of resources (only when include_total=true)
     """
 
-    resources: list[GroupMemberRead]
+    resources: list[CredentialWorkflowRef]
     next_: None | str | Unset = UNSET
     prev: None | str | Unset = UNSET
     total: int | None | Unset = UNSET
@@ -73,13 +74,13 @@ class ResourcesResponseGroupMemberRead:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.group_member_read import GroupMemberRead
+        from ..models.credential_workflow_ref import CredentialWorkflowRef
 
         d = dict(src_dict)
         resources = []
         _resources = d.pop("resources")
         for resources_item_data in _resources:
-            resources_item = GroupMemberRead.from_dict(resources_item_data)
+            resources_item = CredentialWorkflowRef.from_dict(resources_item_data)
 
             resources.append(resources_item)
 
@@ -110,15 +111,15 @@ class ResourcesResponseGroupMemberRead:
 
         total = _parse_total(d.pop("total", UNSET))
 
-        resources_response_group_member_read = cls(
+        credential_workflow_list_response = cls(
             resources=resources,
             next_=next_,
             prev=prev,
             total=total,
         )
 
-        resources_response_group_member_read.additional_properties = d
-        return resources_response_group_member_read
+        credential_workflow_list_response.additional_properties = d
+        return credential_workflow_list_response
 
     @property
     def additional_keys(self) -> list[str]:

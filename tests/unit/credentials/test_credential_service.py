@@ -17,7 +17,7 @@ from nexus.credentials.exceptions import (
     CredentialNotFoundError,
     CredentialValidationError,
 )
-from nexus.credentials.models.credential import Credential, CredentialCreate, CredentialPatch
+from nexus.credentials.models.credential import Credential, CredentialCreate, CredentialUpdate
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.credentials.services.credential_service import (
     CredentialService,
@@ -348,7 +348,7 @@ class TestUpdateCredential:
         }
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
-        patch = CredentialPatch(inputs={"username": "new-admin", "password": ENCRYPTED_SENTINEL})
+        patch = CredentialUpdate(inputs={"username": "new-admin", "password": ENCRYPTED_SENTINEL})
         await service.update_credential(credential.id, patch)
 
         # Verify update was called with merged inputs (password preserved)
@@ -755,7 +755,7 @@ class TestAuditEventDispatch:
         mock_secret_service.retrieve_secret.return_value = {"token": "sk-old"}
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
-        data = CredentialPatch(name="new-name")
+        data = CredentialUpdate(name="new-name")
 
         with patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher:
             await service.update_credential(existing.id, data)
@@ -789,7 +789,7 @@ class TestAuditEventDispatch:
         mock_secret_service.retrieve_secret.return_value = {"token": "sk-val"}
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
-        data = CredentialPatch(enabled=False)
+        data = CredentialUpdate(enabled=False)
 
         with patch("nexus.credentials.services.credential_service.AuditEventDispatcher") as mock_dispatcher:
             await service.update_credential(existing.id, data)

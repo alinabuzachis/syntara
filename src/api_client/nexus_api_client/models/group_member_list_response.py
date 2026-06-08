@@ -9,24 +9,24 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.example_item import ExampleItem
+    from ..models.group_member_read import GroupMemberRead
 
 
-T = TypeVar("T", bound="ExampleListResponse")
+T = TypeVar("T", bound="GroupMemberListResponse")
 
 
 @_attrs_define
-class ExampleListResponse:
-    """Paginated list response for example items.
+class GroupMemberListResponse:
+    """Paginated list response for group members.
 
     Attributes:
-        resources (list[ExampleItem]):
-        next_ (None | str | Unset):
-        prev (None | str | Unset):
-        total (int | None | Unset):
+        resources (list[GroupMemberRead]): Array of resources in current page
+        next_ (None | str | Unset): Cursor for next page of results
+        prev (None | str | Unset): Cursor for previous page of results
+        total (int | None | Unset): Total count of resources (only when include_total=true)
     """
 
-    resources: list[ExampleItem]
+    resources: list[GroupMemberRead]
     next_: None | str | Unset = UNSET
     prev: None | str | Unset = UNSET
     total: int | None | Unset = UNSET
@@ -74,13 +74,13 @@ class ExampleListResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.example_item import ExampleItem
+        from ..models.group_member_read import GroupMemberRead
 
         d = dict(src_dict)
         resources = []
         _resources = d.pop("resources")
         for resources_item_data in _resources:
-            resources_item = ExampleItem.from_dict(resources_item_data)
+            resources_item = GroupMemberRead.from_dict(resources_item_data)
 
             resources.append(resources_item)
 
@@ -111,15 +111,15 @@ class ExampleListResponse:
 
         total = _parse_total(d.pop("total", UNSET))
 
-        example_list_response = cls(
+        group_member_list_response = cls(
             resources=resources,
             next_=next_,
             prev=prev,
             total=total,
         )
 
-        example_list_response.additional_properties = d
-        return example_list_response
+        group_member_list_response.additional_properties = d
+        return group_member_list_response
 
     @property
     def additional_keys(self) -> list[str]:

@@ -6,36 +6,22 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.example_item import ExampleItem
-from ...models.example_update import ExampleUpdate
+from ...models.user_read import UserRead
 from ...types import Response
 
 
-def _get_kwargs(
-    item_id: int,
-    *,
-    body: ExampleUpdate,
-) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-
+def _get_kwargs() -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
-        "method": "put",
-        "url": f"/example/{item_id}",
+        "method": "get",
+        "url": "/users/me",
     }
 
-    _kwargs["json"] = body.to_dict()
-
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | ExampleItem | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> ErrorData | UserRead | None:
     if response.status_code == 200:
-        response_200 = ExampleItem.from_dict(response.json())
+        response_200 = UserRead.from_dict(response.json())
 
         return response_200
 
@@ -82,7 +68,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | ExampleItem]:
+) -> Response[ErrorData | UserRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -94,31 +80,22 @@ def _build_response(
 
 
 def sync_detailed(
-    item_id: int,
     *,
-    client: AuthenticatedClient | Client,
-    body: ExampleUpdate,
-) -> Response[ErrorData | ExampleItem]:
-    """Update example item
+    client: AuthenticatedClient,
+) -> Response[ErrorData | UserRead]:
+    """Get Current User Profile
 
-     Updates an existing example item
-
-    Args:
-        item_id (int): Example item ID
-        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
+     Return information about the currently authenticated user.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ExampleItem]
+        Response[ErrorData | UserRead]
     """
 
-    kwargs = _get_kwargs(
-        item_id=item_id,
-        body=body,
-    )
+    kwargs = _get_kwargs()
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -128,60 +105,43 @@ def sync_detailed(
 
 
 def sync(
-    item_id: int,
     *,
-    client: AuthenticatedClient | Client,
-    body: ExampleUpdate,
-) -> ErrorData | ExampleItem | None:
-    """Update example item
+    client: AuthenticatedClient,
+) -> ErrorData | UserRead | None:
+    """Get Current User Profile
 
-     Updates an existing example item
-
-    Args:
-        item_id (int): Example item ID
-        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
+     Return information about the currently authenticated user.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ExampleItem
+        ErrorData | UserRead
     """
 
     return sync_detailed(
-        item_id=item_id,
         client=client,
-        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    item_id: int,
     *,
-    client: AuthenticatedClient | Client,
-    body: ExampleUpdate,
-) -> Response[ErrorData | ExampleItem]:
-    """Update example item
+    client: AuthenticatedClient,
+) -> Response[ErrorData | UserRead]:
+    """Get Current User Profile
 
-     Updates an existing example item
-
-    Args:
-        item_id (int): Example item ID
-        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
+     Return information about the currently authenticated user.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ExampleItem]
+        Response[ErrorData | UserRead]
     """
 
-    kwargs = _get_kwargs(
-        item_id=item_id,
-        body=body,
-    )
+    kwargs = _get_kwargs()
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -189,31 +149,23 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    item_id: int,
     *,
-    client: AuthenticatedClient | Client,
-    body: ExampleUpdate,
-) -> ErrorData | ExampleItem | None:
-    """Update example item
+    client: AuthenticatedClient,
+) -> ErrorData | UserRead | None:
+    """Get Current User Profile
 
-     Updates an existing example item
-
-    Args:
-        item_id (int): Example item ID
-        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
+     Return information about the currently authenticated user.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ExampleItem
+        ErrorData | UserRead
     """
 
     return (
         await asyncio_detailed(
-            item_id=item_id,
             client=client,
-            body=body,
         )
     ).parsed

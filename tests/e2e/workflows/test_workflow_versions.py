@@ -109,10 +109,10 @@ class TestWorkflowVersionListing:
 
         assert response.status_code == HTTPStatus.OK
         assert response.parsed is not None
-        assert len(response.parsed.versions) == 3
+        assert len(response.parsed.resources) == 3
 
         # Verify ordered by version DESC (newest first)
-        versions = response.parsed.versions
+        versions = response.parsed.resources
         assert versions[0].version == 3
         assert versions[1].version == 2
         assert versions[2].version == 1
@@ -144,8 +144,8 @@ class TestWorkflowVersionListing:
 
         assert response.status_code == HTTPStatus.OK
         assert response.parsed is not None
-        assert len(response.parsed.versions) == 1
-        assert response.parsed.versions[0].version == 1
+        assert len(response.parsed.resources) == 1
+        assert response.parsed.resources[0].version == 1
 
     def test_list_versions_nonexistent_workflow(self, nexus_api: NexusApiRegistry) -> None:
         """Test listing versions for non-existent workflow.
@@ -185,7 +185,7 @@ class TestWorkflowVersionListing:
         assert response.status_code == HTTPStatus.OK
         assert response.parsed is not None
 
-        for version in response.parsed.versions:
+        for version in response.parsed.resources:
             assert version.id is not None
             assert version.version is not None
             assert version.schema_version is not None

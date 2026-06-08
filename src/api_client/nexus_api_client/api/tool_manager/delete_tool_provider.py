@@ -87,16 +87,6 @@ def sync_detailed(
 
      Remove Tool Provider and all associated tools.
 
-    Performs a soft delete of the provider and cascades to associated tools.
-    The provider will no longer be accessible but remains in the database.
-
-    Args:
-        provider_id: UUID of the provider to delete
-        service: Tool provider service
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth
-
     Args:
         provider_id (UUID):
 
@@ -128,16 +118,6 @@ def sync(
 
      Remove Tool Provider and all associated tools.
 
-    Performs a soft delete of the provider and cascades to associated tools.
-    The provider will no longer be accessible but remains in the database.
-
-    Args:
-        provider_id: UUID of the provider to delete
-        service: Tool provider service
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth
-
     Args:
         provider_id (UUID):
 
@@ -163,16 +143,6 @@ async def asyncio_detailed(
     """Delete Tool Provider
 
      Remove Tool Provider and all associated tools.
-
-    Performs a soft delete of the provider and cascades to associated tools.
-    The provider will no longer be accessible but remains in the database.
-
-    Args:
-        provider_id: UUID of the provider to delete
-        service: Tool provider service
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth
 
     Args:
         provider_id (UUID):
@@ -202,16 +172,6 @@ async def asyncio(
     """Delete Tool Provider
 
      Remove Tool Provider and all associated tools.
-
-    Performs a soft delete of the provider and cascades to associated tools.
-    The provider will no longer be accessible but remains in the database.
-
-    Args:
-        provider_id: UUID of the provider to delete
-        service: Tool provider service
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth
 
     Args:
         provider_id (UUID):

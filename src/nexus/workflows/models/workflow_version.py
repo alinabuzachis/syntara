@@ -183,7 +183,7 @@ class WorkflowVersionRead(SQLModel):
 class WorkflowVersionListResponse(SQLModel):
     """Schema for workflow version list response."""
 
-    versions: list[WorkflowVersionRead]
+    resources: list[WorkflowVersionRead]
 
 
 class PublishVersionRequest(SQLModel):

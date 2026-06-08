@@ -104,20 +104,6 @@ def sync_detailed(
 
      Patch Tool Provider.
 
-    Performs a partial update of the provider configuration.
-    Only provided fields are updated, configuration objects are replaced.
-
-    Args:
-        provider_id: UUID of the provider to patch
-        provider_patch: Partial update data
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
-
     Args:
         provider_id (UUID):
         body (ToolProviderPatch): ToolProviderPatch model for partially updating tool providers.
@@ -163,20 +149,6 @@ def sync(
 
      Patch Tool Provider.
 
-    Performs a partial update of the provider configuration.
-    Only provided fields are updated, configuration objects are replaced.
-
-    Args:
-        provider_id: UUID of the provider to patch
-        provider_patch: Partial update data
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
-
     Args:
         provider_id (UUID):
         body (ToolProviderPatch): ToolProviderPatch model for partially updating tool providers.
@@ -216,20 +188,6 @@ async def asyncio_detailed(
     """Patch Tool Provider
 
      Patch Tool Provider.
-
-    Performs a partial update of the provider configuration.
-    Only provided fields are updated, configuration objects are replaced.
-
-    Args:
-        provider_id: UUID of the provider to patch
-        provider_patch: Partial update data
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
 
     Args:
         provider_id (UUID):
@@ -273,20 +231,6 @@ async def asyncio(
     """Patch Tool Provider
 
      Patch Tool Provider.
-
-    Performs a partial update of the provider configuration.
-    Only provided fields are updated, configuration objects are replaced.
-
-    Args:
-        provider_id: UUID of the provider to patch
-        provider_patch: Partial update data
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
 
     Args:
         provider_id (UUID):

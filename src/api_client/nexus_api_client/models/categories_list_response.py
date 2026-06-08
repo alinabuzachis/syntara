@@ -18,23 +18,23 @@ class CategoriesListResponse:
     """Response schema for listing setting categories.
 
     Attributes:
-        results (list[SettingCategoryRead]):
+        resources (list[SettingCategoryRead]):
     """
 
-    results: list[SettingCategoryRead]
+    resources: list[SettingCategoryRead]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        results = []
-        for results_item_data in self.results:
-            results_item = results_item_data.to_dict()
-            results.append(results_item)
+        resources = []
+        for resources_item_data in self.resources:
+            resources_item = resources_item_data.to_dict()
+            resources.append(resources_item)
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "results": results,
+                "resources": resources,
             }
         )
 
@@ -45,15 +45,15 @@ class CategoriesListResponse:
         from ..models.setting_category_read import SettingCategoryRead
 
         d = dict(src_dict)
-        results = []
-        _results = d.pop("results")
-        for results_item_data in _results:
-            results_item = SettingCategoryRead.from_dict(results_item_data)
+        resources = []
+        _resources = d.pop("resources")
+        for resources_item_data in _resources:
+            resources_item = SettingCategoryRead.from_dict(resources_item_data)
 
-            results.append(results_item)
+            resources.append(resources_item)
 
         categories_list_response = cls(
-            results=results,
+            resources=resources,
         )
 
         categories_list_response.additional_properties = d

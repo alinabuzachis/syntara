@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.credential_patch import CredentialPatch
+from nexus_api_client.models.credential_update import CredentialUpdate
 from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.policy_create import PolicyCreate
 from nexus_api_client.models.policy_statement_schema import PolicyStatementSchema
@@ -100,7 +100,7 @@ def _cred_list(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Respons
 
 
 def _cred_update(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
-    return api.credentials.update(credential_id=ctx["cred_id"], body=CredentialPatch(description="updated"))
+    return api.credentials.update(credential_id=ctx["cred_id"], body=CredentialUpdate(description="updated"))
 
 
 def _cred_delete(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:

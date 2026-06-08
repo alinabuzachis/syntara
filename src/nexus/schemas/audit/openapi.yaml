@@ -48,40 +48,14 @@ paths:
           description: Maximum number of results per page
           schema:
             type: integer
-            maximum: 500
             exclusiveMinimum: 0
+            maximum: 500
             default: 20
             title: Limit
             description: Maximum number of results per page
-        - name: cursor
-          in: query
-          required: false
-          description: Pagination cursor from previous response
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Cursor
-            description: Pagination cursor from previous response
-        - name: sort
-          in: query
-          required: false
-          description: Sort parameter (e.g., 'name', '-created_at')
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Sort
-            description: Sort parameter (e.g., 'name', '-created_at')
-        - name: include_total
-          in: query
-          required: false
-          description: Include total count in response (expensive)
-          schema:
-            type: boolean
-            default: false
-            title: Include Total
-            description: Include total count in response (expensive)
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
         - name: event_category
           in: query
           required: false

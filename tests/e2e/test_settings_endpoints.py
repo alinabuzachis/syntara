@@ -119,7 +119,7 @@ class TestSettings:
 
         assert resp.status_code == HTTPStatus.OK
         assert resp.parsed is not None
-        categories = resp.parsed.results
+        categories = resp.parsed.resources
         assert len(categories) > 0
         slugs = [cat.slug for cat in categories]
         for expected in ("ai_llm", "system", "context_manager", "workflow_execution", "application"):
@@ -196,7 +196,7 @@ class TestNewSettings:
 
         assert resp.status_code == HTTPStatus.OK
         assert resp.parsed is not None
-        slugs = [cat.slug for cat in resp.parsed.results]
+        slugs = [cat.slug for cat in resp.parsed.resources]
         assert "ai_llm" in slugs
         assert "workflow_execution" in slugs
         assert "application" in slugs
@@ -256,7 +256,7 @@ class TestAuditorSettingsAccess:
 
         assert resp.status_code == HTTPStatus.OK
         assert resp.parsed is not None
-        assert len(resp.parsed.results) > 0
+        assert len(resp.parsed.resources) > 0
 
     def test_auditor_cannot_update_setting(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor is denied access to update a setting."""
@@ -456,8 +456,8 @@ class TestSettingsBulkUpdate:
                 )
             )
             assert resp.status_code == HTTPStatus.OK
-            assert isinstance(resp.parsed, list)
-            assert len(resp.parsed) == 3
+            assert resp.parsed is not None
+            assert len(resp.parsed.resources) == 3
 
             for key, expected in [
                 (_MAX_TOKENS_KEY, 5000),
@@ -511,7 +511,8 @@ class TestSettingsBulkUpdate:
         resp = nexus_api.settings.bulk_update(body=SettingBulkUpdateRequest(updates=[]))
 
         assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed == []
+        assert resp.parsed is not None
+        assert resp.parsed.resources == []
 
     def test_bulk_update_exceeds_limit(self, nexus_api: NexusApiRegistry) -> None:
         """Bulk update with more than 500 items returns 422."""

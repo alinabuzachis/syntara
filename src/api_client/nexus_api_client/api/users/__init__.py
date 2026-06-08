@@ -40,6 +40,14 @@ class UsersApi:
         endpoint_module = self._load_endpoint_module("create_user")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def get_current_profile(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_current_user_profile")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_current_profile(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_current_user_profile")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def get(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_user")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

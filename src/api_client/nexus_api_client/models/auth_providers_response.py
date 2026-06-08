@@ -20,25 +20,25 @@ class AuthProvidersResponse:
     """Response for the public providers listing endpoint.
 
     Attributes:
-        providers (list[AuthProviderInfo] | Unset): Enabled identity providers
+        resources (list[AuthProviderInfo] | Unset): Enabled identity providers
     """
 
-    providers: list[AuthProviderInfo] | Unset = UNSET
+    resources: list[AuthProviderInfo] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        providers: list[dict[str, Any]] | Unset = UNSET
-        if not isinstance(self.providers, Unset):
-            providers = []
-            for providers_item_data in self.providers:
-                providers_item = providers_item_data.to_dict()
-                providers.append(providers_item)
+        resources: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.resources, Unset):
+            resources = []
+            for resources_item_data in self.resources:
+                resources_item = resources_item_data.to_dict()
+                resources.append(resources_item)
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
-        if providers is not UNSET:
-            field_dict["providers"] = providers
+        if resources is not UNSET:
+            field_dict["resources"] = resources
 
         return field_dict
 
@@ -47,17 +47,17 @@ class AuthProvidersResponse:
         from ..models.auth_provider_info import AuthProviderInfo
 
         d = dict(src_dict)
-        _providers = d.pop("providers", UNSET)
-        providers: list[AuthProviderInfo] | Unset = UNSET
-        if _providers is not UNSET:
-            providers = []
-            for providers_item_data in _providers:
-                providers_item = AuthProviderInfo.from_dict(providers_item_data)
+        _resources = d.pop("resources", UNSET)
+        resources: list[AuthProviderInfo] | Unset = UNSET
+        if _resources is not UNSET:
+            resources = []
+            for resources_item_data in _resources:
+                resources_item = AuthProviderInfo.from_dict(resources_item_data)
 
-                providers.append(providers_item)
+                resources.append(resources_item)
 
         auth_providers_response = cls(
-            providers=providers,
+            resources=resources,
         )
 
         auth_providers_response.additional_properties = d

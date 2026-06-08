@@ -101,19 +101,6 @@ def sync_detailed(
 
      Register a new Tool Provider.
 
-    Creates a new tool provider with the specified configuration.
-    The provider starts in 'validating' status.
-
-    Args:
-        provider_create: Provider configuration and metadata
-        service: Tool provider service
-
-    Returns:
-        Created ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
-
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
 
@@ -153,19 +140,6 @@ def sync(
 
      Register a new Tool Provider.
 
-    Creates a new tool provider with the specified configuration.
-    The provider starts in 'validating' status.
-
-    Args:
-        provider_create: Provider configuration and metadata
-        service: Tool provider service
-
-    Returns:
-        Created ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
-
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
 
@@ -199,19 +173,6 @@ async def asyncio_detailed(
     """Register Tool Provider
 
      Register a new Tool Provider.
-
-    Creates a new tool provider with the specified configuration.
-    The provider starts in 'validating' status.
-
-    Args:
-        provider_create: Provider configuration and metadata
-        service: Tool provider service
-
-    Returns:
-        Created ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
 
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
@@ -249,19 +210,6 @@ async def asyncio(
     """Register Tool Provider
 
      Register a new Tool Provider.
-
-    Creates a new tool provider with the specified configuration.
-    The provider starts in 'validating' status.
-
-    Args:
-        provider_create: Provider configuration and metadata
-        service: Tool provider service
-
-    Returns:
-        Created ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
 
     Args:
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.

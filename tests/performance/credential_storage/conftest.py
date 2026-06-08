@@ -272,14 +272,14 @@ def patch_credential(
 
     Returns (elapsed_ms, success, parsed_response_dict).
     """
-    from nexus_api_client.models.credential_patch import CredentialPatch
-    from nexus_api_client.models.credential_patch_inputs_type_0 import (
-        CredentialPatchInputsType0,
+    from nexus_api_client.models.credential_update import CredentialUpdate
+    from nexus_api_client.models.credential_update_inputs_type_0 import (
+        CredentialUpdateInputsType0,
     )
     from nexus_api_client.types import UNSET
 
     body_kwargs: dict[str, Any] = {
-        "inputs": CredentialPatchInputsType0.from_dict(patch_inputs),
+        "inputs": CredentialUpdateInputsType0.from_dict(patch_inputs),
     }
     if new_description is not None:
         body_kwargs["description"] = new_description
@@ -290,7 +290,7 @@ def patch_credential(
     try:
         r = nexus_api.credentials.update(
             credential_id=UUID(credential_id),
-            body=CredentialPatch(**body_kwargs),
+            body=CredentialUpdate(**body_kwargs),
         )
         elapsed_ms = (time.monotonic() - start) * 1000
         if r.is_success and r.parsed:

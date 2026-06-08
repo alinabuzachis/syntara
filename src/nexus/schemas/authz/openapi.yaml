@@ -367,19 +367,19 @@ components:
       title: WhoCanResponse
       description: Response body for the Who can? endpoint.
       required:
-        - users
+        - resources
       properties:
-        users:
+        resources:
           type: array
           items:
             $ref: "#/components/schemas/WhoCanUser"
-          title: Users
-        next_cursor:
+          title: Resources
+        next:
           anyOf:
             - type: string
               format: uuid
             - type: 'null'
-          title: Next Cursor
+          title: Next
 
     PermissionEntry:
       type: object

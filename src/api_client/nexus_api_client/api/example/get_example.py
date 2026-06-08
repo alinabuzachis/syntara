@@ -98,7 +98,7 @@ def sync_detailed(
      Returns example data for demonstration purposes
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -127,7 +127,7 @@ def sync(
      Returns example data for demonstration purposes
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -153,7 +153,7 @@ async def asyncio_detailed(
      Returns example data for demonstration purposes
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -182,7 +182,7 @@ async def asyncio(
      Returns example data for demonstration purposes
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset):  Default: 10.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

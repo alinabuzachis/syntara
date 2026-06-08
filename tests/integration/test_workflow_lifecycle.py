@@ -141,8 +141,8 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # 
     assert list_versions_response.status_code == 200
     versions_data = list_versions_response.json()
 
-    assert "versions" in versions_data
-    versions = versions_data["versions"]
+    assert "resources" in versions_data
+    versions = versions_data["resources"]
     assert len(versions) == 3
 
     # Verify versions are ordered DESC (newest first)

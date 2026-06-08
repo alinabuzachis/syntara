@@ -246,7 +246,7 @@ class TestCredentialWorkflows:
 
         resp = await auth_client.get(f"/api/v1/credentials/{cred_id}/workflows")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["resources"] == []
 
     @pytest.mark.asyncio
     async def test_workflows_not_found_returns_404(self, auth_client: AsyncClient) -> None:
@@ -314,7 +314,7 @@ class TestCredentialWorkflows:
 
         resp = await auth_client.get(f"/api/v1/credentials/{cred_id}/workflows")
         assert resp.status_code == 200
-        workflows = resp.json()
+        workflows = resp.json()["resources"]
         assert len(workflows) == 1
         assert workflows[0]["id"] == str(workflow.id)
         assert workflows[0]["name"] == workflow.name
@@ -400,7 +400,7 @@ class TestCredentialWorkflows:
 
         resp = await auth_client.get(f"/api/v1/credentials/{cred_id}/workflows")
         assert resp.status_code == 200
-        workflows = resp.json()
+        workflows = resp.json()["resources"]
         assert len(workflows) == 1
         assert sorted(workflows[0]["node_names"]) == ["Fetch Orders", "Fetch Users"]
 

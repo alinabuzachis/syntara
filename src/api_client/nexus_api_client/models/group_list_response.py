@@ -12,12 +12,13 @@ if TYPE_CHECKING:
     from ..models.group_read import GroupRead
 
 
-T = TypeVar("T", bound="ResourcesResponseGroupRead")
+T = TypeVar("T", bound="GroupListResponse")
 
 
 @_attrs_define
-class ResourcesResponseGroupRead:
-    """
+class GroupListResponse:
+    """Paginated list response for groups.
+
     Attributes:
         resources (list[GroupRead]): Array of resources in current page
         next_ (None | str | Unset): Cursor for next page of results
@@ -110,15 +111,15 @@ class ResourcesResponseGroupRead:
 
         total = _parse_total(d.pop("total", UNSET))
 
-        resources_response_group_read = cls(
+        group_list_response = cls(
             resources=resources,
             next_=next_,
             prev=prev,
             total=total,
         )
 
-        resources_response_group_read.additional_properties = d
-        return resources_response_group_read
+        group_list_response.additional_properties = d
+        return group_list_response
 
     @property
     def additional_keys(self) -> list[str]:

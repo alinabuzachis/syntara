@@ -141,7 +141,7 @@ class ProjectCredentialCreate(SQLModel):
     labels: dict[str, str] = Field(default_factory=dict, description="Key-value labels")
 
 
-class CredentialPatch(SQLModel):
+class CredentialUpdate(SQLModel):
     """Schema for partially updating a credential. $encrypted$ preserves existing values."""
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
@@ -165,3 +165,7 @@ class CredentialWorkflowRef(SQLModel):
     node_names: list[str] = Field(default_factory=list, description="Names of nodes using this credential")
     last_execution_at: datetime | None = Field(default=None, description="Timestamp of the most recent execution")
     last_execution_status: str | None = Field(default=None, description="Status of the most recent execution")
+
+
+class CredentialWorkflowListResponse(ResourcesResponse[CredentialWorkflowRef]):
+    """Paginated list response for credential workflow references."""
