@@ -1,0 +1,96 @@
+# ==============================================================================
+# Python (backend/)
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+backend/**/__pycache__/
+backend/**/*.py[codz]
+backend/**/*$py.class
+
+# Distribution / packaging
+backend/build/
+backend/dist/
+backend/**/*.egg-info/
+backend/**/*.egg
+
+# Virtual environments
+backend/.venv/
+backend/env/
+backend/venv/
+
+# Unit test / coverage reports
+backend/htmlcov/
+backend/htmlcov-*/
+backend/.coverage
+backend/.coverage.*
+backend/.pytest_cache/
+backend/coverage.xml
+backend/pytest-results.xml
+backend/pytest-results*
+
+# Type checkers
+backend/.mypy_cache/
+backend/.ruff_cache/
+
+# Secrets
+backend/.secrets/
+
+# DAST scan results
+backend/dast/results/
+
+# Local Makefile
+backend/Makefile.local
+
+# ==============================================================================
+# Node.js / TypeScript (frontend/)
+# ==============================================================================
+
+frontend/node_modules/
+frontend/**/dist/
+frontend/**/dist-ssr/
+frontend/**/*.local
+
+# Test artifacts
+frontend/**/coverage/
+frontend/**/coverage.claude/
+frontend/**/.c8_output/
+frontend/**/test-results/
+frontend/**/playwright-report/
+frontend/**/visual-diff-summary.json
+
+# macOS visual regression snapshots (Linux baselines are CI source of truth)
+frontend/**/page-screenshots.spec.ts-snapshots/**/*-darwin.png
+
+frontend/storybook-static/
+frontend/.eslintcache
+
+# ==============================================================================
+# Shared
+# ==============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# IDE / Editor
+.idea/
+.vscode/
+.cursor/
+.cursorignore
+.cursorindexingignore
+
+# AI agent local files
+.claude/
+CLAUDE.local.md
+AGENTS.local.md
+.gemini/
+
+# Playwright MCP
+.playwright-mcp/
