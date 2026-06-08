@@ -13,25 +13,11 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import PrincipalType, RoleAssignment
 from nexus.authz.models.role import Role
 from nexus.core.models import User
-from nexus.core.models.group import Group, user_groups
-from tests.integration.api.conftest import make_user_role
-
-
-async def _make_admin(session: AsyncSession, user: User) -> None:
-    """Assign the admin role to a user via a dedicated group."""
-    group = Group(name=f"admin-grp-{uuid4()}", description="", labels={})
-    session.add(group)
-    await session.flush()
-    session.add(RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="admin"))
-    await session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
-    await session.commit()
-
+from tests.integration.api.conftest import make_admin, make_user_role
 
 # ============================================================================
 # CRUD Lifecycle
@@ -45,7 +31,7 @@ async def test_role_crud_lifecycle(
     test_user: User,
 ) -> None:
     """Full CRUD lifecycle: create, read, list, update, delete."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     # Create
     response = await auth_client.post(
@@ -107,7 +93,7 @@ async def test_create_role_with_unknown_policy_fails(
     test_user: User,
 ) -> None:
     """Creating a role that references non-existent policies returns an error."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.post(
         "/api/v1/roles",
@@ -127,7 +113,7 @@ async def test_update_role_with_unknown_policy_fails(
     test_user: User,
 ) -> None:
     """Updating a role with a non-existent policy returns an error."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.post(
         "/api/v1/roles",
@@ -158,7 +144,7 @@ async def test_cannot_update_builtin_role(
     test_user: User,
 ) -> None:
     """Builtin roles cannot be modified."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.get("/api/v1/roles?is_builtin=true")
     assert response.status_code == 200
@@ -180,7 +166,7 @@ async def test_cannot_delete_builtin_role(
     test_user: User,
 ) -> None:
     """Builtin roles cannot be deleted."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.get("/api/v1/roles?is_builtin=true")
     assert response.status_code == 200
@@ -202,7 +188,7 @@ async def test_duplicate_role_name_returns_409(
     test_user: User,
 ) -> None:
     """Creating a role with a duplicate name in the same scope returns 409."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     body = {
         "name": "unique-role",
@@ -284,7 +270,7 @@ async def test_list_roles_filter_by_policy_name(
     test_user: User,
 ) -> None:
     """Filter roles by policy_name returns only roles containing that policy."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     # Create a role with specific policies
     response = await auth_client.post(
@@ -317,7 +303,7 @@ async def test_list_roles_filter_by_policy_name_contains(
     test_user: User,
 ) -> None:
     """Filter roles by policy_name[contains] returns roles with matching policies."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
 
     response = await auth_client.post(
         "/api/v1/roles",
@@ -348,6 +334,6 @@ async def test_get_nonexistent_role_returns_404(
     test_user: User,
 ) -> None:
     """Getting a role that doesn't exist returns 404."""
-    await _make_admin(test_db_session, test_user)
+    await make_admin(test_db_session, test_user)
     response = await auth_client.get(f"/api/v1/roles/{uuid4()}")
     assert response.status_code == 404

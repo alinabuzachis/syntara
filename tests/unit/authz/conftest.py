@@ -1,7 +1,8 @@
-"""Shared fixtures for unit-level OPA Rego policy tests.
+"""Shared fixtures for unit-level authz tests.
 
 Provides helpers to evaluate the authz.rego policy via the OPA CLI
-without any database or API dependencies.
+without any database or API dependencies, plus common fixtures for
+engine/cache tests that use a mocked OPA client.
 """
 
 import json
@@ -9,14 +10,42 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from nexus.authz.seed import seed_authz_data
 
 # Path to the rego policy file
 _REGO_POLICY_PATH = Path(__file__).resolve().parents[3] / "src" / "nexus" / "authz" / "rego" / "authz.rego"
 
 # Fields we care about from OPA evaluation
 _OPA_RESULT_FIELDS = {"allow", "deny", "matched_policy", "denial_reason", "denied_by", "allowed_projects"}
+
+
+@pytest.fixture
+async def seeded_db(test_db_session: AsyncSession) -> AsyncSession:
+    """Seed authz data and return the session."""
+    await seed_authz_data(test_db_session)
+    return test_db_session
+
+
+@pytest.fixture
+def mock_opa() -> AsyncMock:
+    """Create a mock OPA client."""
+    opa = AsyncMock()
+    opa.evaluate = AsyncMock(
+        return_value={
+            "allow": True,
+            "deny": False,
+            "matched_policy": "test-allow",
+            "denial_reason": "",
+            "denied_by": "",
+            "allowed_projects": ["*"],
+        }
+    )
+    return opa
 
 
 @pytest.fixture(autouse=True)
