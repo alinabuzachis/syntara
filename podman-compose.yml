@@ -1,0 +1,261 @@
+---
+services:
+  database:
+    image: ${POSTGRES_IMAGE:-quay.io/sclorg/postgresql-15-c9s}
+    restart: unless-stopped
+    ports:
+      - ${APP_DB_PORT:-5432}:5432
+    environment:
+      POSTGRESQL_USER: ${APP_DB_USER:-admin}
+      POSTGRESQL_PASSWORD: ${APP_DB_PASSWORD:-admin}
+      POSTGRESQL_DATABASE: ${APP_DB_NAME:-nexus_api}
+      POSTGRESQL_ADMIN_PASSWORD: ${APP_DB_PASSWORD:-admin}
+      APP_AUDIT_DB_USER: ${APP_AUDIT_DB_USER:-nexus_audit}
+      APP_AUDIT_DB_PASSWORD: ${APP_AUDIT_DB_PASSWORD:-audit_pass}
+      APP_AUDIT_DB_NAME: ${APP_AUDIT_DB_NAME:-nexus_audit}
+    volumes:
+      - nexus_postgres_data:/var/lib/pgsql/data
+      - ./backend/containers/database/create-audit-db.sh:/opt/app-root/src/postgresql-start/create-audit-db.sh:z
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U $${POSTGRESQL_USER:-admin} -d $${POSTGRESQL_DATABASE:-nexus_api}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: ${APP_CACHE_IMAGE:-mirror.gcr.io/library/redis:6}
+    restart: unless-stopped
+    command: sh -c "redis-server --requirepass $${REDIS_PASSWORD:-cache}"
+    ports:
+      - ${APP_CACHE_PORT:-6379}:6379
+    environment:
+      REDIS_PASSWORD: ${APP_CACHE_PASSWORD:-cache}
+    healthcheck:
+      test: [CMD-SHELL, 'redis-cli -h 127.0.0.1 -p 6379 -a $${REDIS_PASSWORD:-cache} ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nexus-ui:
+    build:
+      context: ./frontend
+      dockerfile: packages/nexus-ui/Containerfile
+    image: ${APP_UI_IMAGE:-localhost/nexus-ui:latest}
+    restart: unless-stopped
+    ports:
+      - ${APP_UI_PORT:-8080}:80
+    environment:
+      - APP_API_URL=${APP_API_URL:-http://nexus:8000}
+    depends_on:
+      nexus:
+        condition: service_healthy
+
+  temporal:
+    image: mirror.gcr.io/temporalio/auto-setup:1.25.1
+    restart: unless-stopped
+    ports:
+      - ${APP_TEMPORAL_PORT:-7233}:7233
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PWD=${APP_DB_PASSWORD:-admin}
+      - POSTGRES_SEEDS=database
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    volumes:
+      - ./backend/containers/temporal-server/temporal-config:/etc/temporal/config/dynamicconfig:z
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, tctl, --address, 'temporal:7233', cluster, health]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  temporal-ui:
+    image: mirror.gcr.io/temporalio/ui:2.31.2
+    restart: unless-stopped
+    ports:
+      - ${APP_TEMPORAL_UI_PORT:-8081}:8080
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+  nexus:
+    build:
+      context: ./backend
+      dockerfile: containers/nexus/Containerfile
+    image: ${APP_IMAGE:-localhost/nexus:latest}
+    restart: unless-stopped
+    command: [sh, -c, 'uv run alembic upgrade head && uv run alembic -c alembic_audit.ini upgrade head && uv run python -m nexus.seed --all && uv run python -m nexus.api.main']
+    ports:
+      - ${APP_API_PORT:-8000}:8000
+    environment:
+      - APP_DB_HOST=database
+      - APP_DB_PORT=5432
+      - APP_DB_USER=${APP_DB_USER:-admin}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
+      - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+      - APP_AUDIT_DB_HOST=database
+      - APP_AUDIT_DB_PORT=5432
+      - APP_AUDIT_DB_USER=${APP_AUDIT_DB_USER:-nexus_audit}
+      - APP_AUDIT_DB_PASSWORD=${APP_AUDIT_DB_PASSWORD:-audit_pass}
+      - APP_AUDIT_DB_NAME=${APP_AUDIT_DB_NAME:-nexus_audit}
+      - APP_TEMPORAL_ADDRESS=temporal:7233
+      - APP_TEMPORAL_NAMESPACE=default
+      - APP_CACHE_HOST=redis
+      - APP_CACHE_PASSWORD=${APP_CACHE_PASSWORD:-cache}
+      - APP_SERVER_PUBLIC_URL=${APP_SERVER_PUBLIC_URL:-}
+      - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
+      - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
+      - APP_LOG_OUTPUT_FORMAT=${APP_LOG_OUTPUT_FORMAT:-text}
+      - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
+      - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
+      - APP_SEGMENT_MAX_RETRIES=${APP_SEGMENT_MAX_RETRIES:-10}
+      - APP_SEGMENT_TIMEOUT=${APP_SEGMENT_TIMEOUT:-30}
+      - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
+      - APP_COLLECTION_INTERVAL_SECONDS=${APP_COLLECTION_INTERVAL_SECONDS:-300}
+      - APP_CONTAINER_IMAGE_VERSION=${APP_CONTAINER_IMAGE_VERSION:-dev}
+      - APP_AAP_BASE_URL=${APP_AAP_BASE_URL}
+      - APP_AAP_USERNAME=${APP_AAP_USERNAME}
+      - APP_AAP_PASSWORD=${APP_AAP_PASSWORD}
+      - APP_AAP_TOKEN=${APP_AAP_TOKEN}
+      - APP_AAP_VERIFY_SSL=${APP_AAP_VERIFY_SSL:-true}
+      - APP_AAP_PROXY_TIMEOUT_SECONDS=${APP_AAP_PROXY_TIMEOUT_SECONDS:-30}
+      - APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem
+      - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]
+      - APP_CORS_ALLOW_ORIGINS=${APP_CORS_ALLOW_ORIGINS:-["http://localhost:8080","https://localhost:8080","http://localhost:5173","https://localhost:5173"]}
+      - APP_ADMIN_PASSWORD_PATH=/run/secrets/admin-password
+      - APP_OPA_URL=${APP_OPA_URL:-http://opa:8181}
+      - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
+    volumes:
+      - ./backend/src:/opt/app-root/src/src:z
+      - ./backend/.secrets/jwt-primary.pem:/run/secrets/jwt-primary.pem:ro,z
+      - ./backend/.secrets/jwt-backup.pem:/run/secrets/jwt-backup.pem:ro,z
+      - ./backend/.secrets/admin-password:/run/secrets/admin-password:ro,z
+      - ./backend/.secrets/encryption-key:/run/secrets/encryption-key:ro,z
+    depends_on:
+      database:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'python3 -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")"']
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  temporal-worker:
+    image: ${APP_IMAGE:-localhost/nexus:latest}
+    restart: unless-stopped
+    command: [sh, -c, uv run python -m nexus.workflows.worker]
+    environment:
+      - APP_DB_HOST=database
+      - APP_DB_PORT=5432
+      - APP_DB_USER=${APP_DB_USER:-admin}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
+      - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+      - APP_SERVER_SCHEME=${APP_SERVER_SCHEME:-https}
+      - APP_SERVER_HOST=${APP_SERVER_HOST:-0.0.0.0}
+      - APP_SERVER_PORT=${APP_SERVER_PORT:-8000}
+      - APP_SERVER_PUBLIC_URL=${APP_SERVER_PUBLIC_URL:-}
+      - APP_TEMPORAL_ADDRESS=temporal:7233
+      - APP_TEMPORAL_NAMESPACE=default
+      - APP_TASK_QUEUE=nexus-workflow-queue
+      - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
+      - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
+      - APP_CACHE_HOST=redis
+      - APP_CACHE_PASSWORD=${APP_CACHE_PASSWORD:-cache}
+      - APP_WORKFLOW_BASE_URL=${APP_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
+      - APP_AGENT_ORCHESTRATOR_BASE_URL=${APP_AGENT_ORCHESTRATOR_BASE_URL:-http://nexus:8000/api/v1}
+      - APP_APPROVALS_API_BASE_URL=${APP_APPROVALS_API_BASE_URL:-http://nexus:8000/api/v1}
+      - APP_AAP_BASE_URL=${APP_AAP_BASE_URL}
+      - APP_AAP_USERNAME=${APP_AAP_USERNAME}
+      - APP_AAP_PASSWORD=${APP_AAP_PASSWORD}
+      - APP_AAP_TOKEN=${APP_AAP_TOKEN}
+      - APP_AAP_TIMEOUT_SECONDS=${APP_AAP_TIMEOUT_SECONDS:-3600}
+      - APP_AAP_POLL_INTERVAL_SECONDS=${APP_AAP_POLL_INTERVAL_SECONDS:-5.0}
+      - APP_AAP_VERIFY_SSL=${APP_AAP_VERIFY_SSL:-true}
+      - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
+      - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
+      - APP_SEGMENT_MAX_RETRIES=${APP_SEGMENT_MAX_RETRIES:-10}
+      - APP_SEGMENT_TIMEOUT=${APP_SEGMENT_TIMEOUT:-30}
+      - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
+      - APP_CONTAINER_IMAGE_VERSION=${APP_CONTAINER_IMAGE_VERSION:-dev}
+      - APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem
+      - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]
+      - APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key
+    volumes:
+      - ./backend/src:/opt/app-root/src/src:z
+      - ./backend/.secrets/jwt-primary.pem:/run/secrets/jwt-primary.pem:ro,z
+      - ./backend/.secrets/jwt-backup.pem:/run/secrets/jwt-backup.pem:ro,z
+      - ./backend/.secrets/encryption-key:/run/secrets/encryption-key:ro,z
+    depends_on:
+      database:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'cat /proc/[0-9]*/cmdline 2>/dev/null | grep -qa nexus.workflows.worker']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  opa:
+    image: mirror.gcr.io/openpolicyagent/opa:1.4.2-static
+    restart: unless-stopped
+    command: [run, --server, --addr, ':8181', /policies]
+    ports:
+      - ${APP_OPA_PORT:-8181}:8181
+    volumes:
+      - ./backend/src/nexus/authz/rego:/policies:z
+    healthcheck:
+      test: [CMD, /opa, eval, 'true']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mcp-server:
+    build:
+      context: ./backend
+      dockerfile: containers/mcp/Containerfile
+    image: ${MCP_IMAGE:-localhost/nexus-mcp:latest}
+    restart: unless-stopped
+    ports:
+      - ${MCP_PORT:-8765}:8765
+    environment:
+      - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8765
+    healthcheck:
+      test: [CMD, curl, -f, 'http://localhost:8765/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  mock-segment:
+    image: ${MOCK_SEGMENT_IMAGE:-quay.io/ansible/dummy-segment@sha256:9f8a58b56f3dc1d0fa363bd67a85e68a710819760bc56a38017c1e772c3f6a2e}
+    ports:
+      - ${SEGMENT_SERVER_PORT:-9999}:9999
+    healthcheck:
+      test: [CMD-SHELL, 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:9999/health\")"']
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - telemetry-e2e
+
+volumes:
+  nexus_postgres_data:
+    driver: local
