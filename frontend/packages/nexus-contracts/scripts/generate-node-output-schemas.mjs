@@ -4,7 +4,7 @@
  *
  * Usage:
  *   node generate-node-output-schemas.mjs
- *   node generate-node-output-schemas.mjs --schemas-dir ../../nexus/src/nexus/schemas/workflows/v2
+ *   node generate-node-output-schemas.mjs --schemas-dir ../../../backend/src/nexus/schemas/workflows/v2
  */
 
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -20,8 +20,8 @@ function parseSchemasDir() {
   if (idx !== -1 && process.argv[idx + 1]) {
     return resolve(process.argv[idx + 1])
   }
-  // Default: cloned backend inside nexus-contracts working directory
-  return resolve('./nexus/src/nexus/schemas/workflows/v2')
+  // Default: monorepo backend path (three levels up from nexus-contracts)
+  return resolve('../../../backend/src/nexus/schemas/workflows/v2')
 }
 
 const schemasDir = parseSchemasDir()
