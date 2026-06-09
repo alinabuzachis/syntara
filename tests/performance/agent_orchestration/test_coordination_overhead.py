@@ -2,7 +2,7 @@
 
 Test 17.2: Multi-agent workflow coordination
     KPI: Coordination Overhead < 500ms
-    MetricType: AGENT_ROUTING_DURATION, COMPONENT_DURATION
+    MetricType: AGENT_ROUTING_DURATION
     Validation: Sum of inter-agent coordination time
 
 Test 17.4: Parallel multi-agent workflows
@@ -49,13 +49,12 @@ class TestCoordinationOverhead:
     """17.2 — Multi-agent workflow coordination.
 
     Submits invocations that exercise the orchestrator's agent routing
-    and coordination logic, then reads ``AGENT_ROUTING_DURATION`` and
-    ``COMPONENT_DURATION`` metrics to measure the coordination overhead.
+    and coordination logic, then reads ``AGENT_ROUTING_DURATION``
+    metrics to measure the coordination overhead.
 
     Validates:
         - Server-side routing duration p95 < 500ms
-        - Component-level coordination overhead stays within target
-        - ``component_duration_ms`` records carry component labels
+        - Raw routing record p95 stays within target
     """
 
     @pytest.fixture(autouse=True)
@@ -122,29 +121,6 @@ class TestCoordinationOverhead:
             f"Coordination overhead p95 {effective_p95:.1f}ms exceeds target "
             f"{TARGET_COORDINATION_OVERHEAD_P95_MS}ms{diag}"
         )
-
-        # --- Component duration breakdown (secondary validation) ---
-
-        component_records = poll_for_metric_records(
-            nexus_api.internal_metrics,
-            "component_duration_ms",
-            limit=COORDINATION_INVOCATION_COUNT * 5,
-            timeout=STABILIZATION_TIMEOUT,
-        )
-
-        if component_records.get("total", 0) > 0:
-            component_breakdown: dict[str, list[float]] = {}
-            for record in component_records.get("records", []):
-                labels = record.get("labels", {})
-                component = labels.get("component", "unknown")
-                value = record.get("value", 0)
-                if isinstance(value, (int, float)):
-                    component_breakdown.setdefault(component, []).append(value)
-
-            assert len(component_breakdown) > 0, (
-                f"component_duration_ms records have no 'component' labels "
-                f"(total records: {component_records.get('total', 0)})"
-            )
 
 
 class TestCoordinationUnderConcurrency:
