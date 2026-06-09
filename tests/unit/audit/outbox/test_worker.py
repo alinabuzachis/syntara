@@ -694,3 +694,142 @@ class TestMalformedRecordHandling:
             result = await session.exec(select(AuditOutboxRecord))
             remaining = result.all()
             assert len(remaining) == 0
+
+
+# ------------------------------------------------------------------ #
+# OTEL Event Source Discriminator
+# ------------------------------------------------------------------ #
+
+
+class TestOtelEventSourceDiscriminator:
+    """Test that OTEL events include the audit.event_source discriminator field."""
+
+    @pytest.mark.asyncio
+    async def test_business_event_includes_event_source_discriminator(
+        self, test_session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Test that business events emitted to OTEL include audit.event_source=business."""
+        # Create business events
+        event_1 = _make_event(event_action="business_action_1")
+        event_2 = _make_event(event_action="business_action_2")
+
+        # Create outbox records for business events
+        outbox_1 = AuditOutboxRecord(
+            event_source=AuditEventSource.BUSINESS_EVENT,
+            event_payload=event_1.model_dump(mode="json"),
+        )
+        outbox_2 = AuditOutboxRecord(
+            event_source=AuditEventSource.BUSINESS_EVENT,
+            event_payload=event_2.model_dump(mode="json"),
+        )
+
+        # Persist to database
+        async with test_session_factory() as session:
+            session.add_all([outbox_1, outbox_2])
+            await session.commit()
+
+        # Mock _emit_otel_log_entry to capture calls
+        with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel:
+            # Publish events
+            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
+                await publish_outbox_events(test_session_factory, test_session_factory)
+
+            # Verify both events were emitted to OTEL
+            assert mock_emit_otel.call_count == 2
+
+            # Verify each call includes event_source=BUSINESS_EVENT
+            for call in mock_emit_otel.call_args_list:
+                args, kwargs = call
+                # First argument is the AuditEvent
+                audit_event = args[0]
+                assert isinstance(audit_event, AuditEvent)
+                # Second argument (or kwarg) is event_source
+                event_source = args[1] if len(args) > 1 else kwargs.get("event_source")
+                assert event_source == AuditEventSource.BUSINESS_EVENT
+
+    @pytest.mark.asyncio
+    async def test_crud_event_includes_event_source_discriminator(
+        self, test_session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Test that CRUD events emitted to OTEL include audit.event_source=crud."""
+        # Create CRUD events
+        event_1 = _make_event(event_action="crud_action_1")
+        event_2 = _make_event(event_action="crud_action_2")
+
+        # Create outbox records for CRUD events
+        outbox_1 = AuditOutboxRecord(
+            event_source=AuditEventSource.CRUD_EVENT,
+            event_payload=event_1.model_dump(mode="json"),
+        )
+        outbox_2 = AuditOutboxRecord(
+            event_source=AuditEventSource.CRUD_EVENT,
+            event_payload=event_2.model_dump(mode="json"),
+        )
+
+        # Persist to database
+        async with test_session_factory() as session:
+            session.add_all([outbox_1, outbox_2])
+            await session.commit()
+
+        # Mock _emit_otel_log_entry to capture calls
+        with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel:
+            # Publish events
+            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
+                await publish_outbox_events(test_session_factory, test_session_factory)
+
+            # Verify both events were emitted to OTEL
+            assert mock_emit_otel.call_count == 2
+
+            # Verify each call includes event_source=CRUD_EVENT
+            for call in mock_emit_otel.call_args_list:
+                args, kwargs = call
+                # First argument is the AuditEvent
+                audit_event = args[0]
+                assert isinstance(audit_event, AuditEvent)
+                # Second argument (or kwarg) is event_source
+                event_source = args[1] if len(args) > 1 else kwargs.get("event_source")
+                assert event_source == AuditEventSource.CRUD_EVENT
+
+    @pytest.mark.asyncio
+    async def test_mixed_events_have_correct_discriminators(
+        self, test_session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Test that mixed business and CRUD events have correct event_source values."""
+        # Create both types of events
+        business_event = _make_event(event_action="business_action")
+        crud_event = _make_event(event_action="crud_action")
+
+        # Create outbox records
+        business_outbox = AuditOutboxRecord(
+            event_source=AuditEventSource.BUSINESS_EVENT,
+            event_payload=business_event.model_dump(mode="json"),
+        )
+        crud_outbox = AuditOutboxRecord(
+            event_source=AuditEventSource.CRUD_EVENT,
+            event_payload=crud_event.model_dump(mode="json"),
+        )
+
+        # Persist to database
+        async with test_session_factory() as session:
+            session.add_all([business_outbox, crud_outbox])
+            await session.commit()
+
+        # Mock _emit_otel_log_entry to capture calls
+        with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel:
+            # Publish events
+            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
+                await publish_outbox_events(test_session_factory, test_session_factory)
+
+            # Verify both events were emitted
+            assert mock_emit_otel.call_count == 2
+
+            # Extract event_source values from each call
+            event_sources = []
+            for call in mock_emit_otel.call_args_list:
+                args, kwargs = call
+                event_sources.append(args[1] if len(args) > 1 else kwargs.get("event_source"))
+
+            # Verify we have one of each type
+            assert AuditEventSource.BUSINESS_EVENT in event_sources
+            assert AuditEventSource.CRUD_EVENT in event_sources
+            assert len(event_sources) == 2
