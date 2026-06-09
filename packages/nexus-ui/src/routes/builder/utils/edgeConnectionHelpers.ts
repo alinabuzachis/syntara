@@ -6,6 +6,7 @@ import { generateUUID } from '../../../utils/generateUUID'
 import type { FlowPosition } from '../types'
 
 import { EdgeFactory } from './EdgeFactory'
+import { isSwitchCasePort, SWITCH_CASE_PORT_PREFIX } from './switchCaseHelpers'
 import type { EdgeType } from './workflowToGraph'
 
 /**
@@ -20,6 +21,17 @@ function hasConditionNodePlaceholders(nodes: Node[], sourceId: string): boolean 
  */
 function hasLoopNodePlaceholders(nodes: Node[], sourceId: string): boolean {
   return nodes.some((n) => n.id === `placeholder-${sourceId}-done` || n.id === `placeholder-${sourceId}-loop`)
+}
+
+/**
+ * Check if a switch node has placeholder nodes for case/default branches
+ */
+function hasSwitchNodePlaceholders(nodes: Node[], sourceId: string): boolean {
+  return nodes.some(
+    (n) =>
+      n.id.startsWith(`placeholder-${sourceId}-${SWITCH_CASE_PORT_PREFIX}`) ||
+      n.id === `placeholder-${sourceId}-default`
+  )
 }
 
 /**
@@ -138,8 +150,11 @@ export function calculateEdgeConnection(
   // Determine placeholder node to remove
   const isConditionHandle = sourceHandle === EdgeHandleEnum.TRUE || sourceHandle === EdgeHandleEnum.FALSE
   const isLoopHandle = sourceHandle === EdgeHandleEnum.DONE || sourceHandle === EdgeHandleEnum.LOOP
+  const isSwitchLikeHandle = isSwitchCasePort(sourceHandle) || sourceHandle === EdgeHandleEnum.DEFAULT
   placeholderIdToRemove =
-    isConditionHandle || isLoopHandle ? `placeholder-${sourceId}-${sourceHandle}` : `placeholder-${sourceId}`
+    isConditionHandle || isLoopHandle || isSwitchLikeHandle
+      ? `placeholder-${sourceId}-${sourceHandle}`
+      : `placeholder-${sourceId}`
 
   // Check if button edge class should be removed from source node
   const nodes = reactFlowInstance.getNodes()
@@ -151,7 +166,8 @@ export function calculateEdgeConnection(
     // Keep button edge class only if source node still has other placeholders
     const hasOtherPlaceholders =
       (sourceNode.type === FlowNodeType.CONDITION && hasConditionNodePlaceholders(filteredNodes, sourceId)) ||
-      (sourceNode.type === FlowNodeType.LOOP && hasLoopNodePlaceholders(filteredNodes, sourceId))
+      (sourceNode.type === FlowNodeType.LOOP && hasLoopNodePlaceholders(filteredNodes, sourceId)) ||
+      (sourceNode.type === FlowNodeType.SWITCH && hasSwitchNodePlaceholders(filteredNodes, sourceId))
 
     shouldRemoveButtonEdgeClass = !hasOtherPlaceholders
   }
@@ -254,6 +270,9 @@ export function applyEdgeConnection(
             return filtered
           }
           if (sourceNode.type === FlowNodeType.LOOP && hasLoopNodePlaceholders(filtered, params.sourceId)) {
+            return filtered
+          }
+          if (sourceNode.type === FlowNodeType.SWITCH && hasSwitchNodePlaceholders(filtered, params.sourceId)) {
             return filtered
           }
 

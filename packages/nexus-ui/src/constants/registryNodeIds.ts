@@ -24,6 +24,7 @@ export const RegistryNodeId = {
   LOGIC_CONDITION: 'logic-condition',
   LOGIC_CONVERGE: 'logic-converge',
   LOGIC_LOOP: 'logic-loop',
+  LOGIC_SWITCH: 'logic-switch',
   LOGIC_WAIT: 'logic-wait',
   AGENT: 'agent',
   AAP_EXECUTION: 'aap-execution',

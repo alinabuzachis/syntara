@@ -9,6 +9,7 @@ import {
   RhUiConditionNodeIcon,
   RhUiLoopNodeIcon,
   RhUiUserCheckIcon,
+  RhUiTreeViewIcon,
   RhUiClockIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
@@ -69,6 +70,11 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   converge: {
     icon: RhUiMergeNodesIcon,
     label: 'Converge',
+    expandable: false,
+  },
+  switch: {
+    icon: RhUiTreeViewIcon,
+    label: 'Switch',
     expandable: false,
   },
   wait: {

@@ -2,6 +2,7 @@ import type {
   ConditionActivity,
   ConvergeActivity,
   LoopActivity,
+  SwitchActivity,
   TaskActivity,
   WaitActivity,
 } from '@ansible/nexus-contracts'
@@ -32,6 +33,7 @@ import {
   ConditionNodeDetails,
   ConvergeNodeDetails,
   LoopNodeDetails,
+  SwitchNodeDetails,
   TaskNodeDetails,
   TriggerNodeDetails,
   WaitNodeDetails,
@@ -81,6 +83,7 @@ function getAddModeFormId(
       [RegistryNodeId.LOGIC_CONDITION]: 'condition-node-form',
       [RegistryNodeId.LOGIC_LOOP]: 'loop-node-form',
       [RegistryNodeId.LOGIC_CONVERGE]: 'converge-node-form',
+      [RegistryNodeId.LOGIC_SWITCH]: 'switch-node-form',
       [RegistryNodeId.LOGIC_WAIT]: 'wait-node-form',
     }
     return logicFormMap[nodeSubtypeId]
@@ -134,6 +137,7 @@ function getEditModeFormId(node: Node<NodeType['data']> | undefined): string | u
   if (node.type === FlowNodeType.CONVERGE) return 'converge-node-form'
   if (node.type === FlowNodeType.WAIT) return 'wait-node-form'
   if (node.type === FlowNodeType.APPROVAL) return 'approval-node-form'
+  if (node.type === FlowNodeType.SWITCH) return 'switch-node-form'
   if (node.type === FlowNodeType.TASK) {
     return getTaskFormId(node.data as TaskActivity)
   }
@@ -218,6 +222,17 @@ function renderEditModeContent(
     return (
       <ConvergeNodeDetails
         convergeData={node.data as ConvergeActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  if (node.type === FlowNodeType.SWITCH) {
+    return (
+      <SwitchNodeDetails
+        switchData={node.data as SwitchActivity}
         nodeId={node.id}
         onClose={onClose}
         onHeaderContentChange={onHeaderContentChange}

@@ -5,6 +5,7 @@ import {
   RhUiClockIcon,
   RhUiLoopNodeIcon,
   RhUiMergeNodesIcon,
+  RhUiTreeViewIcon,
 } from '@patternfly/react-icons'
 
 import { RegistryNodeId } from '../../../../constants'
@@ -18,8 +19,45 @@ import {
   submitConditionLogic,
   submitConvergeLogic,
   submitLoopLogic,
+  submitSwitchLogic,
   submitWaitLogic,
 } from './registerLogicNodeSubmit'
+
+function dispatchLogicSubmit({
+  data,
+  activityId,
+  name,
+  onSuccess,
+  onError,
+}: {
+  data: LogicFormData
+  activityId: string
+  name: string
+  onSuccess: (id: string) => void
+  onError: (msg: string) => void
+}) {
+  if (data.logicType === ActivityTypeEnum.CONDITION) {
+    if (submitConditionLogic(activityId, name, data, onError)) onSuccess(activityId)
+    return
+  }
+  if (data.logicType === ActivityTypeEnum.LOOP) {
+    submitLoopLogic({ activityId, name, data, generateId: generateSecureRandomId, onSuccess, onError })
+    return
+  }
+  if (data.logicType === ActivityTypeEnum.CONVERGE) {
+    if (submitConvergeLogic(activityId, name, data, onError)) onSuccess(activityId)
+    return
+  }
+  if (data.logicType === ActivityTypeEnum.SWITCH) {
+    if (submitSwitchLogic(activityId, name, data, onError)) onSuccess(activityId)
+    return
+  }
+  if (data.logicType === ActivityTypeEnum.WAIT) {
+    if (submitWaitLogic(activityId, name, data)) onSuccess(activityId)
+    return
+  }
+  onError('Invalid logic type')
+}
 
 /**
  * Register the Logic step type (conditional, loop, converge subtypes).
@@ -77,6 +115,14 @@ export default function registerLogicNode() {
             initialData: { logicType: ActivityTypeEnum.LOOP, type: 'while', maxIterationsBehavior: 'continue' },
           },
           {
+            id: RegistryNodeId.LOGIC_SWITCH,
+            label: 'Switch',
+            icon: RhUiTreeViewIcon,
+            description: 'Set multiple parameters to branch the workflow.',
+            formTitle: 'Configure Switch Logic',
+            initialData: { logicType: ActivityTypeEnum.SWITCH },
+          },
+          {
             id: RegistryNodeId.LOGIC_WAIT,
             label: 'Wait',
             icon: RhUiClockIcon,
@@ -91,40 +137,7 @@ export default function registerLogicNode() {
           const activityId = `logic_${Date.now()}_${generateSecureRandomId()}`
           const name = buildLogicStepName(data)
 
-          if (data.logicType === ActivityTypeEnum.CONDITION) {
-            if (submitConditionLogic(activityId, name, data, onError)) {
-              onSuccess(activityId)
-            }
-            return
-          }
-
-          if (data.logicType === ActivityTypeEnum.LOOP) {
-            submitLoopLogic({
-              activityId,
-              name,
-              data,
-              generateId: generateSecureRandomId,
-              onSuccess,
-              onError,
-            })
-            return
-          }
-
-          if (data.logicType === ActivityTypeEnum.CONVERGE) {
-            if (submitConvergeLogic(activityId, name, data, onError)) {
-              onSuccess(activityId)
-            }
-            return
-          }
-
-          if (data.logicType === ActivityTypeEnum.WAIT) {
-            if (submitWaitLogic(activityId, name, data)) {
-              onSuccess(activityId)
-            }
-            return
-          }
-
-          onError('Invalid logic type')
+          dispatchLogicSubmit({ data, activityId, name, onSuccess, onError })
         } catch (error) {
           onError(error instanceof Error ? error.message : 'Failed to add logic step')
         }

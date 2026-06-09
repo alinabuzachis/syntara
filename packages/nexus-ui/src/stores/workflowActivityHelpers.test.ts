@@ -1,9 +1,10 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import {
   collectAllActivityIds,
   findActivityById,
+  getValidSourceHandles,
   removeActivityFromList,
   updateActivityInList,
   reorderActivities,
@@ -224,5 +225,17 @@ describe('collectAllActivityIds', () => {
   it('collects all IDs from complex flat list', () => {
     const ids = collectAllActivityIds([condition('c1'), task('a'), loop('l1'), converge('j1'), task('b')])
     expect(ids).toEqual(new Set(['c1', 'a', 'l1', 'j1', 'b']))
+  })
+})
+
+describe('getValidSourceHandles', () => {
+  it('returns DEFAULT for switch activity type', () => {
+    const handles = getValidSourceHandles(ActivityTypeEnum.SWITCH)
+    expect(handles).toEqual(new Set([EdgeHandleEnum.DEFAULT]))
+  })
+
+  it('returns SOURCE for script activity type', () => {
+    const handles = getValidSourceHandles(ActivityTypeEnum.SCRIPT)
+    expect(handles).toEqual(new Set([EdgeHandleEnum.SOURCE]))
   })
 })

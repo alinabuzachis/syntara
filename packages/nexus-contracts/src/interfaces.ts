@@ -30,6 +30,7 @@ export const ActivityTypeEnum = {
   CONDITION: 'condition',
   LOOP: 'loop',
   CONVERGE: 'converge',
+  SWITCH: 'switch',
   WAIT: 'wait',
 } as const
 
@@ -80,6 +81,7 @@ export const EdgeHandleEnum = {
   APPROVED: 'approved',
   REJECTED: 'rejected',
   DONE: 'done',
+  DEFAULT: 'default',
   // Target handles
   TARGET: 'target',
   END: 'end',
@@ -175,6 +177,17 @@ export type LoopConfig = WorkflowAPI.components['schemas']['loop.schema_configSc
 /** Converge node configuration */
 export type ConvergeConfig = WorkflowAPI.components['schemas']['converge.schema_configSchema']
 
+// Inline type until AAP-77227 — replace with generated OpenAPI type via npm run gen
+/** Switch node configuration (per-case boolean conditions with port routing) */
+export interface SwitchConfig {
+  cases: Array<{
+    port: string
+    label: string
+    condition: string
+  }>
+  default_port?: string
+}
+
 /**
  * Wait node configuration — total duration in seconds.
  * Inline type until AAP-66091 adds WaitConfig to the OpenAPI schema.
@@ -263,6 +276,12 @@ export interface ConvergeActivity extends ActivityBase {
   config: ConvergeConfig & { [key: string]: unknown }
 }
 
+/** Multi-case branching node */
+export interface SwitchActivity extends ActivityBase {
+  type: 'switch'
+  config: SwitchConfig & { [key: string]: unknown }
+}
+
 /** Wait/delay node */
 export interface WaitActivity extends ActivityBase {
   type: 'wait'
@@ -307,6 +326,7 @@ export type TypedActivity =
   | ConditionActivity
   | LoopActivity
   | ConvergeActivity
+  | SwitchActivity
   | WaitActivity
 
 // ============================================================================

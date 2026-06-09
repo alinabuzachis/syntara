@@ -12,7 +12,7 @@ import {
 describe('constants', () => {
   describe('BRANCH_HANDLES', () => {
     it('contains all branch handle values', () => {
-      expect(BRANCH_HANDLES).toEqual(['true', 'false', 'approved', 'rejected', 'done', 'loop'])
+      expect(BRANCH_HANDLES).toEqual(['true', 'false', 'approved', 'rejected', 'done', 'loop', 'default'])
     })
   })
 
@@ -24,6 +24,9 @@ describe('constants', () => {
       expect(isBranchHandle('rejected')).toBe(true)
       expect(isBranchHandle('done')).toBe(true)
       expect(isBranchHandle('loop')).toBe(true)
+      expect(isBranchHandle('default')).toBe(true)
+      expect(isBranchHandle('case_0')).toBe(true)
+      expect(isBranchHandle('case_1')).toBe(true)
     })
 
     it('returns false for null', () => {

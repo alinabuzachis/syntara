@@ -621,6 +621,7 @@ export {
   createConditionActivity,
   createLoopActivity,
   createConvergeActivity,
+  createSwitchActivity,
   createAAPJobTemplateActivity,
   createAAPWorkflowTemplateActivity,
   createGenericActivity,

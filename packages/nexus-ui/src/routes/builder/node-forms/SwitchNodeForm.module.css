@@ -1,0 +1,12 @@
+.toggleIcon {
+  display: inline-block;
+  min-width: var(--pf-t--global--icon--size--font--body--default);
+  color: var(--pf-t--global--icon--color--regular);
+  transition: transform var(--pf-t--global--motion--duration--icon--default)
+    var(--pf-t--global--motion--timing-function--default);
+  transform: rotate(0);
+}
+
+.toggleButton[aria-expanded='true'] .toggleIcon {
+  transform: rotate(-180deg);
+}

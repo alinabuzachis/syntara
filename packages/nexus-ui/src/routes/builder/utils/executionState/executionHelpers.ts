@@ -1,5 +1,7 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
+import { isSwitchCasePort } from '../switchCaseHelpers'
+
 /**
  * Constants and utilities for execution state management.
  *
@@ -20,12 +22,13 @@ export const BRANCH_HANDLES = [
   EdgeHandleEnum.REJECTED,
   EdgeHandleEnum.DONE,
   EdgeHandleEnum.LOOP,
+  EdgeHandleEnum.DEFAULT,
 ] as const
 
 export type BranchHandle = (typeof BRANCH_HANDLES)[number]
 
 /**
- * Check if a source handle indicates a branch (conditional, approval, or loop).
+ * Check if a source handle indicates a branch (conditional, approval, loop, or switch).
  *
  * @param handle - The source handle to check
  * @returns true if the handle is a branch handle
@@ -35,6 +38,8 @@ export type BranchHandle = (typeof BRANCH_HANDLES)[number]
  * isBranchHandle('false')    // true
  * isBranchHandle('approved') // true
  * isBranchHandle('done')     // true
+ * isBranchHandle('case_0')   // true
+ * isBranchHandle('default')  // true
  * isBranchHandle('source')   // false
  * isBranchHandle(null)       // false
  */
@@ -42,6 +47,7 @@ export function isBranchHandle(handle: string | null | undefined): boolean {
   if (handle === null || handle === undefined) {
     return false
   }
+  if (isSwitchCasePort(handle)) return true
   return BRANCH_HANDLES.includes(handle as BranchHandle)
 }
 
@@ -63,6 +69,7 @@ export const ACTIVITY_TYPES = {
   CONDITION: 'condition',
   CONVERGE: 'converge',
   APPROVAL: 'approval',
+  SWITCH: 'switch',
 } as const
 
 export type ActivityTypeValue = (typeof ACTIVITY_TYPES)[keyof typeof ACTIVITY_TYPES]

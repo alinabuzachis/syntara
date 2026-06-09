@@ -68,6 +68,10 @@ export function getCanvasNodeIconDescriptor(
     return { icon: nodeMetadata.converge.icon, id: RegistryNodeId.LOGIC_CONVERGE }
   }
 
+  if (node.type === 'switch') {
+    return { icon: nodeMetadata.switch.icon, id: RegistryNodeId.LOGIC_SWITCH }
+  }
+
   if (node.type === 'approval') {
     return { icon: executorMetadata.approval.icon, id: RegistryNodeId.APPROVAL }
   }

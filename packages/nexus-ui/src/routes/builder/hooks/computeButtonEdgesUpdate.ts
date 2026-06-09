@@ -3,6 +3,7 @@ import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
+import { isSwitchCasePort } from '../utils/switchCaseHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
 import { type ButtonEdgeFilterContext, getKeptButtonEdge } from './buttonEdgeMaintenanceHelpers'
@@ -12,6 +13,7 @@ export type ComputeButtonEdgesParams = {
   conditionHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   loopHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   approvalHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
+  switchHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   nodesNeedingButtonEdges: string[]
   activeEdgeButtonNodeId: string | null
   activeEdgeButtonHandle: string | null
@@ -60,6 +62,7 @@ type ButtonHandleKeySets = {
   conditionKeys: Set<string>
   loopKeys: Set<string>
   approvalKeys: Set<string>
+  switchKeys: Set<string>
 }
 
 function buildButtonHandleKeySets(existingButtonEdges: EdgeType[]): ButtonHandleKeySets {
@@ -67,6 +70,7 @@ function buildButtonHandleKeySets(existingButtonEdges: EdgeType[]): ButtonHandle
   const conditionKeys = new Set<string>()
   const loopKeys = new Set<string>()
   const approvalKeys = new Set<string>()
+  const switchKeys = new Set<string>()
 
   for (const edge of existingButtonEdges) {
     const handle = edge.sourceHandle
@@ -77,13 +81,14 @@ function buildButtonHandleKeySets(existingButtonEdges: EdgeType[]): ButtonHandle
       loopKeys.add(key)
     } else if (handle === EdgeHandleEnum.APPROVED || handle === EdgeHandleEnum.REJECTED) {
       approvalKeys.add(key)
+    } else if (handle === EdgeHandleEnum.DEFAULT || isSwitchCasePort(handle)) {
+      switchKeys.add(key)
     } else if (handle === EdgeHandleEnum.SOURCE || handle == null || handle === '') {
-      // Regular (single-handle) button edges only; matches getKeptButtonEdge SOURCE / missing-handle branch.
       nodesWithRegularButtonEdge.add(edge.source)
     }
   }
 
-  return { nodesWithRegularButtonEdge, conditionKeys, loopKeys, approvalKeys }
+  return { nodesWithRegularButtonEdge, conditionKeys, loopKeys, approvalKeys, switchKeys }
 }
 
 /** Tracks which `onAddNodeFromEdge` the edge's click handler was built with (in-memory only). */
@@ -246,6 +251,7 @@ export function computeNextButtonEdges(params: ComputeButtonEdgesParams): EdgeTy
     conditionHandlesNeedingButtonEdges,
     loopHandlesNeedingButtonEdges,
     approvalHandlesNeedingButtonEdges,
+    switchHandlesNeedingButtonEdges,
     nodesNeedingButtonEdges,
     activeEdgeButtonNodeId,
     activeEdgeButtonHandle,
@@ -259,6 +265,7 @@ export function computeNextButtonEdges(params: ComputeButtonEdgesParams): EdgeTy
     conditionHandles: conditionHandlesNeedingButtonEdges,
     loopHandles: loopHandlesNeedingButtonEdges,
     approvalHandles: approvalHandlesNeedingButtonEdges,
+    switchHandles: switchHandlesNeedingButtonEdges,
     regularNodeIds: nodesNeedingButtonEdges,
     activeNodeId: activeEdgeButtonNodeId,
     activeHandle: activeEdgeButtonHandle,
@@ -297,6 +304,12 @@ export function computeNextButtonEdges(params: ComputeButtonEdgesParams): EdgeTy
     buttonEdgesToAdd,
     ...activeCtx,
   })
+  appendMissingMultiHandleButtonEdges({
+    handles: switchHandlesNeedingButtonEdges,
+    existingKeys: keySets.switchKeys,
+    buttonEdgesToAdd,
+    ...activeCtx,
+  })
 
   const result = [...nonButtonEdges, ...buttonEdgesToKeep, ...buttonEdgesToAdd]
 
@@ -312,6 +325,7 @@ export type UpdateNodesButtonEdgeClassParams = {
   conditionHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   loopHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   approvalHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
+  switchHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
   connectedHandles: Map<string, Set<string>>
 }
 
@@ -320,6 +334,7 @@ type ButtonEdgeClassLookup = {
   conditionNodeIds: Set<string>
   loopNodeIds: Set<string>
   approvalNodeIds: Set<string>
+  switchNodeIds: Set<string>
 }
 
 function buildButtonEdgeClassLookup(params: UpdateNodesButtonEdgeClassParams): ButtonEdgeClassLookup {
@@ -328,6 +343,7 @@ function buildButtonEdgeClassLookup(params: UpdateNodesButtonEdgeClassParams): B
     conditionNodeIds: new Set(params.conditionHandlesNeedingButtonEdges.map((h) => h.nodeId)),
     loopNodeIds: new Set(params.loopHandlesNeedingButtonEdges.map((h) => h.nodeId)),
     approvalNodeIds: new Set(params.approvalHandlesNeedingButtonEdges.map((h) => h.nodeId)),
+    switchNodeIds: new Set(params.switchHandlesNeedingButtonEdges.map((h) => h.nodeId)),
   }
 }
 
@@ -347,6 +363,9 @@ function nodeNeedsButtonEdgeClass(
   }
   if (nodeType === FlowNodeType.APPROVAL) {
     return lookup.approvalNodeIds.has(nodeId)
+  }
+  if (nodeType === FlowNodeType.SWITCH) {
+    return lookup.switchNodeIds.has(nodeId)
   }
   return false
 }

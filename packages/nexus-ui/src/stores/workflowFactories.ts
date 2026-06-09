@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
 import { safeJSONReviver } from '../utils/jsonSafeParse'
 import { isValidWebhookPath } from '../utils/webhookPath'
@@ -515,6 +515,25 @@ export function createConvergeActivity(
       ...(config?.onTimeout != null && { on_timeout: config.onTimeout }),
       ...(config?.timeout !== undefined && { timeout: config.timeout }),
       ...(config?.strategy === 'any' && config?.requiredPathCount != null && { n_required: config.requiredPathCount }),
+    },
+  }
+}
+
+/**
+ * Create a switch node (v2).
+ */
+export function createSwitchActivity(
+  id: string,
+  name: string,
+  cases: Array<{ port: string; label: string; condition: string }>
+): Activity {
+  return {
+    id,
+    type: ActivityTypeEnum.SWITCH,
+    name,
+    config: {
+      cases,
+      default_port: EdgeHandleEnum.DEFAULT,
     },
   }
 }

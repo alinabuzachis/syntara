@@ -1,4 +1,7 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
+
+import { buildSwitchCasePort } from '../routes/builder/utils/switchCaseHelpers'
 
 import {
   createAgenticActivity,
@@ -14,6 +17,7 @@ import {
   createManualTrigger,
   createScheduledTrigger,
   createScriptActivity,
+  createSwitchActivity,
   createWaitActivity,
   createWebhookTrigger,
   createEdaTrigger,
@@ -750,6 +754,31 @@ describe('workflowFactories', () => {
         })
 
         expect(activity.config.approver_timeout).toBe(3600)
+      })
+    })
+
+    describe('createSwitchActivity', () => {
+      it('creates a switch activity with correct type and config', () => {
+        const cases = [
+          { port: buildSwitchCasePort(0), label: 'Path 1', condition: '${status} == "active"' },
+          { port: buildSwitchCasePort(1), label: 'Path 2', condition: '${status} == "inactive"' },
+        ]
+        const activity = createSwitchActivity('switch-1', 'Route Request', cases)
+
+        expect(activity.id).toBe('switch-1')
+        expect(activity.type).toBe('switch')
+        expect(activity.name).toBe('Route Request')
+        expect(activity.config).toEqual({
+          cases,
+          default_port: EdgeHandleEnum.DEFAULT,
+        })
+      })
+
+      it('creates a switch activity with empty cases', () => {
+        const activity = createSwitchActivity('switch-2', 'Empty Switch', [])
+
+        expect(activity.config.cases).toEqual([])
+        expect(activity.config.default_port).toBe(EdgeHandleEnum.DEFAULT)
       })
     })
   })

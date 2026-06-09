@@ -2,6 +2,7 @@ import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
 import { FlowNodeType } from '../../../constants'
 import type { ButtonEdgePlaceholderNode, NodeType } from '../../workflows/canvas/nodes/NodeType'
+import { isSwitchCasePort } from '../utils/switchCaseHelpers'
 
 export type HandlePositionConfig = {
   yOffset: number
@@ -82,9 +83,30 @@ export type ButtonEdgeFilterContext = {
   conditionHandles: { nodeId: string; handleId: string }[]
   loopHandles: { nodeId: string; handleId: string }[]
   approvalHandles: { nodeId: string; handleId: string }[]
+  switchHandles: { nodeId: string; handleId: string }[]
   regularNodeIds: string[]
   activeNodeId: string | null
   activeHandle: string | null
+}
+
+function isSwitchHandleId(handleId: string | null | undefined): boolean {
+  return handleId === EdgeHandleEnum.DEFAULT || isSwitchCasePort(handleId)
+}
+
+function keepIfNeeded<T extends { source: string; sourceHandle?: string | null; data?: Record<string, unknown> }>(
+  edge: T,
+  handles: { nodeId: string; handleId: string }[],
+  ctx: ButtonEdgeFilterContext
+): (T & { data: Record<string, unknown> }) | null {
+  const isNeeded = handles.some((h) => h.nodeId === edge.source && h.handleId === edge.sourceHandle)
+  if (!isNeeded) return null
+  return {
+    ...edge,
+    data: {
+      ...edge.data,
+      isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === edge.sourceHandle,
+    },
+  }
 }
 
 export function getKeptButtonEdge<
@@ -93,39 +115,19 @@ export function getKeptButtonEdge<
   const handleId = edge.sourceHandle
 
   if (handleId === EdgeHandleEnum.TRUE || handleId === EdgeHandleEnum.FALSE) {
-    const isNeeded = ctx.conditionHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
-    if (!isNeeded) return null
-    return {
-      ...edge,
-      data: {
-        ...edge.data,
-        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
-      },
-    }
+    return keepIfNeeded(edge, ctx.conditionHandles, ctx)
   }
 
   if (handleId === EdgeHandleEnum.DONE || handleId === EdgeHandleEnum.LOOP) {
-    const isNeeded = ctx.loopHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
-    if (!isNeeded) return null
-    return {
-      ...edge,
-      data: {
-        ...edge.data,
-        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
-      },
-    }
+    return keepIfNeeded(edge, ctx.loopHandles, ctx)
   }
 
   if (handleId === EdgeHandleEnum.APPROVED || handleId === EdgeHandleEnum.REJECTED) {
-    const isNeeded = ctx.approvalHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
-    if (!isNeeded) return null
-    return {
-      ...edge,
-      data: {
-        ...edge.data,
-        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
-      },
-    }
+    return keepIfNeeded(edge, ctx.approvalHandles, ctx)
+  }
+
+  if (isSwitchHandleId(handleId)) {
+    return keepIfNeeded(edge, ctx.switchHandles, ctx)
   }
 
   if ((handleId === EdgeHandleEnum.SOURCE || !handleId) && ctx.regularNodeIds.includes(edge.source)) {

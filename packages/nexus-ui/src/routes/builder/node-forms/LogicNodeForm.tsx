@@ -1,9 +1,12 @@
 import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
+import type { ComparisonOperator } from '../../../utils/expressions/types'
+
 import { ConditionNodeForm, type ConditionFormData } from './ConditionNodeForm'
 import { ConvergeNodeForm, type ConvergeFormData } from './ConvergeNodeForm'
 import { LoopNodeForm, type LoopFormData } from './LoopNodeForm'
+import { SwitchNodeForm, type SwitchFormData } from './SwitchNodeForm'
 import { WaitNodeForm, type WaitFormData } from './WaitNodeForm'
 
 /** Converge strategy: when to continue after branches (re-exported from ConvergeNodeForm) */
@@ -25,6 +28,15 @@ export type LogicFormData = {
   maxIterationsBehavior?: 'continue' | 'fail'
   indexVariable?: string
   itemVariable?: string
+  // Switch fields
+  cases?: Array<{
+    id: string
+    label?: string
+    variable: string
+    operator: ComparisonOperator
+    value: string
+    negate?: boolean
+  }>
   // Converge fields
   timeout?: number
   timeoutEnabled?: boolean
@@ -140,6 +152,29 @@ export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: 
       <ConvergeNodeForm
         onSubmit={handleConvergeSubmit}
         initialData={convergeData}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  // Handle Switch node
+  if (logicType === ActivityTypeEnum.SWITCH) {
+    const switchData: Partial<SwitchFormData> = {
+      name: initialData?.name,
+      cases: initialData?.cases,
+    }
+
+    const handleSwitchSubmit = (data: SwitchFormData) => {
+      onSubmit({
+        ...data,
+        logicType: ActivityTypeEnum.SWITCH,
+      })
+    }
+
+    return (
+      <SwitchNodeForm
+        onSubmit={handleSwitchSubmit}
+        initialData={switchData}
         onHeaderContentChange={onHeaderContentChange}
       />
     )
