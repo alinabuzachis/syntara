@@ -10,11 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from tests.e2e.helpers import poll_audit_events
-
 pytest.importorskip("external_services")
 
-import asyncio
 import re
 from http import HTTPStatus
 from typing import TYPE_CHECKING
@@ -28,7 +25,6 @@ from nexus_api_client.api.authentication.refresh_token import sync_detailed as r
 from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.user_identity_attach import UserIdentityAttach
 
-from nexus.core.config.base import get_settings
 from tests.fixtures.external_services.oidc_login import _idp_form_user_login
 
 if TYPE_CHECKING:
@@ -146,14 +142,3 @@ class TestAdminDetachIdentity:
 
         # All sessions for the user are revoked
         assert refresh_sync(client=user_a_refresh_client).status_code == HTTPStatus.UNAUTHORIZED
-
-        # Sleep for full poll interval + buffer to ensure worker has run
-        settings = get_settings()
-        await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-        # An audit log entry is created for the detach action
-        events = poll_audit_events(
-            nexus_api,
-            "identity_detach",
-        )
-        assert len(events) >= 1, "No audit event found for identity_detach action"

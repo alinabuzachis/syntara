@@ -4,20 +4,24 @@ Tests verify that the middleware correctly extracts execution_id, workflow_id,
 and activity_id from URL paths and includes them in emitted audit events.
 """
 
+# mypy: disable-error-code="attr-defined"
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.outbox.worker import get_outbox_worker
 from nexus.core.models.user import User
 
-AUDIT_URL = "/api/v1/audit"
+if TYPE_CHECKING:
+    from nexus.audit.models.audit_event import AuditEvent
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +33,6 @@ def ensure_http_request_handler_registered() -> None:
 @pytest.mark.asyncio
 async def test_middleware_extracts_path_params(
     base_client: AsyncClient,
-    test_db_session_factory: async_sessionmaker[AsyncSession],
     admin_user: User,
     create_jwt_for_user: Callable[[User], str],
 ) -> None:
@@ -48,55 +51,55 @@ async def test_middleware_extracts_path_params(
     activity_id = "test-activity-123"
     signal_url = f"/api/v1/executions/{execution_id}/activities/{activity_id}/signal"
 
-    # POST to signal endpoint with Authorization header (will fail with 404, but that's expected)
-    response = await base_client.post(
-        signal_url,
-        json={"signal_data": {"action": "test", "value": 42}},
-        headers=auth_headers,
-    )
+    # Patch _emit_otel_log_entry to capture emitted audit events
+    mock_emit = AsyncMock()
+    with patch("nexus.audit.outbox.worker._emit_otel_log_entry", new=mock_emit):
+        # POST to signal endpoint with Authorization header (will fail with 404, but that's expected)
+        response = await base_client.post(
+            signal_url,
+            json={"signal_data": {"action": "test", "value": 42}},
+            headers=auth_headers,
+        )
 
-    # The request should fail (no such execution)
-    assert response.status_code == 404
+        # The request should fail (no such execution)
+        assert response.status_code == 404
 
-    # Flush all pending AuditEventRecord writes
-    await get_outbox_worker().drain()
+        # Flush all pending AuditEventRecord writes
+        await get_outbox_worker().drain()
 
-    # Query the audit endpoint to retrieve the emitted event
-    # Filter by actor_id and execution_id to narrow down results
-    query_params = f"?actor_id={admin_user.id}&execution_id={execution_id}&limit=100"
-    audit_response = await base_client.get(AUDIT_URL + query_params, headers=auth_headers)
-    assert audit_response.status_code == 200
-
-    audit_data = audit_response.json()
-    events = audit_data["resources"]
+    # Verify _emit_otel_log_entry was called at least once
+    assert mock_emit.called, "Expected _emit_otel_log_entry to be called"
 
     # Find the specific POST event for our signal endpoint
     post_event = None
-    for event in events:
+    for call in mock_emit.call_args_list:
+        # Extract the AuditEvent from the call args
+        audit_event: AuditEvent = call.args[0]
+
         if (
-            event.get("event_action") == "request_completed"
-            and event.get("execution_id") == str(execution_id)
-            and event.get("activity_id") == activity_id
-            and event.get("actor_id") == str(admin_user.id)
+            audit_event.event_action == "request_completed"
+            and audit_event.execution_id == execution_id
+            and audit_event.activity_id == activity_id
+            and audit_event.actor_id == admin_user.id
         ):
-            post_event = event
+            post_event = audit_event
             break
 
     assert post_event is not None, (
         f"No request_completed event found for execution_id={execution_id}, "
         f"activity_id={activity_id}, actor_id={admin_user.id}. "
-        f"Found {len(events)} events total."
+        f"Found {mock_emit.call_count} calls total."
     )
 
     # Verify the audit event has the correct context IDs from the URL
-    assert post_event["actor_id"] == str(admin_user.id)
-    assert post_event["actor_username"] == admin_user.username
-    assert post_event["actor_type"] == "user"
-    assert post_event["execution_id"] == str(execution_id)
-    assert post_event["activity_id"] == activity_id
-    assert post_event["event_action"] == "request_completed"
-    assert post_event["event_status"] == "error"  # 404 response
-    assert str(execution_id) in post_event["event_message"]
+    assert post_event.actor_id == admin_user.id
+    assert post_event.actor_username == admin_user.username
+    assert post_event.actor_type == "user"
+    assert post_event.execution_id == execution_id
+    assert post_event.activity_id == activity_id
+    assert post_event.event_action == "request_completed"
+    assert post_event.event_status == "error"  # 404 response
+    assert str(execution_id) in post_event.event_message
 
 
 @pytest.mark.asyncio
@@ -118,35 +121,37 @@ async def test_middleware_captures_request_id_in_structured_data(
         "X-Request-Id": str(request_id),
     }
 
-    # Make a simple GET request to the audit endpoint
-    response = await base_client.get(f"{AUDIT_URL}?sort=-created_at", headers=headers)
-    assert response.status_code == 200
+    # Patch _emit_otel_log_entry to capture emitted audit events
+    mock_emit = AsyncMock()
+    with patch("nexus.audit.outbox.worker._emit_otel_log_entry", new=mock_emit):
+        # Make a simple GET request to any endpoint (using /api/v1/users as a valid endpoint)
+        response = await base_client.get("/api/v1/users", headers=headers)
+        assert response.status_code == 200
 
-    # Flush all pending AuditEventRecord writes
-    await get_outbox_worker().drain()
+        # Flush all pending AuditEventRecord writes
+        await get_outbox_worker().drain()
 
-    # Query the audit endpoint again to retrieve the audit event for the previous GET
-    audit_response = await base_client.get(AUDIT_URL, headers=headers)
-    assert audit_response.status_code == 200
+    # Verify _emit_otel_log_entry was called
+    assert mock_emit.called, "Expected _emit_otel_log_entry to be called"
 
-    audit_data = audit_response.json()
-    # Should have at least one event for the first GET request
-    assert len(audit_data["resources"]) >= 1
-
-    # Find the audit event for the first GET request (should be the most recent with our request_id)
+    # Find the audit event for the GET request with our request_id
     first_get_event = None
-    for event in audit_data["resources"]:
-        structured_data = event.get("structured_data", {})
-        if structured_data.get("request_id") == str(request_id):
-            first_get_event = event
+    for call in mock_emit.call_args_list:
+        # Extract the AuditEvent from the call args
+        audit_event: AuditEvent = call.args[0]
+
+        structured_data: AuditContextData = audit_event.structured_data or AuditContextData()
+        if structured_data.request_id == str(request_id):
+            first_get_event = audit_event
             break
 
     # Verify we found the event
     assert first_get_event is not None, "Should find audit event with matching request_id"
 
     # Verify the structured_data contains the request_id
-    assert first_get_event["structured_data"]["request_id"] == str(request_id)
-    assert first_get_event["actor_id"] == str(admin_user.id)
-    assert first_get_event["actor_username"] == admin_user.username
-    assert first_get_event["event_action"] == "request_completed"
-    assert first_get_event["event_status"] == "success"  # 200 response
+    assert first_get_event.structured_data is not None
+    assert first_get_event.structured_data.request_id == str(request_id)
+    assert first_get_event.actor_id == admin_user.id
+    assert first_get_event.actor_username == admin_user.username
+    assert first_get_event.event_action == "request_completed"
+    assert first_get_event.event_status == "success"  # 200 response

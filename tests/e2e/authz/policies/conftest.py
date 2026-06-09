@@ -336,7 +336,6 @@ SYSTEM_SCOPED_REPRESENTATIVE: list[PolicyTestCase] = [
     ),
     PolicyTestCase("group:read:any", [], lambda api, _pid, _ctx: api.groups.list()),
     PolicyTestCase("setting:read:any", [], lambda api, _pid, _ctx: api.settings.list()),
-    PolicyTestCase("audit:read:any", [], lambda api, _pid, _ctx: api.audit_events.list()),
 ]
 
 # ---------------------------------------------------------------------------

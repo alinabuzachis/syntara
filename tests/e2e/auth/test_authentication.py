@@ -4,7 +4,6 @@ Test Coverage:
 - API-20: Concurrent session handling (login, refresh, logout)
 
 See Also:
-- test_audit_authentication_events.py (API-19, async audit outbox with polling)
 - test_session_revocation.py (API-37)
 - test_session_revocation_idp.py (API-38, requires Keycloak)
 - test_rp_initiated_logout.py (API-42-44, requires Keycloak)

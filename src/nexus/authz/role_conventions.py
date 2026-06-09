@@ -158,8 +158,6 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     # settings
     PolicyInfo("setting", "read", roles=("admin", "auditor")),
     PolicyInfo("setting", "write", roles=("admin",)),
-    # audit
-    PolicyInfo("audit", "read", roles=("admin", "auditor")),
     # authz query
     PolicyInfo("authz", "query", roles=("admin",)),
     # admin revocation

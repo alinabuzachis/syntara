@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 from nexus_api_client.models.error_data import ErrorData
@@ -13,8 +12,7 @@ from nexus_api_client.models.setting_bulk_update_item import SettingBulkUpdateIt
 from nexus_api_client.models.setting_bulk_update_request import SettingBulkUpdateRequest
 from nexus_api_client.models.setting_update import SettingUpdate
 
-from nexus.core.config.base import get_settings
-from tests.e2e.helpers import _retry_api_call, poll_audit_events
+from tests.e2e.helpers import _retry_api_call
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
@@ -58,38 +56,6 @@ def _update_setting(
 def _restore_setting(api: NexusApiRegistry, key: str, value: object) -> None:
     """Restore a setting to a previous value (best-effort, no assertions)."""
     api.settings.update(key=key, body=SettingUpdate(value=value))
-
-
-def _find_audit_event_by_key(events: list[Any], key: str) -> Any:  # noqa: ANN401
-    """Return the first audit event whose setting field matches *key*."""
-    for event in events:
-        props = event.structured_data.additional_properties
-        if props.get("setting") == key:
-            return event
-    return None
-
-
-def _find_audit_event_by_key_and_version(
-    events: list[Any],
-    key: str,
-    min_version: int,
-) -> Any:  # noqa: ANN401
-    """Return the first audit event matching key with version >= min_version."""
-    for event in events:
-        props = event.structured_data.additional_properties
-        if props.get("setting") == key and props.get("version", 0) >= min_version:
-            return event
-    return None
-
-
-def _find_bulk_audit_event(events: list[Any], expected_keys: set[str]) -> Any:  # noqa: ANN401
-    """Return the first bulk audit event matching exactly *expected_keys*."""
-    for event in events:
-        props = event.structured_data.additional_properties
-        settings = set(props.get("settings", []))
-        if settings == expected_keys:
-            return event
-    return None
 
 
 @pytest.mark.xdist_group("settings_write")
@@ -591,188 +557,6 @@ class TestAdminSettingsAccess:
             )
         finally:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original)
-
-
-@pytest.mark.xdist_group("settings_write")
-class TestSettingsAuditLog:
-    """E2E tests verifying audit events are created for settings changes."""
-
-    async def test_audit_single_update(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Updating a setting creates an audit event with the correct structure."""
-        original = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
-        original_value = original.effective_value
-        version_before = original.version
-
-        try:
-            _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.5)
-
-            # Sleep for full poll interval + buffer to ensure worker has run
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 3)
-
-            # Retrieve MORE than batch_size to account for concurrent activity
-            events = poll_audit_events(
-                auditor_api,
-                "setting_changed",
-                resource_urn="urn:nexus:setting:context_manager.compression_temperature",
-            )
-
-            # Match on both key AND version for determinism
-            event = _find_audit_event_by_key_and_version(
-                events,
-                _COMPRESSION_TEMP_KEY,
-                min_version=version_before + 1,
-            )
-
-            assert event is not None, (
-                f"No audit event found for key {_COMPRESSION_TEMP_KEY} with version > {version_before}"
-            )
-            assert event.actor_id is not None
-            assert event.actor_username == "admin"
-            assert event.created_at is not None
-            assert event.event_action == "setting_changed"
-            assert event.structured_data.data_type == "setting-changed"
-            props = event.structured_data.additional_properties
-            assert props["setting"] == _COMPRESSION_TEMP_KEY
-            assert props["new_value"] == "0.5"
-            assert "version" in props
-        finally:
-            _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
-
-    async def test_audit_bulk_update(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Bulk updating settings creates an audit event with the updates list."""
-        originals = {
-            _MAX_TOKENS_KEY: _get_setting(nexus_api, _MAX_TOKENS_KEY).effective_value,
-            _TIMEOUT_SECONDS_KEY: _get_setting(nexus_api, _TIMEOUT_SECONDS_KEY).effective_value,
-        }
-        expected_keys = {_MAX_TOKENS_KEY, _TIMEOUT_SECONDS_KEY}
-
-        try:
-            nexus_api.settings.bulk_update(
-                body=SettingBulkUpdateRequest(
-                    updates=[
-                        SettingBulkUpdateItem(key=_MAX_TOKENS_KEY, value=4444),
-                        SettingBulkUpdateItem(key=_TIMEOUT_SECONDS_KEY, value=10),
-                    ]
-                )
-            )
-
-            # Sleep for poll interval + buffer
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-            # Retrieve MORE events
-            events = poll_audit_events(
-                auditor_api,
-                "setting_bulk_changed",
-            )
-
-            event = _find_bulk_audit_event(events, expected_keys)
-            assert event is not None, f"No bulk audit event found with keys {expected_keys}"
-            assert event.event_action == "setting_bulk_changed"
-            props = event.structured_data.additional_properties
-            assert _MAX_TOKENS_KEY in props["settings"]
-            assert _TIMEOUT_SECONDS_KEY in props["settings"]
-            assert props["change_count"] == 2
-        finally:
-            for k, v in originals.items():
-                _restore_setting(nexus_api, k, v)
-
-    async def test_audit_old_and_new_values(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Audit event captures distinct old_value and new_value for a setting change."""
-        original = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
-        original_value = original.effective_value
-
-        try:
-            # Set a known value first so old_value is deterministic
-            first = _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.3)
-            first_version = first.version
-
-            # Update to a different value
-            _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.8)
-
-            # Sleep for poll interval + buffer
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-            # Retrieve MORE events
-            events = poll_audit_events(
-                auditor_api,
-                "setting_changed",
-                resource_urn="urn:nexus:setting:context_manager.compression_temperature",
-            )
-
-            # Find the event for the second update using version-based matching
-            event = _find_audit_event_by_key_and_version(
-                events,
-                _COMPRESSION_TEMP_KEY,
-                min_version=first_version + 1,
-            )
-
-            assert event is not None, (
-                f"No audit event found for second update (key={_COMPRESSION_TEMP_KEY}, version > {first_version})"
-            )
-            props = event.structured_data.additional_properties
-            assert props["old_value"] == "0.3", f"old_value should be '0.3', got '{props['old_value']}'"
-            assert props["new_value"] == "0.8", f"new_value should be '0.8', got '{props['new_value']}'"
-            assert props["old_value"] != props["new_value"]
-        finally:
-            _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
-
-    async def test_audit_reset_to_default(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Resetting a setting to default creates an audit event with the default value."""
-        original = _get_setting(nexus_api, _MAX_TOKENS_KEY)
-        original_value = original.effective_value
-        default_value = original.default_value
-
-        try:
-            # First update to a non-default value
-            first = _update_setting(nexus_api, _MAX_TOKENS_KEY, 9999)
-            first_version = first.version
-
-            # Then reset to default
-            _update_setting(nexus_api, _MAX_TOKENS_KEY, default_value)
-
-            # Sleep for poll interval + buffer
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-            # Retrieve MORE events
-            events = poll_audit_events(
-                auditor_api,
-                "setting_changed",
-                resource_urn="urn:nexus:setting:context_manager.max_total_tokens",
-            )
-
-            # Find the reset event (version after first update)
-            event = _find_audit_event_by_key_and_version(
-                events,
-                _MAX_TOKENS_KEY,
-                min_version=first_version + 1,
-            )
-
-            assert event is not None, f"No audit event found for key {_MAX_TOKENS_KEY} with version > {first_version}"
-            assert event.event_action == "setting_changed"
-            props = event.structured_data.additional_properties
-            assert props["new_value"] == str(default_value)
-        finally:
-            _restore_setting(nexus_api, _MAX_TOKENS_KEY, original_value)
 
 
 @pytest.mark.xdist_group("settings_write")
