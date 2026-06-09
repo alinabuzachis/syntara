@@ -41,8 +41,8 @@ Nexus UI is a React-based application for building and managing complex automati
 
 ```bash
 # Clone the repository
-git clone https://github.com/syntara-orchestration/syntara-ui.git
-cd nexus-ui
+git clone https://github.com/syntara-orchestration/syntara.git
+cd syntara/frontend
 
 # Install dependencies
 npm ci

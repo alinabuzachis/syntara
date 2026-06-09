@@ -119,7 +119,7 @@ npm run gen
 This is a monorepo using npm workspaces:
 
 ```text
-nexus-ui/
+frontend/
 ├── packages/
 │   ├── nexus-ui/              # Main React 19 application
 │   ├── nexus-contracts/       # OpenAPI TypeScript types
