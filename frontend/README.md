@@ -116,7 +116,7 @@ npm run gen
 
 ## Project Structure
 
-This is a monorepo using npm workspaces:
+The frontend uses npm workspaces to organize its packages:
 
 ```text
 frontend/
