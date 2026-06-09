@@ -469,9 +469,8 @@ def test_converge_one_branch_fails_all_strategy(nexus_api: NexusApiRegistry):
     """Test converge behavior when one branch fails with 'all' strategy.
 
     The success branches sleep briefly so the failure is processed first.
-    The engine treats the failed branch as unreachable, so the converge
-    fires with the remaining successful branches. The workflow status is
-    FAILED because a branch failed.
+    ALL strategy is strict: any predecessor failure fails the converge
+    and skips downstream nodes.
     """
     result = create_and_run_workflow(
         nexus_api,
@@ -530,14 +529,13 @@ def test_converge_one_branch_fails_all_strategy(nexus_api: NexusApiRegistry):
     assert result.status == ExecutionStatus.FAILED
     activities = {a.activity_id: a for a in (result.activities or [])}
 
-    assert activities["success_branch_a"].status == "completed"
-    assert activities["success_branch_b"].status == "completed"
+    assert activities["success_branch_a"].status == "skipped"
+    assert activities["success_branch_b"].status == "skipped"
     assert activities["failing_branch"].status == "failed"
-    assert activities["converge_node"].status == "completed"
-    assert activities["final_action"].status == "completed"
+    assert activities["converge_node"].status == "failed"
+    assert activities["final_action"].status == "skipped"
 
 
-@pytest.mark.skip(reason="Will unskip this test as part of AAP-77145")
 @pytest.mark.e2e
 def test_converge_branch_failure_any_strategy(nexus_api: NexusApiRegistry):
     """Test converge 'any' strategy with branch failures.
@@ -608,16 +606,16 @@ def test_converge_branch_failure_any_strategy(nexus_api: NexusApiRegistry):
     assert activities["success_branch"].status == "completed"
     assert activities["failing_branch_a"].status == "failed"
     assert activities["failing_branch_b"].status == "failed"
-    assert activities["converge_node"].status == "completed"
-    assert activities["final_action"].status == "completed"
+    assert activities["converge_node"].status == "failed"
+    assert activities["final_action"].status == "skipped"
 
 
 @pytest.mark.e2e
 def test_converge_all_branches_fail(nexus_api: NexusApiRegistry):
     """Test converge when all branches fail.
 
-    Verifies that if all branches fail, the converge node never executes
-    and is marked as skipped.
+    Verifies that if all branches fail, the converge node is marked
+    as failed (not skipped) because predecessor failures caused it.
     """
     result = create_and_run_workflow(
         nexus_api,
@@ -680,6 +678,6 @@ def test_converge_all_branches_fail(nexus_api: NexusApiRegistry):
     assert activities["failing_branch_b"].status == "failed"
     assert activities["failing_branch_c"].status == "failed"
 
-    # Verify converge and downstream are skipped
-    assert activities["converge_node"].status == "skipped"
+    # Verify converge is failed (predecessor failures) and downstream is skipped
+    assert activities["converge_node"].status == "failed"
     assert activities["final_action"].status == "skipped"
