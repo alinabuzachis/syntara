@@ -152,8 +152,8 @@ npm run tsc                              # Type check only
 
 To use the real Nexus backend instead of the mock API:
 
-1. Clone and setup the backend: `git clone https://github.com/syntara-orchestration/syntara.git`
-2. Follow the backend README to start the API server
+1. The backend is available at `../backend/` in this monorepo
+2. Follow the backend README (`../backend/README.md`) to start the API server
 3. Export the backend URL and start the UI:
 
 ```bash

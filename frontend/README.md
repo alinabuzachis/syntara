@@ -24,8 +24,8 @@ Nexus UI is a cutting-edge React application designed for building and managing 
 
 ```bash
 # Clone the repository
-git clone https://github.com/syntara-orchestration/syntara-ui.git
-cd nexus-ui
+git clone https://github.com/syntara-orchestration/syntara.git
+cd syntara/frontend
 
 # Install dependencies
 npm ci
@@ -45,8 +45,8 @@ npm start
 
 To use the real Nexus backend instead of the mock API:
 
-1. Clone and setup the backend from [syntara-orchestration/syntara](https://github.com/syntara-orchestration/syntara)
-2. Follow the backend README to start the API server
+1. The backend is available at `../backend/` in this monorepo
+2. Follow the backend README (`../backend/README.md`) to start the API server
 3. Export the backend URL and start the UI:
 
 ```bash
@@ -116,10 +116,10 @@ npm run gen
 
 ## Project Structure
 
-This is a monorepo using npm workspaces:
+The frontend uses npm workspaces to organize its packages:
 
 ```text
-nexus-ui/
+frontend/
 ├── packages/
 │   ├── nexus-ui/              # Main React 19 application
 │   ├── nexus-contracts/       # OpenAPI TypeScript types
@@ -246,7 +246,7 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 ### Nexus Contracts (Type Definitions)
 
 - openapi-typescript (type generation)
-- Generated from [syntara-orchestration/syntara](https://github.com/syntara-orchestration/syntara) OpenAPI specs
+- Generated from the backend OpenAPI specs at `../backend/src/nexus/schemas/`
 - Shared types for UI and mock API
 
 ### Nexus Mock API (Development Server)

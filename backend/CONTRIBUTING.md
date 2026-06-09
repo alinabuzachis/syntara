@@ -42,8 +42,8 @@ Visit our [JIRA board]() and use the "nexus" component for tracking issues and c
 
 3. Clone your fork locally:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/nexus.git
-   cd nexus
+   git clone https://github.com/YOUR-USERNAME/syntara.git
+   cd syntara/backend
    ```
 
 4. Set up the upstream remote:

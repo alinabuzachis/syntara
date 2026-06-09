@@ -34,7 +34,7 @@ PODMAN_SOCK ?= /run/user/$(shell id -u)/podman/podman.sock
 SED_INPLACE := sed -i
 endif
 COMPOSE_CMD ?= uv run podman-compose
-COMPOSE_ARGS ?= -p $(PODMAN_PROJECT) -f podman-compose.yml
+COMPOSE_ARGS ?= -p $(PODMAN_PROJECT) -f ../podman-compose.yml
 COMPOSE_FINAL_CMD := $(COMPOSE_CMD) $(COMPOSE_ARGS)
 
 
