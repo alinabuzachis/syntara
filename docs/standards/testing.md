@@ -14,7 +14,17 @@ tests/
 │   ├── test_spec.py
 │   └── test_generated_client_lazy_imports.py
 ├── e2e/                 # End-to-end tests (full stack required)
-│   └── telemetry/
+│   ├── approvals/
+│   ├── auth/
+│   ├── authz/
+│   ├── credentials/
+│   ├── fixtures/
+│   ├── identity_providers/
+│   ├── integrations/
+│   ├── settings/
+│   ├── telemetry/
+│   ├── tool_manager/
+│   └── workflows/
 ├── fixtures/            # Shared test fixtures and mock resources
 │   ├── external_services/
 │   └── files/
@@ -215,7 +225,7 @@ async def test_file_upload_invalid_file_type(base_client: AsyncClient) -> None:
 
 **Example:**
 ```python
-"""E2E tests for GET endpoints: workflows, executions, and approvals."""
+"""E2E tests for GET endpoints: workflows and approvals."""
 
 import pytest
 from nexus_api_client.api import NexusApiRegistry

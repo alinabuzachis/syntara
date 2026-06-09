@@ -11,11 +11,12 @@ Run with:
 
 from collections.abc import Generator
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from nexus_api_client import AuthenticatedClient
+from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.user_create import UserCreate
 
 from tests.e2e.telemetry.conftest import (
     E2E_TELEMETRY_TEST_PASSWORD,
@@ -23,12 +24,12 @@ from tests.e2e.telemetry.conftest import (
     new_request_id,
 )
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e]
 
 
 @pytest.fixture(scope="module")
 def user_login_events(
-    nexus_client: AuthenticatedClient,
+    nexus_api: NexusApiRegistry,
     nexus_base_url: str,
     segment_server_url: str,
 ) -> Generator[dict[str, Any], None, None]:
@@ -41,18 +42,15 @@ def user_login_events(
     password = E2E_TELEMETRY_TEST_PASSWORD
     email = f"{username}@example.com"
 
-    admin_http = nexus_client.get_httpx_client()
-    create_resp = admin_http.post(
-        "/users",
-        json={
-            "username": username,
-            "email": email,
-            "first_name": "E2E Login Test",
-            "password": password,
-        },
-    )
-    create_resp.raise_for_status()
-    user_id = create_resp.json()["id"]
+    user = nexus_api.users.create(
+        body=UserCreate(
+            username=username,
+            email=email,
+            first_name="E2E Login Test",
+            password=password,
+        )
+    ).assert_and_get()
+    user_id = str(user.id)
 
     # First login
     rid1 = new_request_id()
@@ -95,7 +93,7 @@ def user_login_events(
         "username": username,
     }
 
-    admin_http.delete(f"/users/{user_id}")
+    nexus_api.users.delete(user_id=UUID(user_id))
 
 
 class TestUserLoginEvent:

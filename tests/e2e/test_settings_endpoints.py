@@ -19,7 +19,7 @@ from tests.e2e.helpers import _retry_api_call, poll_audit_events
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e]
 
 _LOG_LEVEL_KEY = "logging.log_level"
 _MAX_TOKENS_KEY = "context_manager.max_total_tokens"
@@ -34,10 +34,9 @@ _RETRIEVER_MODEL_KEY = "retriever.llm_model"
 
 def _get_setting(api: NexusApiRegistry, key: str) -> RuntimeSettingRead:
     """Get a single setting, asserting success."""
-    resp = _retry_api_call(lambda: api.settings.get(key=key))
-    assert resp.status_code == HTTPStatus.OK
-    assert isinstance(resp.parsed, RuntimeSettingRead)
-    return resp.parsed
+    setting = _retry_api_call(lambda: api.settings.get(key=key)).assert_and_get()
+    assert isinstance(setting, RuntimeSettingRead)
+    return setting
 
 
 def _update_setting(
@@ -51,10 +50,9 @@ def _update_setting(
     body = SettingUpdate(value=value)
     if expected_version is not None:
         body.expected_version = expected_version
-    resp = _retry_api_call(lambda: api.settings.update(key=key, body=body))
-    assert resp.status_code == HTTPStatus.OK
-    assert isinstance(resp.parsed, RuntimeSettingRead)
-    return resp.parsed
+    setting = _retry_api_call(lambda: api.settings.update(key=key, body=body)).assert_and_get()
+    assert isinstance(setting, RuntimeSettingRead)
+    return setting
 
 
 def _restore_setting(api: NexusApiRegistry, key: str, value: object) -> None:
@@ -100,11 +98,8 @@ class TestSettings:
 
     def test_list_settings(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings returns 200 with resources containing required fields."""
-        resp = nexus_api.settings.list()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        settings = resp.parsed.resources
+        settings_list = nexus_api.settings.list().assert_and_get()
+        settings = settings_list.resources
         assert len(settings) > 0
         for setting in settings:
             assert setting.key
@@ -115,11 +110,8 @@ class TestSettings:
 
     def test_list_categories(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings/categories returns 200 with all expected categories."""
-        resp = nexus_api.settings.list_categories()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        categories = resp.parsed.resources
+        categories_response = nexus_api.settings.list_categories().assert_and_get()
+        categories = categories_response.resources
         assert len(categories) > 0
         slugs = [cat.slug for cat in categories]
         for expected in ("ai_llm", "system", "context_manager", "workflow_execution", "application"):
@@ -192,11 +184,8 @@ class TestNewSettings:
 
     def test_new_categories_appear(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings/categories includes ai_llm, workflow_execution, application."""
-        resp = nexus_api.settings.list_categories()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        slugs = [cat.slug for cat in resp.parsed.resources]
+        categories_response = nexus_api.settings.list_categories().assert_and_get()
+        slugs = [cat.slug for cat in categories_response.resources]
         assert "ai_llm" in slugs
         assert "workflow_execution" in slugs
         assert "application" in slugs
@@ -217,11 +206,8 @@ class TestNewSettings:
 
     def test_all_settings_have_requires_restart(self, nexus_api: NexusApiRegistry) -> None:
         """Every setting in the list response includes a requires_restart boolean."""
-        resp = nexus_api.settings.list()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        for setting in resp.parsed.resources:
+        settings_list = nexus_api.settings.list().assert_and_get()
+        for setting in settings_list.resources:
             assert isinstance(setting.requires_restart, bool)
 
     def test_constraint_validation_rejects_invalid(self, nexus_api: NexusApiRegistry) -> None:
@@ -236,27 +222,19 @@ class TestAuditorSettingsAccess:
 
     def test_auditor_can_list_settings(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor can list all settings."""
-        resp = auditor_api.settings.list()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        assert len(resp.parsed.resources) > 0
+        settings_list = auditor_api.settings.list().assert_and_get()
+        assert len(settings_list.resources) > 0
 
     def test_auditor_can_get_setting(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor can read a specific setting."""
-        resp = auditor_api.settings.get(key=_MAX_TOKENS_KEY)
-
-        assert resp.status_code == HTTPStatus.OK
-        assert isinstance(resp.parsed, RuntimeSettingRead)
-        assert resp.parsed.key == _MAX_TOKENS_KEY
+        setting = auditor_api.settings.get(key=_MAX_TOKENS_KEY).assert_and_get()
+        assert isinstance(setting, RuntimeSettingRead)
+        assert setting.key == _MAX_TOKENS_KEY
 
     def test_auditor_can_list_categories(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor can list setting categories."""
-        resp = auditor_api.settings.list_categories()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        assert len(resp.parsed.resources) > 0
+        categories_response = auditor_api.settings.list_categories().assert_and_get()
+        assert len(categories_response.resources) > 0
 
     def test_auditor_cannot_update_setting(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor is denied access to update a setting."""
@@ -309,22 +287,16 @@ class TestSettingsFiltering:
 
     def test_filter_by_category(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings?category= returns only settings in that category."""
-        resp = nexus_api.settings.list(category="context_manager")
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        settings = resp.parsed.resources
+        settings_list = nexus_api.settings.list(category="context_manager").assert_and_get()
+        settings = settings_list.resources
         assert len(settings) > 0
         for setting in settings:
             assert setting.category == "context_manager"
 
     def test_filter_by_category_and_group(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings?category=&group= returns only matching settings."""
-        resp = nexus_api.settings.list(category="context_manager", group="Compression")
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        settings = resp.parsed.resources
+        settings_list = nexus_api.settings.list(category="context_manager", group="Compression").assert_and_get()
+        settings = settings_list.resources
         assert len(settings) > 0
         for setting in settings:
             assert setting.category == "context_manager"
@@ -337,19 +309,17 @@ class TestSettingsPagination:
     def test_pagination_no_overlap(self, nexus_api: NexusApiRegistry) -> None:
         """Paginated pages do not contain overlapping settings."""
         # sort by -created_at to align with the cursor's (created_at, id) keyset
-        page1 = nexus_api.settings.list(limit=5, sort="-created_at")
-        assert page1.status_code == HTTPStatus.OK
-        assert page1.parsed is not None
-        assert len(page1.parsed.resources) == 5
-        assert page1.parsed.next_ is not None
+        page1_response = nexus_api.settings.list(limit=5, sort="-created_at").assert_and_get()
+        assert len(page1_response.resources) == 5
+        assert page1_response.next_ is not None
 
-        page2 = nexus_api.settings.list(limit=5, sort="-created_at", cursor=page1.parsed.next_)
-        assert page2.status_code == HTTPStatus.OK
-        assert page2.parsed is not None
-        assert len(page2.parsed.resources) > 0
+        page2_response = nexus_api.settings.list(
+            limit=5, sort="-created_at", cursor=page1_response.next_
+        ).assert_and_get()
+        assert len(page2_response.resources) > 0
 
-        page1_keys = {s.key for s in page1.parsed.resources}
-        page2_keys = {s.key for s in page2.parsed.resources}
+        page1_keys = {s.key for s in page1_response.resources}
+        page2_keys = {s.key for s in page2_response.resources}
         assert page1_keys.isdisjoint(page2_keys)
 
 
@@ -446,7 +416,7 @@ class TestSettingsBulkUpdate:
         originals = {k: _get_setting(nexus_api, k).effective_value for k in keys}
 
         try:
-            resp = nexus_api.settings.bulk_update(
+            updated_settings = nexus_api.settings.bulk_update(
                 body=SettingBulkUpdateRequest(
                     updates=[
                         SettingBulkUpdateItem(key=_MAX_TOKENS_KEY, value=5000),
@@ -454,10 +424,9 @@ class TestSettingsBulkUpdate:
                         SettingBulkUpdateItem(key=_TIMEOUT_SECONDS_KEY, value=15),
                     ]
                 )
-            )
-            assert resp.status_code == HTTPStatus.OK
-            assert resp.parsed is not None
-            assert len(resp.parsed.resources) == 3
+            ).assert_and_get()
+            assert isinstance(updated_settings.resources, list)
+            assert len(updated_settings.resources) == 3
 
             for key, expected in [
                 (_MAX_TOKENS_KEY, 5000),
@@ -508,11 +477,8 @@ class TestSettingsBulkUpdate:
 
     def test_bulk_update_empty_list(self, nexus_api: NexusApiRegistry) -> None:
         """Bulk update with empty updates list returns 200."""
-        resp = nexus_api.settings.bulk_update(body=SettingBulkUpdateRequest(updates=[]))
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        assert resp.parsed.resources == []
+        updated_settings = nexus_api.settings.bulk_update(body=SettingBulkUpdateRequest(updates=[])).assert_and_get()
+        assert updated_settings.resources == []
 
     def test_bulk_update_exceeds_limit(self, nexus_api: NexusApiRegistry) -> None:
         """Bulk update with more than 500 items returns 422."""

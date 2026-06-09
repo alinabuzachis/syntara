@@ -25,6 +25,8 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.group_create import GroupCreate
 from nexus_api_client.models.group_member_add import GroupMemberAdd
+from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
+from nexus_api_client.models.oidc_configuration import OIDCConfiguration
 from nexus_api_client.models.policy_create import PolicyCreate
 from nexus_api_client.models.policy_statement_schema import PolicyStatementSchema
 from nexus_api_client.models.principal_type import PrincipalType
@@ -50,10 +52,8 @@ if TYPE_CHECKING:
 
 def get_bearer_token_type_id(api: NexusApiRegistry) -> UUID:
     """Return the credential type ID for 'HTTP Bearer Token'."""
-    resp = api.credentials.list_types()
-    assert resp.is_success
-    assert resp.parsed is not None
-    for ct in resp.parsed.resources:
+    types_list = api.credentials.list_types().assert_and_get()
+    for ct in types_list.resources:
         if ct.name == "HTTP Bearer Token":
             return UUID(str(ct.id))
     pytest.fail("Preseeded 'HTTP Bearer Token' credential type not found")
@@ -134,6 +134,38 @@ def create_credential(
     return UUID(str(cred.id)), str(cred.name)
 
 
+def create_identity_provider(
+    api: NexusApiRegistry,
+    nexus_base_url: str,
+) -> tuple[UUID, str]:
+    """Create a test OIDC identity provider. Returns ``(provider_id, name)``.
+
+    Note: For OIDC providers integrated with external services (Keycloak, Azure AD),
+    use the fixtures in tests/fixtures/external_services/ instead. This helper
+    creates a minimal non-functional provider for tests that only need the resource
+    to exist.
+    """
+    name = unique_name("e2e-idp")
+    resp = api.identity_providers.create(
+        body=IdentityProviderCreate(
+            name=name,
+            configuration=OIDCConfiguration(
+                issuer_url="https://example.com",
+                client_id=f"client-{name}",
+                client_secret=f"secret-{name}",
+                redirect_uri=f"{nexus_base_url}/api/v1/auth/oidc/callback",
+                auto_discovery=False,
+                authorization_endpoint="https://example.com/auth",
+                token_endpoint="https://example.com/token",  # noqa: S106
+                userinfo_endpoint="https://example.com/userinfo",
+                jwks_uri="https://example.com/jwks",
+            ),
+        ),
+    )
+    provider = resp.assert_and_get()
+    return UUID(str(provider.id)), str(provider.name)
+
+
 # ---------------------------------------------------------------------------
 # Layer 2 — ResourceTracker
 # ---------------------------------------------------------------------------
@@ -161,6 +193,7 @@ class ResourceTracker:
         self._groups: list[UUID] = []
         self._workflows: list[UUID] = []
         self._credentials: list[UUID] = []
+        self._identity_providers: list[UUID] = []
 
     def user(self, prefix: str) -> tuple[UUID, str, str]:
         """Create a user and track it for cleanup."""
@@ -192,6 +225,12 @@ class ResourceTracker:
         self._credentials.append(cid)
         return cid, name
 
+    def identity_provider(self, nexus_base_url: str) -> tuple[UUID, str]:
+        """Create an identity provider and track it for cleanup."""
+        pid, name = create_identity_provider(self._api, nexus_base_url)
+        self._identity_providers.append(pid)
+        return pid, name
+
     def _delete_each(self, ids: list[UUID], delete_fn: object) -> None:
         """Best-effort delete a list of resources."""
         for rid in ids:
@@ -202,6 +241,10 @@ class ResourceTracker:
 
     def cleanup(self) -> None:
         """Delete all tracked resources in reverse-dependency order."""
+        self._delete_each(
+            self._identity_providers,
+            lambda rid: self._api.identity_providers.delete(provider_id=rid),
+        )
         self._delete_each(self._workflows, lambda rid: self._api.workflows.delete(workflow_id=rid))
         self._delete_each(self._credentials, lambda rid: self._api.credentials.delete(credential_id=rid))
         self._delete_each(self._groups, lambda rid: self._api.groups.delete(group_id=rid))
@@ -261,6 +304,26 @@ def credential_factory(
     """Factory fixture that creates credentials with automatic cleanup."""
     tracker = ResourceTracker(admin_api)
     yield tracker.credential
+    tracker.cleanup()
+
+
+@pytest.fixture
+def identity_provider_factory_basic(
+    admin_api: NexusApiRegistry,
+    nexus_base_url: str,
+) -> Generator[object, None, None]:
+    """Factory fixture that creates identity providers with automatic cleanup.
+
+    Note: This creates a minimal non-functional OIDC provider configuration.
+    For OIDC providers integrated with external services (Keycloak, Azure AD),
+    use the fixtures in tests/fixtures/external_services/ instead.
+
+    For most E2E tests, use the identity_provider_factory from conftest.py
+    which provides a more direct API. This fixture is for module-scoped tests
+    that need ResourceTracker integration.
+    """
+    tracker = ResourceTracker(admin_api)
+    yield lambda: tracker.identity_provider(nexus_base_url)
     tracker.cleanup()
 
 
@@ -360,11 +423,10 @@ def assign_system_role(
     role_name: str,
 ) -> None:
     """Assign a system-scoped role to a user."""
-    resp = api.users.create_role_assignment(
+    api.users.create_role_assignment(
         user_id=user_id,
         body=SubResourceRoleAssignmentCreate(role_name=role_name),
-    )
-    assert resp.status_code == HTTPStatus.CREATED
+    ).assert_and_get()
 
 
 def revoke_project_role(

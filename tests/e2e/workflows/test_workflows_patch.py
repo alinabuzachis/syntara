@@ -318,25 +318,21 @@ class TestWorkflowUpdate:
         assert response.status_code == HTTPStatus.CONFLICT
 
         # Verify workflow1 is unchanged
-        get_response = nexus_api.workflows.get(workflow_id=workflow1_id)
-        assert get_response.status_code == HTTPStatus.OK
-        assert get_response.parsed is not None
-        assert get_response.parsed.name == workflow1_name
+        workflow1_data = nexus_api.workflows.get(workflow_id=workflow1_id).assert_and_get()
+        assert workflow1_data.name == workflow1_name
 
     def test_update_workflow_preserves_project_id(
         self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
     ) -> None:
         """Test that PATCH response includes the correct project_id."""
         # Create project via API
-        project_response = nexus_api.projects.create(
+        project_data = nexus_api.projects.create(
             body=ProjectCreate(
                 name=f"test-project-{uuid4().hex[:8]}",
                 description="Test project",
             )
-        )
-        assert project_response.status_code == HTTPStatus.CREATED
-        assert project_response.parsed is not None
-        project_id = project_response.parsed.id
+        ).assert_and_get()
+        project_id = project_data.id
 
         workflow_name = unique_name("project-patch-test")
         workflow_def = WorkflowDefinition.from_dict(

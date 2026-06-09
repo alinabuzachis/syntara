@@ -413,7 +413,7 @@ def group_mapping_provider_factory(
         group_mapping_entries: list[OIDCGroupMappingEntry] | None = None,
         allow_all_authenticated: bool = False,
     ) -> IdentityProviderResponse:
-        from tests.e2e.authentication.group_mapping_helpers import create_group_mapping_provider
+        from tests.e2e.auth.group_mapping_helpers import create_group_mapping_provider
 
         provider = create_group_mapping_provider(
             nexus_api,
@@ -441,7 +441,7 @@ def nexus_group_factory(
     nexus_api: NexusApiRegistry,
 ) -> Generator[Callable[[str], UUID], None, None]:
     """Factory that creates Nexus groups with automatic cleanup (group-mapping E2E tests)."""
-    from tests.e2e.authentication.group_mapping_helpers import create_nexus_group, delete_nexus_group
+    from tests.e2e.auth.group_mapping_helpers import create_nexus_group, delete_nexus_group
 
     created_group_ids: list[UUID] = []
 

@@ -26,7 +26,7 @@ from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 if TYPE_CHECKING:
     from nexus_api_client import AuthenticatedClient
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e]
 
 WORKFLOW_NAME = "e2e-telemetry-script"
 POLL_INTERVAL = 3

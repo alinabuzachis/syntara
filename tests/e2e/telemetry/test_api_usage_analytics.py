@@ -14,7 +14,7 @@ import pytest
 
 from tests.e2e.telemetry.conftest import api_get, get_captured_events, new_request_id
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e]
 
 # Fields that must never appear in api_call event properties
 SENSITIVE_FIELDS = {

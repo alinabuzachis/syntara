@@ -26,7 +26,7 @@ from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.e2e.telemetry.conftest import POLL_INTERVAL
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e]
 
 # Collection interval in the e2e environment is 10s; wait up to 25s.
 ANALYTICS_TIMEOUT = 25.0
