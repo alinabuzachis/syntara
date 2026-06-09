@@ -619,7 +619,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=admins_group)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "system_administrator"}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "aap_system_role": "system_administrator"}, config
         )
         assert result is True
 
@@ -633,7 +633,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=auditors_group)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "system_auditor"}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "aap_system_role": "system_auditor"}, config
         )
         assert result is True
 
@@ -648,7 +648,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=users_group)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "normal_user"}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "aap_system_role": "normal_user"}, config
         )
         assert result is True
 
@@ -663,7 +663,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=users_group)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "sub": "user-123"}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "sub": "user-123"}, config
         )
         assert result is True
 
@@ -678,7 +678,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=users_group)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "some_future_role"}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "aap_system_role": "some_future_role"}, config
         )
         assert result is True
 
@@ -693,7 +693,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=users_group)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": 42}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "aap_system_role": 42}, config
         )
         assert result is True
 
@@ -707,7 +707,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=None)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "normal_user"}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "aap_system_role": "normal_user"}, config
         )
         assert result is False
 
@@ -744,7 +744,7 @@ class TestAapRoleMapping:
             db,
             user,
             identity,
-            {"iss": "https://idp.example.com", "groups": ["dev-team"], "aap_system_role": "system_administrator"},
+            {"iss": "https://idp.example.com/", "groups": ["dev-team"], "aap_system_role": "system_administrator"},
             config,
         )
         assert result is True
@@ -766,7 +766,7 @@ class TestAapRoleMapping:
             db,
             user,
             identity,
-            {"iss": "https://idp.example.com", "groups": 12345, "aap_system_role": "system_administrator"},
+            {"iss": "https://idp.example.com/", "groups": 12345, "aap_system_role": "system_administrator"},
             config,
         )
         assert result is True
@@ -781,7 +781,7 @@ class TestAapRoleMapping:
         db = _make_mock_db_for_aap(builtin_group=None)
 
         result = await sync_idp_groups(
-            db, user, identity, {"iss": "https://idp.example.com", "aap_system_role": "system_administrator"}, config
+            db, user, identity, {"iss": "https://idp.example.com/", "aap_system_role": "system_administrator"}, config
         )
         assert result is False
 
@@ -816,8 +816,8 @@ class TestAapRoleMapping:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_issuer_trailing_slash_normalization(self):
-        """Issuer comparison should be tolerant of trailing slash differences."""
+    async def test_issuer_exact_match_with_trailing_slash(self):
+        """Issuer comparison uses exact match — iss claim must match stored issuer_url."""
         user = _make_user()
         provider_id = uuid4()
         identity = _make_identity(user, provider_id)

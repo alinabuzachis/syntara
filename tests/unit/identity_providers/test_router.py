@@ -72,7 +72,7 @@ async def test_oidc_test_endpoint_calls_discovery() -> None:
     ) as mock_test:
         result = await idp_router.test_identity_provider(request, mock_user)
 
-    mock_test.assert_called_once_with("https://idp.example.com", disable_tls_verify=False)
+    mock_test.assert_called_once_with("https://idp.example.com/", disable_tls_verify=False)
     assert result.success is True
     assert result.message == "OIDC discovery succeeded"
 

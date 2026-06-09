@@ -81,7 +81,7 @@ def _allow_http() -> bool:
 
 
 def _validate_url_format(url: str | None, handler: ValidatorFunctionWrapHandler, field_name: str | None) -> str | None:
-    """Enforce URL format, HTTPS scheme (unless dev mode) and strip trailing slash."""
+    """Enforce URL format and HTTPS scheme (unless dev mode)."""
     if url is None:
         return None
     try:
@@ -92,7 +92,7 @@ def _validate_url_format(url: str | None, handler: ValidatorFunctionWrapHandler,
     if field_name != "redirect_uri" and not _allow_http() and parsed.scheme == "http":
         msg = f"{field_name} must use HTTPS"
         raise ValueError(msg)
-    return str(parsed).rstrip("/")
+    return str(parsed)
 
 
 _OIDC_DEFAULT_SCOPES = "openid profile email"
@@ -182,7 +182,7 @@ class OIDCConfiguration(BaseConsumerConfiguration):
     def validate_oidc_configuration_url(
         cls, v: str | None, handler: ValidatorFunctionWrapHandler, info: ValidationInfo
     ) -> str | None:
-        """Enforce URL format, HTTPS scheme (unless dev mode) and strip trailing slash."""
+        """Enforce URL format and HTTPS scheme (unless dev mode)."""
         return _validate_url_format(v, handler, info.field_name)
 
     @field_validator("idp_type")
@@ -362,7 +362,7 @@ class OIDCConfigurationPatch(BaseConsumerConfiguration):
     def validate_oidc_configuration_url(
         cls, v: str | None, handler: ValidatorFunctionWrapHandler, info: ValidationInfo
     ) -> str | None:
-        """Enforce URL format, HTTPS scheme (unless dev mode) and strip trailing slash."""
+        """Enforce URL format and HTTPS scheme (unless dev mode)."""
         return _validate_url_format(v, handler, info.field_name)
 
     @field_validator("idp_type")
