@@ -1,73 +1,78 @@
-.PHONY: install format lint test test-all typecheck dev gen-contracts \
+COMPOSE_CMD ?= uv run podman-compose
+
+.PHONY: help install format lint test test-all typecheck dev gen-contracts \
        services-up services-down services-logs secrets db-migrate db-seed setup sync
+
+help: ## Show available targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # --- Development workflow ---
 
-install:
+install: ## Install backend and frontend dependencies
 	$(MAKE) -C backend install
 	cd frontend && npm ci
 
-dev:
+dev: ## Start backend API and frontend dev servers
 	$(MAKE) -C backend dev &
 	cd frontend && npm run start
 
-setup: install secrets services-up db-migrate db-seed
+setup: install secrets services-up db-migrate db-seed ## One-shot bootstrap: install, secrets, services, migrations, seed
 	@echo ""
 	@echo "Setup complete. Run 'make dev' to start the development servers."
 
 # --- Code quality ---
 
-format:
+format: ## Format both codebases
 	$(MAKE) -C backend format
 	cd frontend && npm run format
 
-lint:
+lint: ## Lint both codebases
 	$(MAKE) -C backend lint
 	cd frontend && npm run lint
 
-test:
+test: ## Run backend and frontend tests
 	$(MAKE) -C backend test
 	cd frontend && npm test
 
-test-all:
+test-all: ## Run all tests including integration
 	$(MAKE) -C backend test-all
 	cd frontend && npm test
 
-typecheck:
+typecheck: ## Type-check both codebases
 	$(MAKE) -C backend typecheck
 	cd frontend && npx tsc --noEmit
 
 # --- Infrastructure services (via root podman-compose.yml) ---
 
-services-up:
-	podman-compose up -d database redis temporal temporal-ui opa mcp-server
+services-up: ## Start all infrastructure services in background
+	$(COMPOSE_CMD) up -d database redis temporal temporal-ui temporal-worker opa mcp-server
 	@echo "Waiting for services to be healthy..."
 	@sleep 5
 
-services-down:
-	podman-compose down
+services-down: ## Stop all services
+	$(COMPOSE_CMD) down
 
-services-logs:
-	podman-compose logs -f
+services-logs: ## Tail logs from all services
+	$(COMPOSE_CMD) logs -f
 
 # --- Database & secrets ---
 
-secrets:
+secrets: ## Generate JWT keys, admin password, encryption key
 	$(MAKE) -C backend secrets-generate
 
-db-migrate:
+db-migrate: ## Run main and audit database migrations
 	cd backend && APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
 	cd backend && uv run alembic -c alembic_audit.ini upgrade head
 
-db-seed:
+db-seed: ## Seed the database with required data
 	$(MAKE) -C backend db-seed
 
 # --- Contract generation ---
 
-gen-contracts:
+gen-contracts: ## Regenerate TypeScript types from backend OpenAPI specs
 	cd frontend/packages/nexus-contracts && npm run gen:local
 
 # --- Upstream sync (transition period) ---
 
-sync:
+sync: ## Pull latest changes from upstream nexus and nexus-ui repos
 	bash scripts/sync-from-upstream.sh
