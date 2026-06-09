@@ -88,6 +88,7 @@ def _build_mixed_activity_definitions(base_url: str) -> list[dict[str, Any]]:
     """
     return [
         {
+            "name": "script-activities-workflow",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -112,6 +113,7 @@ def _build_mixed_activity_definitions(base_url: str) -> list[dict[str, Any]]:
             ],
         },
         {
+            "name": "approval-activities-workflow",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
@@ -136,6 +138,7 @@ def _build_mixed_activity_definitions(base_url: str) -> list[dict[str, Any]]:
             ],
         },
         {
+            "name": "tool-activities-workflow",
             "schema_version": "2.0.0",
             "triggers": [
                 {"id": "trigger_manual", "type": "manual_trigger", "config": {"inputs": {}}},
