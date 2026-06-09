@@ -1,0 +1,16 @@
+# Nexus Combined Monorepo — Code Owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Backend (Python/FastAPI)
+/backend/ @hakbailey @manstis @bzwei @AaronH88 @thenets @alisonlhart @Qalthos @Alex-Izquierdo
+
+# Frontend (React/TypeScript)
+/frontend/ @hakbailey @gitdallas @nixocio @lgalis @skochay330 @mfrances17 @nicklemmon
+
+# UX design system — requires UX team review
+/frontend/.claude/skills/patternfly-ux-design-system.md @trahman73 @tiyiprh @aratti96
+/frontend/.cursor/rules/patternfly-ux-design-system.mdc @trahman73 @tiyiprh @aratti96
+
+# Root config — lead maintainer
+/* @hakbailey
+/.github/ @hakbailey

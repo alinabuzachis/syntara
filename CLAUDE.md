@@ -1,22 +1,116 @@
-# Claude Agent Instructions
+# Nexus Monorepo — Claude Agent Instructions
 
-This is a monorepo with backend (Python/FastAPI) and frontend (React/TypeScript) components. See component-specific instructions:
+Nexus is a distributed multi-agent automation system. This monorepo contains the Python/FastAPI backend and the React/TypeScript frontend.
 
-- [backend/CLAUDE.md](backend/CLAUDE.md) — Backend-specific Claude guidance
-- [backend/AGENTS.md](backend/AGENTS.md) — Backend development standards, database migrations, testing
-- [frontend/CLAUDE.md](frontend/CLAUDE.md) — Frontend-specific Claude guidance, skills, PR checklist
+## Repository Structure
 
-## Monorepo Commands
+```
+syntara/
+├── backend/           # Python 3.12+ / FastAPI API, Temporal workflows, PostgreSQL
+│   ├── src/nexus/     # Main Python package (domain-driven, auto-discovered routers)
+│   ├── tests/         # pytest: unit, integration, contract, E2E, performance
+│   ├── containers/    # Containerfiles for API and MCP server
+│   └── Makefile       # Backend-specific targets (run make -C backend help)
+├── frontend/          # React 19 / TypeScript / PatternFly 6 (npm workspaces)
+│   ├── packages/
+│   │   ├── nexus-ui/          # Main UI application
+│   │   ├── nexus-contracts/   # Generated TypeScript types from backend OpenAPI specs
+│   │   └── nexus-mock-api/    # MSW-based mock API server
+│   ├── e2e/                   # Playwright E2E tests
+│   └── package.json           # Workspace root
+├── podman-compose.yml # Full-stack local dev (all services)
+├── Makefile           # Root orchestration (run make help)
+└── .env.example       # Combined environment config
+```
+
+## Component-Specific Instructions
+
+Read the component docs when working in that area — they contain detailed standards, patterns, and gotchas:
+
+| Working on... | Read |
+|---|---|
+| Backend Python code | [backend/AGENTS.md](backend/AGENTS.md) — SQLModel patterns, Alembic migrations, testing standards, 12+ domain-specific standards docs |
+| Frontend React/TypeScript | [frontend/CLAUDE.md](frontend/CLAUDE.md) — Skills system, PatternFly patterns, 29-item PR checklist, architecture guides |
+| Both (E2E, contracts, infra) | This file |
+
+## Development Workflow
+
+### First-Time Setup
 
 ```bash
-make install        # Install all dependencies
-make format         # Format both codebases
+make setup    # Installs deps, generates secrets, starts services, runs migrations, seeds DB
+make dev      # Starts backend API (port 8000) + frontend dev server (port 5173)
+```
+
+### Day-to-Day
+
+```bash
+make dev            # Start both dev servers
+make test           # Run backend + frontend tests
 make lint           # Lint both codebases
-make test           # Run all tests
+make format         # Format both codebases
 make typecheck      # Type-check both codebases
 make gen-contracts  # Regenerate TypeScript types from backend OpenAPI specs
+make services-up    # Start infrastructure (DB, Redis, Temporal, OPA, etc.)
+make services-down  # Stop infrastructure
+make sync           # Pull latest changes from upstream repos (transition period)
 ```
+
+### Backend-Specific Targets
+
+Run `make -C backend help` for the full list. Key ones:
+
+```bash
+make -C backend test-all      # All tests including integration
+make -C backend db-seed-all   # Seed DB with dev sample data
+make -C backend db-clean      # Reset database (destructive)
+```
+
+## Port Map (Local Development)
+
+| Service | Port | Notes |
+|---|---|---|
+| Backend API | 8000 | `make dev` or `make -C backend dev` |
+| Frontend UI | 5173 | `npm start` from frontend/ |
+| Mock API | 3000 | Standalone frontend dev without backend |
+| Temporal UI | 8081 | Workflow monitoring |
+| PostgreSQL | 5432 | Main + audit databases |
+| Redis | 6379 | Cache, auth sessions |
+| OPA | 8181 | Authorization policy engine |
+| Storybook | 5174 | Component library + MCP server |
+| MCP Server | 8765 | Test MCP server |
 
 ## Contract Generation
 
-TypeScript API types are generated from backend OpenAPI specs. In this monorepo, specs are at `backend/src/nexus/schemas/` and types are generated to `frontend/packages/nexus-contracts/src/`. Run `make gen-contracts` after changing any backend API schema.
+Backend OpenAPI specs live at `backend/src/nexus/schemas/`. Frontend TypeScript types are generated into `frontend/packages/nexus-contracts/src/`.
+
+```bash
+make gen-contracts
+```
+
+When a backend PR changes API schemas, run this and include the regenerated types in the same PR. The gen scripts read directly from the local tree — no cross-repo cloning.
+
+## Cross-Cutting Concerns
+
+### Full-Stack PRs
+
+Backend API changes and UI consumption can land in the same PR. When changing an API:
+1. Update the backend schema/router
+2. Run `make gen-contracts` to regenerate TypeScript types
+3. Update the frontend to use the new types
+4. Include all changes in one PR
+
+### Podman Compose
+
+The root `podman-compose.yml` defines the full stack. The UI builds from `frontend/` instead of pulling a pre-built image. Backend services (DB, Redis, Temporal, OPA) use the same config as the standalone backend compose.
+
+```bash
+uv run podman-compose up --build    # Full stack
+uv run podman-compose up -d database redis temporal  # Just infrastructure
+```
+
+### Technology Stack
+
+**Backend**: Python 3.12+, FastAPI, SQLModel, PostgreSQL 15, Temporal, Redis, OPA, uv, Alembic, pytest, mypy, ruff
+
+**Frontend**: React 19, TypeScript 5.9, Vite, PatternFly 6, TanStack Query, Zustand, ReactFlow, Vitest, Playwright, npm workspaces

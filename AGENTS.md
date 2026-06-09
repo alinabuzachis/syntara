@@ -1,13 +1,28 @@
 # AI Agent Instructions
 
-This is a monorepo with backend and frontend components. See component-specific agent instructions:
+Nexus is a distributed multi-agent automation system. This monorepo contains a Python/FastAPI backend (`backend/`) and a React/TypeScript frontend (`frontend/`).
 
-- [backend/AGENTS.md](backend/AGENTS.md) — Backend development standards (SQLModel, Alembic migrations, uv, pytest, mypy)
-- [frontend/CLAUDE.md](frontend/CLAUDE.md) — Frontend development standards (React, TypeScript, PatternFly, Vitest, Playwright)
+## Component-Specific Standards
 
-## Monorepo-Specific Guidance
+- [backend/AGENTS.md](backend/AGENTS.md) — SQLModel, Alembic migrations, uv, pytest, mypy, domain standards
+- [frontend/CLAUDE.md](frontend/CLAUDE.md) — React 19, TypeScript, PatternFly 6, Vitest, Playwright, PR checklist
 
-- Use `make install` before running any checks or tests
-- Backend changes that modify API schemas require running `make gen-contracts` and including the regenerated types
-- The root `Makefile` delegates to `backend/Makefile` and `frontend/package.json` scripts
-- The root `podman-compose.yml` provides the full stack for local development
+## Key Commands
+
+```bash
+make setup          # First-time bootstrap (install, secrets, services, migrations, seed)
+make dev            # Start backend API (port 8000) + frontend dev server (port 5173)
+make test           # Run all tests
+make lint           # Lint both codebases
+make format         # Format both codebases
+make typecheck      # Type-check both codebases
+make gen-contracts  # Regenerate frontend TypeScript types from backend OpenAPI specs
+make services-up    # Start infrastructure (DB, Redis, Temporal, OPA)
+```
+
+## Rules
+
+- Run `make install` before any checks or tests
+- Backend API schema changes require `make gen-contracts` — include regenerated types in the same PR
+- The root `podman-compose.yml` is the unified compose file; use `uv run podman-compose` to invoke it
+- Backend-specific targets: `make -C backend help`
