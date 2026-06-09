@@ -10,7 +10,7 @@ Tests cover:
 - Inheritance from BaseResource (id, created_at, updated_at)
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
@@ -203,3 +203,97 @@ async def test_file_metadata_update_status(test_db_session: AsyncSession) -> Non
 
     assert file_metadata.status == FileStatus.CONVERTED
     assert file_metadata.converted_content_path == "/storage/nexus-proc123-content.md"
+
+
+@pytest.mark.asyncio
+async def test_file_metadata_storage_backend_defaults_to_local(test_db_session: AsyncSession) -> None:
+    """Test that storage_backend defaults to 'local'."""
+    file_metadata = FileMetadata(
+        filename="test.pdf",
+        mime_type="application/pdf",
+        size_bytes=1024,
+        file_path="/storage/nexus-abc-test.pdf",
+    )
+    test_db_session.add(file_metadata)
+    await test_db_session.commit()
+
+    assert file_metadata.storage_backend == "local"
+
+
+@pytest.mark.asyncio
+async def test_file_metadata_storage_backend_custom_value(test_db_session: AsyncSession) -> None:
+    """Test setting storage_backend to a custom value like 's3'."""
+    file_metadata = FileMetadata(
+        filename="test.pdf",
+        mime_type="application/pdf",
+        size_bytes=1024,
+        file_path="nexus-abc-test.pdf",
+        storage_backend="s3",
+    )
+    test_db_session.add(file_metadata)
+    await test_db_session.commit()
+
+    assert file_metadata.storage_backend == "s3"
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(test_db_session: AsyncSession) -> None:
+    """Test that content_hash defaults to None and accepts a SHA-256 value."""
+    file_metadata = FileMetadata(
+        filename="test.pdf",
+        mime_type="application/pdf",
+        size_bytes=1024,
+        file_path="/storage/nexus-abc-test.pdf",
+    )
+    test_db_session.add(file_metadata)
+    await test_db_session.commit()
+
+    assert file_metadata.content_hash is None
+
+    sha256 = "a" * 64
+    file_metadata.content_hash = sha256
+    await test_db_session.commit()
+    assert file_metadata.content_hash == sha256
+
+
+@pytest.mark.asyncio
+async def test_file_metadata_retention_expires_at_nullable(test_db_session: AsyncSession) -> None:
+    """Test that retention_expires_at defaults to None and accepts a datetime."""
+    file_metadata = FileMetadata(
+        filename="test.pdf",
+        mime_type="application/pdf",
+        size_bytes=1024,
+        file_path="/storage/nexus-abc-test.pdf",
+    )
+    test_db_session.add(file_metadata)
+    await test_db_session.commit()
+
+    assert file_metadata.retention_expires_at is None
+
+    expiry = datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC)
+    file_metadata.retention_expires_at = expiry
+    await test_db_session.commit()
+    assert file_metadata.retention_expires_at is not None
+
+
+@pytest.mark.asyncio
+async def test_file_metadata_create_with_all_new_fields(test_db_session: AsyncSession) -> None:
+    """Test creating FileMetadata with all three new fields set."""
+    expiry = datetime(2026, 7, 1, 0, 0, 0, tzinfo=UTC)
+    sha256 = "b" * 64
+
+    file_metadata = FileMetadata(
+        filename="report.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        size_bytes=4096,
+        file_path="nexus-xyz-report.docx",
+        storage_backend="s3",
+        content_hash=sha256,
+        retention_expires_at=expiry,
+    )
+    test_db_session.add(file_metadata)
+    await test_db_session.commit()
+
+    assert file_metadata.storage_backend == "s3"
+    assert file_metadata.content_hash == sha256
+    assert file_metadata.retention_expires_at == expiry

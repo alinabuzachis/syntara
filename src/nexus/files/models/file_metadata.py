@@ -8,11 +8,12 @@ by FileManager. File content is stored on the filesystem, with
 only paths stored in the database (protects against DB bloat).
 """
 
-from enum import Enum
+from datetime import datetime
+from enum import Enum, StrEnum
 from typing import ClassVar
 
 from pydantic import ConfigDict
-from sqlmodel import Field
+from sqlmodel import AutoString, DateTime, Field
 
 from nexus.core.models.base.base_resource import BaseResource
 
@@ -31,6 +32,13 @@ class FileStatus(str, Enum):
     CONVERTING = "converting"
     CONVERTED = "converted"
     CONVERSION_FAILED = "conversion_failed"
+
+
+class StorageBackend(StrEnum):
+    """Storage backend identifiers for file storage."""
+
+    LOCAL = "local"
+    S3 = "s3"
 
 
 class FileMetadata(BaseResource, table=True):
@@ -93,6 +101,24 @@ class FileMetadata(BaseResource, table=True):
         description="Path to converted markdown: nexus-{file_id}-content.md",
     )
 
+    # Storage backend tracking
+    storage_backend: StorageBackend = Field(  # type: ignore[call-overload]
+        default=StorageBackend.LOCAL,
+        sa_type=AutoString(length=50),
+        description="Storage backend identifier",
+        index=True,
+    )
+    content_hash: str | None = Field(
+        default=None,
+        max_length=128,
+        description="SHA-256 hash of file content, computed on upload",
+    )
+    retention_expires_at: datetime | None = Field(
+        default=None,
+        description="Expiration timestamp for automatic cleanup; null means no expiration",
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+    )
+
     # Conversion status
     status: FileStatus = Field(
         default=FileStatus.PENDING_CONVERSION,
@@ -110,12 +136,14 @@ class FileMetadata(BaseResource, table=True):
         "filename",
         "mime_type",
         "status",
+        "storage_backend",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [
         *BaseResource.__sortable_fields__,
         "filename",
         "size_bytes",
+        "retention_expires_at",
     ]
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
@@ -129,4 +157,5 @@ class FileMetadata(BaseResource, table=True):
 __all__ = [
     "FileMetadata",
     "FileStatus",
+    "StorageBackend",
 ]

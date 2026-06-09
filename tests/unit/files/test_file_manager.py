@@ -22,8 +22,10 @@ import pytest
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
+from nexus.files.exceptions import FileContentNotFoundError
 from nexus.files.file_manager import FileManager
-from nexus.files.models import FileStatus
+from nexus.files.models import FileStatus, StorageBackend
+from nexus.files.retrievers.local import LocalFileRetriever
 
 
 @pytest.mark.asyncio
@@ -137,7 +139,7 @@ async def test_storage_exception_on_disk_full(
         file_manager = FileManager()
 
         # Act & Assert
-        with pytest.raises((OSError, FileNotFoundError)):
+        with pytest.raises((OSError, FileContentNotFoundError)):
             await file_manager.validate_and_save_files([mock_file])
 
 
@@ -194,7 +196,7 @@ async def test_storage_failure_detailed_logging(
         file_manager = FileManager()
 
         # Act & Assert
-        with pytest.raises((OSError, FileNotFoundError)):
+        with pytest.raises((OSError, FileContentNotFoundError)):
             await file_manager.validate_and_save_files([mock_file])
 
         # Should have logged error with details
@@ -264,3 +266,124 @@ async def test_configurable_storage_directory(
             # Assert
             file_path = result[0].file_path
             assert custom_dir in file_path
+
+
+# =============================================================================
+# Config-driven backend selection
+# =============================================================================
+
+
+def test_file_manager_default_backend_is_local() -> None:
+    """Test that default active_backend is 'local'."""
+    fm = FileManager()
+    assert fm.active_backend == StorageBackend.LOCAL
+    assert StorageBackend.LOCAL in fm.retrievers
+
+
+def test_file_manager_s3_backend_registered_when_configured(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
+    """Test that S3 retriever is registered when file_storage_backend='s3'."""
+    with override_settings(
+        file_storage_backend="s3",
+        s3_endpoint_url="http://localhost:9000",
+        s3_bucket_name="test-bucket",
+    ):
+        fm = FileManager()
+        assert fm.active_backend == StorageBackend.S3
+        assert StorageBackend.S3 in fm.retrievers
+        assert StorageBackend.LOCAL in fm.retrievers
+
+
+def test_invalid_backend_rejected_by_settings() -> None:
+    """Test that Pydantic rejects invalid storage backend values."""
+    from pydantic import ValidationError
+
+    from nexus.core.config.base import Settings
+
+    with pytest.raises(ValidationError, match="Input should be"):
+        Settings(file_storage_backend="gcs")  # type: ignore[arg-type]
+
+
+# =============================================================================
+# Dual-read: get_retriever_for_existing_file
+# =============================================================================
+
+
+def test_get_retriever_for_existing_file_local() -> None:
+    """Test looking up retriever for existing local files."""
+    fm = FileManager()
+    retriever = fm.get_retriever_for_existing_file(StorageBackend.LOCAL)
+    assert isinstance(retriever, LocalFileRetriever)
+
+
+def test_get_retriever_for_existing_file_unregistered_raises() -> None:
+    """Test that unregistered backend raises ValueError."""
+    fm = FileManager()
+    with pytest.raises(ValueError, match="not available"):
+        fm.get_retriever_for_existing_file(StorageBackend.S3)
+
+
+# =============================================================================
+# Upload flow: new FileMetadata fields
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_upload_sets_storage_backend_and_content_hash() -> None:
+    """Test that upload populates storage_backend and content_hash."""
+    file_content = b"hash me"
+    mock_file = Mock()
+    mock_file.filename = "hash_test.txt"
+    mock_file.size = len(file_content)
+    mock_file.content_type = "text/plain"
+    mock_file.read = AsyncMock(return_value=file_content)
+    mock_file.seek = AsyncMock()
+
+    fm = FileManager()
+    result = await fm.validate_and_save_files([mock_file])
+    metadata = result[0]
+
+    assert metadata.storage_backend == StorageBackend.LOCAL
+    assert metadata.content_hash is not None
+    assert len(metadata.content_hash) == 64
+
+    import hashlib
+
+    expected_hash = hashlib.sha256(file_content).hexdigest()
+    assert metadata.content_hash == expected_hash
+
+
+@pytest.mark.asyncio
+async def test_upload_sets_retention_when_ttl_configured(
+    override_settings: Callable[..., AbstractContextManager[object]],
+) -> None:
+    """Test that retention_expires_at is set when TTL is configured."""
+    mock_file = Mock()
+    mock_file.filename = "ttl_test.txt"
+    mock_file.size = 10
+    mock_file.content_type = "text/plain"
+    mock_file.read = AsyncMock(return_value=b"ttl content")
+    mock_file.seek = AsyncMock()
+
+    with override_settings(file_retention_ttl_hours=24):
+        fm = FileManager()
+        result = await fm.validate_and_save_files([mock_file])
+        metadata = result[0]
+        assert metadata.retention_expires_at is not None
+
+
+@pytest.mark.asyncio
+async def test_upload_no_retention_when_ttl_not_configured() -> None:
+    """Test that retention_expires_at is None when no TTL configured."""
+    mock_file = Mock()
+    mock_file.filename = "no_ttl.txt"
+    mock_file.size = 10
+    mock_file.content_type = "text/plain"
+    mock_file.read = AsyncMock(return_value=b"no ttl")
+    mock_file.seek = AsyncMock()
+
+    fm = FileManager()
+    result = await fm.validate_and_save_files([mock_file])
+    metadata = result[0]
+    assert metadata.retention_expires_at is None

@@ -432,4 +432,5 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     "invocation:cancel:any",
     # Files
     "files:upload:any",
+    "files:download:any",
 }

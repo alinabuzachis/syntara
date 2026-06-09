@@ -7,6 +7,7 @@ Document conversion is triggered automatically for each uploaded file
 as a background task (AAP-60780 decoupling).
 """
 
+from io import BytesIO
 from typing import Annotated
 from uuid import UUID
 
@@ -20,16 +21,20 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.nexus_router import NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
+from nexus.files.audit.file_downloaded import FileDownloadedEvent
 from nexus.files.document_conversion.tasks import DocumentConversionTask
 from nexus.files.file_manager import FileManager, get_file_manager
 from nexus.files.models.file_metadata import FileStatus
+from nexus.files.storage import sanitize_filename
 
 router = NexusRouter(prefix="/files", tags=["Files"])
 logger = structlog.stdlib.get_logger(__name__)
@@ -214,4 +219,75 @@ async def upload_files(
     return FileUploadResponse(
         file_ids=[m.id for m in file_metadata_list],
         files=file_upload_infos,
+    )
+
+
+_files_perm_download = PermissionChecker(
+    "files",
+    "download",
+)
+
+
+@router.get(
+    "/{file_id}/download",
+    summary="Download File",
+    description="Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.",
+    dependencies=[Depends(_files_perm_download)],
+    operation_id="download_file",
+)
+async def download_file(
+    file_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    file_manager: Annotated[FileManager, Depends(get_file_manager)],
+) -> StreamingResponse:
+    """Download a file by ID from the configured storage backend.
+
+    Uses the file's stored storage_backend to select the correct retriever,
+    enabling dual-read during local-to-S3 migration.
+
+    Args:
+        file_id: UUID of the file to download
+        db: Database session
+        file_manager: FileManager instance
+
+    Returns:
+        StreamingResponse with file content, MIME type, and Content-Disposition
+
+    Raises:
+        HTTPException: 404 if file not found
+
+    """
+    metadata = await file_manager.get_file_metadata(file_id, db)
+    if metadata is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The requested file could not be found",
+        )
+
+    download_error: str | None = None
+    try:
+        content = await file_manager.load_file_with_integrity_check(metadata)
+    except Exception as e:
+        download_error = type(e).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            FileDownloadedEvent(
+                file_id=metadata.id,
+                filename=metadata.filename,
+                mime_type=metadata.mime_type,
+                size_bytes=metadata.size_bytes,
+                storage_backend=metadata.storage_backend,
+                error_type=download_error,
+            ),
+        )
+
+    safe_name = sanitize_filename(metadata.filename)
+    return StreamingResponse(
+        BytesIO(content),
+        media_type=metadata.mime_type,
+        headers={
+            "content-disposition": f'attachment; filename="{safe_name}"',
+            "x-content-type-options": "nosniff",
+        },
     )
