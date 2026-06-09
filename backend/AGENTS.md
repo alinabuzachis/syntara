@@ -59,7 +59,7 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
    - Project structure
    - Development workflow
 
-5. **CI Alignment**: Ensure [.github/workflows/ci.yml](.github/workflows/ci.yml) is updated if:
+5. **CI Alignment**: Ensure CI workflows (in the root `.github/workflows/` directory) are updated if:
    - New dependencies are added
    - Test structure changes
    - Quality check requirements change

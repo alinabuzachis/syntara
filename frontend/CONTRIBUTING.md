@@ -37,8 +37,8 @@ The guide includes copy-ready prompt templates, a workflow diagram, and worked e
 1. Fork the repository on GitHub
 2. Clone your forked repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/nexus-ui.git
-   cd nexus-ui
+   git clone https://github.com/YOUR_USERNAME/syntara.git
+   cd syntara/frontend
    ```
 
 ### 2. Set Up Development Environment
