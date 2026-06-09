@@ -40,10 +40,10 @@ import { useColorScheme } from '../providers/theme/useColorScheme'
 import { useAuthStore } from '../stores/useAuthStore'
 import { getErrorMessage } from '../utils/apiErrors'
 import { detachPromise } from '../utils/detachPromise'
+import { useDocLink } from '../utils/docs/useDocLink'
 
 import { AppRoute } from './AppRoute'
 import type { TNavigationItem } from './navigationItems'
-import { NAV_ITEMS } from './navigationItems'
 import { useFilteredNavigationItems } from './useFilteredNavigationItems'
 import { useUnsavedChanges } from './useUnsavedChanges'
 
@@ -78,9 +78,8 @@ function navigateToNavItem(
   if (item) requestNavigation(findFirstEnabledPath(item))
 }
 
-function navigateToHelp(requestNavigation: (path: string) => void) {
-  const target = NAV_ITEMS.find((item) => item.path.startsWith('/support'))
-  if (target) requestNavigation(findFirstEnabledPath(target))
+function openExternalDoc(url: string) {
+  globalThis.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function NavDropdownItem({
@@ -196,6 +195,7 @@ export function AppDockedNav() {
   const [location] = useLocation()
   const { requestNavigation } = useUnsavedChanges()
   const { colorScheme, toggleColorScheme } = useColorScheme()
+  const docsHomeUrl = useDocLink('home')
 
   const filteredItems = useFilteredNavigationItems()
   const visibleItems = useMemo(
@@ -294,9 +294,9 @@ export function AppDockedNav() {
                 <ToolbarItem>
                   <Button
                     variant="plain"
-                    aria-label="Help"
+                    aria-label="Documentation (opens in a new tab)"
                     ref={helpRef}
-                    onClick={() => navigateToHelp(requestNavigation)}
+                    onClick={() => openExternalDoc(docsHomeUrl)}
                   >
                     <RhUiQuestionMarkCircleIcon />
                   </Button>

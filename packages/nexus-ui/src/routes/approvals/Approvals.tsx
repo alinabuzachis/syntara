@@ -18,6 +18,7 @@ import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagina
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
 import { detachPromise } from '../../utils/detachPromise'
+import { useDocLink } from '../../utils/docs/useDocLink'
 
 import { getApprovalNameFilterDefinition, getApprovalStatusFilterDefinition } from './approvalFilters'
 import { ApprovalsBulkActions } from './ApprovalsBulkActions'
@@ -320,6 +321,7 @@ function canDecideOnApproval(
 }
 
 export default function Approvals() {
+  const approvalsDocLink = useDocLink('approvals')
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {
     expandedRows: new Set<string>(),
@@ -433,7 +435,7 @@ export default function Approvals() {
   if (queryState) {
     return (
       <NxPage>
-        <NxPageHeader title="Approvals" projectSelector={ProjectSelector} />
+        <NxPageHeader title="Approvals" docLink={approvalsDocLink} projectSelector={ProjectSelector} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
         </NxPageBody>
@@ -458,6 +460,7 @@ export default function Approvals() {
     <NxPage>
       <NxPageHeader
         title="Approvals"
+        docLink={approvalsDocLink}
         projectSelector={ProjectSelector}
         toolbar={
           <ApprovalsBulkActions

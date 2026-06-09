@@ -7,11 +7,38 @@ import { NxPanel } from '../../components/layout/NxPanel'
 import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
 import { NodeEditorPanelBody } from './panels/NodeEditorPanelBody'
 
+function DocumentationButton({ href }: Readonly<{ href?: string }>) {
+  if (href) {
+    return (
+      <Button
+        variant="link"
+        icon={<RhUiExternalLinkIcon />}
+        iconPosition="end"
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Documentation (opens in a new tab)"
+      >
+        Documentation
+      </Button>
+    )
+  }
+  return (
+    <Tooltip content="Coming soon">
+      <Button variant="link" icon={<RhUiExternalLinkIcon />} iconPosition="end" type="button" isDisabled>
+        Documentation
+      </Button>
+    </Tooltip>
+  )
+}
+
 type NodeEditorLayoutProps = {
   parametersContent: ReactNode
   headerContent?: ReactNode
   headerIcon?: ReactNode
   headerActions?: ReactNode
+  docLink?: string
   showInputPanel: boolean
   nodeId?: string
   executionId?: string | null
@@ -29,6 +56,7 @@ export function NodeEditorLayout({
   headerContent,
   headerIcon,
   headerActions,
+  docLink,
   showInputPanel,
   nodeId,
   executionId,
@@ -84,17 +112,7 @@ export function NodeEditorLayout({
                 gap={{ default: 'gapSm' }}
               >
                 <FlexItem>
-                  <Tooltip content="Coming soon">
-                    <Button
-                      variant="link"
-                      icon={<RhUiExternalLinkIcon />}
-                      iconPosition="right"
-                      type="button"
-                      isAriaDisabled
-                    >
-                      Documentation
-                    </Button>
-                  </Tooltip>
+                  <DocumentationButton href={docLink} />
                 </FlexItem>
                 {headerActions && <FlexItem>{headerActions}</FlexItem>}
                 {showClose && (

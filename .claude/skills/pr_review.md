@@ -82,7 +82,7 @@ Check whether the changes follow:
 
 ### 3a. Recurring Issues Checklist (MANDATORY)
 
-**Run through every item in CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-26).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
+**Run through every item in CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-30).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
 
 | Search for...                                            | Flags violation of checklist item...                                         |
 | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -110,6 +110,8 @@ Check whether the changes follow:
 | `useEffect` + `useState` for API calls                   | #25 -- use TanStack Query (`useQuery`/`useMutation`/`useQueries`)            |
 | Manual `Promise.all` + cancellation for parallel fetches | #25 -- use `useQueries` from TanStack Query                                  |
 | `// TODO` / `// FIXME` / `// HACK` / `// XXX`            | #26 -- track deferred work in Jira, not code comments                        |
+| Hardcoded `docs.redhat.com` or `docs.ansible.com` URLs   | #30 -- use `useDocLink('key')` from `src/utils/docs/useDocLink.ts`           |
+| `NxPageHeader` without `docLink` prop                    | #30 -- every page header should pass `docLink={useDocLink('key')}`           |
 | Hardcoded colors in CSS modules                          | ESLint can't catch these; review CSS module files manually                   |
 
 ### 3b. Rule Bypass Checks (BLOCKING -- do not approve if any are found)

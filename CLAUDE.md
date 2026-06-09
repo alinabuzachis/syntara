@@ -100,6 +100,7 @@ Items enforced by ESLint at error level are omitted -- ESLint is the source of t
 27. **New routes must set `requiredPermissions` and/or `routePermission`** -- every route with access requirements needs permission fields in `navigationItems.tsx`; create/edit routes need a `routePermission` for `ProtectedRoute` guard (see [`docs/permissions-rbac.md`](docs/permissions-rbac.md))
 28. **New write actions must use `DisabledWithTooltip` + permission hook** -- never expose ungated create/edit/delete buttons; use a domain `use*Permissions` hook and `permissionTooltip()` for copy (see [`docs/permissions-rbac.md`](docs/permissions-rbac.md))
 29. **New permission-gated features need mock handlers** -- add role-aware responses in `packages/nexus-mock-api/src/handlers.ts` `can_i` block for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`
+30. **Use `useDocLink` for documentation URLs** -- never hardcode doc URLs; use `useDocLink('workflows')` from `src/utils/docs/useDocLink.ts`; pass the result to `NxPageHeader`'s `docLink` prop; add new keys to `docsUrls.json` when adding new pages (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) section 33)
 
 ### Feature Preservation Rules
 
@@ -197,6 +198,7 @@ For how the UI is structured, see these comprehensive guides:
 | **Library docs / llms.txt links**   | [`.claude/skills/library_references.md`](.claude/skills/library_references.md) -- fetch before writing React, Zod, Zustand, Vitest, Vite, or TanStack Query code                                                                                                       |
 | **Permission gating / RBAC**        | [`docs/permissions-rbac.md`](docs/permissions-rbac.md) -- `useCanI`, `DisabledWithTooltip`, `ProtectedRoute`, nav filtering, mock API roles, ungated inventory                                                                                                         |
 | **Page content frame (`NxPanel`)**  | `packages/nexus-ui/src/components/layout/NxPanel.tsx` -- `Panel` -> `PanelMain` -> `PanelMainBody`; see JSDoc (glass vs `opaqueFloatingFill` vs `variant="raised"`) and [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372)            |
+| **Documentation links**             | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) -- `useDocLink` hook, `DocKey` type, upstream vs product URL resolution                                                                                                                     |
 
 ### Quick Reference: Common Tasks
 
@@ -239,6 +241,21 @@ Use date utilities in `packages/nexus-ui/src/utils/dateUtils.ts`:
 - `formatElapsedTime(elapsedMs)` — "1h 2m 3s"
 
 Use for UI display only, not in logic (per i18n guidelines). Trigger-specific interval formatting stays in `utils/triggerFormatting.ts`.
+
+#### How do I add a documentation link to a page?
+
+Use the `useDocLink` hook from `src/utils/docs/useDocLink.ts`:
+
+```typescript
+import { useDocLink } from '../../utils/docs/useDocLink'
+
+function MyPage() {
+  const docLink = useDocLink('workflows') // DocKey is type-safe — only keys from docsUrls.json
+  return <NxPageHeader title="Workflows" docLink={docLink} />
+}
+```
+
+The key passed to `useDocLink` must exist in `src/utils/docs/docsUrls.json`. TypeScript enforces this at compile time. To add a new doc link for a new page, add an entry to `docsUrls.json` with upstream and product paths. See [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) section 33 for full details.
 
 ## Critical Development Workflows
 

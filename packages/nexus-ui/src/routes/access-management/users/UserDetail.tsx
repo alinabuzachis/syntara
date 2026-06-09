@@ -30,6 +30,7 @@ import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
 import { AUTH_TYPE_LOCAL } from '../adminConstants'
@@ -221,6 +222,7 @@ function computeVisibleTabs(
 }
 
 export function UserDetail() {
+  const usersDocLink = useDocLink('users')
   const { userId } = useParams<{ userId: string }>()
   const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
   const [activeTab] = useUrlTab<UserTab>(basePath)
@@ -285,6 +287,7 @@ export function UserDetail() {
     <NxPage>
       <NxPageHeader
         title={displayName}
+        docLink={usersDocLink}
         breadcrumbs={userBreadcrumbs}
         titleAddons={
           !userData.is_enabled ? (

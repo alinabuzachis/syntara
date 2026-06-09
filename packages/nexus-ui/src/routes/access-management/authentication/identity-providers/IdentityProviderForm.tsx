@@ -30,6 +30,7 @@ import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationEr
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage, getErrorStatus, isConflictError } from '../../../../utils/apiErrors'
 import { detachPromise } from '../../../../utils/detachPromise'
+import { useDocLink } from '../../../../utils/docs/useDocLink'
 import { trimTrailingSlashes } from '../../../../utils/urlUtils'
 
 import { autoSelectClaimMappings } from './claimMappingUtils'
@@ -278,6 +279,7 @@ function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; on
  *   Kept separate from the form because it is display-only and should not be submitted.
  */
 export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProps>) {
+  const identityProvidersDocLink = useDocLink('identityProviders')
   const isEdit = mode === 'edit'
   const pageTitle = isEdit ? 'Edit OIDC provider' : 'Add OIDC provider'
   const submitLabel = isEdit ? 'Save provider' : 'Add provider'
@@ -429,6 +431,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     <NxPage>
       <NxPageHeader
         title={pageTitle}
+        docLink={identityProvidersDocLink}
         breadcrumbs={idpFormCrumbs}
         toolbar={
           <>

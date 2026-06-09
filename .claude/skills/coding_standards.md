@@ -1531,3 +1531,78 @@ export type SwitchConfig = { cases: Array<{ label: string }> }
 1. If the work is needed before the PR can ship, do it now
 2. If the work is a genuine follow-up, create a Jira ticket and reference it in a brief inline comment (e.g., `// Inline type until AAP-12345 adds generated schema`)
 3. If the work is aspirational ("it would be nice to..."), do not add a comment at all
+
+---
+
+## 33. Documentation Links -- `useDocLink` Hook
+
+**Never hardcode documentation URLs.** Use the `useDocLink` hook to resolve documentation links that automatically switch between upstream (community) and product (Red Hat) docs depending on the deployment mode.
+
+### Architecture
+
+The doc link system has four parts:
+
+1. **`src/utils/docs/docsUrls.json`** -- maps logical doc keys to path fragments for each mode (upstream / product). Adding a new page means adding a new entry here.
+2. **`src/utils/docs/types.ts`** -- `DocKey` type is derived from `keyof typeof docsUrls`, so TypeScript rejects any key not in the JSON at compile time.
+3. **`src/utils/docs/DocLinkProvider.tsx`** -- React context provider (wired in `App.tsx`) that reads `VITE_DOC_MODE` env var to determine the current mode. Defaults to `upstream`.
+4. **`src/utils/docs/useDocLink.ts`** -- hook that combines the base URL + path for the current mode.
+
+### Usage
+
+```typescript
+import { useDocLink } from '../../utils/docs/useDocLink'
+
+function WorkflowsPage() {
+  const docLink = useDocLink('workflows')  // type-safe DocKey
+  return <NxPageHeader title="Workflows" docLink={docLink} />
+}
+```
+
+`NxPageHeader` renders the `docLink` as an external link icon next to the page title.
+
+For the workflow builder's node editor panel, pass `docLink` as a prop to `NodeEditorLayout`, which enables its "Documentation" button (previously disabled with "Coming soon").
+
+The sidebar help icon (`AppDockedNav`) uses the `home` key to open the documentation landing page in a new tab. The `home` key has empty paths so it resolves to the base URL (e.g. `https://docs.ansible.com/`).
+
+### Adding a New Doc Link
+
+1. Add a new entry to `src/utils/docs/docsUrls.json`:
+
+```json
+{
+  "myNewPage": {
+    "upstream": "TODO_UPSTREAM_PATH/my-new-page",
+    "product": "TODO_PRODUCT_PATH/my-new-page"
+  }
+}
+```
+
+2. Use it in your component -- the `DocKey` type updates automatically from the JSON:
+
+```typescript
+const docLink = useDocLink('myNewPage')
+```
+
+3. Pass it to `NxPageHeader`:
+
+```typescript
+<NxPageHeader title="My New Page" docLink={docLink} />
+```
+
+### Switching Between Upstream and Product
+
+The mode is controlled by the `VITE_DOC_MODE` environment variable:
+
+- **`upstream`** (default) -- resolves to `https://docs.ansible.com/{path}`
+- **`product`** -- resolves to `https://docs.redhat.com/en/documentation/TODO_PRODUCT_NAME/{version}/{path}`
+
+This follows the same pattern as the upstream `ansible-ui` repository, where the frontend contains both URL sets and the deployment context determines which to use. The same build artifact works for both upstream and product deployments.
+
+When the backend eventually exposes a config endpoint with license/deployment info, the `DocLinkProvider` internals can switch from reading an env var to reading the API response -- the `useDocLink` hook API remains unchanged.
+
+### Rules
+
+1. **Never hardcode doc URLs** -- always use `useDocLink(key)` so links switch automatically between upstream and product
+2. **Every page with `NxPageHeader` should have a `docLink`** -- pass the hook result to the `docLink` prop
+3. **`DocKey` is enforced by TypeScript** -- passing a string not in `docsUrls.json` is a compile error
+4. **Keep paths as placeholders until real URLs exist** -- use `TODO_UPSTREAM_PATH/...` and `TODO_PRODUCT_PATH/...` patterns

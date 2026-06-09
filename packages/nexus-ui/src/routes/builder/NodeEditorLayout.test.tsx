@@ -412,4 +412,29 @@ describe('NodeEditorLayout', () => {
     await user.click(screen.getByTestId('nav-arrow-previous'))
     expect(onNavigateToNode).toHaveBeenCalledWith('prev-node')
   })
+
+  describe('DocumentationButton', () => {
+    it('renders an enabled external link when docLink is provided', () => {
+      render(
+        <NodeEditorLayout
+          parametersContent={<div>Parameters</div>}
+          showInputPanel={false}
+          docLink="https://docs.ansible.com/workflows"
+        />
+      )
+
+      const link = screen.getByRole('link', { name: /Documentation/i })
+      expect(link).toHaveAttribute('href', 'https://docs.ansible.com/workflows')
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(link).not.toBeDisabled()
+    })
+
+    it('renders a disabled button with tooltip when docLink is not provided', () => {
+      render(<NodeEditorLayout parametersContent={<div>Parameters</div>} showInputPanel={false} />)
+
+      const button = screen.getByRole('button', { name: /Documentation/i })
+      expect(button).toBeDisabled()
+    })
+  })
 })

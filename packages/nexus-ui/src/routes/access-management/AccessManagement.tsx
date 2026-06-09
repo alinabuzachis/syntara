@@ -8,6 +8,7 @@ import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { useDocLink } from '../../utils/docs/useDocLink'
 import { AssignmentsTab } from '../access/AssignmentsTab'
 import { CanITab } from '../access/CanITab'
 import { PoliciesTab } from '../access/PoliciesTab'
@@ -31,6 +32,7 @@ const allTabs = [
 ]
 
 export function AccessManagement() {
+  const accessDocLink = useDocLink('accessControl')
   const [location, navigate] = useLocation()
   const {
     canReadUsers,
@@ -92,7 +94,7 @@ export function AccessManagement() {
 
   return (
     <NxPage>
-      <NxPageHeader title="Access Management" breadcrumbs={hubBreadcrumbs} />
+      <NxPageHeader title="Access Management" docLink={accessDocLink} breadcrumbs={hubBreadcrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
         <Tabs activeKey={resolvedIndex} onSelect={handleTabSelect}>
           {tabs.map((tab, index) => (

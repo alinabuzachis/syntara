@@ -252,6 +252,7 @@ type NodeDetailsPanelProps = {
   onClose: () => void
   projectId?: string
   onNavigateToNode?: (nodeId: string) => void
+  docLink?: string
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
@@ -277,10 +278,9 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const { moveActivityAfter, updateActivity, replaceActivity, removeActivity } = useWorkflowStoreActions()
   const isTriggerNode = node?.type === FlowNodeType.TRIGGER
   const triggerIndex = isTriggerNode ? parseTriggerIndex(node?.id ?? '') : undefined
-  const nodeMenuType = isTriggerNode ? MenuNodeType.TRIGGER : MenuNodeType.ACTIVITY
   const menuActions = useNodeMenuActions({
     nodeId: node?.id ?? 'unknown',
-    nodeType: nodeMenuType,
+    nodeType: isTriggerNode ? MenuNodeType.TRIGGER : MenuNodeType.ACTIVITY,
     triggerIndex: isTriggerNode ? triggerIndex : undefined,
   })
   const panelMenuActions = buildPanelMenuActions(mode, node, menuActions, onClose)
@@ -399,6 +399,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       headerContent={headerContent}
       headerIcon={headerIcon}
       headerActions={headerActions}
+      docLink={props.docLink}
       showInputPanel={showInputPanel}
       nodeId={node?.id}
       executionId={executionId}

@@ -9,6 +9,7 @@ type DetailPageShellProps = {
   title: string
   children: ReactNode
   breadcrumbs?: readonly AppBreadcrumbItem[]
+  docLink?: string
 }
 
 /**
@@ -16,10 +17,10 @@ type DetailPageShellProps = {
  * Wraps content in the standard NxPage → NxPageHeader → full-height Panel layout
  * so each detail page does not duplicate the same structure.
  */
-export function DetailPageShell({ title, children, breadcrumbs }: Readonly<DetailPageShellProps>) {
+export function DetailPageShell({ title, children, breadcrumbs, docLink }: Readonly<DetailPageShellProps>) {
   return (
     <NxPage>
-      <NxPageHeader title={title} breadcrumbs={breadcrumbs} />
+      <NxPageHeader title={title} breadcrumbs={breadcrumbs} docLink={docLink} />
       <NxPageBody>
         <NxPanel isFullHeight>{children}</NxPanel>
       </NxPageBody>
