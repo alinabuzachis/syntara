@@ -18,6 +18,7 @@ function createWrapper() {
 
 const mockMutate = vi.fn()
 const mockShowAlert = vi.fn()
+const mockShowSuccess = vi.fn()
 
 vi.mock('../../client', () => ({
   approvalsClient: {
@@ -31,6 +32,7 @@ vi.mock('../../client', () => ({
 vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({
     showAlert: mockShowAlert,
+    showSuccess: mockShowSuccess,
   }),
 }))
 
@@ -197,10 +199,9 @@ describe('ApprovalReviewView', () => {
     await user.click(screen.getByRole('button', { name: 'Submit decision' }))
 
     expect(onClose).toHaveBeenCalledOnce()
-    expect(mockShowAlert).toHaveBeenCalledWith(
+    expect(mockShowSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Approval submitted',
-        variant: 'success',
       })
     )
   })

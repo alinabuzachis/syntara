@@ -48,7 +48,7 @@ const getNotesLabel = (status: string) => {
 export default function ApprovalDetail() {
   const { approvalId } = useParams<{ approvalId: string }>()
   const [, setLocation] = useLocation()
-  const { showAlert } = useAlerts()
+  const { showSuccess } = useAlerts()
 
   const approvalQuery = approvalsClient.useQuery('get', '/approvals/{approval_id}', {
     params: {
@@ -125,11 +125,9 @@ export default function ApprovalDetail() {
       },
       {
         onSuccess: () => {
-          showAlert({
+          showSuccess({
             title: pendingDecision === 'approved' ? 'Approval submitted' : 'Rejection submitted',
-            description: `The approval decision has been recorded.`,
-            variant: 'success',
-            autoDismiss: true,
+            description: 'The approval decision has been recorded.',
           })
           detachPromise(
             approvalQuery.refetch().then(() => {

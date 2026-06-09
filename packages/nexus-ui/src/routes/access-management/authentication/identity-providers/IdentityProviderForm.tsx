@@ -304,7 +304,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     '/identity_providers/test'
   )
 
-  const { showAlert } = useAlerts()
+  const { showAlert, showSuccess } = useAlerts()
   const [discoveredClaims, setDiscoveredClaims] = useState<{
     claimsSupported?: string[] | null
     claimAliases?: Record<string, string[]> | null
@@ -340,7 +340,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
     const successTitle = isEdit ? 'Identity provider updated' : 'Identity provider created'
     const onSuccess = () => {
-      showAlert({ title: successTitle, variant: 'success', autoDismiss: true })
+      showSuccess({ title: successTitle })
       navigateBack()
     }
 

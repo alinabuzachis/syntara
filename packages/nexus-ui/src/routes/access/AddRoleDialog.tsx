@@ -18,8 +18,8 @@ import { RhUiAddIcon } from '@patternfly/react-icons'
 import { useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
+import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
-import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
 import { addRoleSchema } from './addRoleSchema'
@@ -36,13 +36,14 @@ type AddRoleDialogProps = {
 }
 
 export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProjectId }: Readonly<AddRoleDialogProps>) {
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess } = useAlerts()
 
   const {
     register,
     handleSubmit,
     control,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<AddRoleFormData>({
     resolver: zodResolver(addRoleSchema, undefined, { mode: 'sync' }),
@@ -78,6 +79,7 @@ export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProject
     [allProjects]
   )
 
+  const handleError = useFormMutationErrorHandler<AddRoleFormData>(setError)
   const { mutate: createRole, isPending } = accessClient.useMutation('post', '/roles')
 
   const onSubmit = (data: AddRoleFormData) => {
@@ -105,9 +107,7 @@ export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProject
           onSuccess()
           onClose()
         },
-        onError: (error) => {
-          showError({ title: 'Failed to create role', description: getErrorMessage(error) })
-        },
+        onError: handleError({ title: 'Failed to create role' }),
       }
     )
   }

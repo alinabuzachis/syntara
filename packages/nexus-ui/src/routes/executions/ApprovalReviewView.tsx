@@ -82,7 +82,7 @@ type ApprovalReviewViewProps = {
 }
 
 export function ApprovalReviewView({ approval, activityNameMap, onClose }: ApprovalReviewViewProps) {
-  const { showAlert } = useAlerts()
+  const { showSuccess } = useAlerts()
   const queryClient = useQueryClient()
   const decisionMutation = approvalsClient.useMutation('patch', '/approvals/{approval_id}')
 
@@ -119,11 +119,9 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
         onSuccess: () => {
           detachPromise(queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}'] }))
           detachPromise(queryClient.invalidateQueries({ queryKey: ['get', '/approvals'] }))
-          showAlert({
+          showSuccess({
             title: data.status === 'approved' ? 'Approval submitted' : 'Rejection submitted',
             description: 'The approval decision has been recorded.',
-            variant: 'success',
-            autoDismiss: true,
           })
           onClose()
         },

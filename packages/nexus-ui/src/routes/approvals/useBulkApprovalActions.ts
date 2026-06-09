@@ -1,10 +1,12 @@
 import { useState } from 'react'
 
 import { approvalsClient } from '../../client'
+import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 
 export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSuccess: () => void) {
-  const { showAlert } = useAlerts()
+  const { showSuccess, showAlert } = useAlerts()
+  const handleError = useMutationErrorHandler()
   const [bulkApproveDialogOpen, setBulkApproveDialogOpen] = useState(false)
   const [bulkRejectDialogOpen, setBulkRejectDialogOpen] = useState(false)
 
@@ -26,11 +28,9 @@ export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSucce
           setBulkApproveDialogOpen(false)
 
           if (total_failed === 0) {
-            showAlert({
+            showSuccess({
               title: 'Approvals submitted',
               description: `Successfully approved ${total_success} approval${total_success === 1 ? '' : 's'}.`,
-              variant: 'success',
-              autoDismiss: true,
             })
           } else {
             showAlert({
@@ -43,14 +43,7 @@ export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSucce
 
           onSuccess()
         },
-        onError: () => {
-          showAlert({
-            title: 'Bulk approval failed',
-            description: 'An error occurred while approving the selected items. Please try again.',
-            variant: 'danger',
-            autoDismiss: false,
-          })
-        },
+        onError: handleError({ title: 'Bulk approval failed' }),
         onSettled: () => {
           setBulkApproveDialogOpen(false)
         },
@@ -74,11 +67,9 @@ export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSucce
           setBulkRejectDialogOpen(false)
 
           if (total_failed === 0) {
-            showAlert({
+            showSuccess({
               title: 'Approvals rejected',
               description: `Successfully rejected ${total_success} approval${total_success === 1 ? '' : 's'}.`,
-              variant: 'success',
-              autoDismiss: true,
             })
           } else {
             showAlert({
@@ -91,14 +82,7 @@ export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSucce
 
           onSuccess()
         },
-        onError: () => {
-          showAlert({
-            title: 'Bulk rejection failed',
-            description: 'An error occurred while rejecting the selected items. Please try again.',
-            variant: 'danger',
-            autoDismiss: false,
-          })
-        },
+        onError: handleError({ title: 'Bulk rejection failed' }),
         onSettled: () => {
           setBulkRejectDialogOpen(false)
         },

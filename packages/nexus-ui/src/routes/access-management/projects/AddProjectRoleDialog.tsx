@@ -14,8 +14,8 @@ import {
 } from '@patternfly/react-core'
 import { Controller, useForm } from 'react-hook-form'
 
+import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 
 import { addProjectRoleSchema } from './addProjectRoleSchema'
@@ -29,12 +29,13 @@ type AddProjectRoleDialogProps = {
 }
 
 export function AddProjectRoleDialog({ projectId, onClose, onSuccess }: Readonly<AddProjectRoleDialogProps>) {
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess } = useAlerts()
 
   const {
     register,
     handleSubmit,
     control,
+    setError,
     formState: { errors },
   } = useForm<AddProjectRoleFormData>({
     resolver: zodResolver(addProjectRoleSchema, undefined, { mode: 'sync' }),
@@ -45,6 +46,7 @@ export function AddProjectRoleDialog({ projectId, onClose, onSuccess }: Readonly
     },
   })
 
+  const handleError = useFormMutationErrorHandler<AddProjectRoleFormData>(setError)
   const { mutate: createRole, isPending } = accessClient.useMutation('post', '/projects/{project_id}/roles')
 
   const onSubmit = (data: AddProjectRoleFormData) => {
@@ -63,9 +65,7 @@ export function AddProjectRoleDialog({ projectId, onClose, onSuccess }: Readonly
           onSuccess()
           onClose()
         },
-        onError: (error) => {
-          showError({ title: 'Failed to add role', description: getErrorMessage(error) })
-        },
+        onError: handleError({ title: 'Failed to add role' }),
       }
     )
   }
