@@ -61,7 +61,7 @@ test.describe('Webhook Trigger', () => {
 
       // Reopen workflow and verify trigger persists on canvas
       await app.getByRole('button', { name: workflowName, exact: true }).click()
-      await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+      await expect(app.locator('.react-flow__node').filter({ hasText: 'Webhook' })).toBeVisible({ timeout: 15_000 })
 
       const triggerNode = app.locator('.react-flow__node').filter({ hasText: `Webhook: /${webhookPath}` })
       await expect(triggerNode).toBeVisible({ timeout: 5_000 })

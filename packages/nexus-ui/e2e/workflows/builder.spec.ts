@@ -282,7 +282,7 @@ test('nodes are positioned on the canvas after layout', async ({ app }) => {
     await addScriptNode(app, 'Positioned Node', 'print("positioned")')
     await verifyNodeVisible(app, 'Positioned Node')
 
-    const layoutButton = app.getByRole('button', { name: 'Layout' }).first()
+    const layoutButton = app.getByRole('button', { name: 'Layout' })
     await expect(layoutButton).toBeVisible()
     await layoutButton.click()
 
@@ -305,7 +305,7 @@ test('catalog panel can be closed without adding a node', async ({ app }) => {
     await expect(panel).toBeVisible()
 
     // Close the panel using the Close button
-    const closeButton = panel.getByRole('button', { name: /Close|Cancel/i }).first()
+    const closeButton = panel.getByRole('button', { name: /Close/i })
     const hasCloseButton = await closeButton
       .waitFor({ state: 'visible', timeout: 3000 })
       .then(() => true)
@@ -351,7 +351,6 @@ test('two nodes can be connected with an edge', async ({ app }) => {
 
     // Should have at least 2 edges connecting the nodes
     expect(edgeCount).toBeGreaterThanOrEqual(2)
-    await expect(edges.first()).toBeAttached()
   } finally {
     await deleteWorkflow(app, workflowName)
   }
@@ -373,9 +372,6 @@ test('edge is visually distinguishable on canvas', async ({ app }) => {
     // Verify at least one edge exists on canvas and is visible
     // Should have edges: trigger->Source and Source->Target
     const edges = app.locator('.react-flow__edge')
-    await expect(edges.first()).toBeAttached()
-
-    // Verify edge count - should have at least 2 edges
     const edgeCount = await edges.count()
     expect(edgeCount).toBeGreaterThanOrEqual(2)
   } finally {
@@ -397,7 +393,7 @@ test('multiple edges can be created sequentially', async ({ app }) => {
     await addScriptNode(app, 'Node 3', 'print("3")')
 
     // Layout to position nodes
-    await app.getByRole('button', { name: 'Layout' }).first().click()
+    await app.getByRole('button', { name: 'Layout' }).click()
 
     // Verify all nodes are visible
     await verifyNodeVisible(app, 'Node 1')
@@ -428,13 +424,11 @@ test('edge follows connection path between nodes', async ({ app }) => {
     await addScriptNode(app, 'Start Node', 'print("start")')
     await addScriptNode(app, 'End Node', 'print("end")')
 
-    // Verify edge path exists and has SVG path data
-    // ReactFlow edges are SVG paths - no accessible alternative for visual verification
-    const edgePath = app.locator('svg g.react-flow__edge path').first()
-    await expect(edgePath).toBeAttached()
-
-    // Verify the edge path has 'd' attribute (SVG path data that draws the line)
-    const pathData = await edgePath.getAttribute('d')
+    // Verify edge path exists and has SVG path data.
+    // ReactFlow edge paths are SVG <path> elements with no accessible role — use the DOM API directly.
+    const pathData = await app.evaluate(
+      () => document.querySelector('svg g.react-flow__edge path')?.getAttribute('d') ?? null
+    )
     expect(pathData).toBeTruthy()
     expect(pathData?.length).toBeGreaterThan(0)
 
@@ -458,7 +452,7 @@ test('connected nodes form a workflow DAG', async ({ app }) => {
     await addScriptNode(app, 'Final Step', 'print("final")')
 
     // Layout to visualize the DAG
-    await app.getByRole('button', { name: 'Layout' }).first().click()
+    await app.getByRole('button', { name: 'Layout' }).click()
 
     // Verify nodes are visible
     await verifyNodeVisible(app, 'Manual trigger')

@@ -3,7 +3,7 @@ import { test, expect, toAppUrl } from './fixtures'
 test('user filters approvals by name and status', async ({ app }) => {
   // Navigate to approvals page
   await app.goto(toAppUrl('/approvals'))
-  await expect(app.getByText('Approvals', { exact: true }).first()).toBeVisible()
+  await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
 
   // Wait for table to load (skip if no approval data exists)
   const table = app.getByRole('grid', { name: 'Approvals table' })
@@ -22,7 +22,7 @@ test('user filters approvals by name and status', async ({ app }) => {
   await expect(app).toHaveURL(/name%5Bcontains%5D=Policy/)
 
   // Step 2: Add status filter
-  const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
+  const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name' })
   await fieldSelector.click()
   await app.getByRole('option', { name: 'Status' }).click()
   await app.getByRole('button', { name: 'Filter by status' }).click()
@@ -52,7 +52,7 @@ test('user filters approvals by name and status', async ({ app }) => {
 
   // Step 5: Empty state when filters match nothing
   // Switch back to Name field (selector may still show Status after clearing)
-  const nameFieldSelector = app.getByRole('button', { name: /Name|Status/ }).first()
+  const nameFieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: /Name|Status/ })
   await nameFieldSelector.click()
   await app.getByRole('option', { name: 'Name' }).click()
 
@@ -74,7 +74,7 @@ test('user filters approvals by name and status', async ({ app }) => {
 test('user approves an approval request and sees status update', async ({ app }) => {
   // Arrange - Open approvals list
   await app.goto(toAppUrl('/approvals'))
-  await expect(app.getByText('Approvals', { exact: true }).first()).toBeVisible()
+  await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
 
   // Act - Wait for table and open a pending approval (skip if no data)
   const approvalsTable = app.getByRole('grid', { name: 'Approvals table' })
@@ -83,7 +83,7 @@ test('user approves an approval request and sees status update', async ({ app })
     .then(() => true)
     .catch(() => false)
   test.skip(!hasApprovalsTable, 'No approval data available; seed data required')
-  await app.getByRole('button', { name: 'AI Agent Decision' }).first().click()
+  await app.getByRole('grid', { name: 'Approvals table' }).getByRole('button', { name: 'AI Agent Decision' }).click()
 
   // Act - Approve with notes
   await app.getByRole('button', { name: 'Approve' }).click()

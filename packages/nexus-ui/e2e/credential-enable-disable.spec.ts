@@ -161,7 +161,7 @@ test.describe('Credential Enable/Disable State Management', () => {
 
       // Navigate away and back
       await app.goto(toAppUrl('/workflows'))
-      await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+      await expect(app.locator('h1').filter({ hasText: 'Workflows' })).toBeVisible()
       await goToCredentialsList(app)
 
       // Filter to find our credential

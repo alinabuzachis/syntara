@@ -25,8 +25,8 @@ test.describe('AI Agent Structured Output', () => {
     await layoutButton.click()
 
     const addBtn = app.getByRole('button', { name: 'Add connected step' })
-    await expect(addBtn.first()).toBeVisible()
-    await addBtn.first().click({ force: true })
+    await expect(addBtn).toBeVisible()
+    await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
     await panel.getByRole('button', { name: 'AI Agent' }).click()
@@ -36,7 +36,7 @@ test.describe('AI Agent Structured Output', () => {
 
     // Verify the inline code editor container is present
     const codeEditor = app.getByTestId('inline-code-editor')
-    await expect(codeEditor.first()).toBeVisible()
+    await expect(codeEditor).toBeVisible()
 
     // Close without saving
     await app.keyboard.press('Escape')
@@ -50,7 +50,7 @@ test.describe('AI Agent Structured Output', () => {
     await layoutButton.click()
 
     const addBtn = app.getByRole('button', { name: 'Add connected step' })
-    await addBtn.first().click({ force: true })
+    await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
     await panel.getByRole('button', { name: 'AI Agent' }).click()
@@ -86,7 +86,7 @@ test.describe('AI Agent Structured Output', () => {
     await layoutButton.click()
 
     const addBtn = app.getByRole('button', { name: 'Add connected step' })
-    await addBtn.first().click({ force: true })
+    await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
     await panel.getByRole('button', { name: 'AI Agent' }).click()
@@ -121,7 +121,7 @@ test.describe('AI Agent Structured Output', () => {
     await layoutButton.click()
 
     const addBtn = app.getByRole('button', { name: 'Add connected step' })
-    await addBtn.first().click({ force: true })
+    await addBtn.click({ force: true })
 
     const panel = addNodePanel(app)
     await panel.getByRole('button', { name: 'AI Agent' }).click()

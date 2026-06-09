@@ -33,10 +33,7 @@ async function openDeleteDialogFromList(app: Page, providerName: string) {
   const providerRow = table.getByRole('row', { name: new RegExp(providerName) })
   await expect(providerRow).toBeVisible()
 
-  await providerRow
-    .getByRole('button', { name: /Actions|Kebab toggle/i })
-    .first()
-    .click({ force: true })
+  await providerRow.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
   await app.getByRole('menuitem', { name: 'Delete' }).click()
 }
 
@@ -190,10 +187,7 @@ test.describe('Session Revocation — IdP-Scoped (UI-29)', () => {
       await app.goto(toAppUrl(`${AUTHENTICATION_URL}/identity-providers/${providerId}`))
       await expect(app.getByRole('heading', { level: 1, name: providerName })).toBeVisible()
 
-      await app
-        .getByRole('button', { name: /Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await app.getByRole('button', { name: /Kebab toggle/i }).click({ force: true })
       await app.getByRole('menuitem', { name: 'Delete' }).click()
 
       await confirmIdpDeleteDialog(app, providerName)

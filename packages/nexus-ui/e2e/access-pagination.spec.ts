@@ -68,7 +68,8 @@ test.describe('Access Management — Dropdown Pagination', () => {
     await expect(app.getByRole('heading', { level: 1, name: 'Access Management' })).toBeVisible()
 
     const usersTable = app.getByRole('grid', { name: 'Users table' })
-    const firstUserButton = usersTable.getByRole('button').first()
+    const firstUserRow = usersTable.getByRole('row').nth(1)
+    const firstUserButton = firstUserRow.getByRole('button')
     const hasUser = await firstUserButton
       .waitFor({ state: 'visible', timeout: 5000 })
       .then(() => true)
@@ -98,7 +99,7 @@ test.describe('Access Management — Dropdown Pagination', () => {
     const noResults = dialog.getByText(/No results match/i)
     const roleOptions = dialog.getByRole('option').filter({ hasNotText: /No results match/i })
     await expect(noResults).toBeHidden()
-    await expect(roleOptions.first()).toBeVisible({ timeout: 10_000 })
+    await expect(roleOptions.or(noResults)).toBeVisible({ timeout: 10_000 })
     expect(await roleOptions.count()).toBeGreaterThan(0)
 
     await dialog.getByRole('button', { name: 'Cancel' }).click()
@@ -112,7 +113,8 @@ test.describe('Access Management — Dropdown Pagination', () => {
     await expect(app.getByRole('heading', { level: 1, name: 'Access Management' })).toBeVisible()
 
     const groupsTable = app.getByRole('grid', { name: 'Groups table' })
-    const firstGroupButton = groupsTable.getByRole('button').first()
+    const firstGroupRow = groupsTable.getByRole('row').nth(1)
+    const firstGroupButton = firstGroupRow.getByRole('button')
     const hasGroup = await firstGroupButton
       .waitFor({ state: 'visible', timeout: 5000 })
       .then(() => true)
@@ -143,13 +145,14 @@ test.describe('Access Management — Dropdown Pagination', () => {
     const searchInput = dialog.getByPlaceholder('Search for a user...')
     await searchInput.click()
 
+    const noResults = dialog.getByText(/No results match/i)
     const userOptions = dialog.getByRole('option').filter({ hasNotText: /No results match/i })
     const hasOptions = await userOptions
-      .first()
+      .or(noResults)
       .waitFor({ state: 'visible', timeout: 15_000 })
       .then(() => true)
       .catch(() => false)
-    test.skip(!hasOptions, 'Typeahead dropdown did not populate with users')
+    test.skip(!hasOptions, 'Typeahead dropdown did not populate')
     expect(await userOptions.count()).toBeGreaterThan(0)
 
     await dialog.getByRole('button', { name: 'Cancel' }).click()

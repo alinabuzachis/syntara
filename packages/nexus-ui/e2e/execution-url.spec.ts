@@ -47,7 +47,8 @@ test.describe('Execution URL unification', () => {
       await app.getByRole('menuitem', { name: 'Run history' }).click()
       await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
 
-      const executionButton = app.locator('button[class*="simpleList"]').first()
+      const runHistoryPanel = app.getByRole('region', { name: 'Run History' })
+      const executionButton = runHistoryPanel.locator('button[class*="simpleList"]').nth(0)
       const hasExecution = await executionButton
         .waitFor({ state: 'visible', timeout: 5000 })
         .then(() => true)
@@ -159,7 +160,8 @@ test.describe('Execution URL unification', () => {
       await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
 
       // Click an execution — should trigger unsaved changes prompt
-      const executionButton = app.locator('button[class*="simpleList"]').first()
+      const runHistoryPanel = app.getByRole('region', { name: 'Run History' })
+      const executionButton = runHistoryPanel.locator('button[class*="simpleList"]').nth(0)
       const hasExecution = await executionButton
         .waitFor({ state: 'visible', timeout: 5000 })
         .then(() => true)

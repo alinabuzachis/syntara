@@ -57,10 +57,12 @@ test.describe('Audit Log', () => {
   })
 
   test('expands row to show structured event details', async ({ app }) => {
-    const expandButtons = app.getByRole('button', { name: /details/i })
-    await expandButtons.first().click()
+    const table = app.getByRole('grid', { name: 'Audit log table' })
+    const firstRow = table.locator('tbody tr:first-child')
+    await firstRow.getByRole('button', { name: /details/i }).click()
 
-    await expect(app.getByText('Event Message').first()).toBeVisible()
+    const expandedRow = table.locator('tbody tr:nth-child(2)')
+    await expect(expandedRow.getByText('Event Message')).toBeVisible()
   })
 
   test('expands and collapses all rows via header toggle', async ({ app }) => {
@@ -82,25 +84,26 @@ test.describe('Audit Log', () => {
 
   test('user column links to user detail page', async ({ app }) => {
     const table = app.getByRole('grid', { name: 'Audit log table' })
-    const userButtons = table.locator('td[data-label="User"] button')
-    const hasUserLink = (await userButtons.count()) > 0
-    test.skip(!hasUserLink, 'No audit events with a linked user in current data')
+    const firstRow = table.locator('tbody tr:first-child')
+    const firstRowUserButton = firstRow.locator('td[data-label="User"] button')
+    const hasUserLink = (await firstRowUserButton.count()) > 0
+    test.skip(!hasUserLink, 'First audit event has no linked user')
 
-    await userButtons.first().click()
+    await firstRowUserButton.click()
     await expect(app).toHaveURL(/\/system-administration\/access-management\/users\//)
   })
 
   test('resource column displays resource name and links to detail page', async ({ app }) => {
     const table = app.getByRole('grid', { name: 'Audit log table' })
-    const resourceButtons = table.locator('td[data-label="Resource"] button')
-    const hasResourceLink = (await resourceButtons.count()) > 0
-    test.skip(!hasResourceLink, 'No audit events with a linked resource in current data')
-
-    const firstResourceText = await resourceButtons.first().textContent()
+    const firstRow = table.locator('tbody tr:first-child')
+    const firstResourceButton = firstRow.locator('td[data-label="Resource"] button')
+    const hasResourceLink = (await firstResourceButton.count()) > 0
+    test.skip(!hasResourceLink, 'First audit event has no linked resource')
+    const firstResourceText = await firstResourceButton.textContent()
     expect(firstResourceText).toBeTruthy()
     expect(firstResourceText).not.toMatch(/^urn:nexus:/)
 
-    await resourceButtons.first().click()
+    await firstResourceButton.click()
     await expect(app).toHaveURL(/\/(workflow-builder|executions|configuration|access-management)\//)
   })
 
@@ -124,7 +127,7 @@ test.describe('Audit Log', () => {
 
   test.describe('Filtering', () => {
     test('filters by status and verifies URL param and chip', async ({ app }) => {
-      const fieldSelector = app.getByRole('button', { name: 'Event type' }).first()
+      const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Event type', exact: true })
       await fieldSelector.click()
       await app.getByRole('option', { name: 'Status' }).click()
 
@@ -143,7 +146,7 @@ test.describe('Audit Log', () => {
       const eventChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Event type' })
       await expect(eventChipGroup.getByText('Security Event')).toBeVisible()
 
-      const fieldSelector = app.getByRole('button', { name: 'Event type' }).first()
+      const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Event type', exact: true })
       await fieldSelector.click()
       await app.getByRole('option', { name: 'Status' }).click()
       await app.getByRole('button', { name: 'Filter by status' }).click()
@@ -175,7 +178,7 @@ test.describe('Audit Log', () => {
     })
 
     test('empty state when filters match nothing', async ({ app }) => {
-      const fieldSelector = app.getByRole('button', { name: 'Event type' }).first()
+      const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Event type', exact: true })
       await fieldSelector.click()
       await app.getByRole('option', { name: 'Severity' }).click()
       await app.getByRole('button', { name: 'Filter by severity' }).click()
@@ -184,7 +187,7 @@ test.describe('Audit Log', () => {
       const severityChip = app.locator('#filter-toolbar').getByRole('list', { name: 'Severity' })
       await expect(severityChip).toBeVisible()
 
-      const fieldSelector2 = app.getByRole('button', { name: 'Severity' }).first()
+      const fieldSelector2 = app.locator('#filter-toolbar').getByRole('button', { name: 'Severity', exact: true })
       await fieldSelector2.click()
       await app.getByRole('option', { name: 'Event type' }).click()
       await app.getByRole('button', { name: 'Filter by event type' }).click()

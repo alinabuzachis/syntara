@@ -5,7 +5,11 @@ test('user views executions and opens a running execution', async ({ app }) => {
   await app.goto(toAppUrl('/executions'))
   await expect(app.getByRole('heading', { name: 'Workflow Runs' })).toBeVisible()
 
-  const runningRow = app.getByRole('row', { name: /Running/i }).first()
+  const executionsTable = app.getByRole('grid').filter({ has: app.getByRole('columnheader', { name: 'Status' }) })
+  const runningRow = executionsTable
+    .getByRole('row')
+    .filter({ has: app.getByText(/Running/i) })
+    .nth(0)
   const hasRunning = await runningRow
     .waitFor({ state: 'visible', timeout: 5000 })
     .then(() => true)

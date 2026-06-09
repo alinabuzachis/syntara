@@ -146,12 +146,12 @@ test.describe('Pagination Footer — Users Tab', () => {
   })
 
   test('pagination footer is visible with per-page toggle', async ({ app }) => {
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await expect(perPageToggle).toBeVisible()
   })
 
   test('per-page dropdown shows page size options', async ({ app }) => {
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await expect(perPageToggle).toBeVisible()
     await perPageToggle.click()
 
@@ -174,7 +174,7 @@ test.describe('Pagination Footer — Groups Tab', () => {
       .catch(() => false)
     test.skip(!hasTable, 'No groups data available')
 
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await expect(perPageToggle).toBeVisible()
   })
 })
@@ -182,7 +182,7 @@ test.describe('Pagination Footer — Groups Tab', () => {
 test.describe('Project Selector — Workflows', () => {
   test.beforeEach(async ({ app }) => {
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     const table = app.getByRole('grid', { name: 'Workflows table' })
     const hasTable = await table
@@ -204,8 +204,7 @@ test.describe('Project Selector — Workflows', () => {
     // Also verify the dropdown is interactive (opens options on click)
     await projectInput.click()
     const optionsInteractive = await app
-      .getByRole('option')
-      .first()
+      .getByRole('option', { name: 'All projects' })
       .waitFor({ state: 'visible', timeout: 30_000 })
       .then(() => true)
       .catch(() => false)
@@ -218,7 +217,7 @@ test.describe('Project Selector — Workflows', () => {
     await expect(projectInput).toBeVisible()
 
     await projectInput.click()
-    await app.getByRole('option').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await app.getByRole('option', { name: 'All projects' }).waitFor({ state: 'visible', timeout: 10_000 })
 
     await expect(app.getByRole('option', { name: 'All projects' })).toBeVisible()
     const optionCount = await app.getByRole('option').count()
@@ -238,7 +237,7 @@ test.describe('Project Selector — Workflows', () => {
     })
 
     await app.getByPlaceholder('All projects').click()
-    await app.getByRole('option').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await app.getByRole('option', { name: 'All projects' }).waitFor({ state: 'visible', timeout: 10_000 })
 
     // Find and click first real project (not "All projects" or "Create project")
     const options = app.getByRole('option')
@@ -268,7 +267,7 @@ test.describe('Project Selector — Workflows', () => {
   test('switching back to All projects removes project_id from API call', async ({ app }) => {
     // Select a project first
     await app.getByPlaceholder('All projects').click()
-    await app.getByRole('option').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await app.getByRole('option', { name: 'All projects' }).waitFor({ state: 'visible', timeout: 10_000 })
 
     const options = app.getByRole('option')
     const count = await options.count()
@@ -300,7 +299,7 @@ test.describe('Project Selector — Workflows', () => {
   })
 
   test('pagination footer has per-page toggle', async ({ app }) => {
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await expect(perPageToggle).toBeVisible()
   })
 })
@@ -316,7 +315,7 @@ test.describe('Pagination Navigation — Workflows', () => {
     test.skip(!hasTable, 'No workflows available')
 
     // Set per-page to 10 so pagination activates even with fewer items
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await perPageToggle.waitFor({ state: 'visible', timeout: 10_000 })
     await perPageToggle.click()
     await app.getByRole('menuitem', { name: /10 per page/i }).click()
@@ -352,7 +351,7 @@ test.describe('Pagination Navigation — Workflows', () => {
     await expect(prevButton).toBeEnabled()
 
     // Change per-page
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await perPageToggle.click()
     await app.getByRole('menuitem', { name: /50 per page/i }).click()
 
@@ -390,12 +389,12 @@ test.describe('Pagination Footer — Integrations', () => {
   })
 
   test('pagination footer is visible', async ({ app }) => {
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await expect(perPageToggle).toBeVisible()
   })
 
   test('per-page dropdown shows page size options', async ({ app }) => {
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await expect(perPageToggle).toBeVisible()
     await perPageToggle.click()
 
@@ -415,7 +414,7 @@ test.describe('Pagination Footer — Identity Providers', () => {
       .catch(() => false)
     test.skip(!hasTable, 'No identity provider data available')
 
-    const perPageToggle = app.getByRole('button', { name: /\d+ - \d+/ }).first()
+    const perPageToggle = app.locator('.pf-v6-c-pagination').getByRole('button', { name: /\d+ - \d+/ })
     await expect(perPageToggle).toBeVisible({ timeout: 5000 })
   })
 })

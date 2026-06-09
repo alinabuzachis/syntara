@@ -26,6 +26,7 @@
     "storybook": "npm run storybook --prefix packages/nexus-ui",
     "storybook:build": "npm run storybook:build --prefix packages/nexus-ui",
     "gen": "npm run gen --prefix packages/nexus-contracts",
+    "mutate": "npm run mutate --prefix packages/nexus-ui",
     "podman:build": "concurrently npm:podman:build:* -c auto",
     "podman:build:ui": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
     "podman:build:mock-api": "podman build -f packages/nexus-mock-api/Containerfile -t nexus-mock-api:latest -t ghcr.io/syntara-orchestration/syntara-mock-api:latest .",

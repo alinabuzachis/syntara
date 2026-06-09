@@ -53,7 +53,7 @@ test.describe('Form Reset on Modal Open/Close', () => {
     await modal.getByRole('button', { name: 'Cancel' }).click()
     await expect(modal).not.toBeVisible()
 
-    await app.getByRole('button', { name: 'Create credential' }).first().click()
+    await app.getByRole('button', { name: 'Create credential' }).click()
     const reopenedModal = app.getByRole('dialog')
     await expect(reopenedModal).toBeVisible()
 

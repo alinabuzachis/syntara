@@ -20,9 +20,9 @@ import { createTestCredential, deleteCredentialByName, navigateToCredentialDetai
 test.describe('Credential Detail Edge Cases', () => {
   test('invalid credential ID shows error state', async ({ app }) => {
     await app.goto(toAppUrl('/configuration/credentials/00000000-0000-0000-0000-000000000000'))
-    await expect(app.getByRole('heading', { name: /Error loading credential|Invalid credential/ }).first()).toBeVisible(
-      { timeout: 15_000 }
-    )
+    await expect(
+      app.getByRole('heading', { level: 2, name: /Error loading credential|Invalid credential/ })
+    ).toBeVisible({ timeout: 15_000 })
   })
 
   // ---------------------------------------------------------------------------

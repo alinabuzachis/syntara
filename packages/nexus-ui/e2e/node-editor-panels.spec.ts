@@ -12,7 +12,7 @@ async function layoutCanvas(app: import('@playwright/test').Page) {
   const layoutButton = app.getByRole('button', { name: 'Layout' })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
-    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 5_000 })
+    await app.waitForSelector('.react-flow__node', { state: 'visible', timeout: 5_000 })
   }
 }
 
@@ -287,31 +287,32 @@ test.describe('Node editor panels', () => {
     workflowId = app.url().split('/').pop() ?? workflowId
 
     // --- Verify each node's output data ---
-    // Use the output JSON search input as a unique anchor to confirm output loaded,
-    // then use .first() for text that may appear in both Input and Output panels.
+    // Scope text assertions to the Output panel's container (heading's parent)
+    // to avoid matching the same strings in the script editor (Parameters panel).
+    const outputPanel = app.getByRole('heading', { name: 'Output', exact: true }).locator('..')
 
     // Node 1: Gather Info — output has server diagnostics
     await clickNode(app, 'Gather Info')
     await expect(app.getByLabel('Search json output')).toBeVisible({ timeout: 10_000 })
-    await expect(app.getByText('"stdout_json"').first()).toBeVisible()
-    await expect(app.getByText('"web-01"').first()).toBeVisible()
-    await expect(app.getByText('"degraded"').first()).toBeVisible()
+    await expect(outputPanel.getByText('"stdout_json"')).toBeVisible()
+    await expect(outputPanel.getByText('"web-01"')).toBeVisible()
+    await expect(outputPanel.getByText('"degraded"')).toBeVisible()
 
     // Node 2: Process Data — output has alert analysis (different from node 1)
     await closeNodeEditorPanel(app)
     await clickNode(app, 'Process Data')
     await expect(app.getByLabel('Search json output')).toBeVisible({ timeout: 10_000 })
-    await expect(app.getByText('"alert_level"').first()).toBeVisible()
-    await expect(app.getByText('"warning"').first()).toBeVisible()
-    await expect(app.getByText('"affected_server"').first()).toBeVisible()
+    await expect(outputPanel.getByText('"alert_level"')).toBeVisible()
+    await expect(outputPanel.getByText('"warning"')).toBeVisible()
+    await expect(outputPanel.getByText('"affected_server"')).toBeVisible()
 
     // Node 3: Send Alert — output has notification result (different from nodes 1 and 2)
     await closeNodeEditorPanel(app)
     await clickNode(app, 'Send Alert')
     await expect(app.getByLabel('Search json output')).toBeVisible({ timeout: 10_000 })
-    await expect(app.getByText('"notification_sent"').first()).toBeVisible()
-    await expect(app.getByText('"#ops-alerts"').first()).toBeVisible()
-    await expect(app.getByText('"web-01 degraded"').first()).toBeVisible()
+    await expect(outputPanel.getByText('"notification_sent"')).toBeVisible()
+    await expect(outputPanel.getByText('"#ops-alerts"')).toBeVisible()
+    await expect(outputPanel.getByText('"web-01 degraded"')).toBeVisible()
   })
 
   test('input panel shows schema preview at design time without running the workflow', async ({ app }) => {
@@ -490,7 +491,7 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('.react-flow__node').filter({ hasText: 'Analyze' })).toBeVisible({ timeout: 15_000 })
 
     // --- Phase 4: Click Analyze node — input should now show REAL values ---
     await clickNode(app, 'Analyze')
@@ -635,7 +636,7 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('.react-flow__node').filter({ hasText: 'Analyze' })).toBeVisible({ timeout: 15_000 })
 
     // Click Analyze node to see Fetch's output as input
     await clickNode(app, 'Analyze')
@@ -767,7 +768,7 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('.react-flow__node').filter({ hasText: 'Step C' })).toBeVisible({ timeout: 15_000 })
 
     // Click Step C — it has Step B, Step A, and Trigger as upstream ancestors
     await clickNode(app, 'Step C')
@@ -860,7 +861,7 @@ test.describe('Node editor panels', () => {
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
-    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('.react-flow__node').filter({ hasText: 'Run script' })).toBeVisible({ timeout: 15_000 })
 
     // Click the script node to open the editor
     await clickNode(app, 'Run script')

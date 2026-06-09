@@ -73,7 +73,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
 
     // Verify only federated users are shown
     await expect(dataRows).toHaveCount(1)
-    await expect(dataRows.first().getByText('AAP', { exact: true })).toBeVisible()
+    await expect(dataRows.getByText('AAP', { exact: true })).toBeVisible()
   })
 
   test('combining Email and Authentication filters narrows results', async ({ app }) => {
