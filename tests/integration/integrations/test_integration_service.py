@@ -8,7 +8,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import Project
 from nexus.core.models import User
-from nexus.integrations.exceptions import IntegrationNameConflictError, IntegrationNotFoundError
+from nexus.integrations.exceptions import (
+    IntegrationCredentialNotFoundError,
+    IntegrationCredentialTypeMismatchError,
+    IntegrationNameConflictError,
+    IntegrationNotFoundError,
+)
 from nexus.integrations.models.integration import (
     Integration,
     IntegrationCreate,
@@ -17,9 +22,11 @@ from nexus.integrations.models.integration import (
     IntegrationScope,
     IntegrationStatus,
     IntegrationSystemUpdate,
+    IntegrationTestConnection,
     IntegrationType,
 )
 from nexus.integrations.services.integration_service import IntegrationService
+from tests.helpers.credential import CredentialFactory
 
 
 @pytest.fixture
@@ -494,3 +501,175 @@ class TestDeleteIntegration:
     ) -> None:
         with pytest.raises(IntegrationNotFoundError):
             await integration_service.delete_integration(uuid4())
+
+
+class TestCredentialTypeValidation:
+    """Tests for credential type validation at create/patch time."""
+
+    @pytest.fixture
+    def credential_factory(self, test_db_session: AsyncSession, test_user: User) -> CredentialFactory:
+        return CredentialFactory(test_db_session, test_user)
+
+    @pytest.mark.asyncio
+    async def test_create_with_valid_credential_type(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory: CredentialFactory,
+    ) -> None:
+        ct = await credential_factory.create_type("HTTP Bearer Token")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
+        data = _mcp_create(management_credential_id=cred.id)
+        result = await integration_service.create_integration(data)
+        assert result.management_credential_id == cred.id
+
+    @pytest.mark.asyncio
+    async def test_create_with_mismatched_credential_type_raises(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory: CredentialFactory,
+    ) -> None:
+        ct = await credential_factory.create_type("LLM Provider")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
+        data = _mcp_create(management_credential_id=cred.id)
+        with pytest.raises(IntegrationCredentialTypeMismatchError, match="not valid for integration type 'mcp_server'"):
+            await integration_service.create_integration(data)
+
+    @pytest.mark.asyncio
+    async def test_create_with_nonexistent_credential_raises(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        data = _mcp_create(management_credential_id=uuid4())
+        with pytest.raises(IntegrationCredentialNotFoundError):
+            await integration_service.create_integration(data)
+
+    @pytest.mark.asyncio
+    async def test_create_without_credential_skips_validation(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        data = _mcp_create()
+        result = await integration_service.create_integration(data)
+        assert result.management_credential_id is None
+
+    @pytest.mark.asyncio
+    async def test_patch_with_valid_credential_type(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory: CredentialFactory,
+    ) -> None:
+        created = await integration_service.create_integration(_mcp_create())
+
+        ct = await credential_factory.create_type("HTTP Bearer Token")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
+        patch = IntegrationPatch(management_credential_id=cred.id)
+        result = await integration_service.patch_integration(created.id, patch)
+        assert result.management_credential_id == cred.id
+
+    @pytest.mark.asyncio
+    async def test_patch_with_mismatched_credential_type_raises(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+        credential_factory: CredentialFactory,
+    ) -> None:
+        created = await integration_service.create_integration(_mcp_create())
+
+        ct = await credential_factory.create_type("SSH Key")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+
+        patch = IntegrationPatch(management_credential_id=cred.id)
+        with pytest.raises(IntegrationCredentialTypeMismatchError, match="not valid for integration type 'mcp_server'"):
+            await integration_service.patch_integration(created.id, patch)
+
+    @pytest.mark.asyncio
+    async def test_patch_without_credential_skips_validation(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        created = await integration_service.create_integration(_mcp_create())
+        patch = IntegrationPatch(name="Renamed")
+        result = await integration_service.patch_integration(created.id, patch)
+        assert result.name == "Renamed"
+
+
+class TestTestConnection:
+    """Tests for IntegrationService.test_connection."""
+
+    @pytest.fixture
+    def credential_factory(self, test_db_session: AsyncSession, test_user: User) -> CredentialFactory:
+        return CredentialFactory(test_db_session, test_user)
+
+    @pytest.fixture
+    def mock_secret_service(self) -> object:
+        from unittest.mock import AsyncMock
+
+        return AsyncMock()
+
+    @pytest.fixture
+    def service_with_secrets(
+        self, test_db_session: AsyncSession, test_user: User, mock_secret_service: object
+    ) -> IntegrationService:
+        return IntegrationService(test_db_session, test_user, mock_secret_service)  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    async def test_nonexistent_credential_raises(
+        self,
+        test_db_session: AsyncSession,
+        service_with_secrets: IntegrationService,
+    ) -> None:
+        data = IntegrationTestConnection(
+            integration_type=IntegrationType.MCP_SERVER,
+            configuration={"integration_type": "mcp_server", "base_url": "http://localhost:8080"},
+            credential_id=uuid4(),
+        )
+        with pytest.raises(IntegrationCredentialNotFoundError):
+            await service_with_secrets.test_connection(data)
+
+    @pytest.mark.asyncio
+    async def test_credential_without_secret_raises(
+        self,
+        test_db_session: AsyncSession,
+        service_with_secrets: IntegrationService,
+        credential_factory: CredentialFactory,
+    ) -> None:
+        ct = await credential_factory.create_type("HTTP Bearer Token")
+        project = await credential_factory.create_project()
+        cred = await credential_factory.create(ct, project)
+        assert cred.secret_id is None
+
+        data = IntegrationTestConnection(
+            integration_type=IntegrationType.MCP_SERVER,
+            configuration={"integration_type": "mcp_server", "base_url": "http://localhost:8080"},
+            credential_id=cred.id,
+        )
+        with pytest.raises(IntegrationCredentialNotFoundError):
+            await service_with_secrets.test_connection(data)
+
+    @pytest.mark.asyncio
+    async def test_missing_secret_service_raises(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        service = IntegrationService(test_db_session, test_user)
+        data = IntegrationTestConnection(
+            integration_type=IntegrationType.MCP_SERVER,
+            configuration={"integration_type": "mcp_server", "base_url": "http://localhost:8080"},
+            credential_id=uuid4(),
+        )
+        with pytest.raises(RuntimeError, match="SecretService is required"):
+            await service.test_connection(data)

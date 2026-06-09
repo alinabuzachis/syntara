@@ -419,6 +419,7 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     "integration:read:project",
     "integration:update:any",
     "integration:delete:any",
+    "integration:validate:any",
     # Admin revocation — admin-only endpoints
     "admin:revocation:read:any",
     "admin:revocation:execute:any",

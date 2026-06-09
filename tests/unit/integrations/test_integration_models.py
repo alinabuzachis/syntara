@@ -60,13 +60,13 @@ class TestIntegrationConfigurationModels:
 class TestURLValidation:
     """Tests for SSRF-prevention URL validation on configuration models."""
 
-    def test_mcp_server_normalizes_url(self) -> None:
+    def test_mcp_server_preserves_url_with_trailing_slash(self) -> None:
         config = MCPServerConfiguration(base_url="http://localhost:8080/")
-        assert config.base_url == "http://localhost:8080"
+        assert config.base_url == "http://localhost:8080/"
 
-    def test_mcp_server_rejects_url_with_path(self) -> None:
-        with pytest.raises(ValidationError, match="must not contain a path"):
-            MCPServerConfiguration(base_url="http://localhost:8080/some/path")
+    def test_mcp_server_allows_url_with_path(self) -> None:
+        config = MCPServerConfiguration(base_url="http://localhost:8765/mcp")
+        assert config.base_url == "http://localhost:8765/mcp"
 
     def test_mcp_server_rejects_url_without_scheme(self) -> None:
         with pytest.raises(ValidationError, match="scheme must be"):

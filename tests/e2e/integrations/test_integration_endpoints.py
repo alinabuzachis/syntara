@@ -29,7 +29,7 @@ from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.integration_patch import IntegrationPatch
 from nexus_api_client.models.integration_type import IntegrationType
 from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
-from nexus_api_client.models.mcp_server_configuration import MCPServerConfiguration
+from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
 
 from tests.e2e.conftest import unique_name
 
@@ -40,7 +40,7 @@ def _mcp_create(name: str | None = None) -> IntegrationCreate:
     return IntegrationCreate(
         name=name or unique_name("e2e-mcp"),
         integration_type=IntegrationType.MCP_SERVER,
-        configuration=MCPServerConfiguration(base_url="https://mcp.example.com"),
+        configuration=MCPServerConfigurationInput(base_url="https://mcp.example.com"),
     )
 
 
@@ -138,7 +138,7 @@ class TestListIntegrations:
             IntegrationCreate(
                 name=unique_name("e2e-disabled"),
                 integration_type=IntegrationType.MCP_SERVER,
-                configuration=MCPServerConfiguration(base_url="https://mcp.example.com"),
+                configuration=MCPServerConfigurationInput(base_url="https://mcp.example.com"),
                 enabled=False,
             )
         )
@@ -226,3 +226,19 @@ class TestDeleteIntegration:
         nexus_api.integrations.delete(integration_id=integration_id)
         resp = nexus_api.integrations.get(integration_id=integration_id)
         assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+class TestValidateIntegration:
+    """Tests for POST /integrations/{id}/validate."""
+
+    def test_validate_nonexistent_returns_404(self, nexus_api: NexusApiRegistry) -> None:
+        resp = nexus_api.integrations.validate(integration_id=uuid4())
+        assert resp.status_code == HTTPStatus.NOT_FOUND
+
+    def test_validate_without_credential_returns_400(
+        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+    ) -> None:
+        created = integration_factory(_mcp_create())
+        integration_id = UUID(created["id"])
+        resp = nexus_api.integrations.validate(integration_id=integration_id)
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
