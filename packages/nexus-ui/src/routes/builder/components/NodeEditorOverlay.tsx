@@ -18,6 +18,7 @@ type NodeEditorOverlayProps = {
   onConnect: (sourceId: string, targetId: string) => void
   onClose: () => void
   projectId?: string
+  onNavigateToNode?: (nodeId: string) => void
 }
 
 export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEditorOverlayProps) {
@@ -34,6 +35,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
     onConnect,
     onClose,
     projectId,
+    onNavigateToNode,
   } = props
 
   if (!isOpen) return null
@@ -59,6 +61,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
           onConnect={onConnect}
           onClose={onClose}
           projectId={projectId}
+          onNavigateToNode={onNavigateToNode}
         />
       </FlexItem>
     </Flex>

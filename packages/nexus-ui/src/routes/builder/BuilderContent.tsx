@@ -35,6 +35,7 @@ import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hoo
 import { useBuilderToolbarHandlers } from './hooks/useBuilderToolbarHandlers'
 import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
+import { useNodePanelNavigation } from './hooks/useNodePanelNavigation'
 import { usePublishWorkflow, useUnpublishWorkflow } from './hooks/usePublishWorkflow'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext } from './NodeActionsContext'
@@ -241,6 +242,8 @@ export function BuilderContent(props: BuilderContentProps) {
     targetHandle,
     onRunStep: handleRunStep,
   })
+
+  const handleNavigateToNode = useNodePanelNavigation(reactFlowInstance, dispatch)
 
   /* Re-renders when React Flow node count changes (execution-view sequencing); see useBuilderWindowEffects */
   useBuilderWindowEffects(nodesInitialized, reactFlowInstance)
@@ -500,6 +503,7 @@ export function BuilderContent(props: BuilderContentProps) {
                   workflowId={workflowId}
                   onConnect={handleConnectFromPanel}
                   onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
+                  onNavigateToNode={handleNavigateToNode}
                   projectId={
                     // TODO: Remove cast when project_id is added to the OpenAPI spec
                     (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id

@@ -6,6 +6,7 @@ import type {
   WaitActivity,
 } from '@ansible/nexus-contracts'
 import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
+import { Flex } from '@patternfly/react-core'
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
@@ -250,6 +251,7 @@ type NodeDetailsPanelProps = {
   onConnect?: (sourceId: string, targetId: string) => void
   onClose: () => void
   projectId?: string
+  onNavigateToNode?: (nodeId: string) => void
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
@@ -265,6 +267,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     onConnect,
     onClose,
     projectId,
+    onNavigateToNode,
   } = props
   const { showError } = useAlerts()
   // Use typed selector for optimized subscription
@@ -380,7 +383,11 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     }
 
     if (!node) return null
-    return renderEditModeContent(node, currentWorkflow, onClose, setHeaderContent, projectId)
+    return (
+      <Flex key={node.id} direction={{ default: 'column' }} style={{ height: '100%', minHeight: 0 }}>
+        {renderEditModeContent(node, currentWorkflow, onClose, setHeaderContent, projectId)}
+      </Flex>
+    )
   }
 
   const showInputPanel = mode === 'add' ? nodeTypeId !== RegistryNodeId.TRIGGER : node?.type !== FlowNodeType.TRIGGER
@@ -399,6 +406,8 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       onClose={onClose}
       sourceNodeId={sourceNodeId}
       formId={formId}
+      showNavigation={mode === 'edit'}
+      onNavigateToNode={onNavigateToNode}
     />
   )
 }

@@ -1,22 +1,11 @@
-import {
-  Button,
-  Flex,
-  FlexItem,
-  Panel,
-  PanelMain,
-  PanelMainBody,
-  Stack,
-  StackItem,
-  Tooltip,
-} from '@patternfly/react-core'
-import { ExternalLinkAltIcon, RhUiMinusIcon } from '@patternfly/react-icons'
+import { Button, Flex, FlexItem, Stack, StackItem, Tooltip } from '@patternfly/react-core'
+import { RhUiExternalLinkIcon, RhUiMinusIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
 import { NxPanel } from '../../components/layout/NxPanel'
 
 import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
-import { InputPanel } from './panels/InputPanel'
-import { OutputPanel } from './panels/OutputPanel'
+import { NodeEditorPanelBody } from './panels/NodeEditorPanelBody'
 
 type NodeEditorLayoutProps = {
   parametersContent: ReactNode
@@ -31,6 +20,8 @@ type NodeEditorLayoutProps = {
   showClose?: boolean
   sourceNodeId?: string | null
   formId?: string
+  showNavigation?: boolean
+  onNavigateToNode?: (nodeId: string) => void
 }
 
 export function NodeEditorLayout({
@@ -46,9 +37,12 @@ export function NodeEditorLayout({
   showClose = true,
   sourceNodeId,
   formId,
+  showNavigation = false,
+  onNavigateToNode,
 }: NodeEditorLayoutProps) {
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
+
   return (
     <NxPanel
       hasNoPadding
@@ -91,7 +85,13 @@ export function NodeEditorLayout({
               >
                 <FlexItem>
                   <Tooltip content="Coming soon">
-                    <Button variant="link" icon={<ExternalLinkAltIcon />} iconPosition="right" type="button" isDisabled>
+                    <Button
+                      variant="link"
+                      icon={<RhUiExternalLinkIcon />}
+                      iconPosition="right"
+                      type="button"
+                      isAriaDisabled
+                    >
                       Documentation
                     </Button>
                   </Tooltip>
@@ -145,73 +145,20 @@ export function NodeEditorLayout({
           style={{
             minHeight: 0,
             overflow: 'visible',
-            padding: 'var(--pf-t--global--spacer--sm)',
+            padding: 'var(--pf-t--global--spacer--sm) 0',
           }}
         >
-          <Flex
-            alignItems={{ default: 'alignItemsStretch' }}
-            flexWrap={{ default: 'nowrap' }}
-            gap={{ default: 'gapSm' }}
-            style={{ height: '100%', minWidth: 0 }}
-          >
-            {showInputPanel && (
-              <FlexItem
-                flex={{ default: 'flex_1' }}
-                style={{
-                  minWidth: 0,
-                  minHeight: 0,
-                  height: '100%',
-                }}
-              >
-                <InputPanel nodeId={nodeId ?? ''} executionData={inputData} sourceNodeId={sourceNodeId} />
-              </FlexItem>
-            )}
-            <FlexItem
-              flex={{ default: 'flex_1' }}
-              style={{
-                minWidth: 0,
-                minHeight: 0,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <Panel
-                variant="raised"
-                style={{
-                  height: '100%',
-                  maxHeight: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <PanelMain
-                  style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
-                >
-                  <PanelMainBody
-                    style={{
-                      height: '100%',
-                      overflowY: 'auto',
-                      flex: 1,
-                      minHeight: 0,
-                    }}
-                  >
-                    {parametersContent}
-                  </PanelMainBody>
-                </PanelMain>
-              </Panel>
-            </FlexItem>
-            <FlexItem
-              flex={{ default: outputFlex }}
-              style={{
-                minWidth: 0,
-                minHeight: 0,
-                height: '100%',
-              }}
-            >
-              <OutputPanel outputData={outputData} />
-            </FlexItem>
-          </Flex>
+          <NodeEditorPanelBody
+            showInputPanel={showInputPanel}
+            showNavigation={showNavigation}
+            nodeId={nodeId}
+            sourceNodeId={sourceNodeId}
+            inputData={inputData}
+            outputData={outputData}
+            outputFlex={outputFlex}
+            parametersContent={parametersContent}
+            onNavigateToNode={onNavigateToNode}
+          />
         </StackItem>
       </Stack>
     </NxPanel>
