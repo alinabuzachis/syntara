@@ -27,15 +27,7 @@ const baseFields = {
   name: z.string().min(1, 'Provider name is required'),
   enabled: z.boolean(),
   autoDiscovery: z.boolean(),
-  issuerUrl: z
-    .string()
-    .min(1, 'Issuer URL is required')
-    .url('Issuer URL must be a valid URL')
-    .transform((url) => {
-      let end = url.length
-      while (end > 0 && url[end - 1] === '/') end--
-      return url.slice(0, end)
-    }),
+  issuerUrl: z.string().min(1, 'Issuer URL is required').url('Issuer URL must be a valid URL'),
   clientId: z.string().min(1, 'Client ID is required'),
   scopes: z.string().min(1, 'Scopes are required'),
   // Manual endpoint fields (required when autoDiscovery is off)

@@ -31,7 +31,6 @@ import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage, getErrorStatus, isConflictError } from '../../../../utils/apiErrors'
 import { detachPromise } from '../../../../utils/detachPromise'
 import { useDocLink } from '../../../../utils/docs/useDocLink'
-import { trimTrailingSlashes } from '../../../../utils/urlUtils'
 
 import { autoSelectClaimMappings } from './claimMappingUtils'
 import { IdentityProviderFormFields } from './IdentityProviderFormFields'
@@ -93,7 +92,7 @@ function toCreatePayload(formData: IdentityProviderFormData) {
       provider_type: PROVIDER_TYPE_OIDC,
       idp_type: formData.idpType,
       auto_discovery: formData.autoDiscovery,
-      issuer_url: trimTrailingSlashes(formData.issuerUrl),
+      issuer_url: formData.issuerUrl,
       client_id: formData.clientId,
       client_secret: formData.clientSecret,
       redirect_uri: OIDC_REDIRECT_URI,
@@ -117,7 +116,7 @@ function toPatchPayload(formData: IdentityProviderFormData) {
       provider_type: PROVIDER_TYPE_OIDC,
       idp_type: formData.idpType,
       auto_discovery: formData.autoDiscovery,
-      issuer_url: trimTrailingSlashes(formData.issuerUrl),
+      issuer_url: formData.issuerUrl,
       client_id: formData.clientId,
       ...(formData.clientSecret ? { client_secret: formData.clientSecret } : {}),
       redirect_uri: OIDC_REDIRECT_URI,
