@@ -344,6 +344,49 @@ jobs:
             htmlcov/
           retention-days: 30
 
+  # This check is needed to make tekton build required only on PRs,
+  # not on merge queues.
+  check-tekton-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Tekton build passed
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="${{ github.event.pull_request.head.sha }}"
+          check_name="ansible-automation-orchestrator-backend-main-on-pull-request"
+          timeout=3600
+          interval=30
+          elapsed=0
+
+          while [ "$elapsed" -lt "$timeout" ]; do
+            check_data=$(gh api "repos/${{ github.repository }}/commits/${sha}/check-runs" \
+              --jq "[.check_runs[] | select(.name | contains(\"${check_name}\"))] | sort_by(.started_at) | last | {status: .status, conclusion: .conclusion}" \
+              2>/dev/null)
+
+            status=$(echo "$check_data" | jq -r '.status // empty')
+            conclusion=$(echo "$check_data" | jq -r '.conclusion // empty')
+
+            echo "Tekton check '${check_name}': status=${status:-not_found}, conclusion=${conclusion:-pending}"
+
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                echo "✅ Tekton build passed"
+                exit 0
+              else
+                echo "❌ Tekton build ${conclusion}"
+                exit 1
+              fi
+            fi
+
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
+          done
+
+          echo "❌ Tekton check did not complete within ${timeout}s"
+          exit 1
+
   required-checks:
     runs-on: ubuntu-latest
     needs:
@@ -353,6 +396,7 @@ jobs:
       - test-cli
       - test-integration
       - test-compose
+      - check-tekton-build
     if: always()
     steps:
       - name: Check all required jobs succeeded
