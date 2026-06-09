@@ -571,6 +571,8 @@ ActivityTypeEnum.CONVERGE // 'converge'
 TriggerTypeEnum.MANUAL_TRIGGER // 'manual_trigger'
 TriggerTypeEnum.SCHEDULED // 'scheduled'
 TriggerTypeEnum.EVENT // 'event'
+TriggerTypeEnum.WEBHOOK_TRIGGER // 'webhook_trigger'
+TriggerTypeEnum.EDA_TRIGGER // 'eda_trigger'
 
 // Executor types (v2 — executor types are the node type directly, no task.executor wrapper)
 ExecutorTypeEnum.SCRIPT // 'script'

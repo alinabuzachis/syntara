@@ -14,6 +14,7 @@ import {
 import type { ComponentType } from 'react'
 
 import AnsibleIcon from '../../../../assets/ansible-automation-platform.svg?react'
+import EdaIcon from '../../../../assets/eda.svg?react'
 
 export type NodeMetadata = {
   icon?: ComponentType<{ className?: string }>
@@ -40,6 +41,12 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   },
   webhookTrigger: {
     icon: RhUiLanguageIcon,
+    label: 'Trigger',
+    disableTarget: true,
+    expandable: false,
+  },
+  edaTrigger: {
+    icon: EdaIcon,
     label: 'Trigger',
     disableTarget: true,
     expandable: false,

@@ -68,6 +68,19 @@ export function extractTaskActivities(activities: Activity[]): Activity[] {
   return tasks
 }
 
+function getScheduledDetails(config: Record<string, unknown> | undefined): string {
+  if (!config) return 'Scheduled'
+  const scheduleType = config.schedule_type as string | undefined
+  if (scheduleType === 'cron') return `Cron: ${(config.cron as string) ?? ''}`
+  if (scheduleType === 'interval') return `Interval: ${(config.interval as string) ?? ''}`
+  return 'Continuous'
+}
+
+function getWebhookStyleDetails(config: Record<string, unknown> | undefined, label: string): string {
+  const path = (config?.webhook_path as string) ?? ''
+  return path ? `${label}: /${path}` : label
+}
+
 /**
  * Extracts display name and details from a trigger based on its type and configuration.
  * Returns separate fields to avoid encoding issues with special characters in names.
@@ -81,18 +94,7 @@ export function getTriggerDisplayData(trigger: Trigger): { name: string; details
       details = 'Manual'
       break
     case TriggerTypeEnum.SCHEDULED:
-      if (trigger.config) {
-        const scheduleType = trigger.config.schedule_type as string | undefined
-        if (scheduleType === 'cron') {
-          details = `Cron: ${(trigger.config.cron as string) ?? ''}`
-        } else if (scheduleType === 'interval') {
-          details = `Interval: ${(trigger.config.interval as string) ?? ''}`
-        } else {
-          details = 'Continuous'
-        }
-      } else {
-        details = 'Scheduled'
-      }
+      details = getScheduledDetails(trigger.config)
       break
     case TriggerTypeEnum.EVENT:
       if (trigger.config) {
@@ -103,11 +105,12 @@ export function getTriggerDisplayData(trigger: Trigger): { name: string; details
         details = 'Event'
       }
       break
-    case TriggerTypeEnum.WEBHOOK_TRIGGER: {
-      const webhookPath = (trigger.config?.webhook_path as string) ?? ''
-      details = webhookPath ? `Webhook: /${webhookPath}` : 'Webhook'
+    case TriggerTypeEnum.WEBHOOK_TRIGGER:
+      details = getWebhookStyleDetails(trigger.config, 'Webhook')
       break
-    }
+    case TriggerTypeEnum.EDA_TRIGGER:
+      details = getWebhookStyleDetails(trigger.config, 'EDA')
+      break
   }
 
   return { name, details }

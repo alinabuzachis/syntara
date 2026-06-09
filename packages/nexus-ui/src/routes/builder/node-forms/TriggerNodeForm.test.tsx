@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -94,7 +95,7 @@ describe('TriggerNodeForm Component', () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
-          initialData={{ triggerType: 'manual_trigger', inputSchema: 'not valid json' }}
+          initialData={{ triggerType: TriggerTypeEnum.MANUAL_TRIGGER, inputSchema: 'not valid json' }}
         />
       )
 
@@ -110,7 +111,7 @@ describe('TriggerNodeForm Component', () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
-          initialData={{ triggerType: 'manual_trigger', inputSchema: '"just a string"' }}
+          initialData={{ triggerType: TriggerTypeEnum.MANUAL_TRIGGER, inputSchema: '"just a string"' }}
         />
       )
 
@@ -126,7 +127,7 @@ describe('TriggerNodeForm Component', () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
-          initialData={{ triggerType: 'manual_trigger', inputSchema: '{"type": "object"}' }}
+          initialData={{ triggerType: TriggerTypeEnum.MANUAL_TRIGGER, inputSchema: '{"type": "object"}' }}
         />
       )
 
@@ -135,7 +136,7 @@ describe('TriggerNodeForm Component', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            triggerType: 'manual_trigger',
+            triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
             inputSchema: '{"type": "object"}',
           })
         )
@@ -143,7 +144,9 @@ describe('TriggerNodeForm Component', () => {
     })
 
     it('submits successfully with empty input schema', async () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'manual_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.MANUAL_TRIGGER }} />
+      )
 
       await submitTriggerForm()
 
@@ -155,7 +158,9 @@ describe('TriggerNodeForm Component', () => {
 
   describe('Scheduled Trigger', () => {
     it('shows schedule options when scheduled trigger is selected', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.SCHEDULED }} />
+      )
 
       expect(screen.getByLabelText('Schedule type')).toBeInTheDocument()
       expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
@@ -163,7 +168,10 @@ describe('TriggerNodeForm Component', () => {
 
     it('shows interval picker for interval schedule type', () => {
       renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'interval' }}
+        />
       )
 
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
@@ -173,7 +181,7 @@ describe('TriggerNodeForm Component', () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
-          initialData={{ triggerType: 'scheduled', scheduleType: 'continuous' }}
+          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'continuous' }}
         />
       )
 
@@ -183,7 +191,10 @@ describe('TriggerNodeForm Component', () => {
     it('toggles interval picker when schedule type changes', async () => {
       const user = userEvent.setup()
       renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'interval' }}
+        />
       )
 
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
@@ -197,7 +208,7 @@ describe('TriggerNodeForm Component', () => {
 
     it('renders with initial scheduled trigger data', () => {
       const initialData = {
-        triggerType: 'scheduled',
+        triggerType: TriggerTypeEnum.SCHEDULED,
         scheduleType: 'interval',
         interval: 'R/2024-01-01T10:00:00Z/P1D',
       }
@@ -211,7 +222,9 @@ describe('TriggerNodeForm Component', () => {
 
   describe('Form State', () => {
     it('does not show approval checkbox when scheduled trigger is selected', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.SCHEDULED }} />
+      )
 
       expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()
     })
@@ -219,13 +232,17 @@ describe('TriggerNodeForm Component', () => {
 
   describe('Webhook Trigger', () => {
     it('shows webhook path field when webhook trigger is selected', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
       expect(screen.getByLabelText('Webhook path')).toBeInTheDocument()
     })
 
     it('shows HTTP method field as disabled POST', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
       const httpMethodInput = screen.getByRole('textbox', { name: 'HTTP method' })
       expect(httpMethodInput).toBeInTheDocument()
@@ -234,20 +251,26 @@ describe('TriggerNodeForm Component', () => {
     })
 
     it('shows URL display with base URL', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
       expect(screen.getByLabelText('Webhook URL')).toBeInTheDocument()
     })
 
     it('shows JSON schema editor', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
-      expect(screen.getByTestId('json-schema-editor')).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toBeInTheDocument()
     })
 
     it('submits webhook trigger with normalized path', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
       await user.type(screen.getByLabelText('Webhook path'), '/Jira-Updates')
       await submitTriggerForm()
@@ -255,7 +278,7 @@ describe('TriggerNodeForm Component', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            triggerType: 'webhook_trigger',
+            triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
             webhookPath: 'jira-updates',
           })
         )
@@ -263,7 +286,9 @@ describe('TriggerNodeForm Component', () => {
     })
 
     it('shows validation error for empty webhook path', async () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
       await submitTriggerForm()
 
@@ -275,7 +300,9 @@ describe('TriggerNodeForm Component', () => {
 
     it('shows validation error for invalid webhook path characters', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
       await user.type(screen.getByLabelText('Webhook path'), 'invalid path!@#')
       await submitTriggerForm()
@@ -291,7 +318,9 @@ describe('TriggerNodeForm Component', () => {
     })
 
     it('does not show schedule fields when webhook trigger is selected', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />)
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
+      )
 
       expect(screen.queryByLabelText('Schedule type')).not.toBeInTheDocument()
       expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
@@ -302,7 +331,7 @@ describe('TriggerNodeForm Component', () => {
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
           initialData={{
-            triggerType: 'webhook_trigger',
+            triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
             webhookPath: 'existing-path',
             inputSchema: '{"type": "object"}',
           }}
@@ -310,15 +339,91 @@ describe('TriggerNodeForm Component', () => {
       )
 
       expect(screen.getByLabelText('Webhook path')).toHaveValue('existing-path')
-      expect(screen.getByTestId('json-schema-editor')).toHaveValue('{"type": "object"}')
+      expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toHaveValue('{"type": "object"}')
     })
 
     it('has no accessibility violations', async () => {
       const { container } = renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'webhook_trigger' }} />
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
       )
       // Exclude aria-valid-attr-value: PF6 Tabs renders aria-controls pointing to
       // a panel ID that may not exist in the DOM when only the active tab is rendered
+      const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
+      expect(results).toHaveNoViolations()
+    })
+  })
+
+  describe('EDA Trigger', () => {
+    it('shows webhook path field when EDA trigger is selected', () => {
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
+      )
+
+      expect(screen.getByLabelText('Webhook path')).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('Schedule type')).not.toBeInTheDocument()
+    })
+
+    it('shows EDA connection instructions', () => {
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
+      )
+
+      expect(screen.getByText('Event-Driven Ansible Connection Instructions')).toBeInTheDocument()
+    })
+
+    it('submits EDA trigger with normalized path', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
+      )
+
+      await user.type(screen.getByLabelText('Webhook path'), '/EDA-Events')
+      await submitTriggerForm()
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            triggerType: TriggerTypeEnum.EDA_TRIGGER,
+            webhookPath: 'eda-events',
+          })
+        )
+      })
+    })
+
+    it('shows validation error for empty webhook path', async () => {
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
+      )
+
+      await submitTriggerForm()
+
+      await waitFor(() => {
+        expect(screen.getByText('Webhook path is required')).toBeInTheDocument()
+      })
+      expect(mockOnSubmit).not.toHaveBeenCalled()
+    })
+
+    it('renders with initial EDA trigger data', () => {
+      renderWithHeader(
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            triggerType: TriggerTypeEnum.EDA_TRIGGER,
+            webhookPath: 'existing-eda-path',
+            inputSchema: '{"type": "object"}',
+          }}
+        />
+      )
+
+      expect(screen.getByLabelText('Webhook path')).toHaveValue('existing-eda-path')
+      expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toHaveValue('{"type": "object"}')
+    })
+
+    it('has no accessibility violations', async () => {
+      const { container } = renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
+      )
       const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
       expect(results).toHaveNoViolations()
     })

@@ -45,6 +45,21 @@ describe('renderNodeIcon', () => {
     })
   })
 
+  it('renders custom icon with styling for eda trigger node (smaller scale than aap)', () => {
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.TRIGGER_EDA)
+    render(<>{view}</>)
+
+    const icon = screen.getByTestId('styled-icon')
+    expect(icon).toBeInTheDocument()
+    expect(icon).toHaveStyle({
+      width: '100%',
+      height: '100%',
+      display: 'block',
+    })
+    // EDA icon fills its viewBox edge-to-edge so needs less scaling than AAP (1.8)
+    expect(icon.style.transform).toContain('scale(1.4)')
+  })
+
   it('applies rotation transform for logic-condition node', () => {
     const view = buildNodeIconView(MockIcon, RegistryNodeId.LOGIC_CONDITION)
     render(<>{view}</>)

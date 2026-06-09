@@ -614,6 +614,7 @@ export {
   createScheduledTrigger,
   createEventTrigger,
   createWebhookTrigger,
+  createEdaTrigger,
   createScriptActivity,
   createApiActivity,
   createAgenticActivity,

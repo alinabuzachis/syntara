@@ -50,6 +50,9 @@ export function getCanvasNodeIconDescriptor(
     if (triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER) {
       return { icon: nodeMetadata.webhookTrigger.icon, id: RegistryNodeId.TRIGGER_WEBHOOK }
     }
+    if (triggerType === TriggerTypeEnum.EDA_TRIGGER) {
+      return { icon: nodeMetadata.edaTrigger.icon, id: RegistryNodeId.TRIGGER_EDA }
+    }
     return { icon: nodeMetadata.trigger.icon, id: RegistryNodeId.TRIGGER_MANUAL }
   }
 

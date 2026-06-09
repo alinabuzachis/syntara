@@ -41,7 +41,18 @@ export const TriggerTypeEnum = {
   SCHEDULED: 'scheduled',
   EVENT: 'event',
   WEBHOOK_TRIGGER: 'webhook_trigger',
+  EDA_TRIGGER: 'eda_trigger',
 } as const
+
+export type TriggerType = (typeof TriggerTypeEnum)[keyof typeof TriggerTypeEnum]
+
+/**
+ * Trigger types that share webhook-style config (webhook_path, input_schema).
+ */
+export const WEBHOOK_TRIGGER_TYPES: ReadonlySet<string> = new Set([
+  TriggerTypeEnum.WEBHOOK_TRIGGER,
+  TriggerTypeEnum.EDA_TRIGGER,
+])
 
 /**
  * Constants for executor node types (v2)

@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { isValidWebhookPath, normalizeWebhookPath, triggerFormSchema } from './triggerFormSchema'
@@ -11,7 +12,15 @@ type ParseError = Extract<ParseResult, { success: false }>
 
 function parseWebhook(webhookPath: string, inputSchema?: string) {
   return triggerFormSchema.safeParse({
-    triggerType: 'webhook_trigger',
+    triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
+    webhookPath,
+    inputSchema,
+  })
+}
+
+function parseEda(webhookPath: string, inputSchema?: string) {
+  return triggerFormSchema.safeParse({
+    triggerType: TriggerTypeEnum.EDA_TRIGGER,
     webhookPath,
     inputSchema,
   })
@@ -19,14 +28,14 @@ function parseWebhook(webhookPath: string, inputSchema?: string) {
 
 function parseManual(inputSchema?: string) {
   return triggerFormSchema.safeParse({
-    triggerType: 'manual_trigger',
+    triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
     inputSchema,
   })
 }
 
 function parseScheduled(scheduleType: string, interval?: string) {
   return triggerFormSchema.safeParse({
-    triggerType: 'scheduled',
+    triggerType: TriggerTypeEnum.SCHEDULED,
     scheduleType,
     interval,
   })
@@ -407,5 +416,60 @@ describe('triggerFormSchema — manual trigger inputSchema validation', () => {
     // Should still pass validation (it is a valid JSON object structurally)
     // but safeJSONReviver strips dangerous keys during parsing
     expect(parseManual(malicious).success).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// EDA trigger validation (same rules as webhook)
+// ---------------------------------------------------------------------------
+
+describe('triggerFormSchema — EDA trigger validation', () => {
+  it('accepts valid EDA trigger with path', () => {
+    expect(parseEda('eda-events').success).toBe(true)
+  })
+
+  it('rejects empty webhook path', () => {
+    const result = parseEda('')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(webhookError(result)).toBe('Webhook path is required')
+    }
+  })
+
+  it('rejects path exceeding 128 characters', () => {
+    const result = parseEda('a'.repeat(129))
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(webhookError(result)).toBe('Webhook path must be 128 characters or fewer')
+    }
+  })
+
+  it('rejects path with invalid characters', () => {
+    const result = parseEda('INVALID PATH!')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(webhookError(result)).toContain('start and end with a letter or number')
+    }
+  })
+
+  it('accepts valid inputSchema JSON', () => {
+    expect(parseEda('eda-events', '{"type": "object"}').success).toBe(true)
+  })
+
+  it('rejects invalid inputSchema JSON', () => {
+    const result = parseEda('eda-events', 'not-json')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(inputSchemaError(result)).toBe('Invalid JSON — check syntax')
+    }
+  })
+
+  it('rejects inputSchema exceeding 100KB', () => {
+    const oversized = `{"data": "${'x'.repeat(100_001)}"}`
+    const result = parseEda('eda-events', oversized)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(inputSchemaError(result)).toBe('Input schema must be 100KB or less')
+    }
   })
 })

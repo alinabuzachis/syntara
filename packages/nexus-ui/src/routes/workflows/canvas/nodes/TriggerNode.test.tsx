@@ -1,6 +1,11 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
+
+vi.mock('../../../../assets/eda.svg?react', () => ({
+  default: () => <span data-testid="mock-eda-icon" />,
+}))
 
 import { ExecutionViewContext } from '../../../builder/ExecutionViewContext'
 
@@ -45,7 +50,7 @@ describe('TriggerNodeComponent', () => {
     data: {
       name: 'Trigger',
       details: 'Manual',
-      triggerType: 'manual_trigger',
+      triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
       ...dataOverrides,
     },
     type: 'trigger' as const,
@@ -83,7 +88,7 @@ describe('TriggerNodeComponent', () => {
         {...createNodeProps({
           name: 'Trigger',
           details: null,
-          triggerType: 'manual_trigger',
+          triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
         })}
       />
     )
@@ -97,7 +102,7 @@ describe('TriggerNodeComponent', () => {
         {...createNodeProps({
           name: 'MyTrigger',
           details: 'Continuous',
-          triggerType: 'scheduled',
+          triggerType: TriggerTypeEnum.SCHEDULED,
         })}
       />
     )
@@ -112,7 +117,7 @@ describe('TriggerNodeComponent', () => {
         {...createNodeProps({
           name: 'Hello(World)',
           details: 'Manual',
-          triggerType: 'manual_trigger',
+          triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
         })}
       />
     )
@@ -126,7 +131,7 @@ describe('TriggerNodeComponent', () => {
         {...createNodeProps({
           name: '${name_via_ai.analysis.default_trigger_configuration}',
           details: 'Every 5 minutes on weekdays',
-          triggerType: 'scheduled',
+          triggerType: TriggerTypeEnum.SCHEDULED,
         })}
       />
     )
@@ -141,7 +146,7 @@ describe('TriggerNodeComponent', () => {
         {...createNodeProps({
           name: 'My Webhook',
           details: null,
-          triggerType: 'webhook_trigger',
+          triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
         })}
       />
     )
@@ -155,7 +160,7 @@ describe('TriggerNodeComponent', () => {
         {...createNodeProps({
           name: 'My Webhook',
           details: 'Webhook: /jira-updates',
-          triggerType: 'webhook_trigger',
+          triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
         })}
       />
     )
@@ -169,6 +174,35 @@ describe('TriggerNodeComponent', () => {
     render(<TriggerNodeComponent {...createNodeProps()} />)
     expect(screen.queryByRole('button', { name: /step actions menu/i })).not.toBeInTheDocument()
     mockNodesConnectable.value = true
+  })
+
+  it('renders "Event-Driven Ansible trigger" label when EDA trigger has no details', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          name: 'My EDA Trigger',
+          details: null,
+          triggerType: TriggerTypeEnum.EDA_TRIGGER,
+        })}
+      />
+    )
+
+    expect(screen.getByText('Event-Driven Ansible trigger')).toBeInTheDocument()
+  })
+
+  it('renders EDA path detail instead of label when details are present', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          name: 'My EDA Trigger',
+          details: 'EDA: /eda-events',
+          triggerType: TriggerTypeEnum.EDA_TRIGGER,
+        })}
+      />
+    )
+
+    expect(screen.getByText('EDA: /eda-events')).toBeInTheDocument()
+    expect(screen.queryByText('Event-Driven Ansible trigger')).not.toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

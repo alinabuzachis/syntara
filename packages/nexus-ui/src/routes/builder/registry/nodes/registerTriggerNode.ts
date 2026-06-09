@@ -1,10 +1,12 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
 import { RhUiCalendarIcon, RhUiLanguageIcon, RhUiPlayIcon } from '@patternfly/react-icons'
 
+import EdaIcon from '../../../../assets/eda.svg?react'
 import { RegistryNodeId } from '../../../../constants'
 import {
   createManualTrigger,
   createScheduledTrigger,
+  createEdaTrigger,
   createWebhookTrigger,
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
@@ -29,7 +31,7 @@ export default function registerTriggerNode() {
         icon: RhUiPlayIcon,
         category: 'trigger',
         description: 'Start workflow execution with manual, scheduled, or event triggers',
-        keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook', 'api', 'http'],
+        keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook', 'api', 'http', 'eda'],
         order: 100,
         selectionTitle: 'Select a trigger step',
         subtypes: [
@@ -57,6 +59,14 @@ export default function registerTriggerNode() {
             formTitle: 'Configure Webhook Trigger',
             initialData: { triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER },
           },
+          {
+            id: RegistryNodeId.TRIGGER_EDA,
+            label: 'Event-Driven Ansible trigger',
+            icon: EdaIcon,
+            description: 'Workflow will start when an EDA rulebook activation fires.',
+            formTitle: 'Configure EDA Trigger',
+            initialData: { triggerType: TriggerTypeEnum.EDA_TRIGGER },
+          },
         ],
         formComponent: TriggerNodeForm,
       },
@@ -80,12 +90,14 @@ export default function registerTriggerNode() {
                 name
               )
             }
-            if (data.triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER && data.webhookPath) {
+            if (WEBHOOK_TRIGGER_TYPES.has(data.triggerType) && data.webhookPath) {
               const inputSchema = parseJsonSchema(data.inputSchema)
               if (data.inputSchema?.trim() && !inputSchema) {
                 throw new Error('Invalid JSON schema — check syntax')
               }
-              return createWebhookTrigger(triggerId, normalizeWebhookPath(data.webhookPath), inputSchema, name)
+              const factory =
+                data.triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER ? createWebhookTrigger : createEdaTrigger
+              return factory(triggerId, normalizeWebhookPath(data.webhookPath), inputSchema, name)
             }
             return null
           })

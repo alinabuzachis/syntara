@@ -16,6 +16,7 @@ import {
   createScriptActivity,
   createWaitActivity,
   createWebhookTrigger,
+  createEdaTrigger,
 } from './workflowFactories'
 
 describe('workflowFactories', () => {
@@ -167,6 +168,40 @@ describe('workflowFactories', () => {
         expect(() => createWebhookTrigger('trigger-23', 'api/v2/events')).toThrow('Invalid webhook path format')
         expect(() => createWebhookTrigger('trigger-24', '')).toThrow('Invalid webhook path format')
         expect(() => createWebhookTrigger('trigger-25', '-leading-hyphen')).toThrow('Invalid webhook path format')
+      })
+    })
+
+    describe('createEdaTrigger', () => {
+      it('creates an EDA trigger with path', () => {
+        const trigger = createEdaTrigger('trigger-30', 'eda-events')
+
+        expect(trigger.id).toBe('trigger-30')
+        expect(trigger.type).toBe('eda_trigger')
+        expect(trigger.name).toBe('EDA Trigger')
+        expect(trigger.config.webhook_path).toBe('eda-events')
+        expect(trigger.config).not.toHaveProperty('input_schema')
+      })
+
+      it('creates an EDA trigger with JSON schema', () => {
+        const schema = { type: 'object', properties: { name: { type: 'string' } } }
+        const trigger = createEdaTrigger('trigger-31', 'eda-push', schema)
+
+        expect(trigger.id).toBe('trigger-31')
+        expect(trigger.config.webhook_path).toBe('eda-push')
+        expect(trigger.config.input_schema).toEqual(schema)
+      })
+
+      it('creates an EDA trigger with custom name', () => {
+        const trigger = createEdaTrigger('trigger-32', 'eda-alerts', undefined, 'My EDA Trigger')
+
+        expect(trigger.id).toBe('trigger-32')
+        expect(trigger.name).toBe('My EDA Trigger')
+      })
+
+      it('rejects invalid webhook path format', () => {
+        expect(() => createEdaTrigger('trigger-33', 'api/v2/events')).toThrow('Invalid webhook path format')
+        expect(() => createEdaTrigger('trigger-34', '')).toThrow('Invalid webhook path format')
+        expect(() => createEdaTrigger('trigger-35', '-leading-hyphen')).toThrow('Invalid webhook path format')
       })
     })
   })
