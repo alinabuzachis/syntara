@@ -4,11 +4,10 @@ This module tests the planner integration with the real AssemblerService,
 verifying proper dependency injection and parameter passing.
 """
 
-import contextlib
 import math
-from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractContextManager
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -75,33 +74,26 @@ async def execute_planner_request(
     test_db_session: AsyncSession,
     test_user: User,
 ) -> ContextPackage:
-    """Execute plan_request with standard mocking setup.
+    """Execute plan_request with standard setup.
 
     This helper reduces duplication by encapsulating the common pattern of:
-    - Creating async session context manager
-    - Patching get_async_session_context
+    - Creating invocation in test DB
     - Executing plan_request with user_id
     """
-
-    @contextlib.asynccontextmanager
-    async def mock_session_context() -> AsyncIterator[AsyncSession]:
-        yield test_db_session
-
     invocation = Invocation(created_by=test_user.id, prompt="test", session_id="session-abc")
     test_db_session.add(invocation)
-    await test_db_session.flush()
+    await test_db_session.commit()  # Commit so other sessions can see the invocation
     await test_db_session.refresh(invocation)
     invocation_id = invocation.id
 
-    with patch.object(planner, "get_async_session_context", mock_session_context):
-        return await planner.plan_request(
-            query="test query",
-            session_id="test-session",
-            invocation_id=invocation_id,
-            execution_id=uuid4(),
-            request_id=uuid4(),
-            user_id=test_user.id,
-        )
+    return await planner.plan_request(
+        query="test query",
+        session_id="test-session",
+        invocation_id=invocation_id,
+        execution_id=uuid4(),
+        request_id=uuid4(),
+        user_id=test_user.id,
+    )
 
 
 @pytest.mark.asyncio
@@ -114,14 +106,17 @@ class TestPlannerAssemblerIntegration:
         test_db_session,
         test_user,
         mock_compressor,
+        context_manager_session_factory,
     ) -> None:
         """Test planner passes compression_loop parameter correctly to AssemblerService."""
         docs = [create_test_document("Test document content", 0.8)]
 
         mock_retriever = create_mock_retriever(docs)
+
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
             compressor_service_factory=lambda: mock_compressor,
+            session_factory=context_manager_session_factory,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user)
@@ -141,15 +136,18 @@ class TestPlannerAssemblerIntegration:
         test_db_session,
         test_user,
         mock_compressor,
+        context_manager_session_factory,
     ) -> None:
         """Test planner injects TokenValidationService and CompressorService into AssemblerService."""
         doc = create_test_document("Short document", 0.9)
         docs = [doc]
 
         mock_retriever = create_mock_retriever(docs)
+
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
             compressor_service_factory=lambda: mock_compressor,
+            session_factory=context_manager_session_factory,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user)
@@ -168,6 +166,7 @@ class TestPlannerAssemblerIntegration:
         self,
         test_db_session,
         test_user,
+        context_manager_session_factory,
     ) -> None:
         """Test planner injects CompressorService into AssemblerService correctly."""
         docs = [create_test_document("Test content", 0.8)]
@@ -177,9 +176,11 @@ class TestPlannerAssemblerIntegration:
         custom_mock_compressor.compress = AsyncMock(return_value="Compressed content")
 
         mock_retriever = create_mock_retriever(docs)
+
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
             compressor_service_factory=lambda: custom_mock_compressor,
+            session_factory=context_manager_session_factory,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user)
@@ -193,6 +194,7 @@ class TestPlannerAssemblerIntegration:
         test_db_session,
         test_user,
         mock_compressor,
+        context_manager_session_factory,
     ) -> None:
         """Test planner returns ContextPackage directly from AssemblerService without rebuilding."""
         doc1 = create_test_document("Document 1", 0.7, "test1.txt")
@@ -200,9 +202,11 @@ class TestPlannerAssemblerIntegration:
         docs = [doc1, doc2]
 
         mock_retriever = create_mock_retriever(docs)
+
         planner = ContextManagerPlanner(
             retriever_service_factory=create_retriever_factory(mock_retriever),
             compressor_service_factory=lambda: mock_compressor,
+            session_factory=context_manager_session_factory,
         )
 
         result = await execute_planner_request(planner, test_db_session, test_user)

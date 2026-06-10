@@ -57,11 +57,6 @@ async def test_validate_and_record_within_limit(
     """Test that requests within limit are accepted and recorded."""
     # Arrange
     mock_session = AsyncMock()
-    # Set up begin_nested to be an async context manager
-    mock_nested = AsyncMock()
-    mock_nested.__aenter__ = AsyncMock(return_value=None)
-    mock_nested.__aexit__ = AsyncMock(return_value=None)
-    mock_session.begin_nested = MagicMock(return_value=mock_nested)
 
     mock_repository.get_user_config.return_value = user_config  # Preliminary read for model_name
     mock_repository.get_user_config_with_lock.return_value = user_config
@@ -103,11 +98,6 @@ async def test_validate_and_record_exceeds_limit(
     """Test that TokenLimitExceededError is raised when limit exceeded."""
     # Arrange
     mock_session = AsyncMock()
-    # Set up begin_nested to be an async context manager
-    mock_nested = AsyncMock()
-    mock_nested.__aenter__ = AsyncMock(return_value=None)
-    mock_nested.__aexit__ = AsyncMock(return_value=None)
-    mock_session.begin_nested = MagicMock(return_value=mock_nested)
 
     mock_repository.get_user_config.return_value = user_config  # Preliminary read for model_name
     mock_repository.get_user_config_with_lock.return_value = user_config
@@ -143,11 +133,6 @@ async def test_validate_and_record_single_large_request(
     """Test that single request exceeding limit is blocked."""
     # Arrange
     mock_session = AsyncMock()
-    # Set up begin_nested to be an async context manager
-    mock_nested = AsyncMock()
-    mock_nested.__aenter__ = AsyncMock(return_value=None)
-    mock_nested.__aexit__ = AsyncMock(return_value=None)
-    mock_session.begin_nested = MagicMock(return_value=mock_nested)
 
     mock_repository.get_user_config.return_value = user_config  # Preliminary read for model_name
     mock_repository.get_user_config_with_lock.return_value = user_config
@@ -182,11 +167,6 @@ async def test_validate_and_record_no_config(
     # Arrange
     user_id = uuid4()
     mock_session = AsyncMock()
-    # Set up begin_nested to be an async context manager
-    mock_nested = AsyncMock()
-    mock_nested.__aenter__ = AsyncMock(return_value=None)
-    mock_nested.__aexit__ = AsyncMock(return_value=None)
-    mock_session.begin_nested = MagicMock(return_value=mock_nested)
 
     mock_repository.get_user_config.side_effect = UserTokenConfigNotFoundError(user_id)  # Preliminary read fails
     mock_repository.get_user_config_with_lock.side_effect = UserTokenConfigNotFoundError(user_id)

@@ -241,25 +241,25 @@ class ContextManagerPlanner:
             max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
             compression_loop = await self.settings.get_int("context_manager.compression_loop")
 
-            # Get database session for context assembly
-            async with self.get_async_session_context() as session:
-                # Create assembler with injected dependencies
-                token_service = TokenValidationService()
-                compressor_service = self.compressor_service_factory()
-                assembler = AssemblerService(
-                    token_service=token_service,
-                    compressor_service=compressor_service,
-                )
+            # Create assembler with injected dependencies
+            token_service = TokenValidationService()
+            compressor_service = self.compressor_service_factory()
+            assembler = AssemblerService(
+                token_service=token_service,
+                compressor_service=compressor_service,
+            )
 
-                # Assemble context package (with internal compression retry loop)
-                context_package = await assembler.assemble(
-                    documents=retrieved_docs,
-                    max_tokens=max_tokens,
-                    compression_loop=compression_loop,
-                    invocation_id=invocation_id,
-                    user_id=user_id,
-                    session=session,
-                )
+            # Assemble context package (with internal compression retry loop)
+            # Pass session_factory instead of session - assembler will create
+            # short-lived sessions for token validation only
+            context_package = await assembler.assemble(
+                documents=retrieved_docs,
+                max_tokens=max_tokens,
+                compression_loop=compression_loop,
+                invocation_id=invocation_id,
+                user_id=user_id,
+                session_factory=self.session_factory,
+            )
 
             timing_data["assembly_time_ms"] = int((time.time() - assembly_start) * 1000)
             logger.info("Assembly phase completed", assembly_time_ms=timing_data["assembly_time_ms"])
