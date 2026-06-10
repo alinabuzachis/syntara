@@ -30,19 +30,21 @@ tests/
 │   └── files/
 ├── helpers/             # Test helper utilities
 ├── integration/         # Integration tests (database, services)
-│   ├── agent_orchestrator/
+│   ├── agent_orchestrator/  # Includes context_manager/, services/, token_manager/, tool_manager/
 │   ├── api/             # API endpoint tests
-│   ├── approvals/       # Approvals tests (includes contract tests)
+│   ├── approvals/       # Approvals tests (contract tests for API endpoints)
+│   ├── audit/           # Includes retention/
 │   ├── authz/           # Authorization tests
-│   ├── core/            # Core infrastructure tests (includes websocket/)
+│   ├── core/            # Includes auth/, cache/, database/, websocket/, workers/
 │   ├── credentials/     # Credentials tests
-│   ├── files/           # File management tests
+│   ├── files/           # Includes document_conversion/
+│   ├── integrations/    # Integration tests
 │   ├── invocations/     # Invocation tests (includes contract tests)
 │   ├── metrics/         # Metrics tests
 │   ├── settings/        # Settings tests
 │   ├── telemetry/       # Telemetry tests (includes contract tests)
 │   ├── tool_manager/    # Tool manager tests
-│   └── workflows/       # Workflow tests (includes contract tests, examples/, fixtures/, services/, workflow_engine/)
+│   └── workflows/       # Includes examples/, fixtures/, services/, workflow_engine/
 ├── performance/         # Performance tests (opt-in via --run-performance)
 │   ├── agent_orchestrator/
 │   ├── api_service/
@@ -60,25 +62,28 @@ tests/
 │   ├── tool_manager/
 │   └── workflow_engine/
 └── unit/                # Unit tests (isolated, no external deps)
-    ├── aap/
-    ├── agent_orchestrator/  # Includes services/, agents/
-    ├── api/
-    ├── approvals/
-    ├── audit/
-    ├── authz/               # Includes services/
-    ├── core/                # Includes services/, utils/, websocket/, models/
-    ├── credentials/
-    ├── files/
-    ├── identity_providers/  # Includes services/
-    ├── invocations/         # Includes services/, models/
+    ├── aap/                 # Includes models/, services/
+    ├── admin/
+    ├── agent_orchestrator/  # Includes agents/, audit/, clients/, context_manager/, executor/, models/, services/, token_manager/, tool_manager/, utils/, ws/
+    ├── ao_admin/
+    ├── api/                 # Includes v1/
+    ├── approvals/           # Includes clients/, models/
+    ├── audit/               # Includes events/, export/, models/, outbox/, retention/, services/
+    ├── authz/               # Includes audit/, services/
+    ├── core/                # Includes auth/, cache/, config/, database/, lib/, logging/, models/, router/, services/, utils/, websocket/, workers/
+    ├── credentials/         # Includes audit/, cli/, lib/, services/
+    ├── files/               # Includes audit/, document_conversion/, models/, retrievers/, validators/
+    ├── identity_providers/  # Includes audit/, models/, services/
+    ├── integrations/        # Includes models/, services/
+    ├── invocations/         # Includes audit/, models/, services/
     ├── metrics/
     ├── projects/            # Includes services/
     ├── schemas/
-    ├── settings/
-    ├── telemetry/
-    ├── tool_manager/
-    ├── users/               # Includes services/, models/
-    └── workflows/           # Includes services/, workflow_engine/services/, validators/, models/
+    ├── settings/            # Includes audit/, cache/, models/, services/
+    ├── telemetry/           # Includes events/, handlers/
+    ├── tool_manager/        # Includes audit/, lib/, models/, services/
+    ├── users/               # Includes models/, services/
+    └── workflows/           # Includes activities/, audit/, clients/, models/, services/, signals/, utils/, validators/, workflow_engine/, ws/
 ```
 
 **Organization Rules:**
