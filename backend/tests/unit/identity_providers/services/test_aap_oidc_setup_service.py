@@ -122,7 +122,7 @@ class TestSetupHappyPath:
         assert config.idp_type == OIDCIdpType.AAP
         assert config.client_id == "test-client-id"
         assert config.client_secret == "test-client-secret"  # noqa: S105 -- test assertion
-        assert str(config.issuer_url).rstrip("/") == f"{_AAP_URL}/o"
+        assert str(config.issuer_url) == f"{_AAP_URL}/o/"
         assert config.scopes == "read write openid roles"
         assert config.aap_role_mapping_enabled is True
         assert config.enable_rp_initiated_logout is True

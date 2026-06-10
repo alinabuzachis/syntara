@@ -61,7 +61,7 @@ async def test_upload_authorised(auth_client: AsyncClient, sample_pdf_path: Path
         )
 
     # Assert
-    assert response.status_code == 200
+    assert response.status_code == 201
 
 
 @pytest.mark.asyncio

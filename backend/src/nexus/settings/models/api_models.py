@@ -72,4 +72,4 @@ class SettingCategoryRead(SQLModel):
 class CategoriesListResponse(SQLModel):
     """Response schema for listing setting categories."""
 
-    results: list[SettingCategoryRead]
+    resources: list[SettingCategoryRead]

@@ -63,7 +63,7 @@ graph TB
         D2[audit_outbox Table<br/>Atomic Commit]
         D3[AuditOutboxWorker<br/>Background Publisher]
         D4[audit_events Table<br/>Audit Database]
-        D5[OTEL Collector<br/>CRUD Events]
+        D5[OTEL Collector<br/>All Events]
     end
 
     A1 --> B1
@@ -315,7 +315,7 @@ sequenceDiagram
     participant BusinessDB as Business Database
     participant Worker as AuditOutboxWorker<br/>(Background)
     participant AuditDB as audit_events Table<br/>(Audit Database)
-    participant OTEL as OTEL Collector<br/>(CRUD Events)
+    participant OTEL as OTEL Collector<br/>(All Events)
 
     rect rgb(230, 240, 250)
         Note over Source1,Emitter: Explicit Event Path (BUSINESS_EVENT)
@@ -358,14 +358,14 @@ sequenceDiagram
         Worker->>AuditDB: INSERT BUSINESS_EVENTs<br/>INTO audit_events
         AuditDB-->>Worker: Success
 
-        Worker->>OTEL: Export CRUD_EVENTs<br/>to OTEL Collector
+        Worker->>OTEL: Export ALL events<br/>to OTEL Collector<br/>(with audit.event_source discriminator)
         OTEL-->>Worker: Success
 
         Worker->>Outbox: DELETE FROM audit_outbox
         Note over Worker: Events published<br/>Outbox cleaned up
     end
 
-    Note over Source1,OTEL: Guarantees:<br/>✓ At-least-once delivery (survives crashes)<br/>✓ Atomic commit (business + audit)<br/>✓ No blocking (async worker)<br/>✓ Complete coverage (CRUD + explicit events)<br/>✓ Dual routing (business → audit DB, CRUD → OTEL)
+    Note over Source1,OTEL: Guarantees:<br/>✓ At-least-once delivery (survives crashes)<br/>✓ Atomic commit (business + audit)<br/>✓ No blocking (async worker)<br/>✓ Complete coverage (CRUD + explicit events)<br/>✓ Dual routing (business → audit DB + OTEL, CRUD → OTEL only)<br/>✓ Event source discrimination (audit.event_source field)
 ```
 
 **Key architectural properties:**
@@ -381,8 +381,8 @@ sequenceDiagram
 4. **Automatic CRUD Capture**: PostgreSQL triggers (`audit_crud_operation()`) observe all INSERT/UPDATE/DELETE operations on auditable tables without requiring developers to manually instrument code, guaranteeing audit trail completeness.
 
 5. **Dual Routing**: The background worker routes events by `event_source`:
-   - `BUSINESS_EVENT` → `audit_events` table (separate audit database)
-   - `CRUD_EVENT` → OTEL Collector (for external observability platforms)
+   - `BUSINESS_EVENT` → `audit_events` table (separate audit database) AND OTEL Collector (with `audit.event_source=business` discriminator)
+   - `CRUD_EVENT` → OTEL Collector only (with `audit.event_source=crud` discriminator)
 
 6. **Guaranteed Delivery**: The background worker polls the outbox and publishes to destinations. Events survive process crashes between business commit and audit publication.
 
@@ -493,6 +493,36 @@ sequenceDiagram
 - **Context-aware**: Triggers access actor/workflow context via Postgres session variables
 - **Fail-safe**: Trigger exceptions are caught and logged, never break business transactions
 - **Atomic**: CRUD audit events written in same transaction as business data
+
+#### OTEL Event Source Discriminator
+
+All events emitted to the OTEL Collector include an `audit.event_source` discriminator field that identifies whether the event originated from business logic or database triggers:
+
+- **`audit.event_source: "business"`** — Explicit events from middleware, decorators, context managers, and domain events
+- **`audit.event_source: "crud"`** — Automatic CRUD events captured by PostgreSQL triggers
+
+This discriminator allows downstream OTEL processors and observability platforms to:
+- Filter events by source type
+- Route business events to different processing pipelines than CRUD events
+- Apply different retention policies based on event source
+- Build separate dashboards for business vs infrastructure events
+
+**Implementation details:**
+
+The `_emit_otel_log_entry()` function in `src/nexus/audit/outbox/worker.py` injects the discriminator:
+
+```python
+def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource) -> None:
+    # Emit as structured log entry to OTEL Collection
+    event_dict = audit_event.model_dump(mode="json")
+    # Inject event source attribute for event type discrimination
+    event_dict["audit.event_source"] = event_source.value
+    audit_logger_otel.info("audit_event", **event_dict)
+```
+
+The worker calls this function with the appropriate `event_source` value based on the record's origin:
+- Business event handler: `_emit_otel_log_entry(audit_event, event_source=AuditEventSource.BUSINESS_EVENT)`
+- CRUD event handler: `_emit_otel_log_entry(audit_event, event_source=AuditEventSource.CRUD_EVENT)`
 
 #### Actor Context Propagation
 
@@ -791,7 +821,7 @@ Each layer can coexist — a single HTTP request may generate events from **all 
 - ✅ Automatic coverage of all database mutations
 - ✅ Selective field capture (FULL vs META mode)
 - ✅ Guaranteed capture (triggers can't be forgotten)
-- ✅ Routed to OTEL Collector for external observability
+- ✅ Routed to OTEL Collector only (not persisted to audit_events table)
 
 **Cons:**
 - ❌ No business semantics (just CRUD metadata)

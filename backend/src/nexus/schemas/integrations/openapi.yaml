@@ -270,6 +270,100 @@ paths:
       security:
         - bearerAuth: []
 
+  /integrations/validate:
+    post:
+      summary: Test Integration Connection
+      description: |-
+        Test a connection without saving an integration.
+
+        Accepts integration configuration and a credential ID, resolves the
+        credential, runs the health check adapter, and returns the result.
+        No integration is persisted.
+      operationId: test_integration_connection
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: validate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntegrationTestConnection"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResult"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+
+  /integrations/{integration_id}/validate:
+    post:
+      summary: Validate Integration
+      description: |-
+        Validate a saved integration by running a health check.
+
+        Resolves the management credential, dispatches to the type-specific
+        health check adapter, updates the integration's status fields, and
+        returns the health check result.
+      operationId: validate_integration
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: validate
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResult"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+
 components:
   schemas:
     IntegrationType:
@@ -316,6 +410,7 @@ components:
 
     IntegrationCreate:
       description: Schema for creating a new integration.
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -335,7 +430,7 @@ components:
           description: Type of external integration
         configuration:
           oneOf:
-            - $ref: '#/components/schemas/MCPServerConfiguration'
+            - $ref: '#/components/schemas/MCPServerConfigurationInput'
             - $ref: '#/components/schemas/LLMProviderConfiguration'
             - $ref: '#/components/schemas/AAPGatewayConfiguration'
           title: Configuration
@@ -345,7 +440,7 @@ components:
             mapping:
               aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
               llm_provider: '#/components/schemas/LLMProviderConfiguration'
-              mcp_server: '#/components/schemas/MCPServerConfiguration'
+              mcp_server: '#/components/schemas/MCPServerConfigurationInput'
         management_credential_id:
           anyOf:
             - type: string
@@ -397,7 +492,7 @@ components:
         configuration:
           anyOf:
             - oneOf:
-                - $ref: '#/components/schemas/MCPServerConfiguration'
+                - $ref: '#/components/schemas/MCPServerConfigurationInput'
                 - $ref: '#/components/schemas/LLMProviderConfiguration'
                 - $ref: '#/components/schemas/AAPGatewayConfiguration'
               discriminator:
@@ -405,7 +500,7 @@ components:
                 mapping:
                   aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
                   llm_provider: '#/components/schemas/LLMProviderConfiguration'
-                  mcp_server: '#/components/schemas/MCPServerConfiguration'
+                  mcp_server: '#/components/schemas/MCPServerConfigurationInput'
             - type: "null"
           title: Configuration
           description: Integration-specific configuration
@@ -436,6 +531,38 @@ components:
           title: Labels
           description: Key-value labels
       title: IntegrationPatch
+      type: object
+
+    IntegrationTestConnection:
+      description: Schema for testing a connection without saving an integration.
+      additionalProperties: false
+      properties:
+        integration_type:
+          $ref: "#/components/schemas/IntegrationType"
+          description: Type of external integration
+        configuration:
+          description: Integration-specific configuration
+          discriminator:
+            propertyName: integration_type
+            mapping:
+              mcp_server: "#/components/schemas/MCPServerConfigurationInput"
+              llm_provider: "#/components/schemas/LLMProviderConfiguration"
+              aap_gateway: "#/components/schemas/AAPGatewayConfiguration"
+          oneOf:
+            - $ref: "#/components/schemas/MCPServerConfigurationInput"
+            - $ref: "#/components/schemas/LLMProviderConfiguration"
+            - $ref: "#/components/schemas/AAPGatewayConfiguration"
+          title: Configuration
+        credential_id:
+          type: string
+          format: uuid
+          title: Credential Id
+          description: Credential to use for the connection test
+      required:
+        - integration_type
+        - configuration
+        - credential_id
+      title: IntegrationTestConnection
       type: object
 
     IntegrationRead:
@@ -474,6 +601,12 @@ components:
                   aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
                   llm_provider: '#/components/schemas/LLMProviderConfiguration'
                   mcp_server: '#/components/schemas/MCPServerConfiguration'
+            last_validated_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: "null"
+              title: Last Validated At
             management_credential_id:
               anyOf:
                 - type: string
@@ -486,8 +619,8 @@ components:
                 - type: "null"
               title: Validation Error
 
-    MCPServerConfiguration:
-      description: Configuration for MCP (Model Context Protocol) server integrations.
+    MCPServerConfigurationInput:
+      description: Admin-provided fields for MCP server integrations (used by create/patch).
       additionalProperties: false
       properties:
         integration_type:
@@ -500,6 +633,33 @@ components:
           format: uri
           title: Base Url
           description: Base URL for the MCP server
+      required:
+        - base_url
+      title: MCPServerConfigurationInput
+      type: object
+
+    MCPServerConfiguration:
+      description: Full MCP configuration including system-managed discovery results.
+      additionalProperties: false
+      properties:
+        base_url:
+          type: string
+          format: uri
+          title: Base Url
+          description: Base URL for the MCP server
+        discovered_tools:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredTool'
+            - type: "null"
+          title: Discovered Tools
+          description: Tools discovered during the last successful health check
+        integration_type:
+          type: string
+          const: mcp_server
+          default: mcp_server
+          title: Integration Type
       required:
         - base_url
       title: MCPServerConfiguration
@@ -552,6 +712,106 @@ components:
       required:
         - gateway_url
       title: AAPGatewayConfiguration
+      type: object
+
+    DiscoveredLLMModel:
+      description: A model discovered from an LLM provider during health check.
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
+        input_token_price_cents_per_million:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Input Token Price Cents Per Million
+        output_token_price_cents_per_million:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Output Token Price Cents Per Million
+      required:
+        - id
+        - name
+      title: DiscoveredLLMModel
+      type: object
+
+    DiscoveredTool:
+      description: A tool discovered from an MCP server during health check.
+      properties:
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
+      required:
+        - name
+      title: DiscoveredTool
+      type: object
+
+    HealthCheckErrorType:
+      description: Classification of health check failures.
+      type: string
+      enum:
+        - auth_failure
+        - connection_error
+        - ssl_error
+        - timeout
+      title: HealthCheckErrorType
+
+    HealthCheckResult:
+      description: |-
+        Structured result of a health check operation.
+
+        Returned by every adapter's health_check() method. Common fields are
+        always populated; resource fields are populated only by the adapter
+        type that discovers them.
+      properties:
+        success:
+          type: boolean
+          title: Success
+        checked_at:
+          type: string
+          format: date-time
+          title: Checked At
+        error:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Error
+        error_type:
+          anyOf:
+            - $ref: '#/components/schemas/HealthCheckErrorType'
+            - type: "null"
+        discovered_models:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredLLMModel'
+            - type: "null"
+          title: Discovered Models
+        discovered_tools:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredTool'
+            - type: "null"
+          title: Discovered Tools
+      required:
+        - success
+        - checked_at
+      title: HealthCheckResult
       type: object
 
   securitySchemes:

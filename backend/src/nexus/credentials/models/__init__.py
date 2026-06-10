@@ -4,8 +4,8 @@ from nexus.credentials.models.credential import (
     Credential,
     CredentialCreate,
     CredentialListResponse,
-    CredentialPatch,
     CredentialRead,
+    CredentialUpdate,
 )
 from nexus.credentials.models.credential_type import (
     CredentialType,
@@ -19,9 +19,9 @@ __all__ = [
     "CredentialCreate",
     "CredentialListParams",
     "CredentialListResponse",
-    "CredentialPatch",
     "CredentialRead",
     "CredentialType",
     "CredentialTypeListResponse",
     "CredentialTypeRead",
+    "CredentialUpdate",
 ]

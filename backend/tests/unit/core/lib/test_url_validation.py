@@ -1,8 +1,8 @@
-"""Tests for URL validation utilities (AAP-74616 SSRF prevention)."""
+"""Tests for URL validation utilities (SSRF prevention)."""
 
 import pytest
 
-from nexus.core.lib.url_validation import validate_host_url
+from nexus.core.lib.url_validation import validate_endpoint_url, validate_host_url
 
 
 class TestValidateHostUrl:
@@ -113,3 +113,62 @@ class TestValidateHostUrl:
     def test_ipv6_with_port_accepted(self) -> None:
         """Accept IPv6 address with port, preserving RFC 3986 brackets."""
         assert validate_host_url("https://[2001:db8::1]:8443") == "https://[2001:db8::1]:8443"
+
+
+class TestValidateEndpointUrl:
+    """Tests for validate_endpoint_url() — allows paths, rejects query/fragment/userinfo."""
+
+    def test_endpoint_with_path(self) -> None:
+        """Accept endpoint URL with path (e.g., MCP servers at /mcp)."""
+        assert validate_endpoint_url("http://localhost:8765/mcp", allow_http=True) == "http://localhost:8765/mcp"
+
+    def test_endpoint_without_path(self) -> None:
+        """Accept endpoint URL without path."""
+        assert validate_endpoint_url("https://api.example.com", allow_http=False) == "https://api.example.com"
+
+    def test_trailing_slash_preserved(self) -> None:
+        """Trailing slash is preserved (not normalized away)."""
+        assert validate_endpoint_url("http://localhost:8080/", allow_http=True) == "http://localhost:8080/"
+
+    def test_nested_path_accepted(self) -> None:
+        """Accept nested paths."""
+        assert validate_endpoint_url("http://host:8000/api/v1/mcp", allow_http=True) == "http://host:8000/api/v1/mcp"
+
+    def test_rejects_query_string(self) -> None:
+        """Reject URLs with query strings."""
+        with pytest.raises(ValueError, match="must not contain a query string"):
+            validate_endpoint_url("http://localhost:8080/mcp?key=val", allow_http=True)
+
+    def test_rejects_fragment(self) -> None:
+        """Reject URLs with fragments."""
+        with pytest.raises(ValueError, match="must not contain a fragment"):
+            validate_endpoint_url("http://localhost:8080/mcp#section", allow_http=True)
+
+    def test_rejects_userinfo(self) -> None:
+        """Reject URLs with userinfo (@)."""
+        with pytest.raises(ValueError, match="must not contain userinfo"):
+            validate_endpoint_url("http://user:pass@localhost:8080/mcp", allow_http=True)
+
+    def test_http_allowed_with_flag(self) -> None:
+        """HTTP scheme accepted when allow_http=True."""
+        assert validate_endpoint_url("http://localhost:8080", allow_http=True) == "http://localhost:8080"
+
+    def test_http_rejected_by_default(self) -> None:
+        """HTTP scheme rejected when allow_http=False (default)."""
+        with pytest.raises(ValueError, match="scheme must be"):
+            validate_endpoint_url("http://localhost:8080")
+
+    def test_empty_url_rejected(self) -> None:
+        """Empty URL is rejected."""
+        with pytest.raises(ValueError, match="must not be empty"):
+            validate_endpoint_url("")
+
+    def test_missing_scheme_rejected(self) -> None:
+        """URL without proper scheme is rejected."""
+        with pytest.raises(ValueError, match="scheme must be"):
+            validate_endpoint_url("localhost:8080")
+
+    def test_missing_hostname_rejected(self) -> None:
+        """URL without hostname is rejected."""
+        with pytest.raises(ValueError, match="must include a hostname"):
+            validate_endpoint_url("http:///path", allow_http=True)

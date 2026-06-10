@@ -22,11 +22,12 @@ class EncryptionError(Exception):
     """Raised when encryption or decryption fails."""
 
 
-def key_from_string(hex_key: str) -> bytes:
+def key_from_string(hex_key: str, *, allow_insecure: bool = False) -> bytes:
     """Load an AES-256 key from a 64-character hex string.
 
     Args:
         hex_key: 64-character hex string representing 32 bytes.
+        allow_insecure: Accept the all-zeros key (for key rotation from legacy defaults).
 
     Returns:
         32-byte key suitable for AES-256-GCM.
@@ -39,7 +40,7 @@ def key_from_string(hex_key: str) -> bytes:
     if len(key_bytes) != KEY_SIZE:
         msg = f"Encryption key must be {KEY_SIZE} bytes ({KEY_SIZE * 2} hex chars), got {len(key_bytes)}"
         raise ValueError(msg)
-    if key_bytes == b"\x00" * KEY_SIZE:
+    if not allow_insecure and key_bytes == b"\x00" * KEY_SIZE:
         msg = "Refusing to use the insecure all-zeros encryption key"
         raise ValueError(msg)
     return key_bytes

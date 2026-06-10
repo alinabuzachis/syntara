@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from nexus.files.exceptions import FileContentNotFoundError
 from nexus.files.retrievers.local import LocalFileRetriever
 
 
@@ -195,3 +196,50 @@ async def test_save_file_creates_parent_directories() -> None:
         saved_file = Path(result)
         assert saved_file.exists()
         assert saved_file.parent.parent.parent.name == "level1"
+
+
+# =============================================================================
+# health_check tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_health_check_writable_dir() -> None:
+    """Test health_check returns True for a writable directory."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        assert await retriever.health_check() is True
+
+
+@pytest.mark.asyncio
+async def test_health_check_nonexistent_dir() -> None:
+    """Test health_check returns False for a non-writable path."""
+    retriever = LocalFileRetriever(storage_dir="/nonexistent/path/xyz")
+    assert await retriever.health_check() is False
+
+
+# =============================================================================
+# delete_file tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_delete_file_removes_existing_file() -> None:
+    """Test delete_file removes a file and returns True."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        path = await retriever.save_file(b"to delete", "nexus-test-delete.txt")
+        assert await retriever.file_exists(path) is True
+
+        result = await retriever.delete_file(path)
+        assert result is True
+        assert await retriever.file_exists(path) is False
+
+
+@pytest.mark.asyncio
+async def test_delete_file_nonexistent_raises() -> None:
+    """Test delete_file raises FileNotFoundError for nonexistent file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        with pytest.raises(FileContentNotFoundError, match="File not found"):
+            await retriever.delete_file(str(Path(tmpdir) / "nonexistent.txt"))

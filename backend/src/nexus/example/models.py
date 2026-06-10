@@ -32,11 +32,11 @@ class ExampleItemBase(BaseModel):
     )
 
 
-class CreateExampleRequest(ExampleItemBase):
+class ExampleCreate(ExampleItemBase):
     """Schema for creating a new example item (POST /example)."""
 
 
-class UpdateExampleRequest(BaseModel):
+class ExampleUpdate(BaseModel):
     """Schema for updating an example item (PUT /example/{item_id})."""
 
     name: str | None = Field(None, min_length=1, max_length=100)
@@ -55,13 +55,9 @@ class ExampleItem(ExampleItemBase):
 
 
 class ExampleListResponse(BaseModel):
-    """Schema for GET /example response."""
+    """Paginated list response for example items."""
 
-    data: list[ExampleItem]
-    total: int
-
-
-class DeleteResponse(BaseModel):
-    """Schema for DELETE response."""
-
-    message: str
+    resources: list[ExampleItem]
+    next: str | None = None
+    prev: str | None = None
+    total: int | None = None

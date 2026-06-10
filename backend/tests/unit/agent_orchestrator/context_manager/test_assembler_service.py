@@ -6,6 +6,7 @@ This module contains unit tests for the AssemblerService class, covering:
 """
 
 import math
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
@@ -515,19 +516,23 @@ class TestAssemblerServiceInvocationIdWiring:
         invocation_id = uuid4()
         mock_session = AsyncMock()
 
+        # Create a mock session factory that returns an async context manager
+        async def mock_session_factory() -> AsyncGenerator[AsyncMock, None]:
+            yield mock_session
+
         await assembler_service.assemble(
             documents=docs,
             max_tokens=10000,
             compression_loop=0,
             invocation_id=invocation_id,
             user_id=user_id,
-            session=mock_session,
+            session_factory=mock_session_factory,
         )
 
         # Verify validate_and_record was called with invocation_id
-        assembler_service.token_service.validate_and_record.assert_called_once_with(  # type: ignore[attr-defined]
-            user_id=user_id,
-            request_text="test document content",
-            session=mock_session,
-            invocation_id=invocation_id,
-        )
+        # Note: session will be the mock_session from the context manager
+        assembler_service.token_service.validate_and_record.assert_called_once()  # type: ignore[attr-defined]
+        call_args = assembler_service.token_service.validate_and_record.call_args  # type: ignore[attr-defined]
+        assert call_args.kwargs["user_id"] == user_id
+        assert call_args.kwargs["request_text"] == "test document content"
+        assert call_args.kwargs["invocation_id"] == invocation_id

@@ -113,7 +113,7 @@ async def setup_aap_oidc_provider(
 
 
 @router.get(
-    "/",
+    "",
     dependencies=[Depends(_idp_read)],
     operation_id="list_identity_providers",
     response_description="List of identity providers",
@@ -134,7 +134,7 @@ async def list_identity_providers(
 
 
 @router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_idp_create)],
     operation_id="create_identity_provider",

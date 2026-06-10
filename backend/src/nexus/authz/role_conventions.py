@@ -98,6 +98,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("integration", "create", roles=("admin",)),
     PolicyInfo("integration", "update", roles=("admin",)),
     PolicyInfo("integration", "delete", roles=("admin",)),
+    PolicyInfo("integration", "validate", roles=("admin",)),
     # workflows
     PolicyInfo("workflow", "read", roles=("admin", "auditor")),
     PolicyInfo("workflow", "create", roles=("admin",)),
@@ -157,8 +158,6 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     # settings
     PolicyInfo("setting", "read", roles=("admin", "auditor")),
     PolicyInfo("setting", "write", roles=("admin",)),
-    # audit
-    PolicyInfo("audit", "read", roles=("admin", "auditor")),
     # authz query
     PolicyInfo("authz", "query", roles=("admin",)),
     # admin revocation
@@ -198,6 +197,7 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("policy", "delete", scope="project", roles=("project-admin",)),
     # -- files --
     PolicyInfo("files", "upload", roles=("admin", "user")),
+    PolicyInfo("files", "download", roles=("admin", "user")),
 ]
 
 BUILTIN_ROLES: list[RoleInfo] = [

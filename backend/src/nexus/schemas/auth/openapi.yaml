@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Nexus Authentication API
   version: 1.0.0
@@ -403,6 +403,13 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+
   schemas:
     # ── Authentication schemas ──────────────────────────────────────
     LoginRequest:
@@ -524,9 +531,9 @@ components:
       title: AuthProvidersResponse
       description: Response for the public providers listing endpoint.
       properties:
-        providers:
+        resources:
           type: array
-          title: Providers
+          title: Resources
           items:
             $ref: '#/components/schemas/AuthProviderInfo'
           description: Enabled identity providers

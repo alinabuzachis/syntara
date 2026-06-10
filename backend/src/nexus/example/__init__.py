@@ -1,21 +1,19 @@
 """Example domain module."""
 
 from nexus.example.models import (
-    CreateExampleRequest,
-    DeleteResponse,
+    ExampleCreate,
     ExampleItem,
     ExampleItemBase,
     ExampleListResponse,
     ExampleStatus,
-    UpdateExampleRequest,
+    ExampleUpdate,
 )
 
 __all__ = [
-    "CreateExampleRequest",
-    "DeleteResponse",
+    "ExampleCreate",
     "ExampleItem",
     "ExampleItemBase",
     "ExampleListResponse",
     "ExampleStatus",
-    "UpdateExampleRequest",
+    "ExampleUpdate",
 ]

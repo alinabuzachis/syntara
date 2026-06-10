@@ -8,6 +8,7 @@ from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
 
 
+@fastapi_exception(handler="nexus.files.error_handlers.file_error_handler")
 class FileError(NexusError):
     """Base exception for all file-related errors."""
 
@@ -19,3 +20,13 @@ class FileValidationError(FileError):
     This exception is raised when file validation fails and should be
     caught by the API layer to return appropriate 400 Bad Request responses.
     """
+
+
+@fastapi_exception(handler="nexus.files.error_handlers.file_not_found_error_handler")
+class FileContentNotFoundError(FileError):
+    """Raised when file content is missing from the storage backend."""
+
+
+@fastapi_exception(handler="nexus.files.error_handlers.file_integrity_error_handler")
+class FileIntegrityError(FileError):
+    """Raised when file content hash does not match the stored hash."""

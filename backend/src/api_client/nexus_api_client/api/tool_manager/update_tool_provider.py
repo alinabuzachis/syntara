@@ -104,20 +104,6 @@ def sync_detailed(
 
      Update Tool Provider configuration (complete replacement).
 
-    Performs a complete replacement of the provider configuration.
-    All fields in the request body will replace existing values.
-
-    Args:
-        provider_id: UUID of the provider to update
-        provider_update: New provider configuration
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
-
     Args:
         provider_id (UUID):
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
@@ -160,20 +146,6 @@ def sync(
 
      Update Tool Provider configuration (complete replacement).
 
-    Performs a complete replacement of the provider configuration.
-    All fields in the request body will replace existing values.
-
-    Args:
-        provider_id: UUID of the provider to update
-        provider_update: New provider configuration
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
-
     Args:
         provider_id (UUID):
         body (ToolProviderCreate): ToolProviderCreate model for creating new tool providers.
@@ -210,20 +182,6 @@ async def asyncio_detailed(
     """Update Tool Provider
 
      Update Tool Provider configuration (complete replacement).
-
-    Performs a complete replacement of the provider configuration.
-    All fields in the request body will replace existing values.
-
-    Args:
-        provider_id: UUID of the provider to update
-        provider_update: New provider configuration
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
 
     Args:
         provider_id (UUID):
@@ -264,20 +222,6 @@ async def asyncio(
     """Update Tool Provider
 
      Update Tool Provider configuration (complete replacement).
-
-    Performs a complete replacement of the provider configuration.
-    All fields in the request body will replace existing values.
-
-    Args:
-        provider_id: UUID of the provider to update
-        provider_update: New provider configuration
-        service: Tool provider service
-
-    Returns:
-        Updated ToolProvider instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
 
     Args:
         provider_id (UUID):

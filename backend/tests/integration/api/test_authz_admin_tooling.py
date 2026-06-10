@@ -145,7 +145,7 @@ async def test_who_can_lists_authorized(
         json={"action": "assign", "resource_type": "role-assignment"},
     )
     assert resp.status_code == 200
-    usernames = {u["username"] for u in resp.json()["users"]}
+    usernames = {u["username"] for u in resp.json()["resources"]}
     assert "alice-wcla" in usernames
     assert "bob-wcla" not in usernames
     assert "carol-wcla" not in usernames

@@ -107,12 +107,11 @@ class TestWorkflowVersionListing:
         # List all versions
         response = nexus_api.workflows.list_versions(workflow_id=workflow_id)
 
-        assert response.status_code == HTTPStatus.OK
-        assert response.parsed is not None
-        assert len(response.parsed.versions) == 3
+        versions_list = response.assert_and_get()
+        assert len(versions_list.resources) == 3
 
         # Verify ordered by version DESC (newest first)
-        versions = response.parsed.versions
+        versions = versions_list.resources
         assert versions[0].version == 3
         assert versions[1].version == 2
         assert versions[2].version == 1
@@ -142,10 +141,9 @@ class TestWorkflowVersionListing:
         # List versions
         response = nexus_api.workflows.list_versions(workflow_id=workflow_id)
 
-        assert response.status_code == HTTPStatus.OK
-        assert response.parsed is not None
-        assert len(response.parsed.versions) == 1
-        assert response.parsed.versions[0].version == 1
+        versions_list = response.assert_and_get()
+        assert len(versions_list.resources) == 1
+        assert versions_list.resources[0].version == 1
 
     def test_list_versions_nonexistent_workflow(self, nexus_api: NexusApiRegistry) -> None:
         """Test listing versions for non-existent workflow.
@@ -182,10 +180,9 @@ class TestWorkflowVersionListing:
         # List versions
         response = nexus_api.workflows.list_versions(workflow_id=workflow_id)
 
-        assert response.status_code == HTTPStatus.OK
-        assert response.parsed is not None
+        versions_list = response.assert_and_get()
 
-        for version in response.parsed.versions:
+        for version in versions_list.resources:
             assert version.id is not None
             assert version.version is not None
             assert version.schema_version is not None
@@ -237,11 +234,10 @@ class TestWorkflowVersionRetrieval:
         # Get version 2
         response = nexus_api.workflows.get_version(workflow_id=workflow_id, version=2)
 
-        assert response.status_code == HTTPStatus.OK
-        assert response.parsed is not None
-        assert response.parsed.version == 2
-        assert response.parsed.workflow_id == workflow_id
-        assert response.parsed.workflow_definition is not None
+        version_data = response.assert_and_get()
+        assert version_data.version == 2
+        assert version_data.workflow_id == workflow_id
+        assert version_data.workflow_definition is not None
 
     def test_get_workflow_version_1(self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory) -> None:
         """Test retrieving version 1 (initial version).
@@ -266,10 +262,9 @@ class TestWorkflowVersionRetrieval:
         # Get version 1
         response = nexus_api.workflows.get_version(workflow_id=workflow_id, version=1)
 
-        assert response.status_code == HTTPStatus.OK
-        assert response.parsed is not None
-        assert response.parsed.version == 1
-        assert response.parsed.workflow_definition is not None
+        version_data = response.assert_and_get()
+        assert version_data.version == 1
+        assert version_data.workflow_definition is not None
 
     def test_get_nonexistent_version(self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory) -> None:
         """Test retrieving a non-existent version number.
@@ -329,11 +324,9 @@ class TestWorkflowVersionRetrieval:
         # Get version 1
         response = nexus_api.workflows.get_version(workflow_id=workflow_id, version=1)
 
-        assert response.status_code == HTTPStatus.OK
-        assert response.parsed is not None
+        version = response.assert_and_get()
 
         # Verify required fields
-        version = response.parsed
         assert version.id is not None
         assert version.workflow_id is not None
         assert version.version is not None
@@ -385,9 +378,8 @@ class TestWorkflowVersionRetrieval:
         # Get version 1
         response = nexus_api.workflows.get_version(workflow_id=workflow_id, version=1)
 
-        assert response.status_code == HTTPStatus.OK
-        assert response.parsed is not None
-        workflow_definition = response.parsed.workflow_definition
+        version_data = response.assert_and_get()
+        workflow_definition = version_data.workflow_definition
         assert workflow_definition is not None
         assert "nodes" in workflow_definition
         nodes = workflow_definition["nodes"]

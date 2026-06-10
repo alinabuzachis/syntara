@@ -93,19 +93,6 @@ def sync_detailed(
 
      Get Tool Provider details by ID.
 
-    Returns detailed information about a specific Tool Provider including
-    configuration, status, and metadata.
-
-    Args:
-        provider_id: UUID of the provider to retrieve
-        service: Tool provider service
-
-    Returns:
-        ToolProvider instance with full details
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
-
     Args:
         provider_id (UUID):
 
@@ -137,19 +124,6 @@ def sync(
 
      Get Tool Provider details by ID.
 
-    Returns detailed information about a specific Tool Provider including
-    configuration, status, and metadata.
-
-    Args:
-        provider_id: UUID of the provider to retrieve
-        service: Tool provider service
-
-    Returns:
-        ToolProvider instance with full details
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
-
     Args:
         provider_id (UUID):
 
@@ -175,19 +149,6 @@ async def asyncio_detailed(
     """Get Tool Provider
 
      Get Tool Provider details by ID.
-
-    Returns detailed information about a specific Tool Provider including
-    configuration, status, and metadata.
-
-    Args:
-        provider_id: UUID of the provider to retrieve
-        service: Tool provider service
-
-    Returns:
-        ToolProvider instance with full details
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
 
     Args:
         provider_id (UUID):
@@ -217,19 +178,6 @@ async def asyncio(
     """Get Tool Provider
 
      Get Tool Provider details by ID.
-
-    Returns detailed information about a specific Tool Provider including
-    configuration, status, and metadata.
-
-    Args:
-        provider_id: UUID of the provider to retrieve
-        service: Tool provider service
-
-    Returns:
-        ToolProvider instance with full details
-
-    Raises:
-        HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
 
     Args:
         provider_id (UUID):

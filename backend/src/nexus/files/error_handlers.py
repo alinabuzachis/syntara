@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
 
 if TYPE_CHECKING:
-    from nexus.files.exceptions import FileValidationError
+    from nexus.files.exceptions import FileContentNotFoundError, FileError, FileIntegrityError, FileValidationError
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -27,5 +27,47 @@ def file_validation_error_handler(request: Request, exc: "FileValidationError") 
         detail=exc.message,
         code="FILE_VALIDATION_ERROR",
         retryable=False,
+        instance=str(request.url),
+    )
+
+
+def file_not_found_error_handler(request: Request, exc: "FileContentNotFoundError") -> JSONResponse:
+    """Handle FileNotFoundError with RFC 9457 format (404)."""
+    logger.warning("File not found in storage", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        problem_type=PROBLEM_TYPES["resource_not_found"],
+        title="File Not Found",
+        detail="The requested file could not be found",
+        code="FILE_NOT_FOUND",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def file_integrity_error_handler(request: Request, exc: "FileIntegrityError") -> JSONResponse:
+    """Handle FileIntegrityError with RFC 9457 format (500)."""
+    logger.error("File integrity verification failed", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        problem_type=PROBLEM_TYPES["internal_error"],
+        title="File Integrity Error",
+        detail="File integrity verification failed",
+        code="FILE_INTEGRITY_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def file_error_handler(request: Request, exc: "FileError") -> JSONResponse:
+    """Handle generic FileError with RFC 9457 format (502)."""
+    logger.error("File storage error", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        problem_type=PROBLEM_TYPES["service_unavailable"],
+        title="File Storage Error",
+        detail="File storage backend unavailable",
+        code="FILE_STORAGE_ERROR",
+        retryable=True,
         instance=str(request.url),
     )

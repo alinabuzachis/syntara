@@ -228,30 +228,7 @@ async def test_workflow_node(
     request: TestExecutionCreate,
     execution_service: Annotated[ExecutionService, Depends(get_execution_service)],
 ) -> ExecutionRead:
-    """Test a single node in a workflow with mocked predecessor outputs.
-
-    Creates a test execution that:
-    1. Uses mocked outputs for all nodes in pre_resolved_nodes
-    2. Executes the target_node_id for real with actual logic
-    3. Stops after the target node completes
-    4. Returns results in the execution response
-
-    This enables testing individual nodes in isolation without running the entire workflow.
-
-    Args:
-        workflow_id: Workflow ID to test
-        request: Test execution request with target node and mocked outputs
-        execution_service: Execution service (injected by FastAPI)
-
-    Returns:
-        Created test execution with mode=TEST and status=PENDING
-
-    Raises:
-        HTTPException: 404 if workflow not found
-        HTTPException: 400 if target_node_id not found in workflow
-        HTTPException: 503 if Temporal unavailable
-
-    """
+    """Test a single node in a workflow with mocked predecessor outputs."""
     return await execution_service.create_test_execution(
         workflow_id=workflow_id,
         target_node_id=request.target_node_id,
@@ -307,7 +284,7 @@ async def list_workflow_versions(
     version_dicts = [deserialize_workflow_version(v) for v in versions]
 
     # Manually construct response with deserialized versions
-    return WorkflowVersionListResponse(versions=[WorkflowVersionRead.model_validate(v) for v in version_dicts])
+    return WorkflowVersionListResponse(resources=[WorkflowVersionRead.model_validate(v) for v in version_dicts])
 
 
 @router.get(

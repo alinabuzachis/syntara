@@ -9,11 +9,15 @@ from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.integrations.error_handlers import (
+    integration_credential_not_found_handler,
+    integration_credential_required_handler,
     integration_error_handler,
     integration_name_conflict_handler,
     integration_not_found_handler,
 )
 from nexus.integrations.exceptions import (
+    IntegrationCredentialNotFoundError,
+    IntegrationCredentialRequiredError,
     IntegrationError,
     IntegrationNameConflictError,
     IntegrationNotFoundError,
@@ -66,6 +70,51 @@ class TestIntegrationNameConflictHandler:
         assert data["code"] == "INTEGRATION_NAME_CONFLICT"
         assert data["retryable"] is False
         assert data["instance"] == "https://api.example.com/integrations"
+
+
+class TestIntegrationCredentialRequiredHandler:
+    """Tests for integration_credential_required_handler."""
+
+    def test_returns_400_with_rfc9457_format(self) -> None:
+        request = Mock(spec=Request)
+        request.url = f"https://api.example.com/integrations/{_INTEGRATION_ID}/validate"
+
+        exc = IntegrationCredentialRequiredError(UUID(_INTEGRATION_ID))
+        response = integration_credential_required_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 400
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["integration_error"]
+        assert data["title"] == "Credential Required"
+        assert data["code"] == "INTEGRATION_CREDENTIAL_REQUIRED"
+        assert data["retryable"] is False
+        assert _INTEGRATION_ID in data["detail"]
+
+
+class TestIntegrationCredentialNotFoundHandler:
+    """Tests for integration_credential_not_found_handler."""
+
+    def test_returns_404_with_rfc9457_format(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/integrations"
+
+        credential_id = UUID(_INTEGRATION_ID)
+        exc = IntegrationCredentialNotFoundError(credential_id)
+        response = integration_credential_not_found_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 404
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["resource_not_found"]
+        assert data["title"] == "Credential Not Found"
+        assert data["code"] == "INTEGRATION_CREDENTIAL_NOT_FOUND"
+        assert data["retryable"] is False
+        assert _INTEGRATION_ID in data["detail"]
 
 
 class TestIntegrationErrorHandler:

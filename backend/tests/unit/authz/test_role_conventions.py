@@ -214,7 +214,7 @@ class TestRegistryIntegrity:  # noqa: D101
                 assert role.scope == "project", f"Role '{role.name}' should have scope='project'"
 
     def test_all_builtin_policies_have_test_coverage(self) -> None:
-        from tests.e2e.authorization.policies.conftest import (
+        from tests.e2e.authz.policies.conftest import (
             E2E_COVERAGE_EXEMPT,
             PROJECT_SCOPED_CASES,
             SELF_SCOPED_CASES,

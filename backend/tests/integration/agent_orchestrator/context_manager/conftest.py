@@ -1,10 +1,11 @@
 """Shared fixtures for context_manager integration tests."""
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.models import UserTokenConfig
 
@@ -55,3 +56,22 @@ def mock_relevancy_checker() -> Generator[AsyncMock, None, None]:
         mock_llm.ainvoke.return_value = AIMessage(content="Relevancy Score: 0.85\n\nHighly relevant document.")
         mock_get_checker_llm.return_value = mock_llm
         yield mock_llm
+
+
+@pytest.fixture
+def context_manager_session_factory(
+    test_db_session_factory,
+) -> Callable[[], AsyncGenerator[AsyncSession, None]]:
+    """Convert async_sessionmaker to session factory format required by ContextManagerPlanner related services.
+
+    ContextManagerPlanner related services expects: Callable[[], AsyncGenerator[AsyncSession, None]]
+    test_db_session_factory is: async_sessionmaker[AsyncSession]
+
+    This fixture wraps the async_sessionmaker to match the expected signature.
+    """
+
+    async def _session_factory() -> AsyncGenerator[AsyncSession, None]:
+        async with test_db_session_factory() as session:
+            yield session
+
+    return _session_factory

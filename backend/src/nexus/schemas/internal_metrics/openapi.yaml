@@ -2,7 +2,12 @@
 openapi: 3.1.0
 info:
   title: Internal Metrics API
-  description: Internal performance-testing endpoints for in-memory metrics data.
+  description: |-
+    Internal performance-testing endpoints for in-memory metrics data.
+
+    Note: This API intentionally uses offset-based pagination (limit/offset) rather
+    than the standard cursor-based pagination. This is an internal debug API not
+    exposed to external consumers.
   version: 1.0.0
 servers:
   - url: /

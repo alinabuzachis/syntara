@@ -29,10 +29,9 @@ DASH_SEPARATOR = "-" * 70
 
 # Configuration: Test directories to skip validation (temporarily)
 # Once these directories are reorganized to match source domains, remove them from this set
-# NOTE: e2e and performance will be validated once they are reorganized by domain
+# NOTE: performance will be validated once they are reorganized by domain
 # - performance: Skip (may be migrated to separate repository)
 SKIP_VALIDATION = {
-    "e2e",
     "performance",
 }
 

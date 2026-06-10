@@ -26,6 +26,7 @@ from nexus_api_client.api.authentication.get_current_user import sync_detailed a
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models import (
+    ExecutionRead,
     WorkflowCreate,
     WorkflowRead,
 )
@@ -34,6 +35,8 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.error_data import ErrorData
+from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
+from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.provider_status import ProviderStatus
@@ -47,6 +50,7 @@ from nexus_api_client.types import UNSET, Response, Unset
 from typer.testing import CliRunner
 
 from nexus.core.models.user_schemas import UserCreate as UserCreateSchema
+from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +88,49 @@ def _wait_for_api(nexus_api: NexusApiRegistry) -> None:
 def unique_name(base: str) -> str:
     """Generate a unique resource name to avoid conflicts across E2E test runs."""
     return f"{base}-{uuid4().hex[:8]}"
+
+
+def poll_execution_until_complete(
+    nexus_api: NexusApiRegistry,
+    execution_id: UUID,
+    max_polls: int = 30,
+    poll_interval: int = 2,
+) -> ExecutionRead:
+    """Poll execution until it reaches a terminal state.
+
+    Args:
+        nexus_api: API client for making requests
+        execution_id: ID of the execution to poll
+        max_polls: Maximum number of polling attempts (default: 30)
+        poll_interval: Seconds to wait between polls (default: 2)
+
+    Returns:
+        ExecutionRead with final terminal state (completed, failed, cancelled, or completed_with_errors)
+
+    Raises:
+        AssertionError: If execution does not reach terminal state within timeout
+
+    """
+    for _ in range(max_polls):
+        execution = nexus_api.executions.get(
+            execution_id=execution_id,
+            include="activities",
+        ).assert_and_get()
+
+        # Check against terminal statuses using the canonical constant
+        # Convert both to strings since execution.status is a string from the API
+        status = str(execution.status)
+        if status in {str(s.value) for s in TERMINAL_EXECUTION_STATUSES}:
+            return execution
+
+        time.sleep(poll_interval)
+
+    timeout_seconds = max_polls * poll_interval
+    msg = (
+        f"Execution {execution_id} did not complete within {timeout_seconds}s. "
+        "Temporal may not be running. Start it with: make temporal-run"
+    )
+    raise AssertionError(msg)
 
 
 _MIN_TEST_PASSWORD_LENGTH = 14
@@ -156,7 +203,8 @@ def _csrf_headers_from_client(client: Client) -> dict[str, str]:
     if csrf_resp.status_code != HTTPStatus.OK or not isinstance(csrf_resp.parsed, CsrfTokenResponse):
         msg = f"CSRF token fetch failed: {csrf_resp.status_code} {csrf_resp.content!r}"
         raise RuntimeError(msg)
-    return {CSRF_HEADER_NAME: csrf_resp.parsed.csrf_token}
+    csrf_token_response = cast("CsrfTokenResponse", csrf_resp.assert_and_get())
+    return {CSRF_HEADER_NAME: csrf_token_response.csrf_token}
 
 
 def csrf_headers_for_cookies(base_url: str, cookies: dict[str, str]) -> dict[str, str]:
@@ -283,7 +331,8 @@ def _login(base_url: str, username: str, password: str) -> str:
     if resp.status_code != HTTPStatus.OK or not isinstance(resp.parsed, AccessTokenResponse):
         msg = f"Login failed for {username}: {resp.status_code} {resp.content!r}"
         raise RuntimeError(msg)
-    return resp.parsed.access_token
+    access_token_response = cast("AccessTokenResponse", resp.assert_and_get())
+    return access_token_response.access_token
 
 
 def _make_client(base_url: str, token: str) -> AuthenticatedClient:
@@ -443,12 +492,11 @@ def auditor_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authenti
         pytest.fail(f"Failed to create auditor user: {resp.status_code} {resp.content!r}")
 
     if resp.status_code == HTTPStatus.CONFLICT:
-        lookup = nexus_api.users.list(username=username)
-        assert lookup.parsed is not None, "Failed to look up auditor user"
-        user_id = lookup.parsed.resources[0].id
+        users_list = nexus_api.users.list(username=username).assert_and_get()
+        user_id = users_list.resources[0].id
     else:
-        assert resp.parsed is not None, "Failed to parse created auditor user"
-        user_id = resp.parsed.id
+        user = resp.assert_and_get()
+        user_id = user.id
 
     role_resp = nexus_api.users.create_role_assignment(
         user_id=user_id,
@@ -490,7 +538,8 @@ def nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
     if groups_resp.parsed is None or len(groups_resp.parsed.resources) == 0:
         msg = "Unable to retrieve admin group ID."
         raise RuntimeError(msg)
-    admins_group_id = [g.id for g in groups_resp.parsed.resources if g.name == "admins"]
+    groups_list = groups_resp.assert_and_get()
+    admins_group_id = [g.id for g in groups_list.resources if g.name == "admins"]
     if len(admins_group_id) != 1:
         msg = "Unable to retrieve admin group ID."
         raise RuntimeError(msg)
@@ -525,15 +574,12 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
                 configuration=MCPConfiguration(base_url=MCP_PROVIDER_URL),
             ),
         )
-        assert resp.is_success, f"Failed to register MCP provider: {resp.content!r}"
-        assert resp.parsed is not None
-        provider_id = str(resp.parsed.id)
+        provider = resp.assert_and_get()
+        provider_id = str(provider.id)
 
     pid = UUID(provider_id)
-    validate_resp = nexus_api.tool_manager.validate_tool_provider(provider_id=pid)
-    assert validate_resp.is_success, f"MCP provider validation request failed: {validate_resp.content!r}"
-    assert validate_resp.parsed is not None
-    assert validate_resp.parsed.valid is True, f"MCP provider validation failed: {validate_resp.parsed.error}"
+    validate_result = nexus_api.tool_manager.validate_tool_provider(provider_id=pid).assert_and_get()
+    assert validate_result.valid is True, f"MCP provider validation failed: {validate_result.error}"
 
     # Wait for the provider to reach AVAILABLE before refreshing.
     # With xdist, another worker may have already started validation;
@@ -547,8 +593,7 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
             pytest.fail(f"MCP provider {pid} stuck in {provider.status} after 30s")
         time.sleep(0.5)
 
-    refresh_resp = nexus_api.tool_manager.refresh_tool_provider(provider_id=pid)
-    assert refresh_resp.is_success, f"MCP provider refresh failed: {refresh_resp.content!r}"
+    nexus_api.tool_manager.refresh_tool_provider(provider_id=pid).assert_and_get()
 
     return provider_id
 
@@ -556,9 +601,7 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
 @pytest.fixture(scope="session")
 def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
     """Get admin user ID for Nexus API."""
-    curr_user_resp = nexus_api.authentication.get_current_user()
-    assert curr_user_resp.parsed is not None
-    return cast("UserInfo", curr_user_resp.parsed)
+    return cast("UserInfo", nexus_api.authentication.get_current_user().assert_and_get())
 
 
 @pytest.fixture(scope="session")
@@ -649,21 +692,17 @@ def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[
     if not api_key:
         pytest.skip("APP_OPENROUTER_API_KEY not set — LLM credential required")
 
-    types_resp = nexus_api.credentials.list_types()
-    assert types_resp.is_success
-    assert types_resp.parsed is not None
+    types_list = nexus_api.credentials.list_types().assert_and_get()
     llm_type_id: UUID | None = None
-    for ct in types_resp.parsed.resources:
+    for ct in types_list.resources:
         if "llm" in ct.name.lower():
             llm_type_id = UUID(str(ct.id))
             break
     assert llm_type_id is not None, "LLM Provider credential type not found — is the database seeded?"
 
-    projects_resp = nexus_api.projects.list()
-    assert projects_resp.is_success
-    assert projects_resp.parsed is not None
-    assert len(projects_resp.parsed.resources) > 0, "No projects available"
-    project_id = UUID(str(projects_resp.parsed.resources[0].id))
+    projects_list = nexus_api.projects.list().assert_and_get()
+    assert len(projects_list.resources) > 0, "No projects available"
+    project_id = UUID(str(projects_list.resources[0].id))
 
     cred_name = f"e2e-llm-credential-{worker_id}"
     cred = nexus_api.credentials.create(
@@ -688,6 +727,81 @@ def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[
         nexus_api.credentials.delete(credential_id=UUID(cred_id))
     except Exception:
         pass
+
+
+@pytest.fixture(scope="session")
+def bearer_token_type_id(nexus_api: NexusApiRegistry) -> UUID:
+    """Return the credential type ID for 'HTTP Bearer Token'.
+
+    This is a preseeded credential type used in E2E tests.
+    """
+    types_list = nexus_api.credentials.list_types().assert_and_get()
+    for ct in types_list.resources:
+        if ct.name == "HTTP Bearer Token":
+            return UUID(str(ct.id))
+    pytest.fail("Preseeded 'HTTP Bearer Token' credential type not found")
+
+
+@pytest.fixture(scope="session")
+def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
+    """Return the first available project ID.
+
+    Tests that need a valid project ID can use this fixture.
+    """
+    projects_list = nexus_api.projects.list().assert_and_get()
+    assert len(projects_list.resources) > 0, "No projects available"
+    return UUID(str(projects_list.resources[0].id))
+
+
+@pytest.fixture
+def credential_factory(
+    nexus_api: NexusApiRegistry,
+    bearer_token_type_id: UUID,
+    first_project_id: UUID,
+) -> Generator[Callable[..., dict[str, Any]], None, None]:
+    """Factory that creates HTTP Bearer Token credentials with automatic cleanup.
+
+    Usage:
+        def test_something(credential_factory):
+            cred = credential_factory("my-cred-name")
+            # Use cred["id"], cred["inputs"], etc.
+            # Cleanup happens automatically after test
+
+    The factory function takes:
+        name: Credential name
+        inputs: Optional credential inputs dict (defaults to {"token": "test-secret-value-e2e"})
+
+    And returns:
+        Credential data as dict with keys: id, name, inputs, etc.
+
+    Args:
+        nexus_api: Admin API client for creating credentials
+        bearer_token_type_id: Pre-fetched bearer token credential type ID
+        first_project_id: Pre-fetched project ID to scope credentials to
+
+    """
+    created_credential_ids: list[UUID] = []
+
+    def _create(name: str, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+        cred = nexus_api.credentials.create(
+            body=CredentialCreate(
+                name=name,
+                credential_type_id=bearer_token_type_id,
+                project_id=first_project_id,
+                inputs=CredentialCreateInputs.from_dict(inputs or {"token": "test-secret-value-e2e"}),
+            ),
+        ).assert_and_get()
+        created_credential_ids.append(UUID(str(cred.id)))
+        result: dict[str, Any] = cred.to_dict()
+        return result
+
+    yield _create
+
+    for cred_id in created_credential_ids:
+        try:
+            nexus_api.credentials.delete(credential_id=cred_id)
+        except Exception:
+            pass  # Best effort cleanup
 
 
 @pytest.fixture
@@ -725,9 +839,9 @@ def local_user_factory(
             )
         )
         assert resp.status_code == 201
-        assert resp.parsed is not None
-        created_user_ids.append(resp.parsed.id)
-        return resp.parsed, password
+        user = resp.assert_and_get()
+        created_user_ids.append(user.id)
+        return user, password
 
     yield _create
 
@@ -736,6 +850,96 @@ def local_user_factory(
             nexus_api.users.delete(user_id=user_id)
         except Exception:
             logger.warning("Failed to clean up local user %s", user_id, exc_info=True)
+
+
+@pytest.fixture
+def identity_provider_factory(
+    nexus_api: NexusApiRegistry,
+    nexus_base_url: str,
+) -> Generator[Callable[[IdentityProviderCreate], Any], None, None]:
+    """Factory that creates identity providers with automatic cleanup.
+
+    Eliminates try/finally blocks by tracking created providers and cleaning up
+    automatically on test teardown. Use this instead of manual create/delete.
+
+    Usage:
+        def test_something(identity_provider_factory):
+            provider = identity_provider_factory(
+                IdentityProviderCreate(
+                    name="test-provider",
+                    configuration=OIDCConfiguration(...),
+                )
+            )
+            # Use provider.id
+            # Cleanup happens automatically
+
+    Args:
+        nexus_api: Admin API client for creating providers
+        nexus_base_url: Base URL for redirect URI construction
+
+    Returns:
+        Factory function that creates and tracks identity providers
+
+    """
+    created_provider_ids: list[UUID] = []
+
+    def _create(body: IdentityProviderCreate) -> Any:  # noqa: ANN401
+        provider = nexus_api.identity_providers.create(body=body).assert_and_get()
+        created_provider_ids.append(UUID(str(provider.id)))
+        return provider
+
+    yield _create
+
+    for provider_id in created_provider_ids:
+        try:
+            nexus_api.identity_providers.delete(provider_id=provider_id)
+        except Exception:
+            pass
+
+
+@pytest.fixture
+def integration_factory(
+    nexus_api: NexusApiRegistry,
+) -> Generator[Callable[[IntegrationCreate], dict[str, Any]], None, None]:
+    """Factory that creates integrations with automatic cleanup.
+
+    Creates integrations (MCP servers, LLM providers, AAP gateways) and tracks
+    them for automatic cleanup on test teardown.
+
+    Usage:
+        def test_something(integration_factory):
+            integration = integration_factory(
+                IntegrationCreate(
+                    name="test-mcp",
+                    integration_type=IntegrationType.MCP_SERVER,
+                    configuration=MCPServerConfiguration(...),
+                )
+            )
+            # Use integration["id"]
+            # Cleanup happens automatically
+
+    Args:
+        nexus_api: Admin API client for creating integrations
+
+    Returns:
+        Factory function that creates and tracks integrations
+
+    """
+    created_ids: list[UUID] = []
+
+    def _create(body: IntegrationCreate) -> dict[str, Any]:
+        integration = nexus_api.integrations.create(body=body).assert_and_get()
+        created_ids.append(integration.id)
+        result: dict[str, Any] = integration.to_dict()
+        return result
+
+    yield _create
+
+    for integration_id in created_ids:
+        try:
+            nexus_api.integrations.delete(integration_id=integration_id)
+        except Exception:
+            pass
 
 
 @pytest.fixture

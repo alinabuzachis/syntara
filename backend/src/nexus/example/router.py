@@ -3,14 +3,15 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
+from fastapi import status as http_status
+from fastapi.responses import Response
 
 from nexus.example.models import (
-    CreateExampleRequest,
-    DeleteResponse,
+    ExampleCreate,
     ExampleItem,
     ExampleListResponse,
     ExampleStatus,
-    UpdateExampleRequest,
+    ExampleUpdate,
 )
 
 router = APIRouter(tags=["example"])
@@ -28,7 +29,7 @@ async def get_example(
 ) -> ExampleListResponse:
     """Return example data for demonstration purposes."""
     return ExampleListResponse(
-        data=[
+        resources=[
             ExampleItem(
                 id=1,
                 name="Example Item 1",
@@ -58,7 +59,7 @@ async def get_example(
     status_code=201,
     response_description="Item created successfully",
 )
-async def create_example(request: CreateExampleRequest) -> ExampleItem:
+async def create_example(request: ExampleCreate) -> ExampleItem:
     """Create a new example item."""
     return ExampleItem(
         id=3,
@@ -99,7 +100,7 @@ async def get_example_by_id(
     response_description="Item updated successfully",
 )
 async def update_example(
-    request: UpdateExampleRequest,
+    request: ExampleUpdate,
     item_id: Annotated[int, Path(description="Example item ID")],
 ) -> ExampleItem:
     """Update an existing example item."""
@@ -118,10 +119,11 @@ async def update_example(
     summary="Delete example item",
     description="Deletes an example item",
     operation_id="delete_example",
-    response_description="Successful Response",
+    status_code=http_status.HTTP_204_NO_CONTENT,
+    response_description="Item deleted successfully",
 )
 async def delete_example(
-    item_id: Annotated[int, Path(description="Example item ID")],
-) -> DeleteResponse:
+    item_id: Annotated[int, Path(description="Example item ID")],  # noqa: ARG001
+) -> Response:
     """Delete an example item."""
-    return DeleteResponse(message=f"Example item {item_id} deleted successfully")
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)

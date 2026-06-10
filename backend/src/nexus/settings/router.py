@@ -136,7 +136,7 @@ async def update_setting(
 async def bulk_update_settings(
     body: SettingBulkUpdateRequest,
     service: Annotated[SettingsService, Depends(get_settings_service)],
-) -> list[RuntimeSettingRead]:
+) -> SettingsListResponse:
     """Update multiple settings in a single request."""
     seen_keys: set[str] = set()
     for item in body.updates:
@@ -147,4 +147,5 @@ async def bulk_update_settings(
                 detail=f"Duplicate key in bulk update: '{item.key}'",
             )
         seen_keys.add(item.key)
-    return await service.bulk_update(body.updates)
+    updated = await service.bulk_update(body.updates)
+    return SettingsListResponse(resources=updated, next=None, prev=None, total=None)

@@ -31,3 +31,11 @@ class FilesApi:
     async def async_upload(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("upload_files")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def download(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("download_file")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_download(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("download_file")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

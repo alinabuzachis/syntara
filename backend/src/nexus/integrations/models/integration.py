@@ -20,6 +20,7 @@ from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 from nexus.integrations.models.integration_configuration import (
     IntegrationConfiguration,
+    IntegrationConfigurationInputTypes,
     IntegrationConfigurationTypes,
 )
 
@@ -181,6 +182,8 @@ class IntegrationProjectAssignment(SQLModel, table=True):
 class IntegrationCreate(SQLModel):
     """Schema for creating a new integration."""
 
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
+
     name: str = Field(
         min_length=1,
         max_length=FieldLimits.NAME_MAX_LENGTH,
@@ -195,7 +198,7 @@ class IntegrationCreate(SQLModel):
 
     integration_type: IntegrationType = Field(description="Type of external integration")
 
-    configuration: IntegrationConfigurationTypes = Field(
+    configuration: IntegrationConfigurationInputTypes = Field(
         description=_CONFIGURATION_DESCRIPTION,
         discriminator="integration_type",
     )
@@ -237,6 +240,7 @@ class IntegrationRead(Resource):
         description=_CONFIGURATION_DESCRIPTION, discriminator="integration_type"
     )
     management_credential_id: UUID | None = None
+    last_validated_at: datetime | None = None
     validation_error: str | None = None
 
 
@@ -256,7 +260,7 @@ class IntegrationPatch(SQLModel):
         description="Detailed description of the integration",
     )
 
-    configuration: IntegrationConfigurationTypes | None = Field(
+    configuration: IntegrationConfigurationInputTypes | None = Field(
         default=None,
         description=_CONFIGURATION_DESCRIPTION,
         discriminator="integration_type",
@@ -279,6 +283,32 @@ class IntegrationSystemUpdate(SQLModel):
     status: IntegrationStatus | None = Field(default=None, description="Current status of the integration")
 
     validation_error: str | None = Field(default=None, description="Error message from last validation attempt")
+
+
+class IntegrationTestConnection(SQLModel):
+    """Schema for testing a connection without saving an integration."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
+
+    integration_type: IntegrationType = Field(description="Type of external integration")
+
+    configuration: IntegrationConfigurationInputTypes = Field(
+        description=_CONFIGURATION_DESCRIPTION,
+        discriminator="integration_type",
+    )
+
+    credential_id: UUID = Field(description="Credential to use for the connection test")
+
+    @model_validator(mode="after")
+    def validate_type_matches_configuration(self) -> "IntegrationTestConnection":
+        """Ensure integration_type and configuration.integration_type agree."""
+        if self.configuration.integration_type != self.integration_type.value:
+            msg = (
+                f"integration_type '{self.integration_type.value}' does not match "
+                f"configuration.integration_type '{self.configuration.integration_type}'"
+            )
+            raise ValueError(msg)
+        return self
 
 
 class IntegrationListResponse(ResourcesResponse[IntegrationRead]):

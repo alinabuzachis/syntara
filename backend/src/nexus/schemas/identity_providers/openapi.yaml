@@ -14,7 +14,7 @@ x-shared-contracts:
     namespace: shared
 
 paths:
-  /identity_providers/:
+  /identity_providers:
     get:
       summary: List Identity Providers
       description: List identity providers with filtering, sorting, and pagination.
@@ -23,15 +23,7 @@ paths:
         resource: identity-provider
         action: read
       parameters:
-        - name: limit
-          in: query
-          required: false
-          schema:
-            default: 100
-            exclusiveMinimum: 0
-            maximum: 100
-            title: Limit
-            type: integer
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam

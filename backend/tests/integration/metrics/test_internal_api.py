@@ -295,6 +295,85 @@ class TestMetricsStoreKPIs:
 # ---------------------------------------------------------------------------
 
 
+class TestRateFromStatusDedup:
+    """Tests for _rate_from_status dedup_key behaviour.
+
+    WORKFLOW_STATUS emits two records per execution (started + terminal),
+    so _rate_from_status must deduplicate by execution_id to avoid
+    inflating the denominator.
+    """
+
+    def test_completion_rate_without_dedup_is_diluted(
+        self,
+        client: TestClient,
+        recorder: MetricsRecorder,
+    ) -> None:
+        """Without dedup, started+completed records halve the rate."""
+        for i in range(10):
+            recorder.record(
+                MetricType.WORKFLOW_STATUS,
+                1,
+                labels={"execution_id": str(i), "status": "started", "workflow_id": "w1", "workflow_type": "test"},
+            )
+            recorder.record(
+                MetricType.WORKFLOW_STATUS,
+                1,
+                labels={"execution_id": str(i), "status": "completed", "workflow_id": "w1", "workflow_type": "test"},
+            )
+
+        resp = client.get(f"{_PREFIX}/kpis/execution_service")
+        data = resp.json()
+        completion_rate = data["metrics"]["completion_rate"]
+        assert completion_rate > 0.9, f"With dedup_key, completion_rate should be ~1.0, got {completion_rate}"
+
+    def test_completion_rate_reflects_actual_outcomes(
+        self,
+        client: TestClient,
+        recorder: MetricsRecorder,
+    ) -> None:
+        """9/10 completed → rate should be 0.9, not 9/19 ≈ 0.47."""
+        for i in range(10):
+            recorder.record(
+                MetricType.WORKFLOW_STATUS,
+                1,
+                labels={"execution_id": str(i), "status": "started", "workflow_id": "w1", "workflow_type": "test"},
+            )
+        for i in range(9):
+            recorder.record(
+                MetricType.WORKFLOW_STATUS,
+                1,
+                labels={"execution_id": str(i), "status": "completed", "workflow_id": "w1", "workflow_type": "test"},
+            )
+
+        resp = client.get(f"{_PREFIX}/kpis/execution_service")
+        data = resp.json()
+        completion_rate = data["metrics"]["completion_rate"]
+        assert abs(completion_rate - 0.9) < 0.01, f"Expected completion_rate ≈ 0.9 (9/10), got {completion_rate}"
+
+    def test_creation_success_rate_with_dedup(
+        self,
+        client: TestClient,
+        recorder: MetricsRecorder,
+    ) -> None:
+        """Workflow engine creation_success_rate also deduplicates correctly."""
+        for i in range(5):
+            recorder.record(
+                MetricType.WORKFLOW_STATUS,
+                1,
+                labels={"execution_id": str(i), "status": "started", "workflow_id": "w1", "workflow_type": "test"},
+            )
+            recorder.record(
+                MetricType.WORKFLOW_STATUS,
+                1,
+                labels={"execution_id": str(i), "status": "completed", "workflow_id": "w1", "workflow_type": "test"},
+            )
+
+        resp = client.get(f"{_PREFIX}/kpis/workflow_engine")
+        data = resp.json()
+        rate = data["metrics"]["creation_success_rate"]
+        assert rate > 0.9, f"Expected creation_success_rate ~1.0, got {rate}"
+
+
 class TestMetricsStoreComponentKPIs:
     """Tests for GET /_internal/metrics/kpis/{component}."""
 

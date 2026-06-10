@@ -27,7 +27,7 @@ class TestTokenValidationIntegration:
     @pytest.mark.usefixtures("test_user_token_config")
     async def test_within_budget_no_compression_with_real_token_service(
         self,
-        test_db_session,
+        context_manager_session_factory,
         test_user,
     ) -> None:
         """Test documents within budget using real TokenValidationService."""
@@ -60,7 +60,7 @@ class TestTokenValidationIntegration:
             max_tokens=10000,  # Large budget
             compression_loop=3,
             user_id=test_user.id,
-            session=test_db_session,
+            session_factory=context_manager_session_factory,
         )
 
         # Verify no compression was applied
@@ -76,7 +76,7 @@ class TestTokenValidationIntegration:
     @pytest.mark.usefixtures("test_user_low_token_config")
     async def test_token_limit_exceeded_triggers_compression(
         self,
-        test_db_session,
+        context_manager_session_factory,
         test_user,
     ) -> None:
         """Test token limit exceeded triggers compression retry loop."""
@@ -114,7 +114,7 @@ class TestTokenValidationIntegration:
             max_tokens=10000,
             compression_loop=3,
             user_id=test_user.id,
-            session=test_db_session,
+            session_factory=context_manager_session_factory,
         )
 
         # Verify compression was applied
@@ -127,7 +127,7 @@ class TestTokenValidationIntegration:
     @pytest.mark.usefixtures("test_user_low_token_config")
     async def test_compression_retry_with_progressive_strategies(
         self,
-        test_db_session,
+        context_manager_session_factory,
         test_user,
     ) -> None:
         """Test compression retry uses progressively more aggressive strategies."""
@@ -167,7 +167,7 @@ class TestTokenValidationIntegration:
             max_tokens=10000,
             compression_loop=3,
             user_id=test_user.id,
-            session=test_db_session,
+            session_factory=context_manager_session_factory,
         )
 
         # Verify compression was applied with retries
@@ -192,7 +192,7 @@ class TestTokenValidationIntegration:
     @pytest.mark.usefixtures("test_user_low_token_config")
     async def test_all_retries_exhausted_raises_context_assembly_error(
         self,
-        test_db_session,
+        context_manager_session_factory,
         test_user,
     ) -> None:
         """Test ContextAssemblyError when all compression retries exhausted."""
@@ -230,7 +230,7 @@ class TestTokenValidationIntegration:
                 max_tokens=10000,
                 compression_loop=2,  # Allow 2 retries
                 user_id=test_user.id,
-                session=test_db_session,
+                session_factory=context_manager_session_factory,
             )
 
         # Verify error details
@@ -239,7 +239,8 @@ class TestTokenValidationIntegration:
     @pytest.mark.usefixtures("test_user_token_config")
     async def test_token_usage_recorded_in_database(
         self,
-        test_db_session,
+        test_db_session_factory,
+        context_manager_session_factory,
         test_user,
     ) -> None:
         """Test token usage is properly recorded in database."""
@@ -264,11 +265,12 @@ class TestTokenValidationIntegration:
             compressor_service=compressor_service,
         )
 
-        # Get usage before
-        usage_before = await token_service.get_current_usage(
-            user_id=test_user.id,
-            session=test_db_session,
-        )
+        # Get usage before - need fresh session to see committed data
+        async with test_db_session_factory() as session:
+            usage_before = await token_service.get_current_usage(
+                user_id=test_user.id,
+                session=session,
+            )
 
         # Assemble documents
         await assembler.assemble(
@@ -276,14 +278,15 @@ class TestTokenValidationIntegration:
             max_tokens=10000,
             compression_loop=3,
             user_id=test_user.id,
-            session=test_db_session,
+            session_factory=context_manager_session_factory,
         )
 
-        # Get usage after
-        usage_after = await token_service.get_current_usage(
-            user_id=test_user.id,
-            session=test_db_session,
-        )
+        # Get usage after - need fresh session to see committed data
+        async with test_db_session_factory() as session:
+            usage_after = await token_service.get_current_usage(
+                user_id=test_user.id,
+                session=session,
+            )
 
         # Verify token usage was recorded
         assert usage_after["current_usage"] > usage_before["current_usage"]

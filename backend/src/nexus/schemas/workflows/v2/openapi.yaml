@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Workflow Engine API (v2)
   description: |
@@ -259,7 +259,7 @@ paths:
   /workflows/{workflow_id}/test:
     post:
       summary: Test a single node in a workflow
-      description: "Test a single node in a workflow with mocked predecessor outputs.\n\nCreates a test execution that:\n1. Uses mocked outputs for all nodes in pre_resolved_nodes\n2. Executes the target_node_id for real with actual logic\n3. Stops after the target node completes\n4. Returns results in the execution response\n\nThis enables testing individual nodes in isolation without running the entire workflow.\n\nArgs:\n    workflow_id: Workflow ID to test\n    request: Test execution request with target node and mocked outputs\n    execution_service: Execution service (injected by FastAPI)\n\nReturns:\n    Created test execution with mode=TEST and status=PENDING\n\nRaises:\n    HTTPException: 404 if workflow not found\n    HTTPException: 400 if target_node_id not found in workflow\n    HTTPException: 503 if Temporal unavailable"
+      description: Test a single node in a workflow with mocked predecessor outputs.
       operationId: test_workflow_node
       tags:
         - workflows
@@ -717,13 +717,13 @@ components:
       title: WorkflowVersionListResponse
       description: Schema for workflow version list response.
       required:
-        - versions
+        - resources
       properties:
-        versions:
+        resources:
           type: array
           items:
             $ref: '#/components/schemas/WorkflowVersionRead'
-          title: Versions
+          title: Resources
 
     WorkflowListResponse:
       type: object
