@@ -939,6 +939,21 @@ class TestConvergeAllFailure:
         assert "node_d" not in wf.skipped_nodes
         assert "node_b" in wf._cof_failed_nodes
 
+    def test_all_branches_fail_converge_is_failed_not_skipped(self) -> None:
+        """When all branches fail, converge must be 'failed' not 'skipped'."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        wf._handle_node_failure("node_a", Exception("err a"), graph, pending)
+        wf._handle_node_failure("node_b", Exception("err b"), graph, pending)
+        wf._handle_node_failure("node_c", Exception("err c"), graph, pending)
+
+        assert "converge_node" in wf.failed_nodes
+        assert "converge_node" not in wf.skipped_nodes
+        assert "node_d" in wf.skipped_nodes
+        assert wf._has_unhandled_failure is True
+
 
 # ---------------------------------------------------------------------------
 # Tests: CoF-failed branches and converge interaction

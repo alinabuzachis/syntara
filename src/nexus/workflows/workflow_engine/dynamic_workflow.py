@@ -656,6 +656,10 @@ class NexusWorkflow(WorkflowConvergeMixin):
         Starting from a skipped node, propagate the skipped status to all
         downstream nodes whose ALL predecessors are already skipped.
 
+        Converge nodes are excluded — their fate is determined by
+        ``_check_converge_successors`` / ``_evaluate_converge_failure``
+        based on the node's strategy (ALL/ANY).
+
         Args:
             start_node_id: Node that was just marked as skipped
             graph: Workflow graph
@@ -675,6 +679,12 @@ class NexusWorkflow(WorkflowConvergeMixin):
                     or succ_id in self.failed_nodes
                     or self.resolver.has_namespace(succ_id)
                 ):
+                    continue
+
+                # Converge nodes have strategy-aware failure logic;
+                # let _check_converge_successors handle them.
+                succ_node = graph.get_node(succ_id)
+                if succ_node.type == NodeType.CONVERGE:
                     continue
 
                 # Check if ALL predecessors of this successor are skipped or failed
