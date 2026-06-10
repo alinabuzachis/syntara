@@ -17,7 +17,7 @@ from nexus.credentials.cli.rotate_keys import (
     _rotate_single_row,
     rotate_keys,
 )
-from tests.helpers.encryption import NEW_KEY, NEW_KEY_HEX, OLD_KEY, OLD_KEY_HEX, WRONG_KEY
+from tests.helpers.encryption import NEW_KEY, NEW_KEY_HEX, OLD_KEY, OLD_KEY_HEX, WRONG_KEY, ZEROS_KEY_HEX
 
 
 def _make_encrypted_row(old_encryptor: SecretEncryptor) -> MagicMock:
@@ -53,6 +53,16 @@ class TestCreateEncryptors:
 
     def test_identical_keys_returns_none(self) -> None:
         result = _create_encryptors(OLD_KEY_HEX, OLD_KEY_HEX)
+        assert result is None
+
+    def test_all_zeros_old_key_accepted(self) -> None:
+        """Rotation FROM the legacy all-zeros default key must be allowed."""
+        result = _create_encryptors(ZEROS_KEY_HEX, NEW_KEY_HEX)
+        assert result is not None
+
+    def test_all_zeros_new_key_rejected(self) -> None:
+        """Rotation TO the all-zeros key must be rejected."""
+        result = _create_encryptors(OLD_KEY_HEX, ZEROS_KEY_HEX)
         assert result is None
 
     def test_logs_key_fingerprints(self, caplog: pytest.LogCaptureFixture) -> None:

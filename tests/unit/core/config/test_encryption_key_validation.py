@@ -132,3 +132,7 @@ class TestKeyFromStringDefenseInDepth:
     def test_accepts_valid_key(self) -> None:
         key_bytes = key_from_string(VALID_KEY)
         assert len(key_bytes) == 32
+
+    def test_allow_insecure_accepts_all_zeros(self) -> None:
+        key_bytes = key_from_string(ALL_ZEROS_KEY, allow_insecure=True)
+        assert key_bytes == b"\x00" * 32
