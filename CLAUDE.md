@@ -16,8 +16,7 @@ syntara/
 │   │   ├── nexus-ui/          # Main UI application
 │   │   ├── nexus-contracts/   # Generated TypeScript types from backend OpenAPI specs
 │   │   └── nexus-mock-api/    # MSW-based mock API server
-│   ├── e2e/                   # Playwright E2E tests
-│   └── package.json           # Workspace root
+│   └── package.json           # Workspace root (E2E tests at packages/nexus-ui/e2e/)
 ├── podman-compose.yml # Full-stack local dev (all services)
 ├── Makefile           # Root orchestration (run make help)
 └── .env.example       # Combined environment config
