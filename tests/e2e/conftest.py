@@ -26,6 +26,7 @@ from nexus_api_client.api.authentication.get_current_user import sync_detailed a
 from nexus_api_client.api.authentication.login import sync_detailed as login_sync
 from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
 from nexus_api_client.models import (
+    ExecutionRead,
     WorkflowCreate,
     WorkflowRead,
 )
@@ -49,6 +50,7 @@ from nexus_api_client.types import UNSET, Response, Unset
 from typer.testing import CliRunner
 
 from nexus.core.models.user_schemas import UserCreate as UserCreateSchema
+from nexus.workflows.models.execution import TERMINAL_EXECUTION_STATUSES
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,49 @@ def _wait_for_api(nexus_api: NexusApiRegistry) -> None:
 def unique_name(base: str) -> str:
     """Generate a unique resource name to avoid conflicts across E2E test runs."""
     return f"{base}-{uuid4().hex[:8]}"
+
+
+def poll_execution_until_complete(
+    nexus_api: NexusApiRegistry,
+    execution_id: UUID,
+    max_polls: int = 30,
+    poll_interval: int = 2,
+) -> ExecutionRead:
+    """Poll execution until it reaches a terminal state.
+
+    Args:
+        nexus_api: API client for making requests
+        execution_id: ID of the execution to poll
+        max_polls: Maximum number of polling attempts (default: 30)
+        poll_interval: Seconds to wait between polls (default: 2)
+
+    Returns:
+        ExecutionRead with final terminal state (completed, failed, cancelled, or completed_with_errors)
+
+    Raises:
+        AssertionError: If execution does not reach terminal state within timeout
+
+    """
+    for _ in range(max_polls):
+        execution = nexus_api.executions.get(
+            execution_id=execution_id,
+            include="activities",
+        ).assert_and_get()
+
+        # Check against terminal statuses using the canonical constant
+        # Convert both to strings since execution.status is a string from the API
+        status = str(execution.status)
+        if status in {str(s.value) for s in TERMINAL_EXECUTION_STATUSES}:
+            return execution
+
+        time.sleep(poll_interval)
+
+    timeout_seconds = max_polls * poll_interval
+    msg = (
+        f"Execution {execution_id} did not complete within {timeout_seconds}s. "
+        "Temporal may not be running. Start it with: make temporal-run"
+    )
+    raise AssertionError(msg)
 
 
 _MIN_TEST_PASSWORD_LENGTH = 14
