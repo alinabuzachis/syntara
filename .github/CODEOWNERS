@@ -2,7 +2,7 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Default — catch-all for anything not matched below
-* @hakbailey
+* @matburt @jewzaam @robinbobbitt @TheRealHaoLiu @zkayyali812 @hakbailey
 
 # Backend (Python/FastAPI)
 /backend/ @hakbailey @manstis @bzwei @AaronH88 @thenets @alisonlhart @Qalthos @Alex-Izquierdo
