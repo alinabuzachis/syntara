@@ -595,38 +595,6 @@ class AuditExportSettings(BaseSettings):
 
 
 # =============================================================================
-# Audit Retention Configuration
-# =============================================================================
-
-
-class AuditRetentionSettings(BaseSettings):
-    """Audit event retention and purge configuration.
-
-    Controls how long audit events are kept and how the background purge worker
-    operates.  Set ``audit_retention_days`` to ``0`` to disable automatic purging.
-
-    Note: This class should not be instantiated directly. Use Settings via get_settings().
-    """
-
-    audit_retention_days: int = Field(
-        default=30,
-        description="Delete audit events older than this many days (0 to disable purging)",
-        ge=0,
-    )
-
-    audit_purge_interval_seconds: float = Field(
-        default=3600.0,
-        description="Seconds between audit purge worker cycles",
-        gt=0,
-    )
-
-    audit_purge_backup_enabled: bool = Field(
-        default=True,
-        description="Create a CSV backup of expired audit events before purging",
-    )
-
-
-# =============================================================================
 # Audit Writer Configuration
 # =============================================================================
 
@@ -1790,7 +1758,6 @@ class Settings(
     DatabaseSettings,
     AuditDatabaseSettings,
     AuditWriterSettings,
-    AuditRetentionSettings,
     AuditExportSettings,
     ServerSettings,
     RetrieverServiceSettings,
