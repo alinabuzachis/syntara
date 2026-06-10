@@ -134,7 +134,7 @@ test.describe('Credential Types Management', () => {
     // Create a new bearer token credential
     const name = buildUniqueName('e2e-count-test')
     await app.goto(toAppUrl('/configuration/credentials'))
-    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
     await app.getByRole('button', { name: 'Create credential' }).click()
 
     const modal = app.getByRole('dialog')

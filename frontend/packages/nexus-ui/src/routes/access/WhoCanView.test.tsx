@@ -155,7 +155,7 @@ describe('WhoCanView', () => {
     mockMutationState({
       isSuccess: true,
       data: {
-        users: [
+        resources: [
           { id: 'u1', username: 'alice' },
           { id: 'u2', username: 'bob' },
         ],
@@ -171,7 +171,7 @@ describe('WhoCanView', () => {
   it('shows warning when no users found', () => {
     mockMutationState({
       isSuccess: true,
-      data: { users: [] },
+      data: { resources: [] },
     })
 
     render(<WhoCanView {...sampleResourceActions} />, { wrapper })
@@ -183,7 +183,7 @@ describe('WhoCanView', () => {
   it('shows singular "user" when exactly one user found', () => {
     mockMutationState({
       isSuccess: true,
-      data: { users: [{ id: 'u1', username: 'alice' }] },
+      data: { resources: [{ id: 'u1', username: 'alice' }] },
     })
 
     render(<WhoCanView {...sampleResourceActions} />, { wrapper })
@@ -248,7 +248,7 @@ describe('WhoCanView', () => {
       mockMutationState({
         isSuccess: true,
         data: {
-          users: [
+          resources: [
             { id: 'u1', username: 'alice' },
             { id: 'u2', username: 'bob' },
           ],
@@ -263,7 +263,7 @@ describe('WhoCanView', () => {
     it('shows singular "user" for one result', () => {
       mockMutationState({
         isSuccess: true,
-        data: { users: [{ id: 'u1', username: 'alice' }] },
+        data: { resources: [{ id: 'u1', username: 'alice' }] },
       })
 
       render(<WhoCanView {...sampleResourceActions} />, { wrapper })
@@ -275,7 +275,7 @@ describe('WhoCanView', () => {
       const user = userEvent.setup()
       mockMutationState({
         isSuccess: true,
-        data: { users: [{ id: 'u1', username: 'alice' }] },
+        data: { resources: [{ id: 'u1', username: 'alice' }] },
       })
 
       render(<WhoCanView {...sampleResourceActions} />, { wrapper })
@@ -288,12 +288,12 @@ describe('WhoCanView', () => {
   })
 
   describe('Pagination', () => {
-    it('shows pagination buttons when next_cursor is present', () => {
+    it('shows pagination buttons when next cursor is present', () => {
       mockMutationState({
         isSuccess: true,
         data: {
-          users: [{ id: 'u1', username: 'alice' }],
-          next_cursor: 'cursor-abc',
+          resources: [{ id: 'u1', username: 'alice' }],
+          next: 'cursor-abc',
         },
       })
 
@@ -306,7 +306,7 @@ describe('WhoCanView', () => {
     it('does not show pagination buttons when no cursor', () => {
       mockMutationState({
         isSuccess: true,
-        data: { users: [{ id: 'u1', username: 'alice' }] },
+        data: { resources: [{ id: 'u1', username: 'alice' }] },
       })
 
       render(<WhoCanView {...sampleResourceActions} />, { wrapper })
@@ -319,8 +319,8 @@ describe('WhoCanView', () => {
       mockMutationState({
         isSuccess: true,
         data: {
-          users: [{ id: 'u1', username: 'alice' }],
-          next_cursor: 'cursor-abc',
+          resources: [{ id: 'u1', username: 'alice' }],
+          next: 'cursor-abc',
         },
       })
 

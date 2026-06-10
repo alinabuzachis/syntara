@@ -147,6 +147,17 @@ export interface components {
       resources: components['schemas']['CredentialTypeRead'][]
     }
     /**
+     * CredentialWorkflowListResponse
+     * @description Paginated list response for credential workflow references.
+     */
+    CredentialWorkflowListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['CredentialWorkflowRef'][]
+    }
+    /**
      * CredentialCreate
      * @description Schema for creating a new credential.
      */
@@ -189,10 +200,10 @@ export interface components {
       project_id: string
     }
     /**
-     * CredentialPatch
+     * CredentialUpdate
      * @description Schema for partially updating a credential. $encrypted$ preserves existing values.
      */
-    CredentialPatch: {
+    CredentialUpdate: {
       /** Description */
       description?: string | null
       /** Enabled */
@@ -762,7 +773,7 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['CredentialPatch']
+        'application/json': components['schemas']['CredentialUpdate']
       }
     }
     responses: {
@@ -801,7 +812,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['CredentialWorkflowRef'][]
+          'application/json': components['schemas']['CredentialWorkflowListResponse']
         }
       }
       400: components['responses']['BadRequestError']

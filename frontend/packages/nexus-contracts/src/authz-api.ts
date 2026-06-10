@@ -246,10 +246,10 @@ export interface components {
      * @description Response body for the Who can? endpoint.
      */
     WhoCanResponse: {
-      /** Users */
-      users: components['schemas']['WhoCanUser'][]
-      /** Next Cursor */
-      next_cursor?: string | null
+      /** Resources */
+      resources: components['schemas']['WhoCanUser'][]
+      /** Next */
+      next?: string | null
     }
     /**
      * PermissionEntry
@@ -294,7 +294,7 @@ export interface components {
     }
     /**
      * ValidateNameResponse
-     * @description Response body for the validate_name endpoint.
+     * @description Response body for the validate-name endpoint.
      */
     ValidateNameResponse: {
       /** Valid */

@@ -7,6 +7,7 @@ import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
 import { UnsavedChangesProvider } from '../providers/unsaved-changes/UnsavedChangesProvider'
 import { queryClient } from '../queryClient'
 import { TestSignInCallback } from '../routes/access-management/authentication/identity-providers/TestSignInCallback'
+import { DocLinkProvider } from '../utils/docs/DocLinkProvider'
 
 import { AppDockedNav } from './AppDockedNav'
 import { AppLogin } from './AppLogin'
@@ -23,24 +24,26 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ColorSchemeProvider>
-        <AlertProvider>
-          <UnsavedChangesProvider>
-            <AppLogin>
-              <SessionTimeoutWarning />
-              <Compass
-                className="pf-m-no-screen-warning bg-deep-space"
-                dock={<AppDockedNav />}
-                main={
-                  <CompassContent role="main">
-                    <AppRouter />
-                  </CompassContent>
-                }
-              />
-            </AppLogin>
-          </UnsavedChangesProvider>
-        </AlertProvider>
-      </ColorSchemeProvider>
+      <DocLinkProvider>
+        <ColorSchemeProvider>
+          <AlertProvider>
+            <UnsavedChangesProvider>
+              <AppLogin>
+                <SessionTimeoutWarning />
+                <Compass
+                  className="pf-m-no-screen-warning bg-deep-space"
+                  dock={<AppDockedNav />}
+                  main={
+                    <CompassContent role="main">
+                      <AppRouter />
+                    </CompassContent>
+                  }
+                />
+              </AppLogin>
+            </UnsavedChangesProvider>
+          </AlertProvider>
+        </ColorSchemeProvider>
+      </DocLinkProvider>
     </QueryClientProvider>
   )
 }

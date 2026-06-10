@@ -980,7 +980,7 @@ export const handlers = [
   http.get('/api/v1/auth/providers', () => {
     const enabled = identityProviders.filter((p) => p.enabled)
     return HttpResponse.json({
-      providers: enabled.map((p) => ({
+      resources: enabled.map((p) => ({
         id: p.id,
         name: p.name,
         provider_type: p.configuration?.provider_type ?? 'oidc',
@@ -2336,7 +2336,7 @@ export const handlers = [
         { status: 404 }
       )
     }
-    return HttpResponse.json(credentialWorkflows[credential_id] ?? [])
+    return HttpResponse.json({ resources: credentialWorkflows[credential_id] ?? [] })
   }),
 
   http.get('/api/v1/credential_types', ({ request }) => {
@@ -2505,7 +2505,7 @@ export const handlers = [
 
   // Settings endpoints
   http.get('/api/v1/settings/categories', () => {
-    return HttpResponse.json({ results: settingsCategories })
+    return HttpResponse.json({ resources: settingsCategories })
   }),
 
   http.get('/api/v1/settings', ({ request }) => {
@@ -3802,7 +3802,7 @@ export const handlers = [
           ? mockUsers.filter((u) => u.username !== 'operator')
           : mockUsers
 
-    return HttpResponse.json({ users, next_cursor: null })
+    return HttpResponse.json({ resources: users, next: null })
   }),
 
   http.post('/api/v1/authz/what_can_i', async ({ request }) => {

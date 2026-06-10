@@ -14,6 +14,7 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 import { userFormSchema, userCreateSchema, type UserFormData } from '../userFormSchema'
 
 import { userDisplayName } from './userDisplayName'
@@ -184,6 +185,7 @@ function UserFormEditBusyPage({ pageTitle, children }: Readonly<{ pageTitle: str
 }
 
 export function UserForm({ mode }: Readonly<UserFormProps>) {
+  const usersDocLink = useDocLink('users')
   const isEdit = mode === 'edit'
   const pageTitle = isEdit ? 'Edit User' : 'Create User'
   const submitLabel = isEdit ? 'Save' : 'Create user'
@@ -251,6 +253,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
     <NxPage>
       <NxPageHeader
         title={pageTitle}
+        docLink={usersDocLink}
         breadcrumbs={formBreadcrumbs}
         toolbar={
           <UserFormHeaderActions

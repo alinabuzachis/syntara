@@ -107,7 +107,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
         />
       </QueryClientProvider>
     )
-    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
   })
 
   it('does not render cancel button when execution is not cancellable', () => {
@@ -126,7 +126,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
         />
       </QueryClientProvider>
     )
-    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
   })
 
   it('renders status label when execution has status', () => {
@@ -180,7 +180,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
         />
       </QueryClientProvider>
     )
-    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Review/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
   })

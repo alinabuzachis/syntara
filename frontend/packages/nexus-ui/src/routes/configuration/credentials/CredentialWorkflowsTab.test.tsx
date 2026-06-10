@@ -41,7 +41,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('has no accessibility violations with workflows', async () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: mockWorkflows,
+      data: { resources: mockWorkflows },
       isPending: false,
       error: null,
       isFetching: false,
@@ -56,7 +56,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('has no accessibility violations in empty state', async () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: [],
+      data: { resources: [] },
       isPending: false,
       error: null,
       isFetching: false,
@@ -71,7 +71,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('renders empty state when no workflows', () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: [],
+      data: { resources: [] },
       isPending: false,
       error: null,
       isFetching: false,
@@ -91,7 +91,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('renders workflow names in table', () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: mockWorkflows,
+      data: { resources: mockWorkflows },
       isPending: false,
       error: null,
       isFetching: false,
@@ -108,7 +108,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('renders table header', () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: mockWorkflows,
+      data: { resources: mockWorkflows },
       isPending: false,
       error: null,
       isFetching: false,
@@ -123,7 +123,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('renders footer with workflow count (plural)', () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: mockWorkflows,
+      data: { resources: mockWorkflows },
       isPending: false,
       error: null,
       isFetching: false,
@@ -138,7 +138,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('renders footer with workflow count (singular)', () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: [mockWorkflows[0]],
+      data: { resources: [mockWorkflows[0]] },
       isPending: false,
       error: null,
       isFetching: false,
@@ -207,7 +207,7 @@ describe('CredentialWorkflowsTab', () => {
 
     // Simulate successful refetch
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: mockWorkflows,
+      data: { resources: mockWorkflows },
       isPending: false,
       error: null,
       isFetching: false,
@@ -222,7 +222,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('uses correct API endpoint with credential ID', () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: [],
+      data: { resources: [] },
       isPending: false,
       error: null,
       isFetching: false,
@@ -239,7 +239,7 @@ describe('CredentialWorkflowsTab', () => {
 
   it('renders table with accessible label', () => {
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
-      data: mockWorkflows,
+      data: { resources: mockWorkflows },
       isPending: false,
       error: null,
       isFetching: false,

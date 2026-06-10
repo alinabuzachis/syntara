@@ -1,4 +1,7 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
+
+import { buildSwitchCasePort } from '../routes/builder/utils/switchCaseHelpers'
 
 import {
   createAgenticActivity,
@@ -14,8 +17,10 @@ import {
   createManualTrigger,
   createScheduledTrigger,
   createScriptActivity,
+  createSwitchActivity,
   createWaitActivity,
   createWebhookTrigger,
+  createEdaTrigger,
 } from './workflowFactories'
 
 describe('workflowFactories', () => {
@@ -167,6 +172,40 @@ describe('workflowFactories', () => {
         expect(() => createWebhookTrigger('trigger-23', 'api/v2/events')).toThrow('Invalid webhook path format')
         expect(() => createWebhookTrigger('trigger-24', '')).toThrow('Invalid webhook path format')
         expect(() => createWebhookTrigger('trigger-25', '-leading-hyphen')).toThrow('Invalid webhook path format')
+      })
+    })
+
+    describe('createEdaTrigger', () => {
+      it('creates an EDA trigger with path', () => {
+        const trigger = createEdaTrigger('trigger-30', 'eda-events')
+
+        expect(trigger.id).toBe('trigger-30')
+        expect(trigger.type).toBe('eda_trigger')
+        expect(trigger.name).toBe('EDA Trigger')
+        expect(trigger.config.webhook_path).toBe('eda-events')
+        expect(trigger.config).not.toHaveProperty('input_schema')
+      })
+
+      it('creates an EDA trigger with JSON schema', () => {
+        const schema = { type: 'object', properties: { name: { type: 'string' } } }
+        const trigger = createEdaTrigger('trigger-31', 'eda-push', schema)
+
+        expect(trigger.id).toBe('trigger-31')
+        expect(trigger.config.webhook_path).toBe('eda-push')
+        expect(trigger.config.input_schema).toEqual(schema)
+      })
+
+      it('creates an EDA trigger with custom name', () => {
+        const trigger = createEdaTrigger('trigger-32', 'eda-alerts', undefined, 'My EDA Trigger')
+
+        expect(trigger.id).toBe('trigger-32')
+        expect(trigger.name).toBe('My EDA Trigger')
+      })
+
+      it('rejects invalid webhook path format', () => {
+        expect(() => createEdaTrigger('trigger-33', 'api/v2/events')).toThrow('Invalid webhook path format')
+        expect(() => createEdaTrigger('trigger-34', '')).toThrow('Invalid webhook path format')
+        expect(() => createEdaTrigger('trigger-35', '-leading-hyphen')).toThrow('Invalid webhook path format')
       })
     })
   })
@@ -715,6 +754,31 @@ describe('workflowFactories', () => {
         })
 
         expect(activity.config.approver_timeout).toBe(3600)
+      })
+    })
+
+    describe('createSwitchActivity', () => {
+      it('creates a switch activity with correct type and config', () => {
+        const cases = [
+          { port: buildSwitchCasePort(0), label: 'Path 1', condition: '${status} == "active"' },
+          { port: buildSwitchCasePort(1), label: 'Path 2', condition: '${status} == "inactive"' },
+        ]
+        const activity = createSwitchActivity('switch-1', 'Route Request', cases)
+
+        expect(activity.id).toBe('switch-1')
+        expect(activity.type).toBe('switch')
+        expect(activity.name).toBe('Route Request')
+        expect(activity.config).toEqual({
+          cases,
+          default_port: EdgeHandleEnum.DEFAULT,
+        })
+      })
+
+      it('creates a switch activity with empty cases', () => {
+        const activity = createSwitchActivity('switch-2', 'Empty Switch', [])
+
+        expect(activity.config.cases).toEqual([])
+        expect(activity.config.default_port).toBe(EdgeHandleEnum.DEFAULT)
       })
     })
   })

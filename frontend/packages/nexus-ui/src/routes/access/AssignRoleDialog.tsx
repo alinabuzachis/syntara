@@ -3,8 +3,11 @@ import {
   Button,
   Form,
   FormGroup,
+  FormHelperText,
   FormSelect,
   FormSelectOption,
+  HelperText,
+  HelperTextItem,
   Modal,
   ModalBody,
   ModalFooter,
@@ -15,8 +18,8 @@ import { useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
-import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
@@ -31,7 +34,6 @@ const PAGE_SIZE = 20
 type AssignRoleFormBodyProps = {
   control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
   setValue: ReturnType<typeof useForm<AssignRoleFormData>>['setValue']
-  errors: ReturnType<typeof useForm<AssignRoleFormData>>['formState']['errors']
   principalType: string
   isProjectScoped: boolean
   projectOptions: { value: string; label: string }[]
@@ -54,7 +56,6 @@ type AssignRoleFormBodyProps = {
 function AssignRoleFormBody({
   control,
   setValue,
-  errors,
   principalType,
   isProjectScoped,
   projectOptions,
@@ -123,20 +124,29 @@ function AssignRoleFormBody({
           <Controller
             name="projectId"
             control={control}
-            render={({ field }) => (
-              <TypeaheadSelect
-                id="project-id"
-                ariaLabel="Project"
-                options={projectOptions}
-                selected={field.value ?? ''}
-                onChange={(value) => {
-                  field.onChange(value)
-                  setValue('roleName', '')
-                }}
-                placeholder="Select a project..."
-                hasError={!!errors.projectId}
-                isLoading={isProjectsLoading}
-              />
+            render={({ field, fieldState }) => (
+              <>
+                <TypeaheadSelect
+                  id="project-id"
+                  ariaLabel="Project"
+                  options={projectOptions}
+                  selected={field.value ?? ''}
+                  onChange={(value) => {
+                    field.onChange(value)
+                    setValue('roleName', '')
+                  }}
+                  placeholder="Select a project..."
+                  hasError={!!fieldState.error}
+                  isLoading={isProjectsLoading}
+                />
+                {fieldState.error && (
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
+                )}
+              </>
             )}
           />
         </FormGroup>
@@ -147,19 +157,28 @@ function AssignRoleFormBody({
           <Controller
             name="userId"
             control={control}
-            render={({ field }) => (
-              <TypeaheadSelect
-                id="user-id"
-                ariaLabel="User"
-                options={userOptions}
-                selected={field.value ?? ''}
-                onChange={field.onChange}
-                placeholder="Select a user..."
-                hasError={!!errors.userId}
-                onSearchChange={onUserSearchChange}
-                hasMore={hasMoreUsers}
-                isLoading={isUsersLoading}
-              />
+            render={({ field, fieldState }) => (
+              <>
+                <TypeaheadSelect
+                  id="user-id"
+                  ariaLabel="User"
+                  options={userOptions}
+                  selected={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="Select a user..."
+                  hasError={!!fieldState.error}
+                  onSearchChange={onUserSearchChange}
+                  hasMore={hasMoreUsers}
+                  isLoading={isUsersLoading}
+                />
+                {fieldState.error && (
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
+                )}
+              </>
             )}
           />
         </FormGroup>
@@ -170,19 +189,28 @@ function AssignRoleFormBody({
           <Controller
             name="groupId"
             control={control}
-            render={({ field }) => (
-              <TypeaheadSelect
-                id="group-id"
-                ariaLabel="Group"
-                options={groupOptions}
-                selected={field.value ?? ''}
-                onChange={field.onChange}
-                placeholder="Select a group..."
-                hasError={!!errors.groupId}
-                onSearchChange={onGroupSearchChange}
-                hasMore={hasMoreGroups}
-                isLoading={isGroupsLoading}
-              />
+            render={({ field, fieldState }) => (
+              <>
+                <TypeaheadSelect
+                  id="group-id"
+                  ariaLabel="Group"
+                  options={groupOptions}
+                  selected={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="Select a group..."
+                  hasError={!!fieldState.error}
+                  onSearchChange={onGroupSearchChange}
+                  hasMore={hasMoreGroups}
+                  isLoading={isGroupsLoading}
+                />
+                {fieldState.error && (
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
+                )}
+              </>
             )}
           />
         </FormGroup>
@@ -192,20 +220,29 @@ function AssignRoleFormBody({
         <Controller
           name="roleName"
           control={control}
-          render={({ field }) => (
-            <TypeaheadSelect
-              id="role-select"
-              ariaLabel="Role"
-              options={roleOptions}
-              selected={field.value ?? ''}
-              onChange={field.onChange}
-              placeholder={roleDisabled ? 'Select a project first...' : 'Select a role...'}
-              hasError={!!errors.roleName}
-              isDisabled={roleDisabled}
-              onSearchChange={onRoleSearchChange}
-              hasMore={hasMoreRoles}
-              isLoading={isRolesLoading}
-            />
+          render={({ field, fieldState }) => (
+            <>
+              <TypeaheadSelect
+                id="role-select"
+                ariaLabel="Role"
+                options={roleOptions}
+                selected={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder={roleDisabled ? 'Select a project first...' : 'Select a role...'}
+                hasError={!!fieldState.error}
+                isDisabled={roleDisabled}
+                onSearchChange={onRoleSearchChange}
+                hasMore={hasMoreRoles}
+                isLoading={isRolesLoading}
+              />
+              {fieldState.error && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
+            </>
           )}
         />
       </FormGroup>
@@ -221,14 +258,9 @@ type AssignRoleDialogProps = {
 }
 
 export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDialogProps>) {
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess } = useAlerts()
 
-  const {
-    handleSubmit,
-    control,
-    setValue,
-    formState: { errors },
-  } = useForm<AssignRoleFormData>({
+  const { handleSubmit, control, setValue, setError } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: {
       principalType: 'user',
@@ -314,15 +346,15 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   )
   const isPending = isPendingSystem || isPendingProject
 
+  const handleError = useFormMutationErrorHandler<AssignRoleFormData>(setError)
+
   const onSubmit = (data: AssignRoleFormData) => {
     const onMutationSuccess = () => {
       showSuccess({ title: 'Assignment added', description: 'Assignment created successfully' })
       onSuccess()
       onClose()
     }
-    const onMutationError = (error: unknown) => {
-      showError({ title: 'Failed to add assignment', description: getErrorMessage(error) })
-    }
+    const onMutationError = handleError({ title: 'Failed to add assignment' })
     const principalId = data.principalType === 'user' ? data.userId : data.groupId
     const body = { principal_type: data.principalType, principal_id: principalId, role_name: data.roleName }
 
@@ -344,7 +376,6 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
           <AssignRoleFormBody
             control={control}
             setValue={setValue}
-            errors={errors}
             principalType={principalType}
             isProjectScoped={isProjectScoped}
             projectOptions={projectOptions}

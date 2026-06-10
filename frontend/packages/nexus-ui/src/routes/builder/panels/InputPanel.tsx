@@ -68,6 +68,7 @@ const TRIGGER_TYPES: ReadonlySet<string> = new Set([
   TriggerTypeEnum.SCHEDULED,
   TriggerTypeEnum.EVENT,
   TriggerTypeEnum.WEBHOOK_TRIGGER,
+  TriggerTypeEnum.EDA_TRIGGER,
 ])
 
 type InputPanelProps = {

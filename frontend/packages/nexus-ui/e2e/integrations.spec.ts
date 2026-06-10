@@ -9,12 +9,12 @@ test('user configures an integration and verifies it appears', async ({ app }) =
 
   try {
     // Act - Open integration form and submit
-    await app.getByRole('button', { name: 'Configure integration' }).first().click()
+    await app.getByRole('button', { name: 'Configure integration' }).click()
     await expect(app.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
     await app.getByLabel('Server name / ID').fill(integrationName)
     await app.getByLabel('API URL').fill('https://api.example.com')
     await app.getByLabel('API key').fill('test-key')
-    await app.getByRole('button', { name: 'Configure integration' }).first().click()
+    await app.getByRole('button', { name: 'Configure integration' }).click()
 
     // Assert - Integration shows in table
     await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
@@ -30,10 +30,7 @@ test('user configures an integration and verifies it appears', async ({ app }) =
     await app.getByRole('button', { name: 'Apply filter' }).click()
     const row = app.getByRole('row', { name: new RegExp(integrationName) })
     if ((await row.count()) > 0) {
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
       await app.getByRole('menuitem', { name: /Uninstall/i }).click()
       await app.getByRole('dialog').getByRole('checkbox').click()
       await app.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()

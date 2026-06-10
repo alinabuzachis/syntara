@@ -14,6 +14,7 @@ import { useCanI } from '../../hooks/useCanI'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useTableSort } from '../../hooks/useTableSort'
 import { detachPromise } from '../../utils/detachPromise'
+import { useDocLink } from '../../utils/docs/useDocLink'
 
 import {
   getAuditActorTypeFilterDefinition,
@@ -70,6 +71,7 @@ function buildFilterFieldDefinitions() {
 
 export default function AuditLog() {
   const { allowed: canRead, isChecking } = useCanI('read', 'audit')
+  const auditLogDocLink = useDocLink('auditLog')
   const [expandedRows, dispatch] = useReducer(expandReducer, new Set<string>())
 
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
@@ -137,7 +139,7 @@ export default function AuditLog() {
   if (queryState) {
     return (
       <NxPage>
-        <NxPageHeader title="Audit Log" />
+        <NxPageHeader title="Audit Log" docLink={auditLogDocLink} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <NxPanel isFullHeight>{queryState}</NxPanel>
         </StackItem>
@@ -160,7 +162,7 @@ export default function AuditLog() {
 
   return (
     <NxPage>
-      <NxPageHeader title="Audit Log" />
+      <NxPageHeader title="Audit Log" docLink={auditLogDocLink} />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <NxPanel isFullHeight>
           <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>

@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { type Activity, TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { BUTTON_EDGE_DEFAULT_STROKE } from '../edges/buttonEdgeStrokeColor'
@@ -86,14 +86,14 @@ describe('workflowToGraph', () => {
   describe('getTriggerDisplayData', () => {
     it('returns separate name and details for manual_trigger', () => {
       const trigger: Trigger = {
-        type: 'manual_trigger',
+        type: TriggerTypeEnum.MANUAL_TRIGGER,
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Manual' })
     })
 
     it('uses trigger name when provided', () => {
       const trigger: Trigger = {
-        type: 'manual_trigger',
+        type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Start Workflow',
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Start Workflow', details: 'Manual' })
@@ -101,7 +101,7 @@ describe('workflowToGraph', () => {
 
     it('handles cron scheduled trigger', () => {
       const trigger: Trigger = {
-        type: 'scheduled',
+        type: TriggerTypeEnum.SCHEDULED,
         config: {
           schedule_type: 'cron',
           cron: '0 9 * * *',
@@ -112,7 +112,7 @@ describe('workflowToGraph', () => {
 
     it('handles interval scheduled trigger', () => {
       const trigger: Trigger = {
-        type: 'scheduled',
+        type: TriggerTypeEnum.SCHEDULED,
         config: {
           schedule_type: 'interval',
           interval: '1h',
@@ -123,7 +123,7 @@ describe('workflowToGraph', () => {
 
     it('handles continuous scheduled trigger', () => {
       const trigger: Trigger = {
-        type: 'scheduled',
+        type: TriggerTypeEnum.SCHEDULED,
         config: {
           schedule_type: 'continuous',
         },
@@ -156,7 +156,7 @@ describe('workflowToGraph', () => {
 
     it('returns just the name with null details for unknown trigger type', () => {
       const trigger = {
-        type: 'unknown' as 'manual_trigger',
+        type: 'unknown',
         name: 'Custom Trigger',
       } as Trigger
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Custom Trigger', details: null })
@@ -164,7 +164,7 @@ describe('workflowToGraph', () => {
 
     it('trims whitespace from trigger name', () => {
       const trigger: Trigger = {
-        type: 'manual_trigger',
+        type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: '  Trimmed Name  ',
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trimmed Name', details: 'Manual' })
@@ -172,7 +172,7 @@ describe('workflowToGraph', () => {
 
     it('falls back to "Trigger" when name is empty', () => {
       const trigger: Trigger = {
-        type: 'manual_trigger',
+        type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: '   ',
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Manual' })
@@ -180,10 +180,35 @@ describe('workflowToGraph', () => {
 
     it('handles names with parentheses correctly', () => {
       const trigger: Trigger = {
-        type: 'manual_trigger',
+        type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Hello(World)',
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Hello(World)', details: 'Manual' })
+    })
+
+    it('handles EDA trigger with webhook path', () => {
+      const trigger: Trigger = {
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        config: { webhook_path: 'my-events' },
+      }
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'EDA: /my-events' })
+    })
+
+    it('handles EDA trigger without webhook path', () => {
+      const trigger: Trigger = {
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        config: {},
+      }
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'EDA' })
+    })
+
+    it('handles EDA trigger with custom name', () => {
+      const trigger: Trigger = {
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        name: 'My EDA Trigger',
+        config: { webhook_path: 'github-events' },
+      }
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'My EDA Trigger', details: 'EDA: /github-events' })
     })
   })
 })

@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/identity_providers/': {
+  '/identity_providers': {
     parameters: {
       query?: never
       header?: never
@@ -952,6 +952,8 @@ export interface components {
     }
   }
   parameters: {
+    /** @description Maximum number of results per page */
+    limitParam: number
     /** @description Pagination cursor from previous response */
     cursorParam: string | null
     /** @description Sort parameter (e.g., 'name', '-created_at') */
@@ -968,7 +970,8 @@ export interface operations {
   list_identity_providers: {
     parameters: {
       query?: {
-        limit?: number
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
         /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
         /** @description Sort parameter (e.g., 'name', '-created_at') */

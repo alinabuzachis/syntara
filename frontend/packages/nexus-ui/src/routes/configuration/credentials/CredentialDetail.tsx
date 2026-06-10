@@ -22,6 +22,7 @@ import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 
 import { ENCRYPTED_SENTINEL, type CredentialExtended } from './credentialConstants'
 import { CredentialWorkflowsTab } from './CredentialWorkflowsTab'
@@ -46,6 +47,7 @@ function getTypeDisplayText(typeName: string | undefined, typeLoadError: boolean
 
 // eslint-disable-next-line max-lines-per-function -- detail page with multiple tabs, dialogs, and toolbar actions
 export default function CredentialDetail() {
+  const credentialsDocLink = useDocLink('credentials')
   const { credentialId } = useParams<{ credentialId: string }>()
   const [, navigate] = useLocation()
   const credentialBasePath = AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId ?? '')
@@ -228,6 +230,7 @@ export default function CredentialDetail() {
       <NxPageHeader
         breadcrumbs={credentialCrumbs}
         title={credential.name}
+        docLink={credentialsDocLink}
         toolbar={
           <>
             <DisabledWithTooltip isDisabled={!canUpdate} content={tooltips.enable}>

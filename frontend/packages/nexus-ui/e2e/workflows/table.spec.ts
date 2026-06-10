@@ -112,7 +112,7 @@ test.describe('Workflows Table - Display and Navigation', () => {
       await expect(workflowRow).toBeVisible({ timeout: 15000 })
 
       // Verify kebab menu
-      const kebabToggle = workflowRow.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+      const kebabToggle = workflowRow.getByRole('button', { name: /Actions|Kebab toggle/i })
       await expect(kebabToggle).toBeVisible()
 
       await kebabToggle.click({ force: true })

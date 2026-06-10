@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
   Form,
@@ -10,15 +11,22 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon } from '@patternfly/react-icons'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { z } from 'zod'
 
+import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllUsers } from '../../access/useAllUsers'
 import { userDisplayName } from '../users/userDisplayName'
+
+const addMemberSchema = z.object({
+  userId: z.string().min(1, 'User is required'),
+})
+
+type AddMemberFormData = z.infer<typeof addMemberSchema>
 
 type AddMemberModalProps = {
   groupId: string
@@ -35,9 +43,14 @@ export function AddMemberModal({
   onSuccess,
   existingMemberIds,
 }: Readonly<AddMemberModalProps>) {
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const { showAlert } = useAlerts()
+  const { showSuccess } = useAlerts()
+
+  const { handleSubmit, control, reset, setError } = useForm<AddMemberFormData>({
+    resolver: zodResolver(addMemberSchema, undefined, { mode: 'sync' }),
+    defaultValues: { userId: '' },
+  })
+
+  const handleError = useFormMutationErrorHandler<AddMemberFormData>(setError)
 
   const { users: allUsers } = useAllUsers()
 
@@ -54,43 +67,27 @@ export function AddMemberModal({
   const { mutate: addMember, isPending } = accessClient.useMutation('post', '/groups/{group_id}/members')
 
   const handleClose = () => {
-    setSelectedUserId('')
-    setError(null)
+    reset()
     onClose()
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedUserId) {
-      setError('Please select a user')
-      return
-    }
-
+  const onSubmit = (data: AddMemberFormData) => {
+    const user = availableUsers.find((u) => u.value === data.userId)
     addMember(
       {
         params: { path: { group_id: groupId } },
-        body: { user_id: selectedUserId },
+        body: { user_id: data.userId },
       },
       {
         onSuccess: () => {
-          const user = availableUsers.find((u) => u.value === selectedUserId)
-          showAlert({
+          showSuccess({
             title: 'Member added',
-            description: `User "${user?.label ?? selectedUserId}" has been added to the group.`,
-            variant: 'success',
-            autoDismiss: true,
+            description: `User "${user?.label ?? data.userId}" has been added to the group.`,
           })
           handleClose()
           onSuccess()
         },
-        onError: (err: unknown) => {
-          showAlert({
-            title: 'Failed to add member',
-            description: getErrorMessage(err),
-            variant: 'error',
-            autoDismiss: true,
-          })
-        },
+        onError: handleError({ title: 'Failed to add member' }),
       }
     )
   }
@@ -99,29 +96,32 @@ export function AddMemberModal({
     <Modal isOpen={isOpen} onClose={handleClose} variant="medium">
       <ModalHeader title="Add member" />
       <ModalBody>
-        <Form id="add-member-form" onSubmit={handleSubmit}>
+        <Form id="add-member-form" onSubmit={handleSubmit(onSubmit)}>
           <FormGroup label="User" fieldId="add-member-user" isRequired>
-            <TypeaheadSelect
-              id="add-member-user"
-              ariaLabel="Select a user"
-              options={availableUsers}
-              selected={selectedUserId}
-              onChange={(value) => {
-                setSelectedUserId(value)
-                setError(null)
-              }}
-              placeholder="Search for a user..."
-              hasError={!!error}
+            <Controller
+              name="userId"
+              control={control}
+              render={({ field, fieldState }) => (
+                <>
+                  <TypeaheadSelect
+                    id="add-member-user"
+                    ariaLabel="Select a user"
+                    options={availableUsers}
+                    selected={field.value}
+                    onChange={field.onChange}
+                    placeholder="Search for a user..."
+                    hasError={!!fieldState.error}
+                  />
+                  {fieldState.error && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
+              )}
             />
-            {error && (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                    {error}
-                  </HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
           </FormGroup>
         </Form>
       </ModalBody>

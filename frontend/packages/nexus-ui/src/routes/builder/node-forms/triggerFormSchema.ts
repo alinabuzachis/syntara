@@ -1,4 +1,4 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
 import { z } from 'zod'
 
 import { safeJSONReviver } from '../../../utils/jsonSafeParse'
@@ -109,7 +109,7 @@ export const triggerFormSchema = triggerFormSchemaBase.superRefine((data, ctx) =
     }
   }
 
-  if (data.triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER) {
+  if (WEBHOOK_TRIGGER_TYPES.has(data.triggerType)) {
     validateWebhookPath(data, ctx)
     validateInputSchemaJson(data, ctx)
   }
@@ -119,3 +119,30 @@ export type TriggerFormData = z.infer<typeof triggerFormSchemaBase>
 
 // Re-export webhook path utilities from their canonical location
 export { normalizeWebhookPath, isValidWebhookPath } from '../../../utils/webhookPath'
+
+/** Download filename shared by webhook and EDA JSON schema fields. */
+export const JSON_SCHEMA_DOWNLOAD_FILENAME = 'json-schema.json'
+
+/** Default permissive JSON Schema used by webhook and EDA triggers. */
+export const DEFAULT_JSON_SCHEMA = `{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": true
+}`
+
+/** Example JSON Schema shown by webhook and EDA triggers. */
+export const EXAMPLE_JSON_SCHEMA = JSON.stringify(
+  {
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    type: 'object',
+    properties: {
+      event: { type: 'string' },
+      payload: { type: 'object' },
+    },
+    required: ['event'],
+    additionalProperties: false,
+  },
+  null,
+  2
+)

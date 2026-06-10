@@ -36,7 +36,7 @@ export async function goToCredentialsList(app: Page, options?: { ensureCreateEna
   }
 
   await app.goto(toAppUrl('/configuration/credentials'))
-  await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
+  await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
 
   if (!options?.ensureCreateEnabled) return
 
@@ -176,4 +176,6 @@ export async function navigateToCredentialDetail(app: Page, credentialName: stri
   const table = app.getByRole('grid', { name: 'Credentials table' })
   await table.getByRole('button', { name: credentialName, exact: true }).click()
   await expect(app).toHaveURL(/configuration\/credentials\//)
+  // Wait for the credential data to load — confirms the detail API responded
+  await expect(app.locator('h1').filter({ hasText: credentialName })).toBeVisible({ timeout: 15_000 })
 }

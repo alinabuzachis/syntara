@@ -10,7 +10,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
 
       // Assert - Detail page loaded
       await expect(app).toHaveURL(/configuration\/credentials\//)
-      await expect(app.getByText(name).first()).toBeVisible()
+      await expect(app.locator('h1').filter({ hasText: name })).toBeVisible()
     } finally {
       await deleteCredentialByName(app, name)
     }
@@ -154,8 +154,9 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
         .catch(() => false)
 
       if (tableVisible) {
-        // Verify workflow names appear as bold text
-        await expect(table.locator('strong').first()).toBeVisible()
+        // Verify workflow names appear as bold text (first data row)
+        const firstDataRow = table.getByRole('row').nth(1)
+        await expect(firstDataRow.locator('strong')).toBeVisible()
       } else {
         // No workflows or endpoint not available — empty/error state is valid
         const emptyOrError = app

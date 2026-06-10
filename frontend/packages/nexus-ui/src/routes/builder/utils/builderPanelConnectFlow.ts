@@ -6,6 +6,7 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { FlowPosition } from '../types'
 
 import { EdgeFactory } from './EdgeFactory'
+import { isSwitchCasePort } from './switchCaseHelpers'
 import type { EdgeType } from './workflowToGraph'
 
 const PANEL_CONNECT_MAX_ATTEMPTS = 40
@@ -179,8 +180,9 @@ export function applyConnectFromPanelWhenTargetMeasured(
   const isConditionHandle = srcHandle === EdgeHandleEnum.TRUE || srcHandle === EdgeHandleEnum.FALSE
   const isLoopHandle = srcHandle === EdgeHandleEnum.DONE || srcHandle === EdgeHandleEnum.LOOP
   const isApprovalHandle = srcHandle === EdgeHandleEnum.APPROVED || srcHandle === EdgeHandleEnum.REJECTED
+  const isSwitchLikeHandle = isSwitchCasePort(srcHandle) || srcHandle === EdgeHandleEnum.DEFAULT
   const sourcePlaceholderId =
-    isConditionHandle || isLoopHandle || isApprovalHandle
+    isConditionHandle || isLoopHandle || isApprovalHandle || isSwitchLikeHandle
       ? `placeholder-${sourceId}-${srcHandle}`
       : `placeholder-${sourceId}`
 

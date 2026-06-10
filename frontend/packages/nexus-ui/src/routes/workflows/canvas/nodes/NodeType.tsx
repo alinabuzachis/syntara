@@ -7,6 +7,7 @@ import { type ConditionNode, ConditionNodeComponent } from './ConditionNode'
 import { type ConvergeNode, ConvergeNodeComponent } from './ConvergeNode'
 import { type GenericNode, GenericNodeComponent } from './GenericNode'
 import { type LoopNode, LoopNodeComponent } from './LoopNode'
+import { type SwitchNode, SwitchNodeComponent } from './SwitchNode'
 import { type TaskNode, TaskNodeComponent } from './TaskNode'
 import { type TaskReversedNode, TaskReversedNodeComponent } from './TaskReversedNode'
 import { type TriggerNode, TriggerNodeComponent } from './TriggerNode'
@@ -23,6 +24,7 @@ export type NodeType =
   | ConditionNode
   | ConvergeNode
   | LoopNode
+  | SwitchNode
   | WaitNode
   | GenericNode
   | ButtonEdgePlaceholderNode
@@ -35,6 +37,7 @@ export const nodeTypes: NodeTypes = {
   [FlowNodeType.CONDITION]: ConditionNodeComponent,
   [FlowNodeType.CONVERGE]: ConvergeNodeComponent,
   [FlowNodeType.LOOP]: LoopNodeComponent,
+  [FlowNodeType.SWITCH]: SwitchNodeComponent,
   [FlowNodeType.WAIT]: WaitNodeComponent,
   [FlowNodeType.GENERIC]: GenericNodeComponent,
 }

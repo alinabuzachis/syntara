@@ -29,6 +29,7 @@ import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
+import { useDocLink } from '../../utils/docs/useDocLink'
 
 import { ApprovalSummaryList } from './ApprovalSummaryList'
 import { ApprovalStatusBadges } from './approvalUtils'
@@ -46,9 +47,10 @@ const getNotesLabel = (status: string) => {
 
 // eslint-disable-next-line complexity
 export default function ApprovalDetail() {
+  const approvalsDocLink = useDocLink('approvals')
   const { approvalId } = useParams<{ approvalId: string }>()
   const [, setLocation] = useLocation()
-  const { showAlert } = useAlerts()
+  const { showSuccess } = useAlerts()
 
   const approvalQuery = approvalsClient.useQuery('get', '/approvals/{approval_id}', {
     params: {
@@ -125,11 +127,9 @@ export default function ApprovalDetail() {
       },
       {
         onSuccess: () => {
-          showAlert({
+          showSuccess({
             title: pendingDecision === 'approved' ? 'Approval submitted' : 'Rejection submitted',
-            description: `The approval decision has been recorded.`,
-            variant: 'success',
-            autoDismiss: true,
+            description: 'The approval decision has been recorded.',
           })
           detachPromise(
             approvalQuery.refetch().then(() => {
@@ -218,6 +218,7 @@ export default function ApprovalDetail() {
     <NxPage>
       <NxPageHeader
         title={approvalName}
+        docLink={approvalsDocLink}
         breadcrumbs={breadcrumbsApprovalDetail(approvalName)}
         toolbar={
           <>

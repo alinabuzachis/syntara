@@ -32,6 +32,7 @@ import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 
 import { IntegrationEmptyState } from './IntegrationEmptyState'
 import {
@@ -82,6 +83,7 @@ function StatusLabel({ status }: { status: string }) {
 
 // eslint-disable-next-line max-lines-per-function
 export default function Integrations() {
+  const integrationsDocLink = useDocLink('integrations')
   const [, navigate] = useLocation()
 
   const {
@@ -249,7 +251,7 @@ export default function Integrations() {
   if (queryState) {
     return (
       <NxPage>
-        <NxPageHeader title="Integrations" />
+        <NxPageHeader title="Integrations" docLink={integrationsDocLink} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
         </NxPageBody>
@@ -261,6 +263,7 @@ export default function Integrations() {
     <NxPage>
       <NxPageHeader
         title="Integrations"
+        docLink={integrationsDocLink}
         toolbar={
           <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
             Configure integration

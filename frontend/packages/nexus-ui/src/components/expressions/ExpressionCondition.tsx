@@ -10,8 +10,11 @@ import {
   Flex,
   FlexItem,
   FormGroup,
+  FormHelperText,
   FormSelect,
   FormSelectOption,
+  HelperText,
+  HelperTextItem,
   TextInput,
   Button,
   Stack,
@@ -85,6 +88,8 @@ type ExpressionConditionProps = {
   onRemove?: () => void
   /** Whether to show error state */
   error?: boolean
+  /** Per-field error messages displayed inline under each field */
+  fieldErrors?: { variable?: string; value?: string }
 }
 
 /**
@@ -98,7 +103,7 @@ type ExpressionConditionProps = {
  * - Remove button (if onRemove provided)
  */
 export function ExpressionCondition(props: ExpressionConditionProps) {
-  const { condition, onChange, onRemove, error } = props
+  const { condition, onChange, onRemove, error, fieldErrors } = props
 
   // Handle operator change
   const handleOperatorChange = (_event: unknown, value: string) => {
@@ -158,6 +163,13 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
                 style={{ fontFamily: 'monospace', fontSize: 'var(--pf-t--global--font--size--body--sm)' }}
                 validated={error && !condition.variable.trim() ? 'error' : 'default'}
               />
+              {fieldErrors?.variable && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem variant="error">{fieldErrors.variable}</HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
             </FormGroup>
           </StackItem>
 
@@ -193,6 +205,13 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
                   style={{ fontFamily: 'monospace', fontSize: 'var(--pf-t--global--font--size--body--sm)' }}
                   validated={error && !condition.value.trim() ? 'error' : 'default'}
                 />
+                {fieldErrors?.value && (
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem variant="error">{fieldErrors.value}</HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
+                )}
               </FormGroup>
             </StackItem>
           )}

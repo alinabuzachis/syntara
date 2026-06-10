@@ -144,7 +144,7 @@ test.describe('Disable Built-in Admin — Flow and State Update', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          providers: [AAP_AUTH_PROVIDER],
+          resources: [AAP_AUTH_PROVIDER],
         }),
       })
     )

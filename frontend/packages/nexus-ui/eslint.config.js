@@ -342,11 +342,11 @@ export default tseslint.config(
       // Targets Playwright locator.first() -- .first() is not a standard JS/Array
       // method, so false positives on non-Playwright code are rare in E2E specs.
       'no-restricted-properties': [
-        'warn',
+        'error',
         {
           property: 'first',
           message:
-            'Avoid .first() — the locator should be specific enough to match exactly one element. If there are duplicates, scope with a parent locator. If .first() is genuinely needed, add an eslint-disable-next-line with a reason.',
+            'Avoid .first() — the locator should be specific enough to match exactly one element. If there are duplicates, scope with a parent locator.',
         },
       ],
     },

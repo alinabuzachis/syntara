@@ -179,10 +179,7 @@ test.describe('Alert Notifications', () => {
       await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
 
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
       await app.getByRole('menuitem', { name: /Delete/ }).click()
       const deleteDialog = app.getByRole('dialog')
       await deleteDialog.getByRole('checkbox').click()
@@ -215,7 +212,7 @@ test.describe('Alert Notifications', () => {
       return route.continue()
     })
 
-    await app.getByRole('button', { name: 'Create credential' }).first().click()
+    await app.getByRole('button', { name: 'Create credential' }).click()
     const modal = app.getByRole('dialog')
     await modal.getByRole('textbox', { name: 'Credential name' }).fill('error-test-cred')
     await selectCredentialType(modal, 'HTTP Bearer Token')
@@ -237,7 +234,7 @@ test.describe('Alert Notifications', () => {
 test.describe('Dynamic Field Renderer — Help Text', () => {
   test('help text displays below credential form fields', async ({ app }) => {
     await goToCredentialsList(app, { ensureCreateEnabled: true })
-    await app.getByRole('button', { name: 'Create credential' }).first().click()
+    await app.getByRole('button', { name: 'Create credential' }).click()
 
     const modal = app.getByRole('dialog')
 
@@ -253,7 +250,7 @@ test.describe('Dynamic Field Renderer — Help Text', () => {
 
     await tokenHelpButton.click()
     // Help popover should appear — PF6 renders it as a popover with a body
-    await expect(app.locator('.pf-v6-c-popover__body').first()).toBeVisible({ timeout: 5_000 })
+    await expect(app.locator('.pf-v6-c-popover__body')).toBeVisible({ timeout: 5_000 })
 
     await selectCredentialType(modal, 'HTTP Basic Auth')
 
@@ -288,7 +285,7 @@ test.describe('Secret Field Security', () => {
 
     try {
       await goToCredentialsList(app, { ensureCreateEnabled: true })
-      await app.getByRole('button', { name: 'Create credential' }).first().click()
+      await app.getByRole('button', { name: 'Create credential' }).click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
       await selectCredentialType(createModal, 'HTTP Bearer Token')
@@ -321,7 +318,7 @@ test.describe('Submit State — Loading Spinner', () => {
 
     try {
       await goToCredentialsList(app, { ensureCreateEnabled: true })
-      await app.getByRole('button', { name: 'Create credential' }).first().click()
+      await app.getByRole('button', { name: 'Create credential' }).click()
       const modal = app.getByRole('dialog')
       await modal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
       await selectCredentialType(modal, 'HTTP Bearer Token')

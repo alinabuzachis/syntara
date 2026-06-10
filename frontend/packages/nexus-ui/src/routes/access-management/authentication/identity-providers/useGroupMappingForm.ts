@@ -186,7 +186,7 @@ export function useGroupMappingEditForm({
   const [rawClaims, setRawClaims] = useState<string | null>(null)
   const [createGroupForIndex, setCreateGroupForIndex] = useState<number | null>(null)
 
-  const { showAlert } = useAlerts()
+  const { showSuccess } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
 
   const { mutate: patchProvider, isPending: isSaving } = identityProvidersClient.useMutation(
@@ -236,7 +236,7 @@ export function useGroupMappingEditForm({
       },
       {
         onSuccess: () => {
-          showAlert({ title: 'Group mapping saved', variant: 'success', autoDismiss: true })
+          showSuccess({ title: 'Group mapping saved' })
           navigateToTab()
         },
         onError: handleMutationError({ title: 'Failed to save group mapping' }),

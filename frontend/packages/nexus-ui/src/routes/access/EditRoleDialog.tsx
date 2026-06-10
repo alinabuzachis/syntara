@@ -14,8 +14,8 @@ import {
 } from '@patternfly/react-core'
 import { Controller, useForm } from 'react-hook-form'
 
+import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
-import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
 import { roleBaseSchema } from './addRoleSchema'
@@ -30,12 +30,13 @@ type EditRoleDialogProps = {
 }
 
 export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDialogProps>) {
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess } = useAlerts()
 
   const {
     register,
     handleSubmit,
     control,
+    setError,
     formState: { errors },
   } = useForm<EditRoleFormData>({
     resolver: zodResolver(roleBaseSchema, undefined, { mode: 'sync' }),
@@ -46,6 +47,7 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
     },
   })
 
+  const handleError = useFormMutationErrorHandler<EditRoleFormData>(setError)
   const { mutate: updateRole, isPending } = accessClient.useMutation('put', '/roles/{role_id}')
 
   const onSubmit = (data: EditRoleFormData) => {
@@ -64,9 +66,7 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
           onSuccess()
           onClose()
         },
-        onError: (error) => {
-          showError({ title: 'Failed to update role', description: getErrorMessage(error) })
-        },
+        onError: handleError({ title: 'Failed to update role' }),
       }
     )
   }

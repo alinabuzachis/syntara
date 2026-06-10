@@ -68,15 +68,15 @@ describe('identityProviderAddSchema', () => {
     expect(getErrorPaths(result)).toContain('issuerUrl')
   })
 
-  it('strips trailing slash from issuerUrl', () => {
+  it('preserves trailing slash in issuerUrl', () => {
     const result = identityProviderAddSchema.safeParse({
       ...validAddData,
-      issuerUrl: 'https://auth.example.com///',
+      issuerUrl: 'https://auth.example.com/o/',
     })
 
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.issuerUrl).toBe('https://auth.example.com')
+      expect(result.data.issuerUrl).toBe('https://auth.example.com/o/')
     }
   })
 

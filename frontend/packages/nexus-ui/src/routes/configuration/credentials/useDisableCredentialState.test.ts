@@ -77,7 +77,7 @@ describe('useDisableCredentialState', () => {
       { id: 'wf-1', name: 'Workflow 1' },
       { id: 'wf-2', name: 'Workflow 2' },
     ]
-    mockQuery({ data: mockWorkflows })
+    mockQuery({ data: { resources: mockWorkflows } })
 
     const { result } = renderHook(() => useDisableCredentialState(), { wrapper: createWrapper() })
 

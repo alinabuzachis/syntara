@@ -101,26 +101,6 @@ export interface components {
     /**
      * Invocation
      * @description SQLModel for async workflow invocations.
-     *
-     *     Attributes:
-     *         id: Primary key UUID (inherited from BaseResource)
-     *         created_at: Timestamp when invocation was created
-     *             (inherited from BaseResource)
-     *         updated_at: Timestamp of last update (inherited from BaseResource)
-     *         created_by: UUID of user who created the invocation
-     *             (inherited from UserOwnedResource)
-     *         updated_by: UUID of user who last updated the invocation
-     *             (inherited from UserOwnedResource)
-     *         labels: Optional key-value metadata (inherited from BaseResource)
-     *         prompt: Natural language user request
-     *         session_id: Session identifier for multi-tenant isolation
-     *         status: Current invocation status (running, paused, cancelled, completed, failed)
-     *         started_at: Timestamp when workflow execution started
-     *         completed_at: Timestamp when workflow completed
-     *         context_data: Additional context for the request
-     *         result: Workflow result data
-     *         error_message: Error message if invocation failed
-     *         checkpoint_data: Checkpoint data for pause/resume
      */
     Invocation: components['schemas']['UserOwnedResource'] & {
       /**

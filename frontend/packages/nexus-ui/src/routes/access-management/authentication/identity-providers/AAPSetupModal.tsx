@@ -80,11 +80,15 @@ function ControlledTextField({
 }
 
 const authMethodOptions: ReadonlyArray<{ value: AuthMethod; label: string; description: string }> = [
-  { value: 'token', label: 'Personal access token', description: 'Authenticate with a pre-generated token from AAP' },
+  {
+    value: 'token',
+    label: 'Personal access token',
+    description: 'Authenticate with a pre-generated token from Ansible Automation Platform',
+  },
   {
     value: 'credentials',
     label: 'Platform admin credentials',
-    description: 'Authenticate with a local AAP platform admin username and password',
+    description: 'Authenticate with a local Ansible Automation Platform admin username and password',
   },
 ]
 
@@ -168,26 +172,26 @@ export function AAPSetupModal({ isOpen, onClose, onSuccess }: Readonly<AAPSetupM
       {
         onSuccess: (data) => {
           showSuccess({
-            title: 'AAP identity provider created',
+            title: 'Ansible Automation Platform identity provider created',
             description: `Provider "${data.name}" has been created and is ready to use.`,
           })
           handleClose()
           onSuccess()
         },
-        onError: handleError({ title: 'Failed to add AAP' }),
+        onError: handleError({ title: 'Failed to add Ansible Automation Platform' }),
       }
     )
   }
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} variant="medium">
-      <ModalHeader title="Add Ansible Automation Platform" />
+      <ModalHeader title="Add Ansible Automation Platform as a provider" />
       <ModalBody>
         <Form id="aap-setup-form" onSubmit={handleSubmit(onSubmit)}>
           <ControlledTextField
             name="aap_url"
             control={control}
-            label="AAP URL"
+            label="Ansible Automation Platform URL"
             fieldId="aap-url"
             placeholder="https://aap.example.com"
           />
@@ -197,7 +201,7 @@ export function AAPSetupModal({ isOpen, onClose, onSuccess }: Readonly<AAPSetupM
             label="Organization"
             fieldId="aap-organization"
             placeholder="Default"
-            hint="AAP organization to create the OAuth2 application in"
+            hint="Organization to create the OAuth2 application in"
           />
           <Controller
             name="auth_method"

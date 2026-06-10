@@ -29,6 +29,7 @@ import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 import { accessClient } from '../../access/accessClient'
 import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
@@ -172,6 +173,7 @@ function useGroupQueries(groupId: string | undefined) {
 }
 
 export function GroupDetail() {
+  const groupsDocLink = useDocLink('groups')
   const { groupId } = useParams<{ groupId: string }>()
   const basePath = AppRoute.AccessManagement.GroupDetail.replace(':groupId', groupId ?? '')
   type GroupTab = 'details' | 'members' | 'roles'
@@ -225,6 +227,7 @@ export function GroupDetail() {
     <NxPage>
       <NxPageHeader
         title={groupData.name}
+        docLink={groupsDocLink}
         breadcrumbs={groupCrumbs}
         toolbar={
           !groupData.is_builtin ? (

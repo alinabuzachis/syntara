@@ -226,7 +226,7 @@ describe('BuilderWorkflowPageHeader', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
   })
 
@@ -248,7 +248,7 @@ describe('BuilderWorkflowPageHeader', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Review approval' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
   })
@@ -269,7 +269,7 @@ describe('BuilderWorkflowPageHeader', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
   })
 
   it('does not show cancel button during live run when execution is completed', () => {
@@ -285,7 +285,7 @@ describe('BuilderWorkflowPageHeader', () => {
       />
     )
 
-    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
   })
 
   it('does not show cancel button during live run when executionId is missing', () => {
@@ -300,7 +300,7 @@ describe('BuilderWorkflowPageHeader', () => {
       />
     )
 
-    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
   })
 
   it('dispatches name, description, and tag changes via onApply callback', async () => {
@@ -428,7 +428,7 @@ describe('BuilderWorkflowPageHeader', () => {
       />
     )
 
-    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
   })
 
@@ -518,6 +518,6 @@ describe('BuilderWorkflowPageHeader', () => {
       />
     )
 
-    expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
   })
 })

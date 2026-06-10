@@ -61,7 +61,7 @@ test.describe('Webhook Trigger', () => {
 
       // Reopen workflow and verify trigger persists on canvas
       await app.getByRole('button', { name: workflowName, exact: true }).click()
-      await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+      await expect(app.locator('.react-flow__node').filter({ hasText: 'Webhook' })).toBeVisible({ timeout: 15_000 })
 
       const triggerNode = app.locator('.react-flow__node').filter({ hasText: `Webhook: /${webhookPath}` })
       await expect(triggerNode).toBeVisible({ timeout: 5_000 })
@@ -80,17 +80,14 @@ test.describe('Webhook Trigger', () => {
     // Type a path
     await app.getByRole('textbox', { name: 'Webhook path' }).fill('github-push')
 
-    // Expand the ClipboardCopy to reveal the URL text and verify it contains the path
-    const clipboardCopy = app.getByLabel('Webhook URL')
-    await expect(clipboardCopy).toBeVisible()
-    const expandToggle = clipboardCopy.getByRole('button', { name: /show content/i })
-    await expandToggle.click()
-    await expect(clipboardCopy).toContainText('github-push')
+    // Verify the inline ClipboardCopy input shows the URL with the path
+    const urlInput = app.getByLabel('Webhook URL').getByRole('textbox')
+    await expect(urlInput).toHaveValue(/github-push/)
 
     // Change the path and verify URL reflects the change
     await app.getByRole('textbox', { name: 'Webhook path' }).fill('slack-events')
-    await expect(clipboardCopy).toContainText('slack-events')
-    await expect(clipboardCopy).not.toContainText('github-push')
+    await expect(urlInput).toHaveValue(/slack-events/)
+    await expect(urlInput).not.toHaveValue(/github-push/)
   })
 
   test('webhook form shows HTTP method as disabled POST', async ({ app }) => {

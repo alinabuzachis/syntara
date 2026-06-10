@@ -62,7 +62,7 @@ test.describe('Credentials Empty State', () => {
       await filterCredentialByName(app, nonexistent)
 
       await expect(app.getByText('No results found')).toBeVisible()
-      await expect(app.getByRole('button', { name: 'Clear all filters' }).first()).toBeVisible()
+      await expect(app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' })).toBeVisible()
     } finally {
       await deleteCredentialByName(app, credName)
     }
@@ -71,13 +71,13 @@ test.describe('Credentials Empty State', () => {
   test('Create credential button is visible on credentials page', async ({ app }) => {
     await goToCredentialsList(app, { ensureCreateEnabled: true })
 
-    await expect(app.getByRole('button', { name: 'Create credential' }).first()).toBeVisible()
+    await expect(app.getByRole('button', { name: 'Create credential' })).toBeVisible()
   })
 
   test('clicking Create credential opens creation modal', async ({ app }) => {
     await goToCredentialsList(app, { ensureCreateEnabled: true })
 
-    await app.getByRole('button', { name: 'Create credential' }).first().click()
+    await app.getByRole('button', { name: 'Create credential' }).click()
 
     const modal = app.getByRole('dialog')
     await expect(modal).toBeVisible()
@@ -149,8 +149,8 @@ test.describe('Cursor-Based Pagination', () => {
       .catch(() => false)
     test.skip(!hasTable, 'No credential data available; seed data required')
 
-    const credentialCountText = app.getByText(/of \d+/)
-    await expect(credentialCountText.first()).toBeVisible()
+    const credentialCountText = app.locator('.pf-v6-c-pagination').getByText(/of \d+/)
+    await expect(credentialCountText).toBeVisible()
   })
 
   test('next/previous controls navigate between pages when available', async ({ app }) => {
@@ -163,20 +163,20 @@ test.describe('Cursor-Based Pagination', () => {
       .catch(() => false)
     test.skip(!hasTable, 'No credential data available; seed data required')
 
-    const nextButton = app.getByRole('button', { name: /next/i })
+    const pagination = app.locator('.pf-v6-c-pagination')
+    const nextButton = pagination.getByRole('button', { name: /next/i })
     const hasNext = await nextButton
-      .first()
       .waitFor({ state: 'visible', timeout: 3000 })
       .then(() => true)
       .catch(() => false)
 
-    if (hasNext && (await nextButton.first().isEnabled())) {
-      await nextButton.first().click()
+    if (hasNext && (await nextButton.isEnabled())) {
+      await nextButton.click()
 
-      const prevButton = app.getByRole('button', { name: /prev/i })
-      await expect(prevButton.first()).toBeEnabled()
+      const prevButton = pagination.getByRole('button', { name: /prev/i })
+      await expect(prevButton).toBeEnabled()
 
-      await prevButton.first().click()
+      await prevButton.click()
       await expect(table).toBeVisible()
     }
   })
@@ -240,7 +240,7 @@ test.describe('Name Keyword Filtering', () => {
       await filterCredentialByName(app, nonexistent)
 
       await expect(app.getByText('No results found')).toBeVisible()
-      await expect(app.getByRole('button', { name: 'Clear all filters' }).first()).toBeVisible()
+      await expect(app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' })).toBeVisible()
     } finally {
       await deleteCredentialByName(app, credName)
     }
@@ -259,10 +259,7 @@ test.describe('Kebab Menu Edit Action', () => {
       await filterCredentialByName(app, credName)
 
       const row = app.getByRole('row', { name: new RegExp(credName) })
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
 
       await app.getByRole('menuitem', { name: 'Edit' }).click()
 
@@ -293,10 +290,7 @@ test.describe('Kebab Menu Delete Action', () => {
       await filterCredentialByName(app, credName)
 
       const row = app.getByRole('row', { name: new RegExp(credName) })
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
 
       await app.getByRole('menuitem', { name: 'Delete' }).click()
 
@@ -330,10 +324,7 @@ test.describe('Kebab Menu Delete Action', () => {
       await filterCredentialByName(app, credName)
 
       const row = app.getByRole('row', { name: new RegExp(credName) })
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
       await app.getByRole('menuitem', { name: 'Delete' }).click()
 
       const dialog = app.getByRole('dialog')

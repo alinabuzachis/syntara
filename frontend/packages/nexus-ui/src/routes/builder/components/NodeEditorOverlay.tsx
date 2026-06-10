@@ -2,6 +2,7 @@ import { Flex, FlexItem } from '@patternfly/react-core'
 import type { Node } from '@xyflow/react'
 import { memo } from 'react'
 
+import { useDocLink } from '../../../utils/docs/useDocLink'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { NodeDetailsPanel } from '../NodeDetailsPanel'
 
@@ -18,9 +19,11 @@ type NodeEditorOverlayProps = {
   onConnect: (sourceId: string, targetId: string) => void
   onClose: () => void
   projectId?: string
+  onNavigateToNode?: (nodeId: string) => void
 }
 
 export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEditorOverlayProps) {
+  const builderDocLink = useDocLink('builder')
   const {
     isOpen,
     mode,
@@ -34,6 +37,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
     onConnect,
     onClose,
     projectId,
+    onNavigateToNode,
   } = props
 
   if (!isOpen) return null
@@ -59,6 +63,8 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
           onConnect={onConnect}
           onClose={onClose}
           projectId={projectId}
+          onNavigateToNode={onNavigateToNode}
+          docLink={builderDocLink}
         />
       </FlexItem>
     </Flex>

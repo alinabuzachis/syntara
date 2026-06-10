@@ -354,7 +354,7 @@ describe('useBuilderToolbarHandlers', () => {
       title: 'Workflow deleted',
       description: 'Successfully deleted workflow "My workflow"',
     })
-    expect(setLocation).toHaveBeenCalledWith('/workflow-builder/new')
+    expect(setLocation).toHaveBeenCalledWith('/workflows')
   })
 
   it('handleToggleDetails dispatches and clears node selection when opening', () => {

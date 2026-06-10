@@ -40,7 +40,7 @@ describe('userFilters', () => {
     it('returns provider options on successful fetch', async () => {
       vi.mocked(authFetchClient.GET).mockResolvedValueOnce({
         data: {
-          providers: [
+          resources: [
             { name: 'AAP', id: '1', enabled: true },
             { name: 'Azure AD', id: '2', enabled: true },
           ],
@@ -68,7 +68,7 @@ describe('userFilters', () => {
 
     it('returns only static options when providers list is empty', async () => {
       vi.mocked(authFetchClient.GET).mockResolvedValueOnce({
-        data: { providers: [] },
+        data: { resources: [] },
       } as never)
 
       const definition = getAuthSourceFilterDefinition()

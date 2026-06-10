@@ -2,10 +2,12 @@ import type {
   ConditionActivity,
   ConvergeActivity,
   LoopActivity,
+  SwitchActivity,
   TaskActivity,
   WaitActivity,
 } from '@ansible/nexus-contracts'
 import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
+import { Flex } from '@patternfly/react-core'
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
@@ -31,6 +33,7 @@ import {
   ConditionNodeDetails,
   ConvergeNodeDetails,
   LoopNodeDetails,
+  SwitchNodeDetails,
   TaskNodeDetails,
   TriggerNodeDetails,
   WaitNodeDetails,
@@ -80,6 +83,7 @@ function getAddModeFormId(
       [RegistryNodeId.LOGIC_CONDITION]: 'condition-node-form',
       [RegistryNodeId.LOGIC_LOOP]: 'loop-node-form',
       [RegistryNodeId.LOGIC_CONVERGE]: 'converge-node-form',
+      [RegistryNodeId.LOGIC_SWITCH]: 'switch-node-form',
       [RegistryNodeId.LOGIC_WAIT]: 'wait-node-form',
     }
     return logicFormMap[nodeSubtypeId]
@@ -133,6 +137,7 @@ function getEditModeFormId(node: Node<NodeType['data']> | undefined): string | u
   if (node.type === FlowNodeType.CONVERGE) return 'converge-node-form'
   if (node.type === FlowNodeType.WAIT) return 'wait-node-form'
   if (node.type === FlowNodeType.APPROVAL) return 'approval-node-form'
+  if (node.type === FlowNodeType.SWITCH) return 'switch-node-form'
   if (node.type === FlowNodeType.TASK) {
     return getTaskFormId(node.data as TaskActivity)
   }
@@ -224,6 +229,17 @@ function renderEditModeContent(
     )
   }
 
+  if (node.type === FlowNodeType.SWITCH) {
+    return (
+      <SwitchNodeDetails
+        switchData={node.data as SwitchActivity}
+        nodeId={node.id}
+        onClose={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
   if (node.type === FlowNodeType.WAIT) {
     return (
       <WaitNodeDetails
@@ -250,6 +266,8 @@ type NodeDetailsPanelProps = {
   onConnect?: (sourceId: string, targetId: string) => void
   onClose: () => void
   projectId?: string
+  onNavigateToNode?: (nodeId: string) => void
+  docLink?: string
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
@@ -265,6 +283,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     onConnect,
     onClose,
     projectId,
+    onNavigateToNode,
   } = props
   const { showError } = useAlerts()
   // Use typed selector for optimized subscription
@@ -274,10 +293,9 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const { moveActivityAfter, updateActivity, replaceActivity, removeActivity } = useWorkflowStoreActions()
   const isTriggerNode = node?.type === FlowNodeType.TRIGGER
   const triggerIndex = isTriggerNode ? parseTriggerIndex(node?.id ?? '') : undefined
-  const nodeMenuType = isTriggerNode ? MenuNodeType.TRIGGER : MenuNodeType.ACTIVITY
   const menuActions = useNodeMenuActions({
     nodeId: node?.id ?? 'unknown',
-    nodeType: nodeMenuType,
+    nodeType: isTriggerNode ? MenuNodeType.TRIGGER : MenuNodeType.ACTIVITY,
     triggerIndex: isTriggerNode ? triggerIndex : undefined,
   })
   const panelMenuActions = buildPanelMenuActions(mode, node, menuActions, onClose)
@@ -380,7 +398,11 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     }
 
     if (!node) return null
-    return renderEditModeContent(node, currentWorkflow, onClose, setHeaderContent, projectId)
+    return (
+      <Flex key={node.id} direction={{ default: 'column' }} style={{ height: '100%', minHeight: 0 }}>
+        {renderEditModeContent(node, currentWorkflow, onClose, setHeaderContent, projectId)}
+      </Flex>
+    )
   }
 
   const showInputPanel = mode === 'add' ? nodeTypeId !== RegistryNodeId.TRIGGER : node?.type !== FlowNodeType.TRIGGER
@@ -392,6 +414,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       headerContent={headerContent}
       headerIcon={headerIcon}
       headerActions={headerActions}
+      docLink={props.docLink}
       showInputPanel={showInputPanel}
       nodeId={node?.id}
       executionId={executionId}
@@ -399,6 +422,8 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       onClose={onClose}
       sourceNodeId={sourceNodeId}
       formId={formId}
+      showNavigation={mode === 'edit'}
+      onNavigateToNode={onNavigateToNode}
     />
   )
 }

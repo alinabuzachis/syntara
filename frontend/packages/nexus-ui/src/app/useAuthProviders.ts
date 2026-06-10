@@ -43,10 +43,10 @@ export function useAuthProviders(): UseAuthProvidersResult {
             active &&
             data != null &&
             typeof data === 'object' &&
-            'providers' in data &&
-            Array.isArray((data as Record<string, unknown>).providers)
+            'resources' in data &&
+            Array.isArray((data as Record<string, unknown>).resources)
           ) {
-            const raw = (data as { providers: unknown[] }).providers
+            const raw = (data as { resources: unknown[] }).resources
             setProviders(raw.filter(isAuthProvider))
           }
         }

@@ -35,7 +35,7 @@ const AUTH_URL = '/system-administration/authentication'
 
 // ── Shared helpers ────────────────────────────────────────────────────────
 
-async function createTestWorkflow(adminApp: Page): Promise<string> {
+async function createTestWorkflow(adminApp: Page): Promise<{ id: string; name: string }> {
   const name = buildUniqueName('e2e-perm-wf')
   const resp = await apiRequest(adminApp, 'post', '/workflows', {
     data: {
@@ -51,22 +51,20 @@ async function createTestWorkflow(adminApp: Page): Promise<string> {
   })
   if (!resp.ok()) throw new Error(`Workflow creation failed: ${resp.status()}`)
   const body = (await resp.json()) as { id: string }
-  return body.id
+  return { id: body.id, name }
 }
 
 async function deleteTestWorkflow(adminApp: Page, workflowId: string): Promise<void> {
   await apiRequest(adminApp, 'delete', `/workflows/${workflowId}`)
 }
 
-async function createTestCredential(adminApp: Page): Promise<string> {
+async function createTestCredential(adminApp: Page): Promise<{ id: string; name: string }> {
   const project = await ensureProject(adminApp)
   if (!project) throw new Error('ensureProject failed')
-  const credId = await createCredentialViaApi(adminApp, {
-    name: buildUniqueName('e2e-perm-cred'),
-    projectId: project.id,
-  })
+  const name = buildUniqueName('e2e-perm-cred')
+  const credId = await createCredentialViaApi(adminApp, { name, projectId: project.id })
   if (!credId) throw new Error('createCredentialViaApi failed')
-  return credId
+  return { id: credId, name }
 }
 
 // ── Navigation visibility ────────────────────────────────────────────────
@@ -278,7 +276,7 @@ test.describe('Permission gating — Route guards', () => {
 
 test.describe('Permission gating — Workflow actions', () => {
   test('viewer: Create workflow button is disabled with tooltip', async ({ app, viewerApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const { id: workflowId } = await createTestWorkflow(app)
 
     try {
       await viewerApp.goto(toAppUrl('/workflows'))
@@ -296,7 +294,7 @@ test.describe('Permission gating — Workflow actions', () => {
   })
 
   test('auditor: Create workflow button is disabled', async ({ app, auditorApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const { id: workflowId } = await createTestWorkflow(app)
 
     try {
       await auditorApp.goto(toAppUrl('/workflows'))
@@ -311,7 +309,7 @@ test.describe('Permission gating — Workflow actions', () => {
   })
 
   test('viewer: Import workflow button is disabled', async ({ app, viewerApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const { id: workflowId } = await createTestWorkflow(app)
 
     try {
       await viewerApp.goto(toAppUrl('/workflows'))
@@ -326,7 +324,7 @@ test.describe('Permission gating — Workflow actions', () => {
   })
 
   test('auditor: Import workflow button is disabled', async ({ app, auditorApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const { id: workflowId } = await createTestWorkflow(app)
 
     try {
       await auditorApp.goto(toAppUrl('/workflows'))
@@ -341,14 +339,17 @@ test.describe('Permission gating — Workflow actions', () => {
   })
 
   test('viewer: all workflow row actions are aria-disabled', async ({ app, viewerApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const workflow = await createTestWorkflow(app)
 
     try {
       await viewerApp.goto(toAppUrl('/workflows'))
       await expect(viewerApp.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
-      const kebab = viewerApp.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await expect(kebab).toBeVisible({ timeout: 15_000 })
+      const workflowRow = viewerApp
+        .getByRole('grid', { name: 'Workflows table' })
+        .getByRole('row', { name: new RegExp(workflow.name) })
+      await expect(workflowRow).toBeVisible({ timeout: 15_000 })
+      const kebab = workflowRow.getByRole('button', { name: /Actions|Kebab toggle/i })
       await kebab.click({ force: true })
 
       await expect(viewerApp.getByRole('menuitem', { name: /Edit workflow/i })).toHaveAttribute('aria-disabled', 'true')
@@ -376,19 +377,22 @@ test.describe('Permission gating — Workflow actions', () => {
         'true'
       )
     } finally {
-      await deleteTestWorkflow(app, workflowId)
+      await deleteTestWorkflow(app, workflow.id)
     }
   })
 
   test('auditor: all workflow row actions are aria-disabled', async ({ app, auditorApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const workflow = await createTestWorkflow(app)
 
     try {
       await auditorApp.goto(toAppUrl('/workflows'))
       await expect(auditorApp.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
-      const kebab = auditorApp.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await expect(kebab).toBeVisible({ timeout: 15_000 })
+      const workflowRow = auditorApp
+        .getByRole('grid', { name: 'Workflows table' })
+        .getByRole('row', { name: new RegExp(workflow.name) })
+      await expect(workflowRow).toBeVisible({ timeout: 15_000 })
+      const kebab = workflowRow.getByRole('button', { name: /Actions|Kebab toggle/i })
       await kebab.click({ force: true })
 
       await expect(auditorApp.getByRole('menuitem', { name: /Edit workflow/i })).toHaveAttribute(
@@ -409,26 +413,29 @@ test.describe('Permission gating — Workflow actions', () => {
         'true'
       )
     } finally {
-      await deleteTestWorkflow(app, workflowId)
+      await deleteTestWorkflow(app, workflow.id)
     }
   })
 
   test('viewer: workflow row action tooltip explains the denial', async ({ app, viewerApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const workflow = await createTestWorkflow(app)
 
     try {
       await viewerApp.goto(toAppUrl('/workflows'))
       await expect(viewerApp.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
-      const kebab = viewerApp.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await expect(kebab).toBeVisible({ timeout: 15_000 })
+      const workflowRow = viewerApp
+        .getByRole('grid', { name: 'Workflows table' })
+        .getByRole('row', { name: new RegExp(workflow.name) })
+      await expect(workflowRow).toBeVisible({ timeout: 15_000 })
+      const kebab = workflowRow.getByRole('button', { name: /Actions|Kebab toggle/i })
       await kebab.click({ force: true })
 
       const editItem = viewerApp.getByRole('menuitem', { name: /Edit workflow/i })
       await editItem.hover()
       await expect(viewerApp.getByRole('tooltip')).toContainText('workflow:update')
     } finally {
-      await deleteTestWorkflow(app, workflowId)
+      await deleteTestWorkflow(app, workflow.id)
     }
   })
 })
@@ -437,7 +444,7 @@ test.describe('Permission gating — Workflow actions', () => {
 
 test.describe('Permission gating — Credential actions', () => {
   test('viewer: Create credential button is disabled with tooltip', async ({ app, viewerApp }) => {
-    const credId = await createTestCredential(app)
+    const { id: credId } = await createTestCredential(app)
 
     try {
       await viewerApp.goto(toAppUrl('/configuration/credentials'))
@@ -455,7 +462,7 @@ test.describe('Permission gating — Credential actions', () => {
   })
 
   test('auditor: Create credential button is disabled', async ({ app, auditorApp }) => {
-    const credId = await createTestCredential(app)
+    const { id: credId } = await createTestCredential(app)
 
     try {
       await auditorApp.goto(toAppUrl('/configuration/credentials'))
@@ -470,14 +477,17 @@ test.describe('Permission gating — Credential actions', () => {
   })
 
   test('viewer: credential row actions are aria-disabled', async ({ app, viewerApp }) => {
-    const credId = await createTestCredential(app)
+    const credential = await createTestCredential(app)
 
     try {
       await viewerApp.goto(toAppUrl('/configuration/credentials'))
       await expect(viewerApp.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
 
-      const kebab = viewerApp.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await expect(kebab).toBeVisible({ timeout: 15_000 })
+      const credRow = viewerApp
+        .getByRole('grid', { name: 'Credentials table' })
+        .getByRole('row', { name: new RegExp(credential.name) })
+      await expect(credRow).toBeVisible({ timeout: 15_000 })
+      const kebab = credRow.getByRole('button', { name: /Actions|Kebab toggle/i })
       await kebab.click({ force: true })
 
       await expect(viewerApp.getByRole('menuitem', { name: /Edit credential/i })).toHaveAttribute(
@@ -489,19 +499,22 @@ test.describe('Permission gating — Credential actions', () => {
         'true'
       )
     } finally {
-      await deleteCredentialViaApi(app, credId)
+      await deleteCredentialViaApi(app, credential.id)
     }
   })
 
   test('auditor: credential row actions are aria-disabled', async ({ app, auditorApp }) => {
-    const credId = await createTestCredential(app)
+    const credential = await createTestCredential(app)
 
     try {
       await auditorApp.goto(toAppUrl('/configuration/credentials'))
       await expect(auditorApp.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
 
-      const kebab = auditorApp.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await expect(kebab).toBeVisible({ timeout: 15_000 })
+      const credRow = auditorApp
+        .getByRole('grid', { name: 'Credentials table' })
+        .getByRole('row', { name: new RegExp(credential.name) })
+      await expect(credRow).toBeVisible({ timeout: 15_000 })
+      const kebab = credRow.getByRole('button', { name: /Actions|Kebab toggle/i })
       await kebab.click({ force: true })
 
       await expect(auditorApp.getByRole('menuitem', { name: /Edit credential/i })).toHaveAttribute(
@@ -513,7 +526,7 @@ test.describe('Permission gating — Credential actions', () => {
         'true'
       )
     } finally {
-      await deleteCredentialViaApi(app, credId)
+      await deleteCredentialViaApi(app, credential.id)
     }
   })
 })
@@ -577,8 +590,9 @@ test.describe('Permission gating — Identity Provider actions', () => {
   })
 
   test('auditor: IdP row actions are aria-disabled', async ({ app, auditorApp }) => {
+    const idpName = buildUniqueName('e2e-perm-idp')
     const idp = await createIdentityProviderViaApi(app, {
-      name: buildUniqueName('e2e-perm-idp'),
+      name: idpName,
       enabled: false,
       configuration: {
         provider_type: 'oidc',
@@ -594,8 +608,11 @@ test.describe('Permission gating — Identity Provider actions', () => {
       await auditorApp.goto(toAppUrl(`${AUTH_URL}`))
       await expect(auditorApp.getByRole('heading', { name: 'Identity Providers', level: 1 })).toBeVisible()
 
-      const kebab = auditorApp.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await expect(kebab).toBeVisible({ timeout: 15_000 })
+      const idpRow = auditorApp
+        .getByRole('grid', { name: 'Identity providers table' })
+        .getByRole('row', { name: new RegExp(idpName) })
+      await expect(idpRow).toBeVisible({ timeout: 15_000 })
+      const kebab = idpRow.getByRole('button', { name: /Actions|Kebab toggle/i })
       await kebab.click({ force: true })
 
       await expect(auditorApp.getByRole('menuitem', { name: /Edit provider/i })).toHaveAttribute(
@@ -617,7 +634,7 @@ test.describe('Permission gating — Identity Provider actions', () => {
 
 test.describe('Permission gating — Builder read-only', () => {
   test('viewer: builder shows read-only info alert', async ({ app, viewerApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const { id: workflowId } = await createTestWorkflow(app)
 
     try {
       await viewerApp.goto(toAppUrl(`/workflow-builder/${workflowId}`))
@@ -632,7 +649,7 @@ test.describe('Permission gating — Builder read-only', () => {
   })
 
   test('auditor: builder shows read-only info alert', async ({ app, auditorApp }) => {
-    const workflowId = await createTestWorkflow(app)
+    const { id: workflowId } = await createTestWorkflow(app)
 
     try {
       await auditorApp.goto(toAppUrl(`/workflow-builder/${workflowId}`))

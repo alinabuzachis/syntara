@@ -97,7 +97,7 @@ test('undo history resets when navigating away from the builder', async ({ app }
     await expect(undoButton(app)).toBeEnabled()
 
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     await openWorkflowInBuilder(app, workflowName)
 
@@ -134,10 +134,11 @@ test('selecting execution from history navigates to execution page', async ({ ap
     await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
 
     // Click the execution to navigate to the execution page
-    const executionItems = app.getByRole('listitem').filter({ has: app.locator('[class*="SimpleList"]') })
+    const runHistoryPanel = app.getByRole('heading', { name: 'Run History' }).locator('..')
+    const executionItems = runHistoryPanel.locator('button[class*="simpleList"]')
     const itemCount = await executionItems.count()
     if (itemCount > 0) {
-      await executionItems.first().click()
+      await executionItems.nth(0).click()
       await expect(app).toHaveURL(/\/executions\//)
       await expect(app.getByRole('button', { name: 'Back to editor' })).toBeVisible()
     }

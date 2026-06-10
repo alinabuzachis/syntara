@@ -34,6 +34,7 @@ import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 
 import { getIntegrationNameFilterDefinition } from './integrationFilters'
 
@@ -79,6 +80,7 @@ type IntegrationToolsLoadedViewProps = Readonly<{
   handleSelectAll: (checked: boolean) => void
   handleSelectTool: (tool: Tool, checked: boolean) => void
   refreshDialogOpen: boolean
+  docLink: string
 }>
 
 /** Presentational split for line limits; props mirror parent state — follow-up: smaller slices (table body only) or context. */
@@ -103,11 +105,13 @@ function IntegrationToolsLoadedView({
   handleSelectAll,
   handleSelectTool,
   refreshDialogOpen,
+  docLink,
 }: IntegrationToolsLoadedViewProps) {
   return (
     <NxPage>
       <NxPageHeader
         title={`${providerName} tools`}
+        docLink={docLink}
         breadcrumbs={breadcrumbsIntegrationTools(providerName)}
         toolbar={
           <>
@@ -223,6 +227,7 @@ function IntegrationToolsLoadedView({
 }
 
 export default function IntegrationTools() {
+  const integrationsDocLink = useDocLink('integrations')
   const params = useParams()
   const [, navigate] = useLocation()
   const queryClient = useQueryClient()
@@ -376,7 +381,7 @@ export default function IntegrationTools() {
     const toolsBreadcrumbs = provider?.name ? breadcrumbsIntegrationTools(provider.name) : undefined
     return (
       <NxPage>
-        <NxPageHeader title={toolsTitle} breadcrumbs={toolsBreadcrumbs} />
+        <NxPageHeader title={toolsTitle} docLink={integrationsDocLink} breadcrumbs={toolsBreadcrumbs} />
         <NxPageBody>
           <NxPanel isFullHeight>{integrationQueryStatus}</NxPanel>
         </NxPageBody>
@@ -406,6 +411,7 @@ export default function IntegrationTools() {
       handleSelectAll={handleSelectAll}
       handleSelectTool={handleSelectTool}
       refreshDialogOpen={refreshDialogOpen}
+      docLink={integrationsDocLink}
     />
   )
 }

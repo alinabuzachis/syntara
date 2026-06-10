@@ -4,11 +4,13 @@ import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useCanI } from '../../../hooks/useCanI'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 
 import { IdentityProvidersTab } from './IdentityProvidersTab'
 
 export default function Authentication() {
   const { allowed: canRead, isChecking } = useCanI('read', 'identity-provider')
+  const authenticationDocLink = useDocLink('authentication')
 
   if (isChecking) {
     return (
@@ -36,7 +38,11 @@ export default function Authentication() {
 
   return (
     <NxPage>
-      <NxPageHeader title="Identity Providers" breadcrumbs={breadcrumbsIdentityProvidersPage()} />
+      <NxPageHeader
+        title="Identity Providers"
+        docLink={authenticationDocLink}
+        breadcrumbs={breadcrumbsIdentityProvidersPage()}
+      />
       <NxPageBody>
         <NxPanel isFullHeight>
           <IdentityProvidersTab />

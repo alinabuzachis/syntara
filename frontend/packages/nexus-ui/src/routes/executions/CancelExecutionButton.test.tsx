@@ -53,7 +53,7 @@ describe('CancelExecutionButton', () => {
 
   it('renders an enabled cancel button', () => {
     renderButton()
-    const button = screen.getByRole('button', { name: 'Cancel execution' })
+    const button = screen.getByRole('button', { name: 'Cancel run' })
     expect(button).toBeInTheDocument()
     expect(button).toBeEnabled()
   })
@@ -65,7 +65,7 @@ describe('CancelExecutionButton', () => {
     const user = userEvent.setup()
     renderButton('exec-999')
 
-    await user.click(screen.getByRole('button', { name: 'Cancel execution' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel run' }))
 
     expect(mockMutate).toHaveBeenCalledWith(
       { params: { path: { execution_id: 'exec-999' } } },
@@ -93,8 +93,18 @@ describe('CancelExecutionButton', () => {
 
     renderButton()
 
-    const button = screen.getByRole('button', { name: 'Cancel execution' })
+    const button = screen.getByRole('button', { name: 'Cancel run' })
     expect(button).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('is aria-disabled while permission check is in flight without showing permission tooltip', () => {
+    vi.mocked(useCanI).mockReturnValue({ allowed: false, isChecking: true, isError: false })
+
+    renderButton()
+
+    const button = screen.getByRole('button', { name: 'Cancel run' })
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByText(/you need a role with the execution:run policy/i)).not.toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

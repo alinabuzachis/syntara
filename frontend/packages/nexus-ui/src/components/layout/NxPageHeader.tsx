@@ -1,4 +1,15 @@
-import { CompassMainHeader, Flex, FlexItem, Stack, StackItem, Title, type TitleProps } from '@patternfly/react-core'
+import {
+  Button,
+  CompassMainHeader,
+  Flex,
+  FlexItem,
+  Stack,
+  StackItem,
+  Title,
+  Tooltip,
+  type TitleProps,
+} from '@patternfly/react-core'
+import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
 import { NxPageBreadcrumbs, type AppBreadcrumbItem } from './NxPageBreadcrumbs'
@@ -12,6 +23,8 @@ function isRenderableSlot(value: ReactNode): boolean {
 export type NxPageHeaderProps = Readonly<{
   /** Primary page heading text (rendered as an `h1` unless `titleSlot` is set). */
   title: string
+  /** External documentation URL rendered as an icon link next to the title. */
+  docLink?: string
   breadcrumbs?: readonly AppBreadcrumbItem[]
   /**
    * Header toolbar actions (right-aligned in the compass header). Do not add a leading spacer; the layout supplies one.
@@ -40,15 +53,34 @@ export type NxPageHeaderProps = Readonly<{
   titleProps?: Readonly<Pick<TitleProps, 'size' | 'className'>>
 }>
 
+function DocLinkButton({ href }: Readonly<{ href: string }>) {
+  return (
+    <Tooltip content="View documentation">
+      <Button
+        variant="plain"
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="View documentation (opens in a new tab)"
+        icon={<RhUiExternalLinkIcon />}
+      />
+    </Tooltip>
+  )
+}
+
 function renderTitleRegion(props: NxPageHeaderProps): ReactNode {
   if (isRenderableSlot(props.titleSlot)) {
     return props.titleSlot
   }
 
-  const { title, titleLeading, titleAddons, projectSelector, titleProps } = props
+  const { title, docLink, titleLeading, titleAddons, projectSelector, titleProps } = props
 
   const useCompositeRow =
-    isRenderableSlot(titleLeading) || isRenderableSlot(titleAddons) || isRenderableSlot(projectSelector)
+    isRenderableSlot(titleLeading) ||
+    isRenderableSlot(titleAddons) ||
+    isRenderableSlot(projectSelector) ||
+    docLink !== undefined
 
   if (!useCompositeRow) {
     return (
@@ -68,6 +100,11 @@ function renderTitleRegion(props: NxPageHeaderProps): ReactNode {
           {title}
         </Title>
       </FlexItem>
+      {docLink !== undefined && (
+        <FlexItem>
+          <DocLinkButton href={docLink} />
+        </FlexItem>
+      )}
       {isRenderableSlot(titleAddons) ? titleAddons : null}
       {isRenderableSlot(projectSelector) && <FlexItem>{projectSelector}</FlexItem>}
     </Flex>
