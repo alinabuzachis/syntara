@@ -1,0 +1,56 @@
+name: '/update-screenshots'
+
+# Lightweight listener: validates the PR comment and dispatches the real
+# baseline-generation workflow. Keeps ghost "skipped" runs out of the
+# heavy workflow's Actions history.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  pull-requests: read
+
+jobs:
+  dispatch:
+    name: Validate & Dispatch
+    if: >-
+      github.event.issue.pull_request
+      && github.event.comment.user.type != 'Bot'
+      && contains(github.event.comment.body, '/update-screenshots')
+      && contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Get PR metadata
+        id: pr
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
+            if (pr.data.head.repo.full_name !== baseRepo) {
+              core.setFailed('Refusing to run /update-screenshots on fork PRs.');
+              return;
+            }
+            core.setOutput('ref', pr.data.head.ref);
+            core.setOutput('pr_number', context.issue.number);
+
+      - name: Dispatch baseline workflow
+        if: steps.pr.outcome == 'success'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'update-visual-baselines.yml',
+              ref: '${{ steps.pr.outputs.ref }}',
+              inputs: {
+                pr_number: '${{ steps.pr.outputs.pr_number }}',
+                pr_ref: '${{ steps.pr.outputs.ref }}',
+              },
+            });

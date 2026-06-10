@@ -1,0 +1,57 @@
+---
+name: Konflux Requirements
+
+on:
+  pull_request_target:
+    branches: [main]
+    paths:
+      - backend/uv.lock
+      - backend/requirements.txt
+
+concurrency:
+  group: konflux-requirements-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: startsWith(github.head_ref, 'konflux/mintmaker') && github.actor == 'red-hat-konflux-kflux-prd-rh03'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Sync requirements.txt
+        run: make sync-requirements
+        working-directory: backend
+
+      - name: Commit via GitHub API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet backend/requirements.txt; then
+            echo "requirements.txt is already in sync"
+            exit 0
+          fi
+
+          SHA=$(gh api "repos/${{ github.repository }}/contents/backend/requirements.txt?ref=${PR_HEAD_REF}" \
+            --jq '.sha')
+
+          TMPFILE=$(mktemp)
+          base64 -w 0 backend/requirements.txt > "$TMPFILE"
+          jq -Rs \
+            --arg message "chore: sync requirements.txt with uv.lock" \
+            --arg sha "$SHA" \
+            --arg branch "${PR_HEAD_REF}" \
+            '{message: $message, content: ., sha: $sha, branch: $branch}' \
+            "$TMPFILE" \
+            | gh api --method PUT repos/${{ github.repository }}/contents/backend/requirements.txt \
+              --input -

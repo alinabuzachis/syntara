@@ -1,0 +1,79 @@
+---
+name: Build Backend Container Image (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to checkout (defaults to the caller's ref)
+        type: string
+        required: false
+        default: ''
+      pr_number:
+        description: PR number to tag the image with (leave empty for non-PR builds)
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.repository == 'syntara-orchestration/syntara'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      # Required for multi-arch builds: emulates ARM64 on the amd64 runner so
+      # Docker Buildx can compile the linux/arm64 platform target natively.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            quay.io/ansible/nexus
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=ref,event=tag
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=pr-${{ inputs.pr_number }},enable=${{ inputs.pr_number != '' }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/
+          file: backend/containers/nexus/Containerfile
+          push: false
+          platforms: linux/amd64,linux/arm64
+          outputs: type=oci,dest=/tmp/nexus-image.tar
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image tags to file
+        shell: bash
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: printf '%s\n' "$IMAGE_TAGS" > /tmp/nexus-image-tag.txt
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-nexus-image
+          path: |
+            /tmp/nexus-image.tar
+            /tmp/nexus-image-tag.txt
+          retention-days: 1
