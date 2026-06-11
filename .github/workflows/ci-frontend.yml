@@ -12,7 +12,7 @@ permissions:
   statuses: read # read E2E commit status
 
 concurrency:
-  group: ${{ github.ref }}
+  group: ci-frontend-${{ github.ref }}
   cancel-in-progress: true
 
 # Scoped to this file only — other workflows pin their own.

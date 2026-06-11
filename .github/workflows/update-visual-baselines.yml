@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload Playwright results on failure
         if: steps.screenshots.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-update-baselines-results
           path: |
