@@ -6,7 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Claude, you have access to the following skills. **Do not load them all at once** -- read each skill file on-demand when its trigger condition is met. If a loaded skill (e.g., `frontend_specialist.md`) tells you to read another skill you have already loaded in this conversation, skip the re-read.
 
-> **Enforced by hook:** `.claude/hooks/skill-gate.sh` blocks `Edit`/`Write` until required skills are read. Mapping: [`.claude/skill-triggers.json`](.claude/skill-triggers.json).
+<!-- NOTE: Hook enforcement (skill-gate.sh, skill-triggers.json) was removed during
+     monorepo migration. Skills are advisory — Claude should still read them on-demand
+     per the triggers below. Hook-based enforcement may be re-added at the root level
+     once the monorepo hook strategy is finalized. -->
 
 | Trigger                                                                             | Skill file to read                                                         |
 | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -17,8 +20,6 @@ Claude, you have access to the following skills. **Do not load them all at once*
 | **Before committing code or reporting a task as done**                              | `.claude/skills/pr_review.md` (self-review against PR checklist)           |
 | **Before writing or modifying any component, hook, or pattern**                     | `.claude/skills/coding_standards.md`                                       |
 | **Before writing code using React, Zod, Zustand, Vitest, Vite, or TanStack Query**  | `.claude/skills/library_references.md` (fetch the relevant `llms.txt` URL) |
-
-> **To add or change skill triggers:** Edit [`.claude/skill-triggers.json`](.claude/skill-triggers.json). The hook and this table should stay in sync -- the JSON is what the hook enforces at runtime.
 
 ### Storybook MCP (when available)
 
