@@ -97,6 +97,16 @@ describe('edgeHelpers', () => {
       expect(isBranchHandle(EdgeHandleEnum.DONE)).toBe(true)
     })
 
+    it('returns true for switch case handles', () => {
+      expect(isBranchHandle('case_0')).toBe(true)
+      expect(isBranchHandle('case_1')).toBe(true)
+      expect(isBranchHandle('case_99')).toBe(true)
+    })
+
+    it('returns true for switch default handle', () => {
+      expect(isBranchHandle(EdgeHandleEnum.DEFAULT)).toBe(true)
+    })
+
     it('returns false for other handles', () => {
       expect(isBranchHandle(EdgeHandleEnum.SOURCE)).toBe(false)
       expect(isBranchHandle(EdgeHandleEnum.TARGET)).toBe(false)
@@ -127,6 +137,12 @@ describe('edgeHelpers', () => {
       expect(getButtonEdgeId('node-1', EdgeHandleEnum.LOOP)).toBe('button-node-1-loop')
       expect(getButtonEdgeId('node-1', EdgeHandleEnum.DONE)).toBe('button-node-1-done')
     })
+
+    it('generates handle-specific ID for switch handles', () => {
+      expect(getButtonEdgeId('node-1', 'case_0')).toBe('button-node-1-case_0')
+      expect(getButtonEdgeId('node-1', 'case_1')).toBe('button-node-1-case_1')
+      expect(getButtonEdgeId('node-1', EdgeHandleEnum.DEFAULT)).toBe('button-node-1-default')
+    })
   })
 
   describe('getPlaceholderNodeId', () => {
@@ -148,6 +164,12 @@ describe('edgeHelpers', () => {
     it('generates handle-specific ID for loop handles', () => {
       expect(getPlaceholderNodeId('node-1', EdgeHandleEnum.LOOP)).toBe('placeholder-node-1-loop')
       expect(getPlaceholderNodeId('node-1', EdgeHandleEnum.DONE)).toBe('placeholder-node-1-done')
+    })
+
+    it('generates handle-specific ID for switch handles', () => {
+      expect(getPlaceholderNodeId('node-1', 'case_0')).toBe('placeholder-node-1-case_0')
+      expect(getPlaceholderNodeId('node-1', 'case_1')).toBe('placeholder-node-1-case_1')
+      expect(getPlaceholderNodeId('node-1', EdgeHandleEnum.DEFAULT)).toBe('placeholder-node-1-default')
     })
   })
 
@@ -243,6 +265,16 @@ describe('edgeHelpers', () => {
     it('returns undefined for null', () => {
       expect(handleToV2Port(null)).toBeUndefined()
     })
+
+    it('passes switch case handles through as v2 ports', () => {
+      expect(handleToV2Port('case_0')).toBe('case_0')
+      expect(handleToV2Port('case_1')).toBe('case_1')
+      expect(handleToV2Port('case_99')).toBe('case_99')
+    })
+
+    it('passes switch default handle through as v2 port', () => {
+      expect(handleToV2Port(EdgeHandleEnum.DEFAULT)).toBe('default')
+    })
   })
 
   describe('Round-trip conversion - v2 → React Flow → v2', () => {
@@ -293,6 +325,20 @@ describe('edgeHelpers', () => {
       const handle = v2PortToHandle(v2Port)
       const backToV2 = handleToV2Port(handle)
       expect(backToV2).toBeUndefined()
+    })
+
+    it('case_0 → case_0 → case_0', () => {
+      const v2Port = 'case_0'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
+    })
+
+    it('default → default → default', () => {
+      const v2Port = 'default'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
     })
   })
 

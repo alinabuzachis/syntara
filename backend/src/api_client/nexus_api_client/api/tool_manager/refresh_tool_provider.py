@@ -93,19 +93,6 @@ def sync_detailed(
 
      Refresh tools from Tool Provider.
 
-    Connects to the tool provider and refreshes the list of available tools.
-    Creates new tools, updates existing ones, and disables missing tools.
-
-    Args:
-        provider_id: UUID of the provider to refresh
-        service: Tool provider service
-
-    Returns:
-        Refresh statistics including counts and timestamp
-
-    Raises:
-        HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
-
     Args:
         provider_id (UUID):
 
@@ -137,19 +124,6 @@ def sync(
 
      Refresh tools from Tool Provider.
 
-    Connects to the tool provider and refreshes the list of available tools.
-    Creates new tools, updates existing ones, and disables missing tools.
-
-    Args:
-        provider_id: UUID of the provider to refresh
-        service: Tool provider service
-
-    Returns:
-        Refresh statistics including counts and timestamp
-
-    Raises:
-        HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
-
     Args:
         provider_id (UUID):
 
@@ -175,19 +149,6 @@ async def asyncio_detailed(
     """Refresh Tool Provider
 
      Refresh tools from Tool Provider.
-
-    Connects to the tool provider and refreshes the list of available tools.
-    Creates new tools, updates existing ones, and disables missing tools.
-
-    Args:
-        provider_id: UUID of the provider to refresh
-        service: Tool provider service
-
-    Returns:
-        Refresh statistics including counts and timestamp
-
-    Raises:
-        HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
 
     Args:
         provider_id (UUID):
@@ -217,19 +178,6 @@ async def asyncio(
     """Refresh Tool Provider
 
      Refresh tools from Tool Provider.
-
-    Connects to the tool provider and refreshes the list of available tools.
-    Creates new tools, updates existing ones, and disables missing tools.
-
-    Args:
-        provider_id: UUID of the provider to refresh
-        service: Tool provider service
-
-    Returns:
-        Refresh statistics including counts and timestamp
-
-    Raises:
-        HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
 
     Args:
         provider_id (UUID):

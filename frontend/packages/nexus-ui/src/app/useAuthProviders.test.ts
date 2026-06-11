@@ -18,7 +18,7 @@ describe('useAuthProviders', () => {
     ]
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ providers: mockProviders }),
+      json: () => Promise.resolve({ resources: mockProviders }),
     })
 
     // Act
@@ -85,7 +85,7 @@ describe('useAuthProviders', () => {
           setTimeout(() => {
             resolve({
               ok: true,
-              json: () => Promise.resolve({ providers: [] }),
+              json: () => Promise.resolve({ resources: [] }),
             })
           }, 100)
         })
@@ -102,7 +102,7 @@ describe('useAuthProviders', () => {
     // Arrange
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ providers: [] }),
+      json: () => Promise.resolve({ resources: [] }),
     })
 
     // Act
@@ -121,7 +121,7 @@ describe('useAuthProviders', () => {
     const mockProvider = { id: 'google-1', name: 'Google', provider_type: 'oidc' }
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ providers: [mockProvider] }),
+      json: () => Promise.resolve({ resources: [mockProvider] }),
     })
 
     // Act
@@ -155,7 +155,7 @@ describe('useAuthProviders', () => {
     // Resolve fetch after unmount
     resolvePromise!({
       ok: true,
-      json: () => Promise.resolve({ providers: [{ id: '1', name: 'Test', provider_type: 'oidc' }] }),
+      json: () => Promise.resolve({ resources: [{ id: '1', name: 'Test', provider_type: 'oidc' }] }),
     })
 
     // Wait a bit to ensure no state update happens
@@ -169,7 +169,7 @@ describe('useAuthProviders', () => {
     // Arrange
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ providers: [] }),
+      json: () => Promise.resolve({ resources: [] }),
     })
 
     // Act

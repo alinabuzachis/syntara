@@ -19,6 +19,7 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
+import { useDocLink } from '../../utils/docs/useDocLink'
 import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
 import { accessClient } from '../access/accessClient'
 import { PublishWorkflowDialog } from '../builder/PublishWorkflowDialog'
@@ -43,6 +44,7 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
 
 // eslint-disable-next-line max-lines-per-function -- pre-existing size
 export default function Workflows() {
+  const workflowsDocLink = useDocLink('workflows')
   const { showAlert, showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
@@ -346,6 +348,7 @@ export default function Workflows() {
       <NxPage>
         <NxPageHeader
           title="Workflows"
+          docLink={workflowsDocLink}
           projectSelector={queryState ? undefined : ProjectSelector}
           toolbar={
             queryState || (sortedWorkflows.length === 0 && !hasActiveFilters) ? undefined : (

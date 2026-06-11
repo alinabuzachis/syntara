@@ -54,8 +54,9 @@ vi.mock('wouter/use-browser-location', () => ({
 }))
 
 const mockShowAlert = vi.fn()
+const mockShowSuccess = vi.fn()
 vi.mock('../../../../providers/alerts', () => ({
-  useAlerts: () => ({ showAlert: mockShowAlert }),
+  useAlerts: () => ({ showAlert: mockShowAlert, showSuccess: mockShowSuccess }),
 }))
 
 vi.mock('../../../../hooks/useApiErrorAlert', () => ({
@@ -343,9 +344,7 @@ describe('useGroupMappingEditForm', () => {
     await waitFor(() => {
       expect(mockMutate).toHaveBeenCalled()
     })
-    expect(mockShowAlert).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Group mapping saved', variant: 'success' })
-    )
+    expect(mockShowSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Group mapping saved' }))
     expect(mockNavigate).toHaveBeenCalledWith(
       `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}/group-mapping`
     )

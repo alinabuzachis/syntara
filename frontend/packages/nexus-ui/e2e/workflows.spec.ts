@@ -5,8 +5,7 @@ test('workflows page toolbar shows Import workflow before Create workflow', asyn
   await app.goto(toAppUrl('/workflows'))
   await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
-  // .first() avoids strict mode violations — empty state also renders a "Create workflow" button
-  const createButton = app.getByRole('button', { name: 'Create workflow' }).first()
+  const createButton = app.getByRole('button', { name: 'Create workflow' })
   const importButton = app.getByRole('button', { name: 'Import workflow' })
 
   await expect(createButton).toBeVisible()
@@ -47,10 +46,7 @@ test('user searches, views, and deletes a workflow', async ({ app }) => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
     const deleteRow = app.getByRole('row', { name: new RegExp(workflowName) })
     await expect(deleteRow).toBeVisible()
-    await deleteRow
-      .getByRole('button', { name: /Actions|Kebab toggle/i })
-      .first()
-      .click({ force: true })
+    await deleteRow.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
     await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
     await app.getByRole('checkbox', { name: /I understand this workflow/i }).check()
     await app.getByRole('button', { name: 'Delete' }).click()

@@ -160,7 +160,7 @@ export function useBuilderToolbarHandlers({
         onSuccess: () => {
           showSuccess({ title: 'Workflow deleted', description: `Successfully deleted workflow "${workflowName}"` })
           dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
-          setLocation('/workflow-builder/new')
+          setLocation('/workflows')
         },
         onError: (error) => {
           showError({

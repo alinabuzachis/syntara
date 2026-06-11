@@ -30,7 +30,7 @@ import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationEr
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage, getErrorStatus, isConflictError } from '../../../../utils/apiErrors'
 import { detachPromise } from '../../../../utils/detachPromise'
-import { trimTrailingSlashes } from '../../../../utils/urlUtils'
+import { useDocLink } from '../../../../utils/docs/useDocLink'
 
 import { autoSelectClaimMappings } from './claimMappingUtils'
 import { IdentityProviderFormFields } from './IdentityProviderFormFields'
@@ -92,7 +92,7 @@ function toCreatePayload(formData: IdentityProviderFormData) {
       provider_type: PROVIDER_TYPE_OIDC,
       idp_type: formData.idpType,
       auto_discovery: formData.autoDiscovery,
-      issuer_url: trimTrailingSlashes(formData.issuerUrl),
+      issuer_url: formData.issuerUrl,
       client_id: formData.clientId,
       client_secret: formData.clientSecret,
       redirect_uri: OIDC_REDIRECT_URI,
@@ -116,7 +116,7 @@ function toPatchPayload(formData: IdentityProviderFormData) {
       provider_type: PROVIDER_TYPE_OIDC,
       idp_type: formData.idpType,
       auto_discovery: formData.autoDiscovery,
-      issuer_url: trimTrailingSlashes(formData.issuerUrl),
+      issuer_url: formData.issuerUrl,
       client_id: formData.clientId,
       ...(formData.clientSecret ? { client_secret: formData.clientSecret } : {}),
       redirect_uri: OIDC_REDIRECT_URI,
@@ -278,6 +278,7 @@ function ProviderNotFound({ onBack, onRetry }: Readonly<{ onBack: () => void; on
  *   Kept separate from the form because it is display-only and should not be submitted.
  */
 export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProps>) {
+  const identityProvidersDocLink = useDocLink('identityProviders')
   const isEdit = mode === 'edit'
   const pageTitle = isEdit ? 'Edit OIDC provider' : 'Add OIDC provider'
   const submitLabel = isEdit ? 'Save provider' : 'Add provider'
@@ -293,7 +294,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
   const { mutate: createProvider, isPending: isCreating } = identityProvidersClient.useMutation(
     'post',
-    '/identity_providers/'
+    '/identity_providers'
   )
   const { mutate: patchProvider, isPending: isPatching } = identityProvidersClient.useMutation(
     'patch',
@@ -304,7 +305,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     '/identity_providers/test'
   )
 
-  const { showAlert } = useAlerts()
+  const { showAlert, showSuccess } = useAlerts()
   const [discoveredClaims, setDiscoveredClaims] = useState<{
     claimsSupported?: string[] | null
     claimAliases?: Record<string, string[]> | null
@@ -340,7 +341,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
 
     const successTitle = isEdit ? 'Identity provider updated' : 'Identity provider created'
     const onSuccess = () => {
-      showAlert({ title: successTitle, variant: 'success', autoDismiss: true })
+      showSuccess({ title: successTitle })
       navigateBack()
     }
 
@@ -429,6 +430,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
     <NxPage>
       <NxPageHeader
         title={pageTitle}
+        docLink={identityProvidersDocLink}
         breadcrumbs={idpFormCrumbs}
         toolbar={
           <>

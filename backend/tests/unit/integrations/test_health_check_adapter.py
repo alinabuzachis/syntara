@@ -1,0 +1,344 @@
+"""Tests for the integration health check adapter protocol, result types, and factory."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
+
+import pytest
+
+from nexus.integrations.adapters.factory import (
+    _clear_registry,
+    create_health_check_adapter,
+    register_health_check_adapter,
+)
+from nexus.integrations.adapters.protocol import (
+    DiscoveredLLMModel,
+    DiscoveredTool,
+    HealthCheckErrorType,
+    HealthCheckResult,
+    IntegrationHealthCheckAdapter,
+)
+from nexus.integrations.exceptions import AdapterNotRegisteredError
+from nexus.integrations.models.integration import IntegrationType
+from nexus.integrations.models.integration_configuration import (
+    LLMProviderConfiguration,
+    MCPServerConfiguration,
+)
+
+# ---------------------------------------------------------------------------
+# Stub adapter for testing — demonstrates the full pattern
+# ---------------------------------------------------------------------------
+
+
+class StubLLMAdapter:
+    """Stub adapter that implements the Protocol with LLM config."""
+
+    def __init__(self, config: LLMProviderConfiguration) -> None:
+        """Initialize with LLM provider configuration."""
+        self.config = config
+
+    async def health_check(
+        self,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> HealthCheckResult:
+        return HealthCheckResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=[
+                DiscoveredLLMModel(id="gpt-4", name="GPT-4"),
+            ],
+        )
+
+
+class StubMCPAdapter:
+    """Stub adapter that implements the Protocol with MCP config."""
+
+    def __init__(self, config: MCPServerConfiguration) -> None:
+        """Initialize with MCP server configuration."""
+        self.config = config
+
+    async def health_check(
+        self,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> HealthCheckResult:
+        return HealthCheckResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_tools=[DiscoveredTool(name="search", description="Search tool")],
+        )
+
+
+class StubFailingAdapter:
+    """Stub adapter that returns an error result."""
+
+    def __init__(self, config: LLMProviderConfiguration) -> None:
+        """Initialize with LLM provider configuration."""
+        self.config = config
+
+    async def health_check(
+        self,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> HealthCheckResult:
+        return HealthCheckResult(
+            success=False,
+            checked_at=datetime.now(UTC),
+            error="Invalid API key",
+            error_type=HealthCheckErrorType.AUTH_FAILURE,
+        )
+
+
+class NotAnAdapter:
+    """A class that does not implement the Protocol."""
+
+    async def some_other_method(self) -> None:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Protocol tests
+# ---------------------------------------------------------------------------
+
+
+class TestIntegrationHealthCheckAdapterProtocol:
+    """Tests for IntegrationHealthCheckAdapter protocol conformance."""
+
+    def test_conforming_class_is_instance(self) -> None:
+        adapter = StubLLMAdapter(LLMProviderConfiguration(base_url="https://api.openai.com"))
+        assert isinstance(adapter, IntegrationHealthCheckAdapter)
+
+    def test_non_conforming_class_is_not_instance(self) -> None:
+        obj = NotAnAdapter()
+        assert not isinstance(obj, IntegrationHealthCheckAdapter)
+
+    def test_stub_mcp_adapter_is_instance(self) -> None:
+        adapter = StubMCPAdapter(MCPServerConfiguration(base_url="http://localhost:8080"))
+        assert isinstance(adapter, IntegrationHealthCheckAdapter)
+
+
+# ---------------------------------------------------------------------------
+# Result type tests
+# ---------------------------------------------------------------------------
+
+
+class TestHealthCheckResult:
+    """Tests for HealthCheckResult construction."""
+
+    def test_success_result(self) -> None:
+        now = datetime.now(UTC)
+        result = HealthCheckResult(success=True, checked_at=now)
+        assert result.success is True
+        assert result.checked_at == now
+        assert result.error is None
+        assert result.error_type is None
+        assert result.discovered_models is None
+        assert result.discovered_tools is None
+
+    def test_error_result_with_classification(self) -> None:
+        result = HealthCheckResult(
+            success=False,
+            checked_at=datetime.now(UTC),
+            error="Connection refused",
+            error_type=HealthCheckErrorType.CONNECTION_ERROR,
+        )
+        assert result.success is False
+        assert result.error == "Connection refused"
+        assert result.error_type == HealthCheckErrorType.CONNECTION_ERROR
+
+    def test_result_with_discovered_models(self) -> None:
+        models = [
+            DiscoveredLLMModel(id="gpt-4", name="GPT-4"),
+            DiscoveredLLMModel(
+                id="gpt-4o",
+                name="GPT-4o",
+                description="Optimized GPT-4",
+                input_token_price_cents_per_million=250,
+                output_token_price_cents_per_million=1000,
+            ),
+        ]
+        result = HealthCheckResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=models,
+        )
+        assert result.discovered_models is not None
+        assert len(result.discovered_models) == 2
+        assert result.discovered_models[0].id == "gpt-4"
+        assert result.discovered_models[1].input_token_price_cents_per_million == 250
+
+    def test_result_with_discovered_tools(self) -> None:
+        result = HealthCheckResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_tools=[DiscoveredTool(name="search")],
+        )
+        assert result.discovered_tools is not None
+        assert len(result.discovered_tools) == 1
+        assert result.discovered_tools[0].name == "search"
+
+    def test_timeout_error(self) -> None:
+        result = HealthCheckResult(
+            success=False,
+            checked_at=datetime.now(UTC),
+            error="Health check timed out after 10s",
+            error_type=HealthCheckErrorType.TIMEOUT,
+        )
+        assert result.error_type == HealthCheckErrorType.TIMEOUT
+
+
+class TestHealthCheckErrorType:
+    """Tests for HealthCheckErrorType enum."""
+
+    def test_enum_values(self) -> None:
+        assert HealthCheckErrorType.AUTH_FAILURE.value == "auth_failure"
+        assert HealthCheckErrorType.CONNECTION_ERROR.value == "connection_error"
+        assert HealthCheckErrorType.SSL_ERROR.value == "ssl_error"
+        assert HealthCheckErrorType.TIMEOUT.value == "timeout"
+
+
+class TestDiscoveredLLMModel:
+    """Tests for DiscoveredLLMModel construction."""
+
+    def test_required_fields(self) -> None:
+        model = DiscoveredLLMModel(id="gpt-4", name="GPT-4")
+        assert model.id == "gpt-4"
+        assert model.name == "GPT-4"
+        assert model.description is None
+        assert model.input_token_price_cents_per_million is None
+        assert model.output_token_price_cents_per_million is None
+
+    def test_all_fields(self) -> None:
+        model = DiscoveredLLMModel(
+            id="claude-4",
+            name="Claude 4",
+            description="Anthropic Claude 4",
+            input_token_price_cents_per_million=300,
+            output_token_price_cents_per_million=1500,
+        )
+        assert model.description == "Anthropic Claude 4"
+        assert model.input_token_price_cents_per_million == 300
+        assert model.output_token_price_cents_per_million == 1500
+
+
+# ---------------------------------------------------------------------------
+# Factory tests
+# ---------------------------------------------------------------------------
+
+
+class TestAdapterFactory:
+    """Tests for adapter registry and factory dispatch."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self) -> None:
+        """Ensure a clean registry for each test."""
+        _clear_registry()
+
+    def test_register_and_create_adapter(self) -> None:
+        register_health_check_adapter(
+            IntegrationType.LLM_PROVIDER,
+            lambda c: StubLLMAdapter(c),
+        )
+
+        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
+
+        assert isinstance(adapter, StubLLMAdapter)
+        assert isinstance(adapter, IntegrationHealthCheckAdapter)
+        assert adapter.config == config
+
+    def ***REMOVED***(self) -> None:
+        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+
+        with pytest.raises(AdapterNotRegisteredError, match="No health check adapter registered"):
+            create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
+
+    def test_duplicate_registration_raises(self) -> None:
+        register_health_check_adapter(
+            IntegrationType.LLM_PROVIDER,
+            lambda c: StubLLMAdapter(c),
+        )
+
+        with pytest.raises(ValueError, match="already registered"):
+            register_health_check_adapter(
+                IntegrationType.LLM_PROVIDER,
+                lambda c: StubLLMAdapter(c),
+            )
+
+    def test_multiple_types_registered(self) -> None:
+        register_health_check_adapter(
+            IntegrationType.LLM_PROVIDER,
+            lambda c: StubLLMAdapter(c),
+        )
+        register_health_check_adapter(
+            IntegrationType.MCP_SERVER,
+            lambda c: StubMCPAdapter(c),
+        )
+
+        llm_config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        mcp_config = MCPServerConfiguration(base_url="http://localhost:8080")
+
+        llm_adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, llm_config)
+        mcp_adapter = create_health_check_adapter(IntegrationType.MCP_SERVER, mcp_config)
+
+        assert isinstance(llm_adapter, StubLLMAdapter)
+        assert isinstance(mcp_adapter, StubMCPAdapter)
+
+
+# ---------------------------------------------------------------------------
+# End-to-end pattern test
+# ---------------------------------------------------------------------------
+
+
+class TestFullHealthCheckPattern:
+    """Demonstrates the complete flow: factory → adapter → result."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self) -> None:
+        _clear_registry()
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self) -> None:
+        register_health_check_adapter(
+            IntegrationType.LLM_PROVIDER,
+            lambda c: StubLLMAdapter(c),
+        )
+
+        config = LLMProviderConfiguration(
+            base_url="https://api.openai.com",
+            provider_hint="openai",
+        )
+        adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
+
+        result = await adapter.health_check(
+            resolved_credential={"llm_api_key": "sk-test-key"},
+            timeout_seconds=10,
+        )
+
+        assert result.success is True
+        assert result.discovered_models is not None
+        assert len(result.discovered_models) == 1
+        assert result.discovered_models[0].id == "gpt-4"
+        assert result.error is None
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self) -> None:
+        register_health_check_adapter(
+            IntegrationType.LLM_PROVIDER,
+            lambda c: StubFailingAdapter(c),
+        )
+
+        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
+
+        result = await adapter.health_check(
+            resolved_credential={"llm_api_key": "bad-key"},
+            timeout_seconds=10,
+        )
+
+        assert result.success is False
+        assert result.error == "Invalid API key"
+        assert result.error_type == HealthCheckErrorType.AUTH_FAILURE
+        assert result.discovered_models is None

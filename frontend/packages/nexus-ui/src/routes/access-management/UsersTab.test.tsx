@@ -22,7 +22,7 @@ vi.mock('../../client', () => ({
     useMutation: vi.fn(),
   },
   authFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { providers: [] } }),
+    GET: vi.fn().mockResolvedValue({ data: { resources: [] } }),
   },
   authMiddleware: { onRequest: vi.fn() },
 }))
@@ -533,7 +533,7 @@ describe('UsersTab Component', () => {
     it('applies authentication source filter from UI to URL and API query', async () => {
       vi.mocked(authFetchClient.GET).mockResolvedValueOnce({
         data: {
-          providers: [
+          resources: [
             { id: '1', name: 'AAP', provider_type: 'oidc', provider_template: null },
             { id: '2', name: 'Azure AD', provider_type: 'oidc', provider_template: null },
           ],

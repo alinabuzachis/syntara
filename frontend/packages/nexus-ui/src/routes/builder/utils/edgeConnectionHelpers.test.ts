@@ -1,3 +1,4 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import type { ReactFlowInstance, Node as FlowNode } from '@xyflow/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -5,6 +6,7 @@ import { FlowNodeType } from '../../../constants'
 
 import type { EdgeConnectionParams } from './edgeConnectionHelpers'
 import { calculateEdgeConnection, applyEdgeConnection, resetPollingConnectionCounter } from './edgeConnectionHelpers'
+import { buildSwitchCasePort } from './switchCaseHelpers'
 
 describe('calculateEdgeConnection', () => {
   const mockReactFlowInstance = {
@@ -175,6 +177,32 @@ describe('calculateEdgeConnection', () => {
       expect(result.placeholderIdToRemove).toBe('placeholder-loop-1-done')
     })
 
+    it('uses handle-specific placeholder for switch case handles', () => {
+      const params: EdgeConnectionParams = {
+        sourceId: 'switch-1',
+        targetId: 'task-1',
+        sourceHandle: buildSwitchCasePort(0),
+        onAddNode: mockOnAddNode,
+      }
+
+      const result = calculateEdgeConnection(params, mockReactFlowInstance)
+
+      expect(result.placeholderIdToRemove).toBe(`placeholder-switch-1-${buildSwitchCasePort(0)}`)
+    })
+
+    it('uses handle-specific placeholder for switch default handle', () => {
+      const params: EdgeConnectionParams = {
+        sourceId: 'switch-1',
+        targetId: 'task-1',
+        sourceHandle: EdgeHandleEnum.DEFAULT,
+        onAddNode: mockOnAddNode,
+      }
+
+      const result = calculateEdgeConnection(params, mockReactFlowInstance)
+
+      expect(result.placeholderIdToRemove).toBe(`placeholder-switch-1-${EdgeHandleEnum.DEFAULT}`)
+    })
+
     it('uses simple placeholder for other handles', () => {
       const params: EdgeConnectionParams = {
         sourceId: 'task-1',
@@ -226,6 +254,28 @@ describe('calculateEdgeConnection', () => {
         sourceId: 'loop-1',
         targetId: 'task-1',
         sourceHandle: 'done',
+        onAddNode: mockOnAddNode,
+      }
+
+      const result = calculateEdgeConnection(params, mockInstanceWithPlaceholders)
+
+      expect(result.shouldRemoveButtonEdgeClass).toBe(false)
+    })
+
+    it('keeps button edge class when switch node has other placeholders', () => {
+      const mockInstanceWithPlaceholders = {
+        getNodes: vi.fn(() => [
+          { id: 'switch-1', type: FlowNodeType.SWITCH },
+          { id: `placeholder-switch-1-${EdgeHandleEnum.DEFAULT}` },
+        ]),
+        setEdges: vi.fn(),
+        setNodes: vi.fn(),
+      } as unknown as ReactFlowInstance
+
+      const params: EdgeConnectionParams = {
+        sourceId: 'switch-1',
+        targetId: 'task-1',
+        sourceHandle: buildSwitchCasePort(0),
         onAddNode: mockOnAddNode,
       }
 

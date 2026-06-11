@@ -104,27 +104,6 @@ def sync_detailed(
 
      Test a single node in a workflow with mocked predecessor outputs.
 
-    Creates a test execution that:
-    1. Uses mocked outputs for all nodes in pre_resolved_nodes
-    2. Executes the target_node_id for real with actual logic
-    3. Stops after the target node completes
-    4. Returns results in the execution response
-
-    This enables testing individual nodes in isolation without running the entire workflow.
-
-    Args:
-        workflow_id: Workflow ID to test
-        request: Test execution request with target node and mocked outputs
-        execution_service: Execution service (injected by FastAPI)
-
-    Returns:
-        Created test execution with mode=TEST and status=PENDING
-
-    Raises:
-        HTTPException: 404 if workflow not found
-        HTTPException: 400 if target_node_id not found in workflow
-        HTTPException: 503 if Temporal unavailable
-
     Args:
         workflow_id (UUID):
         body (TestExecutionCreate): Request body for POST /workflows/{workflow_id}/test.
@@ -159,27 +138,6 @@ def sync(
 
      Test a single node in a workflow with mocked predecessor outputs.
 
-    Creates a test execution that:
-    1. Uses mocked outputs for all nodes in pre_resolved_nodes
-    2. Executes the target_node_id for real with actual logic
-    3. Stops after the target node completes
-    4. Returns results in the execution response
-
-    This enables testing individual nodes in isolation without running the entire workflow.
-
-    Args:
-        workflow_id: Workflow ID to test
-        request: Test execution request with target node and mocked outputs
-        execution_service: Execution service (injected by FastAPI)
-
-    Returns:
-        Created test execution with mode=TEST and status=PENDING
-
-    Raises:
-        HTTPException: 404 if workflow not found
-        HTTPException: 400 if target_node_id not found in workflow
-        HTTPException: 503 if Temporal unavailable
-
     Args:
         workflow_id (UUID):
         body (TestExecutionCreate): Request body for POST /workflows/{workflow_id}/test.
@@ -208,27 +166,6 @@ async def asyncio_detailed(
     """Test a single node in a workflow
 
      Test a single node in a workflow with mocked predecessor outputs.
-
-    Creates a test execution that:
-    1. Uses mocked outputs for all nodes in pre_resolved_nodes
-    2. Executes the target_node_id for real with actual logic
-    3. Stops after the target node completes
-    4. Returns results in the execution response
-
-    This enables testing individual nodes in isolation without running the entire workflow.
-
-    Args:
-        workflow_id: Workflow ID to test
-        request: Test execution request with target node and mocked outputs
-        execution_service: Execution service (injected by FastAPI)
-
-    Returns:
-        Created test execution with mode=TEST and status=PENDING
-
-    Raises:
-        HTTPException: 404 if workflow not found
-        HTTPException: 400 if target_node_id not found in workflow
-        HTTPException: 503 if Temporal unavailable
 
     Args:
         workflow_id (UUID):
@@ -261,27 +198,6 @@ async def asyncio(
     """Test a single node in a workflow
 
      Test a single node in a workflow with mocked predecessor outputs.
-
-    Creates a test execution that:
-    1. Uses mocked outputs for all nodes in pre_resolved_nodes
-    2. Executes the target_node_id for real with actual logic
-    3. Stops after the target node completes
-    4. Returns results in the execution response
-
-    This enables testing individual nodes in isolation without running the entire workflow.
-
-    Args:
-        workflow_id: Workflow ID to test
-        request: Test execution request with target node and mocked outputs
-        execution_service: Execution service (injected by FastAPI)
-
-    Returns:
-        Created test execution with mode=TEST and status=PENDING
-
-    Raises:
-        HTTPException: 404 if workflow not found
-        HTTPException: 400 if target_node_id not found in workflow
-        HTTPException: 503 if Temporal unavailable
 
     Args:
         workflow_id (UUID):

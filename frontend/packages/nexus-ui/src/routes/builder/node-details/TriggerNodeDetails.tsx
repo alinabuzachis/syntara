@@ -1,4 +1,4 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
 import { useMemo, type ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
@@ -133,7 +133,12 @@ function buildScheduledTrigger(data: TriggerFormData, triggerId: string, name: s
   }
 }
 
-function buildWebhookTrigger(data: TriggerFormData, triggerId: string, name: string): Trigger {
+function buildWebhookStyleTrigger(
+  data: TriggerFormData,
+  triggerId: string,
+  name: string,
+  type: typeof TriggerTypeEnum.WEBHOOK_TRIGGER | typeof TriggerTypeEnum.EDA_TRIGGER
+): Trigger {
   const webhookPath = normalizeWebhookPath(data.webhookPath ?? '')
   if (!webhookPath || !isValidWebhookPath(webhookPath)) {
     throw new Error('Webhook path is required and must be a valid slug')
@@ -144,8 +149,8 @@ function buildWebhookTrigger(data: TriggerFormData, triggerId: string, name: str
   }
   return {
     id: triggerId,
-    type: TriggerTypeEnum.WEBHOOK_TRIGGER,
-    name: name ?? 'Webhook Trigger',
+    type,
+    name,
     config: {
       webhook_path: webhookPath,
       ...(inputSchema && { input_schema: inputSchema }),
@@ -169,7 +174,20 @@ function buildUpdatedTrigger(data: TriggerFormData, trigger: Trigger, name: stri
     return buildScheduledTrigger(data, trigger.id ?? 'scheduled_trigger', name ?? 'Scheduled Trigger')
   }
   if (data.triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER) {
-    return buildWebhookTrigger(data, trigger.id ?? 'webhook_trigger', name ?? 'Webhook Trigger')
+    return buildWebhookStyleTrigger(
+      data,
+      trigger.id ?? 'webhook_trigger',
+      name ?? 'Webhook Trigger',
+      TriggerTypeEnum.WEBHOOK_TRIGGER
+    )
+  }
+  if (data.triggerType === TriggerTypeEnum.EDA_TRIGGER) {
+    return buildWebhookStyleTrigger(
+      data,
+      trigger.id ?? 'eda_trigger',
+      name ?? 'EDA Trigger',
+      TriggerTypeEnum.EDA_TRIGGER
+    )
   }
   throw new Error('Invalid trigger type')
 }
@@ -216,10 +234,10 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
       }
     }
 
-    if (trigger.type === TriggerTypeEnum.WEBHOOK_TRIGGER) {
+    if (WEBHOOK_TRIGGER_TYPES.has(trigger.type)) {
       return {
         name: trigger.name,
-        triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
+        triggerType: trigger.type,
         webhookPath: (trigger.config?.webhook_path as string) ?? '',
         inputSchema: serializeInputSchema(trigger.config?.input_schema),
       }

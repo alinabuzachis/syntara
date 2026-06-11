@@ -49,14 +49,17 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
   test('disconnect integration modal matches UX spec', async ({ app }) => {
     const integrationName = buildUniqueName('e2e-disconnect-modal')
     await app.goto(toAppUrl('/configuration/integrations'))
+    await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
 
     try {
-      // Create an integration to delete
-      await app.getByRole('button', { name: 'Configure integration' }).first().click()
+      // Navigate directly: the integrations list always renders a toolbar button AND
+      // an empty-state button when no integrations exist, so clicking by name would
+      // hit two elements and fail Playwright strict mode.
+      await app.goto(toAppUrl('/configuration/integrations/configure'))
       await app.getByLabel('Server name / ID').fill(integrationName)
       await app.getByLabel('API URL').fill('https://api.example.com')
       await app.getByLabel('API key').fill('test-key')
-      await app.getByRole('button', { name: 'Configure integration' }).first().click()
+      await app.getByRole('button', { name: 'Configure integration' }).click()
       await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
 
       // Filter to find it
@@ -66,10 +69,7 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
       await expect(row).toBeVisible({ timeout: 30000 })
 
       // Open the kebab menu and click disconnect
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
       await app.getByRole('menuitem', { name: /Disconnect/i }).click()
 
       // Verify the modal matches the UX spec
@@ -111,17 +111,22 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
     } finally {
       // Cleanup - disconnect the integration if it exists
       await app.goto(toAppUrl('/configuration/integrations'))
-      await app.getByPlaceholder('Filter by name').fill(integrationName)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
-      const row = app.getByRole('row', { name: new RegExp(integrationName) })
-      if ((await row.count()) > 0) {
-        await row
-          .getByRole('button', { name: /Actions|Kebab toggle/i })
-          .first()
-          .click({ force: true })
-        await app.getByRole('menuitem', { name: /Disconnect/i }).click()
-        await app.getByRole('dialog').getByRole('checkbox').click()
-        await app.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click()
+      await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+      const filterInput = app.getByPlaceholder('Filter by name')
+      const hasFilterBar = await filterInput
+        .waitFor({ state: 'visible', timeout: 10000 })
+        .then(() => true)
+        .catch(() => false)
+      if (hasFilterBar) {
+        await filterInput.fill(integrationName)
+        await app.getByRole('button', { name: 'Apply filter' }).click()
+        const row = app.getByRole('row', { name: new RegExp(integrationName) })
+        if ((await row.count()) > 0) {
+          await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
+          await app.getByRole('menuitem', { name: /Disconnect/i }).click()
+          await app.getByRole('dialog').getByRole('checkbox').click()
+          await app.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click()
+        }
       }
     }
   })
@@ -140,10 +145,7 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
       await expect(row).toBeVisible({ timeout: 15000 })
 
       // Open kebab menu and click Delete
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
       await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
 
       const modal = app.getByRole('dialog')
@@ -186,7 +188,8 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
     test.skip(!hasTable, 'No user data available; seed data required')
 
     // Navigate to first user's role assignments
-    const firstUserLink = table.getByRole('link').first()
+    const firstRow = table.getByRole('row').nth(1) // Skip header row
+    const firstUserLink = firstRow.getByRole('link')
     await expect(firstUserLink).toBeVisible()
     await firstUserLink.click()
 
@@ -200,8 +203,9 @@ test.describe('destructive modal UX compliance (AAP-72897)', () => {
 
     await roleAssignmentsTab.click()
 
-    // Find an unassign button
-    const unassignButton = app.getByRole('button', { name: /Unassign/i }).first()
+    // Find an unassign button in the assignments table
+    const assignmentsTable = app.getByRole('grid')
+    const unassignButton = assignmentsTable.getByRole('button', { name: /Unassign/i })
     const hasUnassign = await unassignButton
       .waitFor({ state: 'visible', timeout: 5000 })
       .then(() => true)

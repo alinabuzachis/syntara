@@ -68,8 +68,8 @@ test.describe('Builder save validation — project required', () => {
       // Act: select a project
       const projectInput = app.getByRole('textbox', { name: 'Project' })
       await projectInput.click()
-      await expect(app.getByRole('option').first()).toBeVisible({ timeout: 10_000 })
-      await app.getByRole('option').first().click()
+      await expect(app.getByRole('option').nth(0)).toBeVisible({ timeout: 10_000 })
+      await app.getByRole('option').nth(0).click()
 
       // Assert: danger state is cleared
       await expect(app.locator('[aria-invalid="true"]')).not.toBeVisible()
@@ -85,10 +85,7 @@ test.describe('Builder save validation — project required', () => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
       const row = app.getByRole('row', { name: new RegExp(workflowName) })
       if ((await row.count()) > 0) {
-        await row
-          .getByRole('button', { name: /Actions|Kebab toggle/i })
-          .first()
-          .click({ force: true })
+        await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
         await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
         await app.getByRole('checkbox', { name: /I understand this workflow/i }).check()
         await app.getByRole('button', { name: 'Delete' }).click()
@@ -140,10 +137,7 @@ test.describe('Builder save validation — project required', () => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
       const row = app.getByRole('row', { name: new RegExp(workflowName) })
       if ((await row.count()) > 0) {
-        await row
-          .getByRole('button', { name: /Actions|Kebab toggle/i })
-          .first()
-          .click({ force: true })
+        await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
         await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
         await app.getByRole('checkbox', { name: /I understand this workflow/i }).check()
         await app.getByRole('button', { name: 'Delete' }).click()

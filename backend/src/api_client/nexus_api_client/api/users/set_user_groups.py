@@ -7,7 +7,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.resources_response_user_group_read import ResourcesResponseUserGroupRead
+from ...models.user_group_list_response import UserGroupListResponse
 from ...models.user_groups_set import UserGroupsSet
 from ...types import Response
 
@@ -34,9 +34,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | ResourcesResponseUserGroupRead | None:
+) -> ErrorData | UserGroupListResponse | None:
     if response.status_code == 200:
-        response_200 = ResourcesResponseUserGroupRead.from_dict(response.json())
+        response_200 = UserGroupListResponse.from_dict(response.json())
 
         return response_200
 
@@ -83,7 +83,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | ResourcesResponseUserGroupRead]:
+) -> Response[ErrorData | UserGroupListResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -99,7 +99,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: UserGroupsSet,
-) -> Response[ErrorData | ResourcesResponseUserGroupRead]:
+) -> Response[ErrorData | UserGroupListResponse]:
     """Set User Groups
 
      Set a user's group memberships declaratively.
@@ -120,7 +120,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ResourcesResponseUserGroupRead]
+        Response[ErrorData | UserGroupListResponse]
     """
 
     kwargs = _get_kwargs(
@@ -140,7 +140,7 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: UserGroupsSet,
-) -> ErrorData | ResourcesResponseUserGroupRead | None:
+) -> ErrorData | UserGroupListResponse | None:
     """Set User Groups
 
      Set a user's group memberships declaratively.
@@ -161,7 +161,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ResourcesResponseUserGroupRead
+        ErrorData | UserGroupListResponse
     """
 
     return sync_detailed(
@@ -176,7 +176,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: UserGroupsSet,
-) -> Response[ErrorData | ResourcesResponseUserGroupRead]:
+) -> Response[ErrorData | UserGroupListResponse]:
     """Set User Groups
 
      Set a user's group memberships declaratively.
@@ -197,7 +197,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ResourcesResponseUserGroupRead]
+        Response[ErrorData | UserGroupListResponse]
     """
 
     kwargs = _get_kwargs(
@@ -215,7 +215,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: UserGroupsSet,
-) -> ErrorData | ResourcesResponseUserGroupRead | None:
+) -> ErrorData | UserGroupListResponse | None:
     """Set User Groups
 
      Set a user's group memberships declaratively.
@@ -236,7 +236,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ResourcesResponseUserGroupRead
+        ErrorData | UserGroupListResponse
     """
 
     return (

@@ -32,6 +32,7 @@ vi.mock('./nodeMetadata', () => ({
     condition: { icon: () => null },
     loop: { icon: () => null },
     converge: { icon: () => null },
+    switch: { icon: () => null },
     wait: { icon: () => null },
   },
   executorMetadata: {
@@ -100,6 +101,14 @@ describe('nodeIconResolver', () => {
   })
 
   describe('getCanvasNodeIconDescriptor', () => {
+    it('returns switch icon for switch node', () => {
+      const result = getCanvasNodeIconDescriptor(
+        { id: 'switch-1', type: 'switch', data: { id: 'switch-1', type: 'switch' } },
+        null
+      )
+      expect(result.id).toBe(RegistryNodeId.LOGIC_SWITCH)
+    })
+
     it('returns wait icon for wait node', () => {
       const result = getCanvasNodeIconDescriptor(
         { id: 'wait-1', type: 'wait', data: { id: 'wait-1', type: 'wait' } },

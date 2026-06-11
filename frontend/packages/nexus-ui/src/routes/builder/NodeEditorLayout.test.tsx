@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { NodeEditorLayout } from './NodeEditorLayout'
+import type { AdjacentNodes } from './panels/hooks/useAdjacentNodes'
 
 vi.mock('./panels/InputPanel', () => ({
   InputPanel: ({
@@ -36,6 +37,29 @@ vi.mock('./panels/hooks/useNodeExecutionData', () => ({
     mockUseNodeExecutionData(...args) as { inputData: null; outputData: null; isLoading: boolean },
 }))
 
+const mockUseAdjacentNodes = vi.fn<(nodeId?: string) => AdjacentNodes>()
+
+vi.mock('./panels/hooks/useAdjacentNodes', () => ({
+  useAdjacentNodes: (nodeId?: string) => mockUseAdjacentNodes(nodeId),
+}))
+
+vi.mock('./panels/NodePanelNavigationArrow', () => ({
+  NodePanelNavigationArrow: ({
+    direction,
+    nodes,
+    onNavigate,
+  }: {
+    direction: string
+    nodes: { id: string; name?: string }[]
+    onNavigate: (id: string) => void
+  }) =>
+    nodes.length > 0 ? (
+      <button type="button" data-testid={`nav-arrow-${direction}`} onClick={() => onNavigate(nodes[0]?.id ?? '')}>
+        {direction}
+      </button>
+    ) : null,
+}))
+
 vi.mock('../../providers/alerts', () => ({
   useAlerts: vi.fn(() => ({ showInfo: vi.fn() })),
 }))
@@ -48,6 +72,7 @@ describe('NodeEditorLayout', () => {
       outputData: null,
       isLoading: false,
     })
+    mockUseAdjacentNodes.mockReturnValue({ upstream: [], downstream: [] })
   })
 
   it('renders InputPanel in left column when showInputPanel is true and nodeId is provided', () => {
@@ -346,5 +371,70 @@ describe('NodeEditorLayout', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  it('does not render navigation arrows when showNavigation is false', () => {
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={true}
+        nodeId="node-1"
+        showNavigation={false}
+        onNavigateToNode={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByTestId('nav-arrow-previous')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('nav-arrow-next')).not.toBeInTheDocument()
+  })
+
+  it('renders navigation arrows when showNavigation is true and neighbors exist', async () => {
+    const user = userEvent.setup()
+    const onNavigateToNode = vi.fn()
+    mockUseAdjacentNodes.mockReturnValue({
+      upstream: [{ id: 'prev-node', name: 'Previous', type: 'action' }],
+      downstream: [{ id: 'next-node', name: 'Next', type: 'action' }],
+    })
+
+    render(
+      <NodeEditorLayout
+        parametersContent={<div>Parameters</div>}
+        showInputPanel={true}
+        nodeId="node-1"
+        showNavigation={true}
+        onNavigateToNode={onNavigateToNode}
+      />
+    )
+
+    expect(screen.getByTestId('nav-arrow-previous')).toBeInTheDocument()
+    expect(screen.getByTestId('nav-arrow-next')).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('nav-arrow-previous'))
+    expect(onNavigateToNode).toHaveBeenCalledWith('prev-node')
+  })
+
+  describe('DocumentationButton', () => {
+    it('renders an enabled external link when docLink is provided', () => {
+      render(
+        <NodeEditorLayout
+          parametersContent={<div>Parameters</div>}
+          showInputPanel={false}
+          docLink="https://docs.ansible.com/workflows"
+        />
+      )
+
+      const link = screen.getByRole('link', { name: /Documentation/i })
+      expect(link).toHaveAttribute('href', 'https://docs.ansible.com/workflows')
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(link).not.toBeDisabled()
+    })
+
+    it('renders a disabled button with tooltip when docLink is not provided', () => {
+      render(<NodeEditorLayout parametersContent={<div>Parameters</div>} showInputPanel={false} />)
+
+      const button = screen.getByRole('button', { name: /Documentation/i })
+      expect(button).toBeDisabled()
+    })
   })
 })

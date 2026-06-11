@@ -59,7 +59,7 @@ class RotationProgress:
 def _create_encryptors(old_key_hex: str, new_key_hex: str) -> tuple[SecretEncryptor, SecretEncryptor] | None:
     """Validate keys and create encryptor pair. Returns None on validation failure."""
     try:
-        old_key = key_from_string(old_key_hex)
+        old_key = key_from_string(old_key_hex, allow_insecure=True)
         new_key = key_from_string(new_key_hex)
     except ValueError:
         logger.error("Invalid key format — keys must be 64-character hex strings")  # noqa: TRY400 — avoid key material in traceback

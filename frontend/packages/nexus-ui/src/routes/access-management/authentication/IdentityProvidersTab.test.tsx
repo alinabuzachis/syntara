@@ -829,7 +829,7 @@ describe('IdentityProvidersTab', () => {
       setupProviders()
       render(<IdentityProvidersTab />, { wrapper })
 
-      expect(identityProvidersClient.useQuery).toHaveBeenCalledWith('get', '/identity_providers/', expect.any(Object))
+      expect(identityProvidersClient.useQuery).toHaveBeenCalledWith('get', '/identity_providers', expect.any(Object))
     })
 
     it('sets up delete mutation with full path', () => {

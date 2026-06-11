@@ -6,7 +6,7 @@ the Nexus Workflow Engine v2 schema.
 
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from sqlmodel import SQLModel
 
 
@@ -41,6 +41,14 @@ class WorkflowDefinition(SQLModel):
         max_length=1000,
         description="Human-readable description of the workflow's purpose",
     )
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def _empty_description_to_none(cls, v: str | None) -> str | None:
+        if v == "":
+            return None
+        return v
+
     triggers: list[dict[str, Any]] = Field(
         ...,
         min_length=1,

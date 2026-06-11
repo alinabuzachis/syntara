@@ -39,6 +39,7 @@ export function getNodeTypeColor(nodeType: string, data?: { type?: string }): st
     nodeType === ActivityTypeEnum.CONDITION ||
     nodeType === ActivityTypeEnum.LOOP ||
     nodeType === ActivityTypeEnum.CONVERGE ||
+    nodeType === ActivityTypeEnum.SWITCH ||
     nodeType === ActivityTypeEnum.WAIT
   ) {
     return NODE_TYPE_COLORS.logic
@@ -80,6 +81,8 @@ const ADD_PANEL_TRIGGER_IDS: ReadonlySet<string> = new Set([
   RegistryNodeId.TRIGGER,
   RegistryNodeId.TRIGGER_MANUAL,
   RegistryNodeId.TRIGGER_SCHEDULED,
+  RegistryNodeId.TRIGGER_WEBHOOK,
+  RegistryNodeId.TRIGGER_EDA,
 ])
 
 const ADD_PANEL_LOGIC_IDS: ReadonlySet<string> = new Set([
@@ -87,6 +90,7 @@ const ADD_PANEL_LOGIC_IDS: ReadonlySet<string> = new Set([
   RegistryNodeId.LOGIC_CONDITION,
   RegistryNodeId.LOGIC_CONVERGE,
   RegistryNodeId.LOGIC_LOOP,
+  RegistryNodeId.LOGIC_SWITCH,
   RegistryNodeId.LOGIC_WAIT,
 ])
 

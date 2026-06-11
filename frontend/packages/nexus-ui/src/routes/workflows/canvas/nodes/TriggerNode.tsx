@@ -32,6 +32,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   const triggerType = props.data.triggerType
   const isScheduled = triggerType === TriggerTypeEnum.SCHEDULED
   const isWebhook = triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER
+  const isEda = triggerType === TriggerTypeEnum.EDA_TRIGGER
 
   let metadata = nodeMetadata.trigger
   let iconId = 'trigger-manual'
@@ -41,6 +42,9 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   } else if (isWebhook) {
     metadata = nodeMetadata.webhookTrigger
     iconId = 'trigger-webhook'
+  } else if (isEda) {
+    metadata = nodeMetadata.edaTrigger
+    iconId = 'trigger-eda'
   }
   const iconNode = renderNodeIcon(metadata.icon, iconId)
   // 75px border-radius is a layout constraint (pill shape), not a spacing value — no semantic token applies
@@ -78,6 +82,8 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
     triggerTypeLabel = 'Scheduled trigger'
   } else if (isWebhook) {
     triggerTypeLabel = 'Webhook trigger'
+  } else if (isEda) {
+    triggerTypeLabel = 'Event-Driven Ansible trigger'
   }
 
   return (
@@ -127,6 +133,7 @@ function TriggerNodeDetails(
   const isManualTrigger = props.triggerKind === TriggerTypeEnum.MANUAL_TRIGGER
   const isScheduledTrigger = props.triggerKind === TriggerTypeEnum.SCHEDULED
   const isWebhookTrigger = props.triggerKind === TriggerTypeEnum.WEBHOOK_TRIGGER
+  const isEdaTrigger = props.triggerKind === TriggerTypeEnum.EDA_TRIGGER
   const normalizedDetails = props.triggerDetails ?? null
   return (
     <>
@@ -153,6 +160,9 @@ function TriggerNodeDetails(
           )}
           {isWebhookTrigger && !normalizedDetails && (
             <Content component={ContentVariants.small}>Webhook trigger</Content>
+          )}
+          {isEdaTrigger && !normalizedDetails && (
+            <Content component={ContentVariants.small}>Event-Driven Ansible trigger</Content>
           )}
           {normalizedDetails && (
             <Content component={ContentVariants.small} style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>

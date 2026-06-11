@@ -246,7 +246,7 @@ export function IdentityProvidersTab() {
 
   const finalQueryParams = useMemo(() => ({ ...queryParams, sort: sortParam }), [queryParams, sortParam])
 
-  const query = identityProvidersClient.useQuery('get', '/identity_providers/', {
+  const query = identityProvidersClient.useQuery('get', '/identity_providers', {
     params: { query: finalQueryParams },
   })
 

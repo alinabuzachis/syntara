@@ -16,8 +16,7 @@ function generateTestSSHKey(): string {
 
 async function openCreateModal(app: Page) {
   await goToCredentialsList(app, { ensureCreateEnabled: true })
-  // Use .first() because on an empty list the button appears in both the toolbar and the empty state
-  await app.getByRole('button', { name: 'Create credential' }).first().click()
+  await app.getByRole('button', { name: 'Create credential' }).click()
   const modal = app.getByRole('dialog')
   await expect(modal).toBeVisible()
   return modal

@@ -53,10 +53,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
     const row = app.getByRole('row', { name: new RegExp(workflowName) })
     if ((await row.count()) > 0) {
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
       await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
       await app.getByRole('checkbox', { name: /I understand this workflow/i }).check()
       await app.getByRole('button', { name: 'Delete' }).click()
@@ -92,10 +89,7 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
       const row = app.getByRole('row', { name: new RegExp(name) })
       if ((await row.count()) > 0) {
-        await row
-          .getByRole('button', { name: /Actions|Kebab toggle/i })
-          .first()
-          .click({ force: true })
+        await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
         await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
         await app.getByRole('checkbox', { name: /I understand this workflow/i }).check()
         await app.getByRole('button', { name: 'Delete' }).click()

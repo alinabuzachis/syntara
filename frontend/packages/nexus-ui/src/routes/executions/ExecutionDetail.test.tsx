@@ -633,7 +633,7 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
     })
 
     it('shows cancel button when execution is pending', () => {
@@ -651,7 +651,7 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
     })
 
     it('does not show cancel button when execution is completed', () => {
@@ -669,7 +669,7 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
     })
 
     it('does not show cancel button when execution is failed', () => {
@@ -687,7 +687,7 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
     })
 
     it('does not show cancel button when execution is cancelled', () => {
@@ -705,7 +705,7 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      expect(screen.queryByRole('button', { name: 'Cancel execution' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument()
     })
   })
 

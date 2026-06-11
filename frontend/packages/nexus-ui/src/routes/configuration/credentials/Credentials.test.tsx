@@ -396,7 +396,7 @@ describe('Credentials', () => {
 
   it('shows affected workflows in disable dialog', async () => {
     vi.mocked(credentialsClient.useQuery).mockImplementation(
-      mockQuery(mockCredentials, { data: [{ id: 'wf-1', name: 'My Workflow' }] })
+      mockQuery(mockCredentials, { data: { resources: [{ id: 'wf-1', name: 'My Workflow' }] } })
     )
 
     const user = userEvent.setup()

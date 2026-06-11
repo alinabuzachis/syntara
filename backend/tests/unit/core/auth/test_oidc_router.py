@@ -241,12 +241,12 @@ class TestListAuthProviders:
 
         result = await list_auth_providers(db)
 
-        assert len(result.providers) == 2
-        assert result.providers[0].id == str(provider1.id)
-        assert result.providers[0].name == "Provider 1"
-        assert result.providers[0].provider_type == "oidc"
-        assert result.providers[1].id == str(provider2.id)
-        assert result.providers[1].name == "Provider 2"
+        assert len(result.resources) == 2
+        assert result.resources[0].id == str(provider1.id)
+        assert result.resources[0].name == "Provider 1"
+        assert result.resources[0].provider_type == "oidc"
+        assert result.resources[1].id == str(provider2.id)
+        assert result.resources[1].name == "Provider 2"
 
     @pytest.mark.asyncio
     async def test_returns_empty_list_when_no_enabled_providers(self) -> None:
@@ -258,7 +258,7 @@ class TestListAuthProviders:
 
         result = await list_auth_providers(db)
 
-        assert result.providers == []
+        assert result.resources == []
 
     @pytest.mark.asyncio
     async def test_filters_out_deleted_providers(self) -> None:
@@ -273,8 +273,8 @@ class TestListAuthProviders:
 
         result = await list_auth_providers(db)
 
-        assert len(result.providers) == 1
-        assert result.providers[0].name == "Active Provider"
+        assert len(result.resources) == 1
+        assert result.resources[0].name == "Active Provider"
 
 
 # =============================================================================

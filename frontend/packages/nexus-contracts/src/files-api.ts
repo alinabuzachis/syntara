@@ -325,7 +325,7 @@ export interface operations {
     }
     responses: {
       /** @description Files uploaded successfully */
-      200: {
+      201: {
         headers: {
           [name: string]: unknown
         }

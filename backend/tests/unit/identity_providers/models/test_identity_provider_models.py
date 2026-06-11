@@ -30,7 +30,7 @@ def test_oidc_configuration_with_auto_discovery_enabled() -> None:
         auto_discovery=True,
     )
 
-    assert str(oidc_configuration.issuer_url) == "https://idp.example.com"
+    assert str(oidc_configuration.issuer_url) == "https://idp.example.com/"
     assert oidc_configuration.client_id == "client-id"
     assert oidc_configuration.client_secret == "client-secret"  # noqa: S105
     assert str(oidc_configuration.redirect_uri) == "https://app.example.com/callback"
@@ -86,10 +86,10 @@ def test_oidc_configuration_invalid_issuer_url() -> None:
         _make_oidc_config(issuer_url="not-a-url")
 
 
-def test_oidc_configuration_issuer_url_normalized() -> None:
-    """Test that issuer URL is normalized by Pydantic (root URL gets trailing slash)."""
+def test_oidc_configuration_issuer_url_preserves_trailing_slash() -> None:
+    """Test that issuer URL trailing slash is preserved (significant for OIDC)."""
     config = _make_oidc_config(issuer_url="https://idp.example.com/")
-    assert str(config.issuer_url) == "https://idp.example.com"
+    assert str(config.issuer_url) == "https://idp.example.com/"
 
 
 def test_oidc_configuration_invalid_idp_type() -> None:

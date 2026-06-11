@@ -14,6 +14,10 @@ info:
     Authentication to the AAP Controller is resolved server-side from
     environment variables (`APP_AAP_BASE_URL`, `APP_AAP_TOKEN`).
 
+    Note: This API intentionally diverges from standard Nexus response conventions.
+    As a BFF proxy, it mirrors the upstream AAP API shape (count/results, page_size)
+    rather than the standard ResourcesResponseBase format.
+
 servers:
   - url: /api/v1
     description: API v1

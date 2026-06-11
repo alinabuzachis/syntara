@@ -13,7 +13,7 @@
  * the bootstrap.
  */
 import { test, expect, toAppUrl } from './fixtures'
-import { AAP_AUTH_PROVIDER, KEYCLOAK_OIDC_IDP } from './fixtures/mock-oidc-idps'
+import { AAP_AUTH_PROVIDER, KEYCLOAK_AUTH_PROVIDER, KEYCLOAK_OIDC_IDP } from './fixtures/mock-oidc-idps'
 import { goToLoginPage } from './helpers/login'
 
 test.describe('IdP configuration — keycloak external OIDC', () => {
@@ -174,7 +174,7 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
 
 test.describe('IdP login form verification - list OIDC providers', () => {
   test('Login page - OIDC providers listed', async ({ page }) => {
-    await goToLoginPage(page, { providers: [AAP_AUTH_PROVIDER, KEYCLOAK_OIDC_IDP] })
+    await goToLoginPage(page, { providers: [AAP_AUTH_PROVIDER, KEYCLOAK_AUTH_PROVIDER] })
 
     await expect(page.getByRole('button', { name: /Log in with AAP/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Log in with Keycloak/i })).toBeVisible()

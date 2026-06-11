@@ -87,10 +87,8 @@ export function getDefaultNodeBaseName({
 
   if (nodeTypeId === RegistryNodeId.LOGIC) {
     const logicType = initialData?.logicType as string | undefined
-    if (logicType === 'condition') return 'Condition'
-    if (logicType === 'loop') return 'Loop'
-    if (logicType === 'wait') return 'Wait'
-    return 'Converge'
+    const logicLabels: Record<string, string> = { condition: 'Condition', loop: 'Loop', switch: 'Switch', wait: 'Wait' }
+    return (logicType && logicLabels[logicType]) ?? 'Converge'
   }
 
   if (nodeTypeId === RegistryNodeId.ACTION) {

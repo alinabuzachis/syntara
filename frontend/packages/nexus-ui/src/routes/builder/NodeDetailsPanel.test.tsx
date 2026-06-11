@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Node } from '@xyflow/react'
+import { useEffect } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useNodeMenuActions } from '../workflows/canvas/nodes/hooks/useNodeMenuActions'
@@ -49,9 +50,10 @@ vi.mock('../../providers/alerts', () => ({
   })),
 }))
 
-const { mockNodeRegistryGetAll, mockNodeRegistryGet } = vi.hoisted(() => ({
+const { mockNodeRegistryGetAll, mockNodeRegistryGet, taskDetailsMountCount } = vi.hoisted(() => ({
   mockNodeRegistryGetAll: vi.fn(),
   mockNodeRegistryGet: vi.fn(),
+  taskDetailsMountCount: { current: 0 },
 }))
 
 vi.mock('./registry/NodeRegistry', () => ({
@@ -62,7 +64,12 @@ vi.mock('./registry/NodeRegistry', () => ({
 }))
 
 vi.mock('./node-details', () => ({
-  TaskNodeDetails: () => <div data-testid="task-details" />,
+  TaskNodeDetails: ({ nodeId }: { nodeId: string }) => {
+    useEffect(() => {
+      taskDetailsMountCount.current += 1
+    }, [])
+    return <div data-testid="task-details">{nodeId}</div>
+  },
   ApprovalNodeDetails: () => <div data-testid="approval-details" />,
   ConditionNodeDetails: () => <div data-testid="condition-details" />,
   LoopNodeDetails: () => <div data-testid="loop-details" />,
@@ -72,6 +79,10 @@ vi.mock('./node-details', () => ({
 
 vi.mock('./NodeRawDataView', () => ({
   NodeRawDataView: () => <div data-testid="raw-node-view" />,
+}))
+
+vi.mock('./panels/hooks/useAdjacentNodes', () => ({
+  useAdjacentNodes: vi.fn(() => ({ upstream: [], downstream: [] })),
 }))
 
 vi.mock('./panels/hooks/useNodeExecutionData', () => ({
@@ -104,6 +115,7 @@ describe('NodeDetailsPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    taskDetailsMountCount.current = 0
     mockStoreState.currentWorkflow = { triggers: [], workflow: { activities: [] } }
     mockNodeRegistryGetAll.mockReturnValue([] as never)
   })
@@ -676,5 +688,26 @@ describe('NodeDetailsPanel', () => {
 
     // NodeEditorLayout receives these props and passes them to panels
     expect(screen.getByTestId('task-details')).toBeInTheDocument()
+  })
+
+  it('remounts task details when navigating to a different node id', () => {
+    const makeTaskNode = (id: string): Node<NodeType['data']> => ({
+      id,
+      type: 'task',
+      position: { x: 0, y: 0 },
+      data: { id, type: 'script', name: id, config: {} } as never,
+    })
+
+    const { rerender } = render(
+      <NodeDetailsPanel mode="edit" node={makeTaskNode('check-value')} onClose={mockOnClose} />
+    )
+
+    expect(screen.getByTestId('task-details')).toHaveTextContent('check-value')
+    expect(taskDetailsMountCount.current).toBe(1)
+
+    rerender(<NodeDetailsPanel mode="edit" node={makeTaskNode('positive-branch')} onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('task-details')).toHaveTextContent('positive-branch')
+    expect(taskDetailsMountCount.current).toBe(2)
   })
 })

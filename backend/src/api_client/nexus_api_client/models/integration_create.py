@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from uuid import UUID
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
 from ..models.integration_scope import IntegrationScope
 from ..models.integration_type import IntegrationType
@@ -15,7 +14,7 @@ if TYPE_CHECKING:
     from ..models.aap_gateway_configuration import AAPGatewayConfiguration
     from ..models.integration_create_labels import IntegrationCreateLabels
     from ..models.llm_provider_configuration import LLMProviderConfiguration
-    from ..models.mcp_server_configuration import MCPServerConfiguration
+    from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
 
 T = TypeVar("T", bound="IntegrationCreate")
@@ -28,7 +27,7 @@ class IntegrationCreate:
     Attributes:
         name (str): Human-readable name for the integration
         integration_type (IntegrationType): Type of external integration.
-        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration): Integration-
+        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-
             specific configuration
         description (None | str | Unset): Detailed description of the integration
         management_credential_id (None | Unset | UUID): Optional credential for admin operations
@@ -39,24 +38,23 @@ class IntegrationCreate:
 
     name: str
     integration_type: IntegrationType
-    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration
+    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
     description: None | str | Unset = UNSET
     management_credential_id: None | Unset | UUID = UNSET
     enabled: bool | Unset = True
     scope: IntegrationScope | Unset = UNSET
     labels: IntegrationCreateLabels | Unset = UNSET
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.llm_provider_configuration import LLMProviderConfiguration
-        from ..models.mcp_server_configuration import MCPServerConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
         name = self.name
 
         integration_type = self.integration_type.value
 
         configuration: dict[str, Any]
-        if isinstance(self.configuration, MCPServerConfiguration):
+        if isinstance(self.configuration, MCPServerConfigurationInput):
             configuration = self.configuration.to_dict()
         elif isinstance(self.configuration, LLMProviderConfiguration):
             configuration = self.configuration.to_dict()
@@ -88,7 +86,7 @@ class IntegrationCreate:
             labels = self.labels.to_dict()
 
         field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
+
         field_dict.update(
             {
                 "name": name,
@@ -114,7 +112,7 @@ class IntegrationCreate:
         from ..models.aap_gateway_configuration import AAPGatewayConfiguration
         from ..models.integration_create_labels import IntegrationCreateLabels
         from ..models.llm_provider_configuration import LLMProviderConfiguration
-        from ..models.mcp_server_configuration import MCPServerConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
         d = dict(src_dict)
         name = d.pop("name")
@@ -123,11 +121,11 @@ class IntegrationCreate:
 
         def _parse_configuration(
             data: object,
-        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration:
+        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                configuration_type_0 = MCPServerConfiguration.from_dict(data)
+                configuration_type_0 = MCPServerConfigurationInput.from_dict(data)
 
                 return configuration_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -201,21 +199,4 @@ class IntegrationCreate:
             labels=labels,
         )
 
-        integration_create.additional_properties = d
         return integration_create
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties

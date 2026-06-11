@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('../../../../assets/eda.svg?react', () => ({
+  default: () => 'EdaIcon',
+}))
 
 import { executorMetadata, nodeMetadata, type NodeMetadata } from './nodeMetadata'
 

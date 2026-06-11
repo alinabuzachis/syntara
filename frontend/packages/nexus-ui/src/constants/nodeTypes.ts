@@ -20,6 +20,7 @@ export const FlowNodeType = {
   CONDITION: 'condition',
   CONVERGE: 'converge',
   LOOP: 'loop',
+  SWITCH: 'switch',
   WAIT: 'wait',
   /** Placeholder until user picks a real step type */
   GENERIC: 'generic',

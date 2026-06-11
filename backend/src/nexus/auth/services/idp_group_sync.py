@@ -105,7 +105,7 @@ async def _resolve_aap_role_groups(
     users (no recognized system role) are assigned to the ``users`` group.
     """
     token_issuer = raw_merged_claims.get("iss")
-    if not isinstance(token_issuer, str) or token_issuer.rstrip("/") != str(config.issuer_url):
+    if not isinstance(token_issuer, str) or token_issuer != str(config.issuer_url):
         logger.warning(
             "AAP role mapping denied: token issuer does not match configured issuer_url",
             token_issuer=token_issuer,

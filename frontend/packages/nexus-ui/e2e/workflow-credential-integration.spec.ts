@@ -58,7 +58,7 @@ test.describe('Credential Selector', () => {
 
     try {
       await goToCredentialsList(app, { ensureCreateEnabled: true })
-      await app.getByRole('button', { name: 'Create credential' }).first().click()
+      await app.getByRole('button', { name: 'Create credential' }).click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
       await selectCredentialType(createModal, 'HTTP Bearer Token')
@@ -99,7 +99,7 @@ test.describe('Credential Selector', () => {
 
     try {
       await goToCredentialsList(app, { ensureCreateEnabled: true })
-      await app.getByRole('button', { name: 'Create credential' }).first().click()
+      await app.getByRole('button', { name: 'Create credential' }).click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(incompatibleName)
       await selectCredentialType(createModal, 'LLM Provider')
@@ -125,7 +125,7 @@ test.describe('Credential Selector', () => {
 
     try {
       await goToCredentialsList(app, { ensureCreateEnabled: true })
-      await app.getByRole('button', { name: 'Create credential' }).first().click()
+      await app.getByRole('button', { name: 'Create credential' }).click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
       await selectCredentialType(createModal, 'HTTP Bearer Token')

@@ -50,9 +50,7 @@ def _poll_execution(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIM
         time.sleep(POLL_INTERVAL)
         elapsed += POLL_INTERVAL
         response = _retry_api_call(lambda: api.executions.get(execution_id=UUID(exec_id), include="activities"))
-        assert response.is_success, f"Failed to get execution {exec_id}"
-        assert response.parsed is not None, f"Failed to get execution {exec_id}"
-        execution: ExecutionRead = response.parsed
+        execution: ExecutionRead = response.assert_and_get()
         if execution.status in TERMINAL_STATUSES:
             return execution
     pytest.fail(f"Execution {exec_id} did not finish within {timeout}s")
@@ -63,9 +61,8 @@ def create_and_run_workflow(
 ) -> ExecutionRead:
     """Create (or update) a workflow, execute it, and return the completed ExecutionRead."""
     list_response = _retry_api_call(lambda: api.workflows.list(additional_params={"name": name}))
-    assert list_response.is_success, "Failed to list workflows"
-    assert list_response.parsed is not None, "Failed to list workflows"
-    existing = [w for w in list_response.parsed.resources if w.name == name]
+    workflows_list = list_response.assert_and_get()
+    existing = [w for w in workflows_list.resources if w.name == name]
 
     wf_def = WorkflowDefinition.from_dict(definition)
 
@@ -74,7 +71,7 @@ def create_and_run_workflow(
         update_response = _retry_api_call(
             lambda: api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=wf_def))
         )
-        assert update_response.is_success, f"Failed to update workflow {name}"
+        update_response.assert_and_get()
     else:
         create_response = _retry_api_call(
             lambda: api.workflows.create(
@@ -85,11 +82,9 @@ def create_and_run_workflow(
                 )
             )
         )
-        assert create_response.is_success, f"Failed to create workflow {name}"
-        assert create_response.parsed is not None, f"Failed to create workflow {name}"
-        wf_id = create_response.parsed.id
+        workflow = create_response.assert_and_get()
+        wf_id = workflow.id
 
     exec_response = _retry_api_call(lambda: api.executions.create(body=ExecutionCreate(workflow_id=wf_id)))
-    assert exec_response.is_success, f"Failed to start execution for {name}"
-    assert exec_response.parsed is not None, f"Failed to start execution for {name}"
-    return _poll_execution(api, str(exec_response.parsed.id), timeout=timeout)
+    execution = exec_response.assert_and_get()
+    return _poll_execution(api, str(execution.id), timeout=timeout)

@@ -22,6 +22,7 @@ import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 
 import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
@@ -66,6 +67,7 @@ function buildCredentialRowActions(
 
 // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- pre-existing complexity
 export default function Credentials() {
+  const credentialsDocLink = useDocLink('credentials')
   const { showAlert } = useAlerts()
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const permissions = useCredentialPermissions()
@@ -291,7 +293,7 @@ export default function Credentials() {
   if (queryState) {
     return (
       <NxPage>
-        <NxPageHeader title="Credentials" projectSelector={ProjectSelector} />
+        <NxPageHeader title="Credentials" docLink={credentialsDocLink} projectSelector={ProjectSelector} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
         </NxPageBody>
@@ -303,6 +305,7 @@ export default function Credentials() {
     <NxPage>
       <NxPageHeader
         title="Credentials"
+        docLink={credentialsDocLink}
         projectSelector={ProjectSelector}
         toolbar={
           results.length > 0 || hasActiveFilters ? (

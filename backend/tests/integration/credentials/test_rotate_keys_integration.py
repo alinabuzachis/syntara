@@ -35,7 +35,7 @@ from nexus.credentials.cli.rotate_keys import (
 )
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
-from tests.helpers.encryption import NEW_KEY, NEW_KEY_HEX, OLD_KEY, OLD_KEY_HEX, WRONG_KEY
+from tests.helpers.encryption import NEW_KEY, NEW_KEY_HEX, OLD_KEY, OLD_KEY_HEX, WRONG_KEY, ZEROS_KEY, ZEROS_KEY_HEX
 
 
 @pytest.fixture(autouse=True)
@@ -124,6 +124,59 @@ class TestBasicKeyRotation:
             decrypted = new_encryptor.decrypt_fields(secret.encrypted_data, str(secret.secret_id))
             assert "token" in decrypted
             assert decrypted["token"].startswith("secret-token-")
+
+
+@pytest.mark.asyncio
+class TestLegacyZerosKeyRotation:
+    """Rotate credentials encrypted with the legacy all-zeros default key."""
+
+    async def test_rotation_from_zeros_key(
+        self,
+        test_db_session: AsyncSession,
+        test_session_factory,
+        test_user: User,
+        bearer_type: CredentialType,
+        test_project_id: str,
+    ) -> None:
+        """Verify full end-to-end rotation from the all-zeros key to a real key."""
+        zeros_encryptor = SecretEncryptor(ZEROS_KEY)
+        backend = DatabaseBackend(test_db_session)
+        secret_service = SecretService(test_db_session, zeros_encryptor, backend)
+
+        for i in range(5):
+            secret_id = await secret_service.create_secret(
+                {"token": f"legacy-token-{i}", "host": f"legacy{i}.example.com"},
+            )
+            credential = Credential(
+                name=f"Legacy Zeros Credential {i}",
+                credential_type_id=bearer_type.id,
+                project_id=test_project_id,
+                secret_id=secret_id,
+                created_by=str(test_user.id),
+            )
+            test_db_session.add(credential)
+
+        await test_db_session.commit()
+
+        exit_code = await rotate_keys(
+            old_key_hex=ZEROS_KEY_HEX,
+            new_key_hex=NEW_KEY_HEX,
+            batch_size=5,
+            dry_run=False,
+        )
+
+        assert exit_code == EXIT_SUCCESS
+
+        stmt = select(EncryptedSecret)
+        result = await test_db_session.exec(stmt)
+        secrets = result.all()
+        assert len(secrets) == 5
+
+        new_encryptor = SecretEncryptor(NEW_KEY)
+        for secret in secrets:
+            decrypted = new_encryptor.decrypt_fields(secret.encrypted_data, str(secret.secret_id))
+            assert "token" in decrypted
+            assert decrypted["token"].startswith("legacy-token-")
 
 
 @pytest.mark.asyncio

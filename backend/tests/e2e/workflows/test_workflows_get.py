@@ -232,11 +232,9 @@ class TestWorkflowListing:
         assert delete_response.status_code == HTTPStatus.NO_CONTENT
 
         # List workflows filtered by test_id - should not include deleted one
-        list_response = nexus_api.workflows.list(additional_params={"name[contains]": test_id})
+        workflows_list = nexus_api.workflows.list(additional_params={"name[contains]": test_id}).assert_and_get()
 
-        assert list_response.status_code == HTTPStatus.OK
-        assert list_response.parsed is not None
-        assert len(list_response.parsed.resources) == 0  # No workflows with this name (deleted)
+        assert len(workflows_list.resources) == 0  # No workflows with this name (deleted)
 
     def test_filter_workflows_by_labels(
         self,

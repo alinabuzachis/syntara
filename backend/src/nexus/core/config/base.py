@@ -30,6 +30,7 @@ from sqlalchemy.engine import URL, make_url
 
 from nexus.core.constants import RetrieverServiceDefaults
 from nexus.core.exceptions import SafeValueError
+from nexus.files.models.file_metadata import StorageBackend
 
 # =============================================================================
 # LLM Provider Configuration
@@ -126,6 +127,56 @@ class DocumentConversionSettings(BaseSettings):
     document_conversion_temp_dir: str = Field(
         default_factory=tempfile.gettempdir,
         description="Temporary directory for conversion operations",
+    )
+
+
+# =============================================================================
+# File Storage Backend Configuration
+# =============================================================================
+
+
+class FileStorageSettings(BaseSettings):
+    """File storage backend configuration.
+
+    Settings for pluggable file storage backends (local filesystem, S3-compatible, etc.).
+    S3 credentials are injected via K8s secrets in production.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    file_storage_backend: StorageBackend = Field(
+        default=StorageBackend.LOCAL,
+        description="Active storage backend: 'local' or 's3'",
+    )
+
+    s3_endpoint_url: str | None = Field(
+        default=None,
+        description="S3-compatible endpoint URL (e.g., ODF, AWS, MinIO)",
+    )
+
+    s3_bucket_name: str = Field(
+        default="nexus-files",
+        description="S3 bucket for file storage",
+    )
+
+    s3_region: str = Field(
+        default="us-east-1",
+        description="S3 region",
+    )
+
+    s3_access_key_id: SecretStr | None = Field(
+        default=None,
+        description="S3 access key — set via APP_S3_ACCESS_KEY_ID",
+    )
+
+    s3_secret_access_key: SecretStr | None = Field(
+        default=None,
+        description="S3 secret key — set via APP_S3_SECRET_ACCESS_KEY",
+    )
+
+    file_retention_ttl_hours: int | None = Field(
+        default=None,
+        description="Default file retention TTL in hours; null means no expiration",
     )
 
 
@@ -540,33 +591,6 @@ class AuditExportSettings(BaseSettings):
         description="Number of rows fetched per batch during export",
         ge=100,
         le=50000,
-    )
-
-
-# =============================================================================
-# Audit Retention Configuration
-# =============================================================================
-
-
-class AuditRetentionSettings(BaseSettings):
-    """Audit event retention and purge configuration.
-
-    Controls how long audit events are kept and how the background purge worker
-    operates.  Set ``audit_retention_days`` to ``0`` to disable automatic purging.
-
-    Note: This class should not be instantiated directly. Use Settings via get_settings().
-    """
-
-    audit_retention_days: int = Field(
-        default=30,
-        description="Delete audit events older than this many days (0 to disable purging)",
-        ge=0,
-    )
-
-    audit_purge_interval_seconds: float = Field(
-        default=3600.0,
-        description="Seconds between audit purge worker cycles",
-        gt=0,
     )
 
 
@@ -1727,13 +1751,13 @@ class Settings(
     OpenRouterSettings,
     FileUploadSettings,
     DocumentConversionSettings,
+    FileStorageSettings,
     OpenAPIValidationSettings,
     RouterDiscoverySettings,
     CacheSettings,
     DatabaseSettings,
     AuditDatabaseSettings,
     AuditWriterSettings,
-    AuditRetentionSettings,
     AuditExportSettings,
     ServerSettings,
     RetrieverServiceSettings,

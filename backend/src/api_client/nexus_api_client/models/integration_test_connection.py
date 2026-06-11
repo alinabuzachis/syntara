@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
+from uuid import UUID
+
+from attrs import define as _attrs_define
+
+from ..models.integration_type import IntegrationType
+
+if TYPE_CHECKING:
+    from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+    from ..models.llm_provider_configuration import LLMProviderConfiguration
+    from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
+
+
+T = TypeVar("T", bound="IntegrationTestConnection")
+
+
+@_attrs_define
+class IntegrationTestConnection:
+    """Schema for testing a connection without saving an integration.
+
+    Attributes:
+        integration_type (IntegrationType): Type of external integration.
+        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-
+            specific configuration
+        credential_id (UUID): Credential to use for the connection test
+    """
+
+    integration_type: IntegrationType
+    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
+    credential_id: UUID
+
+    def to_dict(self) -> dict[str, Any]:
+        from ..models.llm_provider_configuration import LLMProviderConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
+
+        integration_type = self.integration_type.value
+
+        configuration: dict[str, Any]
+        if isinstance(self.configuration, MCPServerConfigurationInput):
+            configuration = self.configuration.to_dict()
+        elif isinstance(self.configuration, LLMProviderConfiguration):
+            configuration = self.configuration.to_dict()
+        else:
+            configuration = self.configuration.to_dict()
+
+        credential_id = str(self.credential_id)
+
+        field_dict: dict[str, Any] = {}
+
+        field_dict.update(
+            {
+                "integration_type": integration_type,
+                "configuration": configuration,
+                "credential_id": credential_id,
+            }
+        )
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.aap_gateway_configuration import AAPGatewayConfiguration
+        from ..models.llm_provider_configuration import LLMProviderConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
+
+        d = dict(src_dict)
+        integration_type = IntegrationType(d.pop("integration_type"))
+
+        def _parse_configuration(
+            data: object,
+        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                configuration_type_0 = MCPServerConfigurationInput.from_dict(data)
+
+                return configuration_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                configuration_type_1 = LLMProviderConfiguration.from_dict(data)
+
+                return configuration_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            if not isinstance(data, dict):
+                raise TypeError()
+            configuration_type_2 = AAPGatewayConfiguration.from_dict(data)
+
+            return configuration_type_2
+
+        configuration = _parse_configuration(d.pop("configuration"))
+
+        credential_id = UUID(d.pop("credential_id"))
+
+        integration_test_connection = cls(
+            integration_type=integration_type,
+            configuration=configuration,
+            credential_id=credential_id,
+        )
+
+        return integration_test_connection

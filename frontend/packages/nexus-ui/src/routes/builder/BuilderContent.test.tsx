@@ -1234,7 +1234,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/new')
+        expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
       })
     })
 

@@ -1,0 +1,14 @@
+.arrowTabPrevious,
+.arrowTabNext {
+  padding-block: var(--pf-t--global--spacer--xs);
+  padding-inline: var(--pf-t--global--spacer--xs);
+  min-width: auto;
+}
+
+.arrowTabPrevious {
+  border-radius: 0 var(--pf-t--global--border--radius--pill) var(--pf-t--global--border--radius--pill) 0;
+}
+
+.arrowTabNext {
+  border-radius: var(--pf-t--global--border--radius--pill) 0 0 var(--pf-t--global--border--radius--pill);
+}

@@ -35,7 +35,7 @@ test.describe('User Detail — Identity Controls (UI-24)', () => {
     await mockUser(app, BUILTIN_USER_ID, builtinUserResponse)
     // auth/me id matches the page user — builtin admin viewing their own profile.
     await mockAuthMe(app, builtinUserResponse)
-    await mockAuthProviders(app, { providers: [] })
+    await mockAuthProviders(app, { resources: [] })
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${BUILTIN_USER_ID}/identities`))
 

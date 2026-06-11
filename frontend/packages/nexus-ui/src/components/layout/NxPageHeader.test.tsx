@@ -85,6 +85,20 @@ describe('NxPageHeader', () => {
     expect(screen.getByRole('heading', { name: 'Create user' })).toBeInTheDocument()
   })
 
+  it('renders doc link button when docLink is provided', () => {
+    render(<NxPageHeader title="Workflows" docLink="https://docs.ansible.com/workflows" />)
+
+    const link = screen.getByRole('link', { name: /View documentation/i })
+    expect(link).toHaveAttribute('href', 'https://docs.ansible.com/workflows')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('does not render doc link button when docLink is omitted', () => {
+    render(<NxPageHeader title="Workflows" />)
+
+    expect(screen.queryByRole('link', { name: /View documentation/i })).not.toBeInTheDocument()
+  })
+
   it('has no accessibility violations with breadcrumbs', async () => {
     const { container } = render(
       <NxPageHeader

@@ -1,9 +1,13 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
   Content,
   ContentVariants,
   Form,
   FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   Modal,
   ModalBody,
   ModalFooter,
@@ -11,9 +15,10 @@ import {
 } from '@patternfly/react-core'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { z } from 'zod'
 
+import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
-import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
 import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
@@ -28,12 +33,14 @@ type EditAssignmentDialogProps = {
   onSuccess: () => void
 }
 
-type EditAssignmentFormData = {
-  roleName: string
-}
+const editAssignmentSchema = z.object({
+  roleName: z.string().min(1, 'Role is required'),
+})
+
+type EditAssignmentFormData = z.infer<typeof editAssignmentSchema>
 
 export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: Readonly<EditAssignmentDialogProps>) {
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess } = useAlerts()
   const [isPending, setIsPending] = useState(false)
 
   const isProjectScoped = row.scopeType === 'project'
@@ -48,11 +55,14 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
     [allRoles, isProjectScoped]
   )
 
-  const { handleSubmit, control, reset } = useForm<EditAssignmentFormData>({
+  const { handleSubmit, control, reset, setError } = useForm<EditAssignmentFormData>({
+    resolver: zodResolver(editAssignmentSchema, undefined, { mode: 'sync' }),
     defaultValues: {
       roleName: '',
     },
   })
+
+  const handleError = useFormMutationErrorHandler<EditAssignmentFormData>(setError)
 
   useEffect(() => {
     reset({ roleName: isProjectScoped ? row.assignmentName : '' })
@@ -81,7 +91,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
     try {
       if (row.sourceEndpoint === 'project-role-assignments') {
         if (!row.projectId) {
-          showError({ title: 'Update failed', description: 'Invalid assignment: missing project ID' })
+          setError('roleName', { message: 'Invalid assignment: missing project ID' })
           setIsPending(false)
           return
         }
@@ -113,7 +123,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
       onSuccess()
       onClose()
     } catch (error) {
-      showError({ title: 'Failed to update assignment', description: getErrorMessage(error) })
+      handleError({ title: 'Failed to update assignment' })(error)
     } finally {
       setIsPending(false)
     }
@@ -136,16 +146,25 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
             <Controller
               name="roleName"
               control={control}
-              rules={{ required: 'Role is required' }}
-              render={({ field }) => (
-                <TypeaheadSelect
-                  id="role-select"
-                  ariaLabel="Role"
-                  options={roleOptions}
-                  selected={field.value}
-                  onChange={field.onChange}
-                  placeholder="Select a role..."
-                />
+              render={({ field, fieldState }) => (
+                <>
+                  <TypeaheadSelect
+                    id="role-select"
+                    ariaLabel="Role"
+                    options={roleOptions}
+                    selected={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select a role..."
+                    hasError={!!fieldState.error}
+                  />
+                  {fieldState.error && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
               )}
             />
           </FormGroup>

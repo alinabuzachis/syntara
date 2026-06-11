@@ -769,7 +769,7 @@ async def list_auth_providers(
     providers = result.all()
 
     return AuthProvidersResponse(
-        providers=[
+        resources=[
             AuthProviderInfo(
                 id=str(p.id),
                 name=p.name,

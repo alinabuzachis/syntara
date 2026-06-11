@@ -62,10 +62,7 @@ test.describe('Integration Filtering', () => {
     await expect(app).toHaveURL(/name%5Bcontains%5D=copilot/)
 
     // Verify filtered results exist (skip if filter matched nothing — no mock seed data)
-    const dataRow = table
-      .getByRole('row')
-      .filter({ hasNot: app.locator('th') })
-      .first()
+    const dataRow = table.getByRole('row').nth(1) // First data row (index 0 is header)
     const hasResults = await dataRow
       .waitFor({ state: 'visible', timeout: 3000 })
       .then(() => true)
@@ -106,7 +103,7 @@ test.describe('Integration Filtering', () => {
     await expect(table).toBeVisible()
 
     // Act - Switch to Status field and apply "Available" status filter
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
+    const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name', exact: true })
     await fieldSelector.click()
     await app.getByRole('option', { name: 'Status' }).click()
     await app.getByRole('button', { name: 'Filter by status' }).click()
@@ -121,10 +118,7 @@ test.describe('Integration Filtering', () => {
     await expect(app).toHaveURL(/status=available/)
 
     // Verify filtered results exist (skip if filter matched nothing)
-    const dataRow = table
-      .getByRole('row')
-      .filter({ hasNot: app.locator('th') })
-      .first()
+    const dataRow = table.getByRole('row').nth(1) // First data row (index 0 is header)
     const hasAvailable = await dataRow
       .waitFor({ state: 'visible', timeout: 3000 })
       .then(() => true)
@@ -132,7 +126,7 @@ test.describe('Integration Filtering', () => {
     test.skip(!hasAvailable, 'No integrations with "Available" status; seed data required')
 
     // Act - Switch to "Error" status (replaces "Available")
-    await app.getByRole('button', { name: 'Available', exact: true }).first().click()
+    await app.locator('#filter-toolbar').getByRole('button', { name: 'Available', exact: true }).click()
     await app.getByRole('option', { name: 'Error' }).click()
 
     // Assert - Status filter updated to "Error"
@@ -169,7 +163,7 @@ test.describe('Integration Filtering', () => {
     await expect(app).toHaveURL(/name%5Bcontains%5D=integration/)
 
     // Act - Switch to Status and add status filter
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
+    const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name', exact: true })
     await fieldSelector.click()
     await app.getByRole('option', { name: 'Status' }).click()
     await app.getByRole('button', { name: 'Filter by status' }).click()
@@ -181,7 +175,7 @@ test.describe('Integration Filtering', () => {
     await expect(app).toHaveURL(/status=error/)
 
     // Act - Switch to Integration type and add filter (re-query field selector)
-    const fieldSelector2 = app.getByRole('button', { name: 'Status' }).first()
+    const fieldSelector2 = app.locator('#filter-toolbar').getByRole('button', { name: 'Status', exact: true })
     await fieldSelector2.click()
     await app.getByRole('option', { name: 'Integration type' }).click()
     await app.getByRole('button', { name: 'Filter by integration type' }).click()
@@ -222,7 +216,7 @@ test.describe('Integration Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Apply status filter
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
+    const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name', exact: true })
     await fieldSelector.click()
     await app.getByRole('option', { name: 'Status' }).click()
     await app.getByRole('button', { name: 'Filter by status' }).click()
@@ -325,7 +319,7 @@ test.describe('Integration Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Apply status filter
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
+    const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name', exact: true })
     await fieldSelector.click()
     await app.getByRole('option', { name: 'Status' }).click()
     await app.getByRole('button', { name: 'Filter by status' }).click()
@@ -447,7 +441,7 @@ test.describe('Integration Filtering', () => {
     await expect(app).toHaveURL(/name%5Bcontains%5D=integration/)
 
     // Act - Add status filter (switch to Status field and select "Available")
-    const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
+    const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name', exact: true })
     await fieldSelector.click()
     await app.getByRole('option', { name: 'Status' }).click()
     await app.getByRole('button', { name: 'Filter by status' }).click()

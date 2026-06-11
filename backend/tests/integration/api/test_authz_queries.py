@@ -367,7 +367,7 @@ async def test_who_can_returns_authorized_users(
     )
     assert response.status_code == 200
     data = response.json()
-    usernames = {u["username"] for u in data["users"]}
+    usernames = {u["username"] for u in data["resources"]}
     assert test_user.username in usernames
     assert "reader" in usernames
 
@@ -392,7 +392,7 @@ async def test_who_can_excludes_unauthorized_users(
     )
     assert response.status_code == 200
     data = response.json()
-    usernames = {u["username"] for u in data["users"]}
+    usernames = {u["username"] for u in data["resources"]}
     # test_user (admin role) should be included — has workflow:create:any
     assert test_user.username in usernames
     # auditor should NOT be included — auditor role lacks workflow:create
@@ -413,7 +413,7 @@ async def test_who_can_empty_for_ungranted_action(
         json={"action": "launch", "resource_type": "spaceship"},
     )
     assert response.status_code == 200
-    assert response.json()["users"] == []
+    assert response.json()["resources"] == []
 
 
 @pytest.mark.asyncio
@@ -441,7 +441,7 @@ async def test_who_can_excludes_inactive_users(
         json={"action": "read", "resource_type": "user"},
     )
     assert response.status_code == 200
-    usernames = {u["username"] for u in response.json()["users"]}
+    usernames = {u["username"] for u in response.json()["resources"]}
     assert "inactive-user" not in usernames
 
 
@@ -470,21 +470,21 @@ async def test_who_can_pagination(
     )
     assert response.status_code == 200
     page1 = response.json()
-    assert len(page1["users"]) == 2
-    assert page1["next_cursor"] is not None
+    assert len(page1["resources"]) == 2
+    assert page1["next"] is not None
 
     # Request page 2 using cursor
     response = await auth_client.post(
         "/api/v1/authz/who_can",
-        json={"action": "read", "resource_type": "user", "limit": 2, "cursor": page1["next_cursor"]},
+        json={"action": "read", "resource_type": "user", "limit": 2, "cursor": page1["next"]},
     )
     assert response.status_code == 200
     page2 = response.json()
-    assert len(page2["users"]) > 0
+    assert len(page2["resources"]) > 0
 
     # No overlap between pages
-    page1_ids = {u["id"] for u in page1["users"]}
-    page2_ids = {u["id"] for u in page2["users"]}
+    page1_ids = {u["id"] for u in page1["resources"]}
+    page2_ids = {u["id"] for u in page2["resources"]}
     assert page1_ids.isdisjoint(page2_ids)
 
 

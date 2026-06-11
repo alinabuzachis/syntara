@@ -43,3 +43,20 @@ export function resolveFlowNodeId(params: {
   const { nodeId, nodeType, triggerIndex } = params
   return nodeType === MenuNodeType.TRIGGER ? buildTriggerNodeId(triggerIndex ?? 0) : nodeId
 }
+
+/**
+ * Maps a workflow-store node ID to the React Flow canvas node ID.
+ * Trigger edges in the store use real trigger IDs; React Flow nodes use display IDs (trigger-0).
+ */
+export function toReactFlowNodeId(nodeId: string, triggers: Array<{ id: string }>): string {
+  if (parseTriggerIndex(nodeId) !== undefined) {
+    return nodeId
+  }
+
+  const triggerIndex = triggers.findIndex((trigger) => trigger.id === nodeId)
+  if (triggerIndex >= 0) {
+    return buildTriggerNodeId(triggerIndex)
+  }
+
+  return nodeId
+}

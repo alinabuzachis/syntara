@@ -104,20 +104,6 @@ def sync_detailed(
 
      Update tool status (enable/disable).
 
-    Updates the tool's status to enable or disable it for use.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        tool_id: UUID of the tool to update
-        tool_update: Tool update data with status
-        service: Tool service
-
-    Returns:
-        Updated Tool instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 403 for auth
-
     Args:
         tool_id (UUID):
         body (ToolUpdate): Model for updating tool configuration.
@@ -152,20 +138,6 @@ def sync(
 
      Update tool status (enable/disable).
 
-    Updates the tool's status to enable or disable it for use.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        tool_id: UUID of the tool to update
-        tool_update: Tool update data with status
-        service: Tool service
-
-    Returns:
-        Updated Tool instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 403 for auth
-
     Args:
         tool_id (UUID):
         body (ToolUpdate): Model for updating tool configuration.
@@ -194,20 +166,6 @@ async def asyncio_detailed(
     """Patch Tool
 
      Update tool status (enable/disable).
-
-    Updates the tool's status to enable or disable it for use.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        tool_id: UUID of the tool to update
-        tool_update: Tool update data with status
-        service: Tool service
-
-    Returns:
-        Updated Tool instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 403 for auth
 
     Args:
         tool_id (UUID):
@@ -240,20 +198,6 @@ async def asyncio(
     """Patch Tool
 
      Update tool status (enable/disable).
-
-    Updates the tool's status to enable or disable it for use.
-    Only admin-controllable status changes are allowed (available/disabled).
-
-    Args:
-        tool_id: UUID of the tool to update
-        tool_update: Tool update data with status
-        service: Tool service
-
-    Returns:
-        Updated Tool instance
-
-    Raises:
-        HTTPException: 400 for validation errors, 404 if not found, 403 for auth
 
     Args:
         tool_id (UUID):

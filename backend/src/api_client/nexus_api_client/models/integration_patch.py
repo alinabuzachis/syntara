@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from ..models.aap_gateway_configuration import AAPGatewayConfiguration
     from ..models.integration_patch_labels_type_0 import IntegrationPatchLabelsType0
     from ..models.llm_provider_configuration import LLMProviderConfiguration
-    from ..models.mcp_server_configuration import MCPServerConfiguration
+    from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
 
 T = TypeVar("T", bound="IntegrationPatch")
@@ -26,7 +26,7 @@ class IntegrationPatch:
     Attributes:
         name (None | str | Unset): Human-readable name for the integration
         description (None | str | Unset): Detailed description of the integration
-        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration | None | Unset):
+        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput | None | Unset):
             Integration-specific configuration
         management_credential_id (None | Unset | UUID): Optional credential for admin operations
         enabled (bool | None | Unset): Whether the integration is active
@@ -36,7 +36,9 @@ class IntegrationPatch:
 
     name: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
-    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration | None | Unset = UNSET
+    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput | None | Unset = (
+        UNSET
+    )
     management_credential_id: None | Unset | UUID = UNSET
     enabled: bool | None | Unset = UNSET
     scope: IntegrationScope | None | Unset = UNSET
@@ -46,7 +48,7 @@ class IntegrationPatch:
         from ..models.aap_gateway_configuration import AAPGatewayConfiguration
         from ..models.integration_patch_labels_type_0 import IntegrationPatchLabelsType0
         from ..models.llm_provider_configuration import LLMProviderConfiguration
-        from ..models.mcp_server_configuration import MCPServerConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
         name: None | str | Unset
         if isinstance(self.name, Unset):
@@ -63,7 +65,7 @@ class IntegrationPatch:
         configuration: dict[str, Any] | None | Unset
         if isinstance(self.configuration, Unset):
             configuration = UNSET
-        elif isinstance(self.configuration, MCPServerConfiguration):
+        elif isinstance(self.configuration, MCPServerConfigurationInput):
             configuration = self.configuration.to_dict()
         elif isinstance(self.configuration, LLMProviderConfiguration):
             configuration = self.configuration.to_dict()
@@ -127,7 +129,7 @@ class IntegrationPatch:
         from ..models.aap_gateway_configuration import AAPGatewayConfiguration
         from ..models.integration_patch_labels_type_0 import IntegrationPatchLabelsType0
         from ..models.llm_provider_configuration import LLMProviderConfiguration
-        from ..models.mcp_server_configuration import MCPServerConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
         d = dict(src_dict)
 
@@ -151,7 +153,7 @@ class IntegrationPatch:
 
         def _parse_configuration(
             data: object,
-        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration | None | Unset:
+        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -159,7 +161,7 @@ class IntegrationPatch:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                configuration_type_0_type_0 = MCPServerConfiguration.from_dict(data)
+                configuration_type_0_type_0 = MCPServerConfigurationInput.from_dict(data)
 
                 return configuration_type_0_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -181,7 +183,7 @@ class IntegrationPatch:
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(
-                AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration | None | Unset, data
+                AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput | None | Unset, data
             )
 
         configuration = _parse_configuration(d.pop("configuration", UNSET))

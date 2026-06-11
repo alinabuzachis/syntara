@@ -20,7 +20,7 @@ export function NodeFormTabsLayout({ parametersContent, settingsContent }: NodeF
           <Tab eventKey={1} title="Settings" />
         </Tabs>
       </StackItem>
-      <NxPageBody style={{ overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
+      <NxPageBody>
         <Stack hasGutter>
           <StackItem>{activeTabKey === 0 ? parametersContent : (settingsContent ?? null)}</StackItem>
         </Stack>

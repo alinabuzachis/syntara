@@ -23,8 +23,6 @@ tags:
     description: Administrative revocation operations
   - name: approvals
     description: Human-in-the-loop approval request management
-  - name: Audit Events
-    description: Audit event query and retrieval
   - name: Authentication
     description: JWT token management and user identity
   - name: Authorization
@@ -2457,636 +2455,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BatchApprovalResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-  /audit:
-    get:
-      summary: List Audit Events
-      description: |-
-        Retrieve a paginated list of audit events with optional filtering.
-
-        Use this endpoint to:
-        - Review system activity for a specific actor
-        - Trace operations within a workflow or execution
-        - Investigate events within a date range
-        - Filter by actor type (user, system, service)
-      operationId: list_audit_events
-      x-app-permission:
-        resource: audit
-        action: read
-      tags:
-        - Audit Events
-      parameters:
-        - name: limit
-          in: query
-          required: false
-          description: Maximum number of results per page
-          schema:
-            type: integer
-            maximum: 500
-            exclusiveMinimum: 0
-            default: 20
-            title: Limit
-            description: Maximum number of results per page
-        - name: cursor
-          in: query
-          required: false
-          description: Pagination cursor from previous response
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Cursor
-            description: Pagination cursor from previous response
-        - name: sort
-          in: query
-          required: false
-          description: Sort parameter (e.g., 'name', '-created_at')
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Sort
-            description: Sort parameter (e.g., 'name', '-created_at')
-        - name: include_total
-          in: query
-          required: false
-          description: Include total count in response (expensive)
-          schema:
-            type: boolean
-            default: false
-            title: Include Total
-            description: Include total count in response (expensive)
-        - name: event_category
-          in: query
-          required: false
-          description: Filter by event category
-          schema:
-            anyOf:
-              - $ref: '#/components/schemas/EventCategory'
-              - type: 'null'
-            title: Event Category
-            description: Filter by event category
-        - name: event_severity
-          in: query
-          required: false
-          description: Filter by event severity level
-          schema:
-            anyOf:
-              - $ref: '#/components/schemas/EventSeverity'
-              - type: 'null'
-            title: Event Severity
-            description: Filter by event severity level
-        - name: event_status
-          in: query
-          required: false
-          description: Filter by event status
-          schema:
-            anyOf:
-              - $ref: '#/components/schemas/EventStatus'
-              - type: 'null'
-            title: Event Status
-            description: Filter by event status
-        - name: event_action
-          in: query
-          required: false
-          description: Filter by specific action
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Event Action
-            description: Filter by specific action
-        - name: actor_id
-          in: query
-          required: false
-          description: Filter by actor UUID
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: 'null'
-            title: Actor Id
-            description: Filter by actor UUID
-        - name: actor_type
-          in: query
-          required: false
-          description: Filter by actor type
-          schema:
-            anyOf:
-              - $ref: '#/components/schemas/ActorType'
-              - type: 'null'
-            title: Actor Type
-            description: Filter by actor type
-        - name: actor_username
-          in: query
-          required: false
-          description: Filter by actor username
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Actor Username
-            description: Filter by actor username
-        - name: source_component
-          in: query
-          required: false
-          description: Filter by source component
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Source Component
-            description: Filter by source component
-        - name: resource_urn
-          in: query
-          required: false
-          description: Filter by resource URN
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Resource Urn
-            description: Filter by resource URN
-        - name: resource_name
-          in: query
-          required: false
-          description: Filter by resource name
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Resource Name
-            description: Filter by resource name
-        - name: workflow_id
-          in: query
-          required: false
-          description: Filter by workflow UUID
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: 'null'
-            title: Workflow Id
-            description: Filter by workflow UUID
-        - name: activity_id
-          in: query
-          required: false
-          description: Filter by activity identifier
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Activity Id
-            description: Filter by activity identifier
-        - name: execution_id
-          in: query
-          required: false
-          description: Filter by execution UUID
-          schema:
-            anyOf:
-              - type: string
-                format: uuid
-              - type: 'null'
-            title: Execution Id
-            description: Filter by execution UUID
-      responses:
-        '200':
-          description: Paginated list of audit events
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditEventListResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-  /audit/exports:
-    post:
-      summary: Start Audit Export
-      description: |-
-        Start an asynchronous audit event export.
-
-        Returns immediately with an export ID that can be used to poll for
-        status and download the result once complete.
-      operationId: start_audit_export
-      x-app-permission:
-        resource: audit
-        action: read
-      tags:
-        - Audit Events
-      requestBody:
-        content:
-          application/json:
-            schema:
-              anyOf:
-                - $ref: '#/components/schemas/AuditExportCreate'
-                - type: 'null'
-              title: Body
-      responses:
-        '202':
-          description: Export job accepted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditExportRead'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-  /audit/exports/{export_id}:
-    get:
-      summary: Get Audit Export Status
-      description: Check the status of an audit export job.
-      operationId: get_audit_export_status
-      x-app-permission:
-        resource: audit
-        action: read
-      tags:
-        - Audit Events
-      parameters:
-        - name: export_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Export Id
-      responses:
-        '200':
-          description: Export job status
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditExportRead'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-  /audit/exports/{export_id}/download:
-    get:
-      summary: Download Audit Export
-      description: Download the result of a completed audit export.
-      operationId: download_audit_export
-      x-app-permission:
-        resource: audit
-        action: read
-      tags:
-        - Audit Events
-      parameters:
-        - name: export_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Export Id
-      responses:
-        '200':
-          description: Exported audit data file
-          content:
-            text/csv:
-              schema:
-                type: string
-                format: binary
         '400':
           description: Bad Request
           content:
@@ -7076,7 +6444,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CredentialPatch'
+              $ref: '#/components/schemas/CredentialUpdate'
       responses:
         '200':
           description: Successful Response
@@ -7307,10 +6675,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                title: Response Get Credential Workflows
-                items:
-                  $ref: '#/components/schemas/CredentialWorkflowRef'
+                $ref: '#/components/schemas/CredentialWorkflowListResponse'
         '400':
           description: Bad Request
           content:
@@ -7638,7 +7003,6 @@ paths:
           schema:
             type: integer
             title: Limit
-            description: Maximum number of items to return
             minimum: 1
             maximum: 100
             default: 10
@@ -7749,7 +7113,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateExampleRequest'
+              $ref: '#/components/schemas/ExampleCreate'
       responses:
         '201':
           description: Item created successfully
@@ -7978,7 +7342,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateExampleRequest'
+              $ref: '#/components/schemas/ExampleUpdate'
       responses:
         '200':
           description: Item updated successfully
@@ -8091,12 +7455,8 @@ paths:
             title: Item Id
             description: Example item ID
       responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeleteResponse'
+        '204':
+          description: Item deleted successfully
         '400':
           description: Bad Request
           content:
@@ -8200,7 +7560,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UploadFilesBody'
       responses:
-        '200':
+        '201':
           description: Files uploaded successfully
           content:
             application/json:
@@ -8306,7 +7666,120 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /identity_providers/:
+  /files/{file_id}/download:
+    get:
+      summary: Download File
+      description: Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
+      operationId: download_file
+      tags:
+        - Files
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: File Id
+          description: UUID of the file to download
+      x-app-permission:
+        resource: files
+        action: download
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /identity_providers:
     get:
       summary: List Identity Providers
       description: List identity providers with filtering, sorting, and pagination.
@@ -8319,11 +7792,13 @@ paths:
           in: query
           required: false
           schema:
-            default: 100
+            type: integer
             exclusiveMinimum: 0
             maximum: 100
+            default: 20
+            description: Maximum number of results per page
             title: Limit
-            type: integer
+          description: Maximum number of results per page
         - name: cursor
           in: query
           required: false
@@ -9665,6 +9140,240 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /integrations/validate:
+    post:
+      summary: Test Integration Connection
+      description: |-
+        Test a connection without saving an integration.
+
+        Accepts integration configuration and a credential ID, resolves the
+        credential, runs the health check adapter, and returns the result.
+        No integration is persisted.
+      operationId: test_integration_connection
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: validate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationTestConnection'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /integrations/{integration_id}/validate:
+    post:
+      summary: Validate Integration
+      description: |-
+        Validate a saved integration by running a health check.
+
+        Resolves the management credential, dispatches to the type-specific
+        health check adapter, updates the integration's status fields, and
+        returns the health check result.
+      operationId: validate_integration
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: validate
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
         '400':
           description: Bad Request
           content:
@@ -14578,7 +14287,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CredentialPatch'
+              $ref: '#/components/schemas/CredentialUpdate'
       responses:
         '200':
           description: Successful Response
@@ -15099,10 +14808,7 @@ paths:
           content:
             application/json:
               schema:
-                title: Response Bulk Update Settings
-                type: array
-                items:
-                  $ref: '#/components/schemas/RuntimeSettingRead'
+                $ref: '#/components/schemas/SettingsListResponse'
         '400':
           description: Bad Request
           content:
@@ -15685,7 +15391,6 @@ paths:
       parameters:
         - name: limit
           in: query
-          description: Maximum number of results per page
           required: false
           schema:
             type: integer
@@ -15694,9 +15399,9 @@ paths:
             default: 20
             description: Maximum number of results per page
             title: Limit
+          description: Maximum number of results per page
         - name: cursor
           in: query
-          description: Pagination cursor from previous response
           required: false
           schema:
             anyOf:
@@ -15704,9 +15409,9 @@ paths:
               - type: 'null'
             description: Pagination cursor from previous response
             title: Cursor
+          description: Pagination cursor from previous response
         - name: sort
           in: query
-          description: Sort parameter (e.g., 'name', '-created_at')
           required: false
           schema:
             anyOf:
@@ -15714,15 +15419,16 @@ paths:
               - type: 'null'
             description: Sort parameter (e.g., 'name', '-created_at')
             title: Sort
+          description: Sort parameter (e.g., 'name', '-created_at')
         - name: include_total
           in: query
-          description: Include total count in response (expensive)
           required: false
           schema:
             type: boolean
             default: false
             description: Include total count in response (expensive)
             title: Include Total
+          description: Include total count in response (expensive)
         - name: namespaced_name
           in: query
           description: Filter by tool namespaced name
@@ -15865,26 +15571,7 @@ paths:
   /tool_manager/tools:
     get:
       summary: Get Tools
-      description: |-
-        List tools with filtering, sorting, and pagination.
-
-        Supports filtering using query parameters with standard operators:
-        - name: Filter by tool name (name=tool_name, name[contains]=text)
-        - enabled: Filter by enabled status (enabled=true|false)
-        - status: Filter by tool status (status=available|missing|error)
-        - provider_id: Filter by provider ID (provider_id=uuid)
-        - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
-        - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-        Uses cursor-based pagination for scalability and consistency.
-
-        Args:
-            request: FastAPI request object containing query parameters
-            service: Tool service
-            params: Query parameters for pagination and filtering
-
-        Returns:
-            ToolListResponse with tools, pagination metadata, and optional total
+      description: List tools with filtering, sorting, and pagination.
       operationId: get_tools
       x-app-permission:
         resource: null
@@ -15897,7 +15584,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
-            default: 100
+            default: 20
             description: Maximum number of results per page
             title: Limit
           description: Maximum number of results per page
@@ -16030,21 +15717,7 @@ paths:
   /tool_manager/tools/{tool_id}:
     get:
       summary: Get Tool
-      description: |-
-        Get tool details by ID.
-
-        Returns detailed information about a specific tool including
-        parameters, status, and metadata.
-
-        Args:
-            tool_id: UUID of the tool to retrieve
-            service: Tool service
-
-        Returns:
-            ToolWithParameters instance with full details
-
-        Raises:
-            HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
+      description: Get tool details by ID.
       operationId: get_tool
       x-app-permission:
         resource: null
@@ -16156,22 +15829,7 @@ paths:
         - ToolManager
     patch:
       summary: Patch Tool
-      description: |-
-        Update tool status (enable/disable).
-
-        Updates the tool's status to enable or disable it for use.
-        Only admin-controllable status changes are allowed (available/disabled).
-
-        Args:
-            tool_id: UUID of the tool to update
-            tool_update: Tool update data with status
-            service: Tool service
-
-        Returns:
-            Updated Tool instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 404 if not found, 403 for auth
+      description: Update tool status (enable/disable).
       operationId: patch_tool
       x-app-permission:
         resource: null
@@ -16290,21 +15948,7 @@ paths:
   /tool_manager/tools/bulk_update:
     patch:
       summary: Bulk Update Tools
-      description: |-
-        Bulk update tool status (enable/disable multiple tools).
-
-        Updates the status of multiple tools in a single operation.
-        Only admin-controllable status changes are allowed (available/disabled).
-
-        Args:
-            bulk_update: Bulk update request with tool IDs and status
-            service: Tool service
-
-        Returns:
-            Dictionary with update statistics and timestamp
-
-        Raises:
-            HTTPException: 400 for validation errors, 403 for auth
+      description: Bulk update tool status (enable/disable multiple tools).
       operationId: bulk_update_tools
       x-app-permission:
         resource: null
@@ -16417,25 +16061,7 @@ paths:
   /tool_manager/tool_providers:
     get:
       summary: Get Tool Providers
-      description: |-
-        List tool providers with filtering, sorting, and pagination.
-
-        Supports filtering using query parameters with standard operators:
-        - name: Filter by provider name (name=provider_name, name[contains]=text)
-        - status: Filter by provider status (status=validating|available|error)
-        - enabled: Filter by enabled status (enabled=true|false)
-        - provider_type: Filter by provider type (provider_type=openapi)
-        - labels: Filter by labels using bracket notation (labels[environment]=production)
-
-        Uses cursor-based pagination for scalability and consistency.
-
-        Args:
-            request: FastAPI request object containing query parameters
-            service: Tool provider service
-            params: Query parameters for pagination and filtering
-
-        Returns:
-            ToolProviderListResponse with providers, pagination metadata, and optional total
+      description: List tool providers with filtering, sorting, and pagination.
       operationId: get_tool_providers
       x-app-permission:
         resource: null
@@ -16448,7 +16074,7 @@ paths:
             type: integer
             exclusiveMinimum: 0
             maximum: 100
-            default: 100
+            default: 20
             description: Maximum number of results per page
             title: Limit
           description: Maximum number of results per page
@@ -16580,21 +16206,7 @@ paths:
         - ToolManager
     post:
       summary: Register Tool Provider
-      description: |-
-        Register a new Tool Provider.
-
-        Creates a new tool provider with the specified configuration.
-        The provider starts in 'validating' status.
-
-        Args:
-            provider_create: Provider configuration and metadata
-            service: Tool provider service
-
-        Returns:
-            Created ToolProvider instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
+      description: Register a new Tool Provider.
       operationId: register_tool_provider
       x-app-permission:
         resource: null
@@ -16705,21 +16317,7 @@ paths:
   /tool_manager/tool_providers/{provider_id}:
     get:
       summary: Get Tool Provider
-      description: |-
-        Get Tool Provider details by ID.
-
-        Returns detailed information about a specific Tool Provider including
-        configuration, status, and metadata.
-
-        Args:
-            provider_id: UUID of the provider to retrieve
-            service: Tool provider service
-
-        Returns:
-            ToolProvider instance with full details
-
-        Raises:
-            HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
+      description: Get Tool Provider details by ID.
       operationId: get_tool_provider
       x-app-permission:
         resource: null
@@ -16831,22 +16429,7 @@ paths:
         - ToolManager
     put:
       summary: Update Tool Provider
-      description: |-
-        Update Tool Provider configuration (complete replacement).
-
-        Performs a complete replacement of the provider configuration.
-        All fields in the request body will replace existing values.
-
-        Args:
-            provider_id: UUID of the provider to update
-            provider_update: New provider configuration
-            service: Tool provider service
-
-        Returns:
-            Updated ToolProvider instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
+      description: Update Tool Provider configuration (complete replacement).
       operationId: update_tool_provider
       x-app-permission:
         resource: null
@@ -16964,22 +16547,7 @@ paths:
         - ToolManager
     patch:
       summary: Patch Tool Provider
-      description: |-
-        Patch Tool Provider.
-
-        Performs a partial update of the provider configuration.
-        Only provided fields are updated, configuration objects are replaced.
-
-        Args:
-            provider_id: UUID of the provider to patch
-            provider_patch: Partial update data
-            service: Tool provider service
-
-        Returns:
-            Updated ToolProvider instance
-
-        Raises:
-            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
+      description: Patch Tool Provider.
       operationId: patch_tool_provider
       x-app-permission:
         resource: null
@@ -17097,18 +16665,7 @@ paths:
         - ToolManager
     delete:
       summary: Delete Tool Provider
-      description: |-
-        Remove Tool Provider and all associated tools.
-
-        Performs a soft delete of the provider and cascades to associated tools.
-        The provider will no longer be accessible but remains in the database.
-
-        Args:
-            provider_id: UUID of the provider to delete
-            service: Tool provider service
-
-        Raises:
-            HTTPException: 404 if provider not found, 403 for auth
+      description: Remove Tool Provider and all associated tools.
       operationId: delete_tool_provider
       x-app-permission:
         resource: null
@@ -17217,21 +16774,7 @@ paths:
   /tool_manager/tool_providers/{provider_id}/validate:
     post:
       summary: Validate Tool Provider
-      description: |-
-        Validate Tool Provider connection and capabilities.
-
-        Tests the connection to the tool provider and validates compatibility.
-        Updates the provider status based on validation results.
-
-        Args:
-            provider_id: UUID of the provider to validate
-            service: Tool provider service
-
-        Returns:
-            Validation result with status and capability details (always 200)
-
-        Raises:
-            HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
+      description: Validate Tool Provider connection and capabilities.
       operationId: validate_tool_provider
       x-app-permission:
         resource: null
@@ -17344,21 +16887,7 @@ paths:
   /tool_manager/tool_providers/{provider_id}/refresh_tools:
     post:
       summary: Refresh Tool Provider
-      description: |-
-        Refresh tools from Tool Provider.
-
-        Connects to the tool provider and refreshes the list of available tools.
-        Creates new tools, updates existing ones, and disables missing tools.
-
-        Args:
-            provider_id: UUID of the provider to refresh
-            service: Tool provider service
-
-        Returns:
-            Refresh statistics including counts and timestamp
-
-        Raises:
-            HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
+      description: Refresh tools from Tool Provider.
       operationId: refresh_tool_provider
       x-app-permission:
         resource: null
@@ -17471,21 +17000,7 @@ paths:
   /tool_manager/tool_providers/test:
     post:
       summary: Test Tool Provider
-      description: |-
-        Test Tool Provider definition without saving to database.
-
-        Validates the provider configuration and tests connectivity using the appropriate adapter.
-        This endpoint allows testing provider definitions before registering them.
-
-        Args:
-            provider_create: Provider configuration to test
-            service: Tool provider service
-
-        Returns:
-            ToolProviderValidationResult with test results (always 200)
-
-        Raises:
-            HTTPException: 403 for auth, 500 for unexpected errors
+      description: Test Tool Provider definition without saving to database.
       operationId: test_tool_provider
       x-app-permission:
         resource: null
@@ -17695,7 +17210,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserRead_'
+                $ref: '#/components/schemas/UserListResponse'
         '400':
           description: Bad Request
           content:
@@ -17802,6 +17317,111 @@ paths:
       responses:
         '201':
           description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /users/me:
+    get:
+      summary: Get Current User Profile
+      description: Return information about the currently authenticated user.
+      operationId: get_current_user_profile
+      tags:
+        - Users
+      x-app-permission:
+        resource: null
+        action: null
+      responses:
+        '200':
+          description: Current user profile
           content:
             application/json:
               schema:
@@ -18300,7 +17920,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
+                $ref: '#/components/schemas/UserGroupListResponse'
         '400':
           description: Bad Request
           content:
@@ -18422,7 +18042,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
+                $ref: '#/components/schemas/UserGroupListResponse'
         '400':
           description: Bad Request
           content:
@@ -19231,7 +18851,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_GroupRead_'
+                $ref: '#/components/schemas/GroupListResponse'
         '400':
           description: Bad Request
           content:
@@ -19837,7 +19457,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_GroupMemberRead_'
+                $ref: '#/components/schemas/GroupMemberListResponse'
         '400':
           description: Bad Request
           content:
@@ -22347,29 +21967,7 @@ paths:
   /workflows/{workflow_id}/test:
     post:
       summary: Test a single node in a workflow
-      description: |-
-        Test a single node in a workflow with mocked predecessor outputs.
-
-        Creates a test execution that:
-        1. Uses mocked outputs for all nodes in pre_resolved_nodes
-        2. Executes the target_node_id for real with actual logic
-        3. Stops after the target node completes
-        4. Returns results in the execution response
-
-        This enables testing individual nodes in isolation without running the entire workflow.
-
-        Args:
-            workflow_id: Workflow ID to test
-            request: Test execution request with target node and mocked outputs
-            execution_service: Execution service (injected by FastAPI)
-
-        Returns:
-            Created test execution with mode=TEST and status=PENDING
-
-        Raises:
-            HTTPException: 404 if workflow not found
-            HTTPException: 400 if target_node_id not found in workflow
-            HTTPException: 503 if Temporal unavailable
+      description: Test a single node in a workflow with mocked predecessor outputs.
       operationId: test_workflow_node
       tags:
         - workflows
@@ -24341,365 +23939,6 @@ components:
           type: string
           description: User's display name at time of action
           title: Name
-    AuditEventListResponse:
-      title: AuditEventListResponse
-      description: Paginated list response for audit events.
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/AuditEventRead'
-      required:
-        - resources
-      type: object
-    AuditEventRead:
-      additionalProperties: false
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-          title: Resource ID
-          description: Unique identifier for the resource
-          example: 550e8400-e29b-41d4-a716-446655440000
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          title: Created At
-          description: Timestamp when resource was created
-          example: '2025-10-09T12:00:00Z'
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          title: Updated At
-          description: Timestamp when resource was last updated
-          example: '2025-10-09T12:30:00Z'
-        labels:
-          type: object
-          default: {}
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
-          additionalProperties:
-            type: string
-          example:
-            environment: production
-            region: us-east-1
-            team: platform
-        event_category:
-          $ref: '#/components/schemas/EventCategory'
-        event_severity:
-          $ref: '#/components/schemas/EventSeverity'
-          default: info
-        event_status:
-          anyOf:
-            - $ref: '#/components/schemas/EventStatus'
-            - type: 'null'
-          description: Status of the audited operation
-        event_action:
-          type: string
-          title: Event Action
-          description: Specific action that occurred
-        actor_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Actor Id
-          description: User, system, or service that performed the action
-        actor_type:
-          anyOf:
-            - $ref: '#/components/schemas/ActorType'
-            - type: 'null'
-          description: Type of actor (user|system|service)
-        actor_username:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Actor Username
-          description: Username of the actor
-        source_component:
-          type: string
-          title: Source Component
-          description: Component that generated the event
-        resource_urn:
-          anyOf:
-            - type: string
-              maxLength: 1024
-            - type: 'null'
-          title: Resource Urn
-          description: RFC 8141 compliant URN identifying the resource
-        resource_name:
-          anyOf:
-            - type: string
-              maxLength: 255
-            - type: 'null'
-          title: Resource Name
-          description: Human-readable name of the resource at event creation time
-        workflow_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Workflow Id
-          description: Workflow identifier for workflow-scoped events
-        activity_id:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Activity Id
-          description: Activity identifier for activity-level events
-        execution_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Execution Id
-          description: Execution identifier for execution tracing
-        event_message:
-          type: string
-          title: Event Message
-          description: Human-readable description of the event
-        structured_data:
-          $ref: '#/components/schemas/AuditContextData'
-          description: Structured event data (sanitized).
-      required:
-        - event_category
-        - event_action
-        - source_component
-        - event_message
-        - structured_data
-      type: object
-      title: AuditEventRead
-      description: Structured audit event representing a tracked system activity, user action, or operational occurrence.
-    AuditContextData:
-      type: object
-      title: AuditContextData
-      description: |-
-        Universal structured data for all audit events.
-
-        Accepts arbitrary extra fields so callers may pass domain-specific context.
-        All audit events use this single structured data type.
-
-        The data_type field serves as a discriminator for UI/frontend purposes,
-        allowing different audit event types to be distinguished and rendered appropriately.
-      additionalProperties: true
-      required:
-        - data_type
-      properties:
-        data_type:
-          type: string
-          title: Data Type
-          description: Discriminator identifying the audit event type
-        error_type:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Type
-          description: Type of error if an error occurred
-        error_message:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Message
-          description: Detailed error message if an error occurred
-    AuditExportCreate:
-      type: object
-      title: AuditExportCreate
-      description: API request body for starting an audit export.
-      properties:
-        created_at_gte:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Created At Gte
-          description: Export events created at or after this time
-        created_at_lte:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Created At Lte
-          description: Export events created at or before this time
-        event_category:
-          anyOf:
-            - $ref: '#/components/schemas/EventCategory'
-            - type: 'null'
-          description: Filter by event category
-        event_severity:
-          anyOf:
-            - $ref: '#/components/schemas/EventSeverity'
-            - type: 'null'
-          description: Filter by severity level
-        event_status:
-          anyOf:
-            - $ref: '#/components/schemas/EventStatus'
-            - type: 'null'
-          description: Filter by event status
-        event_action:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Event Action
-          description: Filter by specific action
-        actor_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Actor Id
-          description: Filter by actor UUID
-        actor_type:
-          anyOf:
-            - $ref: '#/components/schemas/ActorType'
-            - type: 'null'
-          description: Filter by actor type
-        source_component:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Source Component
-          description: Filter by source component
-        workflow_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Workflow Id
-          description: Filter by workflow UUID
-        activity_id:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Activity Id
-          description: Filter by activity ID
-        execution_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Execution Id
-          description: Filter by execution UUID
-        export_format:
-          $ref: '#/components/schemas/ExportFormat'
-          description: Export file format
-          default: csv
-    AuditExportRead:
-      type: object
-      title: AuditExportRead
-      description: API response for an audit export job.
-      required:
-        - id
-        - status
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-          description: Unique identifier for this export job
-        status:
-          $ref: '#/components/schemas/ExportStatus'
-          description: Current status of the export job
-        file_name:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: File Name
-          description: Name of the export file when completed
-        row_count:
-          anyOf:
-            - type: integer
-            - type: 'null'
-          title: Row Count
-          description: Number of rows exported
-        error:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error
-          description: Error message if export failed
-    ExportStatus:
-      type: string
-      title: ExportStatus
-      description: Status of an audit export job.
-      enum:
-        - pending
-        - running
-        - completed
-        - failed
-    ExportFormat:
-      type: string
-      title: ExportFormat
-      description: Supported export file formats.
-      enum:
-        - csv
-    EventCategory:
-      type: string
-      title: EventCategory
-      description: Categories for different types of audit events.
-      enum:
-        - user_action
-        - workflow_event
-        - agent_interaction
-        - llm_interaction
-        - llm_tool_call
-        - llm_reasoning
-        - api_execution
-        - system_operation
-        - security_event
-    EventSeverity:
-      type: string
-      title: EventSeverity
-      description: Severity levels for audit events.
-      enum:
-        - info
-        - warning
-        - error
-        - critical
-    EventStatus:
-      type: string
-      title: EventStatus
-      description: Status of an audited operation.
-      enum:
-        - success
-        - error
-    ActorType:
-      type: string
-      title: ActorType
-      description: Types of actors that can perform audited actions.
-      enum:
-        - user
-        - system
-        - service
     LoginRequest:
       type: object
       title: LoginRequest
@@ -24814,9 +24053,9 @@ components:
       title: AuthProvidersResponse
       description: Response for the public providers listing endpoint.
       properties:
-        providers:
+        resources:
           type: array
-          title: Providers
+          title: Resources
           items:
             $ref: '#/components/schemas/AuthProviderInfo'
           description: Enabled identity providers
@@ -24957,19 +24196,19 @@ components:
       title: WhoCanResponse
       description: Response body for the Who can? endpoint.
       required:
-        - users
+        - resources
       properties:
-        users:
+        resources:
           type: array
           items:
             $ref: '#/components/schemas/WhoCanUser'
-          title: Users
-        next_cursor:
+          title: Resources
+        next:
           anyOf:
             - type: string
               format: uuid
             - type: 'null'
-          title: Next Cursor
+          title: Next
     PermissionEntry:
       type: object
       title: PermissionEntry
@@ -25645,6 +24884,44 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
+    CredentialWorkflowListResponse:
+      title: CredentialWorkflowListResponse
+      description: Paginated list response for credential workflow references.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CredentialWorkflowRef'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     CredentialCreate:
       description: Schema for creating a new credential.
       properties:
@@ -25688,7 +24965,7 @@ components:
         - project_id
       title: CredentialCreate
       type: object
-    CredentialPatch:
+    CredentialUpdate:
       description: Schema for partially updating a credential. $encrypted$ preserves existing values.
       properties:
         description:
@@ -25721,7 +24998,7 @@ components:
               type: string
             - type: 'null'
           title: Name
-      title: CredentialPatch
+      title: CredentialUpdate
       type: object
     CredentialRead:
       description: Schema for credential API responses. Secret fields masked as $encrypted$.
@@ -25982,22 +25259,33 @@ components:
     ExampleListResponse:
       type: object
       title: ExampleListResponse
-      description: Schema for GET /example response.
+      description: Paginated list response for example items.
       properties:
-        data:
+        resources:
           type: array
-          title: Data
           items:
             $ref: '#/components/schemas/ExampleItem'
+          title: Resources
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
         total:
-          type: integer
+          anyOf:
+            - type: integer
+            - type: 'null'
           title: Total
       required:
-        - data
-        - total
-    CreateExampleRequest:
+        - resources
+    ExampleCreate:
       type: object
-      title: CreateExampleRequest
+      title: ExampleCreate
       description: Schema for creating a new example item (POST /example).
       properties:
         name:
@@ -26019,9 +25307,9 @@ components:
           description: Status of the example item
       required:
         - name
-    UpdateExampleRequest:
+    ExampleUpdate:
       type: object
-      title: UpdateExampleRequest
+      title: ExampleUpdate
       description: Schema for updating an example item (PUT /example/{item_id}).
       properties:
         name:
@@ -26041,16 +25329,6 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ExampleStatus'
             - type: 'null'
-    DeleteResponse:
-      type: object
-      title: DeleteResponse
-      description: Schema for DELETE response.
-      properties:
-        message:
-          type: string
-          title: Message
-      required:
-        - message
     UploadFilesBody:
       type: object
       title: UploadFilesBody
@@ -26988,6 +26266,7 @@ components:
           prev: eyJpZCI6InByZXYifQ
     IntegrationCreate:
       description: Schema for creating a new integration.
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -27007,7 +26286,7 @@ components:
           description: Type of external integration
         configuration:
           oneOf:
-            - $ref: '#/components/schemas/MCPServerConfiguration'
+            - $ref: '#/components/schemas/MCPServerConfigurationInput'
             - $ref: '#/components/schemas/LLMProviderConfiguration'
             - $ref: '#/components/schemas/AAPGatewayConfiguration'
           title: Configuration
@@ -27017,7 +26296,7 @@ components:
             mapping:
               aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
               llm_provider: '#/components/schemas/LLMProviderConfiguration'
-              mcp_server: '#/components/schemas/MCPServerConfiguration'
+              mcp_server: '#/components/schemas/MCPServerConfigurationInput'
         management_credential_id:
           anyOf:
             - type: string
@@ -27068,7 +26347,7 @@ components:
         configuration:
           anyOf:
             - oneOf:
-                - $ref: '#/components/schemas/MCPServerConfiguration'
+                - $ref: '#/components/schemas/MCPServerConfigurationInput'
                 - $ref: '#/components/schemas/LLMProviderConfiguration'
                 - $ref: '#/components/schemas/AAPGatewayConfiguration'
               discriminator:
@@ -27076,7 +26355,7 @@ components:
                 mapping:
                   aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
                   llm_provider: '#/components/schemas/LLMProviderConfiguration'
-                  mcp_server: '#/components/schemas/MCPServerConfiguration'
+                  mcp_server: '#/components/schemas/MCPServerConfigurationInput'
             - type: 'null'
           title: Configuration
           description: Integration-specific configuration
@@ -27107,6 +26386,37 @@ components:
           title: Labels
           description: Key-value labels
       title: IntegrationPatch
+      type: object
+    IntegrationTestConnection:
+      description: Schema for testing a connection without saving an integration.
+      additionalProperties: false
+      properties:
+        integration_type:
+          $ref: '#/components/schemas/IntegrationType'
+          description: Type of external integration
+        configuration:
+          description: Integration-specific configuration
+          discriminator:
+            propertyName: integration_type
+            mapping:
+              mcp_server: '#/components/schemas/MCPServerConfigurationInput'
+              llm_provider: '#/components/schemas/LLMProviderConfiguration'
+              aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
+          oneOf:
+            - $ref: '#/components/schemas/MCPServerConfigurationInput'
+            - $ref: '#/components/schemas/LLMProviderConfiguration'
+            - $ref: '#/components/schemas/AAPGatewayConfiguration'
+          title: Configuration
+        credential_id:
+          type: string
+          format: uuid
+          title: Credential Id
+          description: Credential to use for the connection test
+      required:
+        - integration_type
+        - configuration
+        - credential_id
+      title: IntegrationTestConnection
       type: object
     IntegrationRead:
       description: Schema for integration API responses.
@@ -27218,6 +26528,12 @@ components:
               aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
               llm_provider: '#/components/schemas/LLMProviderConfiguration'
               mcp_server: '#/components/schemas/MCPServerConfiguration'
+        last_validated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Validated At
         management_credential_id:
           anyOf:
             - type: string
@@ -27236,8 +26552,8 @@ components:
         - configuration
       type: object
       title: IntegrationRead
-    MCPServerConfiguration:
-      description: Configuration for MCP (Model Context Protocol) server integrations.
+    MCPServerConfigurationInput:
+      description: Admin-provided fields for MCP server integrations (used by create/patch).
       additionalProperties: false
       properties:
         integration_type:
@@ -27250,6 +26566,32 @@ components:
           format: uri
           title: Base Url
           description: Base URL for the MCP server
+      required:
+        - base_url
+      title: MCPServerConfigurationInput
+      type: object
+    MCPServerConfiguration:
+      description: Full MCP configuration including system-managed discovery results.
+      additionalProperties: false
+      properties:
+        base_url:
+          type: string
+          format: uri
+          title: Base Url
+          description: Base URL for the MCP server
+        discovered_tools:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredTool'
+            - type: 'null'
+          title: Discovered Tools
+          description: Tools discovered during the last successful health check
+        integration_type:
+          type: string
+          const: mcp_server
+          default: mcp_server
+          title: Integration Type
       required:
         - base_url
       title: MCPServerConfiguration
@@ -27300,6 +26642,102 @@ components:
       required:
         - gateway_url
       title: AAPGatewayConfiguration
+      type: object
+    DiscoveredLLMModel:
+      description: A model discovered from an LLM provider during health check.
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+        input_token_price_cents_per_million:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Input Token Price Cents Per Million
+        output_token_price_cents_per_million:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Output Token Price Cents Per Million
+      required:
+        - id
+        - name
+      title: DiscoveredLLMModel
+      type: object
+    DiscoveredTool:
+      description: A tool discovered from an MCP server during health check.
+      properties:
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+      required:
+        - name
+      title: DiscoveredTool
+      type: object
+    HealthCheckErrorType:
+      description: Classification of health check failures.
+      type: string
+      enum:
+        - auth_failure
+        - connection_error
+        - ssl_error
+        - timeout
+      title: HealthCheckErrorType
+    HealthCheckResult:
+      description: |-
+        Structured result of a health check operation.
+
+        Returned by every adapter's health_check() method. Common fields are
+        always populated; resource fields are populated only by the adapter
+        type that discovers them.
+      properties:
+        success:
+          type: boolean
+          title: Success
+        checked_at:
+          type: string
+          format: date-time
+          title: Checked At
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error
+        error_type:
+          anyOf:
+            - $ref: '#/components/schemas/HealthCheckErrorType'
+            - type: 'null'
+        discovered_models:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredLLMModel'
+            - type: 'null'
+          title: Discovered Models
+        discovered_tools:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredTool'
+            - type: 'null'
+          title: Discovered Tools
+      required:
+        - success
+        - checked_at
+      title: HealthCheckResult
       type: object
     ComponentKPISummary:
       properties:
@@ -27577,28 +27015,7 @@ components:
     Invocation:
       title: Invocation
       additionalProperties: false
-      description: |-
-        SQLModel for async workflow invocations.
-
-        Attributes:
-            id: Primary key UUID (inherited from BaseResource)
-            created_at: Timestamp when invocation was created
-                (inherited from BaseResource)
-            updated_at: Timestamp of last update (inherited from BaseResource)
-            created_by: UUID of user who created the invocation
-                (inherited from UserOwnedResource)
-            updated_by: UUID of user who last updated the invocation
-                (inherited from UserOwnedResource)
-            labels: Optional key-value metadata (inherited from BaseResource)
-            prompt: Natural language user request
-            session_id: Session identifier for multi-tenant isolation
-            status: Current invocation status (running, paused, cancelled, completed, failed)
-            started_at: Timestamp when workflow execution started
-            completed_at: Timestamp when workflow completed
-            context_data: Additional context for the request
-            result: Workflow result data
-            error_message: Error message if invocation failed
-            checkpoint_data: Checkpoint data for pause/resume
+      description: SQLModel for async workflow invocations.
       properties:
         id:
           type: string
@@ -28354,11 +27771,11 @@ components:
       title: CategoriesListResponse
       description: Response schema for listing setting categories.
       required:
-        - results
+        - resources
       properties:
-        results:
+        resources:
           type: array
-          title: Results
+          title: Resources
           items:
             $ref: '#/components/schemas/SettingCategoryRead'
     ToolExecutionStatus:
@@ -29504,16 +28921,9 @@ components:
           type: string
           format: date-time
           title: Updated At
-    ResourcesResponse_UserRead_:
-      type: object
-      title: ResourcesResponse[UserRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    UserListResponse:
+      title: UserListResponse
+      description: Paginated list response for users.
       properties:
         next:
           anyOf:
@@ -29538,9 +28948,17 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/UserRead'
-          maxItems: 100
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     UserGroupsSet:
       type: object
       title: UserGroupsSet
@@ -29931,16 +29349,9 @@ components:
             $ref: '#/components/schemas/MembershipSource'
           title: Membership Sources
           description: How this user was assigned to this group
-    ResourcesResponse_GroupRead_:
-      type: object
-      title: ResourcesResponse[GroupRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    GroupListResponse:
+      title: GroupListResponse
+      description: Paginated list response for groups.
       properties:
         next:
           anyOf:
@@ -29965,19 +29376,20 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/GroupRead'
-          maxItems: 100
-    ResourcesResponse_UserGroupRead_:
+      required:
+        - resources
       type: object
-      title: ResourcesResponse[UserGroupRead]
       examples:
         - next: eyJpZCI6InV1aWQifQ
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    UserGroupListResponse:
+      title: UserGroupListResponse
+      description: Paginated list response for user groups.
       properties:
         next:
           anyOf:
@@ -30002,19 +29414,20 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/UserGroupRead'
-          maxItems: 100
-    ResourcesResponse_GroupMemberRead_:
+      required:
+        - resources
       type: object
-      title: ResourcesResponse[GroupMemberRead]
       examples:
         - next: eyJpZCI6InV1aWQifQ
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
+    GroupMemberListResponse:
+      title: GroupMemberListResponse
+      description: Paginated list response for group members.
       properties:
         next:
           anyOf:
@@ -30039,9 +29452,17 @@ components:
           type: array
           title: Resources
           description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/GroupMemberRead'
-          maxItems: 100
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     GroupMemberAdd:
       type: object
       title: GroupMemberAdd
@@ -30941,13 +30362,13 @@ components:
       title: WorkflowVersionListResponse
       description: Schema for workflow version list response.
       required:
-        - versions
+        - resources
       properties:
-        versions:
+        resources:
           type: array
           items:
             $ref: '#/components/schemas/WorkflowVersionRead'
-          title: Versions
+          title: Resources
     WorkflowCreate:
       type: object
       title: WorkflowCreate

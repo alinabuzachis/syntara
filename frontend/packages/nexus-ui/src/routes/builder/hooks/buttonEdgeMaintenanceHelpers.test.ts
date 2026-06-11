@@ -149,6 +149,7 @@ describe('getKeptButtonEdge', () => {
     conditionHandles: [],
     loopHandles: [],
     approvalHandles: [],
+    switchHandles: [],
     regularNodeIds: [],
     activeNodeId: null,
     activeHandle: null,

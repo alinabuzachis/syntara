@@ -99,6 +99,7 @@ export function useBuilderFlowGraph({
         activity.type !== ActivityTypeEnum.CONVERGE &&
         activity.type !== ActivityTypeEnum.CONDITION &&
         activity.type !== ActivityTypeEnum.LOOP &&
+        activity.type !== ActivityTypeEnum.SWITCH &&
         activity.type !== ActivityTypeEnum.WAIT
       ) {
         return

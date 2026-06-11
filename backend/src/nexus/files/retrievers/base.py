@@ -108,3 +108,29 @@ class BaseRetriever(ABC):
             PermissionError: If insufficient permissions to access file metadata
 
         """
+
+    @abstractmethod
+    async def delete_file(self, file_path: str) -> bool:
+        """Delete file from storage.
+
+        Args:
+            file_path: Storage-specific identifier for the file
+
+        Returns:
+            True if file was successfully deleted
+
+        Raises:
+            FileNotFoundError: If file does not exist at the specified path
+            OSError: If deletion fails due to I/O errors
+
+        """
+
+    @abstractmethod
+    async def health_check(self) -> bool:
+        """Check if the storage backend is reachable and operational.
+
+        Returns:
+            True if the backend is healthy, False otherwise.
+            Should not raise exceptions — returns False on any failure.
+
+        """

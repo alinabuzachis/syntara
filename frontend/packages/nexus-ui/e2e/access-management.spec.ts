@@ -299,7 +299,7 @@ test.describe('Access Management — User Detail Tabs', () => {
 
     // Click the first username button in the table to navigate to detail
     const firstRow = table.getByRole('row').nth(1) // skip header row
-    await firstRow.getByRole('button').first().click()
+    await firstRow.locator('td[data-label="Username"]').getByRole('button').click()
 
     // Should be on user detail page
     await expect(app).toHaveURL(new RegExp(`${ACCESS_URL}/users/`))
@@ -347,39 +347,25 @@ test.describe('Access Management — Policies Tab Columns', () => {
     const table = app.getByRole('grid', { name: 'Policies' })
 
     // At least one Allow or Deny label should be visible in the statements column
-    const hasAllowLabel = await table
-      .getByText('Allow')
-      .first()
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false)
-
-    const hasDenyLabel = await table
-      .getByText('Deny')
-      .first()
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false)
+    const statementsColumn = table.locator('td[data-label="Statements"]')
+    const hasAllowLabel = (await statementsColumn.getByText('Allow').count()) > 0
+    const hasDenyLabel = (await statementsColumn.getByText('Deny').count()) > 0
 
     test.skip(!hasAllowLabel && !hasDenyLabel, 'No statement effect labels rendered; statements data required')
 
     // At least one scope label should be visible (e.g. "scope: any")
-    const scopeLabel = table.getByText(/^scope:/)
-    await expect(scopeLabel.first()).toBeVisible()
+    await expect(statementsColumn.getByText(/^scope:/).nth(0)).toBeVisible()
   })
 
   test('project-scoped policies show a clickable project link', async ({ app }) => {
     const table = app.getByRole('grid', { name: 'Policies' })
 
     // Scope into Project column cells via data-label, then look for the link button rendered by ProjectLabel
-    const projectLink = table.locator('td[data-label="Project"]').getByRole('button').first()
-    const hasProjectLink = await projectLink
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false)
+    const projectButtons = table.locator('td[data-label="Project"]').getByRole('button')
+    const hasProjectLink = (await projectButtons.count()) > 0
 
     test.skip(!hasProjectLink, 'No project-scoped policies on this page; seed data required')
 
-    await expect(projectLink).toBeVisible()
+    await expect(projectButtons.nth(0)).toBeVisible()
   })
 })

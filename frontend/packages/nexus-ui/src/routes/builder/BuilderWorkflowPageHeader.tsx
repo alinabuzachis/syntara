@@ -5,6 +5,7 @@ import { type Dispatch, type ReactNode } from 'react'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { WorkflowPublishStatusBadge } from '../../components/WorkflowPublishStatusBadge'
 import { useDialogState } from '../../hooks/useDialogState'
+import { useDocLink } from '../../utils/docs/useDocLink'
 import { CancelExecutionButton } from '../executions/CancelExecutionButton'
 import { isExecutionCancellable } from '../executions/executionCancellable'
 
@@ -190,12 +191,14 @@ export function BuilderWorkflowPageHeader({
   onPublish,
   onUnpublish,
 }: BuilderWorkflowPageHeaderProps) {
+  const builderDocLink = useDocLink('builder')
   const publishDialog = useDialogState<true>()
 
   return (
     <>
       <NxPageHeader
         title={workflowName}
+        docLink={builderDocLink}
         titleSlot={
           <Flex
             gap={{ default: 'gapMd' }}

@@ -5,15 +5,15 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.create_example_request import CreateExampleRequest
 from ...models.error_data import ErrorData
+from ...models.example_create import ExampleCreate
 from ...models.example_item import ExampleItem
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: CreateExampleRequest,
+    body: ExampleCreate,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -95,14 +95,14 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: CreateExampleRequest,
+    body: ExampleCreate,
 ) -> Response[ErrorData | ExampleItem]:
     """Create example item
 
      Creates a new example item
 
     Args:
-        body (CreateExampleRequest): Schema for creating a new example item (POST /example).
+        body (ExampleCreate): Schema for creating a new example item (POST /example).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -126,14 +126,14 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    body: CreateExampleRequest,
+    body: ExampleCreate,
 ) -> ErrorData | ExampleItem | None:
     """Create example item
 
      Creates a new example item
 
     Args:
-        body (CreateExampleRequest): Schema for creating a new example item (POST /example).
+        body (ExampleCreate): Schema for creating a new example item (POST /example).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -152,14 +152,14 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: CreateExampleRequest,
+    body: ExampleCreate,
 ) -> Response[ErrorData | ExampleItem]:
     """Create example item
 
      Creates a new example item
 
     Args:
-        body (CreateExampleRequest): Schema for creating a new example item (POST /example).
+        body (ExampleCreate): Schema for creating a new example item (POST /example).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -181,14 +181,14 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    body: CreateExampleRequest,
+    body: ExampleCreate,
 ) -> ErrorData | ExampleItem | None:
     """Create example item
 
      Creates a new example item
 
     Args:
-        body (CreateExampleRequest): Schema for creating a new example item (POST /example).
+        body (ExampleCreate): Schema for creating a new example item (POST /example).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

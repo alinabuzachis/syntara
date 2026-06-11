@@ -2,6 +2,8 @@ import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../types/edge'
 
+import { isSwitchCasePort } from './switchCaseHelpers'
+
 /** Map from React Flow handle IDs to v2 API port names. */
 const handleToPortMap: Record<string, string> = {
   [EdgeHandleEnum.LOOP]: 'iterate',
@@ -31,11 +33,14 @@ const v2PortHandles: Set<string> = new Set([
  * Converts a React Flow source handle to a v2 API from_port value.
  * - `loop` → `iterate`, `done` → `complete`
  * - `true`, `false`, `approved`, `rejected` pass through unchanged
+ * - Switch handles (`case_0`, `default`) pass through unchanged
  * - Non-port handles (e.g. `source`) return `undefined`
  */
 export function handleToV2Port(handle: string | null | undefined): string | undefined {
-  if (!handle || !v2PortHandles.has(handle)) return undefined
-  return handleToPortMap[handle] ?? handle
+  if (!handle) return undefined
+  if (v2PortHandles.has(handle)) return handleToPortMap[handle] ?? handle
+  if (isSwitchCasePort(handle) || handle === EdgeHandleEnum.DEFAULT) return handle
+  return undefined
 }
 
 /**
@@ -71,11 +76,18 @@ export function isLoopHandle(handle: string | undefined): boolean {
 }
 
 /**
+ * Checks if a handle is a switch branch handle (case_N or default).
+ */
+function isSwitchHandle(handle: string | undefined): boolean {
+  return !!handle && (isSwitchCasePort(handle) || handle === EdgeHandleEnum.DEFAULT)
+}
+
+/**
  * Checks if a handle is a branch handle (requires specific edge ID).
- * Branch handles include condition (true/false), approval (approved/rejected), and loop (loop/done) handles.
+ * Branch handles include condition (true/false), approval (approved/rejected), loop (loop/done), and switch (case_N/default) handles.
  */
 export function isBranchHandle(handle: string | undefined): boolean {
-  return isConditionalHandle(handle) || isApprovalHandle(handle) || isLoopHandle(handle)
+  return isConditionalHandle(handle) || isApprovalHandle(handle) || isLoopHandle(handle) || isSwitchHandle(handle)
 }
 
 /**

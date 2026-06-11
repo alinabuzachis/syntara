@@ -1,0 +1,70 @@
+{
+  "home": {
+    "upstream": "",
+    "product": ""
+  },
+  "workflows": {
+    "upstream": "TODO_UPSTREAM_PATH/workflows",
+    "product": "TODO_PRODUCT_PATH/workflows"
+  },
+  "builder": {
+    "upstream": "TODO_UPSTREAM_PATH/builder",
+    "product": "TODO_PRODUCT_PATH/builder"
+  },
+  "executions": {
+    "upstream": "TODO_UPSTREAM_PATH/executions",
+    "product": "TODO_PRODUCT_PATH/executions"
+  },
+  "approvals": {
+    "upstream": "TODO_UPSTREAM_PATH/approvals",
+    "product": "TODO_PRODUCT_PATH/approvals"
+  },
+  "auditLog": {
+    "upstream": "TODO_UPSTREAM_PATH/audit-log",
+    "product": "TODO_PRODUCT_PATH/audit-log"
+  },
+  "credentials": {
+    "upstream": "TODO_UPSTREAM_PATH/credentials",
+    "product": "TODO_PRODUCT_PATH/credentials"
+  },
+  "integrations": {
+    "upstream": "TODO_UPSTREAM_PATH/integrations",
+    "product": "TODO_PRODUCT_PATH/integrations"
+  },
+  "settings": {
+    "upstream": "TODO_UPSTREAM_PATH/settings",
+    "product": "TODO_PRODUCT_PATH/settings"
+  },
+  "users": {
+    "upstream": "TODO_UPSTREAM_PATH/users",
+    "product": "TODO_PRODUCT_PATH/users"
+  },
+  "groups": {
+    "upstream": "TODO_UPSTREAM_PATH/groups",
+    "product": "TODO_PRODUCT_PATH/groups"
+  },
+  "projects": {
+    "upstream": "TODO_UPSTREAM_PATH/projects",
+    "product": "TODO_PRODUCT_PATH/projects"
+  },
+  "roles": {
+    "upstream": "TODO_UPSTREAM_PATH/roles",
+    "product": "TODO_PRODUCT_PATH/roles"
+  },
+  "policies": {
+    "upstream": "TODO_UPSTREAM_PATH/policies",
+    "product": "TODO_PRODUCT_PATH/policies"
+  },
+  "accessControl": {
+    "upstream": "TODO_UPSTREAM_PATH/access-control",
+    "product": "TODO_PRODUCT_PATH/access-control"
+  },
+  "authentication": {
+    "upstream": "TODO_UPSTREAM_PATH/authentication",
+    "product": "TODO_PRODUCT_PATH/authentication"
+  },
+  "identityProviders": {
+    "upstream": "TODO_UPSTREAM_PATH/identity-providers",
+    "product": "TODO_PRODUCT_PATH/identity-providers"
+  }
+}

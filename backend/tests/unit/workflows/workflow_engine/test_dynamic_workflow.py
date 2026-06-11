@@ -27,10 +27,20 @@ from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 def _mock_temporal_workflow() -> Generator[MagicMock]:
     """Mock the Temporal workflow module to avoid 'Not in workflow event loop' errors."""
     mock_logger = MagicMock()
-    with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
+    with (
+        patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf,
+        patch("nexus.workflows.workflow_engine.converge_mixin.workflow", mock_wf),
+    ):
         mock_wf.logger = mock_logger
         mock_wf.info.return_value = MagicMock(workflow_id="test-wf-id")
         yield mock_wf
+
+
+@pytest.fixture
+def mock_timeout_workflow(_mock_temporal_workflow: MagicMock) -> MagicMock:
+    """Extend the workflow mock with wait_condition that raises TimeoutError."""
+    _mock_temporal_workflow.wait_condition = AsyncMock(side_effect=TimeoutError)
+    return _mock_temporal_workflow
 
 
 def _make_workflow(
@@ -51,6 +61,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    wf._cof_failed_nodes = set()
     init_workflow_runtime(wf)
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
@@ -90,6 +101,86 @@ def _build_fanin_graph() -> WorkflowGraph:
     backend.add_edge("trigger", "node_a", None)
     backend.add_edge("trigger", "node_b", None)
     backend.add_edge("node_a", "converge_node", None)
+    backend.add_edge("node_b", "converge_node", None)
+    backend.add_edge("converge_node", "node_c", None)
+    return WorkflowGraph(backend)
+
+
+def _build_three_branch_converge_graph(config: dict[str, Any]) -> WorkflowGraph:
+    """Build: trigger -> [node_a, node_b, node_c] -> converge_node -> node_d."""
+    backend = InMemoryGraphBackend()
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+    backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
+    backend.add_node("converge_node", {"id": "converge_node", "type": "converge", "config": config})
+    backend.add_node("node_d", {"id": "node_d", "type": "script", "config": {}})
+    backend.add_edge("trigger", "node_a", None)
+    backend.add_edge("trigger", "node_b", None)
+    backend.add_edge("trigger", "node_c", None)
+    backend.add_edge("node_a", "converge_node", None)
+    backend.add_edge("node_b", "converge_node", None)
+    backend.add_edge("node_c", "converge_node", None)
+    backend.add_edge("converge_node", "node_d", None)
+    return WorkflowGraph(backend)
+
+
+def _build_intermediate_converge_graph(config: dict[str, Any] | None = None) -> WorkflowGraph:
+    """Build: trigger -> [node_a, node_b]; node_a -> node_x -> converge_node; node_b -> converge_node -> node_c."""
+    backend = InMemoryGraphBackend()
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+    backend.add_node("node_x", {"id": "node_x", "type": "script", "config": {}})
+    backend.add_node("converge_node", {"id": "converge_node", "type": "converge", "config": config or {}})
+    backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
+    backend.add_edge("trigger", "node_a", None)
+    backend.add_edge("trigger", "node_b", None)
+    backend.add_edge("node_a", "node_x", None)
+    backend.add_edge("node_x", "converge_node", None)
+    backend.add_edge("node_b", "converge_node", None)
+    backend.add_edge("converge_node", "node_c", None)
+    return WorkflowGraph(backend)
+
+
+def _build_chained_converge_graph() -> WorkflowGraph:
+    """Build chained converge: [A, B] -> conv1 -> Y -> conv2 <- C -> D."""
+    backend = InMemoryGraphBackend()
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+    backend.add_node("conv1", {"id": "conv1", "type": "converge", "config": {}})
+    backend.add_node("node_y", {"id": "node_y", "type": "script", "config": {}})
+    backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
+    backend.add_node("conv2", {"id": "conv2", "type": "converge", "config": {}})
+    backend.add_node("node_d", {"id": "node_d", "type": "script", "config": {}})
+    backend.add_edge("trigger", "node_a", None)
+    backend.add_edge("trigger", "node_b", None)
+    backend.add_edge("trigger", "node_c", None)
+    backend.add_edge("node_a", "conv1", None)
+    backend.add_edge("node_b", "conv1", None)
+    backend.add_edge("conv1", "node_y", None)
+    backend.add_edge("node_y", "conv2", None)
+    backend.add_edge("node_c", "conv2", None)
+    backend.add_edge("conv2", "node_d", None)
+    return WorkflowGraph(backend)
+
+
+def _build_multi_intermediate_converge_graph() -> WorkflowGraph:
+    """Build: A -> X -> Y -> converge <- B -> C (two intermediates)."""
+    backend = InMemoryGraphBackend()
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+    backend.add_node("node_x", {"id": "node_x", "type": "script", "config": {}})
+    backend.add_node("node_y", {"id": "node_y", "type": "script", "config": {}})
+    backend.add_node("converge_node", {"id": "converge_node", "type": "converge", "config": {}})
+    backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
+    backend.add_edge("trigger", "node_a", None)
+    backend.add_edge("trigger", "node_b", None)
+    backend.add_edge("node_a", "node_x", None)
+    backend.add_edge("node_x", "node_y", None)
+    backend.add_edge("node_y", "converge_node", None)
     backend.add_edge("node_b", "converge_node", None)
     backend.add_edge("converge_node", "node_c", None)
     return WorkflowGraph(backend)
@@ -252,13 +343,12 @@ class TestFanInConverge:
         converge_node = graph.get_node("converge_node")
         converge_node.settings.timeout = 10
 
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(_async_handle_converge_wait(wf, converge_node, graph))
-            assert "converge_node" in wf._timeout_tasks
-        finally:
-            wf._timeout_tasks["converge_node"].cancel()
-            loop.close()
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.asyncio.create_task") as mock_create_task:
+            mock_create_task.return_value = MagicMock()
+            wf._handle_converge_wait("converge_node", converge_node, graph, {})
+
+        assert "converge_node" in wf._timeout_tasks
+        mock_create_task.assert_called_once()
 
     def test_handle_converge_wait_skips_duplicate_handler(self) -> None:
         """A second call for the same node should not start another handler."""
@@ -267,15 +357,14 @@ class TestFanInConverge:
         converge_node = graph.get_node("converge_node")
         converge_node.settings.timeout = 10
 
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(_async_handle_converge_wait(wf, converge_node, graph))
-            first_task = wf._timeout_tasks["converge_node"]
-            loop.run_until_complete(_async_handle_converge_wait(wf, converge_node, graph))
-            assert wf._timeout_tasks["converge_node"] is first_task
-        finally:
-            first_task.cancel()
-            loop.close()
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.asyncio.create_task") as mock_create_task:
+            mock_task = MagicMock()
+            mock_create_task.return_value = mock_task
+            wf._handle_converge_wait("converge_node", converge_node, graph, {})
+            wf._handle_converge_wait("converge_node", converge_node, graph, {})
+
+        assert wf._timeout_tasks["converge_node"] is mock_task
+        mock_create_task.assert_called_once()
 
     def test_handle_converge_wait_always_starts_handler(self) -> None:
         """A converge node always starts a timeout handler, falling back to the catalog default."""
@@ -350,29 +439,26 @@ class TestFanInConverge:
         assert "converge_node" in wf.failed_nodes
         assert "node_b" in wf._detached_nodes
 
-    def test_on_timeout_fail_marks_node_failed(self) -> None:
+    def test_on_timeout_fail_marks_node_failed(self, mock_timeout_workflow: MagicMock) -> None:
         """on_timeout='fail' (default) marks the converge as failed and skips downstream."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
         wf.resolver.set_namespace("node_a", {"result": "a_done"})
 
-        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
-            mock_wf.logger = MagicMock()
-            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(
-                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
-                )
-            finally:
-                loop.close()
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(
+                wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
+            )
+        finally:
+            loop.close()
 
         assert "converge_node" in wf.failed_nodes
         assert "converge_node" not in wf._timed_out_converge_nodes
         assert "node_c" in wf.skipped_nodes
         assert "node_b" in wf.skipped_nodes
 
-    def test_on_timeout_continue_schedules_converge(self) -> None:
+    def test_on_timeout_continue_schedules_converge(self, mock_timeout_workflow: MagicMock) -> None:
         """on_timeout='continue' skips predecessors and signals the main loop."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
@@ -380,22 +466,19 @@ class TestFanInConverge:
         converge_node.config["on_timeout"] = "continue"
         wf.resolver.set_namespace("node_a", {"result": "a_done"})
 
-        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
-            mock_wf.logger = MagicMock()
-            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(
-                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
-                )
-            finally:
-                loop.close()
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(
+                wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
+            )
+        finally:
+            loop.close()
 
         assert "converge_node" not in wf.failed_nodes
         assert "converge_node" in wf._timed_out_converge_nodes
         assert "node_b" in wf.skipped_nodes
 
-    def test_on_timeout_continue_leaves_in_flight_predecessor(self) -> None:
+    def test_on_timeout_continue_leaves_in_flight_predecessor(self, mock_timeout_workflow: MagicMock) -> None:
         """on_timeout='continue' must not skip predecessors still running in pending_tasks."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
@@ -404,61 +487,49 @@ class TestFanInConverge:
         wf.resolver.set_namespace("node_a", {"result": "a_done"})
         pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
 
-        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
-            mock_wf.logger = MagicMock()
-            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(
-                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
-                )
-            finally:
-                loop.close()
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(
+                wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
+            )
+        finally:
+            loop.close()
 
         assert "converge_node" in wf._timed_out_converge_nodes
         assert "node_b" not in wf.skipped_nodes
 
-    def test_on_timeout_fail_leaves_in_flight_predecessor(self) -> None:
+    def test_on_timeout_fail_leaves_in_flight_predecessor(self, mock_timeout_workflow: MagicMock) -> None:
         """on_timeout='fail' must not skip predecessors still running in pending_tasks."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
-        # Don't set on_timeout - defaults to 'fail'
         wf.resolver.set_namespace("node_a", {"result": "a_done"})
         pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
 
-        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
-            mock_wf.logger = MagicMock()
-            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(
-                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
-                )
-            finally:
-                loop.close()
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(
+                wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
+            )
+        finally:
+            loop.close()
 
-        # Converge should be marked as failed
         assert "converge_node" in wf.failed_nodes
-        # In-flight predecessor (node_b) should NOT be skipped
         assert "node_b" not in wf.skipped_nodes
 
-    def test_on_timeout_fail_detaches_in_flight_predecessors(self) -> None:
+    def test_on_timeout_fail_detaches_in_flight_predecessors(self, mock_timeout_workflow: MagicMock) -> None:
         """on_timeout='fail' detaches in-flight predecessors so the main loop can exit."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
         wf.resolver.set_namespace("node_a", {"result": "a_done"})
         pending: dict[str, asyncio.Task[Any]] = {"node_b": MagicMock()}
 
-        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
-            mock_wf.logger = MagicMock()
-            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(
-                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
-                )
-            finally:
-                loop.close()
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(
+                wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks=pending)
+            )
+        finally:
+            loop.close()
 
         assert "converge_node" in wf.failed_nodes
         assert "node_b" not in wf.skipped_nodes
@@ -514,21 +585,18 @@ class TestFanInConverge:
         # Downstream node_c should also NOT be scheduled (converge already ran)
         assert "node_c" not in pending
 
-    def test_on_timeout_default_is_fail(self) -> None:
+    def test_on_timeout_default_is_fail(self, mock_timeout_workflow: MagicMock) -> None:
         """No on_timeout in config defaults to 'fail'."""
         wf = _make_workflow()
         graph = _build_fanin_graph()
 
-        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow") as mock_wf:
-            mock_wf.logger = MagicMock()
-            mock_wf.wait_condition = AsyncMock(side_effect=TimeoutError)
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(
-                    wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
-                )
-            finally:
-                loop.close()
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(
+                wf._converge_timeout_handler("converge_node", graph, timeout_seconds=10, pending_tasks={})
+            )
+        finally:
+            loop.close()
 
         assert "converge_node" in wf.failed_nodes
         assert "converge_node" not in wf._timed_out_converge_nodes
@@ -640,44 +708,24 @@ class TestConvergeAnyStrategy:
         assert result is False
         assert "node_b" not in wf.skipped_nodes
 
-    def test_any_clamps_against_reachable_not_total(self) -> None:
-        """When predecessors are skipped (e.g. by condition), n_required clamps to reachable count."""
+    def test_any_skips_do_not_count_toward_n_required(self) -> None:
+        """Skipped predecessors do not count toward n_required; only successes count."""
         graph = self._build_any_converge_graph({"strategy": "any", "n_required": 2})
         wf = _make_workflow(skipped_nodes={"node_b"})
         wf.resolver.set_namespace("node_a", {"status": "completed"})
-        # node_b is skipped, so only 1 reachable predecessor remains.
-        # n_req clamps from 2 to 1, and 1 completed >= 1 → fires.
-        assert wf._are_predecessors_complete("converge_node", graph) is True
+        # node_b is skipped, node_a succeeds → only 1 success < n_required=2 → does NOT fire
+        assert wf._are_predecessors_complete("converge_node", graph) is False
 
-    @staticmethod
-    def _build_three_branch_converge_graph(config: dict[str, Any]) -> WorkflowGraph:
-        """Build: trigger -> [node_a, node_b, node_c] -> converge_node -> node_d."""
-        backend = InMemoryGraphBackend()
-        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-        backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
-        backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
-        backend.add_node("converge_node", {"id": "converge_node", "type": "converge", "config": config})
-        backend.add_node("node_d", {"id": "node_d", "type": "script", "config": {}})
-        backend.add_edge("trigger", "node_a", None)
-        backend.add_edge("trigger", "node_b", None)
-        backend.add_edge("trigger", "node_c", None)
-        backend.add_edge("node_a", "converge_node", None)
-        backend.add_edge("node_b", "converge_node", None)
-        backend.add_edge("node_c", "converge_node", None)
-        backend.add_edge("converge_node", "node_d", None)
-        return WorkflowGraph(backend)
-
-    def test_any_with_multiple_skipped_clamps_correctly(self) -> None:
-        """With 3 preds, 2 skipped, n_required=2: clamps to 1 reachable, fires when 1 completes."""
-        graph = self._build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+    def test_any_all_skipped_except_one_still_needs_n_required(self) -> None:
+        """With 3 preds, 2 skipped, n_required=2: only 1 success < 2 → does not fire."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
         wf = _make_workflow(skipped_nodes={"node_b", "node_c"})
         wf.resolver.set_namespace("node_a", {"status": "completed"})
-        assert wf._are_predecessors_complete("converge_node", graph) is True
+        assert wf._are_predecessors_complete("converge_node", graph) is False
 
     def test_any_still_waits_when_reachable_preds_pending(self) -> None:
         """With 3 preds, 1 skipped, n_required=2: 2 reachable, only 1 complete → waits."""
-        graph = self._build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
         wf = _make_workflow(skipped_nodes={"node_c"})
         wf.resolver.set_namespace("node_a", {"status": "completed"})
         # node_b is reachable but not complete → 2 reachable, 1 complete < 2 → waits
@@ -714,6 +762,291 @@ class TestConvergeAnyStrategy:
                 assert result == {"status": "completed"}
         finally:
             loop.close()
+
+
+# ---------------------------------------------------------------------------
+# Tests: Converge ANY failure semantics
+# ---------------------------------------------------------------------------
+
+
+class TestConvergeAnyFailure:
+    """Test that ANY converge fails when branch failures prevent n_required."""
+
+    def test_any_converge_fails_when_failures_prevent_n_required(self) -> None:
+        """3 branches, n_required=2: node_a succeeds, node_b + node_c fail → converge fails."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow(failed_nodes={"node_b": "error b", "node_c": "error c"})
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf.resolver.set_namespace("node_b", {"status": "failed", "error": "error b"})
+        wf.resolver.set_namespace("node_c", {"status": "failed", "error": "error c"})
+
+        converge_node = graph.get_node("converge_node")
+        pending: dict[str, asyncio.Task[Any]] = {}
+        is_loop_iterate = False
+        result = wf._should_skip_successor(converge_node, "node_a", is_loop_iterate, pending, graph)
+
+        assert result is True
+        assert "converge_node" in wf.failed_nodes
+        assert "converge_node" not in wf.skipped_nodes
+        assert "node_d" in wf.skipped_nodes
+        assert wf._has_unhandled_failure is True
+
+    def test_any_converge_waits_while_branch_still_running(self) -> None:
+        """1 success, 1 failure, 1 still running → converge waits (not failed yet)."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow(failed_nodes={"node_b": "error b"})
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf.resolver.set_namespace("node_b", {"status": "failed", "error": "error b"})
+        # node_c is still running (no namespace, not skipped, not failed)
+
+        assert wf._are_predecessors_complete("converge_node", graph) is False
+        assert "converge_node" not in wf.failed_nodes
+
+    def test_any_converge_skipped_when_all_preds_skipped_no_failures(self) -> None:
+        """All predecessors skipped, no failures → converge stays skipped (not failed) in final pass."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow(skipped_nodes={"node_a", "node_b", "node_c"})
+
+        wf._mark_remaining_unreachable_nodes(graph)
+
+        assert "converge_node" in wf.skipped_nodes
+        assert "converge_node" not in wf.failed_nodes
+
+    def test_any_converge_excludes_failed_from_completed_count(self) -> None:
+        """Failed predecessor with namespace should NOT count as completed."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow(failed_nodes={"node_a": "error a"})
+        wf.resolver.set_namespace("node_a", {"status": "failed", "error": "error a"})
+        wf.resolver.set_namespace("node_b", {"status": "completed"})
+        wf.resolver.set_namespace("node_c", {"status": "completed"})
+
+        # node_a is failed (not counted), node_b + node_c succeed → 2 >= 2
+        assert wf._are_predecessors_complete("converge_node", graph) is True
+
+        # Now test with n_required=3: only 2 successes < 3
+        graph2 = _build_three_branch_converge_graph({"strategy": "any", "n_required": 3})
+        wf2 = _make_workflow(failed_nodes={"node_a": "error a"})
+        wf2.resolver.set_namespace("node_a", {"status": "failed", "error": "error a"})
+        wf2.resolver.set_namespace("node_b", {"status": "completed"})
+        wf2.resolver.set_namespace("node_c", {"status": "completed"})
+        assert wf2._are_predecessors_complete("converge_node", graph2) is False
+
+    def test_handle_node_failure_triggers_converge_failure(self) -> None:
+        """When a branch fails and all converge predecessors are terminal, converge fails."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow(failed_nodes={"node_b": "error b"})
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf.resolver.set_namespace("node_b", {"status": "failed", "error": "error b"})
+
+        error = Exception("error c")
+        wf._handle_node_failure("node_c", error, graph)
+
+        assert "converge_node" in wf.failed_nodes
+        assert "converge_node" not in wf.skipped_nodes
+        assert "node_d" in wf.skipped_nodes
+        assert wf._has_unhandled_failure is True
+
+
+# ---------------------------------------------------------------------------
+# Tests: Converge ALL failure semantics
+# ---------------------------------------------------------------------------
+
+
+class TestConvergeAllFailure:
+    """Test that ALL converge fails immediately when any predecessor fails."""
+
+    def test_all_converge_fails_when_predecessor_fails(self) -> None:
+        """ALL strategy: if any predecessor fails, converge fails and downstream is skipped."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow(failed_nodes={"node_b": "error b"})
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf.resolver.set_namespace("node_b", {"status": "failed", "error": "error b"})
+        wf.resolver.set_namespace("node_c", {"status": "completed"})
+
+        converge_node = graph.get_node("converge_node")
+        pending: dict[str, asyncio.Task[Any]] = {}
+        is_loop_iterate = False
+        result = wf._should_skip_successor(converge_node, "node_c", is_loop_iterate, pending, graph)
+
+        assert result is True
+        assert "converge_node" in wf.failed_nodes
+        assert "converge_node" not in wf.skipped_nodes
+        assert "node_d" in wf.skipped_nodes
+        assert wf._has_unhandled_failure is True
+
+    def test_all_converge_fails_eagerly_via_handle_node_failure(self) -> None:
+        """_handle_node_failure triggers immediate converge failure for ALL strategy."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        # node_c is still running (not completed yet)
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_b crashed")
+        wf._handle_node_failure("node_b", error, graph, pending)
+
+        assert "converge_node" in wf.failed_nodes
+        assert "converge_node" not in wf.skipped_nodes
+        assert "node_d" in wf.skipped_nodes
+        assert wf._has_unhandled_failure is True
+
+    def test_all_converge_succeeds_when_all_predecessors_succeed(self) -> None:
+        """ALL strategy: all predecessors succeed -> converge fires normally."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf.resolver.set_namespace("node_b", {"status": "completed"})
+        wf.resolver.set_namespace("node_c", {"status": "completed"})
+
+        assert wf._are_predecessors_complete("converge_node", graph) is True
+
+        converge_node = graph.get_node("converge_node")
+        pending: dict[str, asyncio.Task[Any]] = {}
+        is_loop_iterate = False
+        result = wf._should_skip_successor(converge_node, "node_c", is_loop_iterate, pending, graph)
+
+        assert result is False
+        assert "converge_node" not in wf.failed_nodes
+
+    def test_all_converge_skips_not_started_detaches_in_flight(self) -> None:
+        """ALL: not-started preds are skipped, in-flight preds are detached."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        # node_c is in-flight (in pending_tasks but no namespace)
+        mock_task = MagicMock()
+        pending: dict[str, asyncio.Task[Any]] = {"node_c": mock_task}
+
+        error = Exception("node_b crashed")
+        wf._handle_node_failure("node_b", error, graph, pending)
+
+        assert "converge_node" in wf.failed_nodes
+        assert "node_c" in wf._detached_nodes
+        assert "node_d" in wf.skipped_nodes
+
+    def test_all_converge_does_not_fail_on_cof_predecessor(self) -> None:
+        """Predecessor fails with continue_on_failure=True: converge ALL does NOT fail."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_b crashed")
+        wf._handle_node_failure("node_b", error, graph, pending, continue_on_failure=True)
+
+        assert wf._has_unhandled_failure is False
+        assert "converge_node" not in wf.failed_nodes
+        assert "node_d" not in wf.skipped_nodes
+        assert "node_b" in wf._cof_failed_nodes
+
+    def test_all_branches_fail_converge_is_failed_not_skipped(self) -> None:
+        """When all branches fail, converge must be 'failed' not 'skipped'."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        wf._handle_node_failure("node_a", Exception("err a"), graph, pending)
+        wf._handle_node_failure("node_b", Exception("err b"), graph, pending)
+        wf._handle_node_failure("node_c", Exception("err c"), graph, pending)
+
+        assert "converge_node" in wf.failed_nodes
+        assert "converge_node" not in wf.skipped_nodes
+        assert "node_d" in wf.skipped_nodes
+        assert wf._has_unhandled_failure is True
+
+
+# ---------------------------------------------------------------------------
+# Tests: CoF-failed branches and converge interaction
+# ---------------------------------------------------------------------------
+
+
+class TestConvergeCofFailure:
+    """Test that continue_on_failure failures count toward converge n_required."""
+
+    def test_any_cof_branch_counts_toward_n_required(self) -> None:
+        """ANY strategy: CoF-failed branch counts toward n_required."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        # node_b fails with CoF
+        wf._handle_node_failure("node_b", Exception("err"), graph, continue_on_failure=True)
+        # node_c still running
+
+        # CoF-failed node_b should count: completed_count = 2 (node_a + node_b) >= n_required=2
+        assert wf._are_predecessors_complete("converge_node", graph) is True
+
+    def test_any_non_cof_branch_does_not_count(self) -> None:
+        """ANY strategy: non-CoF-failed branch does NOT count toward n_required."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        # node_b fails WITHOUT CoF
+        wf._handle_node_failure("node_b", Exception("err"), graph)
+        # node_c still running
+
+        # non-CoF node_b should NOT count: completed_count = 1 (node_a) < n_required=2
+        assert wf._are_predecessors_complete("converge_node", graph) is False
+
+    def test_all_converge_fires_with_only_cof_failures(self) -> None:
+        """ALL strategy: converge fires when the only failures are CoF."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf.resolver.set_namespace("node_c", {"status": "completed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        wf._handle_node_failure("node_b", Exception("err"), graph, pending, continue_on_failure=True)
+
+        assert "converge_node" not in wf.failed_nodes
+        assert wf._are_predecessors_complete("converge_node", graph) is True
+
+    def test_all_converge_fails_with_mixed_cof_and_non_cof(self) -> None:
+        """ALL strategy: non-CoF failure causes converge failure even if other failures are CoF."""
+        graph = _build_three_branch_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        # node_b fails with CoF
+        wf._handle_node_failure("node_b", Exception("err b"), graph, pending, continue_on_failure=True)
+        # node_c fails without CoF
+        wf._handle_node_failure("node_c", Exception("err c"), graph, pending)
+
+        assert "converge_node" in wf.failed_nodes
+        assert wf._has_unhandled_failure is True
+
+    def test_count_successful_predecessors_includes_cof(self) -> None:
+        """_count_successful_predecessors counts CoF-failed nodes."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf._handle_node_failure("node_b", Exception("err"), graph, continue_on_failure=True)
+
+        predecessor_ids = graph.get_predecessors("converge_node")
+        count = wf._count_successful_predecessors(predecessor_ids)
+        assert count == 2  # node_a (success) + node_b (CoF)
+
+    def test_are_predecessors_complete_counts_cof_as_completed(self) -> None:
+        """_are_predecessors_complete counts CoF-failed nodes toward completed_count."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_a", {"status": "completed"})
+        wf._handle_node_failure("node_b", Exception("err"), graph, continue_on_failure=True)
+        # node_c still running
+
+        # CoF-failed node_b counts: completed_count = 2 (node_a + node_b) >= n_required=2
+        assert wf._are_predecessors_complete("converge_node", graph) is True
+
+    def test_are_predecessors_complete_cof_alone_meets_n_required(self) -> None:
+        """_are_predecessors_complete satisfies n_required with only CoF-failed nodes."""
+        graph = _build_three_branch_converge_graph({"strategy": "any", "n_required": 2})
+        wf = _make_workflow()
+        wf._handle_node_failure("node_a", Exception("err a"), graph, continue_on_failure=True)
+        wf._handle_node_failure("node_b", Exception("err b"), graph, continue_on_failure=True)
+        # node_c still running
+
+        # Both CoF-failed: completed_count = 2 >= n_required=2
+        assert wf._are_predecessors_complete("converge_node", graph) is True
 
 
 # ---------------------------------------------------------------------------
@@ -783,3 +1116,119 @@ class TestBuildResultStatus:
         wf.resolver.set_namespace("node_c", {"status": "failed", "error": "timeout"})
         result = wf._build_result("exec-1", include_node_results=False)
         assert result["status"] == "completed_with_errors"
+
+
+# ---------------------------------------------------------------------------
+# Tests: Converge failure through intermediate nodes
+# ---------------------------------------------------------------------------
+
+
+class TestConvergeIntermediateFailure:
+    """Test converge failure detection when converge sits behind intermediate nodes."""
+
+    def test_all_converge_behind_intermediate_fails_eagerly(self) -> None:
+        """ALL strategy: A -> X -> converge, B -> converge.  A fails -> converge fails eagerly."""
+        graph = _build_intermediate_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_b", {"status": "completed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_a crashed")
+        wf._handle_node_failure("node_a", error, graph, pending)
+
+        assert "node_x" in wf.skipped_nodes
+        assert "converge_node" in wf.failed_nodes
+        assert "converge_node" not in wf.skipped_nodes
+        assert "node_c" in wf.skipped_nodes
+        assert wf._has_unhandled_failure is True
+
+    def test_any_converge_behind_intermediate_waits_while_branch_running(self) -> None:
+        """ANY strategy: A -> X -> converge, B + C -> converge.  A fails, B + C running -> waits."""
+        backend = InMemoryGraphBackend()
+        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+        backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
+        backend.add_node("node_x", {"id": "node_x", "type": "script", "config": {}})
+        backend.add_node(
+            "converge_node",
+            {"id": "converge_node", "type": "converge", "config": {"strategy": "any", "n_required": 2}},
+        )
+        backend.add_node("node_d", {"id": "node_d", "type": "script", "config": {}})
+        backend.add_edge("trigger", "node_a", None)
+        backend.add_edge("trigger", "node_b", None)
+        backend.add_edge("trigger", "node_c", None)
+        backend.add_edge("node_a", "node_x", None)
+        backend.add_edge("node_x", "converge_node", None)
+        backend.add_edge("node_b", "converge_node", None)
+        backend.add_edge("node_c", "converge_node", None)
+        backend.add_edge("converge_node", "node_d", None)
+        graph = WorkflowGraph(backend)
+
+        wf = _make_workflow()
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_a crashed")
+        wf._handle_node_failure("node_a", error, graph, pending)
+
+        assert "node_x" in wf.skipped_nodes
+        assert "converge_node" not in wf.failed_nodes
+
+    def test_continue_on_failure_does_not_bfs_through_intermediates(self) -> None:
+        """continue_on_failure=True: intermediates NOT skipped, converge NOT failed."""
+        graph = _build_intermediate_converge_graph({"strategy": "all"})
+        wf = _make_workflow()
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_a crashed")
+        wf._handle_node_failure("node_a", error, graph, pending, continue_on_failure=True)
+
+        assert "node_x" not in wf.skipped_nodes
+        assert "converge_node" not in wf.failed_nodes
+
+    def test_chained_converge_cascade(self) -> None:
+        """A -> conv1, B -> conv1 -> Y -> conv2, C -> conv2: both converges fail."""
+        graph = _build_chained_converge_graph()
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_b", {"status": "completed"})
+        wf.resolver.set_namespace("node_c", {"status": "completed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_a crashed")
+        wf._handle_node_failure("node_a", error, graph, pending)
+
+        assert "conv1" in wf.failed_nodes
+        assert "node_y" in wf.skipped_nodes
+        assert "conv2" in wf.failed_nodes
+        assert "conv2" not in wf.skipped_nodes
+        assert "node_d" in wf.skipped_nodes
+
+    def test_multiple_intermediates_in_chain(self) -> None:
+        """A -> X -> Y -> converge, B -> converge.  A fails -> all skipped, converge failed."""
+        graph = _build_multi_intermediate_converge_graph()
+        wf = _make_workflow()
+        wf.resolver.set_namespace("node_b", {"status": "completed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_a crashed")
+        wf._handle_node_failure("node_a", error, graph, pending)
+
+        assert "node_x" in wf.skipped_nodes
+        assert "node_y" in wf.skipped_nodes
+        assert "converge_node" in wf.failed_nodes
+        assert "node_c" in wf.skipped_nodes
+
+    def test_already_failed_converge_not_reprocessed(self) -> None:
+        """BFS guard: converge already in failed_nodes -> not reprocessed."""
+        graph = _build_intermediate_converge_graph({"strategy": "all"})
+        wf = _make_workflow(
+            failed_nodes={"converge_node": "already failed"},
+            skipped_nodes={"node_x"},
+        )
+        wf.resolver.set_namespace("converge_node", {"status": "failed", "error": "already failed"})
+
+        pending: dict[str, asyncio.Task[Any]] = {}
+        error = Exception("node_a crashed")
+        wf._handle_node_failure("node_a", error, graph, pending)
+
+        assert wf.failed_nodes["converge_node"] == "already failed"

@@ -92,7 +92,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserRead_'
+                $ref: '#/components/schemas/UserListResponse'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -147,6 +147,39 @@ paths:
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
+      security:
+        - bearerAuth: []
+  /users/me:
+    get:
+      summary: Get Current User Profile
+      description: Return information about the currently authenticated user.
+      operationId: get_current_user_profile
+      tags:
+        - Users
+      x-app-permission:
+        resource: null
+        action: null
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
       security:
         - bearerAuth: []
   /users/{user_id}:
@@ -306,7 +339,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
+                $ref: '#/components/schemas/UserGroupListResponse'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -357,7 +390,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_UserGroupRead_'
+                $ref: '#/components/schemas/UserGroupListResponse'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -639,7 +672,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_GroupRead_'
+                $ref: '#/components/schemas/GroupListResponse'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -854,7 +887,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourcesResponse_GroupMemberRead_'
+                $ref: '#/components/schemas/GroupMemberListResponse'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -1466,43 +1499,21 @@ components:
           format: date-time
           title: Updated At
 
-    ResourcesResponse_UserRead_:
-      type: object
-      title: ResourcesResponse[UserRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          items:
-            $ref: '#/components/schemas/UserRead'
-          maxItems: 100
+    UserListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserRead'
+              title: Resources
+              description: Array of resources in current page
+      title: UserListResponse
+      description: Paginated list response for users.
 
     UserGroupsSet:
       type: object
@@ -1849,119 +1860,53 @@ components:
           title: Membership Sources
           description: How this user was assigned to this group
 
-    ResourcesResponse_GroupRead_:
-      type: object
-      title: ResourcesResponse[GroupRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          items:
-            $ref: '#/components/schemas/GroupRead'
-          maxItems: 100
+    GroupListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupRead'
+              title: Resources
+              description: Array of resources in current page
+      title: GroupListResponse
+      description: Paginated list response for groups.
 
-    ResourcesResponse_UserGroupRead_:
-      type: object
-      title: ResourcesResponse[UserGroupRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          items:
-            $ref: '#/components/schemas/UserGroupRead'
-          maxItems: 100
+    UserGroupListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserGroupRead'
+              title: Resources
+              description: Array of resources in current page
+      title: UserGroupListResponse
+      description: Paginated list response for user groups.
 
-    ResourcesResponse_GroupMemberRead_:
-      type: object
-      title: ResourcesResponse[GroupMemberRead]
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          items:
-            $ref: '#/components/schemas/GroupMemberRead'
-          maxItems: 100
+    GroupMemberListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupMemberRead'
+              title: Resources
+              description: Array of resources in current page
+      title: GroupMemberListResponse
+      description: Paginated list response for group members.
 
     GroupMemberAdd:
       type: object

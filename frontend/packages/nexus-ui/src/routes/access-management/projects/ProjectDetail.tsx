@@ -24,6 +24,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectRead } from '../../access/types'
 import { DetailPageShell } from '../DetailPageShell'
@@ -86,6 +87,7 @@ type ProjectTab = 'details' | 'role-assignments'
 const ALL_PROJECT_TABS: ProjectTab[] = ['details', 'role-assignments']
 
 export function ProjectDetail() {
+  const projectsDocLink = useDocLink('projects')
   const { projectId } = useParams<{ projectId: string }>()
   const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
   const [activeTab] = useUrlTab<ProjectTab>(basePath)
@@ -141,7 +143,7 @@ export function ProjectDetail() {
 
   return (
     <NxPage>
-      <NxPageHeader title={projectData.name} breadcrumbs={projectCrumbs} />
+      <NxPageHeader title={projectData.name} docLink={projectsDocLink} breadcrumbs={projectCrumbs} />
       <StackItem style={{ flexShrink: 0 }}>
         <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Project details">
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />

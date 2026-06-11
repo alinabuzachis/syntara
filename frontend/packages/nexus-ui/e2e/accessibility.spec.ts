@@ -12,28 +12,28 @@ async function expectNoA11yViolations(page: Page) {
 test.describe('Accessibility', () => {
   test('workflows page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     await expectNoA11yViolations(app)
   })
 
   test('executions page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/executions'))
-    await expect(app.getByText('Workflow Runs', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflow Runs' })).toBeVisible()
 
     await expectNoA11yViolations(app)
   })
 
   test('approvals page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/approvals'))
-    await expect(app.getByText('Approvals', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
 
     await expectNoA11yViolations(app)
   })
 
   test('audit log page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/system-administration/audit-log'))
-    await expect(app.getByText('Audit Log', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Audit Log' })).toBeVisible()
 
     await expectNoA11yViolations(app)
   })

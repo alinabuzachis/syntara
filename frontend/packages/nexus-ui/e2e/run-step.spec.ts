@@ -28,10 +28,12 @@ import { ensureProject } from './utils/api'
 
 /** Click Layout so nodes are in view before canvas interactions. */
 async function layoutCanvas(app: import('@playwright/test').Page) {
-  const layoutButton = app.getByRole('button', { name: 'Layout' }).first()
+  const layoutButton = app.getByRole('button', { name: 'Layout' })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
-    await expect(app.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 })
+    await expect(app.locator('.react-flow__node').filter({ hasText: 'Manual trigger' })).toBeVisible({
+      timeout: 15_000,
+    })
   }
 }
 

@@ -48,8 +48,8 @@ from nexus.credentials.models import (
     CredentialCreate,
     CredentialListParams,
     CredentialListResponse,
-    CredentialPatch,
     CredentialRead,
+    CredentialUpdate,
 )
 from nexus.credentials.models.credential import CredentialWorkflowRef, ProjectCredentialCreate
 from nexus.credentials.router import get_credential_service
@@ -811,7 +811,7 @@ async def get_project_credential(
 async def update_project_credential(
     project_id: UUID,
     credential_id: UUID,
-    data: CredentialPatch,
+    data: CredentialUpdate,
     service: Annotated[CredentialService, Depends(get_credential_service)],
 ) -> CredentialRead:
     """Update a credential in this project. Requires: credential:update permission."""

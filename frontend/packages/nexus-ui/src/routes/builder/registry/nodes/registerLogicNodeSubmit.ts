@@ -6,11 +6,13 @@ import {
   createConvergeActivity,
   createGenericActivity,
   createLoopActivity,
+  createSwitchActivity,
   createWaitActivity,
   useWorkflowStore,
 } from '../../../../stores/useWorkflowStore'
 import type { LogicFormData } from '../../node-forms/LogicNodeForm'
 import { getDefaultNodeBaseName, getNodeDisplayName } from '../../utils/nodeNaming'
+import { serializeSwitchCases } from '../../utils/switchCaseHelpers'
 import { timeUnitsToSeconds } from '../../utils/timeUtils'
 
 export function generateSecureRandomId(): string {
@@ -26,6 +28,7 @@ export function generateSecureRandomId(): string {
 function resolveLogicLabel(logicType: string): string {
   if (logicType === ActivityTypeEnum.CONDITION) return 'Conditional'
   if (logicType === ActivityTypeEnum.LOOP) return 'Loop'
+  if (logicType === ActivityTypeEnum.SWITCH) return 'Switch'
   if (logicType === ActivityTypeEnum.WAIT) return 'Wait'
   return 'Converge'
 }
@@ -146,6 +149,24 @@ export function submitConvergeLogic(
     }),
   })
 
+  useWorkflowStore.getState().addActivity(activity)
+  return true
+}
+
+export function submitSwitchLogic(
+  activityId: string,
+  name: string,
+  data: LogicFormData,
+  onError: (msg: string) => void
+): boolean {
+  if (!data.cases || data.cases.length === 0) {
+    onError('At least one path is required')
+    return false
+  }
+
+  const cases = serializeSwitchCases(data.cases)
+
+  const activity = createSwitchActivity(activityId, name, cases)
   useWorkflowStore.getState().addActivity(activity)
   return true
 }

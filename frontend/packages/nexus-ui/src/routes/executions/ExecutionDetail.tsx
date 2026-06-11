@@ -23,6 +23,7 @@ import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
 import type { FilterConfig } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
+import { useDocLink } from '../../utils/docs/useDocLink'
 import { buildFilterParams } from '../../utils/filterUtils'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
@@ -289,6 +290,7 @@ function useSyncActivityStore(execution: Execution | undefined, activities: (Act
 }
 
 export default function ExecutionDetail() {
+  const executionsDocLink = useDocLink('executions')
   const params = useParams<{ executionId: string }>()
   const executionId = params.executionId
   const [, setLocation] = useLocation()
@@ -452,6 +454,7 @@ export default function ExecutionDetail() {
     <NxPage>
       <NxPageHeader
         title={executionDetailPageHeading(execution, executionId)}
+        docLink={executionsDocLink}
         titleProps={{ size: TitleSizes['2xl'] }}
         titleAddons={
           executionDetailHasTitleRowExtras(execution) ? (

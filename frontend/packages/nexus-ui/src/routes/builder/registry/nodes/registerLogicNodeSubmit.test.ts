@@ -24,6 +24,10 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
     loopType,
     opts,
   })),
+  createSwitchActivity: vi.fn((_id: string, _name: string, cases: unknown) => ({
+    type: ActivityTypeEnum.SWITCH,
+    cases,
+  })),
   createWaitActivity: vi.fn((_id: string, _name: string, config: unknown) => ({
     type: ActivityTypeEnum.WAIT,
     config,
@@ -48,6 +52,7 @@ import {
   submitConditionLogic,
   submitConvergeLogic,
   submitLoopLogic,
+  submitSwitchLogic,
   submitWaitLogic,
 } from './registerLogicNodeSubmit'
 
@@ -294,6 +299,82 @@ describe('registerLogicNodeSubmit', () => {
           onError
         )
       ).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('submitSwitchLogic', () => {
+    it('returns false when cases are missing', () => {
+      const onError = vi.fn()
+      expect(submitSwitchLogic('s1', 'S', { logicType: ActivityTypeEnum.SWITCH, name: 'S' } as never, onError)).toBe(
+        false
+      )
+      expect(onError).toHaveBeenCalledWith('At least one path is required')
+    })
+
+    it('returns false when cases array is empty', () => {
+      const onError = vi.fn()
+      expect(
+        submitSwitchLogic('s1', 'S', { logicType: ActivityTypeEnum.SWITCH, name: 'S', cases: [] } as never, onError)
+      ).toBe(false)
+      expect(onError).toHaveBeenCalledWith('At least one path is required')
+    })
+
+    it('returns true and adds activity for valid cases', () => {
+      const onError = vi.fn()
+      expect(
+        submitSwitchLogic(
+          's1',
+          'Route',
+          {
+            logicType: ActivityTypeEnum.SWITCH,
+            name: 'Route',
+            cases: [{ id: 'c1', variable: 'status', operator: '==', value: 'approved', negate: false }],
+          } as never,
+          onError
+        )
+      ).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('returns true for multiple cases with different operators', () => {
+      const onError = vi.fn()
+      expect(
+        submitSwitchLogic(
+          's2',
+          'Multi Route',
+          {
+            logicType: ActivityTypeEnum.SWITCH,
+            name: 'Multi Route',
+            cases: [
+              { id: 'c1', variable: 'priority', operator: '>', value: '7', negate: false },
+              { id: 'c2', variable: 'status', operator: '==', value: 'rejected', negate: true },
+            ],
+          } as never,
+          onError
+        )
+      ).toBe(true)
+      expect(mockAddActivity).toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('serializes conditions with labels using custom path names', () => {
+      const onError = vi.fn()
+      submitSwitchLogic(
+        's3',
+        'Named Paths',
+        {
+          logicType: ActivityTypeEnum.SWITCH,
+          name: 'Named Paths',
+          cases: [
+            { id: 'c1', label: 'High Priority', variable: 'priority', operator: '>', value: '7', negate: false },
+            { id: 'c2', label: 'Low Priority', variable: 'priority', operator: '<', value: '3', negate: false },
+          ],
+        } as never,
+        onError
+      )
       expect(mockAddActivity).toHaveBeenCalled()
       expect(onError).not.toHaveBeenCalled()
     })

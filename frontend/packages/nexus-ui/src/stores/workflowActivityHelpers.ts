@@ -1,6 +1,7 @@
 import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
+import { isSwitchCasePort } from '../routes/builder/utils/switchCaseHelpers'
 
 import type { Activity } from './workflowStoreTypes'
 
@@ -71,6 +72,10 @@ export function getValidSourceHandles(activityType: Activity['type']): Set<strin
       return new Set([EdgeHandleEnum.LOOP, EdgeHandleEnum.DONE])
     case ActivityTypeEnum.APPROVAL:
       return new Set([EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED])
+    case ActivityTypeEnum.SWITCH:
+      // Returns only the static DEFAULT handle. Dynamic case_N handles are
+      // managed by SwitchNodeDetails.handleSubmit during edit-mode updates.
+      return new Set([EdgeHandleEnum.DEFAULT])
     default:
       // All other v2 node types (script, http_request, agentic, aap_job_template, converge)
       // use the standard source handle.
@@ -98,12 +103,14 @@ export function reorderActivities(activities: Activity[], edges: EdgeConnection[
   // Build graph from edges
   // Only consider sequential edges (not structural edges like loop bodies or condition branches)
   edges.forEach((edge) => {
+    const isSwitchBranchEdge = edge.sourceHandle === EdgeHandleEnum.DEFAULT || isSwitchCasePort(edge.sourceHandle)
     const isBranchEdge =
       edge.sourceHandle === EdgeHandleEnum.LOOP ||
       edge.sourceHandle === EdgeHandleEnum.TRUE ||
       edge.sourceHandle === EdgeHandleEnum.FALSE ||
       edge.sourceHandle === EdgeHandleEnum.APPROVED ||
-      edge.sourceHandle === EdgeHandleEnum.REJECTED
+      edge.sourceHandle === EdgeHandleEnum.REJECTED ||
+      isSwitchBranchEdge
     const isLoopBackEdge = edge.targetHandle === EdgeHandleEnum.END
     const isSequentialEdge = !isBranchEdge && !isLoopBackEdge
 

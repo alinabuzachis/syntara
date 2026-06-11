@@ -27,8 +27,21 @@ vi.mock('../../client', () => ({
 
 // Mock the alerts provider
 const mockShowAlert = vi.fn()
+const mockShowSuccess = vi.fn()
 vi.mock('../../providers/alerts', () => ({
-  useAlerts: () => ({ showAlert: mockShowAlert }),
+  useAlerts: () => ({ showAlert: mockShowAlert, showSuccess: mockShowSuccess }),
+}))
+
+// Mock the mutation error handler
+const mockHandleError = vi.fn()
+vi.mock('../../hooks/useMutationErrorHandler', () => ({
+  useMutationErrorHandler: () => {
+    return (options: { title?: string }) => {
+      return (error: unknown) => {
+        mockHandleError({ title: options.title, error })
+      }
+    }
+  },
 }))
 
 describe('useBulkApprovalActions', () => {
@@ -39,6 +52,7 @@ describe('useBulkApprovalActions', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    mockHandleError.mockClear()
     mockMutate = vi.fn()
 
     const { approvalsClient } = await import('../../client')
@@ -169,11 +183,9 @@ describe('useBulkApprovalActions', () => {
 
     await waitFor(() => {
       expect(mockOnSuccess).toHaveBeenCalledTimes(1)
-      expect(mockShowAlert).toHaveBeenCalledWith({
+      expect(mockShowSuccess).toHaveBeenCalledWith({
         title: 'Approvals submitted',
         description: 'Successfully approved 2 approvals.',
-        variant: 'success',
-        autoDismiss: true,
       })
     })
   })
@@ -194,11 +206,9 @@ describe('useBulkApprovalActions', () => {
     })
 
     await waitFor(() => {
-      expect(mockShowAlert).toHaveBeenCalledWith({
+      expect(mockShowSuccess).toHaveBeenCalledWith({
         title: 'Approvals submitted',
         description: 'Successfully approved 1 approval.',
-        variant: 'success',
-        autoDismiss: true,
       })
     })
   })
@@ -245,12 +255,7 @@ describe('useBulkApprovalActions', () => {
     })
 
     await waitFor(() => {
-      expect(mockShowAlert).toHaveBeenCalledWith({
-        title: 'Bulk approval failed',
-        description: 'An error occurred while approving the selected items. Please try again.',
-        variant: 'danger',
-        autoDismiss: false,
-      })
+      expect(mockHandleError).toHaveBeenCalledWith(expect.objectContaining({ title: 'Bulk approval failed', error }))
     })
   })
 
@@ -317,11 +322,9 @@ describe('useBulkApprovalActions', () => {
     })
 
     await waitFor(() => {
-      expect(mockShowAlert).toHaveBeenCalledWith({
+      expect(mockShowSuccess).toHaveBeenCalledWith({
         title: 'Approvals rejected',
         description: 'Successfully rejected 2 approvals.',
-        variant: 'success',
-        autoDismiss: true,
       })
     })
   })
@@ -368,12 +371,7 @@ describe('useBulkApprovalActions', () => {
     })
 
     await waitFor(() => {
-      expect(mockShowAlert).toHaveBeenCalledWith({
-        title: 'Bulk rejection failed',
-        description: 'An error occurred while rejecting the selected items. Please try again.',
-        variant: 'danger',
-        autoDismiss: false,
-      })
+      expect(mockHandleError).toHaveBeenCalledWith(expect.objectContaining({ title: 'Bulk rejection failed', error }))
     })
   })
 
@@ -387,18 +385,14 @@ describe('useBulkApprovalActions', () => {
     const mutateCall = mockMutate.mock.calls[0] as [unknown, MutationCallbacks]
     const callbacks = mutateCall[1]
 
-    // getErrorMessage() handles non-Error types
+    const error = 'Unknown error'
+
     act(() => {
-      callbacks.onError('Unknown error' as unknown as Error)
+      callbacks.onError(error as unknown as Error)
     })
 
     await waitFor(() => {
-      expect(mockShowAlert).toHaveBeenCalledWith({
-        title: 'Bulk approval failed',
-        description: 'An error occurred while approving the selected items. Please try again.',
-        variant: 'danger',
-        autoDismiss: false,
-      })
+      expect(mockHandleError).toHaveBeenCalledWith(expect.objectContaining({ title: 'Bulk approval failed', error }))
     })
   })
 

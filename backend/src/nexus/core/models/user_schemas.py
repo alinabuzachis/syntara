@@ -134,8 +134,13 @@ class GroupMemberRead(UserRead):
 # List Response
 # ============================================================================
 
-UserListResponse = ResourcesResponse[UserRead]
-GroupMemberListResponse = ResourcesResponse[GroupMemberRead]
+
+class UserListResponse(ResourcesResponse[UserRead]):
+    """Paginated list response for users."""
+
+
+class GroupMemberListResponse(ResourcesResponse[GroupMemberRead]):
+    """Paginated list response for group members."""
 
 
 class UserListParams(BaseListParams):

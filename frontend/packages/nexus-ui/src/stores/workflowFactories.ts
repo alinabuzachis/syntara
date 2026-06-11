@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
 import { safeJSONReviver } from '../utils/jsonSafeParse'
 import { isValidWebhookPath } from '../utils/webhookPath'
@@ -93,6 +93,27 @@ export function createEventTrigger(
   }
 }
 
+function createWebhookStyleTrigger(
+  id: string,
+  webhookPath: string,
+  type: typeof TriggerTypeEnum.WEBHOOK_TRIGGER | typeof TriggerTypeEnum.EDA_TRIGGER,
+  name: string,
+  inputSchema?: Record<string, unknown>
+): Activity {
+  if (!isValidWebhookPath(webhookPath)) {
+    throw new Error('Invalid webhook path format')
+  }
+  return {
+    id,
+    type,
+    name,
+    config: {
+      webhook_path: webhookPath,
+      ...(inputSchema && { input_schema: inputSchema }),
+    },
+  }
+}
+
 /**
  * Create a webhook trigger (v2).
  * Config uses snake_case to match the backend WebhookTriggerConfig model.
@@ -103,18 +124,26 @@ export function createWebhookTrigger(
   inputSchema?: Record<string, unknown>,
   name?: string
 ): Activity {
-  if (!isValidWebhookPath(webhookPath)) {
-    throw new Error('Invalid webhook path format')
-  }
-  return {
+  return createWebhookStyleTrigger(
     id,
-    type: TriggerTypeEnum.WEBHOOK_TRIGGER,
-    name: name ?? 'Webhook Trigger',
-    config: {
-      webhook_path: webhookPath,
-      ...(inputSchema && { input_schema: inputSchema }),
-    },
-  }
+    webhookPath,
+    TriggerTypeEnum.WEBHOOK_TRIGGER,
+    name ?? 'Webhook Trigger',
+    inputSchema
+  )
+}
+
+/**
+ * Create an EDA trigger (v2).
+ * Config uses snake_case to match the backend WebhookTriggerConfig model.
+ */
+export function createEdaTrigger(
+  id: string,
+  webhookPath: string,
+  inputSchema?: Record<string, unknown>,
+  name?: string
+): Activity {
+  return createWebhookStyleTrigger(id, webhookPath, TriggerTypeEnum.EDA_TRIGGER, name ?? 'EDA Trigger', inputSchema)
 }
 
 // ============================================================================
@@ -486,6 +515,25 @@ export function createConvergeActivity(
       ...(config?.onTimeout != null && { on_timeout: config.onTimeout }),
       ...(config?.timeout !== undefined && { timeout: config.timeout }),
       ...(config?.strategy === 'any' && config?.requiredPathCount != null && { n_required: config.requiredPathCount }),
+    },
+  }
+}
+
+/**
+ * Create a switch node (v2).
+ */
+export function createSwitchActivity(
+  id: string,
+  name: string,
+  cases: Array<{ port: string; label: string; condition: string }>
+): Activity {
+  return {
+    id,
+    type: ActivityTypeEnum.SWITCH,
+    name,
+    config: {
+      cases,
+      default_port: EdgeHandleEnum.DEFAULT,
     },
   }
 }

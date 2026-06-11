@@ -333,7 +333,7 @@ test.describe('V2 Workflow Schema Migration', () => {
     ]
     for (const nodeName of nodeNames) {
       await expect(
-        app.getByText(nodeName, { exact: true }).first(),
+        app.locator('.react-flow').getByText(nodeName, { exact: true }),
         `node "${nodeName}" should be visible after reload`
       ).toBeVisible()
     }

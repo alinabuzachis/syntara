@@ -13,6 +13,7 @@ import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
+import { useWaitCountdown } from './hooks/useWaitCountdown'
 import { nodeMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
 
@@ -39,6 +40,8 @@ export function WaitNodeComponent(props: NodeProps<WaitNode>) {
   const totalSeconds = (props.data.config as { duration?: number } | undefined)?.duration ?? 0
   const durationLabel = totalSeconds > 0 ? formatDurationLabel(totalSeconds) : 'Not configured'
 
+  const { remaining } = useWaitCountdown(executionState?.status, executionState?.started_at, totalSeconds)
+
   return (
     <NodeComponent
       className={metadata.className}
@@ -58,7 +61,10 @@ export function WaitNodeComponent(props: NodeProps<WaitNode>) {
         menuActions={menuActions}
       />
       <NodeBody>
-        <NxDetailList>{renderText('Duration', durationLabel)}</NxDetailList>
+        <NxDetailList>
+          {renderText('Duration', durationLabel)}
+          {remaining && renderText('⏱ Countdown', remaining)}
+        </NxDetailList>
       </NodeBody>
     </NodeComponent>
   )

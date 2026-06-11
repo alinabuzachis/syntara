@@ -71,6 +71,9 @@ async def _handle_business_audit_records(
 
             audit_records.append(audit_record)
 
+            # Emit business event to OTEL collector
+            _emit_otel_log_entry(audit_event, event_source=AuditEventSource.BUSINESS_EVENT)
+
         except ValidationError:
             logger.warning("Dropped malformed AuditOutboxRecord record.", id=obr.id)
 
@@ -96,14 +99,16 @@ def _handle_crud_audit_records(records: list[AuditOutboxRecord]) -> None:
             audit_event.structured_data = enforce_payload_limit(audit_event.structured_data, DEFAULT_MAX_PAYLOAD_BYTES)
 
             logger.debug("Converted AuditOutboxRecord record.", event_action=audit_event.event_action)
-            _emit_otel_log_entry(audit_event)
+            _emit_otel_log_entry(audit_event, event_source=AuditEventSource.CRUD_EVENT)
         except ValidationError:
             logger.warning("Dropped malformed AuditOutboxRecord record.", id=obr.id)
 
 
-def _emit_otel_log_entry(audit_event: AuditEvent) -> None:
-    # Emit as structured log entry to OTEL Collection (NOP, for now) for down
+def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource) -> None:
+    # Emit as structured log entry to OTEL Collection
     event_dict = audit_event.model_dump(mode="json")
+    # Inject event source attribute for event type discrimination
+    event_dict["audit.event_source"] = event_source.value
     audit_logger_otel.info("audit_event", **event_dict)
 
 

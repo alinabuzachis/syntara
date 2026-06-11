@@ -71,6 +71,55 @@ describe('LogicNodeForm', () => {
       expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toBeInTheDocument()
     })
 
+    it('renders SwitchNodeForm when logicType is switch', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.SWITCH,
+            name: 'Test Switch',
+            cases: [
+              {
+                id: 'c1',
+                label: 'Path 1',
+                variable: '${status}',
+                operator: '==' as const,
+                value: "'active'",
+                negate: false,
+              },
+            ],
+          }}
+        />
+      )
+
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Switch')
+      expect(screen.getByDisplayValue('Path 1')).toBeInTheDocument()
+    })
+
+    it('renders SwitchNodeForm and submits with logicType', async () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.SWITCH,
+            name: 'Switch Submit',
+            cases: [
+              { id: 'c1', label: 'Path 1', variable: '${x}', operator: '==' as const, value: '1', negate: false },
+            ],
+          }}
+        />
+      )
+
+      fireEvent.submit(screen.getByTestId('switch-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+        const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
+        expect(submittedData.logicType).toBe(ActivityTypeEnum.SWITCH)
+        expect(submittedData.name).toBe('Switch Submit')
+      })
+    })
+
     it('renders WaitNodeForm when logicType is wait', () => {
       renderWithHeader(
         <LogicNodeForm

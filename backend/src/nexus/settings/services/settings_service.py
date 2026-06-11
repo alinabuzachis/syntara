@@ -123,7 +123,7 @@ class SettingsService(BaseService):
                 groups_by_category.setdefault(cat_slug, []).append(group_name)
 
         return CategoriesListResponse(
-            results=[
+            resources=[
                 SettingCategoryRead(
                     slug=cat.slug,
                     name=cat.name,

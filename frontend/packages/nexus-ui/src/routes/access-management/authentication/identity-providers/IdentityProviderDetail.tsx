@@ -44,6 +44,7 @@ import { useUrlTab } from '../../../../hooks/useUrlTab'
 import { getErrorStatus } from '../../../../utils/apiErrors'
 import { formatDateTime } from '../../../../utils/dateUtils'
 import { detachPromise } from '../../../../utils/detachPromise'
+import { useDocLink } from '../../../../utils/docs/useDocLink'
 import { isValidUUID } from '../../../../utils/generateUUID'
 import { DisableIdentityProviderDialog } from '../DisableIdentityProviderDialog'
 import { useIdentityProviderPermissions } from '../useIdentityProviderPermissions'
@@ -231,6 +232,7 @@ function buildKebabActions(
 }
 
 export function IdentityProviderDetail() {
+  const identityProvidersDocLink = useDocLink('identityProviders')
   const { providerId } = useParams<{ providerId: string }>()
   const isValidId = !!providerId && isValidUUID(providerId)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -334,6 +336,7 @@ export function IdentityProviderDetail() {
     <NxPage>
       <NxPageHeader
         title={providerData.name ?? ''}
+        docLink={identityProvidersDocLink}
         breadcrumbs={idpDetailCrumbs}
         titleLeading={
           <ProviderIcon

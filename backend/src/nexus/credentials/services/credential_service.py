@@ -41,8 +41,8 @@ from nexus.credentials.models.credential import (
     Credential,
     CredentialCreate,
     CredentialListResponse,
-    CredentialPatch,
     CredentialRead,
+    CredentialUpdate,
     CredentialWorkflowRef,
 )
 from nexus.credentials.models.credential_type import CredentialType
@@ -410,7 +410,7 @@ class CredentialService(BaseService):
 
         return response
 
-    async def update_credential(self, credential_id: UUID, data: CredentialPatch) -> CredentialRead:
+    async def update_credential(self, credential_id: UUID, data: CredentialUpdate) -> CredentialRead:
         """Update a credential. $encrypted$ preserves existing encrypted values."""
         credential = await self._get_or_raise(credential_id)
         credential_type = await self._get_credential_type(credential.credential_type_id)

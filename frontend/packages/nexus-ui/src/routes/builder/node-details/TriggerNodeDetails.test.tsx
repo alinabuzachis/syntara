@@ -975,4 +975,137 @@ describe('TriggerNodeDetails Component', () => {
       expect(results).toHaveNoViolations()
     })
   })
+
+  describe('EDA Trigger', () => {
+    it('renders TriggerNodeForm with EDA trigger data', () => {
+      const trigger = {
+        id: 'eda-1',
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        name: 'My EDA Trigger',
+        config: {
+          webhook_path: 'eda-events',
+          input_schema: { type: 'object', properties: { event: { type: 'string' } } },
+        },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      expect(screen.getByTestId('trigger-node-form')).toBeInTheDocument()
+      const initialDataText = screen.getByTestId('initial-data').textContent ?? '{}'
+      expect(initialDataText).toContain('"triggerType":"eda_trigger"')
+      expect(initialDataText).toContain('"webhookPath":"eda-events"')
+      expect(initialDataText).toContain('inputSchema')
+    })
+
+    it('calls updateTrigger with EDA trigger on form submission', async () => {
+      const user = userEvent.setup()
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-eda"
+          onClick={() => {
+            onSubmit({
+              name: 'My EDA Trigger',
+              triggerType: TriggerTypeEnum.EDA_TRIGGER,
+              webhookPath: 'github-events',
+              inputSchema: '{"type": "object"}',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        id: 'eda-1',
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        name: 'My EDA Trigger',
+        config: { webhook_path: 'old-path' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+      await user.click(screen.getByTestId('submit-eda'))
+
+      expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
+        id: 'eda-1',
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        name: 'My EDA Trigger',
+        config: {
+          webhook_path: 'github-events',
+          input_schema: { type: 'object' },
+        },
+      })
+      expect(mockOnClose).toHaveBeenCalledTimes(1)
+      formSpy.mockRestore()
+    })
+
+    it('shows error when webhook path is missing on submit', async () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-no-path"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.EDA_TRIGGER,
+              webhookPath: '',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        id: 'eda-2',
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        name: 'Test',
+        config: { webhook_path: 'old' },
+      }
+
+      const user = userEvent.setup()
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+      await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Update failed',
+        description: 'Webhook path is required and must be a valid slug',
+      })
+      expect(mockOnClose).not.toHaveBeenCalled()
+      formSpy.mockRestore()
+    })
+
+    it('loads EDA trigger without input_schema gracefully', () => {
+      const trigger = {
+        id: 'eda-3',
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        name: 'Simple EDA',
+        config: {
+          webhook_path: 'simple',
+        },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const initialDataText = screen.getByTestId('initial-data').textContent ?? '{}'
+      expect(initialDataText).toContain('"triggerType":"eda_trigger"')
+      expect(initialDataText).toContain('"webhookPath":"simple"')
+      expect(initialDataText).not.toContain('"inputSchema"')
+    })
+
+    it('has no accessibility violations', async () => {
+      const trigger = {
+        id: 'eda-4',
+        type: TriggerTypeEnum.EDA_TRIGGER,
+        name: 'Accessible EDA',
+        config: { webhook_path: 'test-path' },
+      }
+
+      const { container } = render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+  })
 })

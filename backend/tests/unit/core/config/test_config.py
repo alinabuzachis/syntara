@@ -726,3 +726,44 @@ class TestCorsProductionValidation:
         monkeypatch.setenv("APP_SERVER_SCHEME", "http")
         settings = Settings()
         assert settings.cookie_secure is False
+
+
+# =============================================================================
+# FileStorageSettings Tests
+# =============================================================================
+
+
+class TestFileStorageSettings:
+    """Tests for FileStorageSettings configuration."""
+
+    def test_file_storage_defaults(self) -> None:
+        """Test default file storage configuration values."""
+        settings = Settings()
+        assert settings.file_storage_backend == "local"
+        assert settings.s3_endpoint_url is None
+        assert settings.s3_bucket_name == "nexus-files"
+        assert settings.s3_region == "us-east-1"
+        assert settings.s3_access_key_id is None
+        assert settings.s3_secret_access_key is None
+        assert settings.file_retention_ttl_hours is None
+
+    def test_file_storage_s3_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test S3 configuration via environment variables."""
+        monkeypatch.setenv("APP_FILE_STORAGE_BACKEND", "s3")
+        monkeypatch.setenv("APP_S3_ENDPOINT_URL", "https://s3.openshift-storage.svc")
+        monkeypatch.setenv("APP_S3_BUCKET_NAME", "my-bucket")
+        monkeypatch.setenv("APP_S3_REGION", "eu-west-1")
+        monkeypatch.setenv("APP_S3_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE")
+        monkeypatch.setenv("APP_S3_SECRET_ACCESS_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+        monkeypatch.setenv("APP_FILE_RETENTION_TTL_HOURS", "72")
+
+        settings = Settings()
+        assert settings.file_storage_backend == "s3"
+        assert settings.s3_endpoint_url == "https://s3.openshift-storage.svc"
+        assert settings.s3_bucket_name == "my-bucket"
+        assert settings.s3_region == "eu-west-1"
+        assert settings.s3_access_key_id is not None
+        assert settings.s3_access_key_id.get_secret_value() == "AKIAIOSFODNN7EXAMPLE"
+        assert settings.s3_secret_access_key is not None
+        assert settings.s3_secret_access_key.get_secret_value() == "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        assert settings.file_retention_ttl_hours == 72

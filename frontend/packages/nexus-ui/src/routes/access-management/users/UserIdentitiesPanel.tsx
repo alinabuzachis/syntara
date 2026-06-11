@@ -275,7 +275,7 @@ export function UserIdentitiesPanel({
     { refetchOnWindowFocus: 'always' }
   )
 
-  const identitiesQuery = identityProvidersClient.useQuery('get', '/identity_providers/', {})
+  const identitiesQuery = identityProvidersClient.useQuery('get', '/identity_providers', {})
 
   const identities = useMemo(() => query.data?.resources ?? [], [query.data])
   const fullProviders = useMemo<IdentityProvider[]>(() => identitiesQuery.data?.resources ?? [], [identitiesQuery.data])

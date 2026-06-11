@@ -16,6 +16,7 @@ import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorCode, isForbiddenError } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { useDocLink } from '../../../utils/docs/useDocLink'
 
 import { SettingsCategoryTab } from './SettingsCategoryTab'
 import { useAllSettings } from './useAllSettings'
@@ -24,6 +25,7 @@ import { useSettingsPermissions } from './useSettingsPermissions'
 const basePath = AppRoute.SystemAdministration.Settings
 
 export default function Settings() {
+  const settingsDocLink = useDocLink('settings')
   const [edits, setEdits] = useState<Map<string, unknown>>(new Map())
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set())
   const { showError } = useAlerts()
@@ -54,7 +56,7 @@ export default function Settings() {
     }
   )
 
-  const categories = useMemo(() => categoriesQuery.data?.results ?? [], [categoriesQuery.data])
+  const categories = useMemo(() => categoriesQuery.data?.resources ?? [], [categoriesQuery.data])
   const validTabs = useMemo(() => categories.map((c) => c.slug), [categories])
   const defaultCategory = categories[0]?.slug ?? ''
   const [activeSlug] = useUrlTab(basePath, defaultCategory)
@@ -160,7 +162,7 @@ export default function Settings() {
   if (!canRead || isForbidden) {
     return (
       <NxPage>
-        <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
+        <NxPageHeader title="Settings" docLink={settingsDocLink} breadcrumbs={breadcrumbsSettingsPage()} />
         <StackItem isFilled>
           <NxPanel isFullHeight>
             <EmptyStateAccessDenied description="You don't have permission to view settings. Contact your administrator to request the auditor or admin role." />
@@ -174,7 +176,7 @@ export default function Settings() {
   if (errorOrLoadingState) {
     return (
       <NxPage>
-        <NxPageHeader title="Settings" breadcrumbs={breadcrumbsSettingsPage()} />
+        <NxPageHeader title="Settings" docLink={settingsDocLink} breadcrumbs={breadcrumbsSettingsPage()} />
         <NxPageBody>
           <NxPanel isFullHeight>{errorOrLoadingState}</NxPanel>
         </NxPageBody>
@@ -186,6 +188,7 @@ export default function Settings() {
     <NxPage>
       <NxPageHeader
         title="Settings"
+        docLink={settingsDocLink}
         breadcrumbs={settingsBreadcrumbs}
         toolbar={
           canWrite ? (

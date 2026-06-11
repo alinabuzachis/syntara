@@ -192,8 +192,8 @@ export interface components {
      * @description Response schema for listing setting categories.
      */
     CategoriesListResponse: {
-      /** Results */
-      results: components['schemas']['SettingCategoryRead'][]
+      /** Resources */
+      resources: components['schemas']['SettingCategoryRead'][]
     }
     /**
      * Paginated Response Base
@@ -539,7 +539,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['RuntimeSettingRead'][]
+          'application/json': components['schemas']['SettingsListResponse']
         }
       }
       400: components['responses']['BadRequestError']

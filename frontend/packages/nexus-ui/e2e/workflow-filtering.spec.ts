@@ -37,7 +37,7 @@ test.describe('Workflow Filtering', () => {
   test('full user flow: add filters → view results → clear filters', async ({ app }) => {
     // Navigate to workflows page
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     // Wait for table or empty state to load
     const table = app.getByRole('grid', { name: 'Workflows table' })
@@ -73,7 +73,7 @@ test.describe('Workflow Filtering', () => {
   test('filter state persists across navigation (URL-based)', async ({ app }) => {
     // Navigate to workflows and apply filter
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     await app.getByPlaceholder('Filter by name').fill('test')
     await app.getByRole('button', { name: 'Apply filter' }).click()
@@ -93,7 +93,7 @@ test.describe('Workflow Filtering', () => {
     await app.goto(urlWithFilter)
 
     // Assert - Filter state restored from URL
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
     const restoredNameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(restoredNameChipGroup.getByText('test')).toBeVisible()
 
@@ -104,7 +104,7 @@ test.describe('Workflow Filtering', () => {
   test('shareable URLs: filters restored from URL', async ({ app, context }) => {
     // Navigate to workflows and apply name filter
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     await app.getByPlaceholder('Filter by name').fill('workflow')
     await app.getByRole('button', { name: 'Apply filter' }).click()
@@ -118,7 +118,7 @@ test.describe('Workflow Filtering', () => {
     await newPage.goto(urlWithFilters)
 
     // Assert - Filter restored in new tab
-    await expect(newPage.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(newPage.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
     const newPageNameChipGroup = newPage.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(newPageNameChipGroup.getByText('workflow')).toBeVisible()
 
@@ -129,7 +129,7 @@ test.describe('Workflow Filtering', () => {
   test('shareable URLs: clear filters and share clean URL', async ({ app, context }) => {
     // Navigate to workflows with filters
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     // Apply filter
     await app.getByPlaceholder('Filter by name').fill('test')
@@ -148,7 +148,7 @@ test.describe('Workflow Filtering', () => {
     await newPage.goto(cleanUrl)
 
     // Assert - No filters in new tab
-    await expect(newPage.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(newPage.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
     await expect(newPage.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
 
     // Cleanup
@@ -156,66 +156,69 @@ test.describe('Workflow Filtering', () => {
   })
 
   test('pagination works with active filters', async ({ app }) => {
-    // Navigate to workflows
-    await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    const project = await ensureProject(app)
+    const projectId = project?.id
+    const prefix = buildUniqueName('e2e-wffilt-pag')
+    const paginationWorkflows: SeededWorkflow[] = []
 
-    // Check if pagination controls exist (requires 20+ workflows in mock data)
-    const nextButton = app.getByRole('button', { name: 'Next page' })
-    const hasPagination = (await nextButton.count()) > 0
+    for (let i = 1; i <= 22; i++) {
+      const wf = await createWorkflowViaApi(app, {
+        name: `${prefix}-workflow-${i}`,
+        projectId,
+      })
+      if (wf) paginationWorkflows.push(wf)
+    }
+    expect(paginationWorkflows).toHaveLength(22)
 
-    // Skip test if no pagination available
-    test.skip(!hasPagination, 'Mock API has insufficient data for pagination test')
+    const filterUrlPattern = new RegExp(`name%5Bcontains%5D=${encodeURIComponent(prefix)}`)
 
-    // Apply a name filter
-    await app.getByPlaceholder('Filter by name').fill('workflow')
-    await app.getByRole('button', { name: 'Apply filter' }).click()
-    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
-    await expect(nameChipGroup.getByText('workflow')).toBeVisible()
+    try {
+      // Navigate to workflows
+      await app.goto(toAppUrl('/workflows'))
+      await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
-    // Verify filter applied and results shown (skip if no matches)
-    const table = app.getByRole('grid', { name: 'Workflows table' })
-    const hasFilteredResults = await table
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false)
-    test.skip(!hasFilteredResults, 'No workflows matching "workflow" filter; insufficient seed data')
+      // Apply a filter scoped to test workflows (22 items → 2 pages at default limit 20)
+      await app.getByPlaceholder('Filter by name').fill(prefix)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      await expect(nameChipGroup.getByText(prefix)).toBeVisible()
 
-    // Verify filter in URL
-    await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
+      const table = app.getByRole('grid', { name: 'Workflows table' })
+      await expect(table).toBeVisible()
+      await expect(app).toHaveURL(filterUrlPattern)
 
-    // Check if next page button is still available with filter
-    const hasNextWithFilter = (await nextButton.count()) > 0 && !(await nextButton.isDisabled())
+      const nextButton = app.getByRole('button', { name: 'Next page' })
+      await expect(nextButton).toBeEnabled()
 
-    if (hasNextWithFilter) {
-      // Act - Navigate to next page
+      // Act - Navigate to next page (cursor stays in component state, not the URL)
       await nextButton.click()
 
-      // Assert - Filter persists in URL with pagination cursor
-      await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
-      await expect(app).toHaveURL(/cursor=/)
-
-      // Assert - Filter chip still visible
-      await expect(nameChipGroup.getByText('workflow')).toBeVisible()
-
-      // Assert - Table still shows filtered results
+      // Assert - Filter persists in URL and UI while paginating
+      await expect(app).toHaveURL(filterUrlPattern)
+      await expect(nameChipGroup.getByText(prefix)).toBeVisible()
       await expect(table).toBeVisible()
 
-      // Act - Navigate to previous page
       const prevButton = app.getByRole('button', { name: 'Previous page' })
       await expect(prevButton).not.toBeDisabled()
+
+      // Act - Navigate to previous page
       await prevButton.click()
 
       // Assert - Back to first page with filter still active
-      await expect(nameChipGroup.getByText('workflow')).toBeVisible()
-      await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
+      await expect(nameChipGroup.getByText(prefix)).toBeVisible()
+      await expect(app).toHaveURL(filterUrlPattern)
+      await expect(nextButton).not.toBeDisabled()
+    } finally {
+      for (const wf of paginationWorkflows) {
+        await deleteWorkflowViaApi(app, wf.id)
+      }
     }
   })
 
   test('individual filter chips can be removed', async ({ app }) => {
     // Navigate and apply name filter
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     await app.getByPlaceholder('Filter by name').fill('test')
     await app.getByRole('button', { name: 'Apply filter' }).click()
@@ -236,7 +239,7 @@ test.describe('Workflow Filtering', () => {
   test('empty state shows when filters return no results', async ({ app }) => {
     // Navigate to workflows
     await app.goto(toAppUrl('/workflows'))
-    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
 
     // Apply filter that matches nothing
     const impossibleName = `zzz-nonexistent-${Date.now()}`

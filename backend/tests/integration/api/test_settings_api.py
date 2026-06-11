@@ -224,7 +224,7 @@ class TestBulkUpdate:
 
             assert response.status_code == 200
             data = response.json()
-            assert len(data) == 2
+            assert len(data["resources"]) == 2
         finally:
             await admin_settings_client.patch(
                 "/api/v1/settings",
@@ -262,11 +262,11 @@ class TestListCategories:
 
         assert response.status_code == 200
         data = response.json()
-        assert "results" in data
-        assert isinstance(data["results"], list)
-        assert len(data["results"]) > 0
+        assert "resources" in data
+        assert isinstance(data["resources"], list)
+        assert len(data["resources"]) > 0
 
-        cat = data["results"][0]
+        cat = data["resources"][0]
         assert "slug" in cat
         assert "name" in cat
         assert "display_order" in cat

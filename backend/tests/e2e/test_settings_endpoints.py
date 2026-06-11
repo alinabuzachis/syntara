@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
-import time
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 from nexus_api_client.models.error_data import ErrorData
@@ -14,13 +12,12 @@ from nexus_api_client.models.setting_bulk_update_item import SettingBulkUpdateIt
 from nexus_api_client.models.setting_bulk_update_request import SettingBulkUpdateRequest
 from nexus_api_client.models.setting_update import SettingUpdate
 
-from nexus.core.config.base import get_settings
 from tests.e2e.helpers import _retry_api_call
 
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e]
 
 _LOG_LEVEL_KEY = "logging.log_level"
 _MAX_TOKENS_KEY = "context_manager.max_total_tokens"
@@ -32,16 +29,12 @@ _SCRIPT_TIMEOUT_KEY = "workflow_engine.script_timeout_seconds"
 _OVERWRITE_KEY = "document_conversion.overwrite_existing"
 _RETRIEVER_MODEL_KEY = "retriever.llm_model"
 
-_AUDIT_POLL_INTERVAL = 0.5
-_AUDIT_POLL_TIMEOUT = 20.0
-
 
 def _get_setting(api: NexusApiRegistry, key: str) -> RuntimeSettingRead:
     """Get a single setting, asserting success."""
-    resp = _retry_api_call(lambda: api.settings.get(key=key))
-    assert resp.status_code == HTTPStatus.OK
-    assert isinstance(resp.parsed, RuntimeSettingRead)
-    return resp.parsed
+    setting = _retry_api_call(lambda: api.settings.get(key=key)).assert_and_get()
+    assert isinstance(setting, RuntimeSettingRead)
+    return setting
 
 
 def _update_setting(
@@ -55,96 +48,14 @@ def _update_setting(
     body = SettingUpdate(value=value)
     if expected_version is not None:
         body.expected_version = expected_version
-    resp = _retry_api_call(lambda: api.settings.update(key=key, body=body))
-    assert resp.status_code == HTTPStatus.OK
-    assert isinstance(resp.parsed, RuntimeSettingRead)
-    return resp.parsed
+    setting = _retry_api_call(lambda: api.settings.update(key=key, body=body)).assert_and_get()
+    assert isinstance(setting, RuntimeSettingRead)
+    return setting
 
 
 def _restore_setting(api: NexusApiRegistry, key: str, value: object) -> None:
     """Restore a setting to a previous value (best-effort, no assertions)."""
     api.settings.update(key=key, body=SettingUpdate(value=value))
-
-
-def _poll_audit_events(
-    api: NexusApiRegistry,
-    event_action: str,
-    *,
-    resource_urn: str | None = None,
-    min_version: int | None = None,
-    timeout: float = _AUDIT_POLL_TIMEOUT,
-    limit: int = 500,
-) -> list[Any]:
-    """Poll GET /audit until a matching event appears.
-
-    Args:
-        api: NexusApiRegistry instance for making API calls.
-        event_action: Filter events by this action value.
-        resource_urn: Filter events by this optional Resource URN.
-        min_version: If set, keep polling until an event with version >= this value appears.
-        timeout: Maximum time to poll in seconds.
-        limit: Number of events to retrieve. Should be > audit_outbox_batch_size
-               to account for concurrent test activity. Defaults to 500.
-
-    """
-    elapsed = 0.0
-    while elapsed < timeout:
-        time.sleep(_AUDIT_POLL_INTERVAL)
-        elapsed += _AUDIT_POLL_INTERVAL
-        query_params: dict[str, Any] = {
-            "event_action": event_action,
-            "sort": "-created_at",
-            "limit": limit,
-        }
-        if resource_urn is not None:
-            query_params = {**query_params, "resource_urn": resource_urn}
-        resp = api.audit_events.list(**query_params)
-        if resp.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
-            detail = resp.content.decode() if resp.content else "no detail returned"
-            pytest.fail(f"Audit database unavailable (503): {detail}")
-        if resp.status_code == HTTPStatus.OK and resp.parsed is not None:
-            events: list[Any] = resp.parsed.resources
-            if events:
-                if min_version is not None:
-                    has_target = any(
-                        e.structured_data.additional_properties.get("version", 0) >= min_version for e in events
-                    )
-                    if not has_target:
-                        continue
-                return events
-    return []
-
-
-def _find_audit_event_by_key(events: list[Any], key: str) -> Any:  # noqa: ANN401
-    """Return the first audit event whose setting field matches *key*."""
-    for event in events:
-        props = event.structured_data.additional_properties
-        if props.get("setting") == key:
-            return event
-    return None
-
-
-def _find_audit_event_by_key_and_version(
-    events: list[Any],
-    key: str,
-    min_version: int,
-) -> Any:  # noqa: ANN401
-    """Return the first audit event matching key with version >= min_version."""
-    for event in events:
-        props = event.structured_data.additional_properties
-        if props.get("setting") == key and props.get("version", 0) >= min_version:
-            return event
-    return None
-
-
-def _find_bulk_audit_event(events: list[Any], expected_keys: set[str]) -> Any:  # noqa: ANN401
-    """Return the first bulk audit event matching exactly *expected_keys*."""
-    for event in events:
-        props = event.structured_data.additional_properties
-        settings = set(props.get("settings", []))
-        if settings == expected_keys:
-            return event
-    return None
 
 
 @pytest.mark.xdist_group("settings_write")
@@ -153,11 +64,8 @@ class TestSettings:
 
     def test_list_settings(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings returns 200 with resources containing required fields."""
-        resp = nexus_api.settings.list()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        settings = resp.parsed.resources
+        settings_list = nexus_api.settings.list().assert_and_get()
+        settings = settings_list.resources
         assert len(settings) > 0
         for setting in settings:
             assert setting.key
@@ -168,11 +76,8 @@ class TestSettings:
 
     def test_list_categories(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings/categories returns 200 with all expected categories."""
-        resp = nexus_api.settings.list_categories()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        categories = resp.parsed.results
+        categories_response = nexus_api.settings.list_categories().assert_and_get()
+        categories = categories_response.resources
         assert len(categories) > 0
         slugs = [cat.slug for cat in categories]
         for expected in ("ai_llm", "system", "context_manager", "workflow_execution", "application"):
@@ -245,11 +150,8 @@ class TestNewSettings:
 
     def test_new_categories_appear(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings/categories includes ai_llm, workflow_execution, application."""
-        resp = nexus_api.settings.list_categories()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        slugs = [cat.slug for cat in resp.parsed.results]
+        categories_response = nexus_api.settings.list_categories().assert_and_get()
+        slugs = [cat.slug for cat in categories_response.resources]
         assert "ai_llm" in slugs
         assert "workflow_execution" in slugs
         assert "application" in slugs
@@ -270,11 +172,8 @@ class TestNewSettings:
 
     def test_all_settings_have_requires_restart(self, nexus_api: NexusApiRegistry) -> None:
         """Every setting in the list response includes a requires_restart boolean."""
-        resp = nexus_api.settings.list()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        for setting in resp.parsed.resources:
+        settings_list = nexus_api.settings.list().assert_and_get()
+        for setting in settings_list.resources:
             assert isinstance(setting.requires_restart, bool)
 
     def test_constraint_validation_rejects_invalid(self, nexus_api: NexusApiRegistry) -> None:
@@ -289,27 +188,19 @@ class TestAuditorSettingsAccess:
 
     def test_auditor_can_list_settings(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor can list all settings."""
-        resp = auditor_api.settings.list()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        assert len(resp.parsed.resources) > 0
+        settings_list = auditor_api.settings.list().assert_and_get()
+        assert len(settings_list.resources) > 0
 
     def test_auditor_can_get_setting(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor can read a specific setting."""
-        resp = auditor_api.settings.get(key=_MAX_TOKENS_KEY)
-
-        assert resp.status_code == HTTPStatus.OK
-        assert isinstance(resp.parsed, RuntimeSettingRead)
-        assert resp.parsed.key == _MAX_TOKENS_KEY
+        setting = auditor_api.settings.get(key=_MAX_TOKENS_KEY).assert_and_get()
+        assert isinstance(setting, RuntimeSettingRead)
+        assert setting.key == _MAX_TOKENS_KEY
 
     def test_auditor_can_list_categories(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor can list setting categories."""
-        resp = auditor_api.settings.list_categories()
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        assert len(resp.parsed.results) > 0
+        categories_response = auditor_api.settings.list_categories().assert_and_get()
+        assert len(categories_response.resources) > 0
 
     def test_auditor_cannot_update_setting(self, auditor_api: NexusApiRegistry) -> None:
         """Auditor is denied access to update a setting."""
@@ -362,22 +253,16 @@ class TestSettingsFiltering:
 
     def test_filter_by_category(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings?category= returns only settings in that category."""
-        resp = nexus_api.settings.list(category="context_manager")
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        settings = resp.parsed.resources
+        settings_list = nexus_api.settings.list(category="context_manager").assert_and_get()
+        settings = settings_list.resources
         assert len(settings) > 0
         for setting in settings:
             assert setting.category == "context_manager"
 
     def test_filter_by_category_and_group(self, nexus_api: NexusApiRegistry) -> None:
         """GET /settings?category=&group= returns only matching settings."""
-        resp = nexus_api.settings.list(category="context_manager", group="Compression")
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed is not None
-        settings = resp.parsed.resources
+        settings_list = nexus_api.settings.list(category="context_manager", group="Compression").assert_and_get()
+        settings = settings_list.resources
         assert len(settings) > 0
         for setting in settings:
             assert setting.category == "context_manager"
@@ -390,19 +275,17 @@ class TestSettingsPagination:
     def test_pagination_no_overlap(self, nexus_api: NexusApiRegistry) -> None:
         """Paginated pages do not contain overlapping settings."""
         # sort by -created_at to align with the cursor's (created_at, id) keyset
-        page1 = nexus_api.settings.list(limit=5, sort="-created_at")
-        assert page1.status_code == HTTPStatus.OK
-        assert page1.parsed is not None
-        assert len(page1.parsed.resources) == 5
-        assert page1.parsed.next_ is not None
+        page1_response = nexus_api.settings.list(limit=5, sort="-created_at").assert_and_get()
+        assert len(page1_response.resources) == 5
+        assert page1_response.next_ is not None
 
-        page2 = nexus_api.settings.list(limit=5, sort="-created_at", cursor=page1.parsed.next_)
-        assert page2.status_code == HTTPStatus.OK
-        assert page2.parsed is not None
-        assert len(page2.parsed.resources) > 0
+        page2_response = nexus_api.settings.list(
+            limit=5, sort="-created_at", cursor=page1_response.next_
+        ).assert_and_get()
+        assert len(page2_response.resources) > 0
 
-        page1_keys = {s.key for s in page1.parsed.resources}
-        page2_keys = {s.key for s in page2.parsed.resources}
+        page1_keys = {s.key for s in page1_response.resources}
+        page2_keys = {s.key for s in page2_response.resources}
         assert page1_keys.isdisjoint(page2_keys)
 
 
@@ -499,7 +382,7 @@ class TestSettingsBulkUpdate:
         originals = {k: _get_setting(nexus_api, k).effective_value for k in keys}
 
         try:
-            resp = nexus_api.settings.bulk_update(
+            updated_settings = nexus_api.settings.bulk_update(
                 body=SettingBulkUpdateRequest(
                     updates=[
                         SettingBulkUpdateItem(key=_MAX_TOKENS_KEY, value=5000),
@@ -507,10 +390,9 @@ class TestSettingsBulkUpdate:
                         SettingBulkUpdateItem(key=_TIMEOUT_SECONDS_KEY, value=15),
                     ]
                 )
-            )
-            assert resp.status_code == HTTPStatus.OK
-            assert isinstance(resp.parsed, list)
-            assert len(resp.parsed) == 3
+            ).assert_and_get()
+            assert isinstance(updated_settings.resources, list)
+            assert len(updated_settings.resources) == 3
 
             for key, expected in [
                 (_MAX_TOKENS_KEY, 5000),
@@ -561,10 +443,8 @@ class TestSettingsBulkUpdate:
 
     def test_bulk_update_empty_list(self, nexus_api: NexusApiRegistry) -> None:
         """Bulk update with empty updates list returns 200."""
-        resp = nexus_api.settings.bulk_update(body=SettingBulkUpdateRequest(updates=[]))
-
-        assert resp.status_code == HTTPStatus.OK
-        assert resp.parsed == []
+        updated_settings = nexus_api.settings.bulk_update(body=SettingBulkUpdateRequest(updates=[])).assert_and_get()
+        assert updated_settings.resources == []
 
     def test_bulk_update_exceeds_limit(self, nexus_api: NexusApiRegistry) -> None:
         """Bulk update with more than 500 items returns 422."""
@@ -677,193 +557,6 @@ class TestAdminSettingsAccess:
             )
         finally:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original)
-
-
-@pytest.mark.xdist_group("settings_write")
-class TestSettingsAuditLog:
-    """E2E tests verifying audit events are created for settings changes."""
-
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
-    async def test_audit_single_update(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Updating a setting creates an audit event with the correct structure."""
-        original = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
-        original_value = original.effective_value
-        version_before = original.version
-
-        try:
-            _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.5)
-
-            # Sleep for full poll interval + buffer to ensure worker has run
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-            # Retrieve MORE than batch_size to account for concurrent activity
-            events = _poll_audit_events(
-                auditor_api,
-                "setting_changed",
-                resource_urn="urn:nexus:setting:context_manager.compression_temperature",
-                min_version=version_before + 1,
-            )
-
-            # Match on both key AND version for determinism
-            event = _find_audit_event_by_key_and_version(
-                events,
-                _COMPRESSION_TEMP_KEY,
-                min_version=version_before + 1,
-            )
-
-            assert event is not None, (
-                f"No audit event found for key {_COMPRESSION_TEMP_KEY} with version > {version_before}"
-            )
-            assert event.actor_id is not None
-            assert event.actor_username == "admin"
-            assert event.created_at is not None
-            assert event.event_action == "setting_changed"
-            assert event.structured_data.data_type == "setting-changed"
-            props = event.structured_data.additional_properties
-            assert props["setting"] == _COMPRESSION_TEMP_KEY
-            assert props["new_value"] == "0.5"
-            assert "version" in props
-        finally:
-            _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
-
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
-    async def test_audit_bulk_update(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Bulk updating settings creates an audit event with the updates list."""
-        originals = {
-            _MAX_TOKENS_KEY: _get_setting(nexus_api, _MAX_TOKENS_KEY).effective_value,
-            _TIMEOUT_SECONDS_KEY: _get_setting(nexus_api, _TIMEOUT_SECONDS_KEY).effective_value,
-        }
-        expected_keys = {_MAX_TOKENS_KEY, _TIMEOUT_SECONDS_KEY}
-
-        try:
-            nexus_api.settings.bulk_update(
-                body=SettingBulkUpdateRequest(
-                    updates=[
-                        SettingBulkUpdateItem(key=_MAX_TOKENS_KEY, value=4444),
-                        SettingBulkUpdateItem(key=_TIMEOUT_SECONDS_KEY, value=10),
-                    ]
-                )
-            )
-
-            # Sleep for poll interval + buffer
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-            # Retrieve MORE events
-            events = _poll_audit_events(
-                auditor_api,
-                "setting_bulk_changed",
-            )
-
-            event = _find_bulk_audit_event(events, expected_keys)
-            assert event is not None, f"No bulk audit event found with keys {expected_keys}"
-            assert event.event_action == "setting_bulk_changed"
-            props = event.structured_data.additional_properties
-            assert _MAX_TOKENS_KEY in props["settings"]
-            assert _TIMEOUT_SECONDS_KEY in props["settings"]
-            assert props["change_count"] == 2
-        finally:
-            for k, v in originals.items():
-                _restore_setting(nexus_api, k, v)
-
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
-    async def test_audit_old_and_new_values(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Audit event captures distinct old_value and new_value for a setting change."""
-        original = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
-        original_value = original.effective_value
-
-        try:
-            # Set a known value first so old_value is deterministic
-            first = _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.3)
-            first_version = first.version
-
-            # Update to a different value
-            _update_setting(nexus_api, _COMPRESSION_TEMP_KEY, 0.8)
-
-            # Sleep for poll interval + buffer
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-            # Retrieve MORE events
-            events = _poll_audit_events(
-                auditor_api,
-                "setting_changed",
-                resource_urn="urn:nexus:setting:context_manager.compression_temperature",
-            )
-
-            # Find the event for the second update using version-based matching
-            event = _find_audit_event_by_key_and_version(
-                events,
-                _COMPRESSION_TEMP_KEY,
-                min_version=first_version + 1,
-            )
-
-            assert event is not None, (
-                f"No audit event found for second update (key={_COMPRESSION_TEMP_KEY}, version > {first_version})"
-            )
-            props = event.structured_data.additional_properties
-            assert props["old_value"] == "0.3", f"old_value should be '0.3', got '{props['old_value']}'"
-            assert props["new_value"] == "0.8", f"new_value should be '0.8', got '{props['new_value']}'"
-            assert props["old_value"] != props["new_value"]
-        finally:
-            _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
-
-    @pytest.mark.skip(reason="Needs to be updated following introduction of AuditOutboxWorker part of AAP-73776")
-    async def test_audit_reset_to_default(
-        self,
-        nexus_api: NexusApiRegistry,
-        auditor_api: NexusApiRegistry,
-    ) -> None:
-        """Resetting a setting to default creates an audit event with the default value."""
-        original = _get_setting(nexus_api, _MAX_TOKENS_KEY)
-        original_value = original.effective_value
-        default_value = original.default_value
-
-        try:
-            # First update to a non-default value
-            first = _update_setting(nexus_api, _MAX_TOKENS_KEY, 9999)
-            first_version = first.version
-
-            # Then reset to default
-            _update_setting(nexus_api, _MAX_TOKENS_KEY, default_value)
-
-            # Sleep for poll interval + buffer
-            settings = get_settings()
-            await asyncio.sleep(settings.audit_outbox_poll_interval_seconds * 2)
-
-            # Retrieve MORE events
-            events = _poll_audit_events(
-                auditor_api,
-                "setting_changed",
-                resource_urn="urn:nexus:setting:context_manager.max_total_tokens",
-            )
-
-            # Find the reset event (version after first update)
-            event = _find_audit_event_by_key_and_version(
-                events,
-                _MAX_TOKENS_KEY,
-                min_version=first_version + 1,
-            )
-
-            assert event is not None, f"No audit event found for key {_MAX_TOKENS_KEY} with version > {first_version}"
-            assert event.event_action == "setting_changed"
-            props = event.structured_data.additional_properties
-            assert props["new_value"] == str(default_value)
-        finally:
-            _restore_setting(nexus_api, _MAX_TOKENS_KEY, original_value)
 
 
 @pytest.mark.xdist_group("settings_write")

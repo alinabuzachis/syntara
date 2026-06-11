@@ -111,7 +111,7 @@ class TestContextManagerPlanner:
         assert "max_tokens" in call_kwargs
         assert "compression_loop" in call_kwargs
         assert call_kwargs["user_id"] == mock_user.id
-        assert "session" in call_kwargs
+        assert "session_factory" in call_kwargs
 
         # Verify RetrieverService.retrieve_relevant_documents was called
         mock_retrieve_service.retrieve_relevant_documents.assert_called_once()
@@ -271,7 +271,7 @@ class TestContextManagerPlanner:
             assert call_kwargs["max_tokens"] == 4000  # From settings
             assert "compression_loop" in call_kwargs  # Default: 3
             assert call_kwargs["user_id"] == mock_user.id
-            assert "session" in call_kwargs
+            assert "session_factory" in call_kwargs
 
     @pytest.mark.asyncio
     async def test_plan_request_reads_max_total_tokens_from_settings(

@@ -16,8 +16,8 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectPolicyRead } from '../../access/types'
 
@@ -37,11 +37,12 @@ export function EditProjectPolicyDialog({
   onClose,
   onSuccess,
 }: Readonly<EditProjectPolicyDialogProps>) {
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess } = useAlerts()
 
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<AddProjectPolicyFormData>({
     resolver: zodResolver(addProjectPolicySchema, undefined, { mode: 'sync' }),
@@ -52,6 +53,7 @@ export function EditProjectPolicyDialog({
     },
   })
 
+  const handleError = useFormMutationErrorHandler<AddProjectPolicyFormData>(setError)
   const { mutate: updatePolicy, isPending } = accessClient.useMutation(
     'put',
     '/projects/{project_id}/policies/{policy_id}'
@@ -74,9 +76,7 @@ export function EditProjectPolicyDialog({
           onSuccess()
           onClose()
         },
-        onError: (error) => {
-          showError({ title: 'Failed to update policy', description: getErrorMessage(error) })
-        },
+        onError: handleError({ title: 'Failed to update policy' }),
       }
     )
   }

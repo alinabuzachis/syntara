@@ -1,8 +1,14 @@
 import type { Group } from '@ansible/nexus-contracts'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
   Flex,
   FlexItem,
+  Form,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   Label,
   Modal,
   ModalBody,
@@ -15,6 +21,8 @@ import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { z } from 'zod'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { FilterBar } from '../../../components/filters'
@@ -26,6 +34,7 @@ import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoDat
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
+import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
@@ -66,6 +75,12 @@ type GroupInfo = {
   name: string
 }
 
+const addToGroupSchema = z.object({
+  groupId: z.string().min(1, 'Group is required'),
+})
+
+type AddToGroupFormData = z.infer<typeof addToGroupSchema>
+
 function AddToGroupModal({
   userId,
   isOpen,
@@ -79,9 +94,14 @@ function AddToGroupModal({
   onSuccess: () => void
   existingGroupIds: string[]
 }>) {
-  const [selectedGroupId, setSelectedGroupId] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const { showAlert } = useAlerts()
+  const { showSuccess } = useAlerts()
+
+  const { handleSubmit, control, reset, setError } = useForm<AddToGroupFormData>({
+    resolver: zodResolver(addToGroupSchema, undefined, { mode: 'sync' }),
+    defaultValues: { groupId: '' },
+  })
+
+  const handleError = useFormMutationErrorHandler<AddToGroupFormData>(setError)
 
   const { groups: allGroupsForPicker } = useAllGroups()
 
@@ -98,43 +118,27 @@ function AddToGroupModal({
   const { mutate: addMember, isPending } = accessClient.useMutation('post', '/groups/{group_id}/members')
 
   const handleClose = () => {
-    setSelectedGroupId('')
-    setError(null)
+    reset()
     onClose()
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedGroupId) {
-      setError('Please select a group')
-      return
-    }
-
+  const onFormSubmit = (data: AddToGroupFormData) => {
+    const group = availableGroups.find((g) => g.value === data.groupId)
     addMember(
       {
-        params: { path: { group_id: selectedGroupId } },
+        params: { path: { group_id: data.groupId } },
         body: { user_id: userId },
       },
       {
         onSuccess: () => {
-          const group = availableGroups.find((g) => g.value === selectedGroupId)
-          showAlert({
+          showSuccess({
             title: 'Added to group',
-            description: `User has been added to group "${group?.label ?? selectedGroupId}".`,
-            variant: 'success',
-            autoDismiss: true,
+            description: `User has been added to group "${group?.label ?? data.groupId}".`,
           })
           handleClose()
           onSuccess()
         },
-        onError: (err: unknown) => {
-          showAlert({
-            title: 'Failed to add to group',
-            description: getErrorMessage(err),
-            variant: 'error',
-            autoDismiss: true,
-          })
-        },
+        onError: handleError({ title: 'Failed to add to group' }),
       }
     )
   }
@@ -143,20 +147,34 @@ function AddToGroupModal({
     <Modal isOpen={isOpen} onClose={handleClose} variant="medium">
       <ModalHeader title="Add to group" />
       <ModalBody>
-        <form id="add-to-group-form" onSubmit={handleSubmit}>
-          <TypeaheadSelect
-            id="add-to-group-select"
-            ariaLabel="Select a group"
-            options={availableGroups}
-            selected={selectedGroupId}
-            onChange={(value) => {
-              setSelectedGroupId(value)
-              setError(null)
-            }}
-            placeholder="Search for a group..."
-            hasError={!!error}
-          />
-        </form>
+        <Form id="add-to-group-form" onSubmit={handleSubmit(onFormSubmit)}>
+          <FormGroup label="Group" fieldId="add-to-group-select" isRequired>
+            <Controller
+              name="groupId"
+              control={control}
+              render={({ field, fieldState }) => (
+                <>
+                  <TypeaheadSelect
+                    id="add-to-group-select"
+                    ariaLabel="Select a group"
+                    options={availableGroups}
+                    selected={field.value}
+                    onChange={field.onChange}
+                    placeholder="Search for a group..."
+                    hasError={!!fieldState.error}
+                  />
+                  {fieldState.error && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
+              )}
+            />
+          </FormGroup>
+        </Form>
       </ModalBody>
       <ModalFooter>
         <Button variant="primary" type="submit" form="add-to-group-form" isDisabled={isPending} isLoading={isPending}>

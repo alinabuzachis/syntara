@@ -191,54 +191,57 @@ class TokenValidationService:
         # Count tokens in the request using user's configured model
         request_tokens = self.calculator.count_tokens(request_text, model_name=config_prelim.model_name)
 
-        # Use transaction with row-level locking to prevent race conditions
-        async with session.begin_nested():
-            # Get user configuration with row-level lock (SELECT FOR UPDATE)
-            # This prevents concurrent requests from reading stale usage data
-            config = await self.repository.get_user_config_with_lock(user_id, session)
+        # Row-level locking prevents race conditions (SELECT FOR UPDATE)
+        # The session factory pattern provides transaction isolation - each call
+        # operates in its own short-lived session. The caller is responsible for
+        # committing the transaction to persist changes.
 
-            # Calculate current usage within the rolling window
-            current_usage = await self.repository.calculate_current_usage(
-                user_id=user_id,
-                window_duration_seconds=config.window_duration_seconds,
-                session=session,
-            )
+        # Get user configuration with row-level lock (SELECT FOR UPDATE)
+        # This prevents concurrent requests from reading stale usage data
+        config = await self.repository.get_user_config_with_lock(user_id, session)
 
-            # Check if request would exceed limit
-            if current_usage + request_tokens > config.token_limit:
-                logger.warning(
-                    "Token limit exceeded",
-                    user_id=str(user_id),
-                    current_usage=current_usage,
-                    token_limit=config.token_limit,
-                    request_tokens=request_tokens,
-                    would_total=current_usage + request_tokens,
-                )
-                raise TokenLimitExceededError(
-                    user_id=user_id,
-                    current_usage=current_usage,
-                    token_limit=config.token_limit,
-                    request_tokens=request_tokens,
-                )
+        # Calculate current usage within the rolling window
+        current_usage = await self.repository.calculate_current_usage(
+            user_id=user_id,
+            window_duration_seconds=config.window_duration_seconds,
+            session=session,
+        )
 
-            # Record the usage with estimated_input_tokens for audit comparison
-            await self.repository.record_usage(
-                user_id=user_id,
-                token_count=request_tokens,
-                session=session,
-                estimated_input_tokens=request_tokens,
-                invocation_id=invocation_id,
-            )
-
-            logger.info(
-                "Token usage validated and recorded",
+        # Check if request would exceed limit
+        if current_usage + request_tokens > config.token_limit:
+            logger.warning(
+                "Token limit exceeded",
                 user_id=str(user_id),
-                request_tokens=request_tokens,
                 current_usage=current_usage,
-                new_total=current_usage + request_tokens,
                 token_limit=config.token_limit,
-                model_name=config_prelim.model_name,
+                request_tokens=request_tokens,
+                would_total=current_usage + request_tokens,
             )
+            raise TokenLimitExceededError(
+                user_id=user_id,
+                current_usage=current_usage,
+                token_limit=config.token_limit,
+                request_tokens=request_tokens,
+            )
+
+        # Record the usage with estimated_input_tokens for audit comparison
+        await self.repository.record_usage(
+            user_id=user_id,
+            token_count=request_tokens,
+            session=session,
+            estimated_input_tokens=request_tokens,
+            invocation_id=invocation_id,
+        )
+
+        logger.info(
+            "Token usage validated and recorded",
+            user_id=str(user_id),
+            request_tokens=request_tokens,
+            current_usage=current_usage,
+            new_total=current_usage + request_tokens,
+            token_limit=config.token_limit,
+            model_name=config_prelim.model_name,
+        )
 
         return request_tokens
 

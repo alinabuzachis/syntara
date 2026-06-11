@@ -19,6 +19,7 @@ import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
+import { useDocLink } from '../../utils/docs/useDocLink'
 
 import {
   getExecutionWorkflowFilterDefinition,
@@ -37,6 +38,7 @@ function buildFilterFieldDefinitions(): FilterFieldDefinition[] {
 }
 
 export default function Executions() {
+  const executionsDocLink = useDocLink('executions')
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const searchParams = useSearch()
   const urlParams = useMemo(() => new URLSearchParams(searchParams), [searchParams])
@@ -125,7 +127,7 @@ export default function Executions() {
   if (queryState) {
     return (
       <NxPage>
-        <NxPageHeader title="Workflow Runs" projectSelector={ProjectSelector} />
+        <NxPageHeader title="Workflow Runs" docLink={executionsDocLink} projectSelector={ProjectSelector} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
         </NxPageBody>
@@ -135,7 +137,7 @@ export default function Executions() {
 
   return (
     <NxPage>
-      <NxPageHeader title="Workflow Runs" projectSelector={ProjectSelector} />
+      <NxPageHeader title="Workflow Runs" docLink={executionsDocLink} projectSelector={ProjectSelector} />
       <NxPageBody>
         <NxPanel isFullHeight>
           {sortedExecutions.length === 0 && !hasActiveFilters ? (

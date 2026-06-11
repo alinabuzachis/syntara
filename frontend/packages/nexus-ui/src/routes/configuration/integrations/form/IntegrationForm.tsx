@@ -24,6 +24,7 @@ import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
+import { useDocLink } from '../../../../utils/docs/useDocLink'
 
 import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
 import { useCreateIntegration } from './useCreateIntegration'
@@ -82,6 +83,7 @@ function ControlledTextField({
 }
 
 export function IntegrationForm() {
+  const integrationsDocLink = useDocLink('integrations')
   const { control, handleSubmit, setError } = useForm<IntegrationFormData>({
     resolver: zodResolver(integrationFormSchema, undefined, { mode: 'sync' }),
     defaultValues: {
@@ -101,6 +103,7 @@ export function IntegrationForm() {
     <NxPage>
       <NxPageHeader
         title="Configure integration"
+        docLink={integrationsDocLink}
         breadcrumbs={breadcrumbsIntegrationConfigure()}
         toolbar={
           <>

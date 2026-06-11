@@ -49,6 +49,7 @@ class IntegrationRead:
         enabled (bool | Unset):  Default: True.
         status (IntegrationStatus | Unset): Current status of an integration.
         scope (IntegrationScope | Unset): Visibility scope of an integration.
+        last_validated_at (datetime.datetime | None | Unset):
         management_credential_id (None | Unset | UUID):
         validation_error (None | str | Unset):
     """
@@ -68,6 +69,7 @@ class IntegrationRead:
     enabled: bool | Unset = True
     status: IntegrationStatus | Unset = UNSET
     scope: IntegrationScope | Unset = UNSET
+    last_validated_at: datetime.datetime | None | Unset = UNSET
     management_credential_id: None | Unset | UUID = UNSET
     validation_error: None | str | Unset = UNSET
 
@@ -145,6 +147,14 @@ class IntegrationRead:
         if not isinstance(self.scope, Unset):
             scope = self.scope.value
 
+        last_validated_at: None | str | Unset
+        if isinstance(self.last_validated_at, Unset):
+            last_validated_at = UNSET
+        elif isinstance(self.last_validated_at, datetime.datetime):
+            last_validated_at = self.last_validated_at.isoformat()
+        else:
+            last_validated_at = self.last_validated_at
+
         management_credential_id: None | str | Unset
         if isinstance(self.management_credential_id, Unset):
             management_credential_id = UNSET
@@ -191,6 +201,8 @@ class IntegrationRead:
             field_dict["status"] = status
         if scope is not UNSET:
             field_dict["scope"] = scope
+        if last_validated_at is not UNSET:
+            field_dict["last_validated_at"] = last_validated_at
         if management_credential_id is not UNSET:
             field_dict["management_credential_id"] = management_credential_id
         if validation_error is not UNSET:
@@ -343,6 +355,23 @@ class IntegrationRead:
         else:
             scope = IntegrationScope(_scope)
 
+        def _parse_last_validated_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                last_validated_at_type_0 = isoparse(data)
+
+                return last_validated_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        last_validated_at = _parse_last_validated_at(d.pop("last_validated_at", UNSET))
+
         def _parse_management_credential_id(data: object) -> None | Unset | UUID:
             if data is None:
                 return data
@@ -385,6 +414,7 @@ class IntegrationRead:
             enabled=enabled,
             status=status,
             scope=scope,
+            last_validated_at=last_validated_at,
             management_credential_id=management_credential_id,
             validation_error=validation_error,
         )

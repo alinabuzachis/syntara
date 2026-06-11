@@ -51,7 +51,7 @@ vi.mock('./useAllSettings', () => ({
 }))
 
 const mockCategories = {
-  results: [
+  resources: [
     {
       slug: 'context_manager',
       name: 'Context Manager',

@@ -49,7 +49,7 @@ class TestAuditorSettingsAccess:
 
         resp = await auth_client.get("/api/v1/settings/categories")
         assert resp.status_code == 200
-        assert "results" in resp.json()
+        assert "resources" in resp.json()
 
     @pytest.mark.asyncio
     async def test_auditor_can_get_setting(

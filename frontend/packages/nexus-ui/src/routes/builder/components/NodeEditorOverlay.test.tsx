@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { NodeEditorOverlay } from './NodeEditorOverlay'
 
 vi.mock('../NodeDetailsPanel', () => ({
-  NodeDetailsPanel: ({ mode }: { mode: string }) => <div data-testid="node-details-panel">{mode}</div>,
+  NodeDetailsPanel: ({ mode, docLink }: { mode: string; docLink?: string }) => (
+    <div data-testid="node-details-panel">
+      {mode}
+      {docLink ? <span data-testid="doc-link">{docLink}</span> : null}
+    </div>
+  ),
 }))
 
 describe('NodeEditorOverlay', () => {
@@ -33,5 +38,15 @@ describe('NodeEditorOverlay', () => {
   it('renders NodeDetailsPanel when open', () => {
     render(<NodeEditorOverlay {...baseProps} />)
     expect(screen.getByTestId('node-details-panel')).toHaveTextContent('edit')
+  })
+
+  it('passes mode as add when mode prop is add', () => {
+    render(<NodeEditorOverlay {...baseProps} mode="add" nodeTypeId="script" selectedNode={null} />)
+    expect(screen.getByTestId('node-details-panel')).toHaveTextContent('add')
+  })
+
+  it('passes docLink from useDocLink to NodeDetailsPanel', () => {
+    render(<NodeEditorOverlay {...baseProps} />)
+    expect(screen.getByTestId('doc-link')).toBeInTheDocument()
   })
 })

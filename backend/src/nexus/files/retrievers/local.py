@@ -11,6 +11,7 @@ from typing import Any
 import aiofiles
 import structlog
 
+from nexus.files.exceptions import FileContentNotFoundError
 from nexus.files.retrievers.base import BaseRetriever
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -121,7 +122,7 @@ class LocalFileRetriever(BaseRetriever):
         if not file_path_obj.exists():
             logger.warning("File not found", file_path=file_path)
             msg = f"File not found: {file_path}"
-            raise FileNotFoundError(msg)
+            raise FileContentNotFoundError(msg)
 
         try:
             async with aiofiles.open(file_path_obj, "rb") as f:
@@ -185,7 +186,7 @@ class LocalFileRetriever(BaseRetriever):
         if not file_path_obj.exists():
             logger.warning("File not found for metadata", file_path=file_path)
             msg = f"File not found: {file_path}"
-            raise FileNotFoundError(msg)
+            raise FileContentNotFoundError(msg)
 
         try:
             stat = file_path_obj.stat()
@@ -210,3 +211,44 @@ class LocalFileRetriever(BaseRetriever):
         except (OSError, PermissionError):
             logger.exception("Failed to get file metadata", file_path=file_path)
             raise
+
+    async def delete_file(self, file_path: str) -> bool:
+        """Delete file from local filesystem.
+
+        Args:
+            file_path: Absolute filesystem path to the file
+
+        Returns:
+            True if file was successfully deleted
+
+        Raises:
+            FileNotFoundError: If file does not exist
+            OSError: If deletion fails
+
+        """
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            msg = f"File not found: {file_path}"
+            raise FileContentNotFoundError(msg)
+
+        file_path_obj.unlink()
+        logger.debug("File deleted", path=file_path)
+        return True
+
+    async def health_check(self) -> bool:
+        """Check if local storage directory is writable.
+
+        Returns:
+            True if the storage directory exists and is writable
+
+        """
+        try:
+            storage_path = Path(self.storage_dir)
+            storage_path.mkdir(parents=True, exist_ok=True)
+            test_file = storage_path / ".health_check"
+            test_file.write_bytes(b"ok")
+            test_file.unlink()
+            return True
+        except (OSError, PermissionError):
+            logger.warning("Health check failed", storage_dir=self.storage_dir, exc_info=True)
+            return False

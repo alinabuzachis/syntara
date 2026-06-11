@@ -200,11 +200,29 @@ def _rate_from_status(
     recorder: MetricsRecorder,
     metric_type: MetricType,
     success_statuses: set[str],
+    *,
+    dedup_key: str | None = None,
 ) -> float:
-    """Compute success-rate (0.0-1.0) from status labels on records."""
+    """Compute success-rate (0.0-1.0) from status labels on records.
+
+    When *dedup_key* is provided, records are grouped by that label and
+    only the latest record per group is considered.  This prevents
+    multi-phase metric types (e.g. ``WORKFLOW_STATUS`` which emits both
+    a "started" and a terminal record per execution) from inflating the
+    denominator.
+    """
     records = list(recorder.query(metric_types={metric_type}))
     if not records:
         return 0.0
+
+    if dedup_key:
+        latest: dict[str, MetricRecord] = {}
+        for r in records:
+            key = r.labels.get(dedup_key, "")
+            if key not in latest or r.created_at > latest[key].created_at:
+                latest[key] = r
+        records = list(latest.values())
+
     successes = sum(1 for r in records if r.labels.get("status") in success_statuses)
     return successes / len(records)
 
@@ -240,7 +258,12 @@ def _build_api_service(recorder: MetricsRecorder, summary: MetricsSummary) -> Co
 
 def _build_workflow_engine(recorder: MetricsRecorder) -> ComponentKPISummary:
     m: _MetricsDict = {}
-    m["creation_success_rate"] = _rate_from_status(recorder, MetricType.WORKFLOW_STATUS, {"completed", "running"})
+    m["creation_success_rate"] = _rate_from_status(
+        recorder,
+        MetricType.WORKFLOW_STATUS,
+        {"completed", "running"},
+        dedup_key="execution_id",
+    )
     m["serialization_duration_ms"] = _percentile_stats(
         _collect_values(recorder, {MetricType.WORKFLOW_SERIALIZATION_DURATION}),
     )
@@ -265,7 +288,12 @@ def _build_execution_service(recorder: MetricsRecorder, summary: MetricsSummary)
     m["temporal_rpc_duration_ms"] = _percentile_stats(
         _collect_values(recorder, {MetricType.TEMPORAL_EXECUTION_SERVICE_DURATION}),
     )
-    m["completion_rate"] = _rate_from_status(recorder, MetricType.WORKFLOW_STATUS, {"completed"})
+    m["completion_rate"] = _rate_from_status(
+        recorder,
+        MetricType.WORKFLOW_STATUS,
+        {"completed"},
+        dedup_key="execution_id",
+    )
     m["active_workflows"] = summary.active_workflows
     m["total_workflows"] = summary.total_workflows
     return ComponentKPISummary(component="execution_service", metrics=m)

@@ -256,7 +256,7 @@ describe('BuilderContent - Delete Workflow', () => {
         }),
         expect.any(Object)
       )
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/new')
+      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
       expect(screen.getByText('Workflow deleted')).toBeInTheDocument()
     })
   })

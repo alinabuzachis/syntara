@@ -121,10 +121,7 @@ test.describe('Workflow publish/unpublish', () => {
 
       // Open kebab — Publish should be available
       const row = app.getByRole('row', { name: new RegExp(workflowName) })
-      await row
-        .getByRole('button', { name: /Actions|Kebab toggle/i })
-        .first()
-        .click({ force: true })
+      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
       await expect(app.getByRole('menuitem', { name: /Publish workflow/i })).toBeVisible()
 
       // Unpublish should NOT be available for an unpublished workflow

@@ -7,14 +7,14 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
 from ...models.example_item import ExampleItem
-from ...models.update_example_request import UpdateExampleRequest
+from ...models.example_update import ExampleUpdate
 from ...types import Response
 
 
 def _get_kwargs(
     item_id: int,
     *,
-    body: UpdateExampleRequest,
+    body: ExampleUpdate,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -97,7 +97,7 @@ def sync_detailed(
     item_id: int,
     *,
     client: AuthenticatedClient | Client,
-    body: UpdateExampleRequest,
+    body: ExampleUpdate,
 ) -> Response[ErrorData | ExampleItem]:
     """Update example item
 
@@ -105,7 +105,7 @@ def sync_detailed(
 
     Args:
         item_id (int): Example item ID
-        body (UpdateExampleRequest): Schema for updating an example item (PUT /example/{item_id}).
+        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -131,7 +131,7 @@ def sync(
     item_id: int,
     *,
     client: AuthenticatedClient | Client,
-    body: UpdateExampleRequest,
+    body: ExampleUpdate,
 ) -> ErrorData | ExampleItem | None:
     """Update example item
 
@@ -139,7 +139,7 @@ def sync(
 
     Args:
         item_id (int): Example item ID
-        body (UpdateExampleRequest): Schema for updating an example item (PUT /example/{item_id}).
+        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -160,7 +160,7 @@ async def asyncio_detailed(
     item_id: int,
     *,
     client: AuthenticatedClient | Client,
-    body: UpdateExampleRequest,
+    body: ExampleUpdate,
 ) -> Response[ErrorData | ExampleItem]:
     """Update example item
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
 
     Args:
         item_id (int): Example item ID
-        body (UpdateExampleRequest): Schema for updating an example item (PUT /example/{item_id}).
+        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -192,7 +192,7 @@ async def asyncio(
     item_id: int,
     *,
     client: AuthenticatedClient | Client,
-    body: UpdateExampleRequest,
+    body: ExampleUpdate,
 ) -> ErrorData | ExampleItem | None:
     """Update example item
 
@@ -200,7 +200,7 @@ async def asyncio(
 
     Args:
         item_id (int): Example item ID
-        body (UpdateExampleRequest): Schema for updating an example item (PUT /example/{item_id}).
+        body (ExampleUpdate): Schema for updating an example item (PUT /example/{item_id}).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

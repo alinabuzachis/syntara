@@ -1,0 +1,69 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
+
+import type { UpstreamNodeInfo } from './hooks/useUpstreamNodes'
+import { NodePanelNavigationArrow } from './NodePanelNavigationArrow'
+
+const singleNode: UpstreamNodeInfo[] = [{ id: 'node-a', name: 'Create ServiceNOW Ticket', type: 'script' }]
+
+const multipleNodes: UpstreamNodeInfo[] = [
+  { id: 'node-a', name: 'Task A', type: 'script' },
+  { id: 'node-b', name: 'Task B', type: 'script' },
+]
+
+describe('NodePanelNavigationArrow', () => {
+  it('renders nothing when nodes array is empty', () => {
+    const { container } = render(<NodePanelNavigationArrow direction="previous" nodes={[]} onNavigate={vi.fn()} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('navigates directly when single upstream target is clicked', async () => {
+    const user = userEvent.setup()
+    const onNavigate = vi.fn()
+
+    render(<NodePanelNavigationArrow direction="previous" nodes={singleNode} onNavigate={onNavigate} />)
+
+    await user.click(screen.getByRole('button', { name: /Go to previous step: Create ServiceNOW Ticket/i }))
+
+    expect(onNavigate).toHaveBeenCalledWith('node-a')
+  })
+
+  it('opens dropdown when multiple upstream targets are present', async () => {
+    const user = userEvent.setup()
+    const onNavigate = vi.fn()
+
+    render(<NodePanelNavigationArrow direction="previous" nodes={multipleNodes} onNavigate={onNavigate} />)
+
+    await user.click(screen.getByRole('button', { name: /Previous step/i }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('menuitem', { name: 'Task B' }))
+    expect(onNavigate).toHaveBeenCalledWith('node-b')
+  })
+
+  it('uses next-step labeling for downstream direction', () => {
+    render(<NodePanelNavigationArrow direction="next" nodes={multipleNodes} onNavigate={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: /Next step/i })).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations for single-target arrow', async () => {
+    const { container } = render(
+      <NodePanelNavigationArrow direction="previous" nodes={singleNode} onNavigate={vi.fn()} />
+    )
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations for multi-target arrow', async () => {
+    const { container } = render(
+      <NodePanelNavigationArrow direction="next" nodes={multipleNodes} onNavigate={vi.fn()} />
+    )
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+})

@@ -33,7 +33,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
         fulfill(filterUsers(url.searchParams.get('auth_source'), url.searchParams.get('email[contains]')))
       )
     })
-    await mockAuthProviders(app, { providers: [AAP_AUTH_PROVIDER] })
+    await mockAuthProviders(app, { resources: [AAP_AUTH_PROVIDER] })
     await app.goto(toAppUrl(ACCESS_URL))
     await expect(app.getByRole('grid', { name: 'Users' })).toBeVisible()
   })
@@ -73,7 +73,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
 
     // Verify only federated users are shown
     await expect(dataRows).toHaveCount(1)
-    await expect(dataRows.first().getByText('AAP', { exact: true })).toBeVisible()
+    await expect(dataRows.getByText('AAP', { exact: true })).toBeVisible()
   })
 
   test('combining Email and Authentication filters narrows results', async ({ app }) => {

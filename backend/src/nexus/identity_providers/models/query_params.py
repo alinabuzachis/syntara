@@ -8,4 +8,4 @@ from nexus.core.models.base import BaseListParams
 class IdentityProviderListParams(BaseListParams):
     """Query parameters for identity provider list endpoint."""
 
-    limit: int = Field(default=100, gt=0, le=100, description="Maximum number of results per page")
+    limit: int = Field(default=20, gt=0, le=100, description="Maximum number of results per page")

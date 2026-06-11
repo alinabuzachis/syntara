@@ -512,5 +512,5 @@ async def test_get_decrypted_config() -> None:
     config = await service.get_decrypted_config(provider)
 
     assert config.client_secret == "my-secret"  # noqa: S105
-    assert str(config.issuer_url) == "https://idp.example.com"
+    assert str(config.issuer_url) == "https://idp.example.com/"
     mock_secret.retrieve_secret.assert_called_once_with(secret_id)

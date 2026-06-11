@@ -9,11 +9,13 @@ import {
   RhUiConditionNodeIcon,
   RhUiLoopNodeIcon,
   RhUiUserCheckIcon,
+  RhUiTreeViewIcon,
   RhUiClockIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
 import AnsibleIcon from '../../../../assets/ansible-automation-platform.svg?react'
+import EdaIcon from '../../../../assets/eda.svg?react'
 
 export type NodeMetadata = {
   icon?: ComponentType<{ className?: string }>
@@ -44,6 +46,12 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     disableTarget: true,
     expandable: false,
   },
+  edaTrigger: {
+    icon: EdaIcon,
+    label: 'Trigger',
+    disableTarget: true,
+    expandable: false,
+  },
   task: {
     label: 'Task',
     expandable: true,
@@ -62,6 +70,11 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   converge: {
     icon: RhUiMergeNodesIcon,
     label: 'Converge',
+    expandable: false,
+  },
+  switch: {
+    icon: RhUiTreeViewIcon,
+    label: 'Switch',
     expandable: false,
   },
   wait: {

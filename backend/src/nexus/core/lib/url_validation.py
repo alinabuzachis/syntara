@@ -12,24 +12,29 @@ _HTTPS_ONLY = frozenset({"https"})
 _DEFAULT_PORTS: dict[str, int] = {"https": 443, "http": 80}
 
 
-def _check_disallowed_components(parsed: ParseResult) -> None:
-    """Raise ValueError if the parsed URL contains paths, query strings, fragments, or userinfo."""
+def _check_disallowed_components(
+    parsed: ParseResult,
+    *,
+    label: str = "Host URL",
+    allow_path: bool = False,
+) -> None:
+    """Raise ValueError if the parsed URL contains disallowed components."""
     if "@" in parsed.netloc or "\\" in parsed.netloc:
-        msg = "Host URL must not contain userinfo (@) or backslash characters."
+        msg = f"{label} must not contain userinfo (@) or backslash characters."
         raise ValueError(msg)
 
-    if parsed.path and parsed.path != "/":
+    if not allow_path and parsed.path and parsed.path != "/":
         msg = (
-            "Host URL must not contain a path. Use only scheme://hostname[:port], e.g., https://controller.example.com"
+            f"{label} must not contain a path. Use only scheme://hostname[:port], e.g., https://controller.example.com"
         )
         raise ValueError(msg)
 
     if parsed.query:
-        msg = "Host URL must not contain a query string."
+        msg = f"{label} must not contain a query string."
         raise ValueError(msg)
 
     if parsed.fragment:
-        msg = "Host URL must not contain a fragment."
+        msg = f"{label} must not contain a fragment."
         raise ValueError(msg)
 
 
@@ -41,6 +46,32 @@ def _normalize_host(parsed: ParseResult) -> str:
     if port and port != _DEFAULT_PORTS.get(parsed.scheme):
         return f"{parsed.scheme}://{host}:{port}"
     return f"{parsed.scheme}://{host}"
+
+
+def _parse_and_validate(url: str, *, label: str, allow_http: bool) -> ParseResult:
+    """Parse a URL and validate scheme and hostname."""
+    url = url.strip() if url else ""
+    if not url:
+        msg = f"{label} must not be empty."
+        raise ValueError(msg)
+
+    parsed = urlparse(url)
+
+    if not parsed.scheme:
+        msg = f"{label} must include a scheme (e.g., https://). Got: '{url}'"
+        raise ValueError(msg)
+
+    allowed = _ALLOWED_SCHEMES if allow_http else _HTTPS_ONLY
+    if parsed.scheme not in allowed:
+        schemes = ", ".join(sorted(allowed))
+        msg = f"{label} scheme must be {schemes}. Got: '{parsed.scheme}'"
+        raise ValueError(msg)
+
+    if not parsed.hostname:
+        msg = f"{label} must include a hostname."
+        raise ValueError(msg)
+
+    return parsed
 
 
 def validate_host_url(url: str, *, allow_http: bool = False) -> str:
@@ -60,27 +91,23 @@ def validate_host_url(url: str, *, allow_http: bool = False) -> str:
         ValueError: If the URL contains disallowed components or an invalid scheme.
 
     """
-    url = url.strip() if url else ""
-    if not url:
-        msg = "Host URL must not be empty."
-        raise ValueError(msg)
-
-    parsed = urlparse(url)
-
-    if not parsed.scheme:
-        msg = f"Host URL must include a scheme (e.g., https://). Got: '{url}'"
-        raise ValueError(msg)
-
-    allowed = _ALLOWED_SCHEMES if allow_http else _HTTPS_ONLY
-    if parsed.scheme not in allowed:
-        schemes = ", ".join(sorted(allowed))
-        msg = f"Host URL scheme must be {schemes}. Got: '{parsed.scheme}'"
-        raise ValueError(msg)
-
-    if not parsed.hostname:
-        msg = "Host URL must include a hostname."
-        raise ValueError(msg)
-
-    _check_disallowed_components(parsed)
-
+    parsed = _parse_and_validate(url, label="Host URL", allow_http=allow_http)
+    _check_disallowed_components(parsed, label="Host URL")
     return _normalize_host(parsed)
+
+
+def validate_endpoint_url(url: str, *, allow_http: bool = False) -> str:
+    """Validate an endpoint URL that may include a path.
+
+    Like :func:`validate_host_url` but permits a URL path component, which
+    is required for services mounted at a subpath (e.g. MCP servers at
+    ``http://host:8765/mcp``).  Query strings, fragments, and userinfo are
+    still rejected.
+
+    Returns:
+        The URL unchanged (not normalized to host-only).
+
+    """
+    parsed = _parse_and_validate(url, label="Endpoint URL", allow_http=allow_http)
+    _check_disallowed_components(parsed, label="Endpoint URL", allow_path=True)
+    return url

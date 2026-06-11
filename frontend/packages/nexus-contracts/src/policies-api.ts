@@ -155,7 +155,10 @@ export interface components {
        * @default false
        */
       is_builtin?: boolean
-      /** @description True when the policy belongs to a project or is a project-scoped builtin. */
+      /**
+       * Is Project Eligible
+       * @description True when the policy belongs to a project or is a project-scoped builtin.
+       */
       readonly is_project_eligible: boolean
       /**
        * Is System Scoped

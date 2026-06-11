@@ -239,4 +239,4 @@ class TestExtraFieldsIgnored:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "users" in data
+        assert "resources" in data

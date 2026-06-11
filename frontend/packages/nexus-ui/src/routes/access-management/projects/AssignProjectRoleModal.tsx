@@ -19,8 +19,8 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllProjectRoles } from '../../access/useAllProjectRoles'
@@ -131,9 +131,9 @@ export function AssignProjectRoleModal({
   onSuccess,
   assignedRolesByPrincipal,
 }: Readonly<AssignProjectRoleModalProps>) {
-  const { showSuccess, showError } = useAlerts()
+  const { showSuccess } = useAlerts()
 
-  const { control, handleSubmit, reset, setValue, formState } = useForm<AssignProjectRoleFormData>({
+  const { control, handleSubmit, reset, setValue, setError, formState } = useForm<AssignProjectRoleFormData>({
     resolver: zodResolver(assignProjectRoleSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
@@ -192,6 +192,7 @@ export function AssignProjectRoleModal({
       }))
   }, [projectRoles, selectedPrincipalId, assignedRolesByPrincipal])
 
+  const handleError = useFormMutationErrorHandler<AssignProjectRoleFormData>(setError)
   const { mutate: assignRole, isPending } = accessClient.useMutation('post', '/projects/{project_id}/role_assignments')
 
   const handleClose = () => {
@@ -214,9 +215,7 @@ export function AssignProjectRoleModal({
           handleClose()
           onSuccess()
         },
-        onError: (err: unknown) => {
-          showError({ title: 'Failed to assign role', description: getErrorMessage(err) })
-        },
+        onError: handleError({ title: 'Failed to assign role' }),
       }
     )
   })

@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type SwitchConfig } from '@ansible/nexus-contracts'
 import { useEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
 
@@ -68,6 +68,35 @@ type RunButtonEdgeMaintenanceWorkArgs = {
   onAddNodeFromEdge?: UseButtonEdgeMaintenanceOptions['onAddNodeFromEdge']
 }
 
+function processSwitchNode(options: {
+  node: NodeType
+  connectedHandles: Map<string, Set<string>>
+  pendingEdge: { sourceNodeId: string; sourceHandle?: string } | null
+  nodes: NodeType[]
+  handlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
+  placeholderNodesToAdd: ButtonEdgePlaceholderNode[]
+}) {
+  const { node, connectedHandles, pendingEdge, nodes, handlesNeedingButtonEdges, placeholderNodesToAdd } = options
+  const config = ((node.data as Record<string, unknown>).config ?? { cases: [] }) as SwitchConfig
+  const cases = config.cases ?? []
+  const handles = [...cases.map((c) => c.port), EdgeHandleEnum.DEFAULT]
+  const handlePositions: Record<string, { yOffset: number }> = {}
+  const totalHandles = handles.length
+  handles.forEach((h, i) => {
+    handlePositions[h] = { yOffset: (i - (totalHandles - 1) / 2) * 40 }
+  })
+  processMultiHandleNode({
+    node,
+    handles,
+    handlePositions,
+    connectedHandles,
+    pendingEdge,
+    nodes,
+    handlesNeedingButtonEdges,
+    placeholderNodesToAdd,
+  })
+}
+
 /**
  * Deferred button-edge work (runs inside the effect timeout). Extracted to module scope so the
  * effect callback stays shallow and nested-function depth stays within tooling limits.
@@ -75,6 +104,7 @@ type RunButtonEdgeMaintenanceWorkArgs = {
  * Order matters: placeholder nodes must exist in React Flow before button edges reference them
  * (`flushSync` + `setNodes` first when needed), then `setEdges`, then node class updates.
  */
+// eslint-disable-next-line sonarjs/cognitive-complexity -- function was at limit before switch; AAP-77228 will refactor to map/object lookup
 function runButtonEdgeMaintenanceWork({
   nodes,
   edges,
@@ -97,6 +127,7 @@ function runButtonEdgeMaintenanceWork({
   const conditionHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
   const loopHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
   const approvalHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
+  const switchHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
 
   const existingNodeIds = new Set(nodes.map((node) => node.id))
 
@@ -156,6 +187,18 @@ function runButtonEdgeMaintenanceWork({
       continue
     }
 
+    if (node.type === FlowNodeType.SWITCH) {
+      processSwitchNode({
+        node,
+        connectedHandles,
+        pendingEdge,
+        nodes,
+        handlesNeedingButtonEdges: switchHandlesNeedingButtonEdges,
+        placeholderNodesToAdd,
+      })
+      continue
+    }
+
     const sourceHandleConnected = connectedHandles.get(node.id)?.has(EdgeHandleEnum.SOURCE) ?? false
     const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
     const shouldHaveButtonEdge = !sourceHandleConnected && !hasPendingEdge
@@ -193,6 +236,7 @@ function runButtonEdgeMaintenanceWork({
       conditionHandlesNeedingButtonEdges,
       loopHandlesNeedingButtonEdges,
       approvalHandlesNeedingButtonEdges,
+      switchHandlesNeedingButtonEdges,
       nodesNeedingButtonEdges,
       activeEdgeButtonNodeId,
       activeEdgeButtonHandle,
@@ -207,6 +251,7 @@ function runButtonEdgeMaintenanceWork({
       conditionHandlesNeedingButtonEdges,
       loopHandlesNeedingButtonEdges,
       approvalHandlesNeedingButtonEdges,
+      switchHandlesNeedingButtonEdges,
       connectedHandles,
     })
   )
@@ -238,7 +283,14 @@ export function useButtonEdgeMaintenance({
   // (e.g. task → approval), even though the node ID stays the same during a replace operation.
   const realNodeIds = useMemo(() => {
     return filterRealNodes(nodes)
-      .map((node) => `${node.id}:${node.type ?? ''}`)
+      .map((node) => {
+        const base = `${node.id}:${node.type ?? ''}`
+        if (node.type === FlowNodeType.SWITCH) {
+          const cases = ((node.data as Record<string, unknown>).config as SwitchConfig | undefined)?.cases
+          return `${base}:${cases?.length ?? 0}`
+        }
+        return base
+      })
       .sort((a, b) => a.localeCompare(b, 'en'))
       .join(',')
   }, [nodes])

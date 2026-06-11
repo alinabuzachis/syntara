@@ -103,8 +103,7 @@ test.describe('Settings', () => {
     test.skip(!hasPage, 'Settings page not available; backend may not be running')
     // Wait for content to fully load (tabs + save button)
     const hasTabs = await app
-      .getByRole('tab')
-      .first()
+      .getByRole('tab', { name: /Context Manager|System|AI \/ LLM|Authentication/i })
       .waitFor({ state: 'visible', timeout: 10_000 })
       .then(() => true)
       .catch(() => false)

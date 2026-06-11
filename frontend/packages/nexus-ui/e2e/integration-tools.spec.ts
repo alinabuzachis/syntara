@@ -20,12 +20,12 @@ import { buildUniqueName } from './helpers/workflows'
 async function createIntegration(app: Page, name: string) {
   await app.goto(toAppUrl('/configuration/integrations'))
   await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-  await app.getByRole('button', { name: 'Configure integration' }).first().click()
+  await app.getByRole('button', { name: 'Configure integration' }).click()
   await expect(app.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
   await app.getByLabel('Server name / ID').fill(name)
   await app.getByLabel('API URL').fill('https://api.example.com')
   await app.getByLabel('API key').fill('test-key-e2e')
-  await app.getByRole('button', { name: 'Configure integration' }).first().click()
+  await app.getByRole('button', { name: 'Configure integration' }).click()
   await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
 }
 
@@ -37,7 +37,7 @@ async function navigateToToolsViaKebab(app: Page, integrationName: string) {
   const row = app.getByRole('row', { name: new RegExp(integrationName) })
   await expect(row).toBeVisible()
   await row.hover()
-  const kebabButton = row.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+  const kebabButton = row.getByRole('button', { name: /Actions|Kebab toggle/i })
   await expect(kebabButton).toBeVisible()
   await kebabButton.click()
   await app.getByRole('menuitem', { name: /View and enable\/disable tools/i }).click()
@@ -57,7 +57,7 @@ async function deleteIntegration(app: Page, integrationName: string) {
     )
   if (rowVisible) {
     await row.hover()
-    const kebabButton = row.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
+    const kebabButton = row.getByRole('button', { name: /Actions|Kebab toggle/i })
     await expect(kebabButton).toBeVisible()
     await kebabButton.click()
     await app.getByRole('menuitem', { name: /Disconnect/i }).click()
@@ -305,9 +305,10 @@ test.describe('Integration Tools', () => {
 
       // Toggle a tool if any exist (to verify cancel discards changes)
       if (hasTools) {
-        const rowCheckboxes = toolsTable.locator('tbody').getByRole('checkbox')
-        if ((await rowCheckboxes.count()) > 0) {
-          await rowCheckboxes.first().click()
+        const firstDataRow = toolsTable.locator('tbody tr:first-child')
+        const firstCheckbox = firstDataRow.getByRole('checkbox')
+        if ((await firstCheckbox.count()) > 0) {
+          await firstCheckbox.click()
         }
       }
 

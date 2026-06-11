@@ -41,7 +41,7 @@ export const emptyIdentities = { resources: [] }
 // At least one provider must be returned so UserIdentitiesPanel renders the table
 // (and its action column) instead of the "No identity providers configured" empty state.
 export const oneProviderResponse = {
-  providers: [{ id: 'provider-oidc-1', name: 'Corporate SSO', provider_type: 'oidc' }],
+  resources: [{ id: 'provider-oidc-1', name: 'Corporate SSO', provider_type: 'oidc' }],
 }
 
 export function fulfill(data: unknown) {
@@ -124,7 +124,7 @@ export const PROVIDER_ID_1 = 'provider-oidc-1'
 export const PROVIDER_ID_2 = 'provider-keycloak-1'
 
 export const twoProvidersResponse = {
-  providers: [
+  resources: [
     { id: PROVIDER_ID_1, name: 'Corporate SSO', provider_type: 'oidc' },
     { id: PROVIDER_ID_2, name: 'Keycloak', provider_type: 'oidc' },
   ],

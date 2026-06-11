@@ -10,7 +10,7 @@ from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
 from nexus.audit.exceptions import AuditExportNotFoundError
 from nexus.core.exceptions import SafeValueError
-from nexus.files.exceptions import FileValidationError
+from nexus.files.exceptions import FileContentNotFoundError, FileError, FileIntegrityError, FileValidationError
 from nexus.tool_manager.exceptions import (
     ProviderNameConflictError,
     ProviderNotFoundError,

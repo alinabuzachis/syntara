@@ -96,9 +96,9 @@ describe('AppDockedNav', () => {
     expect(screen.getByRole('button', { name: 'User menu' })).toBeInTheDocument()
   })
 
-  it('renders help button', () => {
+  it('renders documentation button', () => {
     renderDockedNav()
-    expect(screen.getByRole('button', { name: 'Help' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Documentation (opens in a new tab)' })).toBeInTheDocument()
   })
 
   it('renders color scheme toggle when in dark mode', () => {
@@ -167,14 +167,19 @@ describe('AppDockedNav', () => {
     )
   })
 
-  it('navigates when help button is clicked', async () => {
+  it('opens external documentation when documentation button is clicked', async () => {
     const user = userEvent.setup()
+    const openSpy = vi.spyOn(globalThis, 'open').mockImplementation(() => null)
     renderDockedNav()
 
-    const helpButton = screen.getByRole('button', { name: 'Help' })
-    await user.click(helpButton)
+    await user.click(screen.getByRole('button', { name: 'Documentation (opens in a new tab)' }))
 
-    expect(mockRequestNavigation).toHaveBeenCalled()
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('https://docs.ansible.com/'),
+      '_blank',
+      'noopener,noreferrer'
+    )
+    openSpy.mockRestore()
   })
 
   it('navigates when nav item is selected', async () => {

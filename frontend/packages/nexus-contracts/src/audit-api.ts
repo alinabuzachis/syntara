@@ -447,7 +447,16 @@ export interface components {
       }
     }
   }
-  parameters: never
+  parameters: {
+    /** @description Maximum number of results per page */
+    limitParam: number
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
+    includeTotalParam: boolean
+  }
   requestBodies: never
   headers: never
   pathItems: never
@@ -458,13 +467,13 @@ export interface operations {
     parameters: {
       query?: {
         /** @description Maximum number of results per page */
-        limit?: number
+        limit?: components['parameters']['limitParam']
         /** @description Pagination cursor from previous response */
-        cursor?: string | null
+        cursor?: components['parameters']['cursorParam']
         /** @description Sort parameter (e.g., 'name', '-created_at') */
-        sort?: string | null
+        sort?: components['parameters']['sortParam']
         /** @description Include total count in response (expensive) */
-        include_total?: boolean
+        include_total?: components['parameters']['includeTotalParam']
         /** @description Filter by event category */
         event_category?: components['schemas']['EventCategory'] | null
         /** @description Filter by event severity level */

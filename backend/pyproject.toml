@@ -41,6 +41,7 @@ dependencies = [
     "langchain-openai>=0.3.0",
     "langchain-mcp-adapters>=0.1.0,<0.2.0",
     "langgraph>=0.2.0",
+    "boto3>=1.35.0",
     "filelock>=3.20.0",
     "pypandoc>=1.14",
     "pymupdf>=1.26.6,<1.27.0",
@@ -92,6 +93,8 @@ dev = [
     "psutil>=5.9.0",  # for memory monitoring in performance tests
     "scikit-learn-stubs>=0.0.3",  # type stubs for scikit-learn
     "openapi-python-client>=0.28.3",  # for API client code generation
+    "moto[s3]>=5.0.0",  # for S3 mock testing
+    "boto3-stubs[s3]>=1.35.0",  # type stubs for boto3 S3
     # MCP testing infrastructure
     "fastmcp>=3.2.0,<4.0.0",  # for MCP test server creation
     "authlib>=1.7.1",  # CVE-2026-44681: open redirect in OIDC implicit/hybrid grants

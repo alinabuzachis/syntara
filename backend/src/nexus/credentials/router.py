@@ -23,13 +23,13 @@ from nexus.credentials.models import (
     CredentialCreate,
     CredentialListParams,
     CredentialListResponse,
-    CredentialPatch,
     CredentialRead,
     CredentialType,
     CredentialTypeListResponse,
     CredentialTypeRead,
+    CredentialUpdate,
 )
-from nexus.credentials.models.credential import Credential, CredentialWorkflowRef
+from nexus.credentials.models.credential import Credential, CredentialWorkflowListResponse
 from nexus.credentials.services.credential_service import CredentialService
 
 router = NexusRouter(tags=["Credentials"])
@@ -132,7 +132,7 @@ async def get_credential(
 @audit(EventCategory.USER_ACTION, event_action="credential_update", capture_args={"credential_id"})
 async def update_credential(
     credential_id: UUID,
-    data: CredentialPatch,
+    data: CredentialUpdate,
     service: Annotated[CredentialService, Depends(get_credential_service)],
 ) -> CredentialRead:
     """Update a Credential. Fields set to $encrypted$ retain existing values."""
@@ -162,12 +162,13 @@ async def delete_credential(
 async def get_credential_workflows(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
-) -> list[CredentialWorkflowRef]:
+) -> CredentialWorkflowListResponse:
     """Get workflows that reference this credential.
 
     Returns workflows with nodes that have credential_id in their executor configs.
     """
-    return await service.get_credential_workflows(credential_id)
+    workflows = await service.get_credential_workflows(credential_id)
+    return CredentialWorkflowListResponse(resources=workflows)
 
 
 # ============================================================================

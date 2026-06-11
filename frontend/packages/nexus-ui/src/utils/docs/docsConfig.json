@@ -1,0 +1,7 @@
+{
+  "baseUrls": {
+    "upstream": "https://docs.ansible.com/",
+    "product": "https://docs.redhat.com/en/documentation/TODO_PRODUCT_NAME/{version}/"
+  },
+  "version": "1.0"
+}

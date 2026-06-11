@@ -15,18 +15,21 @@ const cancelTooltip = permissionTooltip('cancel this execution', 'execution:run'
 export function CancelExecutionButton({ executionId }: CancelExecutionButtonProps) {
   /* v8 ignore start -- v8 emits phantom branches from compiled hook destructuring */
   const cancel = useCancelExecution(executionId)
-  const { allowed: canRun } = useCanI('run', 'execution')
+  const { allowed: canRun, isChecking } = useCanI('run', 'execution')
+  const permissionDenied = !isChecking && !canRun
+  const isCancelDisabled = !canRun || cancel.isPending || isChecking
   /* v8 ignore stop */
 
   return (
-    <DisabledWithTooltip isDisabled={!canRun} content={cancelTooltip}>
+    <DisabledWithTooltip isDisabled={permissionDenied} content={cancelTooltip}>
       <Button
-        variant="danger"
-        onClick={cancel.handleCancel}
+        variant="secondary"
+        isDanger
+        onClick={isCancelDisabled ? undefined : cancel.handleCancel}
         isLoading={cancel.isPending}
-        isAriaDisabled={!canRun || cancel.isPending}
+        isAriaDisabled={isCancelDisabled}
       >
-        Cancel execution
+        Cancel run
       </Button>
     </DisabledWithTooltip>
   )

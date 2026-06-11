@@ -57,8 +57,7 @@ test.describe('Converge Node - E2E Tests', () => {
           await layoutButton.click()
         }
 
-        // eslint-disable-next-line no-restricted-properties -- multiple branch endpoints have "Add connected step"; selecting the first is intentional
-        const addBtn = app.getByRole('button', { name: 'Add connected step' }).first()
+        const addBtn = app.locator('.react-flow').getByRole('button', { name: 'Add connected step' }).nth(0)
         await expect(addBtn).toBeVisible({ timeout: 10_000 })
         await addBtn.click({ force: true })
 

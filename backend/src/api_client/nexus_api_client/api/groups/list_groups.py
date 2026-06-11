@@ -6,7 +6,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.resources_response_group_read import ResourcesResponseGroupRead
+from ...models.group_list_response import GroupListResponse
 from ...types import UNSET, Response, Unset
 
 
@@ -53,9 +53,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | ResourcesResponseGroupRead | None:
+) -> ErrorData | GroupListResponse | None:
     if response.status_code == 200:
-        response_200 = ResourcesResponseGroupRead.from_dict(response.json())
+        response_200 = GroupListResponse.from_dict(response.json())
 
         return response_200
 
@@ -102,7 +102,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | ResourcesResponseGroupRead]:
+) -> Response[ErrorData | GroupListResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -121,7 +121,7 @@ def sync_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
-) -> Response[ErrorData | ResourcesResponseGroupRead]:
+) -> Response[ErrorData | GroupListResponse]:
     """List Groups
 
      Retrieve list of groups with visibility filtering.
@@ -140,7 +140,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ResourcesResponseGroupRead]
+        Response[ErrorData | GroupListResponse]
     """
 
     kwargs = _get_kwargs(
@@ -161,7 +161,7 @@ def sync(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-) -> ErrorData | ResourcesResponseGroupRead | None:
+) -> ErrorData | GroupListResponse | None:
     """List Groups
 
      Retrieve list of groups with visibility filtering.
@@ -180,7 +180,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ResourcesResponseGroupRead
+        ErrorData | GroupListResponse
     """
 
     return sync_detailed(
@@ -199,7 +199,7 @@ async def asyncio_detailed(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-) -> Response[ErrorData | ResourcesResponseGroupRead]:
+) -> Response[ErrorData | GroupListResponse]:
     """List Groups
 
      Retrieve list of groups with visibility filtering.
@@ -218,7 +218,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | ResourcesResponseGroupRead]
+        Response[ErrorData | GroupListResponse]
     """
 
     kwargs = _get_kwargs(
@@ -240,7 +240,7 @@ async def asyncio(
     cursor: None | str | Unset = UNSET,
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
-) -> ErrorData | ResourcesResponseGroupRead | None:
+) -> ErrorData | GroupListResponse | None:
     """List Groups
 
      Retrieve list of groups with visibility filtering.
@@ -259,7 +259,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | ResourcesResponseGroupRead
+        ErrorData | GroupListResponse
     """
 
     return (

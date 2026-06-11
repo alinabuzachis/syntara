@@ -72,9 +72,9 @@ class TestCompressionTrigger:
     @pytest.mark.asyncio
     async def test_compression_triggered_with_retry_loop(
         self,
-        test_db_session,
         test_user,
         test_user_low_token_config,
+        context_manager_session_factory,
     ) -> None:
         """Test compression triggers when documents exceed token budget.
 
@@ -117,7 +117,7 @@ class TestCompressionTrigger:
             max_tokens=100,  # Very low budget to trigger compression
             compression_loop=3,  # Allow retries
             user_id=test_user.id,
-            session=test_db_session,
+            session_factory=context_manager_session_factory,
         )
 
         # Verify compression was triggered and succeeded
@@ -138,9 +138,9 @@ class TestSuccessfulRetry:
     @pytest.mark.asyncio
     async def test_successful_retry_after_first_failure(
         self,
-        test_db_session,
         test_user,
         test_user_low_token_config,
+        context_manager_session_factory,
     ) -> None:
         """Test successful compression retry after first failure.
 
@@ -188,7 +188,7 @@ class TestSuccessfulRetry:
             max_tokens=100,  # Very low budget to trigger compression
             compression_loop=3,  # Allow up to 3 retries
             user_id=test_user.id,
-            session=test_db_session,
+            session_factory=context_manager_session_factory,
         )
 
         # Verify assembly succeeded
@@ -206,9 +206,9 @@ class TestMultipleRetries:
     @pytest.mark.asyncio
     async def test_multiple_compression_retries(
         self,
-        test_db_session,
         test_user,
         test_user_low_token_config,
+        context_manager_session_factory,
     ) -> None:
         """Test multiple compression retries with progressive strategies.
 
@@ -257,7 +257,7 @@ class TestMultipleRetries:
             max_tokens=100,  # Very low budget to trigger compression
             compression_loop=3,  # Allow up to 3 retries
             user_id=test_user.id,
-            session=test_db_session,
+            session_factory=context_manager_session_factory,
         )
 
         # Verify assembly succeeded
@@ -275,9 +275,9 @@ class TestExhaustedRetriesRejection:
     @pytest.mark.asyncio
     async def test_all_retries_exhausted_raises_error(
         self,
-        test_db_session,
         test_user,
         test_user_low_token_config,
+        context_manager_session_factory,
     ) -> None:
         """Test ContextAssemblyError raised when all compression retries exhausted.
 
@@ -320,7 +320,7 @@ class TestExhaustedRetriesRejection:
                 max_tokens=100,  # Very low budget to trigger compression
                 compression_loop=3,  # 3 retry attempts
                 user_id=test_user.id,
-                session=test_db_session,
+                session_factory=context_manager_session_factory,
             )
 
         # Verify error details
@@ -339,9 +339,9 @@ class TestCompressionLoopZeroFailure:
     @pytest.mark.asyncio
     async def test_compression_loop_zero_immediate_failure(
         self,
-        test_db_session,
         test_user,
         test_user_low_token_config,
+        context_manager_session_factory,
     ) -> None:
         """Test immediate failure with compression_loop=0 when documents exceed budget.
 
@@ -383,7 +383,7 @@ class TestCompressionLoopZeroFailure:
                 max_tokens=100,  # Very low budget to trigger failure
                 compression_loop=0,  # No retries allowed
                 user_id=test_user.id,
-                session=test_db_session,
+                session_factory=context_manager_session_factory,
             )
 
         # Verify error details

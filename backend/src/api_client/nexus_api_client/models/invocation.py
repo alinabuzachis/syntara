@@ -26,45 +26,25 @@ class Invocation:
     """SQLModel for async workflow invocations.
 
     Attributes:
-        id: Primary key UUID (inherited from BaseResource)
-        created_at: Timestamp when invocation was created
-            (inherited from BaseResource)
-        updated_at: Timestamp of last update (inherited from BaseResource)
-        created_by: UUID of user who created the invocation
-            (inherited from UserOwnedResource)
-        updated_by: UUID of user who last updated the invocation
-            (inherited from UserOwnedResource)
-        labels: Optional key-value metadata (inherited from BaseResource)
-        prompt: Natural language user request
-        session_id: Session identifier for multi-tenant isolation
-        status: Current invocation status (running, paused, cancelled, completed, failed)
-        started_at: Timestamp when workflow execution started
-        completed_at: Timestamp when workflow completed
-        context_data: Additional context for the request
-        result: Workflow result data
-        error_message: Error message if invocation failed
-        checkpoint_data: Checkpoint data for pause/resume
-
-        Attributes:
-            created_by (UUID): User who created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
-            prompt (str): Natural language user request
-            session_id (str): Session identifier for multi-tenant isolation
-            id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
-            created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
-            updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
-            labels (InvocationLabels | Unset): Key-value pairs for resource labeling and filtering Example: {'environment':
-                'production', 'region': 'us-east-1', 'team': 'platform'}.
-            updated_by (None | Unset | UUID): User who last updated the resource Example:
-                880e8400-e29b-41d4-a716-446655440000.
-            status (InvocationStatus | Unset): Status enum for invocation lifecycle.
-            model_name (None | str | Unset): LLM model name used for the invocation
-            started_at (datetime.datetime | None | Unset): Timestamp when workflow execution started
-            completed_at (datetime.datetime | None | Unset): Timestamp when workflow completed
-            context_data (InvocationContextData | Unset): Additional context for the request, including file_ids array if
-                files uploaded
-            result (InvocationResultType0 | None | Unset): Workflow result data
-            error_message (None | str | Unset): Error message if invocation failed
-            checkpoint_data (InvocationCheckpointDataType0 | None | Unset): Checkpoint data for pause/resume
+        created_by (UUID): User who created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
+        prompt (str): Natural language user request
+        session_id (str): Session identifier for multi-tenant isolation
+        id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
+        created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
+        updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
+        labels (InvocationLabels | Unset): Key-value pairs for resource labeling and filtering Example: {'environment':
+            'production', 'region': 'us-east-1', 'team': 'platform'}.
+        updated_by (None | Unset | UUID): User who last updated the resource Example:
+            880e8400-e29b-41d4-a716-446655440000.
+        status (InvocationStatus | Unset): Status enum for invocation lifecycle.
+        model_name (None | str | Unset): LLM model name used for the invocation
+        started_at (datetime.datetime | None | Unset): Timestamp when workflow execution started
+        completed_at (datetime.datetime | None | Unset): Timestamp when workflow completed
+        context_data (InvocationContextData | Unset): Additional context for the request, including file_ids array if
+            files uploaded
+        result (InvocationResultType0 | None | Unset): Workflow result data
+        error_message (None | str | Unset): Error message if invocation failed
+        checkpoint_data (InvocationCheckpointDataType0 | None | Unset): Checkpoint data for pause/resume
     """
 
     created_by: UUID
