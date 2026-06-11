@@ -1,0 +1,106 @@
+name: SonarCloud Analysis (Frontend)
+
+# Runs in the base repo context (has access to secrets) after the CI Frontend
+# workflow completes. This approach supports both branch PRs and fork PRs securely,
+# since pull_request workflows from forks cannot access repository secrets.
+on:
+  workflow_run:
+    workflows:
+      - CI Frontend
+    types:
+      - completed
+
+permissions: read-all
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    outputs:
+      code: ${{ steps.check.outputs.code }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_BRANCH="${{ github.event.workflow_run.head_branch }}"
+          PR_NUMBER=$(gh api repos/${{ github.repository }}/pulls \
+            --jq ".[] | select(.head.ref == \"${PR_BRANCH}\") | .number" \
+            | head -1)
+          if [[ -z "$PR_NUMBER" ]]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          FILES=$(gh api repos/${{ github.repository }}/pulls/${PR_NUMBER}/files --paginate --jq '.[].filename')
+          if echo "$FILES" | grep -qvE '(\.md$|^LICENSE$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  sonarcloud:
+    name: SonarCloud Analysis
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch Code Coverage Report
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-unit-test-coverage-report
+          path: frontend/packages/nexus-ui/coverage
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Fetch PR Number
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-pr_number
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Extract PR Number
+        run: |
+          cat pr_number.txt
+          echo $(head -n1 pr_number.txt | awk '{print $2}')
+          echo "PR_NUMBER=$(head -n1 pr_number.txt | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Get Additional PR Information
+        uses: octokit/request-action@v2.x
+        id: pr_info
+        with:
+          route: GET /repos/{repo}/pulls/{number}
+          repo: ${{ github.event.repository.full_name }}
+          number: ${{ env.PR_NUMBER }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Additional PR Information
+        run: |
+          echo "PR_BASE=${{ fromJson(steps.pr_info.outputs.data).base.ref }}" >> $GITHUB_ENV
+          echo "PR_HEAD=${{ fromJson(steps.pr_info.outputs.data).head.ref }}" >> $GITHUB_ENV
+
+      - name: Checkout Code for PR
+        run: |
+          gh pr checkout ${{ env.PR_NUMBER }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }}
+            -Dsonar.pullrequest.key=${{ env.PR_NUMBER }}
+            -Dsonar.pullrequest.branch=${{ env.PR_HEAD }}
+            -Dsonar.pullrequest.base=${{ env.PR_BASE }}

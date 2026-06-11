@@ -1,0 +1,676 @@
+name: CI Frontend
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/ci-frontend.yml'
+
+permissions:
+  contents: read # checkout code
+  pull-requests: read # gh api needs PR file list for doc-only detection
+  statuses: read # read E2E commit status
+
+concurrency:
+  group: ci-frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+# Scoped to this file only — other workflows pin their own.
+env:
+  NODE_VERSION: '22.13.0'
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.check.outputs.code }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILES=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files --paginate --jq '.[].filename')
+          if [ -z "$FILES" ]; then
+            echo "::warning::No files from API, running all CI as fallback"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if echo "$FILES" | grep -qvE '(\.md$|^LICENSE$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  checks:
+    name: Checks
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Lint Mermaid diagrams
+        run: npm run lint:mermaid
+        working-directory: frontend
+
+      - name: TypeScript type check
+        run: npm run tsc
+        working-directory: frontend/packages/nexus-ui
+
+      - name: ESLint
+        run: npm run lint
+        working-directory: frontend/packages/nexus-ui
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
+
+      - name: Prettier format check
+        run: npm run format:check
+        working-directory: frontend
+
+      - name: Check for dead code with knip
+        run: npm run knip -- --reporter compact
+        working-directory: frontend/packages/nexus-ui
+
+  unit-tests:
+    name: Unit Tests
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Run unit test shard with coverage
+        id: unit-test-shard
+        run: npm run test:coverage:shard -- --shard=${{ matrix.shard }}/4
+        working-directory: frontend/packages/nexus-ui
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+          VITEST_COVERAGE_DIR: coverage/shard-${{ matrix.shard }}
+
+      - name: Upload shard coverage artifact
+        if: steps.unit-test-shard.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-unit-test-coverage-${{ matrix.shard }}
+          path: frontend/packages/nexus-ui/coverage/shard-${{ matrix.shard }}/coverage-final.json
+          if-no-files-found: error
+          retention-days: 7
+
+  coverage-report:
+    name: Coverage Report
+    needs: [changes, unit-tests]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Download shard coverage artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: frontend-unit-test-coverage-*
+          path: frontend/packages/nexus-ui/coverage-artifacts
+
+      - name: Merge shard coverage reports
+        run: npm run test:coverage:merge
+        working-directory: frontend/packages/nexus-ui
+
+      - name: Upload merged coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-unit-test-coverage-report
+          path: frontend/packages/nexus-ui/coverage
+          if-no-files-found: error
+          retention-days: 7
+
+      # The SonarCloud workflow runs via workflow_run (so it has access to secrets
+      # for fork PRs), but workflow_run has no built-in PR context for forks.
+      # We pass the PR number as an artifact so sonarcloud-frontend.yml can identify
+      # the PR, check out its code, and tag the analysis correctly.
+      - name: Save PR number
+        run: echo "PR ${{ github.event.pull_request.number }}" > pr_number.txt
+
+      - name: Upload PR number artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-pr_number
+          path: pr_number.txt
+          retention-days: 7
+
+  visual-regression:
+    name: Visual Regression
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend/packages/nexus-ui
+
+      - name: Run page screenshot tests
+        id: screenshots
+        run: npx playwright test e2e/visual-regression/page-screenshots.spec.ts
+        working-directory: frontend/packages/nexus-ui
+        continue-on-error: true
+
+      - name: Check visual baselines
+        id: baselines
+        run: npm exec tsx -- scripts/check-visual-baselines.ts
+        working-directory: frontend/packages/nexus-ui
+        continue-on-error: true
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-visual-regression-screenshots
+          path: |
+            frontend/packages/nexus-ui/e2e/visual-regression/page-screenshots.spec.ts-snapshots/
+            frontend/packages/nexus-ui/test-results/
+          retention-days: 30
+
+      - name: Upload diff report on failure
+        if: steps.screenshots.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-visual-regression-diffs
+          path: frontend/packages/nexus-ui/test-results/
+          retention-days: 30
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-visual-regression-html-report
+          path: frontend/packages/nexus-ui/playwright-report/
+          retention-days: 30
+
+      - name: Generate visual diff report
+        if: steps.screenshots.outcome == 'failure'
+        id: diff-report
+        continue-on-error: true
+        run: node scripts/generate-visual-diff-report.js
+        working-directory: frontend/packages/nexus-ui
+
+      - name: Write visual diff to Job Summary
+        if: steps.diff-report.outcome == 'success'
+        working-directory: frontend
+        run: |
+          SUMMARY_FILE="packages/nexus-ui/visual-diff-summary.json"
+          if [ ! -f "$SUMMARY_FILE" ]; then exit 0; fi
+
+          COUNT=$(jq '.count' "$SUMMARY_FILE")
+          INLINE=$(jq -r '.inlineImages // false' "$SUMMARY_FILE")
+
+          echo "### Visual Regression — ${COUNT} screenshot(s) differ" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$INLINE" = "true" ]; then
+            echo "| Screenshot | Expected | Actual | Diff |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|----------|--------|------|" >> $GITHUB_STEP_SUMMARY
+            jq -r '.files[] | "| `\(.name)` | ![\(.name)-expected](\(.expectedPath // "—")) | ![\(.name)-actual](\(.actualPath // "—")) | ![\(.name)-diff](\(.diffPath)) |"' "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Screenshot | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+            jq -r '.changed[] | "| `\(.)` | :x: changed |"' "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **frontend-visual-regression-diffs** artifact for full image comparison." >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish diff images to temporary branch
+        if: steps.diff-report.outcome == 'success'
+        id: publish-diffs
+        continue-on-error: true
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const summaryPath = path.resolve('frontend/packages/nexus-ui/visual-diff-summary.json');
+            let summary;
+            try { summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8')); } catch { return; }
+            if (!summary.files || summary.files.length === 0) return;
+
+            const prNumber = context.issue.number;
+            const runId = context.runId;
+            const branch = `visual-diffs/pr-${prNumber}`;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const repoUrl = `https://github.com/${owner}/${repo}`;
+
+            const blobs = [];
+            const viewUrls = {};
+
+            for (const file of summary.files) {
+              for (const [suffix, filePath] of [['diff', file.diffPath], ['actual', file.actualPath], ['expected', file.expectedPath]]) {
+                if (!filePath || !fs.existsSync(filePath)) continue;
+                const content = fs.readFileSync(filePath).toString('base64');
+                const safeName = file.name.replace(/[/\\]/g, '--');
+                const blobPath = `diffs/${safeName}-${suffix}.png`;
+
+                const { data: blob } = await github.rest.git.createBlob({
+                  owner, repo,
+                  content,
+                  encoding: 'base64',
+                });
+                blobs.push({ path: blobPath, mode: '100644', type: 'blob', sha: blob.sha });
+
+                const key = `${file.name}:${suffix}`;
+                viewUrls[key] = `${repoUrl}/blob/${branch}/${blobPath}`;
+              }
+            }
+
+            if (blobs.length === 0) return;
+
+            const { data: tree } = await github.rest.git.createTree({
+              owner, repo,
+              tree: blobs,
+            });
+
+            const { data: commit } = await github.rest.git.createCommit({
+              owner, repo,
+              message: `Visual regression diffs for PR #${prNumber} (run ${runId})`,
+              tree: tree.sha,
+              parents: [],
+            });
+
+            const ref = `refs/heads/${branch}`;
+            try {
+              await github.rest.git.updateRef({ owner, repo, ref: `heads/${branch}`, sha: commit.sha, force: true });
+            } catch {
+              await github.rest.git.createRef({ owner, repo, ref, sha: commit.sha });
+            }
+
+            core.setOutput('view-urls', JSON.stringify(viewUrls));
+            core.setOutput('diff-branch', branch);
+
+      - name: Post visual regression report on PR
+        if: >-
+          always()
+          && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v9
+        env:
+          VIEW_URLS_JSON: ${{ steps.publish-diffs.outputs.view-urls }}
+          DIFF_BRANCH: ${{ steps.publish-diffs.outputs.diff-branch }}
+          SCREENSHOTS_OUTCOME: ${{ steps.screenshots.outcome }}
+          BASELINES_OUTCOME: ${{ steps.baselines.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const marker = '<!-- visual-regression-report -->';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            let viewUrls = {};
+            const viewUrlsJson = process.env.VIEW_URLS_JSON || '{}';
+            try { viewUrls = JSON.parse(viewUrlsJson); } catch {}
+            const diffBranch = process.env.DIFF_BRANCH || '';
+            const screenshotsOutcome = process.env.SCREENSHOTS_OUTCOME || '';
+            const baselinesOutcome = process.env.BASELINES_OUTCOME || '';
+
+            // Read test results from Playwright JSON reporter
+            const resultsPath = path.resolve('frontend/packages/nexus-ui/test-results/results.json');
+            let totalTests = 0;
+            let passedTests = 0;
+            let failedTests = 0;
+            let durationMs = 0;
+            try {
+              const results = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+              durationMs = (results.stats && results.stats.duration) || 0;
+              function countSuite(suite) {
+                for (const spec of suite.specs || []) {
+                  for (const test of spec.tests || []) {
+                    totalTests++;
+                    if (test.status === 'expected') passedTests++;
+                    else failedTests++;
+                  }
+                }
+                for (const child of suite.suites || []) {
+                  countSuite(child);
+                }
+              }
+              for (const suite of results.suites || []) {
+                countSuite(suite);
+              }
+            } catch { /* results unavailable */ }
+
+            const durationMin = Math.round(durationMs / 60000);
+            const durationStr = durationMin > 0 ? `in ${durationMin} minute${durationMin !== 1 ? 's' : ''}` : '';
+
+            let body = '';
+
+            if (screenshotsOutcome === 'failure') {
+              const summaryPath = path.resolve('frontend/packages/nexus-ui/visual-diff-summary.json');
+              let summary = { changed: [], count: 0, files: [] };
+              try { summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8')); } catch { /* no summary */ }
+
+              const hasDiffs = summary.count > 0;
+              const baselinesFailed = baselinesOutcome === 'failure';
+              const isMissingBaselines = baselinesFailed && !hasDiffs;
+
+              let heading;
+              let countLine;
+              if (isMissingBaselines) {
+                heading = `### :warning: Visual Regression — ${failedTests} missing baseline(s)`;
+                countLine = `${failedTests} of ${totalTests} screenshot test(s) failed — new pages need baseline screenshots`;
+              } else if (totalTests > 0) {
+                heading = `### :x: Visual Regression — diffs detected`;
+                countLine = `${failedTests} of ${totalTests} screenshot tests failed — UI has changed from baseline`;
+              } else {
+                heading = hasDiffs
+                  ? `### :x: Visual Regression — diffs detected`
+                  : `### :warning: Visual Regression — screenshot tests failed`;
+                countLine = hasDiffs
+                  ? `${summary.count} screenshot(s) differ from baselines`
+                  : 'Screenshot tests failed — check the [workflow run](' + runUrl + ') for details';
+              }
+
+              const lines = [
+                marker,
+                heading,
+                '',
+                countLine,
+                '',
+              ];
+
+              const hasViewUrls = Object.keys(viewUrls).length > 0;
+
+              if (hasViewUrls && summary.files && summary.files.length > 0) {
+                lines.push('| Screenshot | Expected | Actual | Diff |');
+                lines.push('|------------|----------|--------|------|');
+
+                for (const file of summary.files) {
+                  const diffUrl = viewUrls[`${file.name}:diff`];
+                  const actualUrl = viewUrls[`${file.name}:actual`];
+                  const expectedUrl = viewUrls[`${file.name}:expected`];
+
+                  if (!diffUrl) continue;
+
+                  const expected = expectedUrl ? `[Expected](${expectedUrl})` : '—';
+                  const actual = actualUrl ? `[Actual](${actualUrl})` : '—';
+                  const diff = `[**Diff**](${diffUrl})`;
+
+                  lines.push(`| \`${file.name}\` | ${expected} | ${actual} | ${diff} |`);
+                }
+                lines.push('');
+
+                if (diffBranch) {
+                  const branchUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${diffBranch}/diffs`;
+                  lines.push(`> **[Browse all diff images](${branchUrl})** — click any PNG to see the visual change`);
+                  lines.push('');
+                }
+              } else if (summary.changed.length > 0) {
+                lines.push('Changed screenshots:');
+                lines.push('');
+                for (const name of summary.changed.slice(0, 10)) {
+                  lines.push(`- \`${name}\``);
+                }
+                if (summary.count > 10) {
+                  lines.push(`- _...and ${summary.count - 10} more_`);
+                }
+                lines.push('');
+              }
+
+              lines.push('**To update baselines:**');
+              lines.push('1. Comment `/update-screenshots` on this PR');
+              lines.push(`2. Or download the \`frontend-visual-regression-diffs\` artifact from the [workflow run](${runUrl})`);
+              lines.push('3. Or run locally: `npx playwright test page-screenshots --update-snapshots`');
+
+              body = lines.join('\n');
+            } else if (baselinesOutcome === 'failure') {
+              body = [
+                marker,
+                '### :warning: Visual Regression — missing baselines',
+                '',
+                'Missing baselines or uncovered routes detected.',
+                `See the [workflow run](${runUrl}) for details.`,
+                '',
+                '**To fix:** add entries to `e2e/visual-regression/page-registry.ts` and comment `/update-screenshots`.',
+              ].join('\n');
+            } else {
+              const statsLine = totalTests > 0
+                ? `${totalTests} tests passed ${durationStr}`.trim()
+                : '';
+
+              const lines = [
+                marker,
+                '### :white_check_mark: Visual Regression — all screenshots match baselines',
+              ];
+              if (statsLine) {
+                lines.push('');
+                lines.push(statsLine);
+              }
+              lines.push('');
+              lines.push(`Download the [frontend-visual-regression-html-report](${runUrl}#artifacts) artifact for interactive review.`);
+
+              body = lines.join('\n');
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail job if visual regression detected issues
+        if: always()
+        run: |
+          if [[ "${{ steps.screenshots.outcome }}" == "failure" ]] || \
+             [[ "${{ steps.baselines.outcome }}" == "failure" ]]; then
+            echo "::error::Visual regression failed — screenshots differ from baselines."
+            echo ""
+            echo "This check catches unintentional UI drift. If your PR changes the UI intentionally,"
+            echo "comment /update-screenshots on the PR to regenerate baselines."
+            echo "If the diff is unexpected, fix the code and push again."
+            echo ""
+            echo "  screenshots: ${{ steps.screenshots.outcome }}"
+            echo "  baselines:   ${{ steps.baselines.outcome }}"
+            echo ""
+            echo "See the PR comment for diff images. Docs: packages/nexus-ui/VISUAL_REGRESSION.md"
+            exit 1
+          fi
+
+  storybook-build:
+    name: Storybook Build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Build Storybook
+        run: npm run storybook:build
+        working-directory: frontend/packages/nexus-ui
+
+  test-build:
+    name: Test Container Build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test build nexus-ui image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend/
+          file: frontend/packages/nexus-ui/Containerfile
+          platforms: linux/amd64
+          push: false
+          tags: nexus-ui:test
+
+      - name: Test build nexus-mock-api image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend/
+          file: frontend/packages/nexus-mock-api/Containerfile
+          platforms: linux/amd64
+          push: false
+          tags: nexus-mock-api:test
+
+  e2e-gate:
+    name: E2E Gate
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Wait for E2E commit status
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            const timeout = 30 * 60 * 1000; // 30 minutes
+            const interval = 30 * 1000; // poll every 30s
+            const start = Date.now();
+
+            while (Date.now() - start < timeout) {
+              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                per_page: 100,
+              });
+
+              const e2e = statuses.find(s => s.context === 'E2E Tests');
+
+              if (e2e?.state === 'success') {
+                console.log('E2E Tests passed');
+                return;
+              }
+              if (e2e?.state === 'failure' || e2e?.state === 'error') {
+                core.setFailed(`E2E Tests ${e2e.state}: ${e2e.target_url}`);
+                return;
+              }
+
+              const elapsed = Math.round((Date.now() - start) / 1000);
+              console.log(`E2E status: ${e2e?.state ?? 'not reported yet'} (${elapsed}s elapsed)`);
+              await new Promise(r => setTimeout(r, interval));
+            }
+            core.setFailed('Timed out waiting for E2E Tests status');
+
+  # Single required status check for branch protection. All merge-blocking jobs
+  # are listed in `needs` so we manage requirements in code instead of maintaining
+  # a separate list in GitHub rulesets that can drift out of sync with the workflow.
+  #
+  # For doc-only PRs the `changes` job sets code=false, all CI jobs are skipped,
+  # and this gate passes because `skipped` is accepted alongside `success`.
+  success:
+    name: Frontend Success
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - changes
+      - checks
+      - unit-tests
+      - coverage-report
+      - storybook-build
+      - test-build
+      - e2e-gate
+      - visual-regression
+    steps:
+      - name: Check required jobs passed
+        run: |
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "::error::Detect Changes job did not succeed: ${{ needs.changes.result }}"
+            exit 1
+          fi
+
+          ok="success|skipped"
+          for job in checks unit-tests coverage-report storybook-build test-build e2e-gate visual-regression; do
+            case "$job" in
+              checks)           result="${{ needs.checks.result }}" ;;
+              unit-tests)       result="${{ needs.unit-tests.result }}" ;;
+              coverage-report)  result="${{ needs.coverage-report.result }}" ;;
+              storybook-build)  result="${{ needs.storybook-build.result }}" ;;
+              test-build)       result="${{ needs.test-build.result }}" ;;
+              e2e-gate)         result="${{ needs.e2e-gate.result }}" ;;
+              visual-regression) result="${{ needs.visual-regression.result }}" ;;
+            esac
+            echo "$job: $result"
+            if [[ ! "$result" =~ ^($ok)$ ]]; then
+              echo "::error::Required job '$job' has result '$result'"
+              exit 1
+            fi
+          done
+          echo "All required checks passed (or skipped for doc-only PRs)"

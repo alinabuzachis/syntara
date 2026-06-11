@@ -1,0 +1,16 @@
+---
+name: Build Backend Container Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/build-backend-image-main.yml'
+      - '.github/workflows/_build-backend-image.yml'
+    tags:
+      - v*
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-backend-image.yml
