@@ -10,7 +10,7 @@ ci:
   skip: []
   submodules: false
 
-exclude: ^\.tekton/
+exclude: ^(\.tekton/|frontend/)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -33,7 +33,7 @@ repos:
     hooks:
       - id: ruff-format
         name: ruff format
-        entry: make
+        entry: make -C backend
         args: [ruff]
         language: system
         pass_filenames: false
@@ -41,7 +41,7 @@ repos:
 
       - id: pyrefly
         name: pyrefly type checking
-        entry: make
+        entry: make -C backend
         args: [typecheck-pyrefly]
         language: system
         pass_filenames: false
@@ -49,7 +49,7 @@ repos:
 
       - id: sync-requirements
         name: sync requirements.txt with uv.lock
-        entry: make
+        entry: make -C backend
         args: [sync-requirements]
         language: system
         pass_filenames: false
@@ -57,7 +57,7 @@ repos:
 
       - id: api-spec-validation
         name: validate openapi sub-spec syntax
-        entry: make
+        entry: make -C backend
         args: [api-spec-validation]
         language: system
         pass_filenames: false
@@ -65,7 +65,7 @@ repos:
 
       - id: api-spec-bundle
         name: bundle openapi sub-specs into merged spec
-        entry: make
+        entry: make -C backend
         args: [api-spec-bundle]
         language: system
         pass_filenames: false
@@ -73,7 +73,7 @@ repos:
 
       - id: api-spec-drift
         name: check openapi spec matches implementation
-        entry: make
+        entry: make -C backend
         args: [api-spec-drift]
         verbose: true
         language: system
@@ -82,7 +82,7 @@ repos:
 
       - id: generate-api-client
         name: generate python api client from openapi spec
-        entry: make
+        entry: make -C backend
         args: [generate-api-client]
         language: system
         pass_filenames: false
@@ -90,7 +90,7 @@ repos:
 
       - id: check-api-paths
         name: check API paths use snake_case
-        entry: make
+        entry: make -C backend
         args: [check-api-paths]
         language: system
         pass_filenames: false
@@ -98,7 +98,7 @@ repos:
 
       - id: check-dead-code
         name: check for dead code (vulture)
-        entry: make
+        entry: make -C backend
         args: [check-dead-code]
         language: system
         pass_filenames: false
@@ -106,7 +106,7 @@ repos:
 
       - id: check-cycles
         name: check for import cycles (pyan3)
-        entry: make
+        entry: make -C backend
         args: [check-cycles]
         language: system
         pass_filenames: false
@@ -114,7 +114,7 @@ repos:
 
       - id: check-orphans
         name: check for orphan modules
-        entry: make
+        entry: make -C backend
         args: [check-orphans]
         language: system
         pass_filenames: false
@@ -122,7 +122,7 @@ repos:
 
       - id: verify-test-structure
         name: verify test structure matches source domains
-        entry: make
+        entry: make -C backend
         args: [verify-test-structure]
         language: system
         pass_filenames: false

@@ -238,7 +238,6 @@ jobs:
         run: |
           # Start core services + mock-segment (exclude nexus-ui which is private)
           uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker mcp-server opa mock-segment
-        working-directory: backend
 
       - name: Verify services are healthy
         timeout-minutes: 5
@@ -280,13 +279,11 @@ jobs:
         run: |
           echo "=== Compose logs ==="
           uvx podman-compose -p nexus-ci --profile telemetry-e2e logs database temporal nexus temporal-worker mcp-server opa mock-segment
-        working-directory: backend
 
       - name: Cleanup
         if: always()
         run: |
           uvx podman-compose -p nexus-ci --profile telemetry-e2e down -v || true
-        working-directory: backend
 
   combine:
     runs-on: ubuntu-latest
@@ -316,7 +313,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           pattern: backend-coverage-*
-          path: coverage-artifacts
+          path: backend/coverage-artifacts
           merge-multiple: false
 
       - name: Combine coverage reports

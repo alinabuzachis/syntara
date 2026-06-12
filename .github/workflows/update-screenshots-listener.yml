@@ -1,3 +1,4 @@
+---
 name: '/update-screenshots'
 
 # Lightweight listener: validates the PR comment and dispatches the real

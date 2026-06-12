@@ -1,3 +1,4 @@
+---
 name: SonarCloud Analysis (Frontend)
 
 # Runs in the base repo context (has access to secrets) after the CI Frontend
