@@ -4,14 +4,14 @@ import { MarkerType } from '@xyflow/react'
 import { BUTTON_EDGE_DEFAULT_STROKE } from '../edges/buttonEdgeStrokeColor'
 
 /**
- * In v2, triggers are { id, type, name, config } nodes.
+ * In v2, triggers are { id, type, name, parameters } nodes.
  * Manual trigger type is 'manual_trigger'.
  */
 export type Trigger = {
   id?: string
   type: string
   name?: string
-  config?: Record<string, unknown>
+  parameters?: Record<string, unknown>
 }
 
 export type TaskActivity = Activity
@@ -68,16 +68,16 @@ export function extractTaskActivities(activities: Activity[]): Activity[] {
   return tasks
 }
 
-function getScheduledDetails(config: Record<string, unknown> | undefined): string {
-  if (!config) return 'Scheduled'
-  const scheduleType = config.schedule_type as string | undefined
-  if (scheduleType === 'cron') return `Cron: ${(config.cron as string) ?? ''}`
-  if (scheduleType === 'interval') return `Interval: ${(config.interval as string) ?? ''}`
+function getScheduledDetails(parameters: Record<string, unknown> | undefined): string {
+  if (!parameters) return 'Scheduled'
+  const scheduleType = parameters.schedule_type as string | undefined
+  if (scheduleType === 'cron') return `Cron: ${(parameters.cron as string) ?? ''}`
+  if (scheduleType === 'interval') return `Interval: ${(parameters.interval as string) ?? ''}`
   return 'Continuous'
 }
 
-function getWebhookStyleDetails(config: Record<string, unknown> | undefined, label: string): string {
-  const path = (config?.webhook_path as string) ?? ''
+function getWebhookStyleDetails(parameters: Record<string, unknown> | undefined, label: string): string {
+  const path = (parameters?.webhook_path as string) ?? ''
   return path ? `${label}: /${path}` : label
 }
 
@@ -94,22 +94,22 @@ export function getTriggerDisplayData(trigger: Trigger): { name: string; details
       details = 'Manual'
       break
     case TriggerTypeEnum.SCHEDULED:
-      details = getScheduledDetails(trigger.config)
+      details = getScheduledDetails(trigger.parameters)
       break
     case TriggerTypeEnum.EVENT:
-      if (trigger.config) {
-        const source = (trigger.config.source as string) ?? ''
-        const eventType = (trigger.config.event_type as string) ?? ''
+      if (trigger.parameters) {
+        const source = (trigger.parameters.source as string) ?? ''
+        const eventType = (trigger.parameters.event_type as string) ?? ''
         details = `Event: ${source}/${eventType}`
       } else {
         details = 'Event'
       }
       break
     case TriggerTypeEnum.WEBHOOK_TRIGGER:
-      details = getWebhookStyleDetails(trigger.config, 'Webhook')
+      details = getWebhookStyleDetails(trigger.parameters, 'Webhook')
       break
     case TriggerTypeEnum.EDA_TRIGGER:
-      details = getWebhookStyleDetails(trigger.config, 'EDA')
+      details = getWebhookStyleDetails(trigger.parameters, 'EDA')
       break
   }
 

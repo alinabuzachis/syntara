@@ -15,14 +15,13 @@ import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
-import { getAncestorNodes } from '../../utils/graphTraversal'
 import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExpandedAllContext'
 
-import { AddNodePanel } from './AddNodePanel'
 import { BuilderFlow } from './BuilderFlow'
 import { builderReducer, getInitialBuilderState } from './builderReducer'
 import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
 import { BuilderDialogs } from './components/BuilderDialogs'
+import { BuilderSidePanels } from './components/BuilderSidePanels'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import type { TestStepDialogData } from './components/TestStepDialog'
 import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
@@ -35,25 +34,24 @@ import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hoo
 import { useBuilderToolbarHandlers } from './hooks/useBuilderToolbarHandlers'
 import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
+import { useExecutionCopyToEditor, type ExecutionCopyData } from './hooks/useExecutionCopyToEditor'
 import { useNodePanelNavigation } from './hooks/useNodePanelNavigation'
 import { usePublishWorkflow, useUnpublishWorkflow } from './hooks/usePublishWorkflow'
+import { useRunStep } from './hooks/useRunStep'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext } from './NodeActionsContext'
 import { useBuilderPermissions } from './useBuilderPermissions'
-import { WorkflowHistoryCard } from './WorkflowHistoryCard'
-import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
-
 type BuilderContentProps = {
   workflow?: WorkflowWithVersion
   isNew: boolean
   workflowId: string | null
+  executionCopy?: ExecutionCopyData
 }
 
 // eslint-disable-next-line max-lines-per-function, complexity
-export function BuilderContent(props: BuilderContentProps) {
-  const { workflow, isNew, workflowId } = props
+export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: BuilderContentProps) {
   const [, setLocation] = useLocation()
   const { showSuccess, showError } = useAlerts()
   const workflowProjectId = isNew ? undefined : (workflow as { project_id?: string })?.project_id
@@ -79,12 +77,13 @@ export function BuilderContent(props: BuilderContentProps) {
     duplicateActivity,
   } = useWorkflowStore()
   const { registerSaveHandler, unregisterSaveHandler, requestNavigation } = useUnsavedChanges()
+  const handleExecutionNavigate = useCallback(
+    (id: string) => requestNavigation(`/executions/${id}`),
+    [requestNavigation]
+  )
 
   const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
-
-  // Test step dialog state
   const testStepDialog = useDialogState<TestStepDialogData>()
-
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
     confirmDialogOpen,
@@ -145,6 +144,8 @@ export function BuilderContent(props: BuilderContentProps) {
     loadWorkflowWithEdges,
   })
 
+  useExecutionCopyToEditor({ executionCopy, dispatch, markDirty, showSuccess })
+
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
     'patch',
@@ -154,6 +155,23 @@ export function BuilderContent(props: BuilderContentProps) {
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
 
   const isPending = isCreating || isUpdating
+
+  const wfName = workflow?.name ?? ''
+  const wfId = workflow?.id ?? ''
+  const wfCurrentVersion = workflow?.current_version
+  const wfVersionVersion = workflow?.version?.version
+  const wfPublishedVersion = workflow?.published_version
+  const wfCreatedBy = workflow?.created_by
+  const workflowMetadata = useMemo(() => {
+    if (!wfName && !wfId) return undefined
+    return {
+      name: wfName,
+      id: wfId,
+      version: wfCurrentVersion ?? wfVersionVersion ?? 0,
+      published: wfPublishedVersion != null,
+      author: String(wfCreatedBy ?? 'Unknown'),
+    }
+  }, [wfName, wfId, wfCurrentVersion, wfVersionVersion, wfPublishedVersion, wfCreatedBy])
 
   const currentVersion = workflow?.current_version ?? workflow?.version?.version
   const { publish: onPublish, isPublishing } = usePublishWorkflow(workflowId, currentVersion)
@@ -203,27 +221,11 @@ export function BuilderContent(props: BuilderContentProps) {
       currentWorkflow,
     })
 
-  const openTestStepDialog = testStepDialog.open
-  const handleRunStep = useCallback(
-    async (nodeId: string) => {
-      const node = reactFlowInstance.getNode(nodeId)
-      if (!node?.data) return
-
-      if (useWorkflowStore.getState().isDirty) {
-        const saved = await handleSaveWorkflow()
-        if (!saved) return
-      }
-
-      const ancestors = getAncestorNodes(nodeId, reactFlowInstance.getEdges(), reactFlowInstance.getNodes())
-
-      openTestStepDialog({
-        nodeId,
-        nodeName: (node.data as { name?: string }).name ?? nodeId,
-        predecessors: ancestors,
-      })
-    },
-    [reactFlowInstance, openTestStepDialog, handleSaveWorkflow]
-  )
+  const handleRunStep = useRunStep({
+    reactFlowInstance,
+    openTestStepDialog: testStepDialog.open,
+    handleSaveWorkflow,
+  })
 
   const {
     handleNodeClick,
@@ -268,6 +270,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
   const isTerminalStatus =
     mostRecentExecution?.status === ExecutionStatusEnum.COMPLETED ||
+    mostRecentExecution?.status === ExecutionStatusEnum.COMPLETED_WITH_ERRORS ||
     mostRecentExecution?.status === ExecutionStatusEnum.FAILED ||
     mostRecentExecution?.status === ExecutionStatusEnum.CANCELLED
   const isLiveRunActive = showMostRecentRunPanelInEditor && !isTerminalStatus
@@ -298,7 +301,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const selectedTrigger = triggers[selectedTriggerIndex] ?? triggers[0]
   const triggerName = selectedTrigger?.name ?? 'Trigger'
   const triggerNodeId = selectedTrigger?.id
-  const triggerInputSchema = selectedTrigger?.config?.input_schema as Record<string, unknown> | undefined
+  const triggerInputSchema = selectedTrigger?.parameters?.input_schema as Record<string, unknown> | undefined
 
   const nodeExpandedAllContextValue = useMemo(
     () => ({ expandAllEvent, collapseAllEvent }),
@@ -441,55 +444,26 @@ export function BuilderContent(props: BuilderContentProps) {
                     )}
                   </Stack>
                 </FlexItem>
-                {isAddNodePanelOpen && !isNodeEditorOpen && builderPermissions.canEdit && (
-                  <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                    <AddNodePanel
-                      onClose={() => dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })}
-                      onSelectNode={(nodeTypeId, nodeSubtypeId) =>
-                        dispatch({
-                          type: 'OPEN_NODE_EDITOR_ADD',
-                          payload: { nodeTypeId, nodeSubtypeId: nodeSubtypeId ?? null },
-                        })
-                      }
-                      sourceNodeId={sourceNodeId}
-                      replacementNodeId={replacementNodeId}
-                      hasNoWorkflowNodes={hasNoWorkflowNodes}
-                    />
-                  </FlexItem>
-                )}
-
-                {!isNodeEditorOpen && historyCardOpen && !isNew && (
-                  <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                    <WorkflowHistoryCard
-                      executions={executionsQuery.data?.resources ?? []}
-                      onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
-                      onExecutionSelect={(id) => {
-                        requestNavigation(`/executions/${id}`)
-                      }}
-                      filters={executionFilters}
-                      onFilterChange={setExecutionFilters}
-                    />
-                  </FlexItem>
-                )}
-
-                {!isNodeEditorOpen && detailsOpen && workflow && (
-                  <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                    <WorkflowSidepanel
-                      workflow={workflow}
-                      workflowName={workflowName}
-                      workflowDescription={workflowDescription}
-                      onNameChange={(name) => {
-                        dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
-                        markDirty()
-                      }}
-                      onDescriptionChange={(desc) => {
-                        dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: desc })
-                        markDirty()
-                      }}
-                      onClose={() => dispatch({ type: 'SET_DETAILS_OPEN', payload: false })}
-                    />
-                  </FlexItem>
-                )}
+                <BuilderSidePanels
+                  isAddNodePanelOpen={isAddNodePanelOpen}
+                  isNodeEditorOpen={isNodeEditorOpen}
+                  canEdit={builderPermissions.canEdit}
+                  sourceNodeId={sourceNodeId}
+                  replacementNodeId={replacementNodeId}
+                  hasNoWorkflowNodes={hasNoWorkflowNodes}
+                  dispatch={dispatch}
+                  historyCardOpen={historyCardOpen}
+                  isNew={isNew}
+                  executions={executionsQuery.data?.resources ?? []}
+                  onExecutionNavigate={handleExecutionNavigate}
+                  executionFilters={executionFilters}
+                  onFilterChange={setExecutionFilters}
+                  detailsOpen={detailsOpen}
+                  workflow={workflow}
+                  workflowName={workflowName}
+                  workflowDescription={workflowDescription}
+                  markDirty={markDirty}
+                />
 
                 <NodeEditorOverlay
                   isOpen={isNodeEditorOpen}
@@ -508,6 +482,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     // TODO: Remove cast when project_id is added to the OpenAPI spec
                     (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
                   }
+                  workflowMetadata={workflowMetadata}
                 />
               </Flex>
             </StackItem>

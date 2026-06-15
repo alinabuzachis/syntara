@@ -11,37 +11,37 @@ nodes:
 
   - id: task_a
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Task A"
 
   - id: task_b
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Task B"
 
   - id: task_c
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Task C"
 
   - id: task_d
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Task D"
 
   - id: task_e
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Task E"
 
   - id: join_majority
     type: converge
-    config:
+    parameters:
       branches:
         - task_a
         - task_b

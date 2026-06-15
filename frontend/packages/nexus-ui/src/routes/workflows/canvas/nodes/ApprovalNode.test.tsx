@@ -27,7 +27,7 @@ describe('ApprovalNodeComponent', () => {
     type: 'approval',
     id: 'approval-1',
     name: 'Approve Deployment',
-    config: {
+    parameters: {
       approver_timeout: 86400,
     },
   } as ApprovalNodeType
@@ -66,7 +66,7 @@ describe('ApprovalNodeComponent', () => {
         type: 'approval',
         id: 'approval-2',
         name: 'No Timeout Approval',
-        config: {},
+        parameters: {},
       } as ApprovalNodeType
 
       render(<ApprovalNodeComponent {...createNodeProps(noTimeoutNode)} />)

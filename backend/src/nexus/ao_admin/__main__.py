@@ -6,6 +6,12 @@ Usage::
 
     ao-admin reset-password --username alice
     ao-admin reset-password --username alice --yes
+
+    # Non-interactive: provide password via flag (visible in process list)
+    ao-admin reset-password --username alice --password 'MySecureP@ss1'
+
+    # Non-interactive: provide password via stdin (recommended)
+    cat /run/secrets/admin-password | ao-admin reset-password --username alice --password-stdin
 """
 
 from __future__ import annotations
@@ -15,6 +21,7 @@ import getpass
 import logging
 import os
 import re
+import sys
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated
 
@@ -89,6 +96,52 @@ def _validate_password(password: str) -> tuple[bool, str | None]:
         )
 
     return True, None
+
+
+def _resolve_password(password_flag: str | None, *, password_stdin: bool) -> tuple[str, bool]:
+    """Resolve password from --password flag, --password-stdin, or interactive prompt.
+
+    Returns:
+        (password, non_interactive) — non_interactive is True when the
+        password came from --password or --password-stdin so the
+        confirmation prompt should be skipped.
+
+    Raises:
+        typer.Exit: If both sources are given, the resolved password is
+        empty, or stdin is not a terminal without an explicit source.
+
+    """
+    if password_flag is not None and password_stdin:
+        typer.echo("ERROR: --password and --password-stdin are mutually exclusive.", err=True)
+        raise typer.Exit(code=1)
+
+    if password_flag is not None:
+        if not password_flag:
+            typer.echo("ERROR: --password value must not be empty.", err=True)
+            raise typer.Exit(code=1)
+        return password_flag, True
+
+    if password_stdin:
+        password = sys.stdin.readline().rstrip("\n")
+        if not password:
+            typer.echo("ERROR: No password provided via stdin.", err=True)
+            raise typer.Exit(code=1)
+        return password, True
+
+    if not sys.stdin.isatty():
+        typer.echo(
+            "ERROR: stdin is not a terminal. Use --password-stdin to read the password from stdin,\n"
+            "or --password to supply it as a flag.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    password = getpass.getpass("New password: ")
+    confirm = getpass.getpass("Confirm password: ")
+    if password != confirm:
+        typer.echo("ERROR: Passwords do not match.", err=True)
+        raise typer.Exit(code=1)
+    return password, False
 
 
 async def _lookup_local_user(username: str) -> User:
@@ -247,13 +300,27 @@ def reset_password(
         str,
         typer.Option("--username", "-u", help="Username of the account whose password will be reset"),
     ],
+    password: Annotated[
+        str | None,
+        typer.Option(
+            "--password",
+            "-p",
+            help="New password (non-interactive, visible in process list — prefer --password-stdin).",
+        ),
+    ] = None,
+    password_stdin: Annotated[  # noqa: FBT002
+        bool,
+        typer.Option("--password-stdin", help="Read the new password from stdin."),
+    ] = False,
     yes: Annotated[  # noqa: FBT002
         bool,
         typer.Option("--yes", "-y", help="Skip confirmation prompt"),
     ] = False,
 ) -> None:
     """Reset the password for a local user account."""
-    if not yes:
+    resolved_password, non_interactive = _resolve_password(password, password_stdin=password_stdin)
+
+    if not non_interactive and not yes:
         typer.confirm(
             f"This will reset the password for user '{username}'.\n"
             f"The user's current password will be invalidated and all active sessions will be revoked.\n\n"
@@ -261,18 +328,12 @@ def reset_password(
             abort=True,
         )
 
-    password = getpass.getpass("New password: ")
-    confirm = getpass.getpass("Confirm password: ")
-    if password != confirm:
-        typer.echo("ERROR: Passwords do not match.", err=True)
-        raise typer.Exit(code=1)
-
-    is_valid, error_message = _validate_password(password)
+    is_valid, error_message = _validate_password(resolved_password)
     if not is_valid:
         typer.echo(f"ERROR: {error_message}", err=True)
         raise typer.Exit(code=1)
 
-    asyncio.run(_reset_password_async(username=username, new_password=password, actor=_get_actor()))
+    asyncio.run(_reset_password_async(username=username, new_password=resolved_password, actor=_get_actor()))
 
 
 def main() -> None:

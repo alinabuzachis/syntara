@@ -7,7 +7,33 @@ graph operations to a pluggable backend implementation.
 from typing import Any
 
 from nexus.workflows.workflow_engine.graph_backend import IGraphBackend, InMemoryGraphBackend
-from nexus.workflows.workflow_engine.models.workflow_definition import NodeSettings
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    NodeSettingsBase,
+    NodeSettingsCof,
+    NodeSettingsFull,
+    NodeSettingsNoRetry,
+    NodeType,
+)
+
+_NODE_SETTINGS_CLASS: dict[str, type[NodeSettingsBase]] = {
+    NodeType.HTTP_REQUEST: NodeSettingsFull,
+    NodeType.AAP_JOB_TEMPLATE: NodeSettingsFull,
+    NodeType.AAP_WORKFLOW_JOB_TEMPLATE: NodeSettingsFull,
+    NodeType.SCRIPT: NodeSettingsNoRetry,
+    NodeType.AGENTIC: NodeSettingsNoRetry,
+    NodeType.APPROVAL: NodeSettingsNoRetry,
+    NodeType.WAIT: NodeSettingsCof,
+    NodeType.CONVERGE: NodeSettingsCof,
+    NodeType.LOOP: NodeSettingsCof,
+    NodeType.CONDITION: NodeSettingsBase,
+    NodeType.SWITCH: NodeSettingsBase,
+}
+
+
+def _parse_node_settings(node_type: str, raw: dict[str, Any] | None) -> NodeSettingsBase:
+    """Instantiate the correct NodeSettings subclass for a node type."""
+    cls = _NODE_SETTINGS_CLASS.get(node_type, NodeSettingsBase)
+    return cls(**(raw or {}))
 
 
 class ActivityNode:
@@ -15,39 +41,49 @@ class ActivityNode:
 
     id: str
     type: str
-    config: dict[str, Any]
+    parameters: dict[str, Any]
     outputs: dict[str, str] | None
-    settings: NodeSettings
+    settings: NodeSettingsBase
 
     def __init__(
         self,
         node_id: str,
         node_type: str,
-        config: dict[str, Any],
+        parameters: dict[str, Any],
         outputs: dict[str, str] | None = None,
-        settings: NodeSettings | None = None,
+        settings: NodeSettingsBase | None = None,
     ) -> None:
-        """Initialize an activity node."""
+        """Initialize an activity node.
+
+        Args:
+            node_id: Unique node identifier
+            node_type: Type of the activity node
+            parameters: Node parameters dictionary
+            outputs: Output extraction mapping (optional)
+            settings: Node level overrides of general behaviors
+
+        """
         self.id = node_id
         self.type = node_type
-        self.config = config
+        self.parameters = parameters
         self.outputs = outputs
-        self.settings = settings if settings is not None else NodeSettings()
+        self.settings = settings if settings is not None else _parse_node_settings(node_type, None)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ActivityNode":
         """Create ActivityNode from dictionary."""
+        node_type = data["type"]
         return cls(
             node_id=data["id"],
-            node_type=data["type"],
-            config=data.get("config", {}),
+            node_type=node_type,
+            parameters=data.get("parameters", {}),
             outputs=data.get("outputs"),
-            settings=NodeSettings(**(data.get("settings") or {})),
+            settings=_parse_node_settings(node_type, data.get("settings")),
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
-        result = {"id": self.id, "type": self.type, "config": self.config}
+        result = {"id": self.id, "type": self.type, "parameters": self.parameters}
         if self.outputs:
             result["outputs"] = self.outputs
         return result

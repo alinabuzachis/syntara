@@ -223,7 +223,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "new-hook"},
+                    "parameters": {"webhook_path": "new-hook"},
                 }
             ]
         )
@@ -256,7 +256,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "new-path"},
+                    "parameters": {"webhook_path": "new-path"},
                 }
             ]
         )
@@ -314,12 +314,12 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "duplicate-path"},
+                    "parameters": {"webhook_path": "duplicate-path"},
                 },
                 {
                     "id": "trigger-2",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "innocent-path"},
+                    "parameters": {"webhook_path": "innocent-path"},
                 },
             ]
         )
@@ -354,7 +354,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "some-path"},
+                    "parameters": {"webhook_path": "some-path"},
                 }
             ]
         )
@@ -381,12 +381,12 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "manual_trigger",
-                    "config": {},
+                    "parameters": {},
                 },
                 {
                     "id": "trigger-2",
                     "type": "schedule_trigger",
-                    "config": {},
+                    "parameters": {},
                 },
             ]
         )
@@ -436,7 +436,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "test"},
+                    "parameters": {"webhook_path": "test"},
                 }
             ]
         )
@@ -465,12 +465,12 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "updated-path"},
+                    "parameters": {"webhook_path": "updated-path"},
                 },
                 {
                     "id": "trigger-2",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "brand-new"},
+                    "parameters": {"webhook_path": "brand-new"},
                 },
             ]
         )
@@ -481,7 +481,7 @@ class TestSyncWebhookTriggers:
 
     @pytest.mark.asyncio
     async def test_input_schema_stored_on_create(self) -> None:
-        """Test that input_schema from the config is stored on the new trigger."""
+        """Test that input_schema from the parameters is stored on the new trigger."""
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = Mock()
         mock_result.all.return_value = []
@@ -496,7 +496,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "with-schema", "input_schema": schema},
+                    "parameters": {"webhook_path": "with-schema", "input_schema": schema},
                 }
             ]
         )
@@ -508,7 +508,7 @@ class TestSyncWebhookTriggers:
 
     @pytest.mark.asyncio
     async def test_missing_webhook_path_raises_validation_error(self) -> None:
-        """Test that a trigger config with no webhook_path raises TriggerValidationError."""
+        """Test that a trigger parameters with no webhook_path raises TriggerValidationError."""
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = Mock()
         mock_result.all.return_value = []
@@ -521,7 +521,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {},
+                    "parameters": {},
                 }
             ]
         )
@@ -533,7 +533,7 @@ class TestSyncWebhookTriggers:
 
     @pytest.mark.asyncio
     async def test_empty_webhook_path_raises_validation_error(self) -> None:
-        """Test that a trigger config with empty webhook_path raises TriggerValidationError."""
+        """Test that a trigger parameters with empty webhook_path raises TriggerValidationError."""
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = Mock()
         mock_result.all.return_value = []
@@ -546,7 +546,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": ""},
+                    "parameters": {"webhook_path": ""},
                 }
             ]
         )
@@ -558,7 +558,7 @@ class TestSyncWebhookTriggers:
 
     @pytest.mark.asyncio
     async def test_invalid_webhook_path_pattern_raises_validation_error(self) -> None:
-        """Test that a trigger config with invalid path pattern raises TriggerValidationError."""
+        """Test that a trigger parameters with invalid path pattern raises TriggerValidationError."""
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = Mock()
         mock_result.all.return_value = []
@@ -571,7 +571,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "-invalid-path-"},
+                    "parameters": {"webhook_path": "-invalid-path-"},
                 }
             ]
         )
@@ -596,7 +596,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {
+                    "parameters": {
                         "webhook_path": "test-hook",
                         "input_schema": {
                             "type": "object",
@@ -630,7 +630,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "eda-1",
                     "type": "eda_trigger",
-                    "config": {"webhook_path": "jira-updates"},
+                    "parameters": {"webhook_path": "jira-updates"},
                 }
             ]
         )
@@ -662,7 +662,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "eda-1",
                     "type": "eda_trigger",
-                    "config": {"webhook_path": "with-schema", "input_schema": schema},
+                    "parameters": {"webhook_path": "with-schema", "input_schema": schema},
                 }
             ]
         )
@@ -691,7 +691,7 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "trigger-1",
                     "type": "webhook_trigger",
-                    "config": {
+                    "parameters": {
                         "webhook_path": "test-hook",
                         "input_schema": {
                             "type": "object",
@@ -725,12 +725,12 @@ class TestSyncWebhookTriggers:
                 {
                     "id": "wh-1",
                     "type": "webhook_trigger",
-                    "config": {"webhook_path": "generic-hook"},
+                    "parameters": {"webhook_path": "generic-hook"},
                 },
                 {
                     "id": "eda-1",
                     "type": "eda_trigger",
-                    "config": {"webhook_path": "eda-hook"},
+                    "parameters": {"webhook_path": "eda-hook"},
                 },
             ]
         )

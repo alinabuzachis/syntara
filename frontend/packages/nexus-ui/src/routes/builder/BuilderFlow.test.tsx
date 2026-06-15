@@ -49,6 +49,7 @@ vi.mock('@xyflow/react', () => ({
   },
   Background: () => null,
   BackgroundVariant: { Dots: 'dots' },
+  ConnectionLineType: { SmoothStep: 'smoothstep' },
   applyEdgeChanges: (_changes: unknown, edges: Array<Record<string, unknown>>) => edges,
   applyNodeChanges: (_changes: unknown, nodes: Array<Record<string, unknown>>) => nodes,
   useReactFlow: () => ({
@@ -157,7 +158,7 @@ const sampleWorkflow = {
   triggers: [{ type: 'manual_trigger', name: 'Manual Trigger' }],
   workflow: {
     activities: [
-      { id: 'task-1', type: 'script', name: 'Script 1', config: { type: 'script', language: 'python', code: '' } },
+      { id: 'task-1', type: 'script', name: 'Script 1', parameters: { type: 'script', language: 'python', code: '' } },
     ],
   },
 }

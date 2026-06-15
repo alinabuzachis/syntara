@@ -296,7 +296,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Action ordering: non-destructive first → `isSeparator: true` → destructive last (`isDanger: true`)
   - Use `IconLabel` for action titles: `<IconLabel icon={<RhUiEditIcon />}>Edit workflow</IconLabel>`
   - Permission-gated items: `isAriaDisabled: true` + `tooltipProps: { content: tooltip }` (visible but non-actionable, stays focusable)
-- **Expandable rows** — When a table uses expandable rows to show nested detail (e.g., policies under a role, event details in an audit log):
+- **Expandable rows** — When a table uses expandable rows to show nested detail (e.g., policies under a role, execution steps in a workflow run):
   - Pass `isExpandable` to `NxScrollableTableContainer` for proper PF6 table styling
   - Include an expand-all / collapse-all toggle in the `<Thead>` using the `expand` prop on the first `<Th>`
   - Use `ExpandableRowContent` for the expanded row body

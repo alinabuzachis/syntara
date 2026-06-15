@@ -47,6 +47,8 @@ class InvocationCancelledEvent:
     files_cleaned: list[UUID] = field(default_factory=list)
     current_status: InvocationStatus | None = field(default=None)
     error_type: str | None = field(default=None)
+    activity_id: str | None = field(default=None)
+    activity_name: str | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -114,5 +116,7 @@ class InvocationCancelledHandler(AuditEventHandler[InvocationCancelledEvent]):
             event_message=message,
             source_component="nexus.invocations.cancel",
             structured_data=data,
+            activity_id=event.activity_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.activity_name,
         )

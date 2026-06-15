@@ -23,7 +23,7 @@ def _minimal_workflow_definition(workflow_name: str) -> WorkflowDefinition:
         {
             "name": workflow_name,
             "schema_version": "2.0.0",
-            "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
             "nodes": [],
             "edges": [],
         }
@@ -40,7 +40,7 @@ def _workflow_definition_with_nodes(
         {
             "name": workflow_name,
             "schema_version": "2.0.0",
-            "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
             "nodes": list(nodes),
             "edges": edges or [],
         }
@@ -97,13 +97,13 @@ class TestWorkflowAPI:
                     "id": "script_node_1",
                     "name": "First Script",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'Hello from node 1'"},
+                    "parameters": {"language": "bash", "code": "echo 'Hello from node 1'"},
                 },
                 {
                     "id": "script_node_2",
                     "name": "Second Script",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'Hello from node 2'"},
+                    "parameters": {"language": "bash", "code": "echo 'Hello from node 2'"},
                 },
                 edges=[
                     {"from": "trigger_manual", "to": "script_node_1"},
@@ -144,8 +144,8 @@ class TestWorkflowAPI:
         assert node_1["id"] == "script_node_1"
         assert node_1["name"] == "First Script"
         assert node_1["type"] == "script"
-        assert node_1["config"]["language"] == "bash"
-        assert node_1["config"]["code"] == "echo 'Hello from node 1'"
+        assert node_1["parameters"]["language"] == "bash"
+        assert node_1["parameters"]["code"] == "echo 'Hello from node 1'"
 
         node_2 = definition["nodes"][1]
         assert node_2["id"] == "script_node_2"
@@ -215,7 +215,7 @@ class TestWorkflowAPI:
                     "id": "script_node_1",
                     "name": "Script Node",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'test'"},
+                    "parameters": {"language": "bash", "code": "echo 'test'"},
                 },
                 edges=[{"from": "trigger_manual", "to": "script_node_1"}],
                 workflow_name=workflow_name,
@@ -296,10 +296,11 @@ class TestWorkflowAPI:
 
         # Test 4: Sorting by name (ascending and descending)
         for sort_param, reverse in [("name", False), ("-name", True)]:
-            sort_result = nexus_api.workflows.list(sort=sort_param, limit=100).assert_and_get()
+            sort_result = nexus_api.workflows.list(
+                sort=sort_param, limit=100, additional_params={"name[contains]": unique_suffix}
+            ).assert_and_get()
 
-            # Extract our test workflows
-            test_workflows = [wf for wf in sort_result.resources if unique_suffix in wf.name]
+            test_workflows = list(sort_result.resources)
             assert len(test_workflows) == 4, "Should find all 4 test workflows in sorted list"
 
             # Verify correct sort order

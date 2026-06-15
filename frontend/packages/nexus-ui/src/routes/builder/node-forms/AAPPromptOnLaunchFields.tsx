@@ -221,9 +221,6 @@ function PromptOnLaunchFieldList({
         <NumberInputField label="Job slicing" fieldId="aap-jobSlicing" name="job_slice_count" placeholder="1" min={1} />
       )}
       {templateDetail.ask_diff_mode_on_launch && <DiffModeField />}
-      {templateDetail.ask_timeout_on_launch && (
-        <NumberInputField label="Timeout" fieldId="aap-timeout" name="timeout" placeholder="0" min={0} />
-      )}
       {templateDetail.ask_instance_groups_on_launch && (
         <AAPResourceSelectField
           label="Instance groups"

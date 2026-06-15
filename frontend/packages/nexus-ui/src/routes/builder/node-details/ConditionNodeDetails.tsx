@@ -22,8 +22,8 @@ export function ConditionNodeDetails({
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
-  // In v2, condition is at config.condition (not top-level condition)
-  const conditionConfig = (conditionData.config ?? {}) as { condition?: string }
+  // In v2, condition is at parameters.condition (not top-level condition)
+  const conditionConfig = (conditionData.parameters ?? {}) as { condition?: string }
 
   const initialData = {
     name: conditionData.name,
@@ -35,7 +35,7 @@ export function ConditionNodeDetails({
       const updatedActivity: ConditionActivity = {
         ...conditionData,
         name: data.name,
-        config: {
+        parameters: {
           condition: data.condition!,
         },
       } as ConditionActivity

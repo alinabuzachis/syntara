@@ -5,29 +5,26 @@ import {
   FormSelectOption,
   HelperText,
   HelperTextItem,
-  MenuToggle,
-  Select,
-  SelectList,
-  SelectOption,
   Stack,
   StackItem,
-  Switch,
   TextInput,
-  type MenuToggleElement,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import type { ReactNode, Ref } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { timeUnitsToSeconds } from '../utils/timeUtils'
+import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
+import { formatDuration } from '../utils/timeUtils'
 
 import { convergeFormSchema, type ConvergeFormData, type ConvergeStrategy } from './convergeFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { ContinueWhenCriteriaHelp } from './shared/ContinueWhenCriteriaHelp'
+import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import { RequiredBranchCountHelp } from './shared/RequiredBranchCountHelp'
 
 export type { ConvergeFormData, ConvergeStrategy }
@@ -38,63 +35,12 @@ const CONTINUE_WHEN_CRITERIA_OPTIONS: Array<{ label: string; value: ConvergeStra
   { label: 'Any branches reach this step', value: 'any' },
 ]
 
-/** Options for "Timeout action" dropdown */
-const TIMEOUT_ACTION_OPTIONS: Array<{ label: string; value: 'fail' | 'continue'; description: string }> = [
-  {
-    value: 'fail',
-    label: 'Fail',
-    description:
-      'The workflow will fail if the parameters set on this converge step are not met by the specified timeout time.',
-  },
-  {
-    value: 'continue',
-    label: 'Continue with partial data',
-    description: 'The workflow will continue ignoring the parameters set for this converge step.',
-  },
-]
-
-type ConvergeTimeoutActionMenuToggleProps = {
-  toggleRef: Ref<MenuToggleElement>
-  isExpanded: boolean
-  onToggleClick: () => void
-  children: ReactNode
-}
-
-function ConvergeTimeoutActionMenuToggle({
-  toggleRef,
-  isExpanded,
-  onToggleClick,
-  children,
-}: Readonly<ConvergeTimeoutActionMenuToggleProps>) {
-  return (
-    <MenuToggle ref={toggleRef} onClick={onToggleClick} isExpanded={isExpanded} isFullWidth>
-      {children}
-    </MenuToggle>
-  )
-}
-
-function convergeTimeoutActionSelectToggle(
-  toggleRef: Ref<MenuToggleElement>,
-  state: { isExpanded: boolean; onToggleClick: () => void; label: string }
-) {
-  return (
-    <ConvergeTimeoutActionMenuToggle
-      toggleRef={toggleRef}
-      isExpanded={state.isExpanded}
-      onToggleClick={state.onToggleClick}
-    >
-      {state.label}
-    </ConvergeTimeoutActionMenuToggle>
-  )
-}
-
 type ConvergeNodeFormProps = {
   onSubmit: (data: ConvergeFormData) => void
   initialData?: Partial<ConvergeFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-// eslint-disable-next-line max-lines-per-function
 function ConvergeFormFields({
   onHeaderContentChange,
   validationErrors,
@@ -103,7 +49,6 @@ function ConvergeFormFields({
   validationErrors?: {
     strategy?: { message?: string }
     requiredPathCount?: { message?: string }
-    onTimeout?: { message?: string }
   }
 }) {
   const {
@@ -114,23 +59,9 @@ function ConvergeFormFields({
   } = useFormContext<ConvergeFormData>()
   const errors = validationErrors ?? contextErrors
   const strategy = useWatch({ control, name: 'strategy' })
-  const timeoutEnabled = useWatch({ control, name: 'timeoutEnabled' })
-  const onTimeoutValue = useWatch({ control, name: 'onTimeout' })
-  const [isTimeoutActionOpen, setIsTimeoutActionOpen] = useState(false)
-
-  const timeoutActionToggleState = useMemo(
-    () => ({
-      isExpanded: isTimeoutActionOpen,
-      onToggleClick: () => setIsTimeoutActionOpen((prev) => !prev),
-      label: TIMEOUT_ACTION_OPTIONS.find((option) => option.value === onTimeoutValue)?.label ?? 'Select timeout action',
-    }),
-    [isTimeoutActionOpen, onTimeoutValue]
-  )
-
-  const renderTimeoutActionToggle = useCallback(
-    (toggleRef: Ref<MenuToggleElement>) => convergeTimeoutActionSelectToggle(toggleRef, timeoutActionToggleState),
-    [timeoutActionToggleState]
-  )
+  const waitDuration = useWatch({ control, name: 'wait_duration' })
+  const { defaults } = useWorkflowEngineDefaults()
+  const convergeWaitDurationDefault = defaults?.convergeWaitDuration ?? null
 
   useEffect(() => {
     if (errors.strategy) document.getElementById('converge-strategy')?.focus()
@@ -218,144 +149,58 @@ function ConvergeFormFields({
       )}
 
       <StackItem>
-        <Switch
-          id="converge-timeoutEnabled"
-          label="Timeout"
-          isChecked={timeoutEnabled ?? false}
-          onChange={(_event, checked) => {
-            setValue('timeoutEnabled', checked)
-            if (!checked) {
-              setIsTimeoutActionOpen(false)
-            }
-          }}
-          aria-label="Timeout"
-        />
+        <FormGroup label="Wait duration" fieldId="converge-wait-duration-days">
+          <Stack hasGutter>
+            <StackItem>
+              <DurationInput
+                value={waitDuration}
+                onChange={(val) => setValue('wait_duration', val, { shouldDirty: true })}
+                idPrefix="converge-wait-duration"
+              />
+            </StackItem>
+            <StackItem>
+              <HelperText>
+                <HelperTextItem>
+                  {convergeWaitDurationDefault !== null
+                    ? `How long to wait for branches to arrive before timing out. Falls back to system default (${formatDuration(convergeWaitDurationDefault)}) if not set.`
+                    : 'How long to wait for branches to arrive before timing out. Falls back to system default if not set.'}
+                </HelperTextItem>
+              </HelperText>
+            </StackItem>
+          </Stack>
+        </FormGroup>
       </StackItem>
-
-      {timeoutEnabled && (
-        <>
-          <StackItem>
-            <FormGroup label="Second(s)" fieldId="converge-timeout-seconds">
-              <TextInput
-                {...register('timeoutSeconds', { valueAsNumber: true })}
-                id="converge-timeout-seconds"
-                placeholder="Enter number of seconds"
-                type="number"
-                min={0}
-              />
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup label="Minute(s)" fieldId="converge-timeout-minutes">
-              <TextInput
-                {...register('timeoutMinutes', { valueAsNumber: true })}
-                id="converge-timeout-minutes"
-                placeholder="Enter number of minutes"
-                type="number"
-                min={0}
-              />
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup label="Hour(s)" fieldId="converge-timeout-hours">
-              <TextInput
-                {...register('timeoutHours', { valueAsNumber: true })}
-                id="converge-timeout-hours"
-                placeholder="Enter number of hours"
-                type="number"
-                min={0}
-              />
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup label="Day(s)" fieldId="converge-timeout-days">
-              <TextInput
-                {...register('timeoutDays', { valueAsNumber: true })}
-                id="converge-timeout-days"
-                placeholder="Enter number of days"
-                type="number"
-                min={0}
-              />
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup label="Timeout action" isRequired fieldId="converge-timeoutAction">
-              <Controller
-                control={control}
-                name="onTimeout"
-                render={({ field }) => (
-                  <Select
-                    id="converge-timeoutAction"
-                    isOpen={isTimeoutActionOpen}
-                    onOpenChange={setIsTimeoutActionOpen}
-                    popperProps={{ minWidth: 'trigger', maxWidth: 'trigger' }}
-                    onSelect={(_event, raw) => {
-                      const selectedValue = typeof raw === 'string' || typeof raw === 'number' ? raw : undefined
-                      field.onChange(selectedValue)
-                      setIsTimeoutActionOpen(false)
-                    }}
-                    selected={field.value}
-                    toggle={renderTimeoutActionToggle}
-                  >
-                    <SelectList>
-                      {TIMEOUT_ACTION_OPTIONS.map((option) => (
-                        <SelectOption key={option.value} value={option.value} description={option.description}>
-                          {option.label}
-                        </SelectOption>
-                      ))}
-                    </SelectList>
-                  </Select>
-                )}
-              />
-              {errors.onTimeout && (
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                      {errors.onTimeout.message}
-                    </HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )}
-            </FormGroup>
-          </StackItem>
-        </>
-      )}
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const settingsContent = (
+    <NodeSettingsForm
+      supportsTimeout={false}
+      supportsRetryPolicy={false}
+      continueOnFailureHelp={
+        'When “Continue on failure” is selected and the wait duration expires before all required branches arrive, the workflow proceeds with whichever branches have completed. Incomplete branches are marked skipped.'
+      }
+    />
+  )
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function ConvergeNodeForm(props: ConvergeNodeFormProps) {
   const defaultValues: ConvergeFormData = {
     name: '',
     strategy: 'all',
-    timeoutEnabled: false,
-    onTimeout: 'fail',
     requiredPathCount: 1,
+    settings: {},
     ...props.initialData,
   }
 
   const handleSubmit = (data: ConvergeFormData) => {
-    // Convert time units to seconds (preserves 0 as valid timeout value)
-    const timeout = data.timeoutEnabled
-      ? timeUnitsToSeconds(
-          Number(data.timeoutSeconds) || 0,
-          Number(data.timeoutMinutes) || 0,
-          Number(data.timeoutHours) || 0,
-          Number(data.timeoutDays) || 0
-        )
-      : undefined
-
     const cleanedData: ConvergeFormData = {
       name: data.name,
       strategy: data.strategy,
-      timeout,
-      onTimeout: timeout !== undefined ? data.onTimeout : undefined,
+      wait_duration: data.wait_duration,
+      settings: data.settings,
       requiredPathCount: data.strategy === 'any' ? data.requiredPathCount : undefined,
     }
 

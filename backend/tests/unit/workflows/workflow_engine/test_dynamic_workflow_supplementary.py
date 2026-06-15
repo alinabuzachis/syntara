@@ -33,7 +33,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityName,
     DoWhileLoopState,
     ForEachLoopState,
-    NodeSettings,
+    NodeSettingsNoRetry,
     NodeType,
 )
 from nexus.workflows.workflow_engine.node_settings_resolver import get_default_timeout
@@ -78,10 +78,10 @@ def _make_workflow(
 def _build_diamond_graph() -> WorkflowGraph:
     """Build: trigger -> A + B -> C (diamond, C has two predecessors)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
-    backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "parameters": {}})
+    backend.add_node("node_c", {"id": "node_c", "type": "script", "parameters": {}})
     backend.add_edge("trigger", "node_a", None)
     backend.add_edge("trigger", "node_b", None)
     backend.add_edge("node_a", "node_c", None)
@@ -92,10 +92,10 @@ def _build_diamond_graph() -> WorkflowGraph:
 def _build_chain_graph() -> WorkflowGraph:
     """Build: trigger -> A -> B -> C (three-node chain)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
-    backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "parameters": {}})
+    backend.add_node("node_c", {"id": "node_c", "type": "script", "parameters": {}})
     backend.add_edge("trigger", "node_a", None)
     backend.add_edge("node_a", "node_b", None)
     backend.add_edge("node_b", "node_c", None)
@@ -108,7 +108,7 @@ class TestIsUnreachable:
     def test_trigger_node_is_always_reachable(self) -> None:
         """Root nodes (no predecessors) are never unreachable."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
         graph = WorkflowGraph(backend)
         wf = _make_workflow()
 
@@ -117,8 +117,8 @@ class TestIsUnreachable:
     def test_node_with_completed_predecessor_is_reachable(self) -> None:
         """A node whose predecessor completed is reachable."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
         backend.add_edge("trigger", "node_a", None)
         graph = WorkflowGraph(backend)
 
@@ -188,7 +188,7 @@ class TestExecuteExecutorNodeUnknownType:
         result = await wf._execute_executor_node(
             node=node,
             node_type="totally_unknown",
-            resolved_config={"some": "config"},
+            resolved_parameters={"some": "parameters"},
             outputs=None,
             timeout_seconds=30,
         )
@@ -281,9 +281,9 @@ class TestMarkRemainingUnreachableNodes:
     def test_non_manual_trigger_types_not_marked_skipped(self) -> None:
         """All trigger types (webhook_trigger, schedule_trigger, etc.) are excluded."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger", {"id": "trigger", "type": "webhook_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-        backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+        backend.add_node("trigger", {"id": "trigger", "type": "webhook_trigger", "parameters": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
+        backend.add_node("node_b", {"id": "node_b", "type": "script", "parameters": {}})
         backend.add_edge("trigger", "node_a", None)
         backend.add_edge("node_a", "node_b", None)
         graph = WorkflowGraph(backend)
@@ -312,10 +312,10 @@ class TestUnselectedTriggerSkipping:
     async def test_unselected_triggers_marked_skipped(self) -> None:
         """Unselected trigger nodes are added to skipped_nodes."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
-        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-        backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
+        backend.add_node("node_b", {"id": "node_b", "type": "script", "parameters": {}})
         backend.add_edge("trigger_a", "node_a", None)
         backend.add_edge("trigger_b", "node_b", None)
         graph = WorkflowGraph(backend)
@@ -335,10 +335,10 @@ class TestUnselectedTriggerSkipping:
     async def test_exclusive_downstream_of_unselected_trigger_skipped(self) -> None:
         """Downstream nodes exclusive to an unselected trigger are skipped."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
-        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-        backend.add_node("exclusive_b", {"id": "exclusive_b", "type": "script", "config": {}})
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
+        backend.add_node("exclusive_b", {"id": "exclusive_b", "type": "script", "parameters": {}})
         backend.add_edge("trigger_a", "node_a", None)
         backend.add_edge("trigger_b", "exclusive_b", None)
         graph = WorkflowGraph(backend)
@@ -358,9 +358,9 @@ class TestUnselectedTriggerSkipping:
     async def test_shared_downstream_not_skipped(self) -> None:
         """Nodes reachable from the active trigger are NOT skipped."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
-        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
-        backend.add_node("shared_node", {"id": "shared_node", "type": "script", "config": {}})
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("shared_node", {"id": "shared_node", "type": "script", "parameters": {}})
         backend.add_edge("trigger_a", "shared_node", None)
         backend.add_edge("trigger_b", "shared_node", None)
         graph = WorkflowGraph(backend)
@@ -380,8 +380,8 @@ class TestUnselectedTriggerSkipping:
     async def test_single_trigger_no_skipping(self) -> None:
         """With only one trigger, nothing is skipped."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
         backend.add_edge("trigger", "node_a", None)
         graph = WorkflowGraph(backend)
 
@@ -405,9 +405,9 @@ class TestAllowedTriggerTypes:
         backend = InMemoryGraphBackend()
         backend.add_node(
             "trigger",
-            {"id": "trigger", "type": "malicious_trigger", "config": {}},
+            {"id": "trigger", "type": "malicious_trigger", "parameters": {}},
         )
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
         backend.add_edge("trigger", "node_a", None)
         graph = WorkflowGraph(backend)
 
@@ -424,13 +424,13 @@ class TestAllowedTriggerTypes:
     async def test_three_triggers_only_selected_runs(self) -> None:
         """With 3 triggers, all non-selected triggers and their exclusive downstream are skipped."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "config": {}})
-        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "config": {}})
-        backend.add_node("trigger_c", {"id": "trigger_c", "type": "manual_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-        backend.add_node("exclusive_b", {"id": "exclusive_b", "type": "script", "config": {}})
-        backend.add_node("exclusive_c", {"id": "exclusive_c", "type": "script", "config": {}})
-        backend.add_node("shared_bc", {"id": "shared_bc", "type": "script", "config": {}})
+        backend.add_node("trigger_a", {"id": "trigger_a", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("trigger_b", {"id": "trigger_b", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("trigger_c", {"id": "trigger_c", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
+        backend.add_node("exclusive_b", {"id": "exclusive_b", "type": "script", "parameters": {}})
+        backend.add_node("exclusive_c", {"id": "exclusive_c", "type": "script", "parameters": {}})
+        backend.add_node("shared_bc", {"id": "shared_bc", "type": "script", "parameters": {}})
         backend.add_edge("trigger_a", "node_a", None)
         backend.add_edge("trigger_b", "exclusive_b", None)
         backend.add_edge("trigger_b", "shared_bc", None)
@@ -549,8 +549,8 @@ class TestScheduleSuccessorsSkipBehavior:
     def test_already_executed_node_not_rescheduled(self) -> None:
         """A successor that already has output should not be re-scheduled."""
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-        backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
+        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
         backend.add_edge("trigger", "node_a", None)
         graph = WorkflowGraph(backend)
 
@@ -651,8 +651,8 @@ class TestPerNodeTimeout:
         node = ActivityNode(
             node_id="node_custom",
             node_type="script",
-            config={"script": "echo hello"},
-            settings=NodeSettings(timeout=60),
+            parameters={"script": "echo hello"},
+            settings=NodeSettingsNoRetry(timeout=60),
         )
         graph = _build_chain_graph()
 
@@ -671,7 +671,7 @@ class TestPerNodeTimeout:
         _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
 
         wf = _make_workflow()
-        node = ActivityNode(node_id="node_default", node_type="script", config={"script": "echo hello"})
+        node = ActivityNode(node_id="node_default", node_type="script", parameters={"script": "echo hello"})
         graph = _build_chain_graph()
 
         await wf._execute_node(node=node, graph=graph)
@@ -682,6 +682,23 @@ class TestPerNodeTimeout:
         assert call_kwargs.kwargs["start_to_close_timeout"] == timedelta(seconds=expected)
 
     @pytest.mark.asyncio
+    async def test_timeout_preserved_in_config_for_activity(
+        self,
+        _mock_temporal_workflow: MagicMock,  # noqa: PT019
+    ) -> None:
+        """The timeout key should remain in resolved_parameters (not popped)."""
+        _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
+
+        wf = _make_workflow()
+        node = ActivityNode(node_id="node_keep", node_type="script", parameters={"timeout": 90, "script": "echo hello"})
+        graph = _build_chain_graph()
+
+        await wf._execute_node(node=node, graph=graph)
+
+        # Verify timeout is still in the stored node_inputs (config wasn't mutated)
+        assert wf.node_inputs["node_keep"]["timeout"] == 90
+
+    @pytest.mark.asyncio
     async def test_aap_job_template_uses_aap_default_timeout(
         self,
         _mock_temporal_workflow: MagicMock,  # noqa: PT019
@@ -690,7 +707,7 @@ class TestPerNodeTimeout:
         _mock_temporal_workflow.execute_activity = AsyncMock(return_value={"output": {"result": "ok"}})
 
         wf = _make_workflow()
-        node = ActivityNode(node_id="launch_job", node_type="aap_job_template", config={"job_template_id": 6})
+        node = ActivityNode(node_id="launch_job", node_type="aap_job_template", parameters={"job_template_id": 6})
         graph = _build_chain_graph()
 
         await wf._execute_node(node=node, graph=graph)
@@ -715,13 +732,13 @@ class TestLoopMaxIterationsEnforcement:
         node = ActivityNode(
             node_id="loop_1",
             node_type="loop",
-            config={"type": "for_each", "items": ["a", "b", "c"], "max_iterations": 2},
+            parameters={"type": "for_each", "items": ["a", "b", "c"], "max_iterations": 2},
         )
         wf.loop_state["loop_1"] = ForEachLoopState(items=["a", "b", "c"], current_index=2)
         wf.loop_iteration_results["loop_1"] = {}
 
         with pytest.raises(ApplicationError) as exc_info:
-            await wf._execute_loop_node("loop_1", node, node.config)
+            await wf._execute_loop_node("loop_1", node, node.parameters)
 
         assert exc_info.value.type == "MaxIterationsError"
         assert "exceeded max_iterations (2)" in str(exc_info.value)
@@ -733,13 +750,13 @@ class TestLoopMaxIterationsEnforcement:
         node = ActivityNode(
             node_id="loop_1",
             node_type="loop",
-            config={"type": "for_each", "items": ["a", "b", "c", "d"]},
+            parameters={"type": "for_each", "items": ["a", "b", "c", "d"]},
         )
         wf.loop_state["loop_1"] = ForEachLoopState(items=["a", "b", "c", "d"], current_index=3)
         wf.loop_iteration_results["loop_1"] = {}
 
         with pytest.raises(ApplicationError) as exc_info:
-            await wf._execute_loop_node("loop_1", node, node.config)
+            await wf._execute_loop_node("loop_1", node, node.parameters)
 
         assert exc_info.value.type == "MaxIterationsError"
         assert "exceeded max_iterations (3)" in str(exc_info.value)
@@ -750,7 +767,7 @@ class TestLoopMaxIterationsEnforcement:
         node = ActivityNode(
             node_id="loop_1",
             node_type="loop",
-            config={"type": "do_while", "condition": "${converged}", "max_iterations": 5},
+            parameters={"type": "do_while", "condition": "${converged}", "max_iterations": 5},
         )
         wf.loop_state["loop_1"] = DoWhileLoopState(condition="${converged}", max_iterations=5, current_index=5)
         wf.loop_iteration_results["loop_1"] = {}
@@ -762,7 +779,7 @@ class TestLoopMaxIterationsEnforcement:
             ),
             pytest.raises(ApplicationError) as exc_info,
         ):
-            await wf._execute_loop_node("loop_1", node, node.config)
+            await wf._execute_loop_node("loop_1", node, node.parameters)
 
         assert exc_info.value.type == "MaxIterationsError"
         assert "exceeded max_iterations (5)" in str(exc_info.value)
@@ -780,7 +797,7 @@ class TestLoopMaxIterationsEnforcement:
         node = ActivityNode(
             node_id="loop_1",
             node_type="loop",
-            config={"type": "do_while", "condition": "${converged}", "max_iterations": 5},
+            parameters={"type": "do_while", "condition": "${converged}", "max_iterations": 5},
         )
         wf.loop_state["loop_1"] = DoWhileLoopState(condition="${converged}", max_iterations=5, current_index=5)
         wf.loop_iteration_results["loop_1"] = {}
@@ -789,6 +806,6 @@ class TestLoopMaxIterationsEnforcement:
             "nexus.workflows.workflow_engine.dynamic_workflow.safe_eval_with_namespace",
             return_value=False,
         ):
-            result = await wf._execute_loop_node("loop_1", node, node.config)
+            result = await wf._execute_loop_node("loop_1", node, node.parameters)
 
         assert result["control"]["next_port"] == "complete"

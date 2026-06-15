@@ -8,7 +8,7 @@ triggers:
 nodes:
   - id: say_hello
     type: script
-    config:
+    parameters:
       language: bash
       environment:
         GREETING: Hello
@@ -19,7 +19,7 @@ nodes:
 
   - id: say_goodbye
     type: script
-    config:
+    parameters:
       language: bash
       environment:
         FAREWELL: Goodbye

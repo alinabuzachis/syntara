@@ -60,20 +60,20 @@ def _build_approval_graph(*, with_predecessor: bool = True, with_successor: bool
     Structure: trigger -> [scan ->] approval -> [deploy]
     """
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
     backend.add_node(
         "approval",
         {
             "id": "approval",
             "type": "approval",
-            "config": {"name": "Review Deployment"},
+            "parameters": {"name": "Review Deployment"},
         },
     )
 
     if with_predecessor:
         backend.add_node(
             "scan",
-            {"id": "scan", "type": "script", "config": {"name": "Security Scan"}},
+            {"id": "scan", "type": "script", "parameters": {"name": "Security Scan"}},
         )
         backend.add_edge("trigger", "scan", None)
         backend.add_edge("scan", "approval", None)
@@ -83,7 +83,7 @@ def _build_approval_graph(*, with_predecessor: bool = True, with_successor: bool
     if with_successor:
         backend.add_node(
             "deploy",
-            {"id": "deploy", "type": "script", "config": {"name": "Deploy to Prod"}},
+            {"id": "deploy", "type": "script", "parameters": {"name": "Deploy to Prod"}},
         )
         backend.add_edge("approval", "deploy", {"from_port": "approved"})
 
@@ -100,7 +100,7 @@ class TestGetPreviousStepContext:
         wf = _make_workflow()
 
         backend = InMemoryGraphBackend()
-        backend.add_node("orphan", {"id": "orphan", "type": "approval", "config": {}})
+        backend.add_node("orphan", {"id": "orphan", "type": "approval", "parameters": {}})
         isolated_graph = WorkflowGraph(backend)
 
         result = wf._get_previous_step_context("orphan", isolated_graph)
@@ -125,8 +125,8 @@ class TestGetPreviousStepContext:
         """Falls back to node ID when config has no name."""
         wf = _make_workflow()
         backend = InMemoryGraphBackend()
-        backend.add_node("prev_node", {"id": "prev_node", "type": "task", "config": {}})
-        backend.add_node("approval", {"id": "approval", "type": "approval", "config": {}})
+        backend.add_node("prev_node", {"id": "prev_node", "type": "task", "parameters": {}})
+        backend.add_node("approval", {"id": "approval", "type": "approval", "parameters": {}})
         backend.add_edge("prev_node", "approval", None)
         graph = WorkflowGraph(backend)
 
@@ -175,35 +175,80 @@ class TestGetPreviousStepContext:
 class TestPrepareApprovalArgs:
     """Tests for _prepare_approval_args method."""
 
-    def test_basic_approval_args(self) -> None:
-        """Returns 7-element arg list with correct structure."""
+    @pytest.mark.asyncio
+    async def test_basic_approval_args(self) -> None:
+        """Returns 9-element arg list with correct structure (added approver_user_ids and approver_group_ids)."""
         resolver = NamespaceResolver()
         resolver.set_namespace("trigger", {"env": "production"})
         wf = _make_workflow(execution_id="exec-456", resolver=resolver)
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review Deployment"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        # When no approvers configured, the resolution activity is skipped (optimization)
+        # and approver IDs are set to None
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
-        assert len(args) == 7
+        assert len(args) == 9
         assert args[0] == "exec-456"  # execution_id
         assert args[1] == "approval"  # approval_node_id
         assert args[2] == "Review Deployment"  # name
+        assert args[7] is None  # approver_user_ids (None when no approvers configured)
+        assert args[8] is None  # approver_group_ids (None when no approvers configured)
 
-    def test_next_step_approved_from_successor(self) -> None:
+    @pytest.mark.asyncio
+    async def test_approval_args_with_approver_config(self) -> None:
+        """Approver users and groups are correctly resolved to UUIDs."""
+        from uuid import uuid4
+
+        wf = _make_workflow()
+        graph = _build_approval_graph()
+        config = {
+            "name": "Security Review",
+            "approver_users": ["alice", "bob"],
+            "approver_groups": ["security-team", "admins"],
+        }
+        node = ActivityNode("approval", "approval", config)
+
+        alice_id = str(uuid4())
+        bob_id = str(uuid4())
+        security_team_id = str(uuid4())
+        admins_id = str(uuid4())
+
+        mock_execute = AsyncMock(
+            return_value={"user_ids": [alice_id, bob_id], "group_ids": [security_team_id, admins_id]}
+        )
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, config)
+
+        assert len(args) == 9
+        assert args[7] == [alice_id, bob_id]  # approver_user_ids
+        assert args[8] == [security_team_id, admins_id]  # approver_group_ids
+
+        # Verify the resolution activity was called with the correct arguments
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args.kwargs
+        assert call_kwargs["args"] == [["alice", "bob"], ["security-team", "admins"]]
+
+    @pytest.mark.asyncio
+    async def test_next_step_approved_from_successor(self) -> None:
         """next_step_approved built from first graph successor."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         next_step = args[3]
         assert next_step["id"] == "deploy"
         assert next_step["name"] == "Deploy to Prod"
         assert next_step["type"] == "script"
 
-    def test_raises_when_no_approved_successor(self) -> None:
+    @pytest.mark.asyncio
+    async def test_raises_when_no_approved_successor(self) -> None:
         """Raises SafeValueError when approval node has no approved successor."""
         from nexus.core.exceptions import SafeValueError
 
@@ -212,9 +257,10 @@ class TestPrepareApprovalArgs:
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
         with pytest.raises(SafeValueError, match="has no approved successor"):
-            wf._prepare_approval_args(node, graph, node.config)
+            await wf._prepare_approval_args(node, graph, node.parameters)
 
-    def test_workflow_context_populated(self) -> None:
+    @pytest.mark.asyncio
+    async def test_workflow_context_populated(self) -> None:
         """Workflow context includes name and trigger inputs."""
         resolver = NamespaceResolver()
         resolver.set_namespace("trigger", {"target": "prod", "version": "2.0"})
@@ -222,31 +268,39 @@ class TestPrepareApprovalArgs:
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         ctx = args[4]
         assert ctx["workflow_name"] == "Production Pipeline"
         assert ctx["inputs"] == {"target": "prod", "version": "2.0"}
         assert ctx["workflow_version_id"] is not None
 
-    def test_workflow_context_empty_inputs_when_trigger_missing(self) -> None:
+    @pytest.mark.asyncio
+    async def test_workflow_context_empty_inputs_when_trigger_missing(self) -> None:
         """Inputs default to empty dict when trigger namespace is missing."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         ctx = args[4]
         assert ctx["inputs"] == {}
 
-    def test_timeout_at_computed_from_decision_window(self) -> None:
+    @pytest.mark.asyncio
+    async def test_timeout_at_computed_from_decision_window(self) -> None:
         """timeout_at is ISO string set to now + decision_window when configured."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review", "decision_window": 3600})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         timeout_at = args[5]
         assert timeout_at is not None
@@ -254,13 +308,16 @@ class TestPrepareApprovalArgs:
         mock_now = datetime(2026, 4, 10, 12, 0, 0, tzinfo=UTC)
         assert parsed == mock_now + timedelta(seconds=3600)
 
-    def test_timeout_at_defaults_to_catalog_value_when_not_configured(self) -> None:
+    @pytest.mark.asyncio
+    async def test_timeout_at_defaults_to_catalog_value_when_not_configured(self) -> None:
         """timeout_at falls back to the catalog default (86400s) when approver_timeout is absent."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         timeout_at = args[5]
         assert timeout_at is not None
@@ -268,53 +325,65 @@ class TestPrepareApprovalArgs:
         mock_now = datetime(2026, 4, 10, 12, 0, 0, tzinfo=UTC)
         assert parsed == mock_now + timedelta(seconds=86400)
 
-    def test_next_step_rejected_always_none(self) -> None:
+    @pytest.mark.asyncio
+    async def test_next_step_rejected_always_none(self) -> None:
         """next_step_rejected is None (port-based routing not yet implemented)."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         assert args[6] is None
 
-    def test_name_fallback_to_node_id(self) -> None:
+    @pytest.mark.asyncio
+    async def test_name_fallback_to_node_id(self) -> None:
         """Name falls back to 'Approval for {id}' when config has no name."""
         wf = _make_workflow()
         backend = InMemoryGraphBackend()
-        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-        backend.add_node("my_approval", {"id": "my_approval", "type": "approval", "config": {}})
-        backend.add_node("next", {"id": "next", "type": "script", "config": {"name": "Next Step"}})
+        backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+        backend.add_node("my_approval", {"id": "my_approval", "type": "approval", "parameters": {}})
+        backend.add_node("next", {"id": "next", "type": "script", "parameters": {"name": "Next Step"}})
         backend.add_edge("trigger", "my_approval", None)
         backend.add_edge("my_approval", "next", {"from_port": "approved"})
         graph = WorkflowGraph(backend)
         graph.metadata = {"name": "Test"}
         node = ActivityNode("my_approval", "approval", {})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         assert args[2] == "Approval for my_approval"
 
-    def test_workflow_name_fallback_to_unknown(self) -> None:
+    @pytest.mark.asyncio
+    async def test_workflow_name_fallback_to_unknown(self) -> None:
         """Workflow name defaults to 'Unknown' when metadata has no name."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         graph.metadata = {}
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         ctx = args[4]
         assert ctx["workflow_name"] == "Unknown"
 
-    def test_workflow_name_fallback_when_none(self) -> None:
+    @pytest.mark.asyncio
+    async def test_workflow_name_fallback_when_none(self) -> None:
         """Workflow name defaults to 'Unknown' when metadata name is None."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         graph.metadata = {"name": None}
         node = ActivityNode("approval", "approval", {"name": "Review"})
 
-        args = wf._prepare_approval_args(node, graph, node.config)
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
 
         ctx = args[4]
         assert ctx["workflow_name"] == "Unknown"
@@ -332,16 +401,21 @@ class TestDispatchApprovalNode:
         graph = _build_approval_graph()
         node = graph.get_node("approval")
 
+        # When no approvers configured, only the create approval activity is called
+        # (resolution activity is skipped as an optimization)
         mock_activity = AsyncMock(return_value={"output": {"id": "apr-1", "decision": "approved"}})
 
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             await wf._dispatch_node_to_executor(node, {"name": "Review Deployment"}, graph, timeout_seconds=300)
 
-        mock_activity.assert_called_once()
-        call_args = mock_activity.call_args
-        assert call_args.args[0] == ActivityName.APPROVAL
-        activity_args = call_args.kwargs["args"]
-        assert len(activity_args) == 7
+        # With no approvers configured, only approval creation is called (resolution is skipped)
+        assert mock_activity.call_count == 1
+
+        # Check the approval creation call
+        approval_call = mock_activity.call_args_list[0]
+        assert approval_call.args[0] == ActivityName.APPROVAL
+        activity_args = approval_call.kwargs["args"]
+        assert len(activity_args) == 9  # Updated: added approver_user_ids and approver_group_ids
         assert activity_args[0] == "exec-789"  # execution_id
         assert activity_args[1] == "approval"  # approval_node_id
         assert activity_args[2] == "Review Deployment"  # name

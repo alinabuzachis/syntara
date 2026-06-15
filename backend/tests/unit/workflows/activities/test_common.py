@@ -1,117 +1,20 @@
 """Unit tests for common activity utilities."""
 
-from datetime import timedelta
-
 import pytest
 
-from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine.activities.common import (
     DEFAULT_RETRYABLE_ERROR_CODES,
     ActivityExecutionError,
-    build_retry_policy,
     extract_error_code,
+    is_retryable_http_status,
 )
-
-
-class TestBuildRetryPolicy:
-    """Test retry policy building for all strategies."""
-
-    def test_none_config_returns_none(self) -> None:
-        """Test that None config returns None policy."""
-        policy = build_retry_policy(None)
-        assert policy is None
-
-    def test_exponential_backoff_default(self) -> None:
-        """Test exponential backoff with default values."""
-        policy = build_retry_policy(
-            {
-                "maxAttempts": 3,
-                "backoff": "exponential",
-                "initialInterval": 1,
-                "maxInterval": 60,
-            }
-        )
-        assert policy is not None
-        assert policy.maximum_attempts == 3
-        assert policy.initial_interval == timedelta(seconds=1)
-        assert policy.maximum_interval == timedelta(minutes=1)
-        assert policy.backoff_coefficient == 2.0  # default
-
-    def test_exponential_backoff_custom_multiplier(self) -> None:
-        """Test exponential backoff with custom multiplier."""
-        policy = build_retry_policy(
-            {
-                "maxAttempts": 5,
-                "backoff": "exponential",
-                "initialInterval": 2,
-                "maxInterval": 120,
-                "multiplier": 3.0,
-            }
-        )
-        assert policy is not None
-        assert policy.maximum_attempts == 5
-        assert policy.backoff_coefficient == 3.0
-
-    def test_fixed_backoff(self) -> None:
-        """Test fixed backoff configuration."""
-        policy = build_retry_policy(
-            {
-                "maxAttempts": 4,
-                "backoff": "fixed",
-                "initialInterval": 5,
-            }
-        )
-        assert policy is not None
-        assert policy.maximum_attempts == 4
-        assert policy.initial_interval == timedelta(seconds=5)
-        assert policy.maximum_interval == timedelta(seconds=5)  # Same as initial
-        assert policy.backoff_coefficient == 1.0  # No growth
-
-    def test_linear_backoff_fallback(self) -> None:
-        """Test linear backoff falls back to fixed (Temporal limitation)."""
-        policy = build_retry_policy(
-            {
-                "maxAttempts": 3,
-                "backoff": "linear",
-                "initialInterval": 1,
-                "maxInterval": 10,
-            }
-        )
-        assert policy is not None
-        assert policy.maximum_attempts == 3
-        # Linear is approximated as fixed (coefficient=1.0)
-        assert policy.backoff_coefficient == 1.0
-
-    def test_invalid_strategy_raises_error(self) -> None:
-        """Test invalid backoff strategy raises SafeValueError."""
-        with pytest.raises(SafeValueError, match="Unsupported backoff strategy"):
-            build_retry_policy(
-                {
-                    "maxAttempts": 3,
-                    "backoff": "invalid_strategy",
-                    "initialInterval": 1,
-                }
-            )
-
-    def test_default_values_used_when_missing(self) -> None:
-        """Test default values are used for missing fields."""
-        policy = build_retry_policy({})
-        assert policy is not None
-        assert policy.maximum_attempts == 3  # default
-        assert policy.initial_interval == timedelta(seconds=1)  # PT1S default
-        assert policy.maximum_interval == timedelta(minutes=1)  # PT1M default
-        assert policy.backoff_coefficient == 2.0  # default multiplier
 
 
 class TestActivityExecutionError:
     """Test base exception class."""
 
     def test_exception_inheritance(self) -> None:
-        """Test ActivityExecutionError is a subclass of Exception.
-
-        This validates that the exception can be caught as Exception and
-        follows Python's exception hierarchy.
-        """
+        """Test ActivityExecutionError is a subclass of Exception."""
         assert issubclass(ActivityExecutionError, Exception)
 
 
@@ -121,26 +24,39 @@ class TestDefaultRetryableErrorCodes:
     def test_default_codes_exist(self) -> None:
         """Test that default retryable codes constant is defined."""
         assert DEFAULT_RETRYABLE_ERROR_CODES is not None
-        assert isinstance(DEFAULT_RETRYABLE_ERROR_CODES, list)
+        assert isinstance(DEFAULT_RETRYABLE_ERROR_CODES, frozenset)
         assert len(DEFAULT_RETRYABLE_ERROR_CODES) > 0
 
     def test_default_codes_include_transient_errors(self) -> None:
         """Test that default codes include common transient server errors."""
-        # Verify it includes standard transient errors
-        assert 500 in DEFAULT_RETRYABLE_ERROR_CODES  # Internal Server Error
+        assert 429 in DEFAULT_RETRYABLE_ERROR_CODES  # Too Many Requests
         assert 502 in DEFAULT_RETRYABLE_ERROR_CODES  # Bad Gateway
         assert 503 in DEFAULT_RETRYABLE_ERROR_CODES  # Service Unavailable
         assert 504 in DEFAULT_RETRYABLE_ERROR_CODES  # Gateway Timeout
-        assert 429 in DEFAULT_RETRYABLE_ERROR_CODES  # Too Many Requests
-        assert 408 in DEFAULT_RETRYABLE_ERROR_CODES  # Request Timeout
+
+    def test_default_codes_exclude_generic_server_errors(self) -> None:
+        """Test that 500 and 408 are NOT in the default list."""
+        assert 500 not in DEFAULT_RETRYABLE_ERROR_CODES  # Too generic
+        assert 408 not in DEFAULT_RETRYABLE_ERROR_CODES  # Rare in server-to-server
 
     def test_default_codes_exclude_client_errors(self) -> None:
         """Test that default codes don't include client errors."""
-        # Client errors should NOT be retryable by default
         assert 400 not in DEFAULT_RETRYABLE_ERROR_CODES  # Bad Request
         assert 401 not in DEFAULT_RETRYABLE_ERROR_CODES  # Unauthorized
         assert 403 not in DEFAULT_RETRYABLE_ERROR_CODES  # Forbidden
         assert 404 not in DEFAULT_RETRYABLE_ERROR_CODES  # Not Found
+
+
+class TestIsRetryableHttpStatus:
+    """Test is_retryable_http_status helper."""
+
+    @pytest.mark.parametrize("code", [429, 502, 503, 504])
+    def test_retryable_codes(self, code: int) -> None:
+        assert is_retryable_http_status(code) is True
+
+    @pytest.mark.parametrize("code", [400, 401, 403, 404, 408, 500])
+    def test_non_retryable_codes(self, code: int) -> None:
+        assert is_retryable_http_status(code) is False
 
 
 class TestExtractErrorCode:

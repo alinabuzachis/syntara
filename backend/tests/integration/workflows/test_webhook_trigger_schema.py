@@ -24,8 +24,8 @@ def webhook_schema() -> dict[str, Any]:
 
 
 async def test_webhook_schema_has_config_schema(webhook_schema: dict[str, Any]) -> None:
-    """Schema should have a configSchema section."""
-    assert "configSchema" in webhook_schema
+    """Schema should have a parameterSchema section."""
+    assert "parameterSchema" in webhook_schema
 
 
 async def test_webhook_schema_has_result_schema(webhook_schema: dict[str, Any]) -> None:
@@ -35,14 +35,14 @@ async def test_webhook_schema_has_result_schema(webhook_schema: dict[str, Any]) 
 
 async def test_webhook_config_requires_webhook_path(webhook_schema: dict[str, Any]) -> None:
     """Config schema should require webhook_path."""
-    config_schema = webhook_schema["configSchema"]
+    config_schema = webhook_schema["parameterSchema"]
     assert "webhook_path" in config_schema.get("required", [])
 
 
 async def test_webhook_config_valid_minimal(webhook_schema: dict[str, Any]) -> None:
     """Minimal config with just webhook_path should be valid."""
     config = {"webhook_path": "my-endpoint"}
-    jsonschema.validate(instance=config, schema=webhook_schema["configSchema"])
+    jsonschema.validate(instance=config, schema=webhook_schema["parameterSchema"])
 
 
 async def test_webhook_config_valid_with_input_schema(webhook_schema: dict[str, Any]) -> None:
@@ -54,21 +54,21 @@ async def test_webhook_config_valid_with_input_schema(webhook_schema: dict[str, 
             "properties": {"event": {"type": "string"}},
         },
     }
-    jsonschema.validate(instance=config, schema=webhook_schema["configSchema"])
+    jsonschema.validate(instance=config, schema=webhook_schema["parameterSchema"])
 
 
 async def test_webhook_config_rejects_missing_path(webhook_schema: dict[str, Any]) -> None:
     """Config without webhook_path should be rejected."""
     config = {"input_schema": {"type": "object"}}
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(instance=config, schema=webhook_schema["configSchema"])
+        jsonschema.validate(instance=config, schema=webhook_schema["parameterSchema"])
 
 
 async def test_webhook_config_rejects_additional_properties(webhook_schema: dict[str, Any]) -> None:
     """Config with unknown properties should be rejected."""
     config = {"webhook_path": "test", "unknown_field": "value"}
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(instance=config, schema=webhook_schema["configSchema"])
+        jsonschema.validate(instance=config, schema=webhook_schema["parameterSchema"])
 
 
 async def test_webhook_path_in_workflow_definition_schema() -> None:

@@ -27,7 +27,6 @@ describe('aapJobTemplateSchema', () => {
       verbosity: '2',
       job_type: 'run',
       forks: 10,
-      timeout: 3600,
       job_slice_count: 2,
       diff_mode: true,
       execution_environment: 'Default EE',
@@ -113,20 +112,18 @@ describe('aapJobTemplateSchema', () => {
   })
 
   it('coerces NaN optional number fields to undefined', () => {
-    const result = aapJobTemplateSchema.safeParse({ ...validBase, forks: Number.NaN, timeout: Number.NaN })
+    const result = aapJobTemplateSchema.safeParse({ ...validBase, forks: Number.NaN })
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.forks).toBeUndefined()
-      expect(result.data.timeout).toBeUndefined()
     }
   })
 
   it('accepts valid numeric optional fields', () => {
-    const result = aapJobTemplateSchema.safeParse({ ...validBase, forks: 5, timeout: 600, job_slice_count: 3 })
+    const result = aapJobTemplateSchema.safeParse({ ...validBase, forks: 5, job_slice_count: 3 })
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.forks).toBe(5)
-      expect(result.data.timeout).toBe(600)
       expect(result.data.job_slice_count).toBe(3)
     }
   })

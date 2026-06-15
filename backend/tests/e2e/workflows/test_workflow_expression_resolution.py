@@ -45,7 +45,7 @@ def _workflow_definition_with_nodes(
         {
             "name": workflow_name,
             "schema_version": "2.0.0",
-            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "config": {}}],
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
             "nodes": list(nodes),
             "edges": edges or [],
         }
@@ -89,7 +89,7 @@ class TestExpressionResolution:
                     "id": "node_a",
                     "name": "Producer Node",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": 'print(\'{"message": "Hello from Node A", "status": "success", "count": 42}\')',
                     },
@@ -98,7 +98,7 @@ class TestExpressionResolution:
                     "id": "node_b",
                     "name": "Consumer Node",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": "import os; msg = os.environ.get('MESSAGE', 'default'); print(f'Received: {msg}')",
                         "environment": {
@@ -206,7 +206,7 @@ class TestExpressionResolution:
                     "id": "node_a",
                     "name": "Data Producer",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": ('print(\'{"name": "test-user", "team": "engineering", "role": "admin"}\')'),
                     },
@@ -215,7 +215,7 @@ class TestExpressionResolution:
                     "id": "node_b",
                     "name": "Data Consumer",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": (
                             "import os; "
@@ -337,7 +337,7 @@ class TestExpressionResolution:
                     "id": "process_input",
                     "name": "Process Trigger Input",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": (
                             "import os; "

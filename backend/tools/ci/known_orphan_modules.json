@@ -21,6 +21,8 @@
     "nexus/*/worker.py": "Background worker entrypoints — invoked via python -m in podman-compose",
     "nexus/*/utils.py": "Intra-package utilities — imported via package (from nexus.X import utils), not direct module import",
     "nexus/workflows/utils/template_resolution.py": "Functions imported directly by name (resolve_value) from consuming modules, not via module path",
-    "nexus/files/validators.py": "Imported via package (from nexus.files import validators) in file_manager.py"
+    "nexus/files/validators.py": "Imported via package (from nexus.files import validators) in file_manager.py",
+    "nexus/audit/models/audit_event_record.py": "Postgres audit event DB model — orphaned by AAP-78344 (export module removed); will be deleted with audit DB retirement in sibling tasks",
+    "nexus/workflows/workflow_engine/activities/*_activity.py": "Temporal activities — discovered and registered at runtime by Temporal worker, not via direct imports"
   }
 }

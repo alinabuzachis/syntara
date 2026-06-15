@@ -19,8 +19,8 @@ describe('EmptyStateAccessDenied', () => {
   })
 
   it('renders the provided description', () => {
-    render(<EmptyStateAccessDenied description="You don't have permission to view the audit log." />)
+    render(<EmptyStateAccessDenied description="You don't have permission to view this resource." />)
 
-    expect(screen.getByText("You don't have permission to view the audit log.")).toBeInTheDocument()
+    expect(screen.getByText("You don't have permission to view this resource.")).toBeInTheDocument()
   })
 })

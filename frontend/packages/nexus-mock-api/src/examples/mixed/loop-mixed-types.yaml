@@ -24,7 +24,7 @@ nodes:
 
   - id: process_item
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import os

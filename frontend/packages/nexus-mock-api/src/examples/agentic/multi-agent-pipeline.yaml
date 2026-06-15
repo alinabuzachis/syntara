@@ -20,7 +20,7 @@ inputs:
 nodes:
   - id: research_phase
     type: agentic
-    config:
+    parameters:
       agent: production://research-agent
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -38,7 +38,7 @@ nodes:
 
   - id: analysis_phase
     type: agentic
-    config:
+    parameters:
       agent: production://analysis-agent
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -59,7 +59,7 @@ nodes:
 
   - id: recommendation_phase
     type: agentic
-    config:
+    parameters:
       agent: production://strategy-agent
       model: claude-3-5-sonnet-20241022
       prompt: |

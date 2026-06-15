@@ -21,7 +21,6 @@ async def test_eda_trigger_delegates_to_webhook_trigger() -> None:
 
     assert result == {
         "output": {
-            "status": "completed",
             "payload": {"branch": "main", "commit": "abc123"},
         }
     }

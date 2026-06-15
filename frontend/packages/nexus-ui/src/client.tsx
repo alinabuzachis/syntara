@@ -2,7 +2,6 @@ import type {
   AAPAPI,
   AdminAPI,
   ApprovalsAPI,
-  AuditAPI,
   AuthAPI,
   CredentialsAPI,
   ExecutionsAPI,
@@ -79,7 +78,7 @@ const authMiddleware: Middleware = {
     })
     retryRequest.headers.set('Authorization', `Bearer ${accessToken}`)
     retryRequest.headers.set('X-Auth-Retry', '1')
-    // eslint-disable-next-line no-restricted-globals -- auth middleware retry with refreshed token
+    // eslint-disable-next-line nexus/no-raw-http-calls -- auth middleware retry with refreshed token after 401
     return fetch(retryRequest)
   },
 }
@@ -141,10 +140,6 @@ export const credentialsClient = createClient(credentialsFetchClient)
 const aapFetchClient = createFetchClient<AAPAPI.paths>({ baseUrl: '/api/v1/' })
 aapFetchClient.use(authMiddleware)
 export const aapClient = createClient(aapFetchClient)
-
-const auditFetchClient = createFetchClient<AuditAPI.paths>({ baseUrl: '/api/v1/' })
-auditFetchClient.use(authMiddleware)
-export const auditClient = createClient(auditFetchClient)
 
 const adminFetchClient = createFetchClient<AdminAPI.paths>({ baseUrl: '/api/v1/' })
 adminFetchClient.use(authMiddleware)

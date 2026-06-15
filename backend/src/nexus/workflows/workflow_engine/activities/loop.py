@@ -6,9 +6,7 @@ import structlog
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, LoopType
-
-from .output_mapping import apply_output_mapping
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, LoopOutput, LoopType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -61,22 +59,13 @@ async def loop(
             next_port = "complete"
             next_index = current_index
 
-        # Build full result conforming to resultSchema
-        full_result = {
-            "status": "completed",
-            "iteration_count": current_index,
-        }
+        output = LoopOutput(
+            iteration_count=current_index,
+            iteration_results=iteration_results if next_port == "complete" else None,
+        )
 
-        # Only include iteration_results if loop is complete
-        if next_port == "complete":
-            full_result["iteration_results"] = iteration_results
-
-        # Apply output mapping
-        mapped_output = apply_output_mapping(full_result, output_config)
-
-        # Return with control data
         return {
-            "output": mapped_output,
+            "output": output.dump(output_config),
             "control": {
                 "next_port": next_port,
                 "next_index": next_index,
@@ -98,22 +87,13 @@ async def loop(
             next_port = "complete"
             next_index = current_index
 
-        # Build full result conforming to resultSchema
-        full_result = {
-            "status": "completed",
-            "iteration_count": current_index,
-        }
+        output = LoopOutput(
+            iteration_count=current_index,
+            iteration_results=iteration_results if next_port == "complete" else None,
+        )
 
-        # Only include iteration_results if loop is complete
-        if next_port == "complete":
-            full_result["iteration_results"] = iteration_results
-
-        # Apply output mapping
-        mapped_output = apply_output_mapping(full_result, output_config)
-
-        # Return with control data
         return {
-            "output": mapped_output,
+            "output": output.dump(output_config),
             "control": {
                 "next_port": next_port,
                 "next_index": next_index,

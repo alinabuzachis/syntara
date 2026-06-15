@@ -6,6 +6,8 @@ from .api_models import (
     ApprovalDecisionRequest,
     ApprovalDecisionStatus,
     ApprovalRequestStatus,
+    ApproverGroupSummary,
+    ApproverUserSummary,
     BatchApprovalDecision,
     BatchApprovalDecisionStatus,
     BatchApprovalRequest,
@@ -13,11 +15,14 @@ from .api_models import (
     UserReference,
     WorkflowContext,
 )
+from .approval_approvers import ApprovalApproverGroup, ApprovalApproverUser
 from .approval_request import ApprovalListResponse, ApprovalRequest, ApprovalRequestRead
 from .batch_response import BatchApprovalResponse, BatchApprovalResult
 
 __all__ = [
     "ActivitySummary",
+    "ApprovalApproverGroup",
+    "ApprovalApproverUser",
     "ApprovalCreateRequest",
     "ApprovalDecisionRequest",
     "ApprovalDecisionStatus",
@@ -25,6 +30,8 @@ __all__ = [
     "ApprovalRequest",
     "ApprovalRequestRead",
     "ApprovalRequestStatus",
+    "ApproverGroupSummary",
+    "ApproverUserSummary",
     "BatchApprovalDecision",
     "BatchApprovalDecisionStatus",
     "BatchApprovalRequest",

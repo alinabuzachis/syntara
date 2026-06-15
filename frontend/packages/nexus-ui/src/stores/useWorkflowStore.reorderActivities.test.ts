@@ -25,9 +25,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
   describe('Topological sorting', () => {
     it('reorders activities based on edges (simple chain)', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       // Activities in wrong order
       useWorkflowStore.setState({
@@ -46,10 +46,10 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
 
     it('handles branching paths', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const activityD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
 
       // A -> B -> D
       // A -> C -> D
@@ -77,11 +77,11 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
 
     it('handles complex DAG', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
-      const activityE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const activityD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
+      const activityE = createScriptActivity({ id: 'E', name: 'Task E', language: 'python', code: 'print("E")' })
 
       // A -> B -> D -> E
       //  \\-> C -/
@@ -113,13 +113,13 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
   describe('Handling flat activities', () => {
     it('reorders all activities in flat list', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const conditionActivity: Activity = {
         type: 'condition',
         id: 'COND',
         name: 'Condition',
-        config: { condition: 'input.value > 10' },
+        parameters: { condition: 'input.value > 10' },
       }
 
       // C -> COND
@@ -142,10 +142,15 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
   describe('Preserving unconnected activities', () => {
     it('keeps activities without edges at the end', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const activityOrphan = createScriptActivity('ORPHAN', 'Orphan', 'python', 'print("orphan")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const activityOrphan = createScriptActivity({
+        id: 'ORPHAN',
+        name: 'Orphan',
+        language: 'python',
+        code: 'print("orphan")',
+      })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityOrphan, activityC, activityA, activityB]),
@@ -169,8 +174,8 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
 
     it('preserves all activities even with no edges', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
@@ -188,9 +193,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
   describe('Deterministic ordering', () => {
     it('produces consistent order for nodes at same level', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       // B and C have no ordering constraint (both depend on nothing)
       useWorkflowStore.setState({
@@ -241,8 +246,8 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
 
     it('handles self-referential edges (should be filtered)', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
@@ -260,8 +265,8 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
 
     it('preserves all activities even with duplicate edges', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
@@ -282,9 +287,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
   describe('Safety check', () => {
     it('never removes activities during reordering', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityA, activityB, activityC]),
@@ -305,14 +310,19 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
 
     it('reorders activities with loop nodes using done handle', () => {
-      const startActivity = createScriptActivity('START', 'Start', 'python', 'print("start")')
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const loopBodyC = createScriptActivity('C', 'Loop Body C', 'python', 'print("C")')
+      const startActivity = createScriptActivity({
+        id: 'START',
+        name: 'Start',
+        language: 'python',
+        code: 'print("start")',
+      })
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const loopBodyC = createScriptActivity({ id: 'C', name: 'Loop Body C', language: 'python', code: 'print("C")' })
       const loopB: Activity = {
         type: 'loop',
         id: 'B',
         name: 'Loop B',
-        config: {
+        parameters: {
           type: 'for_each',
           items: 'input.items',
         },

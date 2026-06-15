@@ -97,6 +97,7 @@ class TestWorkflowServiceBase:
                 {
                     "id": "trigger_manual",
                     "type": "manual_trigger",
+                    "parameters": {},
                 }
             ],
             "nodes": [
@@ -104,7 +105,7 @@ class TestWorkflowServiceBase:
                     "id": "task1",
                     "name": "Task 1",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": "print('hello')",
                     },

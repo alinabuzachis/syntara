@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 from nexus.files.exceptions import FileContentNotFoundError
 from nexus.files.file_manager import FileManager
-from nexus.files.models import FileStatus, StorageBackend
+from nexus.files.models import FileMetadata, FileStatus, StorageBackend
 from nexus.files.retrievers.local import LocalFileRetriever
 
 
@@ -387,3 +387,310 @@ async def test_upload_no_retention_when_ttl_not_configured() -> None:
     result = await fm.validate_and_save_files([mock_file])
     metadata = result[0]
     assert metadata.retention_expires_at is None
+
+
+# =============================================================================
+# load_file_with_integrity_check tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_load_file_with_integrity_check_success() -> None:
+    """Test successful load with matching content hash."""
+    import hashlib
+
+    file_content = b"integrity check content"
+    content_hash = hashlib.sha256(file_content).hexdigest()
+
+    fm = FileManager()
+
+    # Save a real file so load_file works
+    saved_path = await fm.retrievers[StorageBackend.LOCAL].save_file(
+        file_content,
+        "integrity-check.txt",
+    )
+
+    # Build a mock FileMetadata with matching hash
+    mock_metadata = Mock()
+    mock_metadata.storage_backend = StorageBackend.LOCAL
+    mock_metadata.file_path = saved_path
+    mock_metadata.content_hash = content_hash
+    mock_metadata.id = "test-id"
+    mock_metadata.filename = "integrity-check.txt"
+
+    result = await fm.load_file_with_integrity_check(mock_metadata)
+    assert result == file_content
+
+
+@pytest.mark.asyncio
+async def test_load_file_with_integrity_check_no_hash() -> None:
+    """Test load skips integrity check when content_hash is None (legacy files)."""
+    file_content = b"legacy file"
+
+    fm = FileManager()
+    saved_path = await fm.retrievers[StorageBackend.LOCAL].save_file(
+        file_content,
+        "legacy.txt",
+    )
+
+    mock_metadata = Mock()
+    mock_metadata.storage_backend = StorageBackend.LOCAL
+    mock_metadata.file_path = saved_path
+    mock_metadata.content_hash = None
+
+    result = await fm.load_file_with_integrity_check(mock_metadata)
+    assert result == file_content
+
+
+@pytest.mark.asyncio
+async def test_load_file_with_integrity_check_hash_mismatch() -> None:
+    """Test load raises FileIntegrityError when hash doesn't match."""
+    from nexus.files.exceptions import FileIntegrityError
+
+    file_content = b"tampered content"
+
+    fm = FileManager()
+    saved_path = await fm.retrievers[StorageBackend.LOCAL].save_file(
+        file_content,
+        "tampered.txt",
+    )
+
+    mock_metadata = Mock()
+    mock_metadata.storage_backend = StorageBackend.LOCAL
+    mock_metadata.file_path = saved_path
+    mock_metadata.content_hash = "0000000000000000000000000000000000000000000000000000000000000000"
+    mock_metadata.id = "test-id"
+    mock_metadata.filename = "tampered.txt"
+
+    with pytest.raises(FileIntegrityError, match="File integrity check failed"):
+        await fm.load_file_with_integrity_check(mock_metadata)
+
+
+# =============================================================================
+# get_file_metadata (DB query) tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_file_metadata_returns_result() -> None:
+    """Test get_file_metadata delegates to session.get."""
+    from uuid import uuid4
+
+    fm = FileManager()
+    file_id = uuid4()
+
+    mock_session = AsyncMock()
+    mock_file = Mock()
+    mock_session.get.return_value = mock_file
+
+    result = await fm.get_file_metadata(file_id, mock_session)
+    assert result is mock_file
+    mock_session.get.assert_called_once_with(FileMetadata, file_id)
+
+
+@pytest.mark.asyncio
+async def test_get_file_metadata_returns_none_when_not_found() -> None:
+    """Test get_file_metadata returns None for missing file."""
+    from uuid import uuid4
+
+    fm = FileManager()
+    file_id = uuid4()
+
+    mock_session = AsyncMock()
+    mock_session.get.return_value = None
+
+    result = await fm.get_file_metadata(file_id, mock_session)
+    assert result is None
+
+
+# =============================================================================
+# get_files_metadata tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_files_metadata_empty_list() -> None:
+    """Test get_files_metadata returns empty list for empty input."""
+    fm = FileManager()
+    mock_session = AsyncMock()
+
+    result = await fm.get_files_metadata([], mock_session)
+    assert result == []
+    # Should not query the database
+    mock_session.exec.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_files_metadata_with_ids() -> None:
+    """Test get_files_metadata queries database with file IDs."""
+    from uuid import uuid4
+
+    fm = FileManager()
+    file_ids = [uuid4(), uuid4()]
+
+    mock_file1 = Mock()
+    mock_file2 = Mock()
+
+    mock_result = Mock()
+    mock_result.all.return_value = [mock_file1, mock_file2]
+    mock_session = AsyncMock()
+    mock_session.exec.return_value = mock_result
+
+    result = await fm.get_files_metadata(file_ids, mock_session)
+    assert len(result) == 2
+    assert result[0] is mock_file1
+    assert result[1] is mock_file2
+    mock_session.exec.assert_called_once()
+
+
+# =============================================================================
+# update_file_status tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_file_status_success() -> None:
+    """Test update_file_status updates status and commits."""
+    from uuid import uuid4
+
+    fm = FileManager()
+    file_id = uuid4()
+
+    mock_file = Mock()
+    mock_file.status = FileStatus.PENDING_CONVERSION
+    mock_file.converted_content_path = None
+    mock_file.conversion_error = None
+
+    mock_session = AsyncMock()
+    mock_session.get.return_value = mock_file
+    # session.add is synchronous, use Mock to avoid coroutine warnings
+    mock_session.add = Mock()
+
+    result = await fm.update_file_status(
+        file_id,
+        FileStatus.CONVERTED,
+        mock_session,
+        converted_content_path="/path/to/content.md",
+    )
+
+    assert result is mock_file
+    assert mock_file.status == FileStatus.CONVERTED
+    assert mock_file.converted_content_path == "/path/to/content.md"
+    mock_session.add.assert_called_once_with(mock_file)
+    mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_file_status_with_error() -> None:
+    """Test update_file_status sets conversion_error on failure."""
+    from uuid import uuid4
+
+    fm = FileManager()
+    file_id = uuid4()
+
+    mock_file = Mock()
+    mock_file.status = FileStatus.CONVERTING
+
+    mock_session = AsyncMock()
+    mock_session.get.return_value = mock_file
+    # session.add is synchronous, use Mock to avoid coroutine warnings
+    mock_session.add = Mock()
+
+    result = await fm.update_file_status(
+        file_id,
+        FileStatus.CONVERSION_FAILED,
+        mock_session,
+        conversion_error="Conversion timeout",
+    )
+
+    assert result is mock_file
+    assert mock_file.status == FileStatus.CONVERSION_FAILED
+    assert mock_file.conversion_error == "Conversion timeout"
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***() -> None:
+    """Test update_file_status raises ValueError when file not found."""
+    from uuid import uuid4
+
+    from nexus.core.exceptions import SafeValueError
+
+    fm = FileManager()
+    file_id = uuid4()
+
+    mock_session = AsyncMock()
+    mock_session.get.return_value = None
+
+    with pytest.raises(SafeValueError, match="File not found"):
+        await fm.update_file_status(file_id, FileStatus.CONVERTED, mock_session)
+
+
+# =============================================================================
+# get_file_manager factory tests
+# =============================================================================
+
+
+def test_get_file_manager_returns_singleton() -> None:
+    """Test get_file_manager returns a FileManager instance."""
+    from nexus.files.file_manager import get_file_manager
+
+    fm = get_file_manager()
+    assert isinstance(fm, FileManager)
+
+
+def test_get_file_manager_returns_same_instance() -> None:
+    """Test get_file_manager returns the same cached instance."""
+    from nexus.files.file_manager import get_file_manager
+
+    fm1 = get_file_manager()
+    fm2 = get_file_manager()
+    assert fm1 is fm2
+
+
+# =============================================================================
+# _require_backend error path
+# =============================================================================
+
+
+def test_require_backend_raises_for_missing_backend() -> None:
+    """Test _require_backend raises SafeValueError with descriptive message."""
+    from nexus.core.exceptions import SafeValueError
+
+    fm = FileManager()
+    # S3 is not registered by default (no s3_endpoint_url configured)
+    with pytest.raises(SafeValueError, match="not available"):
+        fm._require_backend(StorageBackend.S3)
+
+
+# =============================================================================
+# validate_and_save_files — validation error audit dispatch
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_validate_and_save_files_validation_error_dispatches_audit() -> None:
+    """Test that validation errors dispatch an audit event before raising."""
+    from nexus.files.exceptions import FileValidationError
+
+    fm = FileManager()
+
+    # Create a file that will fail validation (empty content)
+    mock_file = Mock()
+    mock_file.filename = "empty.pdf"
+    mock_file.size = 0
+    mock_file.content_type = "application/pdf"
+    mock_file.read = AsyncMock(return_value=b"")
+    mock_file.seek = AsyncMock()
+
+    with (
+        patch("nexus.files.file_manager.AuditEventDispatcher.dispatch") as mock_dispatch,
+        patch(
+            "nexus.files.file_manager.validators.validate_files",
+            side_effect=FileValidationError("File too small"),
+        ),
+    ):
+        with pytest.raises(FileValidationError):
+            await fm.validate_and_save_files([mock_file])
+
+        # Audit event should have been dispatched
+        mock_dispatch.assert_called_once()

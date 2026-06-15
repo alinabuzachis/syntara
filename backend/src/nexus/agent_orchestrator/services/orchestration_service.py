@@ -91,14 +91,25 @@ class OrchestrationService:
         invocation_id: UUID = state["invocation_id"]
         execution_id: UUID | None = state["execution_id"]
         request_id: UUID | None = state["request_id"]
-        available_tools: list[BaseTool] = await self._get_tools(session_id, invocation_id, execution_id, request_id)
+        metadata = state.get("metadata") or {}
+        activity_id = metadata.get("activity_id")
+        activity_name = metadata.get("activity_name")
+        available_tools: list[BaseTool] = await self._get_tools(
+            session_id, invocation_id, execution_id, request_id, activity_id, activity_name
+        )
 
         workflow.add_node(AgentRoutes.ORCHESTRATOR, self._create_orchestrator_node())
         workflow.add_node(AgentRoutes.GENERIC_AGENT, self._create_generic_agent_node(available_tools))
         workflow.add_node(
             AgentRoutes.TOOLS,
             self._create_tool_node(
-                available_tools, session_id, invocation_id, execution_id=execution_id, request_id=request_id
+                available_tools,
+                session_id,
+                invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                activity_id=activity_id,
+                activity_name=activity_name,
             ),
         )
 
@@ -133,6 +144,8 @@ class OrchestrationService:
         invocation_id: UUID,
         execution_id: UUID | None = None,
         request_id: UUID | None = None,
+        activity_id: str | None = None,
+        activity_name: str | None = None,
     ) -> list[BaseTool]:
         """Get available tools for the agent execution.
 
@@ -144,12 +157,21 @@ class OrchestrationService:
             invocation_id: Unique identifier for the current invocation
             execution_id: Optional Workflow Execution ID
             request_id: Optional X-Request-Id from the originating HTTP request.
+            activity_id: Optional activity identifier from workflow context
+            activity_name: Optional activity name from workflow context
 
         Returns:
             List of synchronized BaseTool instances available for agent use
 
         """
-        synchronizer = ToolSynchronizer(session_id, invocation_id, execution_id=execution_id, request_id=request_id)
+        synchronizer = ToolSynchronizer(
+            session_id,
+            invocation_id,
+            execution_id=execution_id,
+            request_id=request_id,
+            activity_id=activity_id,
+            activity_name=activity_name,
+        )
         return await synchronizer.synchronize_tools()
 
     @audit(
@@ -540,7 +562,15 @@ class OrchestrationService:
                 llm_token_usage_log = final_state.get("llm_token_usage_log", [])
                 if llm_token_usage_log:
                     enhanced_result["llm_token_usage_log"] = llm_token_usage_log
-                return self._enhance_result_with_streaming_metadata(enhanced_result, stream_id)
+                result = self._enhance_result_with_streaming_metadata(enhanced_result, stream_id)
+                # Persist orchestrator timing so the API server's completion
+                # poller can emit agent metrics (the Temporal worker and the
+                # API server have separate in-memory MetricsRecorder instances).
+                routing_ms = final_state.get("routing_duration_ms")
+                if routing_ms is not None:
+                    result.setdefault("response_metadata", {})["routing_duration_ms"] = routing_ms
+                    result["response_metadata"]["routed_to_agent"] = final_state.get("current_agent", "unknown")
+                return result
 
         # Fallback: Build placeholder response if no final state available
         return self._build_fallback_response(invocation_id, stream_id)
@@ -719,6 +749,8 @@ class OrchestrationService:
         invocation_id: UUID,
         execution_id: UUID | None = None,
         request_id: UUID | None = None,
+        activity_id: str | None = None,
+        activity_name: str | None = None,
     ) -> ToolNode:
         """Create ToolNode with retry error handling for both sync and async tools."""
         # Get the current event loop to pass to sync wrapper for reliable tool disable operations
@@ -731,7 +763,12 @@ class OrchestrationService:
         return ToolNode(
             tools,
             awrap_tool_call=create_tool_awrapper(
-                session_id=session_id, invocation_id=invocation_id, execution_id=execution_id, request_id=request_id
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                activity_id=activity_id,
+                activity_name=activity_name,
             ),
             wrap_tool_call=create_tool_wrapper(
                 session_id=session_id,
@@ -739,6 +776,8 @@ class OrchestrationService:
                 execution_id=execution_id,
                 request_id=request_id,
                 loop=loop,
+                activity_id=activity_id,
+                activity_name=activity_name,
             ),
         )
 

@@ -40,8 +40,8 @@ type V2WorkflowDefinition = {
   schema_version: '2.0.0'
   name: string
   description?: string
-  triggers: { id: string; type: string; name?: string; config: Record<string, unknown> }[]
-  nodes: { id: string; type: string; name?: string; config: Record<string, unknown> }[]
+  triggers: { id: string; type: string; name?: string; parameters: Record<string, unknown> }[]
+  nodes: { id: string; type: string; name?: string; parameters: Record<string, unknown> }[]
   edges: { from: string; to: string; from_port?: string; to_port?: string }[]
 }
 
@@ -116,17 +116,17 @@ test.describe('V2 Workflow Schema Migration', () => {
     // v2 requires workflow-level name
     expect(def.name).toBe(workflowName)
 
-    // Trigger: v2 format with id, type, config
+    // Trigger: v2 format with id, type, parameters
     expect(def.triggers).toHaveLength(1)
     expect(def.triggers[0].type).toBe('manual_trigger')
     expect(def.triggers[0]).toHaveProperty('id')
-    expect(def.triggers[0]).toHaveProperty('config')
+    expect(def.triggers[0]).toHaveProperty('parameters')
 
     // Script node: v2 uses type "script" directly (not v1 task wrapper)
     expect(def.nodes).toHaveLength(1)
     expect(def.nodes[0].type).toBe('script')
     expect(def.nodes[0]).toHaveProperty('id')
-    expect(def.nodes[0]).toHaveProperty('config')
+    expect(def.nodes[0]).toHaveProperty('parameters')
     expect(def.nodes[0]).not.toHaveProperty('task') // no v1 task wrapper
 
     // Edges connect trigger → script
@@ -179,7 +179,7 @@ test.describe('V2 Workflow Schema Migration', () => {
     // Each node must use v2 direct type (not v1 "task" with executor)
     for (const node of def.nodes) {
       expect(node).not.toHaveProperty('task')
-      expect(node).toHaveProperty('config')
+      expect(node).toHaveProperty('parameters')
     }
 
     // Trigger
@@ -227,20 +227,20 @@ test.describe('V2 Workflow Schema Migration', () => {
     expect(nodeTypes).toContain('loop')
     expect(nodeTypes).toContain('converge')
 
-    // Condition node: v2 flat config (not v1 nested then/else arrays)
+    // Condition node: v2 flat parameters (not v1 nested then/else arrays)
     const conditionNode = def.nodes.find((n) => n.type === 'condition')!
-    expect(conditionNode).toHaveProperty('config')
+    expect(conditionNode).toHaveProperty('parameters')
     expect(conditionNode).not.toHaveProperty('then')
     expect(conditionNode).not.toHaveProperty('else')
 
-    // Loop node: v2 flat config (not v1 nested do array)
+    // Loop node: v2 flat parameters (not v1 nested do array)
     const loopNode = def.nodes.find((n) => n.type === 'loop')!
-    expect(loopNode).toHaveProperty('config')
+    expect(loopNode).toHaveProperty('parameters')
     expect(loopNode).not.toHaveProperty('do')
 
-    // Converge node: v2 uses config.strategy (not v1 nested branches array)
+    // Converge node: v2 uses parameters.strategy (not v1 nested branches array)
     const convergeNode = def.nodes.find((n) => n.type === 'converge')!
-    expect(convergeNode).toHaveProperty('config')
+    expect(convergeNode).toHaveProperty('parameters')
 
     // Edges: condition should produce port-based edges in v2
     const conditionEdges = def.edges.filter((e) => e.from === conditionNode.id)

@@ -11,7 +11,7 @@ nodes:
   - id: source
     name: Source Activity
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo '{"count": 42, "status": "active"}'
@@ -21,7 +21,7 @@ nodes:
   - id: consumer
     name: Consumer Activity
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Count: $INPUT_COUNT, Status: $INPUT_STATUS"

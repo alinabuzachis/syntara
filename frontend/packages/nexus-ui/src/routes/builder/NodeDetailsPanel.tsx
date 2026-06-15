@@ -41,6 +41,7 @@ import {
 import { NodeEditorLayout } from './NodeEditorLayout'
 import { NodeRawDataView } from './NodeRawDataView'
 import { NodeRegistry } from './registry/NodeRegistry'
+import type { WorkflowMetadata } from './types/workflowMetadata'
 import { resolveIconForNode, resolveIconForType } from './utils/nodeIcons'
 import { getDefaultNodeBaseName, getNodeDisplayName } from './utils/nodeNaming'
 import { buildPanelMenuActions } from './utils/panelMenuActions'
@@ -268,6 +269,7 @@ type NodeDetailsPanelProps = {
   projectId?: string
   onNavigateToNode?: (nodeId: string) => void
   docLink?: string
+  workflowMetadata?: WorkflowMetadata
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
@@ -424,6 +426,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       formId={formId}
       showNavigation={mode === 'edit'}
       onNavigateToNode={onNavigateToNode}
+      workflowMetadata={props.workflowMetadata}
     />
   )
 }

@@ -145,8 +145,8 @@ describe('useEdgeExecutionStatus', () => {
 
       const workflow = {
         triggers: [
-          { id: 'real-trigger-1', type: 'manual_trigger', name: 'T1', config: {} },
-          { id: 'real-trigger-2', type: 'scheduled', name: 'T2', config: {} },
+          { id: 'real-trigger-1', type: 'manual_trigger', name: 'T1', parameters: {} },
+          { id: 'real-trigger-2', type: 'scheduled', name: 'T2', parameters: {} },
         ],
         workflow: { activities: [] },
       } as never

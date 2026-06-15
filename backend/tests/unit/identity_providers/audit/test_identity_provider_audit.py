@@ -150,3 +150,15 @@ class TestIdentityProviderLifecycleHandler:
         )
         result = IdentityProviderLifecycleHandler().handle(event)
         assert result.resource_urn == f"urn:nexus:identity_provider:{provider_id}"
+
+    def test_resource_name_from_provider_name(self) -> None:
+        """resource_name is set from provider_name field."""
+        provider_id = uuid4()
+        event = IdentityProviderLifecycleEvent(
+            provider_id=provider_id,
+            provider_name="okta-prod",
+            action="created",
+        )
+        result = IdentityProviderLifecycleHandler().handle(event)
+        assert result.resource_urn == f"urn:nexus:identity_provider:{provider_id}"
+        assert result.resource_name == "okta-prod"

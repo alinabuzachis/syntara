@@ -11,7 +11,7 @@ nodes:
   - id: flaky_task_linear
     name: Flaky Task with Linear Backoff
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         # This script fails on first 2 attempts, succeeds on 3rd

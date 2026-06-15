@@ -19,10 +19,10 @@ def _make_graph() -> WorkflowGraph:
                         \-> nodeC  (via port "false")
     """
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "http_trigger", "config": {}})
-    backend.add_node("nodeA", {"id": "nodeA", "type": "condition", "config": {}})
-    backend.add_node("nodeB", {"id": "nodeB", "type": "action", "config": {}})
-    backend.add_node("nodeC", {"id": "nodeC", "type": "action", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "http_trigger", "parameters": {}})
+    backend.add_node("nodeA", {"id": "nodeA", "type": "condition", "parameters": {}})
+    backend.add_node("nodeB", {"id": "nodeB", "type": "action", "parameters": {}})
+    backend.add_node("nodeC", {"id": "nodeC", "type": "action", "parameters": {}})
 
     backend.add_edge("trigger", "nodeA", None)
     backend.add_edge("nodeA", "nodeB", {"from_port": "true"})
@@ -124,9 +124,9 @@ class TestGetPredecessorsPublicMethod:
     def test_multiple_predecessors_for_convergence_node(self) -> None:
         """A node with multiple incoming edges returns all predecessors."""
         backend = InMemoryGraphBackend()
-        backend.add_node("a", {"id": "a", "type": "action", "config": {}})
-        backend.add_node("b", {"id": "b", "type": "action", "config": {}})
-        backend.add_node("merge", {"id": "merge", "type": "action", "config": {}})
+        backend.add_node("a", {"id": "a", "type": "action", "parameters": {}})
+        backend.add_node("b", {"id": "b", "type": "action", "parameters": {}})
+        backend.add_node("merge", {"id": "merge", "type": "action", "parameters": {}})
         backend.add_edge("a", "merge", None)
         backend.add_edge("b", "merge", None)
         graph = WorkflowGraph(backend)

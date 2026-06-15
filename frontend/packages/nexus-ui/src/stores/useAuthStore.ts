@@ -119,7 +119,7 @@ async function revokeServerSession(accessToken: string | null, csrfToken: string
     const logoutUrl = new URL(AUTH_LOGOUT_URL, window.location.origin)
     logoutUrl.searchParams.set('post_logout_redirect_uri', `${window.location.origin}/`)
 
-    // eslint-disable-next-line no-restricted-globals -- auth: logout before token middleware teardown
+    // eslint-disable-next-line nexus/no-raw-http-calls -- auth: logout before token middleware teardown
     const response = await fetch(logoutUrl.toString(), {
       method: 'POST',
       headers: buildAuthHeaders(accessToken, csrfToken),
@@ -180,13 +180,21 @@ async function throwResponseError(response: Response): Promise<never> {
   throw code ? new AuthError(detail, code) : new Error(detail)
 }
 
-async function fetchCsrfToken(): Promise<string> {
-  // eslint-disable-next-line no-restricted-globals -- auth: CSRF token fetch before client is initialized
+/**
+ * Fetch the CSRF token.
+ * Pass `true` to return `null` on 404 (JWT-only backends have no CSRF endpoint).
+ * Any other non-2xx status always throws — a 403 or 500 indicates genuine misconfiguration.
+ */
+async function fetchCsrfToken(): Promise<string>
+async function fetchCsrfToken(returnNullOn404: true): Promise<string | null>
+async function fetchCsrfToken(returnNullOn404 = false): Promise<string | null> {
+  // eslint-disable-next-line nexus/no-raw-http-calls -- auth: CSRF token fetch before client is initialized
   const response = await fetch(AUTH_CSRF_TOKEN_URL, {
     method: 'POST',
     credentials: 'include',
   })
 
+  if (response.status === 404 && returnNullOn404) return null
   if (!response.ok) await throwResponseError(response)
 
   const body = (await response.json()) as { csrf_token: string }
@@ -194,7 +202,7 @@ async function fetchCsrfToken(): Promise<string> {
 }
 
 async function postAuth(url: string, body?: object, extraHeaders?: Record<string, string>): Promise<LoginResponse> {
-  // eslint-disable-next-line no-restricted-globals -- auth: login/token exchange before client is initialized
+  // eslint-disable-next-line nexus/no-raw-http-calls -- auth: login/token exchange before client is initialized
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...extraHeaders },
@@ -272,7 +280,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const data = await postAuth(AUTH_LOGIN_URL, credentials)
       applyTokenResponse(set, data, () => get().refresh())
-      const csrfToken = await fetchCsrfToken()
+      // null = JWT-only backend (no CSRF endpoint), not "failed to fetch"
+      const csrfToken = await fetchCsrfToken(true)
       set({ csrfToken })
     } catch (err) {
       set({

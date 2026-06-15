@@ -99,13 +99,13 @@ def test_script_timeout_setting_affects_execution(
             {
                 "name": "runtime_setting",
                 "schema_version": "2.0.0",
-                "triggers": [{"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}}],
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
                 "nodes": [
                     {
                         "id": "slow_script",
                         "name": "Slow Script",
                         "type": "script",
-                        "config": {"language": "bash", "code": "sleep 10 && echo done"},
+                        "parameters": {"language": "bash", "code": "sleep 10 && echo done"},
                     }
                 ],
                 "edges": [{"from": "trigger", "to": "slow_script"}],
@@ -126,7 +126,7 @@ def test_script_timeout_setting_affects_execution(
 def test_max_loop_iterations_setting_affects_execution(
     nexus_api: NexusApiRegistry,
 ) -> None:
-    """Changing max_loop_iterations limits how many times a while loop runs."""
+    """Changing max_loop_iterations causes an infinite loop to fail with MaxIterationsError."""
     key = "workflow_engine.max_loop_iterations"
     original = nexus_api.settings.get(key=key).assert_and_get().to_dict()
 
@@ -141,14 +141,14 @@ def test_max_loop_iterations_setting_affects_execution(
             {
                 "name": "runtime_setting",
                 "schema_version": "2.0.0",
-                "triggers": [{"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}}],
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
                 "nodes": [
                     {
                         "id": "loop",
                         "name": "Loop",
                         "type": "loop",
-                        "config": {
-                            "loop_type": "do_while",
+                        "parameters": {
+                            "type": "do_while",
                             "condition": "1 == 1",
                         },
                     },
@@ -156,7 +156,7 @@ def test_max_loop_iterations_setting_affects_execution(
                         "id": "body",
                         "name": "Body",
                         "type": "script",
-                        "config": {"language": "bash", "code": "echo iteration"},
+                        "parameters": {"language": "bash", "code": "echo iteration"},
                     },
                 ],
                 "edges": [
@@ -167,9 +167,7 @@ def test_max_loop_iterations_setting_affects_execution(
             },
         )
 
-        # Should complete (loop hit max and stopped), not fail
-        assert result.status == ExecutionStatus.COMPLETED, (
-            f"Expected COMPLETED, got {result.status}: {result.error_details}"
-        )
+        # Exceeding max_iterations raises MaxIterationsError → execution fails
+        assert result.status == ExecutionStatus.FAILED, f"Expected FAILED (max iterations), got {result.status}"
     finally:
         _patch_setting(nexus_api, key, value=original["effective_value"])

@@ -56,10 +56,10 @@ def _make_workflow(
 def _build_condition_graph() -> WorkflowGraph:
     """Build: trigger -> condition -> (true: true_branch, false: false_branch)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("cond", {"id": "cond", "type": "condition", "config": {"expr": "true"}})
-    backend.add_node("true_branch", {"id": "true_branch", "type": "script", "config": {}})
-    backend.add_node("false_branch", {"id": "false_branch", "type": "script", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("cond", {"id": "cond", "type": "condition", "parameters": {"expr": "true"}})
+    backend.add_node("true_branch", {"id": "true_branch", "type": "script", "parameters": {}})
+    backend.add_node("false_branch", {"id": "false_branch", "type": "script", "parameters": {}})
     backend.add_edge("trigger", "cond", None)
     backend.add_edge("cond", "true_branch", {"from_port": "true"})
     backend.add_edge("cond", "false_branch", {"from_port": "false"})
@@ -69,12 +69,12 @@ def _build_condition_graph() -> WorkflowGraph:
 def _build_condition_with_downstream_graph() -> WorkflowGraph:
     """Build: trigger -> condition -> (true: A -> C, false: B -> D)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("cond", {"id": "cond", "type": "condition", "config": {"expr": "true"}})
-    backend.add_node("true_node", {"id": "true_node", "type": "script", "config": {}})
-    backend.add_node("false_node", {"id": "false_node", "type": "script", "config": {}})
-    backend.add_node("true_downstream", {"id": "true_downstream", "type": "script", "config": {}})
-    backend.add_node("false_downstream", {"id": "false_downstream", "type": "script", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("cond", {"id": "cond", "type": "condition", "parameters": {"expr": "true"}})
+    backend.add_node("true_node", {"id": "true_node", "type": "script", "parameters": {}})
+    backend.add_node("false_node", {"id": "false_node", "type": "script", "parameters": {}})
+    backend.add_node("true_downstream", {"id": "true_downstream", "type": "script", "parameters": {}})
+    backend.add_node("false_downstream", {"id": "false_downstream", "type": "script", "parameters": {}})
     backend.add_edge("trigger", "cond", None)
     backend.add_edge("cond", "true_node", {"from_port": "true"})
     backend.add_edge("cond", "false_node", {"from_port": "false"})
@@ -86,9 +86,9 @@ def _build_condition_with_downstream_graph() -> WorkflowGraph:
 def _build_linear_graph() -> WorkflowGraph:
     """Build: trigger -> node_a -> node_b (linear chain)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {}})
-    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "parameters": {}})
     backend.add_edge("trigger", "node_a", None)
     backend.add_edge("node_a", "node_b", None)
     return WorkflowGraph(backend)
@@ -226,7 +226,7 @@ class TestStringConditionEvaluation:
         # Modify the condition node to use string comparison
         backend = graph._backend
         cond_data = backend.get_node_data("cond")
-        cond_data["config"]["expr"] = '${trigger.status} == "completed"'
+        cond_data["parameters"]["expr"] = '${trigger.status} == "completed"'
 
         # The condition should evaluate to true
         wf.node_control_data["cond"] = {"next_port": "true"}
@@ -250,7 +250,7 @@ class TestStringConditionEvaluation:
         # Modify the condition node to use string comparison
         backend = graph._backend
         cond_data = backend.get_node_data("cond")
-        cond_data["config"]["expr"] = '${trigger.status} == "completed"'
+        cond_data["parameters"]["expr"] = '${trigger.status} == "completed"'
 
         # The condition should evaluate to false
         wf.node_control_data["cond"] = {"next_port": "false"}

@@ -83,6 +83,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           historyCardOpen={false}
           onToggleHistory={() => {}}
           onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
           isCancellable={false}
           executionId="exec-123"
         />
@@ -102,6 +103,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           historyCardOpen={false}
           onToggleHistory={() => {}}
           onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
           isCancellable={true}
           executionId="exec-123"
         />
@@ -121,6 +123,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           historyCardOpen={false}
           onToggleHistory={() => {}}
           onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
           isCancellable={false}
           executionId="exec-123"
         />
@@ -156,6 +159,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           historyCardOpen={false}
           onToggleHistory={() => {}}
           onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
           isCancellable={false}
           executionId="exec-123"
         />
@@ -175,6 +179,7 @@ describe('ExecutionDetailPageHeaderParts', () => {
           historyCardOpen={true}
           onToggleHistory={() => {}}
           onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
           isCancellable={true}
           executionId="exec-123"
         />
@@ -183,6 +188,49 @@ describe('ExecutionDetailPageHeaderParts', () => {
     expect(screen.getByRole('button', { name: 'Cancel run' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Review/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+  })
+
+  it('renders copy to editor button', () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={false}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          onCopyToEditor={() => {}}
+          isCancellable={false}
+          executionId="exec-123"
+        />
+      </QueryClientProvider>
+    )
+    expect(screen.getByRole('button', { name: 'Copy to editor' })).toBeInTheDocument()
+  })
+
+  it('calls onCopyToEditor when copy to editor button is clicked', async () => {
+    const queryClient = new QueryClient()
+    const onCopyToEditor = vi.fn()
+    const user = (await import('@testing-library/user-event')).default.setup()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExecutionDetailHeaderToolbar
+          showApprovalActionStrip={false}
+          isApprovalLoading={false}
+          onReviewClick={() => {}}
+          historyCardOpen={false}
+          onToggleHistory={() => {}}
+          onBackToEditor={() => {}}
+          onCopyToEditor={onCopyToEditor}
+          isCancellable={false}
+          executionId="exec-123"
+        />
+      </QueryClientProvider>
+    )
+    await user.click(screen.getByRole('button', { name: 'Copy to editor' }))
+    expect(onCopyToEditor).toHaveBeenCalledOnce()
   })
 
   it('renders both status and viewing run label when execution has both', () => {

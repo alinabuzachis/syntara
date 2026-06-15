@@ -43,9 +43,9 @@ describe('ExecutionViewContent', () => {
     const workflow = {
       id: 'workflow-1',
       triggers: [{ id: 'trigger_manual', type: 'manual_trigger' }],
-      nodes: [{ id: 'task-1', type: 'script', name: 'Task', config: {} }],
+      nodes: [{ id: 'task-1', type: 'script', name: 'Task', parameters: {} }],
       edges: [{ from: 'trigger_manual', to: 'task-1' }],
-      workflow: { activities: [{ id: 'task-1', type: 'script', name: 'Task', config: {} }] },
+      workflow: { activities: [{ id: 'task-1', type: 'script', name: 'Task', parameters: {} }] },
     } as never
 
     render(<ExecutionViewContent workflow={workflow} executionId="exec-1" executionStatus={null} />)
@@ -80,7 +80,7 @@ describe('ExecutionViewContent', () => {
           id: 'task-1',
           type: 'script',
           name: 'Task',
-          config: { language: 'bash', code: 'echo' },
+          parameters: { language: 'bash', code: 'echo' },
         },
       ],
       edges: [{ from: 'trigger_manual', to: 'task-1' }],
@@ -90,7 +90,7 @@ describe('ExecutionViewContent', () => {
             id: 'task-1',
             type: 'script',
             name: 'Task',
-            config: { language: 'bash', code: 'echo' },
+            parameters: { language: 'bash', code: 'echo' },
           },
         ],
       },

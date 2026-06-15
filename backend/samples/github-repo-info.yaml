@@ -5,7 +5,7 @@ description: Fetch GitHub repository information and analyze it
 triggers:
   - id: trigger_manual
     type: manual_trigger
-    config:
+    parameters:
       inputs:
         owner:
           type: string
@@ -21,7 +21,7 @@ nodes:
   - id: fetch_repo
     type: http_request
     name: Fetch Repository Info
-    config:
+    parameters:
       method: GET
       url: https://api.github.com/repos/${trigger.owner}/${trigger.repo}
       headers:
@@ -43,7 +43,7 @@ nodes:
   - id: fetch_languages
     type: http_request
     name: Fetch Repository Languages
-    config:
+    parameters:
       method: GET
       url: https://api.github.com/repos/${trigger.owner}/${trigger.repo}/languages
       headers:
@@ -57,7 +57,7 @@ nodes:
   - id: analyze_repo
     type: script
     name: Analyze Repository Data
-    config:
+    parameters:
       language: python
       code: |
         import json

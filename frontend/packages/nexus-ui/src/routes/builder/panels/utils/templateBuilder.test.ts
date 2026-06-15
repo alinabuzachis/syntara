@@ -97,8 +97,8 @@ describe('buildContextExpression', () => {
     expect(buildContextExpression('$execution.id')).toBe('${$execution.id}')
   })
 
-  it('rejects context path without $ prefix', () => {
-    expect(() => buildContextExpression('step_1.output')).toThrow('Context path must start with $')
+  it('accepts context path without $ prefix (workflow_context namespace)', () => {
+    expect(buildContextExpression('workflow_context.workflow.name')).toBe('${workflow_context.workflow.name}')
   })
 
   it('rejects context path with injection attempt', () => {

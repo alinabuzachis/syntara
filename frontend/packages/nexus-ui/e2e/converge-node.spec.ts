@@ -21,7 +21,7 @@ type WorkflowNode = {
   id: string
   type: string
   name?: string
-  config: Record<string, unknown>
+  parameters: Record<string, unknown>
 }
 
 type WorkflowPayload = {
@@ -70,7 +70,8 @@ test.describe('Converge Node - E2E Tests', () => {
 
         await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).toBeVisible()
         await expect(app.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
-        await expect(app.getByRole('switch', { name: /Timeout/i })).not.toBeChecked()
+        // Wait duration DurationInput is always visible (no toggle switch)
+        await expect(app.getByText('Wait duration')).toBeVisible()
       } finally {
         await cancelAndCloseEditor(app)
       }
@@ -123,7 +124,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
         await app.getByRole('button', { name: 'Save', exact: true }).click()
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
 
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge All').click()
@@ -142,7 +143,7 @@ test.describe('Converge Node - E2E Tests', () => {
         const payload = getWorkflowPayload(saveRequest)
         const convergeNode = payload.workflow_definition.nodes.find((n) => n.type === 'converge')
         expect(convergeNode?.name).toBe('Updated Converge')
-        expect(convergeNode?.config.strategy).toBe('all')
+        expect(convergeNode?.parameters.strategy).toBe('all')
       } finally {
         await deleteWorkflow(app, wfName)
       }
@@ -157,7 +158,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
         await app.getByRole('button', { name: 'Save', exact: true }).click()
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
 
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge Any').click()
@@ -215,7 +216,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
         await app.getByRole('button', { name: 'Save', exact: true }).click()
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
 
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge Any').click()
@@ -250,7 +251,7 @@ test.describe('Converge Node - E2E Tests', () => {
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
         await app.getByRole('button', { name: 'Save', exact: true }).click()
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
 
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge All').click()
@@ -296,7 +297,7 @@ test.describe('Converge Node - E2E Tests', () => {
         const payload = getWorkflowPayload(saveRequest)
         expectConvergeNodeConfig(payload.workflow_definition.nodes, { strategy: 'any', n_required: 5 })
 
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
         await openWorkflowInBuilder(app, wfName)
 
         await app.getByText('Converge Any Persist').click()
@@ -335,8 +336,7 @@ test.describe('Converge Node - E2E Tests', () => {
         const payload = getWorkflowPayload(saveRequest)
         expectConvergeNodeConfig(payload.workflow_definition.nodes, {
           strategy: 'all',
-          timeout: 93930,
-          on_timeout: 'fail',
+          wait_duration: 93930,
         })
       } finally {
         await deleteWorkflow(app, wfName)
@@ -355,77 +355,53 @@ test.describe('Converge Node - E2E Tests', () => {
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
         await app.getByRole('button', { name: 'Save', exact: true }).click()
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
 
         await openWorkflowInBuilder(app, wfName)
         await app.getByText('Converge Timeout').click()
 
-        await expect(app.getByRole('switch', { name: /Timeout/i })).toBeChecked()
+        // Wait for edit panel to be ready
+        await expect(app.getByRole('tab', { name: 'Parameters' })).toBeVisible()
+        await expect(app.getByText('Wait duration')).toBeVisible()
+
         await expect(app.getByLabel(/Minute\(s\)/i)).toHaveValue('5')
         await expect(app.getByLabel(/Second\(s\)/i)).toHaveValue('0')
         await expect(app.getByLabel(/Hour\(s\)/i)).toHaveValue('0')
         await expect(app.getByLabel(/Day\(s\)/i)).toHaveValue('0')
-
-        const actionButton = app.getByRole('button', { name: /Continue with partial data/i })
-        await expect(actionButton).toBeVisible()
       } finally {
         await deleteWorkflow(app, wfName)
       }
     })
 
-    test('Timeout action options', async ({ app }) => {
+    test('Wait duration persists after editing', async ({ app }) => {
       const wfName = await createWorkflowWithBranchesForConverge(app)
 
       try {
-        await addConvergeNodeWithTimeout(app, 'Converge Timeout Action', {
+        await addConvergeNodeWithTimeout(app, 'Converge Wait Edit', {
           minutes: 10,
-          action: 'fail',
         })
 
-        let saveRequestPromise = app.waitForRequest(
+        const saveRequestPromise = app.waitForRequest(
           (req) => req.url().includes('/workflows') && req.method() === 'POST'
         )
         await selectProjectIfRequired(app)
         await app.getByPlaceholder('Workflow name').fill(wfName)
         await app.getByRole('button', { name: 'Save', exact: true }).click()
-        let saveRequest = await saveRequestPromise
+        const saveRequest = await saveRequestPromise
 
-        let payload = getWorkflowPayload(saveRequest)
+        const payload = getWorkflowPayload(saveRequest)
         expectConvergeNodeConfig(payload.workflow_definition.nodes, {
           strategy: 'all',
-          timeout: 600,
-          on_timeout: 'fail',
+          wait_duration: 600,
         })
 
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
         await openWorkflowInBuilder(app, wfName)
 
-        await app.getByText('Converge Timeout Action').click()
+        await app.getByText('Converge Wait Edit').click()
+        await expect(app.getByRole('tab', { name: 'Parameters' })).toBeVisible()
 
-        const actionButton = app.getByRole('button', { name: /Fail/i })
-        await expect(actionButton).toBeVisible()
-        await actionButton.click()
-
-        const continueOption = app.getByRole('option', { name: 'Continue with partial data' })
-        await expect(continueOption).toBeVisible()
-
-        await expect(
-          app.getByText(/The workflow will continue ignoring the parameters set for this converge step/i)
-        ).toBeVisible()
-
-        await continueOption.click()
-        await app.getByRole('button', { name: 'Save and close' }).click()
-
-        saveRequestPromise = app.waitForRequest((req) => req.url().includes('/workflows') && req.method() === 'PATCH')
-        await app.getByRole('button', { name: 'Save', exact: true }).click()
-        saveRequest = await saveRequestPromise
-
-        payload = getWorkflowPayload(saveRequest)
-        expectConvergeNodeConfig(payload.workflow_definition.nodes, {
-          strategy: 'all',
-          timeout: 600,
-          on_timeout: 'continue',
-        })
+        await expect(app.getByLabel(/Minute\(s\)/i)).toHaveValue('10')
       } finally {
         await deleteWorkflow(app, wfName)
       }
@@ -455,11 +431,10 @@ test.describe('Converge Node - E2E Tests', () => {
         const payload = getWorkflowPayload(saveRequest)
         expectConvergeNodeConfig(payload.workflow_definition.nodes, {
           strategy: 'all',
-          timeout: 217845,
-          on_timeout: 'continue',
+          wait_duration: 217845,
         })
 
-        await expect(app).toHaveURL(/workflow-builder\/.+/)
+        await expect(app).toHaveURL(/workflow-builder\/(?!new\b).+/)
         await openWorkflowInBuilder(app, wfName)
 
         await app.getByText('Converge Complex Timeout').click()
@@ -496,8 +471,7 @@ test.describe('Converge Node - E2E Tests', () => {
         expectConvergeNodeConfig(payload.workflow_definition.nodes, {
           strategy: 'any',
           n_required: 2,
-          timeout: 1200,
-          on_timeout: 'continue',
+          wait_duration: 1200,
         })
       } finally {
         await deleteWorkflow(app, wfName)

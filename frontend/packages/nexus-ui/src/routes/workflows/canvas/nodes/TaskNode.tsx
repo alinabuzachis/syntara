@@ -94,7 +94,7 @@ export function TaskActivityDetails(
   const iconNode = renderNodeIcon(executorMeta?.icon, iconId, 'canvas', props.iconColor)
   const taskExecutorLabel = executorMeta?.label ?? 'Task'
   const taskExecutor = actualExecutor || (props.data.type ?? '')
-  const config = props.data.config ?? {}
+  const config = props.data.parameters ?? {}
   const isAapJobTemplate = taskExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE
   const isAapWorkflowTemplate = taskExecutor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE
   const aapJobConfig = isAapJobTemplate ? (config as AAPJobTemplateConfig) : null

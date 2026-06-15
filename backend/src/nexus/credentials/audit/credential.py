@@ -92,6 +92,7 @@ class CredentialLifecycleHandler(AuditEventHandler[CredentialLifecycleEvent]):
             source_component="nexus.credentials",
             structured_data=data,
             resource_urn=f"urn:nexus:credential:{event.credential_id}",
+            resource_name=event.credential_name,
         )
 
 
@@ -116,4 +117,5 @@ class CredentialEncryptionFailureHandler(AuditEventHandler[CredentialEncryptionF
             source_component="nexus.credentials",
             structured_data=data,
             resource_urn=f"urn:nexus:credential:{event.credential_id}",
+            resource_name=event.credential_name,
         )

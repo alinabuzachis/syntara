@@ -13,22 +13,15 @@ from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.constants import DEFAULT_ACTIVITY_TIMEOUT_SECONDS
 from nexus.workflows.workflow_engine.graph import ActivityNode
-from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
-
-# Node types that never retry — control flow nodes and wait have no meaningful
-# retry semantics. Approval and executor nodes are retry-eligible.
-_NO_RETRY_NODE_TYPES: frozenset[str] = frozenset(
-    {
-        NodeType.CONDITION,
-        NodeType.SWITCH,
-        NodeType.LOOP,
-        NodeType.CONVERGE,
-        NodeType.WAIT,
-    }
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    NodeSettingsCof,
+    NodeSettingsFull,
+    NodeSettingsNoRetry,
+    NodeType,
 )
 
 # Maps executor node type to its catalog setting key for timeout.
-# Approval and converge are excluded — they use dedicated config fields
+# Approval and converge are excluded — they use dedicated parameters fields
 # (decision_window and wait_duration) resolved by their own functions below.
 _TIMEOUT_CATALOG_KEYS: dict[str, str] = {
     NodeType.SCRIPT: "workflow_engine.script_timeout_seconds",
@@ -40,20 +33,20 @@ _TIMEOUT_CATALOG_KEYS: dict[str, str] = {
 
 
 def _require_int(node_id: str, field: str, value: Any) -> int:  # noqa: ANN401
-    """Parse an integer config value, raising a non-retryable ConfigError on bad input."""
+    """Parse an integer value, raising a non-retryable ConfigError on bad input."""
     try:
         return int(value)
     except (ValueError, TypeError):
-        msg = f"Node {node_id}: config field '{field}' must be an integer, got {value!r}"
+        msg = f"Node {node_id}: parameters field '{field}' must be an integer, got {value!r}"
         raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
 
 def resolve_max_iterations(node: ActivityNode, runtime_settings: dict[str, Any]) -> int:
     """Return the maximum iteration count for a loop node.
 
-    Resolution: node.config.max_iterations → workflow_engine.max_loop_iterations catalog value.
+    Resolution: node.parameters.max_iterations → workflow_engine.max_loop_iterations catalog value.
     """
-    node_value = node.config.get("max_iterations")
+    node_value = node.parameters.get("max_iterations")
     if node_value is not None:
         return _require_int(node.id, "max_iterations", node_value)
     return int(runtime_settings.get("workflow_engine.max_loop_iterations", 10000))
@@ -62,9 +55,9 @@ def resolve_max_iterations(node: ActivityNode, runtime_settings: dict[str, Any])
 def resolve_decision_window(node: ActivityNode, runtime_settings: dict[str, Any]) -> int:
     """Return the decision window (seconds) for an approval node.
 
-    Resolution: node.config.decision_window → workflow_engine.approval_decision_window_seconds catalog value.
+    Resolution: node.parameters.decision_window → workflow_engine.approval_decision_window_seconds catalog value.
     """
-    node_value = node.config.get("decision_window")
+    node_value = node.parameters.get("decision_window")
     if node_value is not None:
         return _require_int(node.id, "decision_window", node_value)
     return int(runtime_settings.get("workflow_engine.approval_decision_window_seconds", 86400))
@@ -73,9 +66,9 @@ def resolve_decision_window(node: ActivityNode, runtime_settings: dict[str, Any]
 def resolve_wait_duration(node: ActivityNode, runtime_settings: dict[str, Any]) -> int:
     """Return the branch wait duration (seconds) for a converge node.
 
-    Resolution: node.config.wait_duration → workflow_engine.converge_wait_duration_seconds catalog value.
+    Resolution: node.parameters.wait_duration → workflow_engine.converge_wait_duration_seconds catalog value.
     """
-    node_value = node.config.get("wait_duration")
+    node_value = node.parameters.get("wait_duration")
     if node_value is not None:
         return _require_int(node.id, "wait_duration", node_value)
     return int(runtime_settings.get("workflow_engine.converge_wait_duration_seconds", 86400))
@@ -99,7 +92,7 @@ def resolve_timeout(node: ActivityNode, runtime_settings: dict[str, Any]) -> int
 
     Resolution: node.settings.timeout → catalog global → DEFAULT_ACTIVITY_TIMEOUT_SECONDS.
     """
-    if node.settings.timeout is not None:
+    if isinstance(node.settings, NodeSettingsNoRetry) and node.settings.timeout is not None:
         return node.settings.timeout
     return get_default_timeout(node.type, runtime_settings)
 
@@ -109,7 +102,7 @@ def resolve_continue_on_failure(node: ActivityNode, runtime_settings: dict[str, 
 
     Resolution: node.settings.continue_on_failure → global catalog default → False.
     """
-    if node.settings.continue_on_failure is not None:
+    if isinstance(node.settings, NodeSettingsCof) and node.settings.continue_on_failure is not None:
         return node.settings.continue_on_failure
     return bool(runtime_settings.get("workflow_engine.continue_on_failure", False))
 
@@ -123,7 +116,7 @@ def resolve_retry_policy(
     Returns None for node types that should never retry.
     Resolution: node.settings.retry_policy fields → global catalog defaults → None.
     """
-    if node.type in _NO_RETRY_NODE_TYPES:
+    if not isinstance(node.settings, NodeSettingsFull):
         return None
 
     cfg = node.settings.retry_policy

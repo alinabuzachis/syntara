@@ -298,7 +298,7 @@ class TestCredentialWorkflows:
                         "id": "fetch_data",
                         "name": "Fetch Data",
                         "type": "http_request",
-                        "config": {
+                        "parameters": {
                             "method": "GET",
                             "url": "https://api.example.com/data",
                             "credential_id": cred_id,
@@ -364,7 +364,7 @@ class TestCredentialWorkflows:
                         "id": "step_1",
                         "name": "Fetch Users",
                         "type": "http_request",
-                        "config": {
+                        "parameters": {
                             "method": "GET",
                             "url": "https://api.example.com/users",
                             "credential_id": cred_id,
@@ -374,7 +374,7 @@ class TestCredentialWorkflows:
                         "id": "step_2",
                         "name": "Fetch Orders",
                         "type": "http_request",
-                        "config": {
+                        "parameters": {
                             "method": "GET",
                             "url": "https://api.example.com/orders",
                             "credential_id": cred_id,
@@ -384,7 +384,7 @@ class TestCredentialWorkflows:
                         "id": "step_3",
                         "name": "Process Data",
                         "type": "script",
-                        "config": {"language": "python", "code": "print('done')"},
+                        "parameters": {"language": "python", "code": "print('done')"},
                     },
                 ],
                 "edges": [

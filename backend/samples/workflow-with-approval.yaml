@@ -11,7 +11,7 @@ description: |
 triggers:
   - id: trigger_manual
     type: manual_trigger
-    config:
+    parameters:
       inputs:
         environment:
           type: string
@@ -29,7 +29,7 @@ nodes:
   - id: prepare_deployment
     type: script
     name: Prepare Deployment
-    config:
+    parameters:
       language: python
       code: |
         import json
@@ -60,7 +60,7 @@ nodes:
   - id: execute_deployment
     type: script
     name: Execute Deployment
-    config:
+    parameters:
       language: python
       code: |
         import json
@@ -72,7 +72,7 @@ nodes:
   - id: notify_success
     type: script
     name: Notify Success
-    config:
+    parameters:
       language: bash
       code: |
         echo "Deployment approved and completed successfully!"
@@ -80,7 +80,7 @@ nodes:
   - id: log_rejection
     type: script
     name: Log Rejection
-    config:
+    parameters:
       language: bash
       code: |
         echo "Deployment rejected by approver"

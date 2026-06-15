@@ -25,14 +25,14 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
     id: 'manual_trigger',
     type: TriggerTypeEnum.MANUAL_TRIGGER,
     name: name ?? 'Manual Trigger',
-    config: {},
+    parameters: {},
   })),
   createScheduledTrigger: vi.fn(
     (scheduleType: 'interval' | 'continuous', options?: { interval?: string }, name?: string) => ({
       id: 'scheduled_trigger',
       type: TriggerTypeEnum.SCHEDULED,
       name: name ?? 'Scheduled Trigger',
-      config: {
+      parameters: {
         schedule_type: scheduleType,
         ...(scheduleType === 'interval' && { interval: options?.interval ?? '' }),
       },
@@ -93,7 +93,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: {},
+        parameters: {},
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -114,7 +114,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: {
+        parameters: {
           input_schema: {
             type: 'object',
             properties: { name: { type: 'string' } },
@@ -136,7 +136,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: { input_schema: schemaStr },
+        parameters: { input_schema: schemaStr },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -166,7 +166,7 @@ describe('TriggerNodeDetails Component', () => {
         </button>
       ))
 
-      const trigger = { id: 'manual_trigger', type: TriggerTypeEnum.MANUAL_TRIGGER, name: 'Trigger', config: {} }
+      const trigger = { id: 'manual_trigger', type: TriggerTypeEnum.MANUAL_TRIGGER, name: 'Trigger', parameters: {} }
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
       await user.click(screen.getByTestId('submit-with-schema'))
@@ -175,7 +175,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: { input_schema: JSON.parse(schemaJson) as Record<string, unknown> },
+        parameters: { input_schema: JSON.parse(schemaJson) as Record<string, unknown> },
       })
 
       formSpy.mockRestore()
@@ -205,7 +205,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: { input_schema: { type: 'object' } },
+        parameters: { input_schema: { type: 'object' } },
       }
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
@@ -215,7 +215,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: {},
+        parameters: {},
       })
     })
 
@@ -243,7 +243,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: { input_schema: { type: 'object' } },
+        parameters: { input_schema: { type: 'object' } },
       }
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
@@ -256,7 +256,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: {},
+        parameters: {},
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
@@ -268,7 +268,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: {
+        parameters: {
           schedule_type: 'interval',
           interval: 'R/2024-01-01T10:00:00Z/P1D',
         },
@@ -293,7 +293,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: {
+        parameters: {
           schedule_type: 'continuous',
         },
       }
@@ -332,7 +332,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={2} onClose={mockOnClose} />)
@@ -343,7 +343,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Continuous Trigger',
-        config: {
+        parameters: {
           schedule_type: 'continuous',
         },
       })
@@ -357,7 +357,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: {},
+        parameters: {},
       }
 
       // This test just verifies the component renders without errors
@@ -393,7 +393,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -433,7 +433,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -473,7 +473,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT30M' },
+        parameters: { schedule_type: 'interval', interval: 'PT30M' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -510,7 +510,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -547,7 +547,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -587,7 +587,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -627,7 +627,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -664,7 +664,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Trigger',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -684,7 +684,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Trigger',
-        config: {},
+        parameters: {},
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -700,7 +700,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'event_trigger',
         type: 'event' as const,
         name: 'Trigger',
-        config: {},
+        parameters: {},
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -719,7 +719,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'My Trigger',
-        config: { input_schema: { type: 'object', properties: { name: { type: 'string' } } } },
+        parameters: { input_schema: { type: 'object', properties: { name: { type: 'string' } } } },
       }
 
       const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
@@ -758,7 +758,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'scheduled_trigger',
         type: TriggerTypeEnum.SCHEDULED,
         name: 'Scheduled Task',
-        config: { schedule_type: 'interval', interval: 'PT1H' },
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
       }
 
       const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
@@ -798,7 +798,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'Old Name',
-        config: {},
+        parameters: {},
       }
 
       const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
@@ -828,7 +828,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'manual_trigger',
         type: TriggerTypeEnum.MANUAL_TRIGGER,
         name: 'New Name',
-        config: {},
+        parameters: {},
       })
       expect(mockOnClose).toHaveBeenCalled()
 
@@ -842,7 +842,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'wh-1',
         type: TriggerTypeEnum.WEBHOOK_TRIGGER,
         name: 'My Webhook',
-        config: {
+        parameters: {
           webhook_path: 'jira-updates',
           input_schema: { type: 'object', properties: { name: { type: 'string' } } },
         },
@@ -883,7 +883,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'wh-1',
         type: TriggerTypeEnum.WEBHOOK_TRIGGER,
         name: 'My Webhook',
-        config: { webhook_path: 'old-path' },
+        parameters: { webhook_path: 'old-path' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -894,7 +894,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'wh-1',
         type: TriggerTypeEnum.WEBHOOK_TRIGGER,
         name: 'My Webhook',
-        config: {
+        parameters: {
           webhook_path: 'github-push',
           input_schema: { type: 'object' },
         },
@@ -926,7 +926,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'wh-2',
         type: TriggerTypeEnum.WEBHOOK_TRIGGER,
         name: 'Test',
-        config: { webhook_path: 'old' },
+        parameters: { webhook_path: 'old' },
       }
 
       const user = userEvent.setup()
@@ -948,7 +948,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'wh-3',
         type: TriggerTypeEnum.WEBHOOK_TRIGGER,
         name: 'Simple Webhook',
-        config: {
+        parameters: {
           webhook_path: 'simple',
         },
       }
@@ -967,7 +967,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'wh-4',
         type: TriggerTypeEnum.WEBHOOK_TRIGGER,
         name: 'Accessible Webhook',
-        config: { webhook_path: 'test-path' },
+        parameters: { webhook_path: 'test-path' },
       }
 
       const { container } = render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -982,7 +982,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'eda-1',
         type: TriggerTypeEnum.EDA_TRIGGER,
         name: 'My EDA Trigger',
-        config: {
+        parameters: {
           webhook_path: 'eda-events',
           input_schema: { type: 'object', properties: { event: { type: 'string' } } },
         },
@@ -1021,7 +1021,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'eda-1',
         type: TriggerTypeEnum.EDA_TRIGGER,
         name: 'My EDA Trigger',
-        config: { webhook_path: 'old-path' },
+        parameters: { webhook_path: 'old-path' },
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -1031,7 +1031,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'eda-1',
         type: TriggerTypeEnum.EDA_TRIGGER,
         name: 'My EDA Trigger',
-        config: {
+        parameters: {
           webhook_path: 'github-events',
           input_schema: { type: 'object' },
         },
@@ -1062,7 +1062,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'eda-2',
         type: TriggerTypeEnum.EDA_TRIGGER,
         name: 'Test',
-        config: { webhook_path: 'old' },
+        parameters: { webhook_path: 'old' },
       }
 
       const user = userEvent.setup()
@@ -1082,7 +1082,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'eda-3',
         type: TriggerTypeEnum.EDA_TRIGGER,
         name: 'Simple EDA',
-        config: {
+        parameters: {
           webhook_path: 'simple',
         },
       }
@@ -1100,7 +1100,7 @@ describe('TriggerNodeDetails Component', () => {
         id: 'eda-4',
         type: TriggerTypeEnum.EDA_TRIGGER,
         name: 'Accessible EDA',
-        config: { webhook_path: 'test-path' },
+        parameters: { webhook_path: 'test-path' },
       }
 
       const { container } = render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)

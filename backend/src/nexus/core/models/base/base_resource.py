@@ -29,7 +29,7 @@ class AuditLevel(str, Enum):
     - FULL: Capture all mapped columns (default for most models)
     - META: Capture only metadata fields (id, timestamps, labels) + model-specific fields
             defined in __auditable_fields__. Use for models with sensitive data like Credential.
-    - NONE: Skip auditing entirely (use for recursive audit tables like AuditEventRecord)
+    - NONE: Skip auditing entirely (use for tables that should not be audited)
 
     """
 

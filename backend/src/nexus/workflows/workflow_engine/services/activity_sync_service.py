@@ -552,10 +552,14 @@ class ActivitySyncService:
             EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
             EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
         }:
-            await self._update_execution_status_from_event(metadata, event)
-            # Final sync of skipped and failed nodes at workflow completion
-            await self._sync_skipped_nodes(metadata, handle)
+            # Sync failed and skipped nodes BEFORE finalizing the execution.
+            # _update_execution_status_from_event calls _finalize_non_terminal_activities
+            # which marks any remaining PENDING activities as SKIPPED. By syncing first,
+            # converge nodes that were failed in the workflow (via _fail_converge_node)
+            # are already FAILED in the DB, so _finalize_non_terminal_activities skips them.
             await self._sync_failed_nodes(metadata, handle)
+            await self._sync_skipped_nodes(metadata, handle)
+            await self._update_execution_status_from_event(metadata, event)
             metadata.last_processed_event_id = event.event_id
             return True
 
@@ -920,9 +924,11 @@ class ActivitySyncService:
     def _finalize_non_terminal_activities(execution: Execution, execution_id: UUID) -> None:
         """Mark any non-terminal activities as skipped when a workflow completes.
 
-        When a workflow finishes, any activity still pending or running was
-        effectively skipped (e.g. cancelled by an "any N" converge strategy).
-        This updates them directly without depending on Temporal queries.
+        Safety net: when a workflow finishes, any activity still pending or running
+        was effectively skipped (e.g. cancelled by an "any N" converge strategy).
+        Activities already synced to a terminal status (FAILED, COMPLETED, SKIPPED,
+        CANCELLED) by prior ``_sync_failed_nodes`` / ``_sync_skipped_nodes`` calls
+        are left untouched.
         """
         now = datetime.now(UTC)
         finalized_count = 0

@@ -18,7 +18,7 @@ nodes:
 
   - id: iteration_task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Iteration executed"

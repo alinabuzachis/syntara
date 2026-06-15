@@ -20,12 +20,11 @@ describe('convergeFormSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('accepts valid form data with timeout enabled and onTimeout set', () => {
+  it('accepts valid form data with settings', () => {
     const result = convergeFormSchema.safeParse({
       name: 'Converge',
       strategy: 'all',
-      timeoutEnabled: true,
-      onTimeout: 'fail',
+      settings: { continue_on_failure: true, timeout: 3600 },
     })
     expect(result.success).toBe(true)
   })
@@ -64,56 +63,6 @@ describe('convergeFormSchema', () => {
       expect(
         result.error.issues.some(
           (i) => i.message === 'Required path count is required' && i.path?.includes('requiredPathCount')
-        )
-      ).toBe(true)
-    }
-  })
-
-  it('rejects timeout enabled without onTimeout', () => {
-    const result = convergeFormSchema.safeParse({
-      name: 'Converge',
-      strategy: 'all',
-      timeoutEnabled: true,
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(
-        result.error.issues.some((i) => i.message === 'Timeout action is required' && i.path?.includes('onTimeout'))
-      ).toBe(true)
-    }
-  })
-
-  it('rejects negative timeout unit', () => {
-    const result = convergeFormSchema.safeParse({
-      name: 'Converge',
-      strategy: 'all',
-      timeoutMinutes: -1,
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) =>
-            i.message === 'Must be a whole number greater than or equal to 0' &&
-            (i.path?.includes('timeoutMinutes') ?? false)
-        )
-      ).toBe(true)
-    }
-  })
-
-  it('rejects decimal timeout unit', () => {
-    const result = convergeFormSchema.safeParse({
-      name: 'Converge',
-      strategy: 'all',
-      timeoutHours: 1.5,
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(
-        result.error.issues.some(
-          (i) =>
-            i.message === 'Must be a whole number greater than or equal to 0' &&
-            (i.path?.includes('timeoutHours') ?? false)
         )
       ).toBe(true)
     }

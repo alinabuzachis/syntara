@@ -11,7 +11,7 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.id).toBe('test-trigger-1')
       expect(trigger.type).toBe('manual_trigger')
-      expect(trigger.config).toEqual({})
+      expect(trigger.parameters).toEqual({})
     })
 
     it('creates manual trigger with approval flag (ignored in v2)', async () => {
@@ -20,7 +20,7 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.id).toBe('test-trigger-2')
       expect(trigger.type).toBe('manual_trigger')
-      expect(trigger.config).toEqual({})
+      expect(trigger.parameters).toEqual({})
     })
   })
 
@@ -34,9 +34,9 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.id).toBe('test-trigger-3')
       expect(trigger.type).toBe('scheduled')
-      expect(trigger.config.schedule_type).toBe('cron')
-      expect(trigger.config.cron).toBe('0 0 * * *')
-      expect(trigger.config.timezone).toBe('UTC')
+      expect(trigger.parameters.schedule_type).toBe('cron')
+      expect(trigger.parameters.cron).toBe('0 0 * * *')
+      expect(trigger.parameters.timezone).toBe('UTC')
     })
 
     it('creates interval-based scheduled trigger', async () => {
@@ -47,8 +47,8 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.id).toBe('test-trigger-4')
       expect(trigger.type).toBe('scheduled')
-      expect(trigger.config.schedule_type).toBe('interval')
-      expect(trigger.config.interval).toBe('PT1H')
+      expect(trigger.parameters.schedule_type).toBe('interval')
+      expect(trigger.parameters.interval).toBe('PT1H')
     })
 
     it('creates continuous scheduled trigger', async () => {
@@ -57,7 +57,7 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.id).toBe('test-trigger-5')
       expect(trigger.type).toBe('scheduled')
-      expect(trigger.config.schedule_type).toBe('continuous')
+      expect(trigger.parameters.schedule_type).toBe('continuous')
     })
   })
 
@@ -68,9 +68,9 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.id).toBe('test-trigger-6')
       expect(trigger.type).toBe('event')
-      expect(trigger.config.source).toBe('github')
-      expect(trigger.config.event_type).toBe('push')
-      expect(trigger.config.filter).toBeUndefined()
+      expect(trigger.parameters.source).toBe('github')
+      expect(trigger.parameters.event_type).toBe('push')
+      expect(trigger.parameters.filter).toBeUndefined()
     })
 
     it('creates event trigger with filter', async () => {
@@ -79,30 +79,40 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.id).toBe('test-trigger-7')
       expect(trigger.type).toBe('event')
-      expect(trigger.config.source).toBe('github')
-      expect(trigger.config.event_type).toBe('push')
-      expect(trigger.config.filter).toEqual({ branch: 'main' })
+      expect(trigger.parameters.source).toBe('github')
+      expect(trigger.parameters.event_type).toBe('push')
+      expect(trigger.parameters.filter).toEqual({ branch: 'main' })
     })
   })
 
   describe('createScriptActivity', () => {
     it('creates python script activity', async () => {
       const { createScriptActivity } = await import('../../stores/useWorkflowStore')
-      const activity = createScriptActivity('task-1', 'My Script', 'python', 'print("Hello")')
+      const activity = createScriptActivity({
+        id: 'task-1',
+        name: 'My Script',
+        language: 'python',
+        code: 'print("Hello")',
+      })
 
       expect(activity.type).toBe('script')
       expect(activity.id).toBe('task-1')
       expect(activity.name).toBe('My Script')
-      expect(activity.config.language).toBe('python')
-      expect(activity.config.code).toBe('print("Hello")')
+      expect(activity.parameters.language).toBe('python')
+      expect(activity.parameters.code).toBe('print("Hello")')
     })
 
     it('creates javascript script activity', async () => {
       const { createScriptActivity } = await import('../../stores/useWorkflowStore')
-      const activity = createScriptActivity('task-2', 'JS Script', 'javascript', 'console.log("Hi")')
+      const activity = createScriptActivity({
+        id: 'task-2',
+        name: 'JS Script',
+        language: 'javascript',
+        code: 'console.log("Hi")',
+      })
 
-      expect(activity.config.language).toBe('javascript')
-      expect(activity.config.code).toBe('console.log("Hi")')
+      expect(activity.parameters.language).toBe('javascript')
+      expect(activity.parameters.code).toBe('console.log("Hi")')
     })
   })
 
@@ -119,10 +129,10 @@ describe('Builder Workflow Store Helpers', () => {
       expect(activity.type).toBe('http_request')
       expect(activity.id).toBe('api-1')
       expect(activity.name).toBe('GET Users')
-      expect(activity.config.method).toBe('GET')
-      expect(activity.config.url).toBe('https://api.example.com/users')
-      expect(activity.config.headers).toBeUndefined()
-      expect(activity.config.body).toBeUndefined()
+      expect(activity.parameters.method).toBe('GET')
+      expect(activity.parameters.url).toBe('https://api.example.com/users')
+      expect(activity.parameters.headers).toBeUndefined()
+      expect(activity.parameters.body).toBeUndefined()
     })
 
     it('creates API activity with valid JSON headers', async () => {
@@ -136,7 +146,7 @@ describe('Builder Workflow Store Helpers', () => {
         headers,
       })
 
-      expect(activity.config.headers).toEqual({ 'Content-Type': 'application/json' })
+      expect(activity.parameters.headers).toEqual({ 'Content-Type': 'application/json' })
     })
 
     it('creates API activity with valid JSON body', async () => {
@@ -150,7 +160,7 @@ describe('Builder Workflow Store Helpers', () => {
         body,
       })
 
-      expect(activity.config.body).toEqual({ name: 'Test' })
+      expect(activity.parameters.body).toEqual({ name: 'Test' })
     })
 
     it('handles invalid JSON headers gracefully', async () => {
@@ -163,7 +173,7 @@ describe('Builder Workflow Store Helpers', () => {
         headers: 'invalid-json',
       })
 
-      expect(activity.config.headers).toBeUndefined()
+      expect(activity.parameters.headers).toBeUndefined()
     })
 
     it('uses string body when JSON parsing fails', async () => {
@@ -176,7 +186,7 @@ describe('Builder Workflow Store Helpers', () => {
         body: 'plain text',
       })
 
-      expect(activity.config.body).toBe('plain text')
+      expect(activity.parameters.body).toBe('plain text')
     })
   })
 
@@ -250,7 +260,12 @@ describe('Builder Workflow Store Helpers', () => {
         workflow: { activities: [] },
       })
 
-      const activity = createScriptActivity('task-1', 'Test Task', 'python', 'print("test")')
+      const activity = createScriptActivity({
+        id: 'task-1',
+        name: 'Test Task',
+        language: 'python',
+        code: 'print("test")',
+      })
       store.getState().addActivity(activity)
 
       expect(store.getState().currentWorkflow?.workflow.activities).toHaveLength(1)
@@ -264,8 +279,8 @@ describe('Builder Workflow Store Helpers', () => {
       const store = useWorkflowStore
       const { createScriptActivity } = await import('../../stores/useWorkflowStore')
 
-      const activity1 = createScriptActivity('task-1', 'Task 1', 'python', 'print("1")')
-      const activity2 = createScriptActivity('task-2', 'Task 2', 'python', 'print("2")')
+      const activity1 = createScriptActivity({ id: 'task-1', name: 'Task 1', language: 'python', code: 'print("1")' })
+      const activity2 = createScriptActivity({ id: 'task-2', name: 'Task 2', language: 'python', code: 'print("2")' })
 
       store.getState().setWorkflow({
         schema_version: '2.0.0' as const,
@@ -286,7 +301,12 @@ describe('Builder Workflow Store Helpers', () => {
       const store = useWorkflowStore
       const { createScriptActivity } = await import('../../stores/useWorkflowStore')
 
-      const activity = createScriptActivity('task-1', 'Original Name', 'python', 'print("test")')
+      const activity = createScriptActivity({
+        id: 'task-1',
+        name: 'Original Name',
+        language: 'python',
+        code: 'print("test")',
+      })
 
       store.getState().setWorkflow({
         schema_version: '2.0.0' as const,

@@ -49,8 +49,20 @@ class TestApprovalServiceBase:
         )
 
     def _create_test_service(self, session: AsyncSession, user: User) -> ApprovalService:
-        """Create ApprovalService instance for testing."""
-        return ApprovalService(session=session, user=user)
+        """Create ApprovalService instance for testing with mocked OPA client.
+
+        Integration tests use a mock OPA client that allows all approval:decide permissions
+        so tests can focus on approver list authorization logic.
+        """
+        # Create a mock OPA client that always returns authorized (allow: true)
+        # This allows tests to focus on the approver list logic, not OPA authorization
+        mock_opa_client = AsyncMock()
+        mock_opa_client.__bool__ = AsyncMock(return_value=True)
+        # Mock the evaluate method to return allow: true (authorized)
+        # The real OPA client unwraps the "result" field, so we return the unwrapped dict
+        mock_opa_client.evaluate = AsyncMock(return_value={"allow": True})
+
+        return ApprovalService(session=session, user=user, opa_client=mock_opa_client)
 
     def _create_approval_request(
         self,

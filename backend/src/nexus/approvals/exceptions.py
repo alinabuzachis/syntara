@@ -47,3 +47,14 @@ class ApprovalAlreadyRequestedError(ApprovalError):
         super().__init__(
             f"Approval request already exists for execution {execution_id} and approval node '{approval_node_id}'"
         )
+
+
+@fastapi_exception(handler="nexus.approvals.error_handlers.approval_not_authorized_handler")
+class ApprovalNotAuthorizedError(ApprovalError):
+    """Raised when a user attempts to decide an approval they are not authorized for."""
+
+    def __init__(self, approval_id: UUID, user_id: UUID) -> None:
+        """Initialize exception with approval ID and user ID."""
+        self.approval_id = approval_id
+        self.user_id = user_id
+        super().__init__(f"User {user_id} is not authorized to decide approval request {approval_id}")

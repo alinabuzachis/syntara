@@ -7,6 +7,7 @@ import { NxPanel } from '../../../components/layout/NxPanel'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
 import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
+import type { WorkflowMetadata } from '../types/workflowMetadata'
 
 import { useUpstreamNodes, type UpstreamNodeInfo } from './hooks/useUpstreamNodes'
 import { InputEmptyState } from './InputEmptyState'
@@ -42,7 +43,7 @@ type InputSchemaProperties = Record<string, { type?: string; description?: strin
 
 function getTriggerInputSchemaFields(
   nodeId: string,
-  triggersList: { id: string; config?: Record<string, unknown> }[] | undefined
+  triggersList: { id: string; parameters?: Record<string, unknown> }[] | undefined
 ): OutputFieldDef[] | null {
   let trigger = triggersList?.find((t) => t.id === nodeId)
   if (!trigger) {
@@ -52,7 +53,7 @@ function getTriggerInputSchemaFields(
     }
   }
   if (!trigger) return null
-  const inputSchema = trigger.config?.input_schema as Record<string, unknown> | undefined
+  const inputSchema = trigger.parameters?.input_schema as Record<string, unknown> | undefined
   if (!inputSchema || typeof inputSchema !== 'object') return null
   const properties = inputSchema.properties as InputSchemaProperties | undefined
   if (!properties || Object.keys(properties).length === 0) return null
@@ -75,9 +76,10 @@ type InputPanelProps = {
   nodeId: string
   executionData?: Record<string, Record<string, unknown>> | null
   sourceNodeId?: string | null
+  workflowMetadata?: WorkflowMetadata
 }
 
-export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<InputPanelProps>) {
+export function InputPanel({ nodeId, executionData, sourceNodeId, workflowMetadata }: Readonly<InputPanelProps>) {
   const upstreamNodes = useUpstreamNodes(nodeId)
   const sourceAncestors = useUpstreamNodes(sourceNodeId ?? '')
   const activities = useWorkflowStore(selectActivities)
@@ -189,7 +191,7 @@ export function InputPanel({ nodeId, executionData, sourceNodeId }: Readonly<Inp
               isExpanded={isVarsSectionExpanded}
               onToggle={(_event, expanded) => setIsVarsSectionExpanded(expanded)}
             >
-              <VariablesAndContextTree />
+              <VariablesAndContextTree workflowMetadata={workflowMetadata} />
             </ExpandableSection>
           </NxPageBody>
         </Stack>

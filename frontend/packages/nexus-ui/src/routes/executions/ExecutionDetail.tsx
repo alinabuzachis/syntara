@@ -21,6 +21,7 @@ import { NxPanel } from '../../components/layout/NxPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
+import { useDialogState } from '../../hooks/useDialogState'
 import type { FilterConfig } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
@@ -33,10 +34,13 @@ import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
 import { ApprovalReviewView } from './ApprovalReviewView'
 import { ConnectionBanner } from './ConnectionBanner'
+import { CopyToEditorDialog } from './CopyToEditorDialog'
 import { isExecutionCancellable } from './executionCancellable'
 import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './ExecutionDetailPageHeaderParts'
 import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
+import { useExecutionWorkflow } from './hooks/useExecutionWorkflow'
+import { useForkWorkflow } from './hooks/useForkWorkflow'
 
 /** Width constraint for the inline failure alert floating over the execution canvas. */
 const INLINE_ALERT_WIDTH = 'clamp(15rem, 20vw, 22rem)'
@@ -46,10 +50,8 @@ type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
 
 type WorkflowDefinitionLike = {
-  metadata?: { name?: string; description?: string }
   nodes?: Array<{ id: string; name?: string }>
   workflow?: { activities?: Array<{ id: string; name?: string }> }
-  triggers?: unknown[]
 }
 
 type ExecutionWorkflow = {
@@ -242,7 +244,8 @@ function ExecutionDetailContent({
 
 function useExecutionStreaming(executionId: string | undefined, execution: Execution | undefined) {
   const queryClient = useQueryClient()
-  const shouldStream = execution?.status === 'running' || execution?.status === 'pending'
+  const shouldStream =
+    execution?.status === 'running' || execution?.status === 'pending' || execution?.status === 'paused'
   useExecutionWebSocket(executionId ?? '', {
     enabled: shouldStream && !!executionId,
     onExecutionComplete: () => {
@@ -296,18 +299,14 @@ export default function ExecutionDetail() {
   const [, setLocation] = useLocation()
   const searchParams = useSearch()
 
-  // Use execution store
   const { reset } = useExecutionStore.getState()
 
-  // Reset execution store when executionId changes
-  // This ensures WebSocket can reconnect for new executions
   useEffect(() => {
     if (executionId) {
       reset()
     }
   }, [executionId, reset])
 
-  // Fetch execution with workflow_definition and activities included
   const executionQuery = executionsClient.useQuery('get', '/executions/{execution_id}', {
     params: {
       path: { execution_id: executionId ?? '' },
@@ -322,7 +321,6 @@ export default function ExecutionDetail() {
 
   useExecutionStreaming(executionId, execution)
 
-  // History panel is open by default; only closed when explicitly set via URL param
   const historyCardOpen = useMemo(() => {
     const params = new URLSearchParams(searchParams)
     return params.get('history') !== 'closed'
@@ -330,7 +328,6 @@ export default function ExecutionDetail() {
 
   const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
 
-  // Fetch executions for this workflow
   const executionsQueryParams = useMemo(() => {
     const params: Record<string, unknown> = { workflow_id: execution?.workflow_id ?? '' }
     Object.assign(params, buildFilterParams(executionFilters))
@@ -348,42 +345,9 @@ export default function ExecutionDetail() {
     }
   )
 
-  const activities = useMemo((): (ActivityData | ActivityExecution)[] => {
-    return execution?.activities ?? []
-  }, [execution])
+  const { workflow, activities, activityNameMap } = useExecutionWorkflow(execution)
 
   useSyncActivityStore(execution, activities)
-
-  // Build a workflow object from the execution's workflow_definition
-  const workflow = useMemo(() => {
-    if (!execution?.workflow_definition || !execution.workflow_id) return undefined
-
-    const wfDef = execution.workflow_definition as unknown as WorkflowDefinitionLike
-    return {
-      id: execution.workflow_id,
-      name: wfDef.metadata?.name ?? 'Workflow',
-      description: wfDef.metadata?.description,
-      version: {
-        workflow_definition: execution.workflow_definition,
-      },
-    }
-  }, [execution])
-
-  // Map activity IDs to human-readable names from the workflow definition
-  const activityNameMap = useMemo(() => {
-    const wfDef = execution?.workflow_definition as unknown as Record<string, unknown> | undefined
-    const map = new Map<string, string>()
-    // v2 definitions use top-level `nodes`; v1 used `workflow.activities`
-    const activities = (wfDef?.nodes ??
-      (wfDef?.workflow as Record<string, unknown> | undefined)?.activities ??
-      []) as Array<{ id: string; name?: string }>
-    for (const activity of activities) {
-      if (activity.name) map.set(activity.id, activity.name)
-    }
-    return map
-  }, [execution?.workflow_definition])
-
-  // Node click handling: approval detection + node details panel toggle
   const {
     pendingApproval,
     isApprovalLoading,
@@ -395,10 +359,15 @@ export default function ExecutionDetail() {
     handleNodeClick,
   } = useExecutionNodeClick(executionId)
   const [approvalViewOpen, setApprovalViewOpen] = useState(false)
-
+  const copyToEditorDialog = useDialogState<void>()
   const isCancellable = isExecutionCancellable(execution?.status)
 
-  // Guard against missing executionId
+  const { forkAsNewWorkflow, isForkLoading } = useForkWorkflow({
+    workflowDefinition: execution?.workflow_definition as Record<string, unknown> | undefined,
+    workflowName: workflow?.name ?? 'Workflow',
+    projectId: execution?.project_id,
+  })
+
   if (!executionId) {
     return (
       <NxPage>
@@ -443,7 +412,6 @@ export default function ExecutionDetail() {
     )
   }
 
-  // Toggle history panel and update URL
   const toggleHistoryCard = () => {
     const params = new URLSearchParams(searchParams)
     params.set('history', historyCardOpen ? 'closed' : 'open')
@@ -475,6 +443,7 @@ export default function ExecutionDetail() {
                 setLocation(`/workflow-builder/${execution.workflow_id}`)
               }
             }}
+            onCopyToEditor={() => copyToEditorDialog.open(undefined)}
             isCancellable={isCancellable}
             executionId={executionId}
           />
@@ -511,6 +480,23 @@ export default function ExecutionDetail() {
           />
         )}
       </NxPageBody>
+
+      <CopyToEditorDialog
+        isOpen={copyToEditorDialog.isOpen}
+        onClose={copyToEditorDialog.close}
+        onReplace={() => {
+          copyToEditorDialog.close()
+          if (execution?.workflow_id && executionId)
+            setLocation(`/workflow-builder/${execution.workflow_id}?fromExecution=${executionId}`)
+        }}
+        onFork={async () => {
+          const id = await forkAsNewWorkflow()
+          if (!id || !executionId) return
+          copyToEditorDialog.close()
+          setLocation(`/workflow-builder/${id}?linkExecution=${executionId}`)
+        }}
+        isForkLoading={isForkLoading}
+      />
     </NxPage>
   )
 }

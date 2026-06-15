@@ -19,6 +19,7 @@ from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
+from nexus.workflows.workflow_engine.models.workflow_definition import AAPJobTemplateOutput
 
 from .aap_common import (
     AAP_JOB_TERMINAL_STATUSES,
@@ -29,33 +30,13 @@ from .aap_common import (
     resolve_aap_auth,
     resolve_label_ids,
 )
+from .common import is_retryable_http_status
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
 class AAPJobExecutionError(AAPActivityExecutionError):
     """Raised when AAP job template execution fails."""
-
-    def __init__(
-        self,
-        message: str,
-        job_id: int | None = None,
-        status: str | None = None,
-        output: str | None = None,
-    ) -> None:
-        """Initialize AAP job execution error.
-
-        Args:
-            message: Error message
-            job_id: AAP job ID (if available)
-            status: Job status (if available)
-            output: Job output/logs (if available)
-
-        """
-        super().__init__(message)
-        self.job_id = job_id
-        self.status = status
-        self.output = output
 
 
 # Mapping of config attribute → AAP launch body key.
@@ -262,18 +243,15 @@ def _handle_http_status_error(
     (credentials, internal paths, configuration values, etc.).
     """
     ref_info = _get_template_reference_info(config, job_template_id)
-    # SECURITY: Don't include AAP response body in user-facing message (may contain sensitive data)
     msg = f"Failed to launch job template {ref_info}: HTTP {e.response.status_code}"
-    # SECURITY: Don't log sensitive fields (extra_vars may contain secrets, response body may leak config)
     safe_body_keys = [k for k in body if k not in ("extra_vars", "credentials")]
     logger.exception(
         "Job template launch failed",
         job_template_id=job_template_id,
         status_code=e.response.status_code,
-        launch_body_keys=safe_body_keys,  # Log structure, not values
-        # Note: response_body intentionally omitted to prevent sensitive data leakage
+        launch_body_keys=safe_body_keys,
     )
-    raise AAPJobExecutionError(msg, status=None) from e
+    raise AAPJobExecutionError(msg, status=None, retryable=is_retryable_http_status(e.response.status_code)) from e
 
 
 async def _launch_aap_job(
@@ -411,9 +389,6 @@ async def execute_aap_job_template_activity(
         }
 
     """
-    # Import here to avoid circular dependency
-    from .output_mapping import apply_output_mapping  # noqa: PLC0415
-
     logger.info("Starting AAP job template activity")
 
     try:
@@ -464,31 +439,36 @@ async def execute_aap_job_template_activity(
             )
 
             final_status = job_data["status"]
+            output = AAPJobTemplateOutput(
+                job_id=job_id,
+                job_status=final_status,
+                artifacts=job_data.get("artifacts", {}),
+                created=job_data.get("created", ""),
+                started=job_data.get("started", ""),
+                finished=job_data.get("finished", ""),
+            )
             if isinstance(final_status, str) and final_status.lower() in {
                 AAPJobTerminalStatus.FAILED.lower(),
                 AAPJobTerminalStatus.ERROR.lower(),
             }:
                 msg = f"AAP job {job_id} failed with status: {final_status}"
-                raise ApplicationError(msg, type="AAPJobExecutionError", non_retryable=True)  # noqa: TRY301
+                raise ApplicationError(  # noqa: TRY301
+                    msg, {"output": output.dump(output_config)}, type="AAPJobExecutionError", non_retryable=True
+                )
 
-            full_result = {
-                "status": "completed",
-                "job_id": job_id,
-                "job_status": final_status,
-                "artifacts": job_data.get("artifacts", {}),
-                "created": job_data.get("created", ""),
-                "started": job_data.get("started", ""),
-                "finished": job_data.get("finished", ""),
-            }
-            mapped_output = apply_output_mapping(full_result, output_config)
-            return {"output": mapped_output}
+            return {"output": output.dump(output_config)}
 
     except (ApplicationError, CancelledError):
         raise
     except AAPActivityExecutionError as e:
-        # AAP-specific errors have safe diagnostic messages (template names, HTTP codes — no credentials)
-        raise ApplicationError(str(e), type="AAPJobExecutionError", non_retryable=True) from e
+        output = AAPJobTemplateOutput(job_id=e.job_id, job_status=e.status)
+        raise ApplicationError(
+            str(e), {"output": output.dump(output_config)}, type="AAPJobExecutionError", non_retryable=not e.retryable
+        ) from e
     except Exception as e:
         logger.exception("Unexpected error in AAP activity", job_id=job_id)
+        output = AAPJobTemplateOutput(job_id=job_id)
         msg = f"Unexpected error executing AAP job template (job_id={job_id})"
-        raise ApplicationError(msg, type=type(e).__name__, non_retryable=True) from None
+        raise ApplicationError(
+            msg, {"output": output.dump(output_config)}, type=type(e).__name__, non_retryable=True
+        ) from None

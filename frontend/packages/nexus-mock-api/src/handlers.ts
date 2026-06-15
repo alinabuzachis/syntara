@@ -19,6 +19,7 @@ import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
 import { executions } from './resources/executions'
+import { getExecutionDetail } from './resources/executionDetails'
 import { activityExecutions } from './resources/activityExecutions'
 import { approvals } from './resources/approvals'
 import { settings, settingsCategories } from './resources/settings'
@@ -52,7 +53,6 @@ import {
   aapCredentials,
   instanceGroups,
 } from './resources/aap'
-import { auditEvents } from './resources/auditEvents'
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
@@ -701,13 +701,30 @@ export const handlers = [
     return HttpResponse.json(execution, { status: 201 })
   }),
 
-  http.get('/api/v1/executions/:executionId', (request) => {
-    const executionId = request.params.executionId as string
-    const body = executions.find((e) => e.id === executionId)
-    if (!body) {
+  http.get('/api/v1/executions/:executionId', ({ request, params }) => {
+    const executionId = params.executionId as string
+    const detail = getExecutionDetail(executionId)
+    if (!detail) {
       return createExecutionNotFoundResponse(executionId)
     }
-    return HttpResponse.json(body)
+
+    const include = new Set(
+      (new URL(request.url).searchParams.get('include') ?? '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+
+    if (include.size === 0) {
+      const { activities: _a, workflow_definition: _w, ...summary } = detail
+      return HttpResponse.json(summary)
+    }
+
+    return HttpResponse.json({
+      ...detail,
+      ...(include.has('activities') ? {} : { activities: undefined }),
+      ...(include.has('workflow_definition') ? {} : { workflow_definition: undefined }),
+    })
   }),
 
   http.post('/api/v1/executions/:executionId/cancel', (request) => {
@@ -733,14 +750,27 @@ export const handlers = [
     return new HttpResponse(null, { status: 202 })
   }),
 
-  http.get('/api/v1/executions/:executionId/activities', (request) => {
-    const executionId = request.params.executionId as string
+  http.get('/api/v1/executions/:executionId/activities', ({ request, params }) => {
+    const executionId = params.executionId as string
     const execution = executions.find((e) => e.id === executionId)
     if (!execution) {
       return createExecutionNotFoundResponse(executionId, 'activities')
     }
 
-    const activities = activityExecutions[executionId] ?? []
+    const url = new URL(request.url)
+    const activityName = url.searchParams.get('activity_name')
+    const limitParam = url.searchParams.get('limit')
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : null
+    const limit = parsedLimit != null && Number.isFinite(parsedLimit) ? parsedLimit : null
+
+    let activities = activityExecutions[executionId] ?? []
+    if (activityName) {
+      activities = activities.filter((activity) => activity.activity_name === activityName)
+    }
+    if (limit != null && limit > 0) {
+      activities = activities.slice(0, limit)
+    }
+
     return HttpResponse.json({
       resources: activities,
       next: null,
@@ -2365,123 +2395,6 @@ export const handlers = [
       )
     }
     return HttpResponse.json(credType)
-  }),
-
-  http.get('/api/v1/audit', ({ request }) => {
-    const url = new URL(request.url)
-    const cursor = url.searchParams.get('cursor')
-    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
-    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
-    const includeTotal = url.searchParams.get('include_total') === 'true'
-
-    const eventCategory = url.searchParams.get('event_category')
-    const eventAction = url.searchParams.get('event_action')
-    const eventStatus = url.searchParams.get('event_status')
-    const eventSeverity = url.searchParams.get('event_severity')
-    const actorType = url.searchParams.get('actor_type')
-    const actorUsername = url.searchParams.get('actor_username') ?? url.searchParams.get('actor_username[contains]')
-    const resourceName = url.searchParams.get('resource_name') ?? url.searchParams.get('resource_name[contains]')
-    const createdAtGte = url.searchParams.get('created_at[gte]')
-    const createdAtLte = url.searchParams.get('created_at[lte]')
-    const sort = url.searchParams.get('sort')
-
-    let filtered = auditEvents
-
-    if (eventCategory) {
-      filtered = filtered.filter((e) => e.event_category === eventCategory)
-    }
-    if (eventAction) {
-      const term = eventAction.toLowerCase()
-      filtered = filtered.filter((e) => e.event_action.toLowerCase().includes(term))
-    }
-    if (eventStatus) {
-      filtered = filtered.filter((e) => e.event_status === eventStatus)
-    }
-    if (eventSeverity) {
-      filtered = filtered.filter((e) => e.event_severity === eventSeverity)
-    }
-    if (actorType) {
-      filtered = filtered.filter((e) => e.actor_type === actorType)
-    }
-    if (actorUsername) {
-      const term = actorUsername.toLowerCase()
-      filtered = filtered.filter((e) => (e.actor_username ?? '').toLowerCase().includes(term))
-    }
-    if (resourceName) {
-      const term = resourceName.toLowerCase()
-      filtered = filtered.filter((e) => (e.resource_name ?? '').toLowerCase().includes(term))
-    }
-    if (createdAtGte) {
-      const fromTs = new Date(createdAtGte).getTime()
-      if (Number.isNaN(fromTs)) {
-        return HttpResponse.json(
-          {
-            type: 'about:blank',
-            title: 'Validation Error',
-            detail: "Invalid 'created_at[gte]' query parameter",
-            code: 'VALIDATION_ERROR',
-            retryable: false,
-          },
-          { status: 400 }
-        )
-      }
-      filtered = filtered.filter((e) => new Date(e.created_at).getTime() >= fromTs)
-    }
-    if (createdAtLte) {
-      const toTs = new Date(createdAtLte).getTime()
-      if (Number.isNaN(toTs)) {
-        return HttpResponse.json(
-          {
-            type: 'about:blank',
-            title: 'Validation Error',
-            detail: "Invalid 'created_at[lte]' query parameter",
-            code: 'VALIDATION_ERROR',
-            retryable: false,
-          },
-          { status: 400 }
-        )
-      }
-      filtered = filtered.filter((e) => new Date(e.created_at).getTime() <= toTs)
-    }
-
-    const sortField = sort ?? '-created_at'
-    const isDesc = sortField.startsWith('-')
-    const field = isDesc ? sortField.slice(1) : sortField
-    filtered = [...filtered].sort((a, b) => {
-      let cmp = 0
-      switch (field) {
-        case 'created_at':
-          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          break
-        case 'event_action':
-          cmp = a.event_action.localeCompare(b.event_action)
-          break
-        case 'event_category':
-          cmp = a.event_category.localeCompare(b.event_category)
-          break
-        case 'actor_type':
-          cmp = (a.actor_type ?? '').localeCompare(b.actor_type ?? '')
-          break
-        case 'actor_username':
-          cmp = (a.actor_username ?? '').localeCompare(b.actor_username ?? '')
-          break
-        case 'resource_name':
-          cmp = (a.resource_name ?? '').localeCompare(b.resource_name ?? '')
-          break
-        case 'event_status':
-          cmp = (a.event_status ?? '').localeCompare(b.event_status ?? '')
-          break
-        case 'event_severity':
-          cmp = a.event_severity.localeCompare(b.event_severity)
-          break
-        default:
-          break
-      }
-      return isDesc ? -cmp : cmp
-    })
-
-    const body = paginate(filtered, cursor, limit, includeTotal)
-    return HttpResponse.json(body)
   }),
 
   // File upload mock handler

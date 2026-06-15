@@ -59,7 +59,7 @@ triggers:
 nodes:
 - id: test_task
   type: script
-  config:
+  parameters:
     language: bash
     code: echo "Integration test successful"
   settings:
@@ -101,7 +101,7 @@ triggers:
 nodes:
 - id: task1
   type: script
-  config:
+  parameters:
     language: bash
     code: echo "Custom ID test"
   settings:
@@ -140,7 +140,7 @@ nodes:
   type: script
   inputs:
     name: ${input.user_name}
-  config:
+  parameters:
     language: bash
     code: echo "Hello, $INPUT_NAME!"
   settings:
@@ -177,7 +177,7 @@ description: Missing triggers field
 nodes:
 - id: test_task
   type: script
-  config:
+  parameters:
     language: bash
     code: echo "test"
   settings:
@@ -204,7 +204,7 @@ triggers:
 nodes:
 - id: slow_task
   type: script
-  config:
+  parameters:
     language: bash
     code: |
       sleep 1
@@ -252,7 +252,7 @@ triggers:
 nodes:
 - id: long_task
   type: script
-  config:
+  parameters:
     language: bash
     code: |
       sleep 10
@@ -324,7 +324,7 @@ triggers:
 nodes:
 - id: task1
   type: script
-  config:
+  parameters:
     language: bash
     code: echo "Factory test"
   settings:

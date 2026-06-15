@@ -102,7 +102,7 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # 
                     "id": "activity_1",
                     "name": "Activity 1",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": "print('activity 1')",
                     },
@@ -111,7 +111,7 @@ async def test_workflow_complete_lifecycle(jwt_client: AsyncClient) -> None:  # 
                     "id": "activity_2",
                     "name": "Activity 2",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": "print('activity 2')",
                     },

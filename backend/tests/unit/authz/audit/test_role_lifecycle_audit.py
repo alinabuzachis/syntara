@@ -115,6 +115,18 @@ class TestRoleLifecycleHandler:
         result = RoleLifecycleHandler().handle(event)
         assert result.resource_urn == f"urn:nexus:role:{role_id}"
 
+    def test_resource_name_from_role_name(self) -> None:
+        """resource_name is set from role_name field."""
+        role_id = uuid4()
+        event = RoleLifecycleEvent(
+            role_id=role_id,
+            role_name="Viewer",
+            action="created",
+        )
+        result = RoleLifecycleHandler().handle(event)
+        assert result.resource_urn == f"urn:nexus:role:{role_id}"
+        assert result.resource_name == "Viewer"
+
     def test_error_type_escalates_severity(self) -> None:
         """error_type set -> ERROR severity and ERROR status."""
         event = RoleLifecycleEvent(

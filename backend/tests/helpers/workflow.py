@@ -47,13 +47,15 @@ def create_minimal_workflow_definition(
     }
 
     if activity_type == "script":
-        node["config"] = {"language": "python", "code": "print('hello')"}
+        node["parameters"] = {"language": "python", "code": "print('hello')"}
+    elif "parameters" not in node:
+        node["parameters"] = {}
 
     return {
         "schema_version": "2.0.0",
         "name": name,
         "description": description,
-        "triggers": [{"id": trigger_id, "type": "manual_trigger"}],
+        "triggers": [{"id": trigger_id, "type": "manual_trigger", "parameters": {}}],
         "nodes": [node],
         "edges": [{"from": trigger_id, "to": activity_id}],
     }
@@ -85,7 +87,7 @@ def create_workflow_definition_with_activities(
         "schema_version": "2.0.0",
         "name": name,
         "description": description,
-        "triggers": [{"id": trigger_id, "type": "manual_trigger"}],
+        "triggers": [{"id": trigger_id, "type": "manual_trigger", "parameters": {}}],
         "nodes": activities,
         "edges": edges,
     }

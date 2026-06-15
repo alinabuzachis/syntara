@@ -19,10 +19,6 @@
     "upstream": "TODO_UPSTREAM_PATH/approvals",
     "product": "TODO_PRODUCT_PATH/approvals"
   },
-  "auditLog": {
-    "upstream": "TODO_UPSTREAM_PATH/audit-log",
-    "product": "TODO_PRODUCT_PATH/audit-log"
-  },
   "credentials": {
     "upstream": "TODO_UPSTREAM_PATH/credentials",
     "product": "TODO_PRODUCT_PATH/credentials"

@@ -214,8 +214,8 @@ def _extract_credential_node_names(workflow_definition: dict[str, Any], credenti
 
 
 def _get_node_credential_id(node: dict[str, Any]) -> str | None:
-    config: dict[str, Any] = node.get("config", {})
-    result: str | None = config.get("credential_id")
+    parameters: dict[str, Any] = node.get("parameters", {})
+    result: str | None = parameters.get("credential_id")
     return result
 
 

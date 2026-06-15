@@ -1,6 +1,8 @@
 import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import { z } from 'zod'
 
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
+
 /**
  * Zod schema for the Action node form.
  * Uses discriminatedUnion on executor: script requires code, api requires url.
@@ -19,6 +21,7 @@ const scriptActionSchema = z.object({
   body: z.string().optional(),
   parameters: z.string().optional(),
   credential_id: z.string().optional(),
+  settings: nodeSettingsSchema.optional(),
 })
 
 const apiActionSchema = z.object({
@@ -33,6 +36,7 @@ const apiActionSchema = z.object({
   body: z.string().optional(),
   parameters: z.string().optional(),
   credential_id: z.string().optional(),
+  settings: nodeSettingsSchema.optional(),
 })
 
 export const actionFormSchema = z.discriminatedUnion('executor', [scriptActionSchema, apiActionSchema])

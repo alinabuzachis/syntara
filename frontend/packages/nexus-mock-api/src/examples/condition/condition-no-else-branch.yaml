@@ -22,7 +22,7 @@ nodes:
   - id: enable_feature
     name: Enable Feature
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Feature enabled"

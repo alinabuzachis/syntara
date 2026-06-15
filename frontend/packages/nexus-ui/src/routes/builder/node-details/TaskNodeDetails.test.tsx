@@ -248,7 +248,7 @@ describe('TaskNodeDetails Component', () => {
         type: 'aap_job_template' as const,
         id,
         name,
-        config: {
+        parameters: {
           job_template_id,
           ...config,
         },
@@ -261,7 +261,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'script' as const,
       id: 'task-1',
       name: 'Script Task',
-      config: {
+      parameters: {
         language: 'python' as const,
         code: 'print("hello")',
       },
@@ -277,7 +277,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-2',
       name: 'API Task',
-      config: {
+      parameters: {
         method: 'GET' as const,
         url: 'https://api.example.com',
       },
@@ -293,7 +293,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'aap_job_template' as const,
       id: 'task-aap',
       name: 'AAP Task',
-      config: {
+      parameters: {
         job_template_id: 123,
         inventory_id: 456,
         extra_vars: { foo: 'bar' },
@@ -310,7 +310,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'aap_job_template' as const,
       id: 'task-aap-minimal',
       name: 'Minimal AAP Task',
-      config: {
+      parameters: {
         job_template_id: 789,
       },
     }
@@ -325,7 +325,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'aap_job_template' as const,
       id: 'task-aap-expr',
       name: 'Expression AAP Task',
-      config: {
+      parameters: {
         job_template_name: '${trigger.template}',
         organization_name: '${trigger.org}',
         credential_id: 'cred-abc',
@@ -342,7 +342,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'agentic' as const,
       id: 'task-agent',
       name: 'AI Agent Task',
-      config: {
+      parameters: {
         model: 'claude-3-sonnet',
         prompt: 'Analyze the data',
         tool_selections: ['calculator', 'web_search'],
@@ -361,7 +361,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'unsupported' as never,
       id: 'task-3',
       name: 'Unsupported Task',
-      config: {},
+      parameters: {},
     }
 
     const { container } = renderTaskNodeDetails(taskData, 'task-3')
@@ -375,7 +375,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'script' as const,
       id: 'task-1',
       name: 'Original Task',
-      config: {
+      parameters: {
         language: 'python' as const,
         code: 'print("original")',
       },
@@ -394,7 +394,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'aap_job_template' as const,
       id: 'task-aap',
       name: 'AAP Task',
-      config: {
+      parameters: {
         job_template_id: 123,
         inventory_id: 456,
         job_credentials: [1, 2, 3],
@@ -416,7 +416,7 @@ describe('TaskNodeDetails Component', () => {
       expect.objectContaining({
         name: 'Updated AAP Task',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           job_template_id: 456,
         }),
       })
@@ -428,7 +428,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'script' as const,
       id: 'task-1',
       name: 'Task',
-      config: {
+      parameters: {
         language: 'python' as const,
         code: 'print("test")',
       },
@@ -444,7 +444,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'approval' as const,
       id: 'task-approval',
       name: 'Approval Task',
-      config: {
+      parameters: {
         approver_timeout: 3600,
       },
     } as unknown as TaskActivity
@@ -460,7 +460,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-api',
       name: 'API Task',
-      config: {
+      parameters: {
         method: 'GET' as const,
         url: 'https://api.example.com',
       },
@@ -475,7 +475,7 @@ describe('TaskNodeDetails Component', () => {
       expect.objectContaining({
         name: 'Updated API Task',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           method: 'POST',
           url: 'https://api.test.com',
           headers: { 'Content-Type': 'application/json' },
@@ -491,7 +491,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-api-cred',
       name: 'API Task',
-      config: {
+      parameters: {
         method: 'GET' as const,
         url: 'https://api.example.com',
       },
@@ -505,14 +505,14 @@ describe('TaskNodeDetails Component', () => {
       'task-api-cred',
       expect.objectContaining({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           credential_id: 'cred-123',
         }),
       })
     )
     // Must NOT use camelCase — backend looks for credential_id
-    const callArgs = mockUpdateActivity.mock.calls[0] as [string, { config: Record<string, unknown> }]
-    expect(callArgs[1].config).not.toHaveProperty('credentialId')
+    const callArgs = mockUpdateActivity.mock.calls[0] as [string, { parameters: Record<string, unknown> }]
+    expect(callArgs[1].parameters).not.toHaveProperty('credentialId')
   })
 
   it('handles API form submission with plain text body', async () => {
@@ -521,7 +521,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-api',
       name: 'API Task',
-      config: {
+      parameters: {
         method: 'GET' as const,
         url: 'https://api.example.com',
       },
@@ -535,7 +535,7 @@ describe('TaskNodeDetails Component', () => {
       'task-api',
       expect.objectContaining({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           body: 'plain text body',
         }),
       })
@@ -547,7 +547,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-api-params',
       name: 'API Task with Params',
-      config: {
+      parameters: {
         method: 'POST' as const,
         url: 'https://api.example.com',
       },
@@ -567,7 +567,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-api-string-body',
       name: 'API Task with String Body',
-      config: {
+      parameters: {
         method: 'POST' as const,
         url: 'https://api.example.com',
         body: 'raw string body',
@@ -588,7 +588,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'script' as const,
       id: 'task-1',
       name: 'Task',
-      config: {
+      parameters: {
         language: 'python' as const,
         code: 'print("test")',
       },
@@ -610,7 +610,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-api',
       name: 'API Task',
-      config: {
+      parameters: {
         url: 'https://api.test.com',
         method: 'GET' as const,
       },
@@ -629,7 +629,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'http_request' as const,
       id: 'task-api',
       name: 'API Task',
-      config: {
+      parameters: {
         method: 'GET' as const,
         url: 'https://api.example.com',
       },
@@ -655,7 +655,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'aap_workflow_job_template' as const,
       id: 'task-workflow',
       name: 'Workflow Task',
-      config: {
+      parameters: {
         workflow_job_template_id: 123,
         inventory_id: 456,
         extra_vars: { env: 'production' },
@@ -672,7 +672,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'aap_workflow_job_template' as const,
       id: 'task-workflow-expr',
       name: 'Expression Workflow Task',
-      config: {
+      parameters: {
         workflow_job_template_name: '${trigger.workflow}',
         organization_name: '${trigger.org}',
         credential_id: 'cred-xyz',
@@ -702,7 +702,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'script' as const,
       id: 'task-script-cred',
       name: 'Script with Credential',
-      config: {
+      parameters: {
         language: 'python' as const,
         code: 'print("test")',
         credential_id: 'cred-456',
@@ -719,7 +719,7 @@ describe('TaskNodeDetails Component', () => {
       type: 'aap_job_template' as const,
       id: 'task-aap-legacy',
       name: 'Legacy AAP Task',
-      config: {
+      parameters: {
         jobTemplateId: 999,
         organizationId: 111,
         organization: 'Legacy Org',

@@ -60,10 +60,10 @@ def _make_workflow(
 def _make_linear_graph() -> WorkflowGraph:
     r"""Build: trigger -> A -> B -> C (linear chain)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("A", {"id": "A", "type": "action", "config": {}})
-    backend.add_node("B", {"id": "B", "type": "action", "config": {}})
-    backend.add_node("C", {"id": "C", "type": "action", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("A", {"id": "A", "type": "action", "parameters": {}})
+    backend.add_node("B", {"id": "B", "type": "action", "parameters": {}})
+    backend.add_node("C", {"id": "C", "type": "action", "parameters": {}})
 
     backend.add_edge("trigger", "A", None)
     backend.add_edge("A", "B", None)
@@ -80,11 +80,11 @@ def _make_diamond_graph() -> WorkflowGraph:
     B and C are independent branches; D is a converge node.
     """
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("A", {"id": "A", "type": "action", "config": {}})
-    backend.add_node("B", {"id": "B", "type": "action", "config": {}})
-    backend.add_node("C", {"id": "C", "type": "action", "config": {}})
-    backend.add_node("D", {"id": "D", "type": "action", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("A", {"id": "A", "type": "action", "parameters": {}})
+    backend.add_node("B", {"id": "B", "type": "action", "parameters": {}})
+    backend.add_node("C", {"id": "C", "type": "action", "parameters": {}})
+    backend.add_node("D", {"id": "D", "type": "action", "parameters": {}})
 
     backend.add_edge("trigger", "A", None)
     backend.add_edge("A", "B", None)
@@ -366,7 +366,7 @@ class TestErrorMessageFormat:
 def _make_approval_graph(node_id: str = "approval_1") -> WorkflowGraph:
     """Single approval node with no successors."""
     backend = InMemoryGraphBackend()
-    backend.add_node(node_id, {"id": node_id, "type": "approval", "config": {}})
+    backend.add_node(node_id, {"id": node_id, "type": "approval", "parameters": {}})
     return WorkflowGraph(backend)
 
 
@@ -407,8 +407,8 @@ class TestContinueOnFailureApproval:
         assert wf.node_control_data["approval_1"] == {"next_port": "reject"}
 
     @pytest.mark.asyncio
-    async def test_uses_resolved_config_not_raw_config(self) -> None:
-        """fallback_decision is read from node_inputs (resolved), not node.config (raw template)."""
+    async def test_uses_resolved_parameters_not_raw_config(self) -> None:
+        """fallback_decision is read from node_inputs (resolved), not node.parameters (raw template)."""
         wf = _make_workflow()
         node = ActivityNode("approval_1", "approval", {"name": "Review", "fallback_decision": "${vars.decision}"})
         # Engine stored the resolved value in node_inputs before the activity ran
@@ -438,7 +438,7 @@ class TestContinueOnFailureApproval:
         wf = _make_workflow()
         node = ActivityNode("script_1", "script", {"language": "bash", "code": "echo hi"})
         backend = InMemoryGraphBackend()
-        backend.add_node("script_1", {"id": "script_1", "type": "script", "config": {}})
+        backend.add_node("script_1", {"id": "script_1", "type": "script", "parameters": {}})
         graph = WorkflowGraph(backend)
 
         await wf._handle_continued_failure("script_1", node, graph, {})

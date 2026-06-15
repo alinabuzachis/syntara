@@ -12,7 +12,7 @@ describe('useBuilderDerivedUiFlags', () => {
   } as unknown as WorkflowDefinition
 
   const workflowWithTrigger = {
-    triggers: [{ id: 't1', type: 'manual_trigger', config: {} }],
+    triggers: [{ id: 't1', type: 'manual_trigger', parameters: {} }],
     workflow: { activities: [] },
   } as unknown as WorkflowDefinition
 

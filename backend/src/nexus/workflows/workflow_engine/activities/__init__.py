@@ -9,6 +9,7 @@ from .aap_job_template_activity import execute_aap_job_template_activity
 from .aap_workflow_job_template_activity import execute_aap_workflow_job_template_activity
 from .agentic_activity import execute_agentic_activity
 from .approval_activity import create_approval_request_activity
+from .approver_resolution_activity import resolve_approvers_activity
 from .condition import condition
 from .converge import converge
 from .credential_resolution_activity import resolve_workflow_credentials
@@ -38,6 +39,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     execute_aap_workflow_job_template_activity,
     execute_agentic_activity,
     create_approval_request_activity,
+    resolve_approvers_activity,
     condition,
     converge,
     eda_trigger,

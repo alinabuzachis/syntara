@@ -28,6 +28,7 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 type FileUploadInfo = FilesAPI.components['schemas']['FileUploadInfo']
 
@@ -265,7 +266,9 @@ function AIAgentFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const settingsContent = <NodeSettingsForm timeoutNodeType="agentic" />
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
@@ -280,6 +283,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
     model: defaultModel,
     prompt: '',
     tools: '',
+    settings: {},
     ...props.initialData,
   }
 

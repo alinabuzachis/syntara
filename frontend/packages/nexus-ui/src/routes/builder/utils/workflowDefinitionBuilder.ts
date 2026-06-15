@@ -205,7 +205,7 @@ export function buildWorkflowDefinition(
         id: t.id,
         type: t.type,
         ...(sanitizedTriggerName && { name: sanitizedTriggerName }),
-        config: t.config ?? {},
+        parameters: t.parameters ?? {},
         ...(nodePositions[t.id] ? { position: nodePositions[t.id] } : {}),
       }
     }),
@@ -215,24 +215,33 @@ export function buildWorkflowDefinition(
       const inputs = hasInputs(a) ? a.inputs : undefined
 
       // Transform condition expressions to backend format (! → not)
-      let config = a.config ?? {}
+      let parameters = a.parameters ?? {}
       if (
         (a.type === ActivityTypeEnum.CONDITION || a.type === ActivityTypeEnum.LOOP) &&
-        typeof config.condition === 'string'
+        typeof parameters.condition === 'string'
       ) {
-        config = {
-          ...config,
-          condition: transformConditionForBackend(config.condition) ?? config.condition,
+        parameters = {
+          ...parameters,
+          condition: transformConditionForBackend(parameters.condition) ?? parameters.condition,
         }
+      }
+
+      // Strip UI-internal fields from converge parameters before sending to the API.
+      // syncConvergeNodeBranches() writes `branches` into parameters for internal
+      // tracking, but the backend schema has additionalProperties: false and
+      // rejects it. See AAP-XXXX for the proper cleanup.
+      if (a.type === ActivityTypeEnum.CONVERGE && 'branches' in parameters) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to omit `branches` from the payload
+        const { branches, ...rest } = parameters
+        parameters = rest
       }
 
       return {
         id: a.id,
         type: a.type,
         ...(sanitizedNodeName && { name: sanitizedNodeName }),
-        config,
-        ...(a.timeout !== undefined && { timeout: a.timeout }),
-        ...(a.retry_policy && { retry_policy: a.retry_policy }),
+        parameters,
+        ...(a.settings && { settings: a.settings }),
         ...(inputs && { inputs }),
         ...(a.outputs && { outputs: a.outputs }),
         ...(nodePositions[a.id] ? { position: nodePositions[a.id] } : {}),

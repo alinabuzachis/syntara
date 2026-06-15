@@ -95,8 +95,8 @@ describe('useWorkflowStore - Edge Management', () => {
   describe('Edge patterns with conditions', () => {
     it('handles condition node true/false handles', () => {
       const condition = createConditionActivity('A', 'Condition A', 'input.value > 10')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'true', targetHandle: 'target' },
@@ -119,8 +119,8 @@ describe('useWorkflowStore - Edge Management', () => {
     it('tracks edges from multiple condition nodes', () => {
       const conditionA = createConditionActivity('A', 'Condition A', 'input.a > 10')
       const conditionB = createConditionActivity('B', 'Condition B', 'input.b > 20')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const taskD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const taskD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-C', source: 'A', target: 'C', sourceHandle: 'true', targetHandle: 'target' },
@@ -140,9 +140,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
   describe('Edge patterns with converges', () => {
     it('tracks multiple edges to converge node', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
 
       const edges: EdgeConnection[] = [
@@ -163,10 +163,10 @@ describe('useWorkflowStore - Edge Management', () => {
     })
 
     it('handles edges from converge to downstream activities', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
@@ -191,8 +191,8 @@ describe('useWorkflowStore - Edge Management', () => {
     })
 
     it('preserves edges during converge sync', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
 
       const edges: EdgeConnection[] = [
@@ -236,9 +236,9 @@ describe('useWorkflowStore - Edge Management', () => {
     })
 
     it('handles removal of edges to deleted nodes', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -266,8 +266,8 @@ describe('useWorkflowStore - Edge Management', () => {
 
     it('handles edge removal from condition branches', () => {
       const condition = createConditionActivity('A', 'Condition A', 'input.value > 10')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'true', targetHandle: 'target' },
@@ -292,10 +292,10 @@ describe('useWorkflowStore - Edge Management', () => {
 
   describe('Complex edge scenarios', () => {
     it('handles diamond pattern (A->B,C; B,C->D)', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const taskD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const taskD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -321,12 +321,12 @@ describe('useWorkflowStore - Edge Management', () => {
     })
 
     it('handles multiple parallel paths with converges', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
       const convergeJ1 = createConvergeActivity('J1', 'Converge 1')
-      const taskD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
-      const taskE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
+      const taskD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
+      const taskE = createScriptActivity({ id: 'E', name: 'Task E', language: 'python', code: 'print("E")' })
       const convergeJ2 = createConvergeActivity('J2', 'Converge 2')
 
       const edges: EdgeConnection[] = [
@@ -363,10 +363,10 @@ describe('useWorkflowStore - Edge Management', () => {
 
     it('handles condition with nested parallel paths', () => {
       const condition = createConditionActivity('A', 'Condition A', 'input.value > 10')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
-      const taskD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+      const taskD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
 
       const edges: EdgeConnection[] = [
         // True branch splits into parallel
@@ -441,9 +441,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
   describe('Edge state consistency', () => {
     it('maintains edge state across activity operations', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -464,9 +464,9 @@ describe('useWorkflowStore - Edge Management', () => {
     })
 
     it('maintains edge state during activity reordering', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -487,8 +487,8 @@ describe('useWorkflowStore - Edge Management', () => {
     })
 
     it('maintains edge state during join synchronization', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
 
       const edges: EdgeConnection[] = [
@@ -509,9 +509,9 @@ describe('useWorkflowStore - Edge Management', () => {
       expect(useWorkflowStore.getState().edges).toEqual(edges)
     })
 
-    it('sets converge config.branches to individual activity IDs when branches converge', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+    it('sets converge parameters.branches to individual activity IDs when branches converge', () => {
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
 
       // Edges from activities to converge
@@ -533,15 +533,15 @@ describe('useWorkflowStore - Edge Management', () => {
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
       const converge = activities?.find((a) => a.id === 'J')
 
-      // v2: converge.config.branches should contain individual activity IDs
-      expect(converge?.config.branches).toContain('A')
-      expect(converge?.config.branches).toContain('B')
-      expect(converge?.config.branches).toHaveLength(2)
+      // v2: converge.parameters.branches should contain individual activity IDs
+      expect(converge?.parameters.branches).toContain('A')
+      expect(converge?.parameters.branches).toContain('B')
+      expect(converge?.parameters.branches).toHaveLength(2)
     })
 
     it('handles partial convergence', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
 
       // Only A converges to J (B doesn't)
@@ -562,13 +562,13 @@ describe('useWorkflowStore - Edge Management', () => {
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
       const converge = activities?.find((a) => a.id === 'J')
 
-      expect(converge?.config.branches).toEqual(['A'])
+      expect(converge?.parameters.branches).toEqual(['A'])
     })
 
     it('handles mixed convergence from multiple activities', () => {
-      const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const taskA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const taskB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const taskC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
       const joinJ = createConvergeActivity('J', 'Converge J')
 
       // All three converge to J
@@ -592,10 +592,10 @@ describe('useWorkflowStore - Edge Management', () => {
       const converge = activities?.find((a) => a.id === 'J')
 
       // Should reference ALL individual activity IDs
-      expect(converge?.config.branches).toContain('A')
-      expect(converge?.config.branches).toContain('B')
-      expect(converge?.config.branches).toContain('C')
-      expect(converge?.config.branches).toHaveLength(3)
+      expect(converge?.parameters.branches).toContain('A')
+      expect(converge?.parameters.branches).toContain('B')
+      expect(converge?.parameters.branches).toContain('C')
+      expect(converge?.parameters.branches).toHaveLength(3)
     })
   })
 })

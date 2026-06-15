@@ -29,6 +29,7 @@ import { ViewToggle, type PanelView } from '../builder/panels/ViewToggle'
 import type { ActivityState } from '../workflows/execution/types'
 
 import { useNodeExecutionDetails } from './hooks/useNodeExecutionDetails'
+import styles from './NodeExecutionDetailsPanel.module.css'
 
 type NodeExecutionDetailsPanelProps = {
   nodeId: string
@@ -97,21 +98,29 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
   return (
     <Stack style={{ height: '100%', overflow: 'hidden' }}>
       <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
-        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'nowrap' }}>
-          <FlexItem style={{ fontWeight: 'var(--pf-t--global--font--weight--body--bold)', flexShrink: 0 }}>
+        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'wrap' }}>
+          <FlexItem flex={{ default: 'flexNone' }} className={styles.dataPaneTitle}>
             {title}
           </FlexItem>
-          <FlexItem grow={{ default: 'grow' }} style={{ minWidth: 0 }}>
-            <SearchInput
-              aria-label={`Search ${title.toLowerCase()} data`}
-              placeholder="Search"
-              value={searchTerm}
-              onChange={(_event, value) => setSearchTerm(value)}
-              onClear={() => setSearchTerm('')}
-            />
-          </FlexItem>
-          <FlexItem style={{ flexShrink: 0 }}>
-            <ViewToggle activeView={view} onChange={onViewChange} ariaLabel={`${title} view selection`} />
+          <FlexItem className={styles.dataPaneControlsWrap}>
+            <Flex
+              alignItems={{ default: 'alignItemsCenter' }}
+              gap={{ default: 'gapSm' }}
+              flexWrap={{ default: 'wrap' }}
+            >
+              <FlexItem grow={{ default: 'grow' }} className={styles.searchWrap}>
+                <SearchInput
+                  aria-label={`Search ${title.toLowerCase()} data`}
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(_event, value) => setSearchTerm(value)}
+                  onClear={() => setSearchTerm('')}
+                />
+              </FlexItem>
+              <FlexItem grow={{ default: 'grow' }}>
+                <ViewToggle activeView={view} onChange={onViewChange} ariaLabel={`${title} view selection`} />
+              </FlexItem>
+            </Flex>
           </FlexItem>
         </Flex>
       </StackItem>

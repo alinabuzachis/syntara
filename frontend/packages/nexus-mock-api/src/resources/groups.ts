@@ -45,7 +45,7 @@ export const groups: GroupRead[] = [
   {
     id: 'g0-builtin-auditors',
     name: 'auditors',
-    description: 'Read-only access with audit log visibility',
+    description: 'Read-only access for compliance review',
     is_builtin: true,
     created_by: null,
     created_at: '2026-01-01T00:00:00Z',

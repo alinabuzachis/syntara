@@ -27,7 +27,7 @@ nodes:
   - id: fetch_repo
     name: Fetch Repository Info
     type: http_request
-    config:
+    parameters:
       method: GET
       url: https://api.github.com/repos/${input.owner}/${input.repo}
       headers:
@@ -48,7 +48,7 @@ nodes:
   - id: fetch_languages
     name: Fetch Repository Languages
     type: http_request
-    config:
+    parameters:
       method: GET
       url: https://api.github.com/repos/${input.owner}/${input.repo}/languages
       headers:
@@ -61,7 +61,7 @@ nodes:
   - id: analyze_repo
     name: Analyze Repository Data
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import json

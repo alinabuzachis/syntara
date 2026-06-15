@@ -37,7 +37,7 @@ export function WaitNodeComponent(props: NodeProps<WaitNode>) {
       }
     | undefined
 
-  const totalSeconds = (props.data.config as { duration?: number } | undefined)?.duration ?? 0
+  const totalSeconds = (props.data.parameters as { duration?: number } | undefined)?.duration ?? 0
   const durationLabel = totalSeconds > 0 ? formatDurationLabel(totalSeconds) : 'Not configured'
 
   const { remaining } = useWaitCountdown(executionState?.status, executionState?.started_at, totalSeconds)

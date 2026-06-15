@@ -100,6 +100,7 @@ export function ExecutionStatusBadge({ status, retryCount, nodeType }: Readonly<
   const title = retryCount ? `${normalized.label} (${retryCount} retries)` : normalized.label
 
   return (
+    // eslint-disable-next-line nexus/prefer-pf-text-components -- positioned status badge overlay on canvas node
     <div
       style={{
         position: 'absolute',

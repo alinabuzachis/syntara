@@ -35,7 +35,7 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
   })
-  const config = (props.data.config ?? {}) as { strategy?: 'all' | 'any'; n_required?: number }
+  const config = (props.data.parameters ?? {}) as { strategy?: 'all' | 'any'; n_required?: number }
   const strategyLabel = getStrategyLabel(config.strategy, config.n_required)
 
   const executionState = (props.data as Record<string, unknown>).__executionState as

@@ -9,7 +9,7 @@ const baseTask: TaskActivity = {
   id: 'task-1',
   name: 'Task',
   type: ExecutorTypeEnum.SCRIPT,
-  config: { language: 'python', code: 'print(1)' },
+  parameters: { language: 'python', code: 'print(1)' },
 } as TaskActivity
 
 describe('taskNodeSubmitHelpers', () => {
@@ -89,7 +89,7 @@ describe('taskNodeSubmitHelpers', () => {
       const activity = buildRegistryActivityUpdate(baseTask, data)
       expect(activity.type).toBe(ExecutorTypeEnum.SCRIPT)
       expect(activity.name).toBe('S')
-      expect((activity.config as { code: string }).code).toBe('pass')
+      expect((activity.parameters as { code: string }).code).toBe('pass')
     })
 
     it('parses headers and merges authentication for http_request', () => {
@@ -102,7 +102,7 @@ describe('taskNodeSubmitHelpers', () => {
         authentication: 'Bearer t',
       }
       const activity = buildRegistryActivityUpdate(baseTask, data)
-      const config = activity.config as { headers: Record<string, string> }
+      const config = activity.parameters as { headers: Record<string, string> }
       expect(config.headers).toEqual({ 'X-A': '1', Authorization: 'Bearer t' })
     })
 
@@ -116,7 +116,7 @@ describe('taskNodeSubmitHelpers', () => {
         authentication: 'Basic x',
       }
       const activity = buildRegistryActivityUpdate(baseTask, data)
-      const config = activity.config as { headers: Record<string, string> }
+      const config = activity.parameters as { headers: Record<string, string> }
       expect(config.headers).toEqual({ Authorization: 'Basic x' })
     })
 
@@ -130,7 +130,7 @@ describe('taskNodeSubmitHelpers', () => {
         authentication: 'Bearer t',
       }
       const nullActivity = buildRegistryActivityUpdate(baseTask, nullHeaders)
-      expect((nullActivity.config as { headers: Record<string, string> }).headers).toEqual({
+      expect((nullActivity.parameters as { headers: Record<string, string> }).headers).toEqual({
         Authorization: 'Bearer t',
       })
 
@@ -143,7 +143,7 @@ describe('taskNodeSubmitHelpers', () => {
         authentication: 'Bearer t',
       }
       const badActivity = buildRegistryActivityUpdate(baseTask, badValue)
-      expect((badActivity.config as { headers: Record<string, string> }).headers).toEqual({
+      expect((badActivity.parameters as { headers: Record<string, string> }).headers).toEqual({
         Authorization: 'Bearer t',
       })
     })
@@ -157,11 +157,11 @@ describe('taskNodeSubmitHelpers', () => {
         body: '{"a":1}',
       }
       const withJson = buildRegistryActivityUpdate(baseTask, data)
-      expect((withJson.config as { body: unknown }).body).toEqual({ a: 1 })
+      expect((withJson.parameters as { body: unknown }).body).toEqual({ a: 1 })
 
       const dataRaw: ActionFormData = { ...data, body: 'not-json' }
       const withRaw = buildRegistryActivityUpdate(baseTask, dataRaw)
-      expect((withRaw.config as { body: string }).body).toBe('not-json')
+      expect((withRaw.parameters as { body: string }).body).toBe('not-json')
     })
 
     it('omits headers when http_request has no headers and no authentication', () => {
@@ -172,7 +172,7 @@ describe('taskNodeSubmitHelpers', () => {
         url: 'https://api',
       }
       const activity = buildRegistryActivityUpdate(baseTask, data)
-      expect((activity.config as { headers?: unknown }).headers).toBeUndefined()
+      expect((activity.parameters as { headers?: unknown }).headers).toBeUndefined()
     })
   })
 })

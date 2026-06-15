@@ -352,7 +352,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        config: { condition: 'value > 10' },
+        parameters: { condition: 'value > 10' },
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -380,7 +380,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        config: { condition: 'value > 10' },
+        parameters: { condition: 'value > 10' },
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -408,7 +408,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        config: { condition: 'value > 10' },
+        parameters: { condition: 'value > 10' },
       }
 
       const activityStates = new Map<string, ActivityState>()
@@ -427,7 +427,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'approval1',
         type: 'approval',
         name: 'Approve deployment',
-        config: {},
+        parameters: {},
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -456,7 +456,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'approval1',
         type: 'approval',
         name: 'Approve deployment',
-        config: {},
+        parameters: {},
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -485,7 +485,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'task1',
         type: 'script',
         name: 'Run script',
-        config: { language: 'bash', code: 'echo hello' },
+        parameters: { language: 'bash', code: 'echo hello' },
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -510,7 +510,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        config: { condition: 'value > 10' },
+        parameters: { condition: 'value > 10' },
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -774,7 +774,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        config: { condition: 'value > 10' },
+        parameters: { condition: 'value > 10' },
       }
 
       const activityStates = new Map<string, ActivityState>()
@@ -800,7 +800,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'approval1',
         type: 'approval',
         name: 'Approve deployment',
-        config: {},
+        parameters: {},
       }
 
       const activityStates = new Map<string, ActivityState>()
@@ -826,7 +826,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'task1',
         type: 'script',
         name: 'Run script',
-        config: { language: 'bash', code: 'echo hello' },
+        parameters: { language: 'bash', code: 'echo hello' },
       }
 
       const activityStates = new Map<string, ActivityState>()
@@ -842,7 +842,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        config: { condition: 'value > 10' },
+        parameters: { condition: 'value > 10' },
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -870,7 +870,7 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        config: { condition: 'value > 10' },
+        parameters: { condition: 'value > 10' },
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -1022,13 +1022,13 @@ describe('BuilderFlow Execution Visualization', () => {
           id: 'task1',
           type: 'script',
           name: 'Task 1',
-          config: { language: 'bash', code: 'echo task1' },
+          parameters: { language: 'bash', code: 'echo task1' },
         },
         {
           id: 'task2',
           type: 'script',
           name: 'Task 2',
-          config: { language: 'bash', code: 'echo task2' },
+          parameters: { language: 'bash', code: 'echo task2' },
         },
       ]
 

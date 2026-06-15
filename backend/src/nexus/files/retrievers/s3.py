@@ -6,7 +6,7 @@ asyncio.to_thread() for async integration.
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import boto3
@@ -38,14 +38,19 @@ class S3FileRetriever(BaseRetriever):
         region_name: str = "us-east-1",
         aws_access_key_id: SecretStr | None = None,
         aws_secret_access_key: SecretStr | None = None,
+        *,
+        verify_ssl: bool = True,
+        ca_bundle: str | None = None,
     ) -> None:
         self._bucket_name = bucket_name
+        verify: bool | str = ca_bundle if (verify_ssl and ca_bundle) else verify_ssl
         self._client = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
             region_name=region_name,
             aws_access_key_id=aws_access_key_id.get_secret_value() if aws_access_key_id else None,
             aws_secret_access_key=aws_secret_access_key.get_secret_value() if aws_secret_access_key else None,
+            verify=verify,
             config=Config(
                 connect_timeout=5,
                 read_timeout=30,
@@ -253,3 +258,51 @@ class S3FileRetriever(BaseRetriever):
                 exc_info=True,
             )
             return False
+
+    async def cleanup_stale_multipart_uploads(self, threshold_hours: int) -> int:
+        """Abort incomplete multipart uploads older than threshold.
+
+        Args:
+            threshold_hours: Uploads older than this many hours are aborted.
+
+        Returns:
+            Number of multipart uploads aborted.
+
+        """
+        aborted = 0
+        cutoff = datetime.now(tz=UTC) - timedelta(hours=threshold_hours)
+        try:
+            response = await asyncio.to_thread(
+                self._client.list_multipart_uploads,
+                Bucket=self._bucket_name,
+            )
+            for upload in response.get("Uploads", []):
+                initiated = upload.get("Initiated")
+                if initiated is not None and initiated < cutoff:
+                    try:
+                        await asyncio.to_thread(
+                            self._client.abort_multipart_upload,
+                            Bucket=self._bucket_name,
+                            Key=upload["Key"],
+                            UploadId=upload["UploadId"],
+                        )
+                        aborted += 1
+                        logger.info(
+                            "Aborted stale multipart upload",
+                            key=upload["Key"],
+                            upload_id=upload["UploadId"],
+                        )
+                    except _S3_ERRORS:
+                        logger.warning(
+                            "Failed to abort multipart upload",
+                            key=upload["Key"],
+                            upload_id=upload["UploadId"],
+                            exc_info=True,
+                        )
+        except _S3_ERRORS:
+            logger.warning(
+                "Failed to list multipart uploads for cleanup",
+                bucket=self._bucket_name,
+                exc_info=True,
+            )
+        return aborted

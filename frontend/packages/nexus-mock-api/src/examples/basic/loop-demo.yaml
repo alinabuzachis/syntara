@@ -21,7 +21,7 @@ nodes:
 
   - id: process_item
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Processing item #$INPUT_INDEX: $INPUT_ITEM"
@@ -31,7 +31,7 @@ nodes:
 
   - id: summary
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "All items processed!"

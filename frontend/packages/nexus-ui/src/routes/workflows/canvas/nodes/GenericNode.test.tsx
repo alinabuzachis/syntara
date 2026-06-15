@@ -29,7 +29,7 @@ describe('GenericNodeComponent', () => {
     type: 'script',
     id: 'generic-1',
     name: 'Placeholder',
-    config: {
+    parameters: {
       language: 'python',
       code: '',
     },

@@ -31,13 +31,6 @@ test.describe('Accessibility', () => {
     await expectNoA11yViolations(app)
   })
 
-  test('audit log page has no accessibility violations', async ({ app }) => {
-    await app.goto(toAppUrl('/system-administration/audit-log'))
-    await expect(app.getByRole('heading', { level: 1, name: 'Audit Log' })).toBeVisible()
-
-    await expectNoA11yViolations(app)
-  })
-
   test('integrations page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/configuration/integrations'))
     await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()

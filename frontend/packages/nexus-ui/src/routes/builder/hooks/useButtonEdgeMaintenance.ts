@@ -77,7 +77,7 @@ function processSwitchNode(options: {
   placeholderNodesToAdd: ButtonEdgePlaceholderNode[]
 }) {
   const { node, connectedHandles, pendingEdge, nodes, handlesNeedingButtonEdges, placeholderNodesToAdd } = options
-  const config = ((node.data as Record<string, unknown>).config ?? { cases: [] }) as SwitchConfig
+  const config = ((node.data as Record<string, unknown>).parameters ?? { cases: [] }) as SwitchConfig
   const cases = config.cases ?? []
   const handles = [...cases.map((c) => c.port), EdgeHandleEnum.DEFAULT]
   const handlePositions: Record<string, { yOffset: number }> = {}
@@ -286,7 +286,7 @@ export function useButtonEdgeMaintenance({
       .map((node) => {
         const base = `${node.id}:${node.type ?? ''}`
         if (node.type === FlowNodeType.SWITCH) {
-          const cases = ((node.data as Record<string, unknown>).config as SwitchConfig | undefined)?.cases
+          const cases = ((node.data as Record<string, unknown>).parameters as SwitchConfig | undefined)?.cases
           return `${base}:${cases?.length ?? 0}`
         }
         return base

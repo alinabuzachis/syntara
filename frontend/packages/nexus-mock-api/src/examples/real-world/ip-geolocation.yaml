@@ -23,7 +23,7 @@ nodes:
   - id: fetch_location
     name: Fetch IP Geolocation
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://ip-api.com/json/${input.ip_address}
       headers:
@@ -43,7 +43,7 @@ nodes:
   - id: generate_report
     name: Generate Location Report
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         #!/bin/bash

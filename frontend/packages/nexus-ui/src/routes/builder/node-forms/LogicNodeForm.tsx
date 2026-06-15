@@ -1,4 +1,4 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type NodeSettings } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
 import type { ComparisonOperator } from '../../../utils/expressions/types'
@@ -25,7 +25,6 @@ export type LogicFormData = {
   type?: string
   items?: string
   maxIterations?: number
-  maxIterationsBehavior?: 'continue' | 'fail'
   indexVariable?: string
   itemVariable?: string
   // Switch fields
@@ -38,20 +37,17 @@ export type LogicFormData = {
     negate?: boolean
   }>
   // Converge fields
-  timeout?: number
-  timeoutEnabled?: boolean
-  timeoutSeconds?: number
-  timeoutMinutes?: number
-  timeoutHours?: number
-  timeoutDays?: number
-  onTimeout?: 'continue' | 'fail'
   strategy?: 'all' | 'any'
   requiredPathCount?: number
-  // Wait fields
+  // Wait node fields
   days?: number
   hours?: number
   minutes?: number
   seconds?: number
+  // Converge fields
+  wait_duration?: number
+  // Settings (all logic node types)
+  settings?: NodeSettings
 }
 
 type LogicNodeFormProps = Readonly<{
@@ -72,7 +68,7 @@ type LogicNodeFormProps = Readonly<{
  * Note: This wrapper exists to maintain the subtype pattern in registerLogicNode.
  * For editing existing nodes, use the specialized forms directly via NodeDetails components.
  */
-// eslint-disable-next-line complexity
+// eslint-disable-next-line complexity -- dispatch function for 4 distinct logic node subtypes; each branch has its own data-shaping and submit handler; splitting further would scatter tightly-related logic
 export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: LogicNodeFormProps) {
   const logicType = initialData?.logicType
 
@@ -128,14 +124,9 @@ export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: 
     const convergeSource = {
       name: initialData?.name,
       strategy: initialData?.strategy,
-      timeoutEnabled: initialData?.timeoutEnabled,
-      timeoutSeconds: initialData?.timeoutSeconds,
-      timeoutMinutes: initialData?.timeoutMinutes,
-      timeoutHours: initialData?.timeoutHours,
-      timeoutDays: initialData?.timeoutDays,
-      timeout: initialData?.timeout,
-      onTimeout: initialData?.onTimeout,
       requiredPathCount: initialData?.requiredPathCount,
+      wait_duration: initialData?.wait_duration,
+      settings: initialData?.settings as ConvergeFormData['settings'],
     } satisfies Partial<ConvergeFormData>
     const convergeData: Partial<ConvergeFormData> = Object.fromEntries(
       Object.entries(convergeSource).filter(([, v]) => v !== undefined)

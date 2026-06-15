@@ -390,7 +390,7 @@ export function ExecutionDetailsPanel({
 
   const execution = executionQuery.data
   const executionStatus = execution?.status
-  const isRunning = executionStatus === 'running' || executionStatus === 'pending'
+  const isRunning = executionStatus === 'running' || executionStatus === 'pending' || executionStatus === 'paused'
   const startedAtValue = execution?.created_at ?? null
 
   const { elapsedMs, now } = useElapsedTime(startedAtValue, execution?.completed_at, isRunning)

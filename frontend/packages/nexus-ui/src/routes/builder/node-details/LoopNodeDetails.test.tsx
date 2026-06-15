@@ -60,7 +60,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'Test Loop',
-      config: {
+      parameters: {
         type: 'for_each' as const,
         items: 'input.items',
       },
@@ -76,7 +76,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'Original Loop',
-      config: {
+      parameters: {
         type: 'for_each' as const,
         items: 'input.items',
       },
@@ -95,7 +95,7 @@ describe('LoopNodeDetails Component', () => {
       'loop-1',
       expect.objectContaining({
         name: 'Updated Loop',
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           type: 'for_each',
           items: 'input.newItems',
         }) as Record<string, unknown>,
@@ -108,7 +108,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'Loop',
-      config: {
+      parameters: {
         type: 'do_while' as const,
         condition: 'counter < 10',
       },
@@ -124,7 +124,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'Test While Loop',
-      config: {
+      parameters: {
         type: 'do_while' as const,
         condition: 'counter < 10',
       },
@@ -141,7 +141,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'Invalid Loop',
-      config: undefined,
+      parameters: undefined,
     }
 
     // In v2, missing config is gracefully handled — the form renders with defaults
@@ -161,7 +161,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'Loop',
-      config: {
+      parameters: {
         type: 'for_each' as const,
         items: 'items',
       },
@@ -184,7 +184,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'ForEach Loop',
-      config: {
+      parameters: {
         type: 'for_each' as const,
         items: 'input.items',
         indexVariable: 'idx',
@@ -206,7 +206,7 @@ describe('LoopNodeDetails Component', () => {
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'loop-1',
       expect.objectContaining({
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           type: 'for_each',
           items: 'input.newItems',
           indexVariable: 'idx',
@@ -221,7 +221,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'While Loop',
-      config: {
+      parameters: {
         type: 'do_while' as const,
         condition: 'counter < 10',
         max_iterations: 100,
@@ -239,7 +239,7 @@ describe('LoopNodeDetails Component', () => {
       type: 'loop' as const,
       id: 'loop-1',
       name: 'Do-While Loop',
-      config: {
+      parameters: {
         type: 'do_while' as const,
         condition: 'hasMore === true',
         maxIterationsBehavior: 'continue' as const,

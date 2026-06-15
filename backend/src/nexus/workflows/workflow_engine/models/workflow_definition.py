@@ -17,6 +17,7 @@ from pydantic.functional_validators import ModelWrapValidatorHandler
 from nexus.core.constants import WebhookLimits
 from nexus.core.exceptions import SafeValueError
 from nexus.workflows.json_schema_validation import validate_json_schema_definition
+from nexus.workflows.utils.output_mapping import apply_output_mapping
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
 # Template expression pattern - matches ${...} expressions
@@ -76,6 +77,7 @@ class ActivityName(StrEnum):
     SCRIPT = "execute_script_activity"
     # Internal
     CREDENTIAL_RESOLUTION = "resolve_workflow_credentials"
+    APPROVER_RESOLUTION = "resolve_approvers"
     ACTIVITY_MONITORING = "register_activity_monitoring"
     COMPLETE_WAIT = "complete_wait"
     FETCH_RUNTIME_SETTINGS = "fetch_workflow_runtime_settings"
@@ -181,7 +183,10 @@ class AuthenticationType(str, Enum):
 
 
 class RetryPolicyConfig(BaseModel):
-    """Retry policy for a node. Only applies to executor and approval nodes.
+    """Retry policy for a node.
+
+    Only applies to nodes whose settings class is NodeSettingsFull
+    (http_request, aap_job_template, aap_workflow_job_template).
 
     All fields default to None — the engine merges with global catalog values
     (workflow_engine.retry_*) for any unset field. Set max_retries=0 to
@@ -196,11 +201,27 @@ class RetryPolicyConfig(BaseModel):
     )
 
 
-class NodeSettings(BaseModel):
-    """Engine-level settings that apply to any node type."""
+class NodeSettingsBase(BaseModel):
+    """Base node settings — no user-configurable fields."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class NodeSettingsCof(NodeSettingsBase):
+    """Settings with continue_on_failure only (converge, loop, wait)."""
 
     continue_on_failure: bool | None = None
+
+
+class NodeSettingsNoRetry(NodeSettingsCof):
+    """Settings with continue_on_failure + timeout (script, agentic, approval)."""
+
     timeout: int | None = Field(default=None, ge=1)
+
+
+class NodeSettingsFull(NodeSettingsNoRetry):
+    """Full settings with retry_policy (http_request, aap_job_template, aap_workflow_job_template)."""
+
     retry_policy: RetryPolicyConfig | None = None
 
 
@@ -608,3 +629,128 @@ class WebhookTriggerConfig(TemplateAwareBaseModel):
 
         validate_json_schema_definition(v)
         return v
+
+
+# Node output models
+
+
+class NodeOutput(BaseModel):
+    """Base class for all node output models.
+
+    Each node type that defines a resultSchema has a corresponding
+    NodeOutput subclass. The dump() method serialises the model and
+    optionally applies output-mapping so that Temporal only persists
+    the fields the workflow author selected.
+
+    All fields default to None. On success the executor populates every
+    field; on failure only the fields available before the error are set,
+    the rest stay None. This guarantees a uniform shape so downstream
+    nodes never get KeyError on a known field.
+    """
+
+    def dump(self, output_config: dict[str, str] | None = None) -> dict[str, Any]:
+        """Serialise and apply output mapping."""
+        return apply_output_mapping(self.model_dump(), output_config)
+
+
+class ScriptOutput(NodeOutput):
+    """Output model for script executor nodes."""
+
+    return_code: int | None = None
+    stdout: str | None = None
+    stderr: str | None = None
+    stdout_json: Any = None
+
+
+class HttpRequestOutput(NodeOutput):
+    """Output model for HTTP request executor nodes."""
+
+    status_code: int | None = None
+    body: Any = None
+    headers: dict[str, Any] | None = None
+    elapsed: float | None = None
+
+
+class AAPJobTemplateOutput(NodeOutput):
+    """Output model for AAP job template executor nodes."""
+
+    job_id: int | None = None
+    job_status: str | None = None
+    artifacts: dict[str, Any] | None = None
+    created: str | None = None
+    started: str | None = None
+    finished: str | None = None
+
+
+class AAPWorkflowJobTemplateOutput(NodeOutput):
+    """Output model for AAP workflow job template executor nodes."""
+
+    workflow_job_id: int | None = None
+    workflow_job_status: str | None = None
+    artifacts: dict[str, Any] | None = None
+    created: str | None = None
+    started: str | None = None
+    finished: str | None = None
+
+
+class AgenticOutput(NodeOutput):
+    """Output model for agentic executor nodes."""
+
+    output: str | dict[str, Any] | None = None
+    tool_calls: list[Any] | None = None
+    structured_output_metadata: dict[str, Any] | None = None
+
+
+class ApprovalOutput(NodeOutput):
+    """Output model for approval executor nodes."""
+
+    approver: str | None = None
+    decision: str | None = None
+    timestamp: str | None = None
+    comments: str | None = None
+
+
+class ConditionOutput(NodeOutput):
+    """Output model for condition control nodes."""
+
+    evaluated_result: bool | None = None
+
+
+class SwitchOutput(NodeOutput):
+    """Output model for switch control nodes."""
+
+    matched_port: str | None = None
+
+
+class ConvergeOutput(NodeOutput):
+    """Output model for converge control nodes."""
+
+    branch_count: int | None = None
+    completed_count: int | None = None
+    completed_branch_node_ids: list[str] | None = None
+
+
+class LoopOutput(NodeOutput):
+    """Output model for loop control nodes."""
+
+    iteration_count: int | None = None
+    iteration_results: dict[str, list[Any]] | None = None
+
+
+class WaitOutput(NodeOutput):
+    """Output model for wait control nodes."""
+
+
+NODE_OUTPUT_MODELS: dict[str, type[NodeOutput]] = {
+    NodeType.SCRIPT: ScriptOutput,
+    NodeType.HTTP_REQUEST: HttpRequestOutput,
+    NodeType.AAP_JOB_TEMPLATE: AAPJobTemplateOutput,
+    NodeType.AAP_WORKFLOW_JOB_TEMPLATE: AAPWorkflowJobTemplateOutput,
+    NodeType.AGENTIC: AgenticOutput,
+    NodeType.APPROVAL: ApprovalOutput,
+    NodeType.CONDITION: ConditionOutput,
+    NodeType.SWITCH: SwitchOutput,
+    NodeType.CONVERGE: ConvergeOutput,
+    NodeType.LOOP: LoopOutput,
+    NodeType.WAIT: WaitOutput,
+}

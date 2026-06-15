@@ -55,10 +55,10 @@ class TestResolveDictWithListOfDicts:
     def test_nested_dict_inside_list_dict_is_resolved(self, resolver: NamespaceResolver) -> None:
         """Dicts nested within list-dicts should also be resolved recursively."""
         data: dict[str, Any] = {
-            "items": [{"config": {"endpoint": "${trigger.url}"}}],
+            "items": [{"parameters": {"endpoint": "${trigger.url}"}}],
         }
         result = resolver.resolve_dict(data)
-        assert result["items"] == [{"config": {"endpoint": "https://example.com"}}]
+        assert result["items"] == [{"parameters": {"endpoint": "https://example.com"}}]
 
 
 class TestResolveDictWithNestedLists:

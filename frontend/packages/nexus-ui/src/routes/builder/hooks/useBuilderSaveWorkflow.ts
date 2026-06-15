@@ -153,7 +153,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
       const createPayload: CreateWorkflowBodyExtended = {
         name: nameToSave,
         description: workflowDescription,
-        workflow_definition: workflowDef as CreateWorkflowBody['workflow_definition'],
+        workflow_definition: workflowDef as unknown as CreateWorkflowBody['workflow_definition'],
         ...(Object.keys(labels).length > 0 ? { labels } : {}),
         ...(isNew && selectedProject ? { project_id: selectedProject.id } : {}),
       }
@@ -161,7 +161,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
         name: nameToSave,
         description: workflowDescription,
         labels,
-        workflow_definition: workflowDef as PatchWorkflowBody['workflow_definition'],
+        workflow_definition: workflowDef as unknown as PatchWorkflowBody['workflow_definition'],
       }
 
       const onSaveSuccess = async (workflowIdToNavigate?: string) => {

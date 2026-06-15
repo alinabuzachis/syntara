@@ -74,6 +74,8 @@ class ContextManagerPlanner:
         phase: ContextPlanningPhase,
         execution_id: UUID | None = None,
         request_id: UUID | None = None,
+        activity_id: str | None = None,
+        activity_name: str | None = None,
     ) -> None:
         """Check if invocation has been cancelled.
 
@@ -83,6 +85,8 @@ class ContextManagerPlanner:
             phase: Current execution phase for error reporting
             execution_id: Optional Workflow Execution ID
             request_id: Optional X-Request-Id from the originating HTTP request.
+            activity_id: Optional workflow activity ID for audit correlation
+            activity_name: Optional workflow activity name for audit resource naming
 
         Raises:
             InvocationCancelledError: If invocation has been cancelled
@@ -103,6 +107,8 @@ class ContextManagerPlanner:
                             invocation_id=invocation_id,
                             execution_id=execution_id,
                             request_id=request_id,
+                            activity_id=activity_id,
+                            activity_name=activity_name,
                         )
                     )
 
@@ -124,6 +130,8 @@ class ContextManagerPlanner:
         execution_id: UUID | None = None,
         request_id: UUID | None = None,
         user_id: UUID | None = None,
+        activity_id: str | None = None,
+        activity_name: str | None = None,
     ) -> ContextPackage:
         """Plan and execute a context request.
 
@@ -138,6 +146,8 @@ class ContextManagerPlanner:
             execution_id: Optional Workflow Execution ID
             request_id: Optional X-Request-Id from the originating HTTP request.
             user_id: Optional UUID of the user making the request (for context assembly)
+            activity_id: Optional workflow activity ID for audit correlation
+            activity_name: Optional workflow activity name for audit resource naming
 
         Returns:
             ContextPackage: Assembled context ready for LLM consumption
@@ -157,7 +167,13 @@ class ContextManagerPlanner:
         # Phase 1: Retrieval
         # Check for cancellation before starting retrieval
         await self._check_cancellation(
-            session_id, invocation_id, ContextPlanningPhase.RETRIEVAL, execution_id=execution_id, request_id=request_id
+            session_id,
+            invocation_id,
+            ContextPlanningPhase.RETRIEVAL,
+            execution_id=execution_id,
+            request_id=request_id,
+            activity_id=activity_id,
+            activity_name=activity_name,
         )
 
         # Emit STARTED event for retrieval phase
@@ -169,6 +185,8 @@ class ContextManagerPlanner:
                 invocation_id=invocation_id,
                 execution_id=execution_id,
                 request_id=request_id,
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
         )
 
@@ -196,6 +214,8 @@ class ContextManagerPlanner:
                     execution_id=execution_id,
                     request_id=request_id,
                     document_count=len(retrieved_docs),
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
         except Exception as e:
@@ -212,6 +232,8 @@ class ContextManagerPlanner:
                     execution_id=execution_id,
                     request_id=request_id,
                     error_type=type(e).__name__,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             retrieved_docs = []
@@ -219,7 +241,13 @@ class ContextManagerPlanner:
         # Phase 2: Assembly
         # Check for cancellation before starting assembly
         await self._check_cancellation(
-            session_id, invocation_id, ContextPlanningPhase.ASSEMBLY, execution_id=execution_id, request_id=request_id
+            session_id,
+            invocation_id,
+            ContextPlanningPhase.ASSEMBLY,
+            execution_id=execution_id,
+            request_id=request_id,
+            activity_id=activity_id,
+            activity_name=activity_name,
         )
 
         # Emit STARTED event for assembly phase
@@ -232,6 +260,8 @@ class ContextManagerPlanner:
                 execution_id=execution_id,
                 request_id=request_id,
                 document_count=len(retrieved_docs),
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
         )
 
@@ -273,6 +303,8 @@ class ContextManagerPlanner:
                     invocation_id=invocation_id,
                     execution_id=execution_id,
                     request_id=request_id,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
 
@@ -290,6 +322,8 @@ class ContextManagerPlanner:
                     execution_id=execution_id,
                     request_id=request_id,
                     error_type=type(e).__name__,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             raise

@@ -27,7 +27,7 @@ describe('LoopNodeComponent', () => {
     type: 'loop',
     id: 'loop-1',
     name: 'Process Items',
-    config: {
+    parameters: {
       type: 'for_each',
       items: '{{ items }}',
     },
@@ -87,7 +87,7 @@ describe('LoopNodeComponent', () => {
       const unnamedLoop = {
         type: 'loop',
         id: 'loop-2',
-        config: {
+        parameters: {
           type: 'for_each',
           items: '{{ data }}',
         },

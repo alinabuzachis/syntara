@@ -268,6 +268,68 @@ class TestCreateTestExecution:
                 trigger_inputs={},
             )
 
+    @pytest.mark.asyncio
+    async def test_create_test_execution_execute_target_false_adds_target_to_pre_resolved(self) -> None:
+        """When execute_target is False, target_node_id is added to pre_resolved_nodes."""
+        wf, wv = _make_mock_workflow(node_ids=["node_1", "target_node"])
+        exec_id = uuid4()
+        temporal = Mock()
+        temporal_result = Mock()
+        temporal_result.execution_id = str(exec_id)
+        temporal_result.temporal_workflow_id = "test-exec-abc"
+        temporal_result.temporal_run_id = "run-xyz"
+        temporal.start_workflow = AsyncMock(return_value=temporal_result)
+
+        service, session = _make_service(query_result=(wf, wv), temporal_service=temporal)
+
+        await service.create_test_execution(
+            workflow_id=wf.id,
+            target_node_id="target_node",
+            pre_resolved_nodes={"node_1": PreResolvedNodeOutput(output={"v": 1})},
+            trigger_inputs={},
+            execute_target=False,
+        )
+
+        # Verify Temporal was called with target_node in pre_resolved_outputs
+        call_kwargs = temporal.start_workflow.call_args.kwargs
+        assert "target_node" in call_kwargs["pre_resolved_outputs"]
+        assert call_kwargs["pre_resolved_outputs"]["target_node"] == {"output": {}, "control": None}
+
+        # Verify execution_metadata includes execute_target
+        execution = session.add.call_args[0][0]
+        assert execution.execution_metadata["execute_target"] is False
+
+    @pytest.mark.asyncio
+    async def test_create_test_execution_execute_target_false_does_not_double_add(self) -> None:
+        """When execute_target is False and target already in pre_resolved, do not overwrite."""
+        wf, wv = _make_mock_workflow(node_ids=["target_node"])
+        exec_id = uuid4()
+        temporal = Mock()
+        temporal_result = Mock()
+        temporal_result.execution_id = str(exec_id)
+        temporal_result.temporal_workflow_id = "test-exec-abc"
+        temporal_result.temporal_run_id = "run-xyz"
+        temporal.start_workflow = AsyncMock(return_value=temporal_result)
+
+        service, session = _make_service(query_result=(wf, wv), temporal_service=temporal)
+
+        original_output = {"custom": "value"}
+        await service.create_test_execution(
+            workflow_id=wf.id,
+            target_node_id="target_node",
+            pre_resolved_nodes={"target_node": PreResolvedNodeOutput(output=original_output)},
+            trigger_inputs={},
+            execute_target=False,
+        )
+
+        # Verify the existing entry is preserved (not overwritten)
+        call_kwargs = temporal.start_workflow.call_args.kwargs
+        assert call_kwargs["pre_resolved_outputs"]["target_node"] == {"output": original_output, "control": None}
+
+        # Verify execution_metadata includes execute_target
+        execution = session.add.call_args[0][0]
+        assert execution.execution_metadata["execute_target"] is False
+
 
 # Validator tests — test the Pydantic model directly
 def test_pre_resolved_nodes_max_100_passes() -> None:
@@ -309,3 +371,34 @@ def test_target_in_pre_resolved_raises_at_model_level() -> None:
             target_node_id="node_a",
             pre_resolved_nodes={"node_a": PreResolvedNodeOutput(output={})},
         )
+
+
+def test_target_in_pre_resolved_allowed_when_execute_target_false() -> None:
+    """Validator allows target_node_id in pre_resolved_nodes when execute_target is False."""
+    req = TestExecutionCreate(
+        target_node_id="target",
+        pre_resolved_nodes={"target": PreResolvedNodeOutput(output={"v": 1})},
+        execute_target=False,
+    )
+    assert req.target_node_id == "target"
+    assert "target" in req.pre_resolved_nodes
+    assert req.execute_target is False
+
+
+def test_target_in_pre_resolved_rejected_when_execute_target_true() -> None:
+    """Validator rejects target_node_id in pre_resolved_nodes when execute_target is True."""
+    with pytest.raises(ValidationError, match="must not appear"):
+        TestExecutionCreate(
+            target_node_id="target",
+            pre_resolved_nodes={"target": PreResolvedNodeOutput(output={})},
+            execute_target=True,
+        )
+
+
+def test_execute_target_defaults_to_true() -> None:
+    """Validator sets execute_target to True by default."""
+    req = TestExecutionCreate(
+        target_node_id="target",
+        pre_resolved_nodes={},
+    )
+    assert req.execute_target is True

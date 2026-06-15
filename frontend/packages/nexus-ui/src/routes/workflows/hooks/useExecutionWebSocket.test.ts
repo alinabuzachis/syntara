@@ -486,6 +486,46 @@ describe('useExecutionWebSocket', () => {
     })
   })
 
+  describe('server error events', () => {
+    function sendErrorEvent(code: string) {
+      act(() => {
+        mockOnMessage?.({ event_type: 'error', data: { code }, event_id: null, timestamp: '2025-12-10T15:00:00Z' })
+      })
+    }
+
+    it('EVENTS_EXPIRED marks execution complete', () => {
+      renderHook(() => useExecutionWebSocket('exec-123'))
+      sendErrorEvent('EVENTS_EXPIRED')
+      expect(useExecutionStore.getState().isComplete).toBe(true)
+    })
+
+    it('EVENTS_EXPIRED calls onExecutionComplete callback', () => {
+      const onComplete = vi.fn()
+      renderHook(() => useExecutionWebSocket('exec-123', { onExecutionComplete: onComplete }))
+      sendErrorEvent('EVENTS_EXPIRED')
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    })
+
+    it('INTERNAL_ERROR does not mark execution complete', () => {
+      renderHook(() => useExecutionWebSocket('exec-123'))
+      sendErrorEvent('INTERNAL_ERROR')
+      expect(useExecutionStore.getState().isComplete).toBe(false)
+    })
+
+    it('INTERNAL_ERROR does not call onExecutionComplete', () => {
+      const onComplete = vi.fn()
+      renderHook(() => useExecutionWebSocket('exec-123', { onExecutionComplete: onComplete }))
+      sendErrorEvent('INTERNAL_ERROR')
+      expect(onComplete).not.toHaveBeenCalled()
+    })
+
+    it('STREAM_TIMEOUT does not mark execution complete', () => {
+      renderHook(() => useExecutionWebSocket('exec-123'))
+      sendErrorEvent('STREAM_TIMEOUT')
+      expect(useExecutionStore.getState().isComplete).toBe(false)
+    })
+  })
+
   describe('cleanup', () => {
     it('disconnects on unmount', () => {
       const mockDisconnect = vi.fn()

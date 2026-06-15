@@ -51,7 +51,7 @@ const baseConvergeNode = {
   type: 'converge',
   id: 'converge-1',
   name: 'Wait for All',
-  config: {
+  parameters: {
     strategy: 'all',
   },
 } as ConvergeActivity
@@ -119,7 +119,7 @@ describe('ConvergeNodeComponent', () => {
         type: 'converge',
         id: 'converge-3',
         name: 'Default Strategy',
-        config: {},
+        parameters: {},
       } as ConvergeActivity
 
       render(<ConvergeNodeComponent {...createNodeProps(noStrategyConverge)} />)
@@ -144,7 +144,7 @@ describe('ConvergeNodeComponent', () => {
         type: 'converge',
         id: 'converge-5',
         name: 'Explicit Strategy',
-        config: {
+        parameters: {
           strategy: 'all',
         },
       } as ConvergeActivity
@@ -161,7 +161,7 @@ describe('ConvergeNodeComponent', () => {
         type: 'converge',
         id: 'converge-any-1',
         name: 'Any Strategy',
-        config: {
+        parameters: {
           strategy: 'any',
         },
       } as unknown as ConvergeActivity
@@ -177,7 +177,7 @@ describe('ConvergeNodeComponent', () => {
         type: 'converge',
         id: 'converge-any-n-1',
         name: 'Any 3 Strategy',
-        config: {
+        parameters: {
           strategy: 'any',
           n_required: 3,
         },
@@ -194,7 +194,7 @@ describe('ConvergeNodeComponent', () => {
       const unnamedConverge = {
         type: 'converge',
         id: 'converge-5',
-        config: {
+        parameters: {
           strategy: 'all',
         },
       } as ConvergeActivity

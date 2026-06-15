@@ -42,4 +42,31 @@ describe('NodeFormTabsLayout', () => {
       expect(screen.queryByText('Parameter content')).not.toBeInTheDocument()
     })
   })
+
+  describe('hideSettingsTab', () => {
+    it('does not render the Settings tab when hideSettingsTab is true', () => {
+      render(
+        <NodeFormTabsLayout
+          parametersContent={<div>Parameter content</div>}
+          settingsContent={<div>Settings content</div>}
+          hideSettingsTab
+        />
+      )
+
+      expect(screen.queryByRole('tab', { name: 'Settings' })).not.toBeInTheDocument()
+      expect(screen.getByText('Parameter content')).toBeInTheDocument()
+    })
+
+    it('renders the Settings tab when hideSettingsTab is false', () => {
+      render(
+        <NodeFormTabsLayout
+          parametersContent={<div>Parameter content</div>}
+          settingsContent={<div>Settings content</div>}
+          hideSettingsTab={false}
+        />
+      )
+
+      expect(screen.getByRole('tab', { name: 'Settings' })).toBeInTheDocument()
+    })
+  })
 })

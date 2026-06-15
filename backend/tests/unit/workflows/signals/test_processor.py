@@ -241,11 +241,11 @@ class TestWorkflowSignalProcessorRetryableErrors:
 
     def test_retryable_error_code_raises_activity_execution_error(self) -> None:
         """Test that error codes in the retryable list raise ActivityExecutionError."""
-        # Arrange - 500 is in default retryable codes
+        # Arrange - 503 is in default retryable codes
         signal_data = {
             "status": "failed",
             "error": {
-                "message": "Error code: 500 - Internal Server Error",
+                "message": "Error code: 503 - Service Unavailable",
                 "error_type": "ServerError",
             },
         }
@@ -255,7 +255,7 @@ class TestWorkflowSignalProcessorRetryableErrors:
             WorkflowSignalProcessor.process_signal(signal_data, "api_call", "exec-123")
 
         assert "ServerError" in str(exc_info.value)
-        assert "Internal Server Error" in str(exc_info.value)
+        assert "Service Unavailable" in str(exc_info.value)
 
     def test_non_retryable_error_code_raises_application_error(self) -> None:
         """Test that error codes NOT in the retryable list raise ApplicationError."""

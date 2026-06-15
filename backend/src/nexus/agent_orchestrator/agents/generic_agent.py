@@ -141,6 +141,9 @@ class GenericAgent(BaseAgent):
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
         request_id = state.get("request_id", None)
+        metadata = state.get("metadata") or {}
+        activity_id = metadata.get("activity_id")
+        activity_name = metadata.get("activity_name")
 
         # Query LLM via LangChain (async)
         llm_with_tools = self.llm.bind_tools(self.available_tools)
@@ -172,6 +175,8 @@ class GenericAgent(BaseAgent):
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.EMPTY_RESPONSE,
                     error_type="EmptyLLMResponseError",
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             raise EmptyLLMResponseError(invocation_id=str(invocation_id))
@@ -190,6 +195,8 @@ class GenericAgent(BaseAgent):
                 tools_available=len(self.available_tools),
                 tool_calls_made=tool_calls_count,
                 response_schema_provided=bool(state.get("response_schema")),
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
         )
 
@@ -223,6 +230,9 @@ class GenericAgent(BaseAgent):
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
         request_id = state.get("request_id", None)
+        metadata = state.get("metadata") or {}
+        activity_id = metadata.get("activity_id")
+        activity_name = metadata.get("activity_name")
 
         try:
             structured_llm = self.llm.with_structured_output(response_schema, method="json_mode")
@@ -256,6 +266,8 @@ class GenericAgent(BaseAgent):
                     tools_available=0,
                     response_schema_provided=True,
                     error_type=type(e).__name__,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             logger.warning("Structured output failed, falling back to standard execution", exc_info=True)
@@ -273,6 +285,8 @@ class GenericAgent(BaseAgent):
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.EMPTY_RESPONSE,
                     error_type="EmptyLLMResponseError",
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             raise EmptyLLMResponseError(invocation_id=str(invocation_id))
@@ -290,6 +304,8 @@ class GenericAgent(BaseAgent):
                 tools_available=0,  # No tools in structured mode
                 response_schema_provided=True,
                 fallback_strategy_used="native",
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
         )
 
@@ -322,6 +338,9 @@ class GenericAgent(BaseAgent):
         invocation_id = state["invocation_id"]
         execution_id = state.get("execution_id", None)
         request_id = state.get("request_id", None)
+        metadata = state.get("metadata") or {}
+        activity_id = metadata.get("activity_id")
+        activity_name = metadata.get("activity_name")
 
         try:
             result_dict = state.get("result")
@@ -362,6 +381,8 @@ class GenericAgent(BaseAgent):
                     status=LLMInteractionStatus.SUCCESS,
                     response_schema_provided=True,
                     fallback_strategy_used="native",
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
 
@@ -380,6 +401,8 @@ class GenericAgent(BaseAgent):
                     model_name=getattr(self.llm, "model_name", "unknown"),
                     status=LLMInteractionStatus.ERROR,
                     error_type=type(e).__name__,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             logger.warning("Structured output extraction failed, keeping raw text", exc_info=True)

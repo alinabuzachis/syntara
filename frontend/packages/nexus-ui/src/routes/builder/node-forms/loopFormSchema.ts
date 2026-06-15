@@ -2,11 +2,8 @@ import { z } from 'zod'
 
 import { conditionValidationRules } from './shared/conditionValidation'
 import { optionalNumber } from './shared/formSchemaUtils'
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
 
-/**
- * Zod schema for the Loop node form.
- * Conditional: items required when type is forEach; condition required and validated when type is while.
- */
 const loopFormSchemaBase = z.object({
   name: z.string(),
   type: z.enum(['forEach', 'while']),
@@ -15,7 +12,7 @@ const loopFormSchemaBase = z.object({
   itemVariable: z.string().optional(),
   condition: z.string().optional(),
   maxIterations: optionalNumber.optional(),
-  maxIterationsBehavior: z.enum(['continue', 'fail']).optional(),
+  settings: nodeSettingsSchema.optional(),
 })
 
 export const loopFormSchema = loopFormSchemaBase.superRefine((data, ctx) => {

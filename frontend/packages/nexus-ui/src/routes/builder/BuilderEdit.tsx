@@ -1,9 +1,10 @@
 import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useParams } from 'wouter'
+import { useMemo } from 'react'
+import { useParams, useSearch } from 'wouter'
 
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
@@ -11,10 +12,17 @@ import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
 
 import { BuilderContent } from './BuilderContent'
+import type { ExecutionCopyData } from './hooks/useExecutionCopyToEditor'
 
 export default function BuilderEdit() {
   const params = useParams<{ workflowId: string }>()
   const workflowId = params.workflowId
+  const searchParams = useSearch()
+  const parsedParams = useMemo(() => {
+    const p = new URLSearchParams(searchParams)
+    return { fromExecution: p.get('fromExecution'), linkExecution: p.get('linkExecution') }
+  }, [searchParams])
+  const executionIdParam = parsedParams.fromExecution ?? parsedParams.linkExecution
 
   // Fetch existing workflow - always refetch on mount to ensure fresh data
   const workflowQuery = workflowClient.useQuery(
@@ -28,6 +36,30 @@ export default function BuilderEdit() {
       refetchOnMount: 'always',
     }
   )
+
+  const executionQuery = executionsClient.useQuery(
+    'get',
+    '/executions/{execution_id}',
+    {
+      params: {
+        path: { execution_id: executionIdParam ?? '' },
+        query: { include: 'workflow_definition' },
+      },
+    },
+    { enabled: !!executionIdParam }
+  )
+
+  const executionCopy = useMemo((): ExecutionCopyData | undefined => {
+    if (!executionIdParam || !executionQuery.data) return undefined
+    const exec = executionQuery.data
+    const wfDef = exec.workflow_definition as Record<string, unknown> | undefined
+    if (!wfDef) return undefined
+    return {
+      executionId: executionIdParam,
+      workflowDefinition: wfDef,
+      preserveWorkflow: !!parsedParams.linkExecution,
+    }
+  }, [executionIdParam, executionQuery.data, parsedParams.linkExecution])
 
   // Show loading/error states only on initial load, not during refetch
   // This prevents unmounting the component (and losing ButtonEdges) when refetching after save
@@ -63,7 +95,12 @@ export default function BuilderEdit() {
 
   return (
     <ReactFlowProvider key={workflowId}>
-      <BuilderContent workflow={workflowQuery.data as WorkflowWithVersion} isNew={false} workflowId={workflowId} />
+      <BuilderContent
+        workflow={workflowQuery.data as WorkflowWithVersion}
+        isNew={false}
+        workflowId={workflowId}
+        executionCopy={executionCopy}
+      />
     </ReactFlowProvider>
   )
 }

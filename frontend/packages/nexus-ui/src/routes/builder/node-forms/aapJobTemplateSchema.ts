@@ -4,6 +4,7 @@ import { hasExpressionValue } from '../utils/aapHelpers'
 
 import { validateExtraVars } from './shared/aapSchemaUtils'
 import { optionalNumber } from './shared/formSchemaUtils'
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
 
 /**
  * Zod schema for the AAP (Ansible Automation Platform) job template node form.
@@ -36,7 +37,6 @@ export const aapJobTemplateSchema = z
     // ── Additional fields ─────────────────────────────────────────────
     job_type: z.string().optional(),
     forks: optionalNumber.optional(),
-    timeout: optionalNumber.optional(),
     job_slice_count: optionalNumber.optional(),
     diff_mode: z.boolean().optional(),
     execution_environment: z.string().optional(),
@@ -44,6 +44,7 @@ export const aapJobTemplateSchema = z
     instance_group: z.string().optional(),
     instance_group_id: optionalNumber.optional(),
     labels: z.array(z.string()).optional(), // Label names (supports creating new labels)
+    settings: nodeSettingsSchema.optional(),
   })
   .superRefine((data, ctx) => {
     // Skip job_template_id check when using expression mode (${...} expressions resolve at runtime)

@@ -4,13 +4,14 @@ import type React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { DefaultEdge } from './DefaultEdge'
+import type { AdjustEdgeOptions } from './edgeUtils'
 
 const mockNodesConnectable = vi.hoisted(() => ({ value: true }))
 const mockIsHovered = vi.hoisted(() => ({ value: false }))
 
 // Mock @xyflow/react
 vi.mock('@xyflow/react', () => ({
-  getBezierPath: () => ['M0 0 L100 100', 50, 50],
+  getSmoothStepPath: () => ['M0 0 L100 100', 50, 50],
   EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   useStore: (selector: (s: { nodesConnectable: boolean }) => boolean) =>
     selector({ nodesConnectable: mockNodesConnectable.value }),
@@ -52,11 +53,11 @@ vi.mock('./useEdgeHandlers', () => ({
 }))
 
 vi.mock('./edgeUtils', () => ({
-  adjustEdgeCoordinates: (sX: number, sY: number, _sP: unknown, tX: number, tY: number) => ({
-    sourceX: sX,
-    sourceY: sY,
-    targetX: tX,
-    targetY: tY,
+  adjustEdgeCoordinates: ({ sourceX, sourceY, targetX, targetY }: AdjustEdgeOptions) => ({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
   }),
 }))
 

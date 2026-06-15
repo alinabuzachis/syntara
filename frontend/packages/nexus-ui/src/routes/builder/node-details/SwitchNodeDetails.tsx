@@ -18,7 +18,7 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
   const { showError } = useAlerts()
   const { updateActivity } = useWorkflowStoreActions()
 
-  const switchConfig = (switchData.config ?? { cases: [] }) as SwitchConfig
+  const switchConfig = (switchData.parameters ?? { cases: [] }) as SwitchConfig
 
   const { initialCases, oldCaseIdToPort } = useMemo(() => {
     const portMap = new Map<string, string>()
@@ -62,7 +62,7 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
       const updatedActivity: SwitchActivity = {
         ...switchData,
         name: data.name,
-        config: {
+        parameters: {
           cases: newCases,
           default_port: EdgeHandleEnum.DEFAULT,
         },

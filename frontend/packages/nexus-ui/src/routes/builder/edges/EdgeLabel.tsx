@@ -24,6 +24,7 @@ export function EdgeLabel(props: EdgeLabelProps) {
 
   return (
     <EdgeLabelRenderer>
+      {/* eslint-disable-next-line nexus/prefer-pf-text-components -- canvas-positioned edge label container */}
       <div
         style={{
           position: 'absolute',

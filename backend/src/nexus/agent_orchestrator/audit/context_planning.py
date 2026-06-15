@@ -52,6 +52,8 @@ class ContextPlanningEvent:
     # Optional context
     document_count: int | None = None
     error_type: str | None = None
+    activity_id: str | None = None
+    activity_name: str | None = None
 
 
 @dataclass
@@ -68,6 +70,8 @@ class CancellationEvent:
     execution_id: UUID | None = None
     request_id: UUID | None = None
     actor_context: AuditActorContext | None = None
+    activity_id: str | None = None
+    activity_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +151,9 @@ class ContextPlanningHandler(AuditEventHandler[ContextPlanningEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
+            activity_id=event.activity_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.activity_name,
         )
 
 
@@ -194,5 +200,7 @@ class CancellationHandler(AuditEventHandler[CancellationEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
+            activity_id=event.activity_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.activity_name,
         )

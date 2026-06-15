@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: fetch_data
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/data
 edges: []

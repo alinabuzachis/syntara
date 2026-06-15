@@ -36,11 +36,7 @@ async def _test_lifespan_context(test_db_engine: AsyncEngine) -> AsyncGenerator[
         patch("nexus.core.database.session.AsyncSessionLocal", test_session_factory),
         patch("nexus.api.main.engine", test_db_engine),
         patch("nexus.api.main.AsyncSessionLocal", test_session_factory),
-        patch("nexus.core.database.audit_session.audit_engine", test_db_engine),
-        patch("nexus.core.database.audit_session.AuditSessionLocal", test_session_factory),
-        patch("nexus.api.main.audit_engine", test_db_engine),
         patch("nexus.audit.outbox.worker.AsyncSessionLocal", test_session_factory),
-        patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory),
         patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
     ):
         # Seed required data before app startup

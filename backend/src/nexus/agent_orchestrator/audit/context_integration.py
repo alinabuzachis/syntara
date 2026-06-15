@@ -37,6 +37,8 @@ class ContextIntegrationEvent:
     grounding_score: float | None = None
     citations_count: int | None = None
     actor_context: AuditActorContext | None = None
+    activity_id: str | None = None
+    activity_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -101,5 +103,7 @@ class ContextIntegrationHandler(AuditEventHandler[ContextIntegrationEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
+            activity_id=event.activity_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.activity_name,
         )

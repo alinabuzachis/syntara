@@ -4,6 +4,7 @@ import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
 import { workflowFetchClient } from '../../client'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
+import { executionStatusDisplayLabels } from '../builder/executionStatusConstants'
 
 /**
  * Transforms workflow resources into filter options
@@ -82,13 +83,9 @@ export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition =>
  * // Generates query param: status=completed
  * ```
  */
-/**
- * Status filter options derived from the ExecutionStatusEnum contract.
- * Labels are auto-capitalized from the enum values (e.g. 'pending' → 'Pending').
- */
 const EXECUTION_STATUS_OPTIONS = Object.values(ExecutionStatusEnum).map((status) => ({
   value: status,
-  label: status.charAt(0).toUpperCase() + status.slice(1),
+  label: executionStatusDisplayLabels[status] ?? status.charAt(0).toUpperCase() + status.slice(1),
 }))
 
 export const getExecutionStatusFilterDefinition = (): FilterFieldDefinition => ({

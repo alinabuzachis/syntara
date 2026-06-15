@@ -69,7 +69,7 @@ export function SwitchNodeComponent(props: NodeProps<SwitchNode>) {
       }
     | undefined
 
-  const config = (props.data.config ?? { cases: [] }) as SwitchConfig
+  const config = (props.data.parameters ?? { cases: [] }) as SwitchConfig
   const cases = config.cases ?? []
 
   const branchSources = [

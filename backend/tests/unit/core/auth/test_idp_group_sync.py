@@ -834,6 +834,25 @@ class TestAapRoleMapping:
         )
         assert result is True
 
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self):
+        """Issuer comparison tolerates missing trailing slash in the iss claim."""
+        user = _make_user()
+        provider_id = uuid4()
+        identity = _make_identity(user, provider_id)
+        admins_group = _make_builtin_group("admins")
+        config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
+        db = _make_mock_db_for_aap(builtin_group=admins_group)
+
+        result = await sync_idp_groups(
+            db,
+            user,
+            identity,
+            {"iss": "https://idp.example.com", "aap_system_role": "system_administrator"},
+            config,
+        )
+        assert result is True
+
     def test_serialization_roundtrip(self):
         config = _make_config(aap_role_mapping_enabled=True, idp_type="aap")
         data = config.model_dump()

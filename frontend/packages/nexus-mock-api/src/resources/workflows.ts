@@ -70,7 +70,7 @@ const projectIds = ['p-001', 'p-002']
 export const workflows: (WorkflowWithVersion & { project_id: string })[] = yamlFiles
   .map((file, index) => {
     const filePath = join(examplesDir, file)
-    const workflow = convertYamlToWorkflow(filePath, (index + 1).toString(), 'system')
+    const workflow = convertYamlToWorkflow(filePath, (index + 1).toString(), 'system', examplesDir)
     return { ...workflow, project_id: projectIds[index % projectIds.length] }
   })
   .sort((a, b) => a.name.localeCompare(b.name))

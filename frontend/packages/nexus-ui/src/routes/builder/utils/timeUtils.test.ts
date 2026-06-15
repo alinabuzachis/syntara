@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDurationLabel, secondsToTimeUnits, timeUnitsToSeconds } from './timeUtils'
+import { formatDuration, formatDurationLabel, secondsToTimeUnits, timeUnitsToSeconds } from './timeUtils'
 
 describe('secondsToTimeUnits', () => {
   it('converts 0 seconds to all zeros', () => {
@@ -91,5 +91,33 @@ describe('formatDurationLabel', () => {
 
   it('formats 30 days', () => {
     expect(formatDurationLabel(2592000)).toBe('30d')
+  })
+})
+
+describe('formatDuration', () => {
+  it('returns "0s" for 0 seconds', () => {
+    expect(formatDuration(0)).toBe('0s')
+  })
+
+  it('formats seconds only', () => {
+    expect(formatDuration(45)).toBe('45s')
+  })
+
+  it('formats minutes and seconds', () => {
+    expect(formatDuration(125)).toBe('2m 5s')
+  })
+
+  it('formats hours, minutes, seconds', () => {
+    expect(formatDuration(3661)).toBe('1h 1m 1s')
+  })
+
+  it('formats days, hours, minutes, seconds', () => {
+    expect(formatDuration(90061)).toBe('1d 1h 1m 1s')
+  })
+
+  it('omits zero units', () => {
+    expect(formatDuration(86400)).toBe('1d')
+    expect(formatDuration(3600)).toBe('1h')
+    expect(formatDuration(300)).toBe('5m')
   })
 })

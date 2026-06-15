@@ -79,6 +79,8 @@ class TestInvocationCreatedHandler:
         assert result.source_component == "nexus.invocations.create"
         assert result.event_message == "Invocation created for session session-123"
         assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        # Without activity context, resource_name should be None
+        assert result.resource_name is None
 
     def test_successful_creation_with_files_and_context(self) -> None:
         """Successful creation with files and context captures all fields in structured_data."""
@@ -130,6 +132,40 @@ class TestInvocationCreatedHandler:
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.error_type == "SQLAlchemyError"
         assert result.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
+
+    def test_invocation_created_includes_activity_context(self) -> None:
+        """InvocationCreatedEvent includes activity_id and activity_name from workflow context."""
+        invocation_id = uuid4()
+        event = InvocationCreatedEvent(
+            invocation_id=invocation_id,
+            session_id="session-workflow",
+            activity_id="activity-456",
+            activity_name="agentic_v2",
+        )
+        handler = InvocationCreatedHandler()
+        result = handler.handle(event)
+
+        assert result.event_status == EventStatus.SUCCESS
+        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        # Verify activity context (stored in AuditEvent, not structured_data)
+        assert result.activity_id == "activity-456"
+        assert result.resource_name == "agentic_v2"
+
+    def test_invocation_created_without_activity_context(self) -> None:
+        """InvocationCreatedEvent without workflow context has no activity fields."""
+        invocation_id = uuid4()
+        event = InvocationCreatedEvent(
+            invocation_id=invocation_id,
+            session_id="session-no-workflow",
+        )
+        handler = InvocationCreatedHandler()
+        result = handler.handle(event)
+
+        assert result.event_status == EventStatus.SUCCESS
+        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        # Verify no activity context (stored in AuditEvent, not structured_data)
+        assert result.activity_id is None
+        assert result.resource_name is None
 
     def test_resource_urn_format(self) -> None:
         """Resource URN follows RFC 8141 format."""

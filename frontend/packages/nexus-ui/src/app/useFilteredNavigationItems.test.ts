@@ -46,7 +46,6 @@ function setPermissions(overrides: Record<string, boolean>) {
       'user:read': true,
       'group:read': true,
       'identity-provider:read': true,
-      'audit:read': true,
       'project:read': true,
       'role-assignment:read': true,
       ...overrides,
@@ -69,7 +68,6 @@ describe('useFilteredNavigationItems', () => {
     expect(findItem(result.current, 'Users')).toBeDefined()
     expect(findItem(result.current, 'Groups')).toBeDefined()
     expect(findItem(result.current, 'Identity Providers')).toBeDefined()
-    expect(findItem(result.current, 'Audit Log')).toBeDefined()
     expect(findItem(result.current, 'Access Management')).toBeDefined()
   })
 
@@ -88,7 +86,6 @@ describe('useFilteredNavigationItems', () => {
       'user:read': false,
       'group:read': false,
       'identity-provider:read': false,
-      'audit:read': false,
       'project:read': false,
       'role-assignment:read': false,
     })
@@ -105,16 +102,6 @@ describe('useFilteredNavigationItems', () => {
 
     expect(findItem(result.current, 'Identity Providers')).toBeUndefined()
     expect(findItem(result.current, 'Settings')).toBeDefined()
-    expect(findItem(result.current, 'Audit Log')).toBeDefined()
-  })
-
-  it('excludes Audit Log when audit:read is denied', () => {
-    setPermissions({ 'audit:read': false })
-    const { result } = renderHook(() => useFilteredNavigationItems())
-
-    expect(findItem(result.current, 'Audit Log')).toBeUndefined()
-    expect(findItem(result.current, 'Settings')).toBeDefined()
-    expect(findItem(result.current, 'Identity Providers')).toBeDefined()
   })
 
   it('preserves other System Administration children when Settings is filtered', () => {
@@ -183,7 +170,6 @@ describe('useFilteredNavigationItems', () => {
       setPermissions({
         'setting:read': false,
         'identity-provider:read': false,
-        'audit:read': false,
         'user:read': false,
         'group:read': false,
         'project:read': false,
@@ -198,7 +184,6 @@ describe('useFilteredNavigationItems', () => {
       setPermissions({
         'setting:read': true,
         'identity-provider:read': false,
-        'audit:read': false,
         'user:read': false,
         'group:read': false,
         'project:read': false,
@@ -214,7 +199,6 @@ describe('useFilteredNavigationItems', () => {
       setPermissions({
         'setting:read': false,
         'identity-provider:read': false,
-        'audit:read': false,
         'user:read': false,
         'group:read': false,
         'project:read': false,

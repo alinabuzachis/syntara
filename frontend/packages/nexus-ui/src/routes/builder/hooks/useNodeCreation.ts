@@ -11,6 +11,8 @@ export type TriggerFormData = {
   inputSchema?: string
 }
 
+import type { NodeSettings } from '@ansible/nexus-contracts'
+
 export type ActionFormData = {
   name: string
   executor: 'script' | 'http_request'
@@ -25,4 +27,5 @@ export type ActionFormData = {
   parameters?: string
   requiresApproval?: boolean
   credential_id?: string
+  settings?: NodeSettings
 }

@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/switch",
   "title": "Switch Node",
   "description": "Multi-case expression-based branching",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": [
       "cases"
@@ -87,7 +87,28 @@
       },
       {
         "title": "Failed Result",
-        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          },
+          "matched_port": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

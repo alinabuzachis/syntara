@@ -77,4 +77,5 @@ class RoleAssignmentHandler(AuditEventHandler[RoleAssignmentEvent]):
             source_component="nexus.authz",
             structured_data=data,
             resource_urn=f"urn:nexus:role-assignment:{event.assignment_id}",
+            resource_name=event.role_name,
         )

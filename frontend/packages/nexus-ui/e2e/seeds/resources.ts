@@ -87,9 +87,10 @@ export async function createWorkflowViaApi(
         description: `E2E seed workflow: ${options.name}`,
         triggers: [
           {
-            id: 'trigger-1',
+            id: 'trigger_1',
             name: 'Manual trigger',
-            type: 'manual',
+            type: 'manual_trigger',
+            parameters: {},
           },
         ],
         nodes: [],

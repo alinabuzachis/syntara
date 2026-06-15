@@ -204,7 +204,7 @@ class TestWorkflowUpdate:
                         "id": "step1",
                         "name": "Step 1",
                         "type": "script",
-                        "config": {
+                        "parameters": {
                             "language": "python",
                             "code": "print('step 1')",
                         },
@@ -242,7 +242,7 @@ class TestWorkflowUpdate:
                         "id": "step1",
                         "name": "Step 1",
                         "type": "script",
-                        "config": {
+                        "parameters": {
                             "language": "python",
                             "code": "print('step 1')",
                         },
@@ -251,7 +251,7 @@ class TestWorkflowUpdate:
                         "id": "step2",
                         "name": "Step 2",
                         "type": "http_request",
-                        "config": {
+                        "parameters": {
                             "method": "GET",
                             "url": "https://example.com",
                         },

@@ -206,6 +206,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
       </StackItem>
 
       <StackItem>
+        {/* eslint-disable-next-line nexus/prefer-pf-text-components -- styled container for expression editor panel */}
         <div
           style={{
             borderRadius: 'var(--pf-t--global--border-radius--default)',

@@ -21,9 +21,7 @@ from enum import StrEnum
 import structlog
 
 from nexus.core.config.base import get_settings
-
-# Logger name for audit logs
-AUDIT_LOGGER_NAME = "nexus.audit"
+from nexus.core.logging.logging import build_nexus_formatter
 
 # Logger name for OTEL-exported audit logs
 OTEL_AUDIT_LOGGER_NAME = "nexus.audit.otel"
@@ -140,12 +138,21 @@ def configure_otel_logging() -> None:
             logger_provider=logger_provider,
         )
 
-        # Attach handler to the specific audit OTEL logger
+        # Create stdout handler for operational logs
+        # This ensures audit events from the outbox worker are visible in standard logs
+        # in addition to being exported to OTEL
+        stdout_handler = logging.StreamHandler()
+        stdout_handler.setFormatter(build_nexus_formatter())
+        stdout_handler.setLevel(logging.NOTSET)
+
+        # Attach BOTH handlers to the specific audit OTEL logger
         # Note: audit_otel_logger was already created in the idempotency check above
-        audit_otel_logger.addHandler(otel_handler)
+        audit_otel_logger.addHandler(otel_handler)  # OTEL export
+        audit_otel_logger.addHandler(stdout_handler)  # Operational logs to stdout
         audit_otel_logger.setLevel(logging.NOTSET)
 
         # Prevent propagation to avoid duplicate logs in the root logger
+        # (stdout_handler already writes to stdout, we don't need root logger to do it again)
         audit_otel_logger.propagate = False
 
         _otel_state = OtelLoggingState.CONFIGURED

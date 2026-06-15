@@ -12,14 +12,14 @@ import {
 import type { Activity } from './workflowStoreTypes'
 
 // v2: all nodes are flat with a config object, no nested structures
-const task = (id: string): Activity => ({ type: ActivityTypeEnum.SCRIPT, id, name: id, config: {} }) as Activity
+const task = (id: string): Activity => ({ type: ActivityTypeEnum.SCRIPT, id, name: id, parameters: {} }) as Activity
 
 const condition = (id: string): Activity =>
   ({
     type: ActivityTypeEnum.CONDITION,
     id,
     name: id,
-    config: { condition: 'true' },
+    parameters: { condition: 'true' },
   }) as Activity
 
 const loop = (id: string): Activity =>
@@ -27,7 +27,7 @@ const loop = (id: string): Activity =>
     type: ActivityTypeEnum.LOOP,
     id,
     name: id,
-    config: { type: 'for_each', items: 'items' },
+    parameters: { type: 'for_each', items: 'items' },
   }) as Activity
 
 const converge = (id: string): Activity =>
@@ -35,7 +35,7 @@ const converge = (id: string): Activity =>
     type: ActivityTypeEnum.CONVERGE,
     id,
     name: id,
-    config: { strategy: 'all' },
+    parameters: { strategy: 'all' },
   }) as Activity
 
 describe('findActivityById', () => {

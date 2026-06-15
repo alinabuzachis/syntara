@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: hello_python
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import json

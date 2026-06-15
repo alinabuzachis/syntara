@@ -71,7 +71,7 @@ async def test_create_activity_execution_with_all_fields(
     # Create activity execution with all fields
     now = datetime.now(UTC)
     labels = {"environment": "test", "retry": "true"}
-    activity_def = {"id": "activity_1", "type": "script", "config": {"language": "bash", "code": "echo ok"}}
+    activity_def = {"id": "activity_1", "type": "script", "parameters": {"language": "bash", "code": "echo ok"}}
     input_data = {"param1": "value1"}
     output_data = {"result": "success"}
 
@@ -332,7 +332,7 @@ async def test_activity_definition_storage(
         "id": "fetch_data",
         "name": "Fetch Data from API",
         "type": "http_request",
-        "config": {
+        "parameters": {
             "method": "GET",
             "url": "https://api.example.com/data",
             "headers": {"Authorization": "Bearer token"},
@@ -357,5 +357,5 @@ async def test_activity_definition_storage(
 
     # Verify complex structure stored and retrieved correctly
     assert activity.activity_definition == activity_def
-    assert activity.activity_definition["config"]["method"] == "GET"
+    assert activity.activity_definition["parameters"]["method"] == "GET"
     assert activity.activity_definition["retryPolicy"]["maxAttempts"] == 3

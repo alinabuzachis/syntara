@@ -330,7 +330,7 @@ export async function tryCreateWorkflow(
       workflow_definition: {
         schema_version: '2.0.0',
         name,
-        triggers: [{ id: 'trigger-1', type: 'manual_trigger', config: {} }],
+        triggers: [{ id: 'trigger_1', type: 'manual_trigger', parameters: {} }],
         nodes: [],
         edges: [],
       },
@@ -436,7 +436,7 @@ export async function createWorkflowApi(
       workflow_definition: {
         schema_version: '2.0.0',
         name,
-        triggers: [{ id: 'trigger-1', type: 'manual_trigger', config: {} }],
+        triggers: [{ id: 'trigger_1', type: 'manual_trigger', parameters: {} }],
         nodes: [],
         edges: [],
       },

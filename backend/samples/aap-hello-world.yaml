@@ -9,7 +9,7 @@ nodes:
   - id: launch_job_template
     type: aap_job_template
     name: Launch Job Template
-    config:
+    parameters:
       job_template_id: 7
       verbosity: 5
 edges:

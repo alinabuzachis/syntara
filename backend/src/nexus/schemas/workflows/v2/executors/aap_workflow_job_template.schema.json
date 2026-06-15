@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/aap_workflow_job_template",
   "title": "AAP Workflow Job Template Node",
   "description": "Launch Ansible Automation Platform workflow job templates",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "description": "Workflow job template must be specified by ID or name. When both are provided, ID takes precedence.",
     "properties": {
@@ -104,7 +104,7 @@
     "additionalProperties": false
   },
   "settingSchema": {
-    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsFull"
   },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
@@ -155,21 +155,60 @@
       },
       {
         "title": "Failed Result",
-        "allOf": [
-          {
-            "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error",
+          "workflow_job_id",
+          "workflow_job_status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
           },
-          {
-            "type": "object",
-            "properties": {
-              "workflow_job_id": {
-                "type": "integer",
-                "description": "AAP workflow job ID (if workflow was launched before failure)"
-              }
-            },
-            "additionalProperties": false
+          "error": {
+            "type": "string"
+          },
+          "workflow_job_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_job_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "artifacts": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
-        ]
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

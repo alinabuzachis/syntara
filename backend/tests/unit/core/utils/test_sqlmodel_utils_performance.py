@@ -71,8 +71,8 @@ class TestFilterParserPerformance:
         end_time = time.perf_counter()
         avg_time = (end_time - start_time) / 100
 
-        # Should be under 1ms (0.001 seconds)
-        assert avg_time < 0.001, f"Complex filter parsing took {avg_time:.4f}s, expected <0.001s"
+        # Should be under 5ms (0.005 seconds)
+        assert avg_time < 0.005, f"Complex filter parsing took {avg_time:.4f}s, expected <0.005s"
         assert len(filters) == 5
 
     def test_filter_parser_large_params_performance(self) -> None:

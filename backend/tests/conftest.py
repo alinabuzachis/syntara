@@ -53,7 +53,6 @@ from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.auth.services.token_service import TokenService
 from nexus.core.config.base import Settings, get_settings
-from nexus.core.database.audit_session import get_audit_db
 from nexus.core.database.session import get_db
 from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User
@@ -74,7 +73,6 @@ from nexus.workflows.workflow_engine.activities.script_activity import execute_s
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
 from tests.helpers.approval import ApprovalsFactory
-from tests.helpers.audit import AuditEventsFactory
 from tests.helpers.credential import CredentialFactory
 from tests.helpers.execution import ExecutionFactory
 from tests.helpers.identity_provider import IdentityProviderFactory
@@ -515,17 +513,6 @@ def _get_alembic_config(db_url: str) -> Config:
     return alembic_cfg
 
 
-def _get_audit_alembic_config(db_url: str) -> Config:
-    """Build an Alembic Config for audit migrations pointing at the test database."""
-    alembic_cfg = Config(str(PROJECT_ROOT / "alembic_audit.ini"))
-    alembic_cfg.set_main_option(
-        "script_location",
-        str(PROJECT_ROOT / "src" / "nexus" / "core" / "database" / "audit_migrations"),
-    )
-    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
-    return alembic_cfg
-
-
 def _safe_url(url: str | sqlalchemy.engine.URL) -> str:
     """Render URL with credentials redacted for logging."""
     return make_url(str(url)).render_as_string(hide_password=True)
@@ -536,7 +523,6 @@ async def _upgrade_database_schema(db_url: str) -> None:
     logger.debug("Applying Alembic migrations to test database %s", db_url)
     try:
         await asyncio.to_thread(command.upgrade, _get_alembic_config(db_url), "head")
-        await asyncio.to_thread(command.upgrade, _get_audit_alembic_config(db_url), "head")
         logger.debug("Successfully applied migrations to %s", db_url)
     except Exception:  # pragma: no cover - defensive logging
         logger.exception("Failed to apply migrations to %s", _safe_url(db_url))
@@ -694,11 +680,7 @@ async def session_app(
         patch("nexus.core.database.session.AsyncSessionLocal", test_session_factory),
         patch("nexus.api.main.engine", test_db_engine),
         patch("nexus.api.main.AsyncSessionLocal", test_session_factory),
-        patch("nexus.core.database.audit_session.audit_engine", test_db_engine),
-        patch("nexus.core.database.audit_session.AuditSessionLocal", test_session_factory),
-        patch("nexus.api.main.audit_engine", test_db_engine),
         patch("nexus.audit.outbox.worker.AsyncSessionLocal", test_session_factory),
-        patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory),
         patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
     ):
         # Seed all required data before app startup (normally done post-migration
@@ -817,7 +799,6 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
         yield test_db_session
 
     session_app.dependency_overrides[get_db] = override_get_db
-    session_app.dependency_overrides[get_audit_db] = override_get_db
 
     async with AsyncClient(
         transport=ASGITransport(app=session_app),
@@ -874,7 +855,11 @@ async def base_client_with_provider_factory(
 
 @pytest.fixture
 def default_user_data() -> dict[str, Any]:
-    """Provide default user attributes."""
+    """Provide default user attributes.
+
+    Note: username/email are made unique per-user in user_factory to prevent
+    parallel test conflicts while preserving test expectations for username="testuser".
+    """
     from nexus.auth.passwords import hash_password
 
     return {
@@ -894,7 +879,17 @@ async def user_factory(
 
     async def _create_user(**overrides: object) -> "User":
         group_names: list[str] | None = overrides.pop("group_names", None)  # type: ignore[assignment]
-        user_data = {**default_user_data, **overrides}
+        # Generate fresh UUID suffix per user to ensure uniqueness when creating multiple users in one test
+        if "username" not in overrides and "email" not in overrides:
+            unique_suffix = str(uuid4())[:8]
+            user_data = {
+                **default_user_data,
+                "username": f"testuser-{unique_suffix}",
+                "email": f"testuser-{unique_suffix}@example.com",
+                **overrides,
+            }
+        else:
+            user_data = {**default_user_data, **overrides}
         user = User(**user_data)
         test_db_session.add(user)
         await test_db_session.flush()
@@ -916,8 +911,12 @@ async def user_factory(
 
 @pytest_asyncio.fixture
 async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
-    """Create test user with default attributes."""
-    return await user_factory()
+    """Create test user with default attributes.
+
+    Explicitly sets username='testuser' to maintain backward compatibility
+    with tests that expect this exact username (e.g., integration tests).
+    """
+    return await user_factory(username="testuser", email="testuser@example.com")
 
 
 @pytest_asyncio.fixture
@@ -972,7 +971,7 @@ async def test_workflow_definition() -> dict[str, Any]:
                 "id": "test_activity",
                 "name": "test_activity",
                 "type": "script",
-                "config": {
+                "parameters": {
                     "language": "bash",
                     "code": "echo 'test'",
                 },
@@ -1063,7 +1062,7 @@ async def test_activity_definition() -> dict[str, Any]:
     return {
         "id": "test_activity",
         "type": "script",
-        "config": {"language": "python", "code": "print('test')"},
+        "parameters": {"language": "python", "code": "print('test')"},
     }
 
 
@@ -1176,9 +1175,7 @@ def sync_test_client(
         yield test_db_session
 
     previous_get_db = app.dependency_overrides.get(get_db)
-    previous_get_audit_db = app.dependency_overrides.get(get_audit_db)
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_audit_db] = override_get_db
 
     session_factory = async_sessionmaker(
         test_db_engine,
@@ -1200,11 +1197,7 @@ def sync_test_client(
             patch("nexus.core.database.session.AsyncSessionLocal", session_factory),
             patch("nexus.api.main.engine", test_db_engine),
             patch("nexus.api.main.AsyncSessionLocal", session_factory),
-            patch("nexus.core.database.audit_session.audit_engine", test_db_engine),
-            patch("nexus.core.database.audit_session.AuditSessionLocal", session_factory),
-            patch("nexus.api.main.audit_engine", test_db_engine),
             patch("nexus.audit.outbox.worker.AsyncSessionLocal", session_factory),
-            patch("nexus.audit.outbox.worker.AuditSessionLocal", session_factory),
             patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
         ):
             client = TestClient(app)
@@ -1217,11 +1210,6 @@ def sync_test_client(
             app.dependency_overrides[get_db] = previous_get_db
         else:
             app.dependency_overrides.pop(get_db, None)
-
-        if previous_get_audit_db is not None:
-            app.dependency_overrides[get_audit_db] = previous_get_audit_db
-        else:
-            app.dependency_overrides.pop(get_audit_db, None)
 
         if previous_streaming_service is not None:
             app.state.execution_streaming_service = previous_streaming_service
@@ -1675,33 +1663,6 @@ def fast_workflow_client_settings(
 
 
 # ============================================================================
-# Audit Event Fixtures
-# ============================================================================
-
-
-@pytest_asyncio.fixture
-async def audit_events_factory(test_db_session: AsyncSession) -> AuditEventsFactory:
-    """Create a factory fixture for test audit event records.
-
-    Returns an AuditEventsFactory instance that can create AuditEventRecord rows
-    with sensible defaults and arbitrary per-record overrides.
-
-    Usage:
-        # Create a single event with specific fields
-        event = await audit_events_factory.create_event(event_category="security_event")
-
-        # Create N events with auto-incremented event_action values
-        events = await audit_events_factory.create_events(count=3)
-
-        # Create N events with shared overrides
-        events = await audit_events_factory.create_events(
-            count=5, event_category="user_action"
-        )
-    """
-    return AuditEventsFactory(test_db_session)
-
-
-# ============================================================================
 # Mock Fixtures
 # ============================================================================
 
@@ -1848,7 +1809,6 @@ async def jwt_client(
         yield test_db_session
 
     session_app.dependency_overrides[get_db] = override_get_db
-    session_app.dependency_overrides[get_audit_db] = override_get_db
 
     # Create client with Authorization header
     async with AsyncClient(

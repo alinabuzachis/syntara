@@ -28,7 +28,7 @@ describe('WaitNodeDetails', () => {
     type: 'wait',
     id: 'wait-1',
     name: 'Wait 5 minutes',
-    config: {
+    parameters: {
       duration: 300,
     },
   }
@@ -48,7 +48,7 @@ describe('WaitNodeDetails', () => {
     })
 
     it('handles missing config gracefully', () => {
-      const noConfigData = { ...baseWaitData, config: undefined } as unknown as WaitActivity
+      const noConfigData = { ...baseWaitData, parameters: undefined } as unknown as WaitActivity
 
       renderWithHeader(<WaitNodeDetails waitData={noConfigData} nodeId="wait-1" onClose={mockOnClose} />)
 
@@ -75,7 +75,7 @@ describe('WaitNodeDetails', () => {
           'wait-1',
           expect.objectContaining({
             name: 'Wait 5 minutes',
-            config: { duration: 600 },
+            parameters: { duration: 600 },
           })
         )
       })

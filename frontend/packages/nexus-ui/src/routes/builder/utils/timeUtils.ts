@@ -26,3 +26,14 @@ export function formatDurationLabel(totalSeconds: number): string {
   if (seconds) parts.push(`${seconds}s`)
   return parts.length > 0 ? parts.join(' ') : 'Not configured'
 }
+
+/** Format a duration in seconds as a compact human-readable string, e.g. "1d 2h 3m 4s". Zero units are omitted. */
+export function formatDuration(totalSeconds: number): string {
+  const { days, hours, minutes, seconds } = secondsToTimeUnits(totalSeconds)
+  const parts: string[] = []
+  if (days > 0) parts.push(`${days}d`)
+  if (hours > 0) parts.push(`${hours}h`)
+  if (minutes > 0) parts.push(`${minutes}m`)
+  if (seconds > 0) parts.push(`${seconds}s`)
+  return parts.length > 0 ? parts.join(' ') : '0s'
+}

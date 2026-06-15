@@ -31,7 +31,7 @@ describe('workflowFactories', () => {
 
         expect(trigger.id).toBe('trigger-1')
         expect(trigger.type).toBe('manual_trigger')
-        expect(trigger.config).toEqual({})
+        expect(trigger.parameters).toEqual({})
       })
 
       it('creates a manual trigger with approval param (ignored in v2)', () => {
@@ -55,6 +55,13 @@ describe('workflowFactories', () => {
         expect(trigger.type).toBe('manual_trigger')
         expect(trigger.name).toBe('My Trigger')
       })
+
+      it('creates a manual trigger with input schema', () => {
+        const schema = { type: 'object', properties: { env: { type: 'string' } } }
+        const trigger = createManualTrigger('trigger-5', undefined, undefined, schema)
+
+        expect(trigger.parameters.input_schema).toEqual(schema)
+      })
     })
 
     describe('createScheduledTrigger', () => {
@@ -63,18 +70,18 @@ describe('workflowFactories', () => {
 
         expect(trigger.id).toBe('trigger-5')
         expect(trigger.type).toBe('scheduled')
-        expect(trigger.config.schedule_type).toBe('cron')
-        expect(trigger.config.cron).toBe('0 9 * * *')
-        expect(trigger.config.timezone).toBe('UTC')
+        expect(trigger.parameters.schedule_type).toBe('cron')
+        expect(trigger.parameters.cron).toBe('0 9 * * *')
+        expect(trigger.parameters.timezone).toBe('UTC')
       })
 
       it('creates a cron trigger without timezone', () => {
         const trigger = createScheduledTrigger('trigger-6', 'cron', { cron: '0 9 * * *' })
 
         expect(trigger.id).toBe('trigger-6')
-        expect(trigger.config.schedule_type).toBe('cron')
-        expect(trigger.config.cron).toBe('0 9 * * *')
-        expect(trigger.config).not.toHaveProperty('timezone')
+        expect(trigger.parameters.schedule_type).toBe('cron')
+        expect(trigger.parameters.cron).toBe('0 9 * * *')
+        expect(trigger.parameters).not.toHaveProperty('timezone')
       })
 
       it('creates an interval scheduled trigger', () => {
@@ -82,8 +89,8 @@ describe('workflowFactories', () => {
 
         expect(trigger.id).toBe('trigger-7')
         expect(trigger.type).toBe('scheduled')
-        expect(trigger.config.schedule_type).toBe('interval')
-        expect(trigger.config.interval).toBe('PT1H')
+        expect(trigger.parameters.schedule_type).toBe('interval')
+        expect(trigger.parameters.interval).toBe('PT1H')
       })
 
       it('creates a continuous scheduled trigger', () => {
@@ -91,7 +98,7 @@ describe('workflowFactories', () => {
 
         expect(trigger.id).toBe('trigger-8')
         expect(trigger.type).toBe('scheduled')
-        expect(trigger.config.schedule_type).toBe('continuous')
+        expect(trigger.parameters.schedule_type).toBe('continuous')
       })
 
       it('creates a scheduled trigger with name', () => {
@@ -105,14 +112,14 @@ describe('workflowFactories', () => {
         const trigger = createScheduledTrigger('trigger-10', 'cron', {})
 
         expect(trigger.id).toBe('trigger-10')
-        expect(trigger.config.schedule_type).toBe('cron')
+        expect(trigger.parameters.schedule_type).toBe('cron')
       })
 
       it('falls back to continuous when interval config is missing', () => {
         const trigger = createScheduledTrigger('trigger-11', 'interval', {})
 
         expect(trigger.id).toBe('trigger-11')
-        expect(trigger.config.schedule_type).toBe('interval')
+        expect(trigger.parameters.schedule_type).toBe('interval')
       })
     })
 
@@ -122,15 +129,15 @@ describe('workflowFactories', () => {
 
         expect(trigger.id).toBe('trigger-12')
         expect(trigger.type).toBe('event')
-        expect(trigger.config.source).toBe('github')
-        expect(trigger.config.event_type).toBe('push')
+        expect(trigger.parameters.source).toBe('github')
+        expect(trigger.parameters.event_type).toBe('push')
       })
 
       it('creates an event trigger with filter', () => {
         const trigger = createEventTrigger('trigger-13', 'github', 'push', { branch: 'main' })
 
         expect(trigger.id).toBe('trigger-13')
-        expect(trigger.config.filter).toEqual({ branch: 'main' })
+        expect(trigger.parameters.filter).toEqual({ branch: 'main' })
       })
 
       it('creates an event trigger with name', () => {
@@ -148,8 +155,8 @@ describe('workflowFactories', () => {
         expect(trigger.id).toBe('trigger-20')
         expect(trigger.type).toBe('webhook_trigger')
         expect(trigger.name).toBe('Webhook Trigger')
-        expect(trigger.config.webhook_path).toBe('jira-updates')
-        expect(trigger.config).not.toHaveProperty('input_schema')
+        expect(trigger.parameters.webhook_path).toBe('jira-updates')
+        expect(trigger.parameters).not.toHaveProperty('input_schema')
       })
 
       it('creates a webhook trigger with JSON schema', () => {
@@ -157,8 +164,8 @@ describe('workflowFactories', () => {
         const trigger = createWebhookTrigger('trigger-21', 'github-push', schema)
 
         expect(trigger.id).toBe('trigger-21')
-        expect(trigger.config.webhook_path).toBe('github-push')
-        expect(trigger.config.input_schema).toEqual(schema)
+        expect(trigger.parameters.webhook_path).toBe('github-push')
+        expect(trigger.parameters.input_schema).toEqual(schema)
       })
 
       it('creates a webhook trigger with custom name', () => {
@@ -182,8 +189,8 @@ describe('workflowFactories', () => {
         expect(trigger.id).toBe('trigger-30')
         expect(trigger.type).toBe('eda_trigger')
         expect(trigger.name).toBe('EDA Trigger')
-        expect(trigger.config.webhook_path).toBe('eda-events')
-        expect(trigger.config).not.toHaveProperty('input_schema')
+        expect(trigger.parameters.webhook_path).toBe('eda-events')
+        expect(trigger.parameters).not.toHaveProperty('input_schema')
       })
 
       it('creates an EDA trigger with JSON schema', () => {
@@ -191,8 +198,8 @@ describe('workflowFactories', () => {
         const trigger = createEdaTrigger('trigger-31', 'eda-push', schema)
 
         expect(trigger.id).toBe('trigger-31')
-        expect(trigger.config.webhook_path).toBe('eda-push')
-        expect(trigger.config.input_schema).toEqual(schema)
+        expect(trigger.parameters.webhook_path).toBe('eda-push')
+        expect(trigger.parameters.input_schema).toEqual(schema)
       })
 
       it('creates an EDA trigger with custom name', () => {
@@ -213,19 +220,64 @@ describe('workflowFactories', () => {
   describe('Activity Factories', () => {
     describe('createScriptActivity', () => {
       it('creates a script activity', () => {
-        const activity = createScriptActivity('task-1', 'My Script', 'python', 'print("hello")')
+        const activity = createScriptActivity({
+          id: 'task-1',
+          name: 'My Script',
+          language: 'python',
+          code: 'print("hello")',
+        })
 
         expect(activity.type).toBe('script')
         expect(activity.id).toBe('task-1')
         expect(activity.name).toBe('My Script')
-        expect(activity.config.language).toBe('python')
-        expect(activity.config.code).toBe('print("hello")')
+        expect(activity.parameters.language).toBe('python')
+        expect(activity.parameters.code).toBe('print("hello")')
       })
 
       it('creates a bash script activity', () => {
-        const activity = createScriptActivity('task-2', 'Bash Script', 'bash', 'echo hello')
+        const activity = createScriptActivity({
+          id: 'task-2',
+          name: 'Bash Script',
+          language: 'bash',
+          code: 'echo hello',
+        })
 
-        expect(activity.config.language).toBe('bash')
+        expect(activity.parameters.language).toBe('bash')
+      })
+
+      it('includes credential_id when provided', () => {
+        const activity = createScriptActivity({
+          id: 'task-3',
+          name: 'Script',
+          language: 'python',
+          code: 'pass',
+          credentialId: 'cred-1',
+        })
+
+        expect(activity.parameters.credential_id).toBe('cred-1')
+      })
+
+      it('includes settings when provided', () => {
+        const activity = createScriptActivity({
+          id: 'task-4',
+          name: 'Script',
+          language: 'python',
+          code: 'pass',
+          settings: { timeout: 300 },
+        })
+
+        expect(activity.settings).toEqual({ timeout: 300 })
+      })
+
+      it('omits settings when not provided', () => {
+        const activity = createScriptActivity({
+          id: 'task-5',
+          name: 'Script',
+          language: 'python',
+          code: 'pass',
+        })
+
+        expect(activity).not.toHaveProperty('settings')
       })
     })
 
@@ -240,8 +292,8 @@ describe('workflowFactories', () => {
 
         expect(activity.type).toBe('http_request')
         expect(activity.id).toBe('api-1')
-        expect(activity.config.method).toBe('GET')
-        expect(activity.config.url).toBe('https://api.example.com')
+        expect(activity.parameters.method).toBe('GET')
+        expect(activity.parameters.url).toBe('https://api.example.com')
       })
 
       it('creates an API activity with headers', () => {
@@ -253,7 +305,7 @@ describe('workflowFactories', () => {
           headers: '{"Authorization": "Bearer token"}',
         })
 
-        expect(activity.config.headers).toEqual({ Authorization: 'Bearer token' })
+        expect(activity.parameters.headers).toEqual({ Authorization: 'Bearer token' })
       })
 
       it('merges authentication into headers when provided', () => {
@@ -266,7 +318,7 @@ describe('workflowFactories', () => {
           authentication: 'Bearer token',
         })
 
-        expect(activity.config.headers).toEqual({
+        expect(activity.parameters.headers).toEqual({
           'Content-Type': 'application/json',
           Authorization: 'Bearer token',
         })
@@ -281,7 +333,7 @@ describe('workflowFactories', () => {
           body: '{"data": "value"}',
         })
 
-        expect(activity.config.body).toEqual({ data: 'value' })
+        expect(activity.parameters.body).toEqual({ data: 'value' })
       })
 
       it('uses string body when JSON parsing fails', () => {
@@ -293,7 +345,7 @@ describe('workflowFactories', () => {
           body: 'plain text body',
         })
 
-        expect(activity.config.body).toBe('plain text body')
+        expect(activity.parameters.body).toBe('plain text body')
       })
 
       it('ignores invalid JSON headers', () => {
@@ -305,7 +357,7 @@ describe('workflowFactories', () => {
           headers: 'invalid json',
         })
 
-        expect(activity.config.headers).toBeUndefined()
+        expect(activity.parameters.headers).toBeUndefined()
       })
 
       it('does not include inputs in v2', () => {
@@ -317,7 +369,43 @@ describe('workflowFactories', () => {
           inputs: '{"param": "value"}',
         })
 
-        expect(activity.config).not.toHaveProperty('inputs')
+        expect(activity.parameters).not.toHaveProperty('inputs')
+      })
+
+      it('includes settings when provided', () => {
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'GET',
+          url: 'https://api.example.com',
+          settings: { timeout: 60 },
+        })
+
+        expect(activity.settings).toEqual({ timeout: 60 })
+      })
+
+      it('sets authentication header without existing headers', () => {
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'GET',
+          url: 'https://api.example.com',
+          authentication: 'Bearer token',
+        })
+
+        expect(activity.parameters.headers).toEqual({ Authorization: 'Bearer token' })
+      })
+
+      it('includes credential_id when provided', () => {
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'GET',
+          url: 'https://api.example.com',
+          credentialId: 'cred-abc',
+        })
+
+        expect(activity.parameters.credential_id).toBe('cred-abc')
       })
     })
 
@@ -327,7 +415,7 @@ describe('workflowFactories', () => {
 
         expect(activity.type).toBe('agentic')
         expect(activity.id).toBe('agent-1')
-        expect(activity.config).toEqual({})
+        expect(activity.parameters).toEqual({})
       })
 
       it('creates an agentic activity with tools', () => {
@@ -337,7 +425,7 @@ describe('workflowFactories', () => {
           tools: ['tool1', 'tool2'],
         })
 
-        expect(activity.config.tool_selections).toEqual(['tool1', 'tool2'])
+        expect(activity.parameters.tool_selections).toEqual(['tool1', 'tool2'])
       })
 
       it('creates an agentic activity with prompt', () => {
@@ -347,7 +435,7 @@ describe('workflowFactories', () => {
           prompt: 'Do something',
         })
 
-        expect(activity.config.prompt).toBe('Do something')
+        expect(activity.parameters.prompt).toBe('Do something')
       })
 
       it('creates an agentic activity with model', () => {
@@ -357,7 +445,7 @@ describe('workflowFactories', () => {
           model: 'gpt-4',
         })
 
-        expect(activity.config.model).toBe('gpt-4')
+        expect(activity.parameters.model).toBe('gpt-4')
       })
 
       it('creates an agentic activity with fileIds', () => {
@@ -367,13 +455,13 @@ describe('workflowFactories', () => {
           fileIds: ['file-1', 'file-2'],
         })
 
-        expect(activity.config.file_ids).toEqual(['file-1', 'file-2'])
+        expect(activity.parameters.file_ids).toEqual(['file-1', 'file-2'])
       })
 
       it('does not include empty tools array', () => {
         const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent', tools: [] })
 
-        expect(activity.config.tool_selections).toBeUndefined()
+        expect(activity.parameters.tool_selections).toBeUndefined()
       })
 
       it('does not include inputs in v2', () => {
@@ -383,7 +471,36 @@ describe('workflowFactories', () => {
           inputs: '{"key": "val"}',
         })
 
-        expect(activity.config).not.toHaveProperty('inputs')
+        expect(activity.parameters).not.toHaveProperty('inputs')
+      })
+
+      it('includes settings when provided', () => {
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          settings: { timeout: 600, continue_on_failure: true },
+        })
+
+        expect(activity.settings).toEqual({ timeout: 600, continue_on_failure: true })
+      })
+
+      it('includes credentialId and responseSchema', () => {
+        const schema = { type: 'object', properties: { result: { type: 'string' } } }
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          credentialId: 'cred-1',
+          responseSchema: schema,
+        })
+
+        expect(activity.parameters.credential_id).toBe('cred-1')
+        expect(activity.parameters.response_schema).toEqual(schema)
+      })
+
+      it('does not include empty fileIds array', () => {
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent', fileIds: [] })
+
+        expect(activity.parameters.file_ids).toBeUndefined()
       })
     })
 
@@ -394,7 +511,7 @@ describe('workflowFactories', () => {
         expect(activity.type).toBe('condition')
         expect(activity.id).toBe('cond-1')
         expect(activity.name).toBe('Check Status')
-        expect(activity.config.condition).toBe('status === "active"')
+        expect(activity.parameters.condition).toBe('status === "active"')
       })
     })
 
@@ -408,8 +525,8 @@ describe('workflowFactories', () => {
 
         expect(activity.type).toBe('loop')
         expect(activity.id).toBe('loop-1')
-        expect(activity.config.type).toBe('for_each')
-        expect(activity.config.items).toBe('{{ items }}')
+        expect(activity.parameters.type).toBe('for_each')
+        expect(activity.parameters.items).toBe('{{ items }}')
       })
 
       it('creates a while loop activity', () => {
@@ -418,9 +535,9 @@ describe('workflowFactories', () => {
           maxIterations: 100,
         })
 
-        expect(activity.config.type).toBe('do_while')
-        expect(activity.config.condition).toBe('count < 10')
-        expect(activity.config.max_iterations).toBe(100)
+        expect(activity.parameters.type).toBe('do_while')
+        expect(activity.parameters.condition).toBe('count < 10')
+        expect(activity.parameters.max_iterations).toBe(100)
       })
 
       it('does not include invalid maxIterations', () => {
@@ -429,21 +546,33 @@ describe('workflowFactories', () => {
           maxIterations: Number.NaN,
         })
 
-        expect(activity.config).not.toHaveProperty('max_iterations')
+        expect(activity.parameters).not.toHaveProperty('max_iterations')
       })
 
       it('falls back to for_each with empty items when config is missing', () => {
         const activity = createLoopActivity('loop-1', 'Loop', 'forEach', {})
 
-        expect(activity.config.type).toBe('for_each')
-        expect(activity.config.items).toBe('')
+        expect(activity.parameters.type).toBe('for_each')
+        expect(activity.parameters.items).toBe('')
       })
 
       it('falls back when while has no condition', () => {
         const activity = createLoopActivity('loop-1', 'Loop', 'while', {})
 
-        expect(activity.config.type).toBe('do_while')
-        expect(activity.config.condition).toBe('')
+        expect(activity.parameters.type).toBe('do_while')
+        expect(activity.parameters.condition).toBe('')
+      })
+
+      it('includes settings when provided', () => {
+        const activity = createLoopActivity('loop-1', 'Loop', 'forEach', { items: '{{ list }}' }, { timeout: 300 })
+
+        expect(activity.settings).toEqual({ timeout: 300 })
+      })
+
+      it('includes max_iterations for forEach', () => {
+        const activity = createLoopActivity('loop-1', 'Loop', 'forEach', { items: '{{ list }}', maxIterations: 50 })
+
+        expect(activity.parameters.max_iterations).toBe(50)
       })
     })
 
@@ -454,27 +583,21 @@ describe('workflowFactories', () => {
         expect(activity.type).toBe('converge')
         expect(activity.id).toBe('conv-1')
         expect(activity.name).toBe('Wait for All')
-        expect(activity.config.strategy).toBe('all')
+        expect(activity.parameters.strategy).toBe('all')
       })
 
       it('creates a converge activity with config', () => {
-        const activity = createConvergeActivity('conv-1', 'Converge', {
-          timeout: 3600,
-          onTimeout: 'fail',
-          aggregateOutputs: true,
-        })
+        const activity = createConvergeActivity('conv-1', 'Converge', { strategy: 'all' })
 
-        expect(activity.config.on_timeout).toBe('fail')
-        expect(activity.config.strategy).toBe('all')
+        expect(activity.parameters.strategy).toBe('all')
       })
 
       it('creates a converge activity with strategy', () => {
         const activity = createConvergeActivity('conv-1', 'Converge', {
           strategy: 'any',
-          timeout: 600,
         })
 
-        expect(activity.config.strategy).toBe('any')
+        expect(activity.parameters.strategy).toBe('any')
       })
 
       it('creates a converge activity with strategy any and n_required', () => {
@@ -483,8 +606,26 @@ describe('workflowFactories', () => {
           requiredPathCount: 2,
         })
 
-        expect(activity.config.strategy).toBe('any')
-        expect(activity.config.n_required).toBe(2)
+        expect(activity.parameters.strategy).toBe('any')
+        expect(activity.parameters.n_required).toBe(2)
+      })
+
+      it('includes settings when provided', () => {
+        const activity = createConvergeActivity('conv-1', 'Converge', { strategy: 'all' }, { timeout: 600 })
+
+        expect(activity.settings).toEqual({ timeout: 600 })
+      })
+
+      it('includes wait_duration when provided', () => {
+        const activity = createConvergeActivity('conv-1', 'Converge', { strategy: 'all', wait_duration: 120 })
+
+        expect(activity.parameters.wait_duration).toBe(120)
+      })
+
+      it('does not include n_required for strategy all', () => {
+        const activity = createConvergeActivity('conv-1', 'Converge', { strategy: 'all', requiredPathCount: 2 })
+
+        expect(activity.parameters).not.toHaveProperty('n_required')
       })
     })
 
@@ -494,7 +635,7 @@ describe('workflowFactories', () => {
 
         expect(activity.type).toBe('aap_job_template')
         expect(activity.id).toBe('aap-1')
-        expect(activity.config.job_template_id).toBe(123)
+        expect(activity.parameters.job_template_id).toBe(123)
       })
 
       it('creates an AAP activity with full config', () => {
@@ -507,22 +648,20 @@ describe('workflowFactories', () => {
           verbosity: 2,
           jobType: 'run',
           forks: 10,
-          timeout: 3600,
           jobSlicing: 2,
           diffMode: true,
         })
 
-        expect(activity.config.inventory_id).toBe(456)
-        expect(activity.config.extra_vars).toEqual({ env: 'prod' })
-        expect(activity.config.limit).toBe('web-servers')
-        expect(activity.config.tags).toBe('deploy')
-        expect(activity.config.skip_tags).toBe('test')
-        expect(activity.config.verbosity).toBe(2)
-        expect(activity.config.job_type).toBe('run')
-        expect(activity.config.forks).toBe(10)
-        expect(activity.config.timeout).toBe(3600)
-        expect(activity.config.job_slice_count).toBe(2)
-        expect(activity.config.diff_mode).toBe(true)
+        expect(activity.parameters.inventory_id).toBe(456)
+        expect(activity.parameters.extra_vars).toEqual({ env: 'prod' })
+        expect(activity.parameters.limit).toBe('web-servers')
+        expect(activity.parameters.tags).toBe('deploy')
+        expect(activity.parameters.skip_tags).toBe('test')
+        expect(activity.parameters.verbosity).toBe(2)
+        expect(activity.parameters.job_type).toBe('run')
+        expect(activity.parameters.forks).toBe(10)
+        expect(activity.parameters.job_slice_count).toBe(2)
+        expect(activity.parameters.diff_mode).toBe(true)
       })
     })
 
@@ -532,7 +671,7 @@ describe('workflowFactories', () => {
 
         expect(activity.type).toBe('aap_workflow_job_template')
         expect(activity.id).toBe('aap-wf-1')
-        expect(activity.config.workflow_job_template_id).toBe(456)
+        expect(activity.parameters.workflow_job_template_id).toBe(456)
       })
 
       it('creates an AAP workflow template activity with full config', () => {
@@ -546,14 +685,14 @@ describe('workflowFactories', () => {
           labels: ['production', 'critical'],
         })
 
-        expect(activity.config.workflow_job_template_id).toBe(456)
-        expect(activity.config.inventory_id).toBe(789)
-        expect(activity.config.extra_vars).toEqual({ env: 'staging' })
-        expect(activity.config.limit).toBe('db-servers')
-        expect(activity.config.scm_branch).toBe('main')
-        expect(activity.config.tags).toBe('deploy')
-        expect(activity.config.skip_tags).toBe('debug')
-        expect(activity.config.labels).toEqual(['production', 'critical'])
+        expect(activity.parameters.workflow_job_template_id).toBe(456)
+        expect(activity.parameters.inventory_id).toBe(789)
+        expect(activity.parameters.extra_vars).toEqual({ env: 'staging' })
+        expect(activity.parameters.limit).toBe('db-servers')
+        expect(activity.parameters.scm_branch).toBe('main')
+        expect(activity.parameters.tags).toBe('deploy')
+        expect(activity.parameters.skip_tags).toBe('debug')
+        expect(activity.parameters.labels).toEqual(['production', 'critical'])
       })
 
       it('creates an AAP workflow template activity with credential and organization', () => {
@@ -563,9 +702,9 @@ describe('workflowFactories', () => {
           organization_name: 'Engineering',
         })
 
-        expect(activity.config.credential_id).toBe('cred-123')
-        expect(activity.config.organization_id).toBe(10)
-        expect(activity.config.organization_name).toBe('Engineering')
+        expect(activity.parameters.credential_id).toBe('cred-123')
+        expect(activity.parameters.organization_id).toBe(10)
+        expect(activity.parameters.organization_name).toBe('Engineering')
       })
 
       it('creates an AAP workflow template activity with inventory name', () => {
@@ -573,7 +712,7 @@ describe('workflowFactories', () => {
           inventory_name: 'Production Inventory',
         })
 
-        expect(activity.config.inventory_name).toBe('Production Inventory')
+        expect(activity.parameters.inventory_name).toBe('Production Inventory')
       })
 
       it('creates an AAP workflow template activity with workflow job template name', () => {
@@ -581,7 +720,7 @@ describe('workflowFactories', () => {
           workflow_job_template_name: 'Deploy Application',
         })
 
-        expect(activity.config.workflow_job_template_name).toBe('Deploy Application')
+        expect(activity.parameters.workflow_job_template_name).toBe('Deploy Application')
       })
 
       it('does not include job-specific fields (job_type, verbosity, forks, etc.)', () => {
@@ -591,17 +730,17 @@ describe('workflowFactories', () => {
         })
 
         // Workflow templates should NOT have job-specific fields
-        expect(activity.config).not.toHaveProperty('job_type')
-        expect(activity.config).not.toHaveProperty('verbosity')
-        expect(activity.config).not.toHaveProperty('forks')
-        expect(activity.config).not.toHaveProperty('timeout')
-        expect(activity.config).not.toHaveProperty('job_slice_count')
-        expect(activity.config).not.toHaveProperty('diff_mode')
-        expect(activity.config).not.toHaveProperty('execution_environment')
-        expect(activity.config).not.toHaveProperty('execution_environment_id')
-        expect(activity.config).not.toHaveProperty('instance_group_id')
-        expect(activity.config).not.toHaveProperty('instance_group_name')
-        expect(activity.config).not.toHaveProperty('job_credentials')
+        expect(activity.parameters).not.toHaveProperty('job_type')
+        expect(activity.parameters).not.toHaveProperty('verbosity')
+        expect(activity.parameters).not.toHaveProperty('forks')
+        expect(activity.parameters).not.toHaveProperty('timeout')
+        expect(activity.parameters).not.toHaveProperty('job_slice_count')
+        expect(activity.parameters).not.toHaveProperty('diff_mode')
+        expect(activity.parameters).not.toHaveProperty('execution_environment')
+        expect(activity.parameters).not.toHaveProperty('execution_environment_id')
+        expect(activity.parameters).not.toHaveProperty('instance_group_id')
+        expect(activity.parameters).not.toHaveProperty('instance_group_name')
+        expect(activity.parameters).not.toHaveProperty('job_credentials')
       })
 
       it('includes scm_branch field (workflow-specific)', () => {
@@ -609,7 +748,7 @@ describe('workflowFactories', () => {
           scm_branch: 'feature/new-deployment',
         })
 
-        expect(activity.config.scm_branch).toBe('feature/new-deployment')
+        expect(activity.parameters.scm_branch).toBe('feature/new-deployment')
       })
 
       it('filters undefined values correctly', () => {
@@ -619,9 +758,9 @@ describe('workflowFactories', () => {
           limit: undefined,
         })
 
-        expect(activity.config).not.toHaveProperty('inventory_id')
-        expect(activity.config).not.toHaveProperty('extra_vars')
-        expect(activity.config).not.toHaveProperty('limit')
+        expect(activity.parameters).not.toHaveProperty('inventory_id')
+        expect(activity.parameters).not.toHaveProperty('extra_vars')
+        expect(activity.parameters).not.toHaveProperty('limit')
       })
 
       it('handles numeric zero values correctly (defined predicate)', () => {
@@ -631,8 +770,8 @@ describe('workflowFactories', () => {
         })
 
         // Zero is a valid value for numeric fields (defined predicate)
-        expect(activity.config.inventory_id).toBe(0)
-        expect(activity.config.organization_id).toBe(0)
+        expect(activity.parameters.inventory_id).toBe(0)
+        expect(activity.parameters.organization_id).toBe(0)
       })
 
       it('filters invalid numeric values (NaN, Infinity)', () => {
@@ -641,8 +780,8 @@ describe('workflowFactories', () => {
           organization_id: Number.POSITIVE_INFINITY,
         })
 
-        expect(activity.config).not.toHaveProperty('inventory_id')
-        expect(activity.config).not.toHaveProperty('organization_id')
+        expect(activity.parameters).not.toHaveProperty('inventory_id')
+        expect(activity.parameters).not.toHaveProperty('organization_id')
       })
 
       it('filters empty strings for truthy predicate fields', () => {
@@ -652,9 +791,9 @@ describe('workflowFactories', () => {
           limit: '',
         })
 
-        expect(activity.config).not.toHaveProperty('organization_name')
-        expect(activity.config).not.toHaveProperty('workflow_job_template_name')
-        expect(activity.config).not.toHaveProperty('limit')
+        expect(activity.parameters).not.toHaveProperty('organization_name')
+        expect(activity.parameters).not.toHaveProperty('workflow_job_template_name')
+        expect(activity.parameters).not.toHaveProperty('limit')
       })
 
       it('includes empty arrays for labels field', () => {
@@ -663,7 +802,7 @@ describe('workflowFactories', () => {
         })
 
         // Empty array is still truthy in JavaScript (all objects are truthy)
-        expect(activity.config.labels).toEqual([])
+        expect(activity.parameters.labels).toEqual([])
       })
 
       it('includes non-empty arrays for labels field', () => {
@@ -671,7 +810,7 @@ describe('workflowFactories', () => {
           labels: ['production'],
         })
 
-        expect(activity.config.labels).toEqual(['production'])
+        expect(activity.parameters.labels).toEqual(['production'])
       })
     })
 
@@ -682,14 +821,20 @@ describe('workflowFactories', () => {
         expect(activity.type).toBe('wait')
         expect(activity.id).toBe('wait-1')
         expect(activity.name).toBe('Wait 5 min')
-        expect(activity.config).toEqual({ duration: 300 })
+        expect(activity.parameters).toEqual({ duration: 300 })
       })
 
       it('creates a wait activity with zero duration', () => {
         const activity = createWaitActivity('wait-2', 'No Wait', { duration: 0 })
 
         expect(activity.type).toBe('wait')
-        expect(activity.config).toEqual({ duration: 0 })
+        expect(activity.parameters).toEqual({ duration: 0 })
+      })
+
+      it('includes settings when provided', () => {
+        const activity = createWaitActivity('wait-3', 'Wait', { duration: 60 }, { continue_on_failure: true })
+
+        expect(activity.settings).toEqual({ continue_on_failure: true })
       })
     })
 
@@ -717,7 +862,7 @@ describe('workflowFactories', () => {
     })
 
     describe('createApprovalActivity', () => {
-      it('creates an approval activity', () => {
+      it('creates an approval activity with empty config', () => {
         const activity = createApprovalActivity({
           id: 'appr-1',
           name: 'Approval Gate',
@@ -728,32 +873,45 @@ describe('workflowFactories', () => {
         expect(activity.type).toBe('approval')
         expect(activity.id).toBe('appr-1')
         expect(activity.name).toBe('Approval Gate')
-        expect(activity.config).toEqual({})
+        expect(activity.parameters).toEqual({})
       })
 
-      it('creates an approval activity with timeout', () => {
+      it('passes settings when provided', () => {
         const activity = createApprovalActivity({
           id: 'appr-1',
           name: 'Approval',
           approvers: ['admin@example.com'],
           prompt: 'Approve?',
-          timeout: 3600,
+          settings: { timeout: 7200, continue_on_failure: true },
         })
 
-        expect(activity.config.approver_timeout).toBe(3600)
+        expect(activity.settings).toEqual({ timeout: 7200, continue_on_failure: true })
+        expect(activity.parameters).toEqual({})
       })
 
-      it('creates an approval activity with onTimeout action', () => {
+      it('includes fallback_decision and decision_window', () => {
         const activity = createApprovalActivity({
-          id: 'appr-1',
+          id: 'appr-2',
           name: 'Approval',
           approvers: ['admin@example.com'],
           prompt: 'Approve?',
-          timeout: 3600,
-          onTimeout: 'reject',
+          fallback_decision: 'reject',
+          decision_window: 86400,
         })
 
-        expect(activity.config.approver_timeout).toBe(3600)
+        expect(activity.parameters.fallback_decision).toBe('reject')
+        expect(activity.parameters.decision_window).toBe(86400)
+      })
+
+      it('omits settings when not provided', () => {
+        const activity = createApprovalActivity({
+          id: 'appr-3',
+          name: 'Approval',
+          approvers: ['admin@example.com'],
+          prompt: 'Approve?',
+        })
+
+        expect(activity).not.toHaveProperty('settings')
       })
     })
 
@@ -768,7 +926,7 @@ describe('workflowFactories', () => {
         expect(activity.id).toBe('switch-1')
         expect(activity.type).toBe('switch')
         expect(activity.name).toBe('Route Request')
-        expect(activity.config).toEqual({
+        expect(activity.parameters).toEqual({
           cases,
           default_port: EdgeHandleEnum.DEFAULT,
         })
@@ -777,8 +935,8 @@ describe('workflowFactories', () => {
       it('creates a switch activity with empty cases', () => {
         const activity = createSwitchActivity('switch-2', 'Empty Switch', [])
 
-        expect(activity.config.cases).toEqual([])
-        expect(activity.config.default_port).toBe(EdgeHandleEnum.DEFAULT)
+        expect(activity.parameters.cases).toEqual([])
+        expect(activity.parameters.default_port).toBe(EdgeHandleEnum.DEFAULT)
       })
     })
   })

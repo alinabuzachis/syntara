@@ -35,16 +35,16 @@ def _auth_as(user: User) -> None:
 WORKFLOW_DEFINITION: dict[str, Any] = {
     "name": "test",
     "schema_version": "2.0.0",
-    "triggers": [{"id": "trigger_manual", "type": "manual"}],
+    "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
     "nodes": [
         {
             "id": "a1",
             "name": "a1",
             "type": "script",
-            "config": {"language": "python", "code": "print('hi')"},
+            "parameters": {"language": "python", "code": "print('hi')"},
         }
     ],
-    "edges": [{"source": "trigger_manual", "target": "a1"}],
+    "edges": [{"from": "trigger_manual", "to": "a1"}],
 }
 
 

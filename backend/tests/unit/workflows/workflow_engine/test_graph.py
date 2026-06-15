@@ -11,8 +11,15 @@ Tests cover:
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
-from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
+from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph, _parse_node_settings
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    NodeSettingsBase,
+    NodeSettingsCof,
+    NodeSettingsFull,
+    NodeSettingsNoRetry,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -25,12 +32,12 @@ def _simple_workflow() -> dict[str, Any]:
         "schema_version": "2.0.0",
         "name": "simple",
         "description": "test",
-        "triggers": [{"id": "trigger1", "type": "manual_trigger", "config": {"method": "POST"}}],
+        "triggers": [{"id": "trigger1", "type": "manual_trigger", "parameters": {"method": "POST"}}],
         "nodes": [
-            {"id": "script1", "type": "script", "config": {"lang": "python"}, "outputs": {"result": "out"}},
-            {"id": "cond1", "type": "condition", "config": {"expr": "true"}},
-            {"id": "action_a", "type": "script", "config": {}},
-            {"id": "action_b", "type": "script", "config": {}},
+            {"id": "script1", "type": "script", "parameters": {"lang": "python"}, "outputs": {"result": "out"}},
+            {"id": "cond1", "type": "condition", "parameters": {"expr": "true"}},
+            {"id": "action_a", "type": "script", "parameters": {}},
+            {"id": "action_b", "type": "script", "parameters": {}},
         ],
         "edges": [
             {"from": "trigger1", "to": "script1"},
@@ -47,10 +54,10 @@ def _loop_workflow() -> dict[str, Any]:
         "schema_version": "2.0.0",
         "name": "loop-wf",
         "description": "test loop",
-        "triggers": [{"id": "t1", "type": "manual_trigger", "config": {}}],
+        "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
         "nodes": [
-            {"id": "loop1", "type": "loop", "config": {}},
-            {"id": "body1", "type": "script", "config": {}},
+            {"id": "loop1", "type": "loop", "parameters": {}},
+            {"id": "body1", "type": "script", "parameters": {}},
         ],
         "edges": [
             {"from": "t1", "to": "loop1"},
@@ -73,7 +80,7 @@ class TestActivityNodeFromDict:
         node = ActivityNode.from_dict({"id": "n1", "type": "script"})
         assert node.id == "n1"
         assert node.type == "script"
-        assert node.config == {}
+        assert node.parameters == {}
         assert node.outputs is None
 
     def test_full_dict(self) -> None:
@@ -81,18 +88,18 @@ class TestActivityNodeFromDict:
             {
                 "id": "n2",
                 "type": "http_request",
-                "config": {"url": "https://example.com"},
+                "parameters": {"url": "https://example.com"},
                 "outputs": {"body": "response.body"},
             }
         )
         assert node.id == "n2"
         assert node.type == "http_request"
-        assert node.config == {"url": "https://example.com"}
+        assert node.parameters == {"url": "https://example.com"}
         assert node.outputs == {"body": "response.body"}
 
     def test_config_defaults_to_empty_dict(self) -> None:
         node = ActivityNode.from_dict({"id": "x", "type": "t"})
-        assert node.config == {}
+        assert node.parameters == {}
 
     def test_extra_keys_ignored(self) -> None:
         node = ActivityNode.from_dict({"id": "x", "type": "t", "unknown_field": 42})
@@ -107,11 +114,53 @@ class TestActivityNodeFromDict:
             ActivityNode.from_dict({"id": "n1"})
 
 
+class TestParseNodeSettings:
+    """Tests for _parse_node_settings per-node-type dispatch."""
+
+    def test_http_request_gets_full(self) -> None:
+        settings = _parse_node_settings("http_request", {"timeout": 30, "retry_policy": {"max_retries": 5}})
+        assert isinstance(settings, NodeSettingsFull)
+        assert settings.timeout == 30
+        assert settings.retry_policy is not None
+        assert settings.retry_policy.max_retries == 5
+
+    def test_script_gets_no_retry(self) -> None:
+        settings = _parse_node_settings("script", {"timeout": 60})
+        assert isinstance(settings, NodeSettingsNoRetry)
+        assert settings.timeout == 60
+
+    def test_script_rejects_retry_policy(self) -> None:
+        with pytest.raises(ValidationError):
+            _parse_node_settings("script", {"retry_policy": {"max_retries": 3}})
+
+    def test_converge_gets_cof(self) -> None:
+        settings = _parse_node_settings("converge", {"continue_on_failure": True})
+        assert isinstance(settings, NodeSettingsCof)
+        assert settings.continue_on_failure is True
+
+    def test_converge_rejects_timeout(self) -> None:
+        with pytest.raises(ValidationError):
+            _parse_node_settings("converge", {"timeout": 30})
+
+    def test_condition_gets_base(self) -> None:
+        settings = _parse_node_settings("condition", None)
+        assert isinstance(settings, NodeSettingsBase)
+
+    def test_unknown_type_gets_base(self) -> None:
+        settings = _parse_node_settings("unknown_future_type", None)
+        assert isinstance(settings, NodeSettingsBase)
+
+    def test_none_raw_returns_default(self) -> None:
+        settings = _parse_node_settings("http_request", None)
+        assert isinstance(settings, NodeSettingsFull)
+        assert settings.retry_policy is None
+
+
 class TestActivityNodeToDict:
     """Tests for ActivityNode.to_dict."""
 
     def test_round_trip_without_outputs(self) -> None:
-        original = {"id": "n1", "type": "script", "config": {"lang": "bash"}}
+        original = {"id": "n1", "type": "script", "parameters": {"lang": "bash"}}
         node = ActivityNode.from_dict(original)
         assert node.to_dict() == original
 
@@ -119,7 +168,7 @@ class TestActivityNodeToDict:
         original = {
             "id": "n1",
             "type": "script",
-            "config": {},
+            "parameters": {},
             "outputs": {"result": "out"},
         }
         node = ActivityNode.from_dict(original)
@@ -127,12 +176,12 @@ class TestActivityNodeToDict:
         assert result["outputs"] == {"result": "out"}
 
     def test_none_outputs_omitted(self) -> None:
-        node = ActivityNode(node_id="n1", node_type="t", config={}, outputs=None)
+        node = ActivityNode(node_id="n1", node_type="t", parameters={}, outputs=None)
         assert "outputs" not in node.to_dict()
 
     def test_empty_dict_outputs_included(self) -> None:
         """Empty dict outputs ({}) are falsy — verify behavior."""
-        node = ActivityNode(node_id="n1", node_type="t", config={}, outputs={})
+        node = ActivityNode(node_id="n1", node_type="t", parameters={}, outputs={})
         # Empty dict is falsy so outputs is excluded
         assert "outputs" not in node.to_dict()
 
@@ -176,7 +225,7 @@ class TestGetTriggerNodes:
 
     def test_multiple_triggers(self) -> None:
         data = _simple_workflow()
-        data["triggers"].append({"id": "trigger2", "type": "schedule_trigger", "config": {}})
+        data["triggers"].append({"id": "trigger2", "type": "schedule_trigger", "parameters": {}})
         data["edges"].append({"from": "trigger2", "to": "script1"})
         graph = WorkflowGraph.from_dict(data)
         triggers = graph.get_trigger_nodes()
@@ -198,7 +247,7 @@ class TestGetNode:
         node = graph.get_node("script1")
         assert node.id == "script1"
         assert node.type == "script"
-        assert node.config == {"lang": "python"}
+        assert node.parameters == {"lang": "python"}
         assert node.outputs == {"result": "out"}
 
     def test_nonexistent_node_raises(self) -> None:
@@ -377,8 +426,8 @@ class TestWorkflowGraphValidation:
             "description": "no trigger",
             "triggers": [],
             "nodes": [
-                {"id": "n1", "type": "script", "config": {}},
-                {"id": "n2", "type": "script", "config": {}},
+                {"id": "n1", "type": "script", "parameters": {}},
+                {"id": "n2", "type": "script", "parameters": {}},
             ],
             "edges": [{"from": "n1", "to": "n2"}],
         }
@@ -391,10 +440,10 @@ class TestWorkflowGraphValidation:
             "schema_version": "2.0.0",
             "name": "bad",
             "description": "orphan",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "config": {}}],
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
             "nodes": [
-                {"id": "n1", "type": "script", "config": {}},
-                {"id": "orphan", "type": "script", "config": {}},
+                {"id": "n1", "type": "script", "parameters": {}},
+                {"id": "orphan", "type": "script", "parameters": {}},
             ],
             "edges": [{"from": "t1", "to": "n1"}],
         }
@@ -407,7 +456,7 @@ class TestWorkflowGraphValidation:
             "schema_version": "2.0.0",
             "name": "minimal",
             "description": "trigger only",
-            "triggers": [{"id": "t1", "type": "manual_trigger", "config": {}}],
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
             "nodes": [],
             "edges": [],
         }

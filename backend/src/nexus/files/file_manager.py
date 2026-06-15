@@ -70,6 +70,8 @@ class FileManager:
                 region_name=self.settings.s3_region,
                 aws_access_key_id=self.settings.s3_access_key_id,
                 aws_secret_access_key=self.settings.s3_secret_access_key,
+                verify_ssl=self.settings.s3_verify_ssl,
+                ca_bundle=self.settings.s3_ca_bundle,
             )
 
         self.active_backend = self.settings.file_storage_backend

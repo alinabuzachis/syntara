@@ -15,7 +15,7 @@ triggers:
 nodes:
   - id: fetch_with_api_key
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/apikey-auth
       authentication:

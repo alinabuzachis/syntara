@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/loop",
   "title": "Loop Node",
   "description": "Iterate over collections or conditions (for_each/do_while)",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": [
       "type"
@@ -69,14 +69,7 @@
     ]
   },
   "settingSchema": {
-    "type": "object",
-    "properties": {
-      "continue_on_failure": {
-        "type": "boolean",
-        "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
-      }
-    },
-    "additionalProperties": false
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsCof"
   },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
@@ -143,7 +136,34 @@
       },
       {
         "title": "Failed Result",
-        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          },
+          "iteration_count": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "iteration_results": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

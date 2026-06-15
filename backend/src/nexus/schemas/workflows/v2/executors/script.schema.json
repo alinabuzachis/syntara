@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/script",
   "title": "Script Node",
   "description": "Execute scripts in various languages (TEMPORARY - added for initial testing)",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": [
       "language",
@@ -37,7 +37,7 @@
     "additionalProperties": false
   },
   "settingSchema": {
-    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsNoRetry"
   },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
@@ -77,7 +77,44 @@
       },
       {
         "title": "Failed Result",
-        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error",
+          "return_code",
+          "stdout",
+          "stderr"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          },
+          "return_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stdout": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stderr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stdout_json": {}
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

@@ -20,7 +20,7 @@ triggers:
 nodes:
   - id: calculator
     type: script
-    config:
+    parameters:
       language: python
       environment:
         APP_NAME: CalculatorService
@@ -49,7 +49,7 @@ nodes:
 
   - id: print_result
     type: script
-    config:
+    parameters:
       language: bash
       environment:
         LOG_LEVEL: INFO

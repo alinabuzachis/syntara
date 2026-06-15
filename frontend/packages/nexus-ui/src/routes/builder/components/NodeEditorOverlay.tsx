@@ -5,6 +5,7 @@ import { memo } from 'react'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { NodeDetailsPanel } from '../NodeDetailsPanel'
+import type { WorkflowMetadata } from '../types/workflowMetadata'
 
 type NodeEditorOverlayProps = {
   isOpen: boolean
@@ -20,6 +21,7 @@ type NodeEditorOverlayProps = {
   onClose: () => void
   projectId?: string
   onNavigateToNode?: (nodeId: string) => void
+  workflowMetadata?: WorkflowMetadata
 }
 
 export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEditorOverlayProps) {
@@ -38,6 +40,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
     onClose,
     projectId,
     onNavigateToNode,
+    workflowMetadata,
   } = props
 
   if (!isOpen) return null
@@ -65,6 +68,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
           projectId={projectId}
           onNavigateToNode={onNavigateToNode}
           docLink={builderDocLink}
+          workflowMetadata={workflowMetadata}
         />
       </FlexItem>
     </Flex>

@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/agentic",
   "title": "Agentic Node",
   "description": "Execute AI agent tasks with optional tool selection and structured output",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": [
       "prompt"
@@ -89,6 +89,7 @@
     "allOf": [
       {
         "if": {
+          "required": ["tool_selection_strategy"],
           "properties": {
             "tool_selection_strategy": {
               "const": "SELECTED"
@@ -112,7 +113,7 @@
     "additionalProperties": true
   },
   "settingSchema": {
-    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsNoRetry"
   },
   "resultSchema": {
     "description": "Result structure available after agent execution",
@@ -196,7 +197,47 @@
       },
       {
         "title": "Failed Result",
-        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          },
+          "output": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tool_calls": {
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "structured_output_metadata": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

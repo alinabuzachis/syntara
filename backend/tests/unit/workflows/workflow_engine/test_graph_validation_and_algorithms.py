@@ -20,9 +20,9 @@ from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 def _backend_with_dag() -> InMemoryGraphBackend:
     """A -> B -> C (simple DAG, no cycles)."""
     b = InMemoryGraphBackend()
-    b.add_node("A", {"id": "A", "type": "action", "config": {}})
-    b.add_node("B", {"id": "B", "type": "action", "config": {}})
-    b.add_node("C", {"id": "C", "type": "action", "config": {}})
+    b.add_node("A", {"id": "A", "type": "action", "parameters": {}})
+    b.add_node("B", {"id": "B", "type": "action", "parameters": {}})
+    b.add_node("C", {"id": "C", "type": "action", "parameters": {}})
     b.add_edge("A", "B")
     b.add_edge("B", "C")
     return b
@@ -31,9 +31,9 @@ def _backend_with_dag() -> InMemoryGraphBackend:
 def _backend_with_cycle() -> InMemoryGraphBackend:
     """A -> B -> C -> A (single cycle)."""
     b = InMemoryGraphBackend()
-    b.add_node("A", {"id": "A", "type": "action", "config": {}})
-    b.add_node("B", {"id": "B", "type": "action", "config": {}})
-    b.add_node("C", {"id": "C", "type": "action", "config": {}})
+    b.add_node("A", {"id": "A", "type": "action", "parameters": {}})
+    b.add_node("B", {"id": "B", "type": "action", "parameters": {}})
+    b.add_node("C", {"id": "C", "type": "action", "parameters": {}})
     b.add_edge("A", "B")
     b.add_edge("B", "C")
     b.add_edge("C", "A")
@@ -43,7 +43,7 @@ def _backend_with_cycle() -> InMemoryGraphBackend:
 def _backend_with_self_loop() -> InMemoryGraphBackend:
     """A -> A (self-loop)."""
     b = InMemoryGraphBackend()
-    b.add_node("A", {"id": "A", "type": "action", "config": {}})
+    b.add_node("A", {"id": "A", "type": "action", "parameters": {}})
     b.add_edge("A", "A")
     return b
 
@@ -54,8 +54,8 @@ def _valid_workflow_dict() -> dict[str, object]:
         "schema_version": "1",
         "name": "test",
         "description": "test workflow",
-        "triggers": [{"id": "t1", "type": "http_trigger", "config": {}}],
-        "nodes": [{"id": "n1", "type": "action", "config": {}}],
+        "triggers": [{"id": "t1", "type": "http_trigger", "parameters": {}}],
+        "nodes": [{"id": "n1", "type": "action", "parameters": {}}],
         "edges": [{"from": "t1", "to": "n1"}],
     }
 
@@ -93,19 +93,19 @@ class TestFindCycles:
 
     def test_single_node_no_edges_has_no_cycles(self) -> None:
         backend = InMemoryGraphBackend()
-        backend.add_node("X", {"id": "X", "type": "action", "config": {}})
+        backend.add_node("X", {"id": "X", "type": "action", "parameters": {}})
         assert backend.find_cycles() == []
 
     def test_disconnected_components_one_with_cycle(self) -> None:
         """Cycle in one component should still be detected."""
         b = InMemoryGraphBackend()
         # Component 1: DAG
-        b.add_node("A", {"id": "A", "type": "action", "config": {}})
-        b.add_node("B", {"id": "B", "type": "action", "config": {}})
+        b.add_node("A", {"id": "A", "type": "action", "parameters": {}})
+        b.add_node("B", {"id": "B", "type": "action", "parameters": {}})
         b.add_edge("A", "B")
         # Component 2: Cycle
-        b.add_node("X", {"id": "X", "type": "action", "config": {}})
-        b.add_node("Y", {"id": "Y", "type": "action", "config": {}})
+        b.add_node("X", {"id": "X", "type": "action", "parameters": {}})
+        b.add_node("Y", {"id": "Y", "type": "action", "parameters": {}})
         b.add_edge("X", "Y")
         b.add_edge("Y", "X")
 
@@ -116,7 +116,7 @@ class TestFindCycles:
         """A -> B, A -> C, B -> D, C -> D — no cycle."""
         b = InMemoryGraphBackend()
         for nid in ("A", "B", "C", "D"):
-            b.add_node(nid, {"id": nid, "type": "action", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "action", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("A", "C")
         b.add_edge("B", "D")
@@ -150,7 +150,7 @@ class TestTopologicalSort:
 
     def test_single_node(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("only", {"id": "only", "type": "action", "config": {}})
+        b.add_node("only", {"id": "only", "type": "action", "parameters": {}})
         assert b.topological_sort() == ["only"]
 
     def test_empty_graph(self) -> None:
@@ -161,7 +161,7 @@ class TestTopologicalSort:
         """A -> B, A -> C, B -> D, C -> D."""
         b = InMemoryGraphBackend()
         for nid in ("A", "B", "C", "D"):
-            b.add_node(nid, {"id": nid, "type": "action", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "action", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("A", "C")
         b.add_edge("B", "D")
@@ -177,7 +177,7 @@ class TestTopologicalSort:
         """Two separate chains: A->B and C->D."""
         b = InMemoryGraphBackend()
         for nid in ("A", "B", "C", "D"):
-            b.add_node(nid, {"id": nid, "type": "action", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "action", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("C", "D")
 
@@ -191,8 +191,8 @@ class TestValidateStructure:
 
     def test_valid_graph_returns_no_errors(self) -> None:
         backend = InMemoryGraphBackend()
-        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "config": {}})
-        backend.add_node("n1", {"id": "n1", "type": "action", "config": {}})
+        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "parameters": {}})
+        backend.add_node("n1", {"id": "n1", "type": "action", "parameters": {}})
         backend.add_edge("t1", "n1")
         graph = WorkflowGraph(backend)
 
@@ -200,8 +200,8 @@ class TestValidateStructure:
 
     def test_no_trigger_node_returns_error(self) -> None:
         backend = InMemoryGraphBackend()
-        backend.add_node("n1", {"id": "n1", "type": "action", "config": {}})
-        backend.add_node("n2", {"id": "n2", "type": "action", "config": {}})
+        backend.add_node("n1", {"id": "n1", "type": "action", "parameters": {}})
+        backend.add_node("n2", {"id": "n2", "type": "action", "parameters": {}})
         backend.add_edge("n1", "n2")
         graph = WorkflowGraph(backend)
 
@@ -210,9 +210,9 @@ class TestValidateStructure:
 
     def test_orphan_node_returns_error(self) -> None:
         backend = InMemoryGraphBackend()
-        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "config": {}})
-        backend.add_node("n1", {"id": "n1", "type": "action", "config": {}})
-        backend.add_node("orphan", {"id": "orphan", "type": "action", "config": {}})
+        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "parameters": {}})
+        backend.add_node("n1", {"id": "n1", "type": "action", "parameters": {}})
+        backend.add_node("orphan", {"id": "orphan", "type": "action", "parameters": {}})
         backend.add_edge("t1", "n1")
         graph = WorkflowGraph(backend)
 
@@ -222,8 +222,8 @@ class TestValidateStructure:
     def test_trigger_node_not_flagged_as_orphan(self) -> None:
         """Trigger nodes with no incoming edges should not be flagged as orphans."""
         backend = InMemoryGraphBackend()
-        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "config": {}})
-        backend.add_node("n1", {"id": "n1", "type": "action", "config": {}})
+        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "parameters": {}})
+        backend.add_node("n1", {"id": "n1", "type": "action", "parameters": {}})
         backend.add_edge("t1", "n1")
         graph = WorkflowGraph(backend)
 
@@ -233,8 +233,8 @@ class TestValidateStructure:
     def test_edge_referencing_nonexistent_node(self) -> None:
         """Edge pointing to a node not in the graph should produce an error."""
         backend = InMemoryGraphBackend()
-        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "config": {}})
-        backend.add_node("n1", {"id": "n1", "type": "action", "config": {}})
+        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "parameters": {}})
+        backend.add_node("n1", {"id": "n1", "type": "action", "parameters": {}})
         backend.add_edge("t1", "n1")
         # Manually add edge to non-existent node
         backend.add_edge("n1", "ghost")
@@ -248,8 +248,8 @@ class TestValidateStructure:
         """When multiple problems exist, all errors should be returned."""
         backend = InMemoryGraphBackend()
         # No trigger nodes
-        backend.add_node("n1", {"id": "n1", "type": "action", "config": {}})
-        backend.add_node("n2", {"id": "n2", "type": "action", "config": {}})
+        backend.add_node("n1", {"id": "n1", "type": "action", "parameters": {}})
+        backend.add_node("n2", {"id": "n2", "type": "action", "parameters": {}})
         # n1 orphan, n2 orphan, no trigger
         graph = WorkflowGraph(backend)
 
@@ -260,9 +260,9 @@ class TestValidateStructure:
     def test_node_with_only_outgoing_edge_not_orphan(self) -> None:
         """A non-trigger node with only outgoing edges is not orphan."""
         backend = InMemoryGraphBackend()
-        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "config": {}})
-        backend.add_node("n1", {"id": "n1", "type": "action", "config": {}})
-        backend.add_node("n2", {"id": "n2", "type": "action", "config": {}})
+        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "parameters": {}})
+        backend.add_node("n1", {"id": "n1", "type": "action", "parameters": {}})
+        backend.add_node("n2", {"id": "n2", "type": "action", "parameters": {}})
         backend.add_edge("t1", "n1")
         backend.add_edge("n1", "n2")
         graph = WorkflowGraph(backend)
@@ -273,8 +273,8 @@ class TestValidateStructure:
     def test_node_with_only_incoming_edge_not_orphan(self) -> None:
         """A node with only incoming edges (leaf node) is not orphan."""
         backend = InMemoryGraphBackend()
-        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "config": {}})
-        backend.add_node("leaf", {"id": "leaf", "type": "action", "config": {}})
+        backend.add_node("t1", {"id": "t1", "type": "http_trigger", "parameters": {}})
+        backend.add_node("leaf", {"id": "leaf", "type": "action", "parameters": {}})
         backend.add_edge("t1", "leaf")
         graph = WorkflowGraph(backend)
 
@@ -296,7 +296,7 @@ class TestFromDictValidation:
             "name": "bad",
             "description": "no trigger",
             "triggers": [],
-            "nodes": [{"id": "n1", "type": "action", "config": {}}],
+            "nodes": [{"id": "n1", "type": "action", "parameters": {}}],
             "edges": [],
         }
         with pytest.raises(ValueError, match="validation failed"):
@@ -307,10 +307,10 @@ class TestFromDictValidation:
             "schema_version": "1",
             "name": "bad",
             "description": "orphan",
-            "triggers": [{"id": "t1", "type": "http_trigger", "config": {}}],
+            "triggers": [{"id": "t1", "type": "http_trigger", "parameters": {}}],
             "nodes": [
-                {"id": "n1", "type": "action", "config": {}},
-                {"id": "orphan", "type": "action", "config": {}},
+                {"id": "n1", "type": "action", "parameters": {}},
+                {"id": "orphan", "type": "action", "parameters": {}},
             ],
             "edges": [{"from": "t1", "to": "n1"}],
         }
@@ -322,8 +322,8 @@ class TestFromDictValidation:
             "schema_version": "1",
             "name": "bad",
             "description": "bad edge",
-            "triggers": [{"id": "t1", "type": "http_trigger", "config": {}}],
-            "nodes": [{"id": "n1", "type": "action", "config": {}}],
+            "triggers": [{"id": "t1", "type": "http_trigger", "parameters": {}}],
+            "nodes": [{"id": "n1", "type": "action", "parameters": {}}],
             "edges": [
                 {"from": "t1", "to": "n1"},
                 {"from": "n1", "to": "ghost"},
@@ -338,7 +338,7 @@ class TestFromDictValidation:
             "name": "bad",
             "description": "no trigger",
             "triggers": [],
-            "nodes": [{"id": "n1", "type": "action", "config": {}}],
+            "nodes": [{"id": "n1", "type": "action", "parameters": {}}],
             "edges": [],
         }
         with pytest.raises(ValueError, match="trigger"):
@@ -350,7 +350,7 @@ class TestFromDictValidation:
             "schema_version": "1",
             "name": "simple",
             "description": "trigger only",
-            "triggers": [{"id": "t1", "type": "http_trigger", "config": {}}],
+            "triggers": [{"id": "t1", "type": "http_trigger", "parameters": {}}],
             "nodes": [],
             "edges": [],
         }
@@ -363,10 +363,10 @@ class TestFromDictValidation:
             "schema_version": "1",
             "name": "loop",
             "description": "loop workflow",
-            "triggers": [{"id": "t1", "type": "http_trigger", "config": {}}],
+            "triggers": [{"id": "t1", "type": "http_trigger", "parameters": {}}],
             "nodes": [
-                {"id": "loop1", "type": "loop", "config": {}},
-                {"id": "body", "type": "action", "config": {}},
+                {"id": "loop1", "type": "loop", "parameters": {}},
+                {"id": "body", "type": "action", "parameters": {}},
             ],
             "edges": [
                 {"from": "t1", "to": "loop1"},

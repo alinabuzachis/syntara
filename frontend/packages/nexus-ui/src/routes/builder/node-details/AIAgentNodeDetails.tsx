@@ -30,8 +30,8 @@ export function AIAgentNodeDetails({
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
-  // In v2, config is at activity.config directly (not task.config)
-  const agentConfig = (taskData.config ?? {}) as {
+  // In v2, parameters are at activity.parameters directly (not task.parameters)
+  const agentConfig = (taskData.parameters ?? {}) as {
     tool_selections?: string[]
     tools?: string[]
     prompt?: string
@@ -56,6 +56,7 @@ export function AIAgentNodeDetails({
     tools: tools.join(', '),
     credential_id: agentConfig.credential_id ?? undefined,
     responseSchema: responseSchema ? JSON.stringify(responseSchema, null, 2) : undefined,
+    settings: taskData.settings,
   }
 
   const handleSubmit = (data: AIAgentFormSubmitData) => {

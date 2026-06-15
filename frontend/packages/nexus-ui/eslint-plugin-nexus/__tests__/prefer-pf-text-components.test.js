@@ -59,6 +59,34 @@ ruleTester.run('prefer-pf-text-components', rule, {
     {
       code: `const App = () => <span>   </span>;`,
     },
+    // div with variable child but no style prop (layout div)
+    {
+      code: `const App = () => <div>{children}</div>;`,
+    },
+    // span with variable child only (no style) — PF6 has no ContentVariants.span
+    {
+      code: `const App = ({ text }) => <span>{text}</span>;`,
+    },
+    // span with className and variable (structural styling, not styled text)
+    {
+      code: `const App = ({ text }) => <span className={styles.label}>{text}</span>;`,
+    },
+    // span with function call but no style (structural)
+    {
+      code: `const App = () => <span>{formatValue(x)}</span>;`,
+    },
+    // span with member expression but no style
+    {
+      code: `const App = () => <span>{item.label}</span>;`,
+    },
+    // span with conditional but no style
+    {
+      code: `const App = ({ a }) => <span>{a ? 'yes' : 'no'}</span>;`,
+    },
+    // span with logical expression but no style
+    {
+      code: `const App = ({ a }) => <span>{a && label}</span>;`,
+    },
   ],
   invalid: [
     // <p> with text content should always be flagged
@@ -66,17 +94,17 @@ ruleTester.run('prefer-pf-text-components', rule, {
       code: `const App = () => <p>Hello world</p>;`,
       errors: [{ messageId: 'preferPfTextComponent', data: { element: 'p' } }],
     },
-    // <span> with text content
+    // <span> with literal text content
     {
       code: `const App = () => <span>Hello world</span>;`,
       errors: [{ messageId: 'preferPfTextComponent', data: { element: 'span' } }],
     },
-    // <div> with style prop and text content
+    // <div> with style prop and literal text content
     {
       code: `const App = () => <div style={{ color: 'red' }}>Styled text</div>;`,
       errors: [{ messageId: 'preferPfTextComponent', data: { element: 'div' } }],
     },
-    // <span> with mixed text and JSX children
+    // <span> with mixed literal text and JSX children
     {
       code: `const App = () => <span><Icon />Some text</span>;`,
       errors: [{ messageId: 'preferPfTextComponent', data: { element: 'span' } }],
@@ -110,6 +138,36 @@ ruleTester.run('prefer-pf-text-components', rule, {
     {
       code: 'const App = () => <h3>{`Heading ${level}`}</h3>;',
       errors: [{ messageId: 'preferPfTextComponent', data: { element: 'h3' } }],
+    },
+    // <span> with style prop and variable — styled text wrapper (the PR #667 blind spot)
+    {
+      code: `const App = ({ desc }) => <span style={myStyle}>{desc}</span>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'span' } }],
+    },
+    // <p> with variable expression — always flagged (PF Content exists)
+    {
+      code: `const App = ({ msg }) => <p>{msg}</p>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'p' } }],
+    },
+    // <div> with style prop and variable expression — styled text
+    {
+      code: `const App = ({ text }) => <div style={{ color: 'red' }}>{text}</div>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'div' } }],
+    },
+    // <h1> with variable expression — always flagged (PF Title exists)
+    {
+      code: `const App = ({ title }) => <h1>{title}</h1>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'h1' } }],
+    },
+    // <span> with style prop and member expression — styled text
+    {
+      code: `const App = () => <span style={{ fontSize: '12px' }}>{item.label}</span>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'span' } }],
+    },
+    // <div> with style prop and function call — styled text
+    {
+      code: `const App = () => <div style={{ fontStyle: 'italic' }}>{formatName(user)}</div>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'div' } }],
     },
   ],
 })

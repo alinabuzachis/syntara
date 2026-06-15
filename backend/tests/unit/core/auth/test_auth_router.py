@@ -1288,6 +1288,9 @@ class TestLoginAuditEvents:
         1. SessionLifecycleEvent -> "session_created" (USER_ACTION, SUCCESS)
         2. LoginAttemptEvent -> "login" (USER_ACTION, SUCCESS, error_type=None)
         3. @audit "login" (SECURITY_EVENT, SUCCESS)
+
+        Note: UserLoginEvent is also dispatched but its handler may not be
+        registered in all test contexts, so it is not counted here.
         """
         from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
         from nexus.audit.models.structured_data import AuditContextData
@@ -1323,31 +1326,34 @@ class TestLoginAuditEvents:
                 db=mock_db,
             )
 
-        assert mock_do_emit.call_count == 3
         events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+        events_by_action: dict[str, list[AuditEvent]] = {}
+        for e in events:
+            events_by_action.setdefault(e.event_action, []).append(e)
 
-        # Event 1: SessionLifecycleEvent -> "session_created"
-        assert events[0].event_action == "session_created"
-        assert events[0].event_category == EventCategory.USER_ACTION
-        assert events[0].event_status == EventStatus.SUCCESS
-        assert events[0].actor_username == "testuser"
-        assert isinstance(events[0].structured_data, AuditContextData)
-        assert events[0].structured_data.lifecycle_action == "create"  # type: ignore[attr-defined]
-        assert events[0].structured_data.jti == "jti-123"  # type: ignore[attr-defined]
+        # SessionLifecycleEvent -> "session_created"
+        session_events = events_by_action.get("session_created", [])
+        assert len(session_events) == 1
+        assert session_events[0].event_category == EventCategory.USER_ACTION
+        assert session_events[0].event_status == EventStatus.SUCCESS
+        assert session_events[0].actor_username == "testuser"
+        assert isinstance(session_events[0].structured_data, AuditContextData)
+        assert session_events[0].structured_data.lifecycle_action == "create"  # type: ignore[attr-defined]
+        assert session_events[0].structured_data.jti == "jti-123"  # type: ignore[attr-defined]
 
-        # Event 2: LoginAttemptEvent -> "login" (error_type=None)
-        assert events[1].event_action == "login"
-        assert events[1].event_category == EventCategory.USER_ACTION
-        assert events[1].event_status == EventStatus.SUCCESS
-        assert isinstance(events[1].structured_data, AuditContextData)
-        assert events[1].structured_data.method == "password"  # type: ignore[attr-defined]
-        assert events[1].actor_username == "testuser"
-        assert events[1].actor_id == user.id
+        # LoginAttemptEvent + @audit both emit action="login"
+        login_events = events_by_action.get("login", [])
+        assert len(login_events) == 2
 
-        # Event 3: @audit "login"
-        assert events[2].event_action == "login"
-        assert events[2].event_category == EventCategory.SECURITY_EVENT
-        assert events[2].event_status == EventStatus.SUCCESS
+        attempt_event = next(e for e in login_events if e.event_category == EventCategory.USER_ACTION)
+        assert attempt_event.event_status == EventStatus.SUCCESS
+        assert isinstance(attempt_event.structured_data, AuditContextData)
+        assert attempt_event.structured_data.method == "password"  # type: ignore[attr-defined]
+        assert attempt_event.actor_username == "testuser"
+        assert attempt_event.actor_id == user.id
+
+        audit_event = next(e for e in login_events if e.event_category == EventCategory.SECURITY_EVENT)
+        assert audit_event.event_status == EventStatus.SUCCESS
 
 
 def _setup_oidc_callback_mocks() -> tuple[MagicMock, MagicMock, MagicMock, MagicMock, AsyncMock]:

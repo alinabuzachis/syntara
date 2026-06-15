@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConvergeNodeForm, type ConvergeFormData } from './ConvergeNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
+vi.mock('../hooks/useWorkflowEngineDefaults', () => ({
+  useWorkflowEngineDefaults: () => ({ defaults: null, isLoading: false }),
+}))
+
 describe('ConvergeNodeForm', () => {
   const mockOnSubmit = vi.fn()
 
@@ -23,32 +27,6 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toBeInTheDocument()
-    })
-
-    it('renders timeout toggle', () => {
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
-
-      expect(screen.getByRole('switch', { name: /Timeout/i })).toBeInTheDocument()
-    })
-
-    it('does not render timeout fields when toggle is off', () => {
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
-
-      expect(screen.queryByText(/Timeout action/i)).not.toBeInTheDocument()
-      expect(screen.queryByLabelText(/Second\(s\)/i)).not.toBeInTheDocument()
-    })
-
-    it('renders timeout fields when toggle is on', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
-
-      await user.click(screen.getByRole('switch', { name: /Timeout/i }))
-
-      expect(screen.getByLabelText(/Second\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Minute\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Day\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByText(/Timeout action/i)).toBeInTheDocument()
     })
 
     it('renders help popovers for strategy and branch count fields', () => {
@@ -109,34 +87,13 @@ describe('ConvergeNodeForm', () => {
       const initialData: Partial<ConvergeFormData> = {
         name: 'Existing Converge',
         strategy: 'all',
-        timeoutEnabled: false,
+        settings: { continue_on_failure: false },
       }
 
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Existing Converge')
       expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
-      expect(screen.getByRole('switch', { name: /Timeout/i })).not.toBeChecked()
-    })
-
-    it('pre-populates timeout fields when enabled in initialData', () => {
-      const initialData: Partial<ConvergeFormData> = {
-        name: 'Timeout Converge',
-        strategy: 'all',
-        timeoutEnabled: true,
-        timeoutSeconds: 45,
-        timeoutMinutes: 3,
-        timeoutHours: 1,
-        timeoutDays: 0,
-        onTimeout: 'fail',
-      }
-
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
-
-      expect(screen.getByRole('switch', { name: /Timeout/i })).toBeChecked()
-      expect(screen.getByLabelText(/Second\(s\)/i)).toHaveValue(45)
-      expect(screen.getByLabelText(/Minute\(s\)/i)).toHaveValue(3)
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(1)
     })
   })
 
@@ -145,22 +102,6 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByRole('combobox', { name: /Continue when criteria/i })).toHaveValue('all')
-    })
-
-    it('defaults timeoutEnabled to false', () => {
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
-
-      expect(screen.getByRole('switch', { name: /Timeout/i })).not.toBeChecked()
-    })
-
-    it('defaults onTimeout to "fail"', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
-
-      await user.click(screen.getByRole('switch', { name: /Timeout/i }))
-      await user.type(screen.getByLabelText(/Minute\(s\)/i), '1')
-
-      expect(screen.getByRole('button', { name: /Fail/i })).toBeInTheDocument()
     })
   })
 
@@ -212,22 +153,6 @@ describe('ConvergeNodeForm', () => {
       await waitFor(() => {
         const submittedData = mockOnSubmit.mock.calls[0][0] as ConvergeFormData
         expect(submittedData.requiredPathCount).toBeUndefined()
-      })
-    })
-
-    it('does not include onTimeout when timeout is disabled', async () => {
-      const user = userEvent.setup()
-      renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
-
-      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Timeout')
-      await user.selectOptions(screen.getByRole('combobox', { name: /Continue when criteria/i }), 'all')
-
-      fireEvent.submit(screen.getByTestId('converge-node-form'))
-
-      await waitFor(() => {
-        const submittedData = mockOnSubmit.mock.calls[0][0] as ConvergeFormData
-        expect(submittedData.timeout).toBeUndefined()
-        expect(submittedData.onTimeout).toBeUndefined()
       })
     })
 

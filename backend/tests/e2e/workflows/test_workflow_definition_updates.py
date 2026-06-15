@@ -20,7 +20,7 @@ def _minimal_workflow_definition(workflow_name: str) -> WorkflowDefinition:
         {
             "name": workflow_name,
             "schema_version": "2.0.0",
-            "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
             "nodes": [],
             "edges": [],
         }
@@ -51,7 +51,7 @@ class TestWorkflowDefinitionUpdates:
             "id": "script_node_1",
             "name": "Test Script Node",
             "type": "script",
-            "config": {"language": "bash", "code": "echo 'Hello'"},
+            "parameters": {"language": "bash", "code": "echo 'Hello'"},
         }
         current_definition["nodes"].append(new_node)
 
@@ -93,15 +93,15 @@ class TestWorkflowDefinitionUpdates:
                 {
                     "name": workflow_name,
                     "schema_version": "2.0.0",
-                    "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+                    "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
                     "nodes": [
                         {
                             "id": "aap_job_node",
                             "name": "AAP Job Template",
                             "type": "aap_job_template",
-                            "config": {
-                                "job_template_id": "template-123",
-                                "inventory_id": "inventory-456",
+                            "parameters": {
+                                "job_template_id": 123,
+                                "inventory_id": 456,
                                 "extra_vars": {"env": "dev"},
                             },
                         }
@@ -119,8 +119,8 @@ class TestWorkflowDefinitionUpdates:
         # Update the AAP job node's configuration
         for node in current_definition["nodes"]:
             if node["id"] == "aap_job_node":
-                node["config"]["job_template_id"] = "template-789"  # Updated template ID
-                node["config"]["extra_vars"] = {"env": "prod", "debug": "true"}  # Updated vars
+                node["parameters"]["job_template_id"] = 789  # Updated template ID
+                node["parameters"]["extra_vars"] = {"env": "prod", "debug": "true"}  # Updated vars
                 node["name"] = "Updated AAP Job Template"  # Updated name
                 break
 
@@ -143,10 +143,10 @@ class TestWorkflowDefinitionUpdates:
         updated_node = updated_def["nodes"][0]
         assert updated_node["id"] == "aap_job_node"
         assert updated_node["name"] == "Updated AAP Job Template"
-        assert updated_node["config"]["job_template_id"] == "template-789"
-        assert updated_node["config"]["inventory_id"] == "inventory-456"  # Unchanged
-        assert updated_node["config"]["extra_vars"]["env"] == "prod"
-        assert updated_node["config"]["extra_vars"]["debug"] == "true"
+        assert updated_node["parameters"]["job_template_id"] == 789
+        assert updated_node["parameters"]["inventory_id"] == 456  # Unchanged
+        assert updated_node["parameters"]["extra_vars"]["env"] == "prod"
+        assert updated_node["parameters"]["extra_vars"]["debug"] == "true"
 
         # Verify edges remain unchanged
         assert len(updated_def["edges"]) == 1
@@ -171,25 +171,25 @@ class TestWorkflowDefinitionUpdates:
                 {
                     "name": workflow_name,
                     "schema_version": "2.0.0",
-                    "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+                    "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
                     "nodes": [
                         {
                             "id": "script_node_a",
                             "name": "Script Node A",
                             "type": "script",
-                            "config": {"language": "bash", "code": "echo 'Node A'"},
+                            "parameters": {"language": "bash", "code": "echo 'Node A'"},
                         },
                         {
                             "id": "script_node_b",
                             "name": "Script Node B",
                             "type": "script",
-                            "config": {"language": "bash", "code": "echo 'Node B'"},
+                            "parameters": {"language": "bash", "code": "echo 'Node B'"},
                         },
                         {
                             "id": "script_node_c",
                             "name": "Script Node C",
                             "type": "script",
-                            "config": {"language": "bash", "code": "echo 'Node C'"},
+                            "parameters": {"language": "bash", "code": "echo 'Node C'"},
                         },
                     ],
                     "edges": [
@@ -271,19 +271,19 @@ class TestWorkflowDefinitionUpdates:
                 {
                     "name": workflow_name,
                     "schema_version": "2.0.0",
-                    "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+                    "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
                     "nodes": [
                         {
                             "id": "node_a",
                             "name": "Node A",
                             "type": "script",
-                            "config": {"language": "bash", "code": "echo 'A'"},
+                            "parameters": {"language": "bash", "code": "echo 'A'"},
                         },
                         {
                             "id": "node_b",
                             "name": "Node B",
                             "type": "script",
-                            "config": {"language": "bash", "code": "echo 'B'"},
+                            "parameters": {"language": "bash", "code": "echo 'B'"},
                         },
                     ],
                     "edges": [{"from": "trigger_manual", "to": "node_a"}],  # Only trigger→A, no A→B edge

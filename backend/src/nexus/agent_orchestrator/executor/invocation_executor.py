@@ -394,6 +394,8 @@ class InvocationExecutor:
                         execution_id=execution_id,
                         request_id=request_id,
                         status=InvocationStatus.RUNNING,
+                        activity_id=ctx.activity_id,
+                        activity_name=ctx.activity_name,
                     )
                 )
 
@@ -444,6 +446,8 @@ class InvocationExecutor:
                         execution_id=execution_id,
                         request_id=request_id,
                         status=InvocationStatus.CANCELLED,
+                        activity_id=ctx.activity_id,
+                        activity_name=ctx.activity_name,
                     )
                 )
                 self._record_invocation_metrics(recorder, invocation_start, invocation.id, status="cancelled")
@@ -462,6 +466,8 @@ class InvocationExecutor:
                     request_id=request_id,
                     status=InvocationStatus.COMPLETED,
                     model_name=model_name,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
 
@@ -491,6 +497,8 @@ class InvocationExecutor:
                         request_id=request_id,
                         status=InvocationStatus.FAILED,
                         error_type=type(e).__name__,
+                        activity_id=ctx.activity_id,
+                        activity_name=ctx.activity_name,
                     )
                 )
 

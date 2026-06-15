@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { getTaskSemanticLabels } from './taskSemanticLabels'
 
 function makeTask(
-  overrides: Partial<TaskActivity> & Pick<TaskActivity, 'name' | 'type'> & { config: Record<string, unknown> }
+  overrides: Partial<TaskActivity> & Pick<TaskActivity, 'name' | 'type'> & { parameters: Record<string, unknown> }
 ): TaskActivity {
   return {
     id: 'a1',
@@ -17,7 +17,7 @@ describe('getTaskSemanticLabels', () => {
     const data = makeTask({
       name: 'Run script',
       type: ExecutorTypeEnum.SCRIPT,
-      config: { language: 'python', code: 'x' },
+      parameters: { language: 'python', code: 'x' },
     })
     expect(getTaskSemanticLabels(data)).toEqual({
       title: 'Run script',
@@ -29,7 +29,7 @@ describe('getTaskSemanticLabels', () => {
     const data = makeTask({
       name: '',
       type: ExecutorTypeEnum.HTTP_REQUEST,
-      config: { method: 'GET', url: 'https://example.com' },
+      parameters: { method: 'GET', url: 'https://example.com' },
     })
     expect(getTaskSemanticLabels(data).title).toBe('Untitled task')
     expect(getTaskSemanticLabels(data).typeLabel).toBe('REST API')
@@ -39,7 +39,7 @@ describe('getTaskSemanticLabels', () => {
     const data = makeTask({
       name: '  \t',
       type: ExecutorTypeEnum.SCRIPT,
-      config: { language: 'python', code: 'x' },
+      parameters: { language: 'python', code: 'x' },
     })
     expect(getTaskSemanticLabels(data).title).toBe('Untitled task')
   })
@@ -49,7 +49,7 @@ describe('getTaskSemanticLabels', () => {
       type: 'task',
       id: 'x',
       name: 'X',
-      task: { executor: 'bogus', config: {} },
+      task: { executor: 'bogus', parameters: {} },
     } as unknown as TaskActivity
     expect(getTaskSemanticLabels(data).typeLabel).toBe('Task')
   })
@@ -58,7 +58,7 @@ describe('getTaskSemanticLabels', () => {
     const data = makeTask({
       name: 'Run job',
       type: ExecutorTypeEnum.AGENTIC,
-      config: {
+      parameters: {
         agent: 'default-agent',
         prompt: JSON.stringify({
           __type: 'connector',

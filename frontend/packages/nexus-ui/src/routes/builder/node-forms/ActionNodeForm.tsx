@@ -34,6 +34,7 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 // Re-export schema type for form state; registry uses useNodeCreation.ActionFormData
 export type { ActionFormData }
@@ -340,7 +341,10 @@ function ActionFormFields({
     />
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const timeoutNodeType = executor === ExecutorTypeEnum.HTTP_REQUEST ? 'http_request' : 'script'
+  const settingsContent = <NodeSettingsForm timeoutNodeType={timeoutNodeType} />
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
@@ -351,6 +355,7 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
     url: '',
     language: 'python',
     method: 'GET',
+    settings: {},
     ...props.initialData,
   }
 
@@ -370,6 +375,7 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
       parameters: data.parameters ?? undefined,
       requiresApproval: props.initialData?.requiresApproval,
       credential_id: data.credential_id ?? undefined,
+      settings: data.settings,
     }
     props.onSubmit(cleanedData)
   }

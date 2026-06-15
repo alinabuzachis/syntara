@@ -11,7 +11,7 @@ nodes:
   - id: python_task
     name: Task With Unsupported Language
     type: script
-    config:
+    parameters:
       language: python
       code: |
         print("This should fail")

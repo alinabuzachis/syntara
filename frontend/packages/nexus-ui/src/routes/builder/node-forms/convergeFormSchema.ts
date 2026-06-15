@@ -1,12 +1,7 @@
 import { z } from 'zod'
 
 import { optionalNumber } from './shared/formSchemaUtils'
-
-const nonNegativeWholeNumber = optionalNumber
-  .optional()
-  .refine((value) => value === undefined || (Number.isInteger(value) && value >= 0), {
-    message: 'Must be a whole number greater than or equal to 0',
-  })
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
 
 const positiveWholeNumber = optionalNumber
   .optional()
@@ -16,21 +11,15 @@ const positiveWholeNumber = optionalNumber
 
 /**
  * Zod schema for the Converge node form.
- * Conditional: strategy required; when strategy is 'any', requiredPathCount required;
- * when timeoutEnabled, onTimeout required.
+ * continue_on_failure lives in node settings (Settings tab).
+ * wait_duration is a config field shown on the Parameters tab.
  */
 const convergeFormSchemaBase = z.object({
   name: z.string(),
   strategy: z.enum(['all', 'any']),
-  timeoutEnabled: z.boolean().optional(),
-  timeoutSeconds: nonNegativeWholeNumber,
-  timeoutMinutes: nonNegativeWholeNumber,
-  timeoutHours: nonNegativeWholeNumber,
-  timeoutDays: nonNegativeWholeNumber,
-  /** Output only: derived from unit fields in handleSubmit */
-  timeout: z.number().optional(),
-  onTimeout: z.enum(['continue', 'fail']).optional(),
   requiredPathCount: positiveWholeNumber,
+  wait_duration: z.number().int().positive().optional(),
+  settings: nodeSettingsSchema.optional(),
 })
 
 export const convergeFormSchema = convergeFormSchemaBase.superRefine((data, ctx) => {
@@ -49,13 +38,6 @@ export const convergeFormSchema = convergeFormSchemaBase.superRefine((data, ctx)
         path: ['requiredPathCount'],
       })
     }
-  }
-  if (data.timeoutEnabled && !data.onTimeout) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Timeout action is required',
-      path: ['onTimeout'],
-    })
   }
 })
 

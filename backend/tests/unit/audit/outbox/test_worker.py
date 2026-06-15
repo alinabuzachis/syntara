@@ -11,7 +11,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.models.audit_event import AuditEvent, EventCategory
-from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.outbox.models import AuditEventSource, AuditOutboxRecord
 from nexus.audit.outbox.worker import AuditOutboxWorker, publish_outbox_events
@@ -49,7 +48,6 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -61,14 +59,6 @@ class TestAuditEventWriterEnqueue:
         await worker.drain()
         assert len(worker._pending) == 0
 
-        # Patch AuditSessionLocal to use test database
-        with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-            await publish_outbox_events(test_session_factory, test_session_factory)
-
-        async with test_session_factory() as session:
-            result = await session.exec(select(AuditEventRecord).where(AuditEventRecord.id == event.event_id))
-            assert result.one() is not None
-
     @pytest.mark.asyncio
     async def test_enqueue_task_removed_on_completion(
         self, test_session_factory: async_sessionmaker[AsyncSession]
@@ -78,7 +68,6 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -97,7 +86,6 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=MagicMock(),
-            audit_session_factory=MagicMock(),
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -123,7 +111,6 @@ class TestAuditEventWriterEnqueue:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -137,15 +124,6 @@ class TestAuditEventWriterEnqueue:
         await worker.drain()
         assert len(worker._pending) == 0
 
-        # Patch AuditSessionLocal to use test database
-        with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-            await publish_outbox_events(test_session_factory, test_session_factory)
-
-        async with test_session_factory() as session:
-            for event in events:
-                result = await session.exec(select(AuditEventRecord).where(AuditEventRecord.id == event.event_id))
-                assert result.one() is not None
-
 
 # ------------------------------------------------------------------ #
 # Write
@@ -157,12 +135,11 @@ class TestAuditEventWriterWrite:
 
     @pytest.mark.asyncio
     async def test_write_persists_record(self, test_session_factory: async_sessionmaker[AsyncSession]) -> None:
-        """Test that _write creates a record and commits it."""
+        """Test that _write creates an outbox record and commits it."""
         worker = AuditOutboxWorker(
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -170,16 +147,15 @@ class TestAuditEventWriterWrite:
 
         await worker._write(event)
 
-        # Patch AuditSessionLocal to use test database
-        with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-            await publish_outbox_events(test_session_factory, test_session_factory)
-
         async with test_session_factory() as session:
-            result = await session.exec(select(AuditEventRecord).where(AuditEventRecord.id == event.event_id))
+            result = await session.exec(
+                select(AuditOutboxRecord).where(
+                    AuditOutboxRecord.event_payload["event_id"].astext == str(event.event_id)
+                )
+            )
             record = result.one()
-            assert record.event_action == "test_action"
-            assert record.source_component == "test"
-            assert record.event_category == "system_operation"
+            assert record.event_source == AuditEventSource.BUSINESS_EVENT
+            assert record.event_payload["event_action"] == "test_action"
 
     @pytest.mark.asyncio
     async def test_write_creates_outbox_record_with_business_event_source(
@@ -190,7 +166,6 @@ class TestAuditEventWriterWrite:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -202,13 +177,15 @@ class TestAuditEventWriterWrite:
             worker.write_to_outbox(event, session.sync_session)
             await session.commit()
 
-        # Verify outbox record was created with correct event_source before publish
         async with test_session_factory() as session:
-            result = await session.exec(select(AuditOutboxRecord))
-            outbox_records = result.all()
-            assert len(outbox_records) == 1
-            assert outbox_records[0].event_source == AuditEventSource.BUSINESS_EVENT
-            assert outbox_records[0].event_payload == event.model_dump(mode="json")
+            result = await session.exec(
+                select(AuditOutboxRecord).where(
+                    AuditOutboxRecord.event_payload["event_id"].astext == str(event.event_id)
+                )
+            )
+            record = result.one()
+            assert record.event_source == AuditEventSource.BUSINESS_EVENT
+            assert record.event_payload == event.model_dump(mode="json")
 
     @pytest.mark.asyncio
     async def test_write_handles_database_error(self) -> None:
@@ -224,7 +201,6 @@ class TestAuditEventWriterWrite:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_session_factory=mock_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -244,13 +220,14 @@ class TestAuditEventWriterWrite:
             )
 
     @pytest.mark.asyncio
-    async def test_write_converts_event_to_record(self, test_session_factory: async_sessionmaker[AsyncSession]) -> None:
-        """Test that _write correctly converts AuditEvent fields to record columns."""
+    async def test_write_converts_event_to_outbox_record(
+        self, test_session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Test that _write correctly stores AuditEvent fields in outbox record."""
         worker = AuditOutboxWorker(
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -259,16 +236,13 @@ class TestAuditEventWriterWrite:
 
         await worker._write(event)
 
-        # Patch AuditSessionLocal to use test database
-        with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-            await publish_outbox_events(test_session_factory, test_session_factory)
-
         async with test_session_factory() as session:
-            result = await session.exec(select(AuditEventRecord).where(AuditEventRecord.id == event_id))
+            result = await session.exec(
+                select(AuditOutboxRecord).where(AuditOutboxRecord.event_payload["event_id"].astext == str(event_id))
+            )
             record = result.one()
-            assert record.id == event_id
-            assert record.event_action == "specific_action"
-            assert record.source_component == "test"
+            assert record.event_payload["event_action"] == "specific_action"
+            assert record.event_payload["source_component"] == "test"
 
 
 # ------------------------------------------------------------------ #
@@ -292,7 +266,6 @@ class TestAuditEventWriterDrain:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -317,7 +290,6 @@ class TestAuditEventWriterDrain:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -331,7 +303,6 @@ class TestAuditEventWriterDrain:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=test_session_factory,
-            audit_session_factory=test_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -380,7 +351,6 @@ class TestAuditEventWriterRetry:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_session_factory=mock_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -422,7 +392,6 @@ class TestAuditEventWriterRetry:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_session_factory=mock_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -460,7 +429,6 @@ class TestAuditEventWriterRetry:
             name="audit-outbox-worker",
             interval_seconds=1,
             session_factory=mock_session_factory,
-            audit_session_factory=mock_session_factory,
             audit_callback=publish_outbox_events,
             coordinate=True,
         )
@@ -505,7 +473,6 @@ class TestAuditEventWriterSemaphore:
                 name="audit-outbox-worker",
                 interval_seconds=1,
                 session_factory=test_session_factory,
-                audit_session_factory=test_session_factory,
                 audit_callback=publish_outbox_events,
                 coordinate=True,
             )
@@ -549,7 +516,6 @@ class TestAuditEventWriterSemaphore:
                 name="audit-outbox-worker",
                 interval_seconds=1,
                 session_factory=MagicMock(),
-                audit_session_factory=MagicMock(),
                 audit_callback=publish_outbox_events,
                 coordinate=True,
             )
@@ -569,14 +535,10 @@ class TestMalformedRecordHandling:
         self, test_session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """Test that malformed business events are logged and dropped during publish."""
-        # Create valid events
         valid_event_1 = _make_event(event_action="action_1")
         valid_event_2 = _make_event(event_action="action_2")
-
-        # Create a malformed event ID to track
         malformed_event_id = uuid4()
 
-        # Create outbox records
         valid_outbox_1 = AuditOutboxRecord(
             event_source=AuditEventSource.BUSINESS_EVENT,
             event_payload=valid_event_1.model_dump(mode="json"),
@@ -585,51 +547,32 @@ class TestMalformedRecordHandling:
             event_source=AuditEventSource.BUSINESS_EVENT,
             event_payload=valid_event_2.model_dump(mode="json"),
         )
-
-        # Create malformed record (missing required fields)
         malformed_outbox = AuditOutboxRecord(
             event_source=AuditEventSource.BUSINESS_EVENT,
             event_payload={"event_id": str(malformed_event_id), "event_action": "malformed", "invalid": "data"},
         )
 
-        # Persist to business database
         async with test_session_factory() as session:
             session.add_all([valid_outbox_1, malformed_outbox, valid_outbox_2])
             await session.commit()
 
-        # Mock logger to capture warnings
-        with patch("nexus.audit.outbox.worker.logger") as mock_logger:
-            # Publish events
-            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-                await publish_outbox_events(test_session_factory, test_session_factory)
+        with (
+            patch("nexus.audit.outbox.worker.logger") as mock_logger,
+            patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel,
+        ):
+            await publish_outbox_events(test_session_factory)
 
-            # Verify warning was logged for malformed record
             mock_logger.warning.assert_called_once()
             call_args = mock_logger.warning.call_args
             assert call_args[0][0] == "Dropped malformed AuditOutboxRecord record."
             assert "id" in call_args[1]
 
-        # Verify only valid records were written to audit database
+            assert mock_emit_otel.call_count == 2
+            emitted_event_ids = {call[0][0].event_id for call in mock_emit_otel.call_args_list}
+            assert emitted_event_ids == {valid_event_1.event_id, valid_event_2.event_id}
+
         async with test_session_factory() as session:
-            # Query for all three event IDs
-            result = await session.exec(
-                select(AuditEventRecord).filter(
-                    AuditEventRecord.id.in_([valid_event_1.event_id, valid_event_2.event_id, malformed_event_id])  # type: ignore[attr-defined]
-                )
-            )
-            records = result.all()
-
-            # Should have exactly 2 records (malformed one dropped)
-            assert len(records) == 2
-
-            # Verify they're the valid ones (malformed one should not be present)
-            record_ids = {r.id for r in records}
-            assert record_ids == {valid_event_1.event_id, valid_event_2.event_id}
-            assert malformed_event_id not in record_ids
-
-        # Verify all outbox records were deleted (including malformed)
-        async with test_session_factory() as session:
-            result = await session.exec(select(AuditOutboxRecord))  # type: ignore[arg-type]
+            result = await session.exec(select(AuditOutboxRecord))
             remaining = result.all()
             assert len(remaining) == 0
 
@@ -671,11 +614,8 @@ class TestMalformedRecordHandling:
             patch("nexus.audit.outbox.worker.logger") as mock_logger,
             patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel,
         ):
-            # Publish events
-            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-                await publish_outbox_events(test_session_factory, test_session_factory)
+            await publish_outbox_events(test_session_factory)
 
-            # Verify warning was logged for malformed record
             mock_logger.warning.assert_called_once()
             call_args = mock_logger.warning.call_args
             assert call_args[0][0] == "Dropped malformed AuditOutboxRecord record."
@@ -731,8 +671,7 @@ class TestOtelEventSourceDiscriminator:
         # Mock _emit_otel_log_entry to capture calls
         with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel:
             # Publish events
-            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-                await publish_outbox_events(test_session_factory, test_session_factory)
+            await publish_outbox_events(test_session_factory)
 
             # Verify both events were emitted to OTEL
             assert mock_emit_otel.call_count == 2
@@ -774,8 +713,7 @@ class TestOtelEventSourceDiscriminator:
         # Mock _emit_otel_log_entry to capture calls
         with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel:
             # Publish events
-            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-                await publish_outbox_events(test_session_factory, test_session_factory)
+            await publish_outbox_events(test_session_factory)
 
             # Verify both events were emitted to OTEL
             assert mock_emit_otel.call_count == 2
@@ -817,8 +755,7 @@ class TestOtelEventSourceDiscriminator:
         # Mock _emit_otel_log_entry to capture calls
         with patch("nexus.audit.outbox.worker._emit_otel_log_entry") as mock_emit_otel:
             # Publish events
-            with patch("nexus.audit.outbox.worker.AuditSessionLocal", test_session_factory):
-                await publish_outbox_events(test_session_factory, test_session_factory)
+            await publish_outbox_events(test_session_factory)
 
             # Verify both events were emitted
             assert mock_emit_otel.call_count == 2

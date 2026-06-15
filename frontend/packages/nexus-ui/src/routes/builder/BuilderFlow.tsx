@@ -7,6 +7,7 @@ import {
   applyNodeChanges,
   Background,
   BackgroundVariant,
+  ConnectionLineType,
   ReactFlow,
   useReactFlow,
   type Connection,
@@ -56,7 +57,7 @@ import type { BuilderFlowProps, PendingEdge } from './types'
 import { validateConnection } from './utils/validateConnection'
 import { markerEnd, type EdgeType } from './utils/workflowToGraph'
 
-const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed', 'cancelled'])
+const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'completed_with_errors', 'failed', 'cancelled'])
 
 // eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderFlow(props: BuilderFlowProps) {
@@ -534,6 +535,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   return (
     <ActiveExecutionContext.Provider value={isActiveExecution}>
+      {/* eslint-disable-next-line nexus/prefer-pf-text-components -- full-bleed canvas container for ReactFlow */}
       <div
         ref={containerRef}
         style={{
@@ -575,6 +577,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
           connectOnClick={false}
           connectionRadius={200}
           connectionLineStyle={{ stroke: BUTTON_EDGE_DEFAULT_STROKE, strokeWidth: 2 }}
+          connectionLineType={ConnectionLineType.SmoothStep}
           defaultEdgeOptions={{ markerEnd }}
           isValidConnection={isValidConnection}
           proOptions={{ hideAttribution: true }}

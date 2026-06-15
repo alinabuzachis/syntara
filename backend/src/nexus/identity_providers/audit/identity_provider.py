@@ -66,4 +66,5 @@ class IdentityProviderLifecycleHandler(AuditEventHandler[IdentityProviderLifecyc
             source_component="nexus.identity_providers",
             structured_data=data,
             resource_urn=f"urn:nexus:identity_provider:{event.provider_id}",
+            resource_name=event.provider_name,
         )

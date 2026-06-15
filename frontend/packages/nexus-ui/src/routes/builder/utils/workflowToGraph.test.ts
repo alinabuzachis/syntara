@@ -25,8 +25,8 @@ describe('workflowToGraph', () => {
 
     it('extracts script activities from flat array', () => {
       const activities: Activity[] = [
-        { id: 'task-1', type: 'script', name: 'Task 1', config: { language: 'python', code: '' } },
-        { id: 'task-2', type: 'script', name: 'Task 2', config: { language: 'python', code: '' } },
+        { id: 'task-1', type: 'script', name: 'Task 1', parameters: { language: 'python', code: '' } },
+        { id: 'task-2', type: 'script', name: 'Task 2', parameters: { language: 'python', code: '' } },
       ]
       const tasks = extractTaskActivities(activities)
       expect(tasks).toHaveLength(2)
@@ -36,11 +36,11 @@ describe('workflowToGraph', () => {
 
     it('includes executor and approval activities but skips control flow nodes', () => {
       const activities: Activity[] = [
-        { id: 'task-1', type: 'script', name: 'Task 1', config: { language: 'python', code: '' } },
-        { id: 'approval-1', type: 'approval', name: 'Approval', config: {} },
-        { id: 'cond-1', type: 'condition', name: 'Condition', config: { condition: 'true' } },
-        { id: 'loop-1', type: 'loop', name: 'Loop', config: { type: 'for_each', items: '${items}' } },
-        { id: 'converge-1', type: 'converge', name: 'Converge', config: { strategy: 'all' } },
+        { id: 'task-1', type: 'script', name: 'Task 1', parameters: { language: 'python', code: '' } },
+        { id: 'approval-1', type: 'approval', name: 'Approval', parameters: {} },
+        { id: 'cond-1', type: 'condition', name: 'Condition', parameters: { condition: 'true' } },
+        { id: 'loop-1', type: 'loop', name: 'Loop', parameters: { type: 'for_each', items: '${items}' } },
+        { id: 'converge-1', type: 'converge', name: 'Converge', parameters: { strategy: 'all' } },
       ]
       const tasks = extractTaskActivities(activities)
       // Only script and approval are executor/approval types
@@ -51,7 +51,12 @@ describe('workflowToGraph', () => {
 
     it('extracts http_request activities', () => {
       const activities: Activity[] = [
-        { id: 'http-1', type: 'http_request', name: 'API Call', config: { method: 'GET', url: 'https://example.com' } },
+        {
+          id: 'http-1',
+          type: 'http_request',
+          name: 'API Call',
+          parameters: { method: 'GET', url: 'https://example.com' },
+        },
       ]
       const tasks = extractTaskActivities(activities)
       expect(tasks).toHaveLength(1)
@@ -60,7 +65,7 @@ describe('workflowToGraph', () => {
 
     it('extracts agentic activities', () => {
       const activities: Activity[] = [
-        { id: 'agentic-1', type: 'agentic', name: 'AI Agent', config: { prompt: 'Do something' } },
+        { id: 'agentic-1', type: 'agentic', name: 'AI Agent', parameters: { prompt: 'Do something' } },
       ]
       const tasks = extractTaskActivities(activities)
       expect(tasks).toHaveLength(1)
@@ -69,7 +74,7 @@ describe('workflowToGraph', () => {
 
     it('extracts aap_job_template activities', () => {
       const activities: Activity[] = [
-        { id: 'aap-1', type: 'aap_job_template', name: 'AAP Job', config: { job_template_id: 42 } },
+        { id: 'aap-1', type: 'aap_job_template', name: 'AAP Job', parameters: { job_template_id: 42 } },
       ]
       const tasks = extractTaskActivities(activities)
       expect(tasks).toHaveLength(1)
@@ -77,7 +82,7 @@ describe('workflowToGraph', () => {
     })
 
     it('skips unknown activity types', () => {
-      const activities = [{ id: 'unknown-1', type: 'unknown_type', name: 'Unknown', config: {} }] as Activity[]
+      const activities = [{ id: 'unknown-1', type: 'unknown_type', name: 'Unknown', parameters: {} }] as Activity[]
       const tasks = extractTaskActivities(activities)
       expect(tasks).toHaveLength(0)
     })
@@ -102,7 +107,7 @@ describe('workflowToGraph', () => {
     it('handles cron scheduled trigger', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.SCHEDULED,
-        config: {
+        parameters: {
           schedule_type: 'cron',
           cron: '0 9 * * *',
         },
@@ -113,7 +118,7 @@ describe('workflowToGraph', () => {
     it('handles interval scheduled trigger', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.SCHEDULED,
-        config: {
+        parameters: {
           schedule_type: 'interval',
           interval: '1h',
         },
@@ -124,7 +129,7 @@ describe('workflowToGraph', () => {
     it('handles continuous scheduled trigger', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.SCHEDULED,
-        config: {
+        parameters: {
           schedule_type: 'continuous',
         },
       }
@@ -134,7 +139,7 @@ describe('workflowToGraph', () => {
     it('handles event trigger', () => {
       const trigger: Trigger = {
         type: 'event',
-        config: {
+        parameters: {
           source: 'github',
           event_type: 'push',
         },
@@ -146,7 +151,7 @@ describe('workflowToGraph', () => {
       const trigger: Trigger = {
         type: 'event',
         name: 'GitHub Push',
-        config: {
+        parameters: {
           source: 'github',
           event_type: 'push',
         },
@@ -189,7 +194,7 @@ describe('workflowToGraph', () => {
     it('handles EDA trigger with webhook path', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.EDA_TRIGGER,
-        config: { webhook_path: 'my-events' },
+        parameters: { webhook_path: 'my-events' },
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'EDA: /my-events' })
     })
@@ -197,7 +202,7 @@ describe('workflowToGraph', () => {
     it('handles EDA trigger without webhook path', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.EDA_TRIGGER,
-        config: {},
+        parameters: {},
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'EDA' })
     })
@@ -206,7 +211,7 @@ describe('workflowToGraph', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.EDA_TRIGGER,
         name: 'My EDA Trigger',
-        config: { webhook_path: 'github-events' },
+        parameters: { webhook_path: 'github-events' },
       }
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'My EDA Trigger', details: 'EDA: /github-events' })
     })

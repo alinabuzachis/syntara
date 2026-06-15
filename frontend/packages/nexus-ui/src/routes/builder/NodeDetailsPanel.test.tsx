@@ -156,7 +156,7 @@ describe('NodeDetailsPanel', () => {
             id: 'new-1',
             type: 'task',
             name: 'New Task',
-            task: { executor: 'script', config: {} },
+            task: { executor: 'script', parameters: {} },
             metadata: { __isGeneric: true, __customMessage: 'test message' },
           },
         ],
@@ -211,7 +211,7 @@ describe('NodeDetailsPanel', () => {
             id: 'replacement-1',
             type: 'task',
             name: 'Replacement Task',
-            task: { executor: 'script', config: {} },
+            task: { executor: 'script', parameters: {} },
             metadata: { __isGeneric: true },
           },
         ],
@@ -335,7 +335,7 @@ describe('NodeDetailsPanel', () => {
       id: 'task-1',
       type: 'task',
       position: { x: 0, y: 0 },
-      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', config: {} } } as never,
+      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', parameters: {} } } as never,
     }
 
     render(<NodeDetailsPanel mode="edit" node={taskNode} onClose={mockOnClose} />)
@@ -370,7 +370,7 @@ describe('NodeDetailsPanel', () => {
       id: 'task-1',
       type: 'task',
       position: { x: 0, y: 0 },
-      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', config: {} } } as never,
+      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', parameters: {} } } as never,
     }
 
     render(<NodeDetailsPanel mode="edit" node={taskNode} onClose={mockOnClose} />)
@@ -419,7 +419,7 @@ describe('NodeDetailsPanel', () => {
           id: 'approval-1',
           type: 'approval',
           name: 'Approval',
-          task: { executor: 'approval', config: {} },
+          task: { executor: 'approval', parameters: {} },
         } as never,
       },
     }
@@ -673,7 +673,7 @@ describe('NodeDetailsPanel', () => {
       id: 'task-1',
       type: 'task',
       position: { x: 0, y: 0 },
-      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', config: {} } } as never,
+      data: { id: 'task-1', type: 'task', name: 'Task', task: { executor: 'script', parameters: {} } } as never,
     }
 
     render(
@@ -695,7 +695,7 @@ describe('NodeDetailsPanel', () => {
       id,
       type: 'task',
       position: { x: 0, y: 0 },
-      data: { id, type: 'script', name: id, config: {} } as never,
+      data: { id, type: 'script', name: id, parameters: {} } as never,
     })
 
     const { rerender } = render(

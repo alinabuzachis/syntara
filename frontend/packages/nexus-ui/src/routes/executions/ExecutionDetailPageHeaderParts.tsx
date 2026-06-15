@@ -37,6 +37,7 @@ export type ExecutionDetailHeaderToolbarProps = Readonly<{
   historyCardOpen: boolean
   onToggleHistory: () => void
   onBackToEditor: () => void
+  onCopyToEditor: () => void
   isCancellable: boolean
   executionId: string
 }>
@@ -48,6 +49,7 @@ export function ExecutionDetailHeaderToolbar({
   historyCardOpen,
   onToggleHistory,
   onBackToEditor,
+  onCopyToEditor,
   isCancellable,
   executionId,
 }: ExecutionDetailHeaderToolbarProps) {
@@ -55,6 +57,9 @@ export function ExecutionDetailHeaderToolbar({
     <>
       {showApprovalActionStrip && <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewClick} />}
       {isCancellable && <CancelExecutionButton executionId={executionId} />}
+      <Button variant="secondary" onClick={onCopyToEditor}>
+        Copy to editor
+      </Button>
       <RunHistoryToggleButton onClick={onToggleHistory} isActive={historyCardOpen} />
       <Button variant="secondary" onClick={onBackToEditor}>
         Back to editor

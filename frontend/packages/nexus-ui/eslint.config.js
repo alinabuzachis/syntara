@@ -78,6 +78,34 @@ export default tseslint.config(
             'Do not use aria-label on <span> — assistive technologies ignore it on non-interactive elements. The inner text content is sufficient. Use aria-label only on interactive elements, widgets, landmarks, images, or iframes.',
         },
       ],
+      // Block axios imports at error level (typed API clients from client.tsx)
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'axios',
+              message: 'Use typed API clients from client.tsx instead of axios.',
+            },
+          ],
+        },
+      ],
+      // Raw HTTP calls are handled by nexus/no-raw-http-calls (fetch, XMLHttpRequest) below
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'crypto',
+          property: 'randomUUID',
+          message:
+            'crypto.randomUUID is unavailable over HTTP (non-secure contexts). Use generateUUID() from src/utils/generateUUID.ts or React useId() for component keys.',
+        },
+      ],
+    },
+  },
+  // Icon migration: flag non-RhUi icons at warn level (existing legacy imports being phased out incrementally)
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: {
       'no-restricted-imports': [
         'warn',
         {
@@ -88,24 +116,11 @@ export default tseslint.config(
               message:
                 'Use RhUi* icons from @patternfly/react-icons (e.g. RhUiAddIcon, RhUiTrashIcon, RhUiEditIcon). Non-RhUi icons are being phased out.',
             },
+            {
+              group: ['wouter', 'wouter/*'],
+              message: 'Import from src/hooks/routing/ instead. See AAP-78461 for migration details.',
+            },
           ],
-        },
-      ],
-      'no-restricted-globals': [
-        'error',
-        {
-          name: 'fetch',
-          message:
-            'Use a typed API client (workflowClient, credentialsClient, etc.) instead of raw fetch(). If this is a pre-auth call, add an eslint-disable-next-line with a short justification.',
-        },
-      ],
-      'no-restricted-properties': [
-        'error',
-        {
-          object: 'crypto',
-          property: 'randomUUID',
-          message:
-            'crypto.randomUUID is unavailable over HTTP (non-secure contexts). Use generateUUID() from src/utils/generateUUID.ts or React useId() for component keys.',
         },
       ],
     },
@@ -211,6 +226,13 @@ export default tseslint.config(
       // -- nexus custom rules (PR checklist + UX design system enforcement) --
       // no-switch-is-reversed, require-alert-object-param, and require-query-state-object
       // are enforced via no-restricted-syntax AST selectors above (no custom plugin needed).
+      'nexus/no-raw-http-calls': [
+        'error',
+        {
+          // XMLHttpRequest required for upload progress (fetch lacks upload progress events)
+          allowedFiles: ['**/useFileUploadWithProgress.ts'],
+        },
+      ],
       'nexus/prefer-pf-list-components': 'error',
       'nexus/prefer-pf-text-components': 'error',
       'nexus/use-design-tokens-not-hardcoded': 'error',
@@ -224,6 +246,28 @@ export default tseslint.config(
       'reactYouMightNotNeedAnEffect/no-pass-live-state-to-parent': 'warn',
       'reactYouMightNotNeedAnEffect/no-pass-data-to-parent': 'warn',
       'reactYouMightNotNeedAnEffect/no-initialize-state': 'warn',
+    },
+  },
+  {
+    // Bridge hooks are the intended migration destination for wouter — they ARE the allowed
+    // wouter consumers. createTestRouter is the shared test utility for those bridges.
+    // Re-declare with only the icon restriction so the wouter guard is lifted here without
+    // also lifting the @patternfly/react-icons non-RhUi* guard.
+    files: ['**/hooks/routing/*.{ts,tsx}', '**/test/createTestRouter.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'warn',
+        {
+          patterns: [
+            {
+              group: ['@patternfly/react-icons'],
+              importNamePattern: '^(?!RhUi)',
+              message:
+                'Use RhUi* icons from @patternfly/react-icons (e.g. RhUiAddIcon, RhUiTrashIcon, RhUiEditIcon). Non-RhUi icons are being phased out.',
+            },
+          ],
+        },
+      ],
     },
   },
   {
@@ -371,7 +415,6 @@ export default tseslint.config(
       '**/routes/**/CredentialDetail.tsx',
       '**/routes/**/CredentialTypes.tsx',
       '**/routes/**/CredentialTypeDetail.tsx',
-      '**/routes/**/AuditLog.tsx',
       '**/vite-env.d.ts',
     ],
     rules: {

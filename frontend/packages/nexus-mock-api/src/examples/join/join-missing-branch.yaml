@@ -8,13 +8,13 @@ triggers:
 nodes:
   - id: existing_task
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Existing task"
 
   - id: join_missing
     type: converge
-    config:
+    parameters:
       branches:
         - existing_task
         - nonexistent_task

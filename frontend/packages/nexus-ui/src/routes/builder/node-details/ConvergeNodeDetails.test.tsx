@@ -20,9 +20,6 @@ vi.mock('../../../providers/alerts', () => ({
   })),
 }))
 
-// Use real timeUtils helpers (secondsToTimeUnits is now imported directly in ConvergeNodeDetails)
-vi.mock('../utils/timeUtils', async (importOriginal) => importOriginal())
-
 // Mock ConvergeNodeForm - simulates auto-save behavior
 let mockOnSubmitHandler: ((data: Record<string, unknown>) => void) | null = null
 
@@ -34,11 +31,7 @@ vi.mock('../node-forms/ConvergeNodeForm', () => ({
     onSubmit: (data: Record<string, unknown>) => void
     initialData?: {
       name?: string
-      timeoutEnabled?: boolean
-      timeoutSeconds?: number
-      timeoutMinutes?: number
-      timeoutHours?: number
-      timeoutDays?: number
+      strategy?: string
       requiredPathCount?: number
       [key: string]: unknown
     }
@@ -47,7 +40,6 @@ vi.mock('../node-forms/ConvergeNodeForm', () => ({
     return (
       <div data-testid="converge-node-form">
         <span data-testid="initial-name">{initialData?.name ?? ''}</span>
-        <span data-testid="initial-timeout-enabled">{String(initialData?.timeoutEnabled ?? false)}</span>
         <span data-testid="initial-required-path-count">{String(initialData?.requiredPathCount ?? '')}</span>
       </div>
     )
@@ -61,11 +53,9 @@ describe('ConvergeNodeDetails Component', () => {
     type: 'converge' as const,
     id: 'converge-1',
     name: 'Test Converge',
-    config: {
+    parameters: {
       strategy: 'all' as const,
       branches: ['branch-1', 'branch-2'],
-      timeout: 7200,
-      on_timeout: 'fail' as const,
     },
     ...overrides,
   })
@@ -84,19 +74,15 @@ describe('ConvergeNodeDetails Component', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('initial-name')).toHaveTextContent('Test Converge')
-    expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('true')
   })
 
   it('calls updateActivity when form auto-saves', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
-    // Simulate auto-save with timeout
+    // Simulate auto-save with strategy
     mockOnSubmitHandler?.({
       name: 'Test Converge',
       strategy: 'all',
-      timeoutEnabled: true,
-      timeout: 7200,
-      onTimeout: 'fail',
     })
 
     // Verify updateActivity was called with correct node ID and payload structure
@@ -107,10 +93,8 @@ describe('ConvergeNodeDetails Component', () => {
         type: 'converge',
         name: 'Test Converge',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           strategy: 'all',
-          timeout: 7200,
-          on_timeout: 'fail',
         }),
       })
     )
@@ -119,13 +103,11 @@ describe('ConvergeNodeDetails Component', () => {
     const actualPayload = mockUpdateActivity.mock.calls[0][1] as {
       type: string
       name: string
-      config: { strategy: string; branches: string[]; timeout?: number; on_timeout?: string }
+      parameters: { strategy: string }
     }
     expect(actualPayload.type).toBe('converge')
     expect(actualPayload.name).toBe('Test Converge')
-    expect(actualPayload.config.strategy).toBe('all')
-    expect(actualPayload.config.timeout).toBe(7200)
-    expect(actualPayload.config.on_timeout).toBe('fail')
+    expect(actualPayload.parameters.strategy).toBe('all')
   })
 
   it('calls onClose after auto-save', () => {
@@ -135,8 +117,6 @@ describe('ConvergeNodeDetails Component', () => {
     mockOnSubmitHandler?.({
       name: 'Test Converge',
       strategy: 'all',
-      timeout: 7200,
-      onTimeout: 'fail',
     })
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
@@ -149,21 +129,11 @@ describe('ConvergeNodeDetails Component', () => {
   })
 
   it('handles convergeData without config object', () => {
-    const convergeDataWithoutConverge = createConvergeData({ config: {} })
+    const convergeDataWithoutConverge = createConvergeData({ parameters: {} })
 
     render(<ConvergeNodeDetails convergeData={convergeDataWithoutConverge} nodeId="converge-1" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('converge-node-form')).toBeInTheDocument()
-  })
-
-  it('passes initialData to form with timeout decomposed', () => {
-    const convergeData = createConvergeData({
-      config: { strategy: 'all', branches: [], timeout: 3600, on_timeout: 'continue' },
-    })
-
-    render(<ConvergeNodeDetails convergeData={convergeData} nodeId="converge-1" onClose={mockOnClose} />)
-
-    expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('true')
   })
 
   it('shows error when updateActivity throws', () => {
@@ -177,43 +147,15 @@ describe('ConvergeNodeDetails Component', () => {
     mockOnSubmitHandler?.({
       name: 'Test Converge',
       strategy: 'all',
-      timeout: 7200,
-      onTimeout: 'fail',
     })
 
     expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
-  describe('timeout toggle state initialization', () => {
-    it('sets timeoutEnabled true and decomposes time units when converge has timeout', () => {
-      render(
-        <ConvergeNodeDetails
-          convergeData={createConvergeData({ config: { strategy: 'all', branches: [], timeout: 3600 } })}
-          nodeId="converge-1"
-          onClose={mockOnClose}
-        />
-      )
-
-      expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('true')
-    })
-
-    it('sets timeoutEnabled false when converge has no timeout', () => {
-      render(
-        <ConvergeNodeDetails
-          convergeData={createConvergeData({ config: { strategy: 'all', branches: [] } })}
-          nodeId="converge-1"
-          onClose={mockOnClose}
-        />
-      )
-
-      expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('false')
-    })
-  })
-
   it('defaults requiredPathCount to 1 in edit form when not previously set', () => {
     render(
       <ConvergeNodeDetails
-        convergeData={createConvergeData({ config: { strategy: 'all', branches: [] } })}
+        convergeData={createConvergeData({ parameters: { strategy: 'all', branches: [] } })}
         nodeId="converge-1"
         onClose={mockOnClose}
       />
@@ -222,13 +164,13 @@ describe('ConvergeNodeDetails Component', () => {
     expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('1')
   })
 
-  describe('snake_case field compatibility', () => {
-    it('reads required_path_count from snake_case config field', () => {
+  describe('n_required field handling', () => {
+    it('reads n_required from config field', () => {
       const convergeData = createConvergeData({
-        config: {
+        parameters: {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
-          required_path_count: 2,
+          n_required: 2,
         },
       })
 
@@ -237,28 +179,25 @@ describe('ConvergeNodeDetails Component', () => {
       expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('2')
     })
 
-    it('falls back to requiredPathCount (camelCase) when required_path_count not present', () => {
+    it('defaults requiredPathCount to 1 when n_required is absent', () => {
       const convergeData = createConvergeData({
-        config: {
+        parameters: {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
-          requiredPathCount: 3,
         },
       })
 
       render(<ConvergeNodeDetails convergeData={convergeData} nodeId="converge-1" onClose={mockOnClose} />)
 
-      expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('3')
+      expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('1')
     })
 
-    it('prefers n_required over required_path_count and requiredPathCount', () => {
+    it('reads n_required with other config fields present', () => {
       const convergeData = createConvergeData({
-        config: {
+        parameters: {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
           n_required: 4,
-          required_path_count: 2,
-          requiredPathCount: 5,
         },
       })
 
@@ -267,34 +206,54 @@ describe('ConvergeNodeDetails Component', () => {
       expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('4')
     })
 
-    it('falls back to required_path_count when n_required absent', () => {
+    it('writes n_required in config when saving with any strategy', () => {
       const convergeData = createConvergeData({
-        config: {
+        parameters: {
           strategy: 'any',
           branches: ['a', 'b', 'c'],
-          required_path_count: 2,
-          requiredPathCount: 5,
+          n_required: 3,
         },
       })
 
       render(<ConvergeNodeDetails convergeData={convergeData} nodeId="converge-1" onClose={mockOnClose} />)
 
-      expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('2')
+      mockOnSubmitHandler?.({
+        name: 'Test Converge',
+        strategy: 'any',
+        requiredPathCount: 3,
+      })
+
+      expect(mockUpdateActivity).toHaveBeenCalledWith(
+        'converge-1',
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          parameters: expect.objectContaining({
+            strategy: 'any',
+            n_required: 3,
+          }),
+        })
+      )
     })
 
-    it('writes n_required in snake_case when saving', () => {
+    it('omits n_required from config when strategy is all', () => {
       const convergeData = createConvergeData({
-        config: {
-          strategy: 'any',
+        parameters: {
+          strategy: 'all',
           branches: ['a', 'b', 'c'],
-          requiredPathCount: 3,
         },
       })
 
       render(<ConvergeNodeDetails convergeData={convergeData} nodeId="converge-1" onClose={mockOnClose} />)
 
-      // Verify the component renders without errors
-      expect(screen.getByTestId('converge-node-form')).toBeInTheDocument()
+      mockOnSubmitHandler?.({
+        name: 'Test Converge',
+        strategy: 'all',
+      })
+
+      const actualPayload = mockUpdateActivity.mock.calls[0][1] as {
+        parameters: Record<string, unknown>
+      }
+      expect(actualPayload.parameters.n_required).toBeUndefined()
     })
   })
 })

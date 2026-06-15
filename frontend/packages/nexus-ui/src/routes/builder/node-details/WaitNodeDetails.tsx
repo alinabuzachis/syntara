@@ -19,7 +19,7 @@ export function WaitNodeDetails({ waitData, nodeId, onClose, onHeaderContentChan
   const { updateActivity } = useWorkflowStoreActions()
   const { maxSeconds } = useMaxWaitDuration()
 
-  const totalStoredSeconds = (waitData.config as { duration?: number } | undefined)?.duration ?? 0
+  const totalStoredSeconds = (waitData.parameters as { duration?: number } | undefined)?.duration ?? 0
   const { days, hours, minutes, seconds } = secondsToTimeUnits(totalStoredSeconds)
 
   const initialData: Partial<WaitFormData> = {
@@ -28,6 +28,7 @@ export function WaitNodeDetails({ waitData, nodeId, onClose, onHeaderContentChan
     hours,
     minutes,
     seconds,
+    settings: waitData.settings,
   }
 
   const handleSubmit = (data: WaitFormData) => {
@@ -44,9 +45,10 @@ export function WaitNodeDetails({ waitData, nodeId, onClose, onHeaderContentChan
       const updatedActivity: WaitActivity = {
         ...waitData,
         name: data.name,
-        config: {
+        parameters: {
           duration: totalSeconds,
         },
+        settings: data.settings,
       }
 
       updateActivity(nodeId, updatedActivity)

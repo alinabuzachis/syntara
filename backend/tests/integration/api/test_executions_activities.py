@@ -92,7 +92,7 @@ async def test_list_execution_activities_includes_all_fields(
     activity_def = {
         "id": "test_activity",
         "type": "script",
-        "config": {"code": "print('test')"},
+        "parameters": {"code": "print('test')"},
     }
 
     activity = ActivityExecution(
@@ -204,7 +204,7 @@ async def test_list_execution_activities_with_nested_activity_definition(
         "id": "fetch_data",
         "name": "Fetch Data from API",
         "type": "http_request",
-        "config": {
+        "parameters": {
             "method": "GET",
             "url": "https://api.example.com/data",
             "headers": {
@@ -244,7 +244,7 @@ async def test_list_execution_activities_with_nested_activity_definition(
     # Verify nested structure is preserved
     returned_def = data[0]["activity_definition"]
     assert returned_def == complex_def
-    assert returned_def["config"]["method"] == "GET"
+    assert returned_def["parameters"]["method"] == "GET"
     assert returned_def["retry_policy"]["max_attempts"] == 3
     assert len(returned_def["retry_policy"]["retryable_errors"]) == 3
     assert 500 in returned_def["retry_policy"]["retryable_errors"]

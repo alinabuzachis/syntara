@@ -24,10 +24,10 @@ export function buildExpressionModeActivity(
   // the template by name at runtime, so the ID is removed from config below.
   const config = buildAAPConfig(data)
   const activity = createAAPJobTemplateActivity(nodeId, name, 0, config)
-  if (activity.config) {
-    activity.config.job_template_name = data.job_template_name
-    activity.config.organization_name = data.organization_name
-    delete activity.config.job_template_id
+  if (activity.parameters) {
+    activity.parameters.job_template_name = data.job_template_name
+    activity.parameters.organization_name = data.organization_name
+    delete activity.parameters.job_template_id
   }
   return activity
 }
@@ -82,7 +82,6 @@ const stringFields: [keyof AAPJobTemplateFormData, ConfigKey][] = [
 
 const numberFields: [keyof AAPJobTemplateFormData, ConfigKey][] = [
   ['forks', 'forks'],
-  ['timeout', 'timeout'],
   ['job_slice_count', 'jobSlicing'],
 ]
 
@@ -219,10 +218,10 @@ export function buildWorkflowExpressionModeActivity(
 ): ReturnType<typeof createAAPWorkflowTemplateActivity> {
   const config = buildAAPWorkflowTemplateConfig(data)
   const activity = createAAPWorkflowTemplateActivity(nodeId, name, 0, config)
-  if (activity.config) {
-    activity.config.workflow_job_template_name = data.workflow_job_template_name
-    activity.config.organization_name = data.organization_name
-    delete activity.config.workflow_job_template_id
+  if (activity.parameters) {
+    activity.parameters.workflow_job_template_name = data.workflow_job_template_name
+    activity.parameters.organization_name = data.organization_name
+    delete activity.parameters.workflow_job_template_id
   }
   return activity
 }

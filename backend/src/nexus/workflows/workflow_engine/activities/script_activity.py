@@ -17,7 +17,7 @@ from temporalio.exceptions import ApplicationError
 
 from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ScriptExecutorConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ScriptExecutorConfig, ScriptOutput
 
 from .common import ActivityExecutionError
 
@@ -321,9 +321,6 @@ async def execute_script_activity(
         }
 
     """
-    # Import here to avoid circular dependency
-    from .output_mapping import apply_output_mapping  # noqa: PLC0415
-
     try:
         # Validate config via Pydantic model
         try:
@@ -365,27 +362,24 @@ async def execute_script_activity(
                     with contextlib.suppress(json.JSONDecodeError):
                         result["output"] = json.loads(lines[-1])
 
-        # Transform to V2 normalized format
-        full_result: dict[str, Any] = {
-            "status": "completed",
-            "return_code": result["return_code"],
-            "stdout": result["stdout"],
-            "stderr": result["stderr"],
-        }
-
-        # For Python scripts, rename 'output' to 'stdout_json' (per schema)
-        if "output" in result:
-            full_result["stdout_json"] = result["output"]
-
-        # Apply output mapping (suppresses fields before Temporal stores it)
-        mapped_output = apply_output_mapping(full_result, output_config)
-
-        return {"output": mapped_output}
+        output = ScriptOutput(
+            return_code=result["return_code"],
+            stdout=result["stdout"],
+            stderr=result["stderr"],
+            stdout_json=result.get("output"),
+        )
+        return {"output": output.dump(output_config)}
 
     except ApplicationError:
         raise
     except ScriptExecutionError as e:
-        raise ApplicationError(str(e), type="ScriptExecutionError", non_retryable=True) from None
+        output = ScriptOutput(return_code=e.exit_code, stdout=e.stdout, stderr=e.stderr)
+        raise ApplicationError(
+            str(e), {"output": output.dump(output_config)}, type="ScriptExecutionError", non_retryable=True
+        ) from None
     except Exception as e:  # noqa: BLE001
+        output = ScriptOutput()
         msg = "Script activity failed unexpectedly"
-        raise ApplicationError(msg, type=type(e).__name__, non_retryable=True) from None
+        raise ApplicationError(
+            msg, {"output": output.dump(output_config)}, type=type(e).__name__, non_retryable=True
+        ) from None

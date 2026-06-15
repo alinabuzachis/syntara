@@ -10,13 +10,13 @@ triggers:
 nodes:
   - id: get_request
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/data
 
   - id: post_request
     type: http_request
-    config:
+    parameters:
       method: POST
       url: http://test-api.example.com/api/users
       body:
@@ -25,7 +25,7 @@ nodes:
 
   - id: put_request
     type: http_request
-    config:
+    parameters:
       method: PUT
       url: http://test-api.example.com/api/users/123
       body:
@@ -33,7 +33,7 @@ nodes:
 
   - id: patch_request
     type: http_request
-    config:
+    parameters:
       method: PATCH
       url: http://test-api.example.com/api/users/123
       body:
@@ -41,7 +41,7 @@ nodes:
 
   - id: delete_request
     type: http_request
-    config:
+    parameters:
       method: DELETE
       url: http://test-api.example.com/api/users/123
 edges:

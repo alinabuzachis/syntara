@@ -20,7 +20,7 @@ inputs:
 nodes:
   - id: research_topic
     type: agentic
-    config:
+    parameters:
       agent: production://research-agent
       model: claude-3-5-sonnet-20241022
       prompt: |

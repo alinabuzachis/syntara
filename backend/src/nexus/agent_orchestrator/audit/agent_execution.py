@@ -109,4 +109,5 @@ class AgentExecutionHandler(AuditEventHandler[AgentExecutionEvent]):
             actor_type=actor_type,
             execution_id=event.execution_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.agent_type,
         )

@@ -168,7 +168,7 @@ components:
             - type: 'null'
           title: Deleted By
         version:
-          $ref: '#/components/schemas/WorkflowVersionRead'
+          $ref: './openapi.yaml#/components/schemas/WorkflowVersionRead'
           description: Current active version details
 
     ActivityData:
@@ -704,6 +704,14 @@ components:
           type: object
           title: Trigger Inputs
           description: Input data for the trigger node
+        execute_target:
+          type: boolean
+          title: Execute Target
+          default: true
+          description: >-
+            When False, run predecessors up to (but not including) the target node.
+            Useful for populating upstream data without executing the target.
+            When True (default), target_node_id must not appear in pre_resolved_nodes.
 
     # WebSocket-specific schemas
     WebSocketMessage:

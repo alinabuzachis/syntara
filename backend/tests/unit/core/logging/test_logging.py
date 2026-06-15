@@ -85,7 +85,7 @@ class TestNexusLogRecordRenderer:
             "metadata": {
                 "path": path_obj,
                 "files": [Path("file1.txt"), Path("file2.txt")],
-                "config": {
+                "parameters": {
                     "base_path": path_obj,
                     "count": 5,
                 },
@@ -99,8 +99,8 @@ class TestNexusLogRecordRenderer:
         assert parsed["metadata"]["path"] == repr(path_obj)
         assert parsed["metadata"]["files"][0] == repr(Path("file1.txt"))
         assert parsed["metadata"]["files"][1] == repr(Path("file2.txt"))
-        assert parsed["metadata"]["config"]["base_path"] == repr(path_obj)
-        assert parsed["metadata"]["config"]["count"] == 5
+        assert parsed["metadata"]["parameters"]["base_path"] == repr(path_obj)
+        assert parsed["metadata"]["parameters"]["count"] == 5
 
     def test_preserves_json_serializable_types(self) -> None:
         """Test that JSON-serializable types are preserved as-is."""

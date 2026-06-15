@@ -15,11 +15,19 @@ export default {
   create(context) {
     const RAW_TEXT_ELEMENTS = new Set(['span', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
 
+    const EXPRESSION_TYPES_THAT_MAY_CARRY_TEXT = new Set([
+      'Identifier',
+      'CallExpression',
+      'MemberExpression',
+      'ConditionalExpression',
+      'LogicalExpression',
+    ])
+
     /**
-     * Check whether a JSX child node carries literal text content
-     * (non-whitespace JSXText, or a string/template literal expression).
+     * Check whether a JSX child carries literal text (non-whitespace JSXText,
+     * string literal, or template literal expression).
      */
-    function isTextBearing(child) {
+    function hasLiteralText(child) {
       if (child.type === 'JSXText') {
         return child.value.trim().length > 0
       }
@@ -31,6 +39,25 @@ export default {
         )
       }
       return false
+    }
+
+    /**
+     * Check whether a JSX child carries any dynamic content that likely
+     * resolves to text (variables, function calls, member access, ternaries).
+     */
+    function hasDynamicContent(child) {
+      if (child.type === 'JSXExpressionContainer') {
+        return EXPRESSION_TYPES_THAT_MAY_CARRY_TEXT.has(child.expression.type)
+      }
+      return false
+    }
+
+    /**
+     * Check whether a JSX child node carries text content -- either literal
+     * text or dynamic expressions that likely resolve to text.
+     */
+    function isTextBearing(child) {
+      return hasLiteralText(child) || hasDynamicContent(child)
     }
 
     /**
@@ -76,11 +103,15 @@ export default {
         if (!jsxElement || jsxElement.type !== 'JSXElement') return
 
         const children = jsxElement.children
-        const hasTextChild = children.some(isTextBearing)
+        const hasLiteralTextChild = children.some(hasLiteralText)
+        const hasDynamicChild = children.some(hasDynamicContent)
+        const hasAnyTextChild = hasLiteralTextChild || hasDynamicChild
+        const styled = hasStyleProp(node)
 
-        // <p> and <h1>–<h6> should always be flagged — use Content or Title
+        // <p> and <h1>–<h6> always have PF equivalents (Content, Title)
+        // so flag both literal text AND dynamic expressions
         if (tag === 'p' || /^h[1-6]$/.test(tag)) {
-          if (hasTextChild) {
+          if (hasAnyTextChild) {
             context.report({
               node,
               messageId: 'preferPfTextComponent',
@@ -90,10 +121,15 @@ export default {
           return
         }
 
-        if (!hasTextChild) return
+        // For <div> and <span>, distinguish literal text from dynamic
+        // expressions. PF6 has no ContentVariants.span, so we only flag
+        // dynamic children when a style prop is present (styled text
+        // wrapper pattern like <span style={...}>{variable}</span>).
+        const flaggable = hasLiteralTextChild || (hasDynamicChild && styled)
+        if (!flaggable) return
 
-        // For <div>: only flag when it has a style prop (styled text instead of PF component)
-        if (tag === 'div' && !hasStyleProp(node)) return
+        // For <div>: only flag when it has a style prop
+        if (tag === 'div' && !styled) return
 
         // For <span>: skip if ALL children are only JSX elements (icon wrapper)
         if (tag === 'span') {
@@ -105,7 +141,7 @@ export default {
         }
 
         // Exception: inside <Th>/<Td> without a style prop is fine
-        if (isInsideTableCell(jsxElement) && !hasStyleProp(node)) return
+        if (isInsideTableCell(jsxElement) && !styled) return
 
         context.report({
           node,

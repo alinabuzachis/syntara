@@ -21,9 +21,9 @@ def _utc_now() -> datetime:
 class AuditEventSource(StrEnum):
     """Source type for audit events in the outbox.
 
-    Determines routing during worker processing:
-    - BUSINESS_EVENT: Routed to audit_events database (separate Postgres instance)
-    - CRUD_EVENT: Routed to OTEL Collector
+    Both event sources are routed to the OTEL Collector. The distinction
+    is retained for filtering and observability (the ``audit.event_source``
+    attribute on exported spans/logs).
 
     Values are in alphabetical order to ensure PostgreSQL sorts them correctly
     (PostgreSQL enums sort by definition order, not by value).
@@ -75,7 +75,7 @@ class AuditOutboxRecord(SQLModel, table=True):
             "auditeventsource",
             server_default=text("'business_event'::auditeventsource"),
         ),
-        description="Source type determining routing (CRUD -> OTEL, Business -> audit_events)",
+        description="Source type for filtering (both routed to OTEL Collector)",
     )
 
     # Serialized event payload (AuditEvent as JSON)

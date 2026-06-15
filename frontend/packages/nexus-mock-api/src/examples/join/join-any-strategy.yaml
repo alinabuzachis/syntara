@@ -11,19 +11,19 @@ nodes:
 
   - id: fast_task
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Fast task"
 
   - id: slow_task
     type: script
-    config:
+    parameters:
       language: bash
       code: sleep 0.1 && echo "Slow task"
 
   - id: join_any
     type: converge
-    config:
+    parameters:
       branches:
         - fast_task
         - slow_task

@@ -35,13 +35,13 @@ def resolve_value(
     return resolver.resolve_expression(value, workflow_state)
 
 
-def resolve_config_templates(
+def resolve_parameter_templates(
     config_dict: dict[str, Any],
     workflow_state: dict[str, Any],
     resolver: ExpressionResolver | None = None,
     exclude_fields: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Resolve template expressions in config before validation.
+    """Resolve template expressions in node parameters before validation.
 
     This handles fields like timeout, job_template_id, verbosity, etc. that need
     to be resolved from template strings (e.g., ${input.custom_timeout}) to actual
@@ -50,14 +50,14 @@ def resolve_config_templates(
     Also handles nested dictionaries and lists recursively.
 
     Args:
-        config_dict: Raw config dictionary with potential templates
+        config_dict: Raw parameters dictionary with potential templates
         workflow_state: Workflow state for expression resolution
         resolver: Optional expression resolver (creates new one if not provided)
         exclude_fields: Set of field names to exclude from template resolution
                        (e.g., script code that may contain shell variables)
 
     Returns:
-        Config dictionary with resolved template expressions
+        Parameters dictionary with resolved template expressions
 
     """
     if resolver is None:

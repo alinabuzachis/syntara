@@ -466,7 +466,13 @@ class ToolSynchronizer:
     """
 
     def __init__(
-        self, session_id: str, invocation_id: UUID, execution_id: UUID | None = None, request_id: UUID | None = None
+        self,
+        session_id: str,
+        invocation_id: UUID,
+        execution_id: UUID | None = None,
+        request_id: UUID | None = None,
+        activity_id: str | None = None,
+        activity_name: str | None = None,
     ) -> None:
         """Initialize the tool synchronizer.
 
@@ -475,12 +481,16 @@ class ToolSynchronizer:
             invocation_id: Unique identifier for this synchronization session
             execution_id: Optional Workflow Execution ID
             request_id: Optional X-Request-Id from the originating HTTP request.
+            activity_id: Optional activity identifier from workflow context
+            activity_name: Optional activity name from workflow context
 
         """
         self.session_id = session_id
         self.invocation_id = invocation_id
         self.execution_id = execution_id
         self.request_id = request_id
+        self.activity_id = activity_id
+        self.activity_name = activity_name
         self.all_providers: list[ToolProviderWithConfiguration] = []
         self.enabled_tools: list[ToolWithParameters] = []
         self.disabled_tools: list[ToolWithParameters] = []
@@ -506,6 +516,8 @@ class ToolSynchronizer:
                 invocation_id=self.invocation_id,
                 execution_id=self.execution_id,
                 request_id=self.request_id,
+                activity_id=self.activity_id,
+                activity_name=self.activity_name,
             )
         )
 
@@ -550,6 +562,8 @@ class ToolSynchronizer:
                     tools_filtered=len(filtered_tools),
                     tools_provided_to_llm=len(enhanced_tools),
                     tool_names=tool_names,
+                    activity_id=self.activity_id,
+                    activity_name=self.activity_name,
                 )
             )
 
@@ -565,6 +579,8 @@ class ToolSynchronizer:
                     execution_id=self.execution_id,
                     request_id=self.request_id,
                     error_type=type(e).__name__,
+                    activity_id=self.activity_id,
+                    activity_name=self.activity_name,
                 )
             )
 

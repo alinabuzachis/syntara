@@ -9,7 +9,7 @@ nodes:
   - id: say_hello
     type: script
     name: Say Hello
-    config:
+    parameters:
       language: bash
       environment:
         GREETING: Hello
@@ -21,7 +21,7 @@ nodes:
   - id: say_goodbye
     type: script
     name: Say Goodbye
-    config:
+    parameters:
       language: bash
       environment:
         FAREWELL: Goodbye

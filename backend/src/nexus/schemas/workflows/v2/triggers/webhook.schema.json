@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/triggers/webhook",
   "title": "Webhook Trigger Node",
   "description": "Workflow entry point triggered by incoming HTTP POST requests from external systems. Supports optional JSON Schema payload validation.",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": ["webhook_path"],
     "properties": {
@@ -24,14 +24,39 @@
   },
   "resultSchema": {
     "description": "Trigger result contains the validated webhook payload wrapped as {\"payload\": <request_body>}",
-    "type": "object",
-    "properties": {
-      "payload": {
+    "oneOf": [
+      {
+        "title": "Completed Result",
         "type": "object",
-        "description": "The webhook request body",
+        "description": "Pass-through of validated webhook payload",
+        "properties": {
+          "payload": {
+            "type": "object",
+            "description": "The webhook request body",
+            "additionalProperties": true
+          }
+        },
         "additionalProperties": true
+      },
+      {
+        "title": "Failed Result",
+        "type": "object",
+        "description": "Trigger failure output for reporting purposes",
+        "required": ["status", "error"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       }
-    },
-    "additionalProperties": true
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
   }
 }

@@ -7,8 +7,8 @@ import { validateApprovalConnections } from '../rules/validateApprovalConnection
 describe('validateApprovalConnections', () => {
   it('returns no errors when approval node has approved branch connected', () => {
     const activities: Activity[] = [
-      { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
-      { type: 'script', id: 'task-1', name: 'Next Task', config: { language: 'python', code: '' } },
+      { type: 'approval', id: 'approval-1', name: 'Approval Task', parameters: {} },
+      { type: 'script', id: 'task-1', name: 'Next Task', parameters: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = [
       {
@@ -26,9 +26,9 @@ describe('validateApprovalConnections', () => {
 
   it('returns no errors when approval node has both branches connected', () => {
     const activities: Activity[] = [
-      { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
-      { type: 'script', id: 'task-approved', name: 'Approved Task', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'task-rejected', name: 'Rejected Task', config: { language: 'python', code: '' } },
+      { type: 'approval', id: 'approval-1', name: 'Approval Task', parameters: {} },
+      { type: 'script', id: 'task-approved', name: 'Approved Task', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'task-rejected', name: 'Rejected Task', parameters: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = [
       {
@@ -53,8 +53,8 @@ describe('validateApprovalConnections', () => {
 
   it('detects missing approved branch connection', () => {
     const activities: Activity[] = [
-      { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
-      { type: 'script', id: 'task-rejected', name: 'Rejected Task', config: { language: 'python', code: '' } },
+      { type: 'approval', id: 'approval-1', name: 'Approval Task', parameters: {} },
+      { type: 'script', id: 'task-rejected', name: 'Rejected Task', parameters: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = [
       {
@@ -77,7 +77,7 @@ describe('validateApprovalConnections', () => {
   })
 
   it('detects missing approved branch when no edges exist', () => {
-    const activities: Activity[] = [{ type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} }]
+    const activities: Activity[] = [{ type: 'approval', id: 'approval-1', name: 'Approval Task', parameters: {} }]
     const edges: EdgeConnection[] = []
 
     const result = validateApprovalConnections(activities, edges)
@@ -91,8 +91,8 @@ describe('validateApprovalConnections', () => {
 
   it('handles multiple approval nodes', () => {
     const activities: Activity[] = [
-      { type: 'approval', id: 'approval-2', name: 'Second Approval', config: {} },
-      { type: 'script', id: 'task-1', name: 'Next Task', config: { language: 'python', code: '' } },
+      { type: 'approval', id: 'approval-2', name: 'Second Approval', parameters: {} },
+      { type: 'script', id: 'task-1', name: 'Next Task', parameters: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = []
 
@@ -103,8 +103,8 @@ describe('validateApprovalConnections', () => {
 
   it('ignores non-approval activity types', () => {
     const activities: Activity[] = [
-      { type: 'script', id: 'task-1', name: 'Regular Task', config: { language: 'python', code: '' } },
-      { type: 'condition', id: 'C1', name: 'Condition', config: { condition: 'x > 10' } },
+      { type: 'script', id: 'task-1', name: 'Regular Task', parameters: { language: 'python', code: '' } },
+      { type: 'condition', id: 'C1', name: 'Condition', parameters: { condition: 'x > 10' } },
     ]
     const edges: EdgeConnection[] = []
 
@@ -118,7 +118,7 @@ describe('validateApprovalConnections', () => {
   })
 
   it('includes suggestion in error message', () => {
-    const activities: Activity[] = [{ type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} }]
+    const activities: Activity[] = [{ type: 'approval', id: 'approval-1', name: 'Approval Task', parameters: {} }]
     const edges: EdgeConnection[] = []
 
     const result = validateApprovalConnections(activities, edges)

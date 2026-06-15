@@ -8,7 +8,6 @@ import pytest
 
 from nexus.audit.emitter import (
     AuditActorContext,
-    _do_emit_audit_event,
     activity_id_context_var,
     actor_context_var,
     emit_audit_event,
@@ -519,98 +518,6 @@ class TestEventCaptureEmitAuditEvent:
         context_data = event_obj.structured_data
         assert isinstance(context_data, AuditContextData)
         assert not hasattr(context_data, "request_id")
-
-
-class TestEventCaptureDoEmitAuditEvent:
-    """Test EventCapture._do_emit_audit_event method."""
-
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_logger_setup(self, mock_logger: Mock) -> None:
-        """Test that _do_emit_audit_event uses the audit logger correctly."""
-        # Create test event
-        test_event = AuditEvent(
-            event_category=EventCategory.USER_ACTION,
-            event_action="test_action",
-            event_status=EventStatus.SUCCESS,
-            actor_type=ActorType.USER,
-            source_component="test_component",
-            event_message="Test message",
-            structured_data=AuditContextData(data_type="test"),
-        )
-
-        # Call the method
-        _do_emit_audit_event(test_event)
-
-        # Verify info method was called with serialized event data
-        expected_data = test_event.model_dump(mode="json")
-        mock_logger.info.assert_called_once_with("audit_event", **expected_data)
-
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_with_all_fields(self, mock_logger: Mock) -> None:
-        """Test _do_emit_audit_event with all possible fields."""
-        actor_id = uuid4()
-        workflow_id = uuid4()
-        execution_id = uuid4()
-
-        test_event = AuditEvent(
-            event_category=EventCategory.WORKFLOW_EVENT,
-            event_action="workflow_started",
-            actor_id=actor_id,
-            actor_type=ActorType.SYSTEM,
-            source_component="workflow_engine",
-            workflow_id=workflow_id,
-            activity_id="activity_123",
-            execution_id=execution_id,
-            event_message="Workflow execution started",
-            event_status=EventStatus.SUCCESS,
-            structured_data=AuditContextData(
-                data_type="test",
-                workflow_name="test_workflow",
-                input_params={"param1": "value1"},
-            ),
-        )
-
-        # Call the method
-        _do_emit_audit_event(test_event)
-
-        # Verify all fields were passed to logger
-        call_args = mock_logger.info.call_args
-        assert call_args[0][0] == "audit_event"
-
-        kwargs = call_args[1]
-        assert kwargs["event_category"] == EventCategory.WORKFLOW_EVENT
-        assert kwargs["event_action"] == "workflow_started"
-        assert kwargs["actor_id"] == str(actor_id)
-        assert kwargs["actor_type"] == ActorType.SYSTEM
-        assert kwargs["source_component"] == "workflow_engine"
-        assert kwargs["workflow_id"] == str(workflow_id)
-        assert kwargs["activity_id"] == "activity_123"
-        assert kwargs["execution_id"] == str(execution_id)
-        assert kwargs["event_message"] == "Workflow execution started"
-        assert kwargs["structured_data"]["workflow_name"] == "test_workflow"
-        assert kwargs["structured_data"]["input_params"] == {"param1": "value1"}
-
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_minimal_fields(self, mock_logger: Mock) -> None:
-        """Test _do_emit_audit_event with minimal required fields."""
-        test_event = AuditEvent(
-            event_category=EventCategory.SYSTEM_OPERATION,
-            event_action="minimal_action",
-            event_status=EventStatus.SUCCESS,
-            actor_type=ActorType.SYSTEM,
-            source_component="test_component",
-            event_message="Minimal test",
-            structured_data=AuditContextData(data_type="test"),
-        )
-
-        # Call the method
-        _do_emit_audit_event(test_event)
-
-        # Verify minimal fields were passed
-        kwargs = mock_logger.info.call_args[1]
-        assert kwargs["event_category"] == EventCategory.SYSTEM_OPERATION
-        assert kwargs["event_action"] == "minimal_action"
-        assert kwargs["event_status"] == EventStatus.SUCCESS
 
 
 class TestEventCaptureIntegration:

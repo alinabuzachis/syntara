@@ -77,6 +77,10 @@ class AgentState(TypedDict):
     response_schema: NotRequired[dict[str, Any] | None]
     """Optional JSON Schema for structured output"""
 
+    # Orchestrator timing (populated by OrchestratorAgent._route_request)
+    routing_duration_ms: NotRequired[float | None]
+    """Time spent in the routing decision, in milliseconds"""
+
 
 class AgentStateFactory:
     """Factory for creating AgentState instances."""

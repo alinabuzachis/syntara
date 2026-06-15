@@ -11,7 +11,7 @@ nodes:
   - id: task_with_invalid_timeout
     name: Task With Invalid Timeout Value
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Should not execute"
     timeout: -1 # Negative timeout - should raise ValidationError

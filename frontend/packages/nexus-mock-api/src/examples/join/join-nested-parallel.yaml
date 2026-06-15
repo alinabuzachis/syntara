@@ -11,13 +11,13 @@ nodes:
 
   - id: branch1a
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Branch 1A"
 
   - id: branch1b
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Branch 1B"
 
@@ -26,19 +26,19 @@ nodes:
 
   - id: branch2a
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Branch 2A"
 
   - id: branch2b
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Branch 2B"
 
   - id: join_groups
     type: converge
-    config:
+    parameters:
       branches:
         - branch1a
         - branch1b

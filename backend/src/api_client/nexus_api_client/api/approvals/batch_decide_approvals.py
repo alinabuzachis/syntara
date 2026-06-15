@@ -101,9 +101,13 @@ def sync_detailed(
 
      Submit decisions for multiple approval requests at once.
 
-    This endpoint processes each decision independently. If some decisions fail,
-    the successful ones are still recorded. The response includes detailed results
-    for each decision.
+    Authorization is validated per-approval: Each approval is checked for project-scoped
+    approval:decide permission AND approver list membership. Users with project-scoped
+    permissions can batch approve requests within their authorized projects.
+
+    This endpoint processes each decision independently. If some decisions fail due to
+    authorization or validation errors, the successful ones are still recorded. The
+    response includes detailed results for each decision.
 
     Use cases:
     - Approving multiple related requests at once
@@ -141,9 +145,13 @@ def sync(
 
      Submit decisions for multiple approval requests at once.
 
-    This endpoint processes each decision independently. If some decisions fail,
-    the successful ones are still recorded. The response includes detailed results
-    for each decision.
+    Authorization is validated per-approval: Each approval is checked for project-scoped
+    approval:decide permission AND approver list membership. Users with project-scoped
+    permissions can batch approve requests within their authorized projects.
+
+    This endpoint processes each decision independently. If some decisions fail due to
+    authorization or validation errors, the successful ones are still recorded. The
+    response includes detailed results for each decision.
 
     Use cases:
     - Approving multiple related requests at once
@@ -176,9 +184,13 @@ async def asyncio_detailed(
 
      Submit decisions for multiple approval requests at once.
 
-    This endpoint processes each decision independently. If some decisions fail,
-    the successful ones are still recorded. The response includes detailed results
-    for each decision.
+    Authorization is validated per-approval: Each approval is checked for project-scoped
+    approval:decide permission AND approver list membership. Users with project-scoped
+    permissions can batch approve requests within their authorized projects.
+
+    This endpoint processes each decision independently. If some decisions fail due to
+    authorization or validation errors, the successful ones are still recorded. The
+    response includes detailed results for each decision.
 
     Use cases:
     - Approving multiple related requests at once
@@ -214,9 +226,13 @@ async def asyncio(
 
      Submit decisions for multiple approval requests at once.
 
-    This endpoint processes each decision independently. If some decisions fail,
-    the successful ones are still recorded. The response includes detailed results
-    for each decision.
+    Authorization is validated per-approval: Each approval is checked for project-scoped
+    approval:decide permission AND approver list membership. Users with project-scoped
+    permissions can batch approve requests within their authorized projects.
+
+    This endpoint processes each decision independently. If some decisions fail due to
+    authorization or validation errors, the successful ones are still recorded. The
+    response includes detailed results for each decision.
 
     Use cases:
     - Approving multiple related requests at once

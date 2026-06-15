@@ -6,6 +6,7 @@ import { NxPanel } from '../../components/layout/NxPanel'
 
 import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
 import { NodeEditorPanelBody } from './panels/NodeEditorPanelBody'
+import type { WorkflowMetadata } from './types/workflowMetadata'
 
 function DocumentationButton({ href }: Readonly<{ href?: string }>) {
   if (href) {
@@ -49,6 +50,7 @@ type NodeEditorLayoutProps = {
   formId?: string
   showNavigation?: boolean
   onNavigateToNode?: (nodeId: string) => void
+  workflowMetadata?: WorkflowMetadata
 }
 
 export function NodeEditorLayout({
@@ -67,6 +69,7 @@ export function NodeEditorLayout({
   formId,
   showNavigation = false,
   onNavigateToNode,
+  workflowMetadata,
 }: NodeEditorLayoutProps) {
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
@@ -176,6 +179,7 @@ export function NodeEditorLayout({
             outputFlex={outputFlex}
             parametersContent={parametersContent}
             onNavigateToNode={onNavigateToNode}
+            workflowMetadata={workflowMetadata}
           />
         </StackItem>
       </Stack>

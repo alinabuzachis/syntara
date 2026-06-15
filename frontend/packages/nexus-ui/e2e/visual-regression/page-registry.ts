@@ -572,35 +572,6 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('textbox', { name: 'IdP group value 1' })).toBeVisible()
     },
   },
-  // ══════════════════════════════════════════════════════════════════════════
-  // ACCESS MANAGEMENT — Audit Log
-  // ══════════════════════════════════════════════════════════════════════════
-  {
-    section: 'audit-log',
-    name: 'audit-log-list',
-    path: AppRoute.SystemAdministration.AuditLog,
-    maxDiffPixelRatio: 0.01,
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible()
-      await expect(page.locator('table tbody tr').first()).toBeVisible()
-    },
-  },
-  {
-    section: 'audit-log',
-    name: 'audit-log-expanded-row',
-    path: AppRoute.SystemAdministration.AuditLog,
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible()
-      await expect(page.locator('table tbody tr').first()).toBeVisible()
-    },
-    setup: async (page) => {
-      await page
-        .getByRole('button', { name: /details/i })
-        .first()
-        .click()
-      await expect(page.getByText('Event Message').first()).toBeVisible()
-    },
-  },
 
   // ── Token Revocation ────────────────────────────────────────────────────
   {

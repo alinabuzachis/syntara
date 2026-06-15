@@ -9,14 +9,14 @@ nodes:
   - id: count_with_index
     name: Count Loop with Index Variable
     type: loop
-    config:
+    parameters:
       type: count
       count: 3
       indexVariable: iteration_num
 
   - id: indexed_task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Iteration number: ${INPUT_ITERATION_NUM}"

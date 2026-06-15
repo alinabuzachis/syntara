@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import type { ConvergeFormData } from '../node-forms/ConvergeNodeForm'
 import { ConvergeNodeForm } from '../node-forms/ConvergeNodeForm'
-import { secondsToTimeUnits } from '../utils/timeUtils'
 
 type ConvergeNodeDetailsProps = {
   convergeData: ConvergeActivity
@@ -20,56 +20,34 @@ export function ConvergeNodeDetails({
   onHeaderContentChange,
 }: ConvergeNodeDetailsProps) {
   const { showError } = useAlerts()
-  // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
-  // In v2, converge config is at activity.config (not activity.converge)
-  const convergeConfig = (convergeData.config ?? {}) as {
+  const convergeConfig = (convergeData.parameters ?? {}) as {
     strategy?: string
-    timeout?: number
-    on_timeout?: string
-    onTimeout?: string
     n_required?: number
-    required_path_count?: number
-    requiredPathCount?: number
+    wait_duration?: number
   }
 
-  const storedTimeout = convergeConfig.timeout
-  const timeUnits = storedTimeout ? secondsToTimeUnits(storedTimeout) : null
-
-  const initialData = {
+  const initialData: Partial<ConvergeFormData> = {
     name: convergeData.name,
     strategy: (convergeConfig.strategy as 'all' | 'any') ?? 'all',
-    timeoutEnabled: !!storedTimeout,
-    timeoutSeconds: timeUnits?.seconds ?? undefined,
-    timeoutMinutes: timeUnits?.minutes ?? undefined,
-    timeoutHours: timeUnits?.hours ?? undefined,
-    timeoutDays: timeUnits?.days ?? undefined,
-    onTimeout: (convergeConfig.on_timeout ?? convergeConfig.onTimeout ?? 'fail') as 'continue' | 'fail',
-    requiredPathCount:
-      convergeConfig.n_required ?? convergeConfig.required_path_count ?? convergeConfig.requiredPathCount ?? 1,
+    requiredPathCount: convergeConfig.n_required ?? 1,
+    wait_duration: convergeConfig.wait_duration,
+    settings: convergeData.settings,
   }
 
-  const handleSubmit = (data: {
-    name: string
-    strategy?: 'all' | 'any'
-    timeout?: number
-    onTimeout?: 'continue' | 'fail'
-    requiredPathCount?: number
-  }) => {
+  const handleSubmit = (data: ConvergeFormData) => {
     try {
       const updatedActivity: ConvergeActivity = {
         ...convergeData,
         name: data.name,
-        config: {
+        parameters: {
           strategy: data.strategy ?? 'all',
-          ...(data.timeout !== undefined && { timeout: data.timeout }),
-          ...(data.onTimeout !== undefined && { on_timeout: data.onTimeout }),
           ...(data.strategy === 'any' &&
-            data.requiredPathCount !== undefined && {
-              n_required: data.requiredPathCount,
-            }),
+            data.requiredPathCount !== undefined && { n_required: data.requiredPathCount }),
+          ...(data.wait_duration !== undefined && { wait_duration: data.wait_duration }),
         },
+        settings: data.settings,
       } as ConvergeActivity
 
       updateActivity(nodeId, updatedActivity)

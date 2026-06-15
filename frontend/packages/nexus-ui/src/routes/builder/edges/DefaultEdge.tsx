@@ -1,4 +1,4 @@
-import { getBezierPath, useStore } from '@xyflow/react'
+import { getSmoothStepPath, useStore } from '@xyflow/react'
 
 import { EdgeActions } from './EdgeActions'
 import { EdgeLabel } from './EdgeLabel'
@@ -8,7 +8,7 @@ import type { BaseEdgeProps } from './types'
 import { useEdgeHandlers } from './useEdgeHandlers'
 
 /**
- * Default edge component with bezier curve
+ * Default edge component with smooth step routing
  * This is the standard edge used for normal workflow connections
  */
 export function DefaultEdge(props: BaseEdgeProps) {
@@ -57,13 +57,14 @@ export function DefaultEdge(props: BaseEdgeProps) {
     targetY: adjustedTargetY,
   } = adjustEdgeCoordinates({ sourceX, sourceY, sourcePosition, targetX, targetY })
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX: adjustedSourceX,
     sourceY: adjustedSourceY,
     sourcePosition,
     targetX: adjustedTargetX,
     targetY: adjustedTargetY,
     targetPosition,
+    borderRadius: 8,
   })
 
   return (

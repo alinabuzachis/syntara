@@ -1,7 +1,6 @@
 import * as AAPAPI from './aap-api.js'
 import * as AdminAPI from './admin-api.js'
 import * as ApprovalsAPI from './approvals-api.js'
-import * as AuditAPI from './audit-api.js'
 import * as AuthAPI from './auth-api.js'
 import * as AuthzAPI from './authz-api.js'
 import * as CredentialsAPI from './credentials-api.js'
@@ -23,7 +22,6 @@ export {
   AAPAPI,
   AdminAPI,
   ApprovalsAPI,
-  AuditAPI,
   AuthAPI,
   AuthzAPI,
   CredentialsAPI,

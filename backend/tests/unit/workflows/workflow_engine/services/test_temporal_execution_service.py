@@ -32,7 +32,7 @@ def valid_workflow_dict() -> dict[str, Any]:
             {
                 "id": "task1",
                 "type": "script",
-                "config": {"language": "bash", "code": "echo test"},
+                "parameters": {"language": "bash", "code": "echo test"},
             }
         ],
         "edges": [{"from": "trigger_manual", "to": "task1"}],
@@ -173,8 +173,8 @@ class TestStartWorkflow:
             "schema_version": "2.0.0",
             "name": "multi-trigger-workflow",
             "triggers": [
-                {"id": "eda_1", "type": "eda_trigger", "config": {"webhook_path": "my-hook"}},
-                {"id": "manual_1", "type": "manual_trigger", "config": {}},
+                {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": "my-hook"}},
+                {"id": "manual_1", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [],
             "edges": [],
@@ -206,7 +206,7 @@ class TestStartWorkflow:
             "schema_version": "2.0.0",
             "name": "eda-only-workflow",
             "triggers": [
-                {"id": "eda_1", "type": "eda_trigger", "config": {"webhook_path": "my-hook"}},
+                {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": "my-hook"}},
             ],
             "nodes": [],
             "edges": [],
@@ -228,7 +228,7 @@ class TestStartWorkflow:
             "schema_version": "2.0.0",
             "name": "bad-trigger-workflow",
             "triggers": [
-                {"type": "manual_trigger", "config": {}},
+                {"type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [],
             "edges": [],
@@ -266,8 +266,8 @@ class TestTriggerSelection:
         multi_trigger_workflow = {
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger_1", "type": "manual_trigger", "config": {}},
-                {"id": "trigger_2", "type": "manual_trigger", "config": {}},
+                {"id": "trigger_1", "type": "manual_trigger", "parameters": {}},
+                {"id": "trigger_2", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [],
             "edges": [],
@@ -293,8 +293,8 @@ class TestTriggerSelection:
         multi_trigger_workflow = {
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "manual_1", "type": "manual_trigger", "config": {}},
-                {"id": "manual_2", "type": "manual_trigger", "config": {}},
+                {"id": "manual_1", "type": "manual_trigger", "parameters": {}},
+                {"id": "manual_2", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [],
             "edges": [],
@@ -321,7 +321,7 @@ class TestTriggerSelection:
         workflow_def = {
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "manual_1", "type": "manual_trigger", "config": {}},
+                {"id": "manual_1", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [],
             "edges": [],

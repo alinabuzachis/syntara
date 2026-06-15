@@ -198,7 +198,7 @@ async function validateWaitNodeDurations(activities: WorkflowDefinition['workflo
   const errors: string[] = []
 
   for (const node of waitNodes) {
-    const total = (node.config as { duration?: number } | undefined)?.duration ?? 0
+    const total = (node.parameters as { duration?: number } | undefined)?.duration ?? 0
     if (total > maxWaitSeconds) {
       errors.push(
         `Wait step "${node.name || 'Untitled'}" duration (${total}s) exceeds maximum allowed (${maxWaitSeconds}s)`

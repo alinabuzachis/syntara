@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: slow_script
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import time

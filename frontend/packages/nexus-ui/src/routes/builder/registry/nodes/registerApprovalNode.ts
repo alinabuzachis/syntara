@@ -33,8 +33,9 @@ export default function registerApprovalNode() {
             name,
             approvers: data.approvers,
             prompt: data.prompt,
-            timeout: data.timeout,
-            onTimeout: data.onTimeout,
+            fallback_decision: data.fallback_decision,
+            decision_window: data.decision_window,
+            settings: data.settings,
           })
         )
 

@@ -132,9 +132,9 @@ class TestResolveDictNested:
         assert result == {"url": "https://api.example.com", "method": "POST"}
 
     def test_nested_dict(self, resolver: NamespaceResolver) -> None:
-        data: dict[str, Any] = {"config": {"endpoint": "${trigger.url}"}}
+        data: dict[str, Any] = {"parameters": {"endpoint": "${trigger.url}"}}
         result = resolver.resolve_dict(data)
-        assert result == {"config": {"endpoint": "https://api.example.com"}}
+        assert result == {"parameters": {"endpoint": "https://api.example.com"}}
 
     def test_deeply_nested_dict(self, resolver: NamespaceResolver) -> None:
         data: dict[str, Any] = {"a": {"b": {"c": "${trigger.url}"}}}
@@ -479,10 +479,10 @@ class TestNonStringTypesInExpressions:
     def test_dict_full_template_returns_raw_dict(self) -> None:
         """Full template ${var} with dict returns the raw dict object."""
         r = NamespaceResolver()
-        r.set_namespace("data", {"config": {"key": "value"}})
+        r.set_namespace("data", {"parameters": {"key": "value"}})
 
         # Full template returns typed value
-        result = r.resolve_value("${data.config}")
+        result = r.resolve_value("${data.parameters}")
 
         # Returns the dict itself, not a string
         assert result == {"key": "value"}
@@ -491,12 +491,12 @@ class TestNonStringTypesInExpressions:
     def test_dict_in_embedded_expression(self) -> None:
         """Dicts embedded in expressions are converted with str()."""
         r = NamespaceResolver()
-        r.set_namespace("data", {"config": {"key": "value"}})
+        r.set_namespace("data", {"parameters": {"key": "value"}})
 
         # Embedded in text, converted to string
-        result = r.resolve_value("config: ${data.config}")
+        result = r.resolve_value("parameters: ${data.parameters}")
 
-        assert result == "config: {'key': 'value'}"
+        assert result == "parameters: {'key': 'value'}"
 
     def test_none_in_expression(self) -> None:
         """None should be converted to string 'None' in expressions."""

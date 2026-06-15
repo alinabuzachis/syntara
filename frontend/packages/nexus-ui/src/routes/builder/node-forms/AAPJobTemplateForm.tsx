@@ -18,6 +18,7 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 export type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 
@@ -213,7 +214,9 @@ function AAPFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const settingsContent = <NodeSettingsForm timeoutNodeType="aap" />
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function AAPJobTemplateForm(props: Readonly<AAPNodeFormProps>) {
@@ -247,6 +250,7 @@ export function AAPJobTemplateForm(props: Readonly<AAPNodeFormProps>) {
     labels: [],
     job_type: '',
     diff_mode: false,
+    settings: {},
     ...sanitizedInitialData,
   }
 

@@ -333,7 +333,7 @@ class TestSyncToolInvocationEventDispatch:
 
         complex_input = {
             "operation": "transform",
-            "config": {"format": "json", "indent": 2},
+            "parameters": {"format": "json", "indent": 2},
             "filters": [{"field": "status", "value": "active"}],
         }
         request = _make_tool_call_request("complex_tool", complex_input)

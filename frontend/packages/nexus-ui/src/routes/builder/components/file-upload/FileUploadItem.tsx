@@ -48,6 +48,7 @@ export function FileUploadItem({
   const showProgress = progress !== undefined && status !== 'pending'
 
   return (
+    // eslint-disable-next-line nexus/prefer-pf-text-components -- styled card-like container for file upload item
     <div
       className={className}
       style={{
@@ -70,7 +71,8 @@ export function FileUploadItem({
           />
         </FlexItem>
         <FlexItem flex={{ default: 'flex_1' }}>
-          <div
+          <Content
+            component={ContentVariants.p}
             style={{
               color: isError
                 ? 'var(--pf-t--global--color--status--danger--default)'
@@ -78,7 +80,7 @@ export function FileUploadItem({
             }}
           >
             {displayName}
-          </div>
+          </Content>
           <Content component={ContentVariants.small} style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
             {fileExtension} | {formatFileSize(file.size)}
             {isError && errorMessage && ` - ${errorMessage}`}

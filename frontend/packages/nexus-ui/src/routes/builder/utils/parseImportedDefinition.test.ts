@@ -6,8 +6,8 @@ import { parseNodePositions } from './processExistingWorkflow'
 describe('parseImportedDefinition', () => {
   it('converts a basic definition with nodes, edges, and triggers', () => {
     const definition = {
-      triggers: [{ id: 'webhook_0', type: 'webhook', config: {} }],
-      nodes: [{ id: 'node1', type: 'action', name: 'My Action', config: {} }],
+      triggers: [{ id: 'webhook_0', type: 'webhook', parameters: {} }],
+      nodes: [{ id: 'node1', type: 'action', name: 'My Action', parameters: {} }],
       edges: [{ from: 'webhook_0', to: 'node1' }],
     }
 
@@ -22,8 +22,8 @@ describe('parseImportedDefinition', () => {
 
   it('assigns IDs to triggers that lack them', () => {
     const definition = {
-      triggers: [{ type: 'schedule', config: {} }],
-      nodes: [{ id: 'node1', type: 'action', name: 'Test', config: {} }],
+      triggers: [{ type: 'schedule', parameters: {} }],
+      nodes: [{ id: 'node1', type: 'action', name: 'Test', parameters: {} }],
       edges: [],
     }
 
@@ -35,8 +35,8 @@ describe('parseImportedDefinition', () => {
 
   it('maps trigger IDs to display IDs in edges', () => {
     const definition = {
-      triggers: [{ id: 'my_trigger', type: 'webhook', config: {} }],
-      nodes: [{ id: 'node1', type: 'action', name: 'Test', config: {} }],
+      triggers: [{ id: 'my_trigger', type: 'webhook', parameters: {} }],
+      nodes: [{ id: 'node1', type: 'action', name: 'Test', parameters: {} }],
       edges: [{ from: 'my_trigger', to: 'node1' }],
     }
 
@@ -50,7 +50,7 @@ describe('parseImportedDefinition', () => {
   it('filters orphaned edges', () => {
     const definition = {
       triggers: [],
-      nodes: [{ id: 'node1', type: 'action', name: 'Test', config: {} }],
+      nodes: [{ id: 'node1', type: 'action', name: 'Test', parameters: {} }],
       edges: [{ from: 'nonexistent', to: 'node1' }],
     }
 
@@ -76,7 +76,7 @@ describe('parseImportedDefinition', () => {
   it('only carries name and description from the definition', () => {
     const definition = {
       triggers: [],
-      nodes: [{ id: 'node1', type: 'action', name: 'Test', config: {} }],
+      nodes: [{ id: 'node1', type: 'action', name: 'Test', parameters: {} }],
       edges: [],
       name: 'My Workflow',
       description: 'A test workflow',
@@ -111,8 +111,8 @@ describe('parseImportedDefinition', () => {
 
   it('extracts node positions from definition', () => {
     const definition = {
-      triggers: [{ id: 'trig_1', type: 'webhook', config: {}, position: { x: 10, y: 20 } }],
-      nodes: [{ id: 'node1', type: 'action', name: 'A', config: {}, position: { x: 100, y: 200 } }],
+      triggers: [{ id: 'trig_1', type: 'webhook', parameters: {}, position: { x: 10, y: 20 } }],
+      nodes: [{ id: 'node1', type: 'action', name: 'A', parameters: {}, position: { x: 100, y: 200 } }],
       edges: [],
     }
 
@@ -126,8 +126,8 @@ describe('parseImportedDefinition', () => {
 
   it('returns empty positions when nodes have no position field', () => {
     const definition = {
-      triggers: [{ id: 'trig_1', type: 'webhook', config: {} }],
-      nodes: [{ id: 'node1', type: 'action', name: 'A', config: {} }],
+      triggers: [{ id: 'trig_1', type: 'webhook', parameters: {} }],
+      nodes: [{ id: 'node1', type: 'action', name: 'A', parameters: {} }],
       edges: [],
     }
 
@@ -140,8 +140,8 @@ describe('parseImportedDefinition', () => {
     const definition = {
       triggers: [],
       nodes: [
-        { id: 'node1', type: 'action', name: 'A', config: {} },
-        { id: 'node2', type: 'action', name: 'B', config: {} },
+        { id: 'node1', type: 'action', name: 'A', parameters: {} },
+        { id: 'node2', type: 'action', name: 'B', parameters: {} },
       ],
       edges: [{ from: 'node1', to: 'node2', from_port: 'iterate' }],
     }

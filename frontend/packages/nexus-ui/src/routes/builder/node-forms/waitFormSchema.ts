@@ -2,12 +2,15 @@ import { z } from 'zod'
 
 import { formatDurationLabel } from '../utils/timeUtils'
 
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
+
 const DEFAULT_MAX_WAIT_SECONDS = 2_592_000 // 30 days
 
 export function createWaitFormSchema(maxSeconds: number = DEFAULT_MAX_WAIT_SECONDS) {
   return z
     .object({
       name: z.string(),
+      settings: nodeSettingsSchema.optional(),
       days: z
         .number()
         .int()

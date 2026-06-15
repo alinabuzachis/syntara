@@ -9,8 +9,14 @@ type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution'
  * Keyed by execution ID, values are arrays of ActivityExecution for that execution.
  *
  * These match the workflow node IDs from the example YAML files:
- * - exec-1 and exec-2 map to workflow '1' (hello-world): nodes say_hello, say_goodbye
- * - exec-5 maps to workflow '2' (conditional-demo): nodes check_temperature, temperature_routing, hot_weather
+ * - exec-1 and exec-2 map to workflow '2' (hello-world): nodes say_hello, say_goodbye
+ * - exec-3 maps to workflow '1' (conditional-demo): node check_temperature (failed)
+ * - exec-4 maps to workflow '1' (conditional-demo): node check_temperature (running)
+ * - exec-5 maps to workflow '1' (conditional-demo): nodes check_temperature, temperature_routing, hot_weather
+ * - exec-6 maps to workflow '2' (hello-world): node say_hello (paused)
+ * - exec-8 maps to workflow '3' (loop-demo): node task_iteration (cancelled)
+ * - exec-9 maps to workflow '4' (parallel-demo): nodes task1, task2, task3, summary
+ * - exec-10 maps to workflow '4' (parallel-demo): pending (no activities started yet)
  */
 export const activityExecutions: Record<string, ActivityExecution[]> = {
   'exec-1': [
@@ -99,6 +105,44 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
       iteration: null,
     },
   ],
+  'exec-3': [
+    {
+      id: 'act-3-1',
+      created_at: mockDate.hoursAgo6Plus1s,
+      updated_at: mockDate.hoursAgo6Plus2s,
+      execution_id: 'exec-3',
+      activity_name: 'check_temperature',
+      status: 'failed',
+      started_at: mockDate.hoursAgo6Plus1s,
+      completed_at: mockDate.hoursAgo6Plus2s,
+      input_data: {
+        temp: 35,
+      } as Record<string, unknown>,
+      output_data: null,
+      error_details: 'Task execution failed: Connection timeout',
+      retry_count: 0,
+      iteration: null,
+    },
+  ],
+  'exec-4': [
+    {
+      id: 'act-4-1',
+      created_at: mockDate.hoursAgo2Plus1s,
+      updated_at: mockDate.minutesAgo30,
+      execution_id: 'exec-4',
+      activity_name: 'check_temperature',
+      status: 'running',
+      started_at: mockDate.hoursAgo2Plus1s,
+      completed_at: null,
+      input_data: {
+        temp: 25,
+      } as Record<string, unknown>,
+      output_data: null,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
+    },
+  ],
   'exec-5': [
     {
       id: 'act-5-1',
@@ -159,6 +203,121 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
       error_details: null,
       retry_count: 0,
       iteration: null,
+    },
+  ],
+  'exec-9': [
+    {
+      id: 'act-9-1',
+      created_at: mockDate.daysAgo4Plus1s,
+      updated_at: mockDate.daysAgo4Plus12s,
+      execution_id: 'exec-9',
+      activity_name: 'task1',
+      status: 'completed',
+      started_at: mockDate.daysAgo4Plus1s,
+      completed_at: mockDate.daysAgo4Plus12s,
+      input_data: {} as Record<string, unknown>,
+      output_data: {
+        stdout: 'Task 1 starting...\nTask 1 complete!',
+        exit_code: 0,
+      } as Record<string, unknown>,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
+    },
+    {
+      id: 'act-9-2',
+      created_at: mockDate.daysAgo4Plus1s,
+      updated_at: mockDate.daysAgo4Plus12s,
+      execution_id: 'exec-9',
+      activity_name: 'task2',
+      status: 'completed',
+      started_at: mockDate.daysAgo4Plus1s,
+      completed_at: mockDate.daysAgo4Plus12s,
+      input_data: {} as Record<string, unknown>,
+      output_data: {
+        stdout: 'Task 2 starting...\nTask 2 complete!',
+        exit_code: 0,
+      } as Record<string, unknown>,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
+    },
+    {
+      id: 'act-9-3',
+      created_at: mockDate.daysAgo4Plus1s,
+      updated_at: mockDate.daysAgo4Plus12s,
+      execution_id: 'exec-9',
+      activity_name: 'task3',
+      status: 'completed',
+      started_at: mockDate.daysAgo4Plus1s,
+      completed_at: mockDate.daysAgo4Plus12s,
+      input_data: {} as Record<string, unknown>,
+      output_data: {
+        stdout: 'Task 3 starting...\nTask 3 complete!',
+        exit_code: 0,
+      } as Record<string, unknown>,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
+    },
+    {
+      id: 'act-9-4',
+      created_at: mockDate.daysAgo4Plus12s,
+      updated_at: mockDate.daysAgo4Plus12s,
+      execution_id: 'exec-9',
+      activity_name: 'summary',
+      status: 'completed',
+      started_at: mockDate.daysAgo4Plus12s,
+      completed_at: mockDate.daysAgo4Plus12s,
+      input_data: {} as Record<string, unknown>,
+      output_data: {
+        stdout: 'All parallel tasks completed!',
+        exit_code: 0,
+      } as Record<string, unknown>,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
+    },
+  ],
+  'exec-6': [
+    {
+      id: 'act-6-1',
+      created_at: mockDate.hoursAgo12Plus1s,
+      updated_at: mockDate.hoursAgo12Plus1s,
+      execution_id: 'exec-6',
+      activity_name: 'say_hello',
+      status: 'paused',
+      started_at: mockDate.hoursAgo12Plus1s,
+      completed_at: null,
+      input_data: {
+        GREETING: 'Hello',
+        WORLD_NAME: 'World',
+      } as Record<string, unknown>,
+      output_data: null,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
+    },
+  ],
+  'exec-8': [
+    {
+      id: 'act-8-1',
+      created_at: mockDate.hoursAgo1Plus1s,
+      updated_at: mockDate.minutesAgo45,
+      execution_id: 'exec-8',
+      activity_name: 'task_iteration',
+      status: 'cancelled',
+      started_at: mockDate.hoursAgo1Plus1s,
+      completed_at: mockDate.minutesAgo45,
+      input_data: {
+        iteration: 1,
+      } as Record<string, unknown>,
+      output_data: {
+        stdout: 'Processing iteration 1...',
+      } as Record<string, unknown>,
+      error_details: null,
+      retry_count: 0,
+      iteration: 1,
     },
   ],
 }

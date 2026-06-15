@@ -9,7 +9,7 @@ describe('detectTaskNodeType', () => {
       type: 'script',
       id: 'test-task-1',
       name: 'Test Task',
-      config: {
+      parameters: {
         language: 'python',
         code: 'print("hello")',
       },
@@ -31,7 +31,7 @@ describe('detectTaskNodeType', () => {
     it('returns agentic type for agentic tasks', () => {
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: 'Do something',
           model: 'claude-3-sonnet',
         },
@@ -45,7 +45,7 @@ describe('detectTaskNodeType', () => {
     it('returns http_request type for HTTP request tasks', () => {
       const task = createBaseTask({
         type: 'http_request',
-        config: { method: 'GET', url: 'https://api.example.com' },
+        parameters: { method: 'GET', url: 'https://api.example.com' },
       } as Partial<TaskActivity>)
       const result = detectTaskNodeType(task)
 
@@ -56,7 +56,7 @@ describe('detectTaskNodeType', () => {
     it('returns aap_job_template type for AAP tasks', () => {
       const task = createBaseTask({
         type: 'aap_job_template',
-        config: { job_template_id: 123 },
+        parameters: { job_template_id: 123 },
       } as Partial<TaskActivity>)
       const result = detectTaskNodeType(task)
 
@@ -83,7 +83,7 @@ describe('detectTaskNodeType', () => {
     it('accepts valid API __executorType from metadata', () => {
       const task = createBaseTask({
         type: 'agentic',
-        config: { prompt: 'test' },
+        parameters: { prompt: 'test' },
       } as Partial<TaskActivity>) as TaskActivityWithMetadata
       task.metadata = { __executorType: 'aap_job_template' }
 
@@ -96,7 +96,7 @@ describe('detectTaskNodeType', () => {
     it('SECURITY: rejects internal-only aap type from metadata override', () => {
       const task = createBaseTask({
         type: 'agentic',
-        config: { prompt: 'test' },
+        parameters: { prompt: 'test' },
       } as Partial<TaskActivity>) as TaskActivityWithMetadata
       task.metadata = { __executorType: 'aap' }
 
@@ -133,7 +133,7 @@ describe('detectTaskNodeType', () => {
 
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: JSON.stringify(promptPayload),
           model: 'claude-3-sonnet',
         },
@@ -150,7 +150,7 @@ describe('detectTaskNodeType', () => {
     it('does not detect AAP when prompt is plain text', () => {
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: 'Run a job template on AAP',
           model: 'claude-3-sonnet',
         },
@@ -171,7 +171,7 @@ describe('detectTaskNodeType', () => {
 
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: JSON.stringify(promptPayload),
           model: 'claude-3-sonnet',
         },
@@ -191,7 +191,7 @@ describe('detectTaskNodeType', () => {
 
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: JSON.stringify(promptPayload),
           model: 'claude-3-sonnet',
         },
@@ -206,7 +206,7 @@ describe('detectTaskNodeType', () => {
     it('handles invalid JSON in prompt gracefully', () => {
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: '{ invalid json',
           model: 'claude-3-sonnet',
         },
@@ -227,7 +227,7 @@ describe('detectTaskNodeType', () => {
 
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: JSON.stringify(maliciousPayload),
           model: 'claude-3-sonnet',
         },
@@ -250,7 +250,7 @@ describe('detectTaskNodeType', () => {
 
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: JSON.stringify(maliciousPayload),
           model: 'claude-3-sonnet',
         },
@@ -266,7 +266,7 @@ describe('detectTaskNodeType', () => {
     it('rejects non-object parsed values', () => {
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: '"just a string"',
           model: 'claude-3-sonnet',
         },
@@ -282,7 +282,7 @@ describe('detectTaskNodeType', () => {
     it('rejects null parsed values', () => {
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: 'null',
           model: 'claude-3-sonnet',
         },
@@ -304,7 +304,7 @@ describe('detectTaskNodeType', () => {
 
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: JSON.stringify(promptPayload),
           model: 'claude-3-sonnet',
         },
@@ -328,7 +328,7 @@ describe('detectTaskNodeType', () => {
 
       const task = createBaseTask({
         type: 'agentic',
-        config: {
+        parameters: {
           prompt: JSON.stringify(promptPayload),
           model: 'claude-3-sonnet',
         },
@@ -346,7 +346,7 @@ describe('detectTaskNodeType', () => {
 
   describe('edge cases', () => {
     it('returns empty string for missing type', () => {
-      const task = { id: 'test', name: 'Test', config: {} } as TaskActivity
+      const task = { id: 'test', name: 'Test', parameters: {} } as TaskActivity
       const result = detectTaskNodeType(task)
 
       expect(result.actualExecutor).toBe('')

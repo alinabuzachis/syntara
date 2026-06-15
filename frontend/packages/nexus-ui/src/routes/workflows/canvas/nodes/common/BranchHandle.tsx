@@ -36,7 +36,7 @@ export function BranchHandle(props: Readonly<{ children: React.ReactNode; id: st
         ...approvalStyles,
       }}
     >
-      {/* this is the branch handle text content, like 'true', 'false', 'loop' or 'done', padding to give room for the handle */}
+      {/* eslint-disable-next-line nexus/prefer-pf-text-components -- branch label inside ReactFlow canvas node; PF Content adds pf-v6-c-content class with margin/line-height that breaks canvas node layout constraints */}
       <div style={{ paddingRight: 'var(--pf-t--global--spacer--md)' }}>{props.children}</div>
       <Handle
         type="source"

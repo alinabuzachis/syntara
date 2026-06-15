@@ -237,7 +237,6 @@ describe('LogicNodeForm', () => {
             logicType: ActivityTypeEnum.CONVERGE,
             name: 'Test Converge',
             strategy: 'all',
-            timeoutEnabled: false,
           }}
         />
       )
@@ -394,13 +393,7 @@ describe('LogicNodeForm', () => {
             logicType: ActivityTypeEnum.CONVERGE,
             name: 'Converge Node',
             strategy: 'any',
-            timeoutEnabled: true,
-            timeoutSeconds: 30,
-            timeoutMinutes: 5,
-            timeoutHours: 1,
-            timeoutDays: 0,
-            timeout: 3930,
-            onTimeout: 'fail',
+            settings: { timeout: 3930, continue_on_failure: false },
             requiredPathCount: 2,
           }}
         />

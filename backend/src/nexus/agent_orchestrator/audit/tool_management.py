@@ -60,6 +60,8 @@ class ToolDiscoveryEvent:
     # Tool details (for COMPLETED status)
     tool_names: list[str] | None = None
     error_type: str | None = None
+    activity_id: str | None = None
+    activity_name: str | None = None
 
 
 @dataclass
@@ -84,6 +86,8 @@ class ToolInvocationEvent:
     tool_input: dict[str, Any] | None = None
     tool_output: str | None = None
     error_type: str | None = None
+    activity_id: str | None = None
+    activity_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +165,9 @@ class ToolDiscoveryHandler(AuditEventHandler[ToolDiscoveryEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
+            activity_id=event.activity_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.activity_name,
         )
 
 
@@ -231,5 +237,7 @@ class ToolInvocationHandler(AuditEventHandler[ToolInvocationEvent]):
             actor_username=actor_username,
             actor_type=actor_type,
             execution_id=event.execution_id,
+            activity_id=event.activity_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.activity_name,
         )

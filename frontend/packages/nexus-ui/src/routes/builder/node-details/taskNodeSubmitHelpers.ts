@@ -37,30 +37,30 @@ function parseHttpHeadersJson(json: string): Record<string, string> | undefined 
 
 export function buildRegistryActionInitialData(
   executor: string,
-  config: Record<string, unknown>,
+  parameters: Record<string, unknown>,
   taskData: TaskActivity
 ): Partial<RegistryActionFormData> {
   return {
     name: taskData.name,
     executor: executor === ExecutorTypeEnum.SCRIPT ? ExecutorTypeEnum.SCRIPT : ExecutorTypeEnum.HTTP_REQUEST,
-    language: executor === ExecutorTypeEnum.SCRIPT ? (config.language as string | undefined) : undefined,
-    code: executor === ExecutorTypeEnum.SCRIPT ? (config.code as string | undefined) : undefined,
+    language: executor === ExecutorTypeEnum.SCRIPT ? (parameters.language as string | undefined) : undefined,
+    code: executor === ExecutorTypeEnum.SCRIPT ? (parameters.code as string | undefined) : undefined,
     method:
       executor === ExecutorTypeEnum.HTTP_REQUEST
-        ? (config.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | undefined)
+        ? (parameters.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | undefined)
         : undefined,
-    url: executor === ExecutorTypeEnum.HTTP_REQUEST ? (config.url as string | undefined) : undefined,
+    url: executor === ExecutorTypeEnum.HTTP_REQUEST ? (parameters.url as string | undefined) : undefined,
     headers:
-      executor === ExecutorTypeEnum.HTTP_REQUEST && config.headers
-        ? JSON.stringify(config.headers, null, 2)
+      executor === ExecutorTypeEnum.HTTP_REQUEST && parameters.headers
+        ? JSON.stringify(parameters.headers, null, 2)
         : undefined,
     body: (() => {
-      if (executor !== ExecutorTypeEnum.HTTP_REQUEST || !config.body) {
+      if (executor !== ExecutorTypeEnum.HTTP_REQUEST || !parameters.body) {
         return undefined
       }
-      return typeof config.body === 'string' ? config.body : JSON.stringify(config.body, null, 2)
+      return typeof parameters.body === 'string' ? parameters.body : JSON.stringify(parameters.body, null, 2)
     })(),
-    credential_id: (config as { credential_id?: string }).credential_id ?? undefined,
+    credential_id: (parameters as { credential_id?: string }).credential_id ?? undefined,
   }
 }
 
@@ -81,7 +81,7 @@ export function buildRegistryActivityUpdate(taskData: TaskActivity, data: Regist
     ...taskData,
     name: data.name,
     type: data.executor === ExecutorTypeEnum.SCRIPT ? ExecutorTypeEnum.SCRIPT : ExecutorTypeEnum.HTTP_REQUEST,
-    config:
+    parameters:
       data.executor === ExecutorTypeEnum.SCRIPT
         ? {
             language: data.language ?? 'python',

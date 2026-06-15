@@ -43,7 +43,7 @@ async function createTestWorkflow(adminApp: Page): Promise<{ id: string; name: s
       workflow_definition: {
         schema_version: '2.0.0',
         name,
-        triggers: [{ id: 'trigger-1', type: 'manual', data: { name: 'Manual trigger' } }],
+        triggers: [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
         nodes: [],
         edges: [],
       },
@@ -90,7 +90,6 @@ test.describe('Permission gating — Navigation visibility', () => {
     await expect(app.getByRole('menuitem', { name: 'Access Management' })).toBeVisible()
     await expect(app.getByRole('menuitem', { name: 'Identity Providers' })).toBeVisible()
     await expect(app.getByRole('menuitem', { name: 'Settings' })).toBeVisible()
-    await expect(app.getByRole('menuitem', { name: 'Audit Log' })).toBeVisible()
   })
 
   test('viewer sees only operational items — no System Administration', async ({ viewerApp }) => {
@@ -118,10 +117,9 @@ test.describe('Permission gating — Navigation visibility', () => {
     await expect(auditorApp.getByRole('menuitem', { name: 'Access Management' })).toBeVisible()
     await expect(auditorApp.getByRole('menuitem', { name: 'Identity Providers' })).toBeVisible()
     await expect(auditorApp.getByRole('menuitem', { name: 'Settings' })).toBeVisible()
-    await expect(auditorApp.getByRole('menuitem', { name: 'Audit Log' })).toBeVisible()
   })
 
-  test('user sees Access Management but not Identity Providers, Settings, or Audit Log', async ({ userApp }) => {
+  test('user sees Access Management but not Identity Providers or Settings', async ({ userApp }) => {
     const nav = userApp.getByRole('navigation', { name: 'Main navigation' })
 
     await expect(nav.getByRole('link', { name: 'Workflows' })).toBeVisible()

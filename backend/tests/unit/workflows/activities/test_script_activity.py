@@ -550,7 +550,7 @@ print(json.dumps(data))
         output = result["output"]
         assert output["return_code"] == 0
         assert "This is not JSON" in output["stdout"]
-        assert "stdout_json" not in output
+        assert output["stdout_json"] is None
 
     @pytest.mark.asyncio
     async def test_python_debug_output_with_json_last_line(self) -> None:
@@ -674,7 +674,6 @@ class TestPydanticConfigValidation:
         result = await execute_script_activity(input_config, None)
 
         output = result["output"]
-        assert output["status"] == "completed"
         assert output["return_code"] == 0
 
     @pytest.mark.asyncio
@@ -684,7 +683,6 @@ class TestPydanticConfigValidation:
         result = await execute_script_activity(input_config, None)
 
         output = result["output"]
-        assert output["status"] == "completed"
         assert output["return_code"] == 0
 
     @pytest.mark.asyncio

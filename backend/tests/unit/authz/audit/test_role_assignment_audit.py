@@ -120,6 +120,21 @@ class TestRoleAssignmentHandler:
         result = RoleAssignmentHandler().handle(event)
         assert result.resource_urn == f"urn:nexus:role-assignment:{assignment_id}"
 
+    def test_resource_name_from_role_name(self) -> None:
+        """resource_name is set from role_name field."""
+        assignment_id = uuid4()
+        event = RoleAssignmentEvent(
+            assignment_id=assignment_id,
+            principal_type="user",
+            principal_id=uuid4(),
+            principal_name="alice",
+            role_name="Editor",
+            action="assigned",
+        )
+        result = RoleAssignmentHandler().handle(event)
+        assert result.resource_urn == f"urn:nexus:role-assignment:{assignment_id}"
+        assert result.resource_name == "Editor"
+
     def test_error_type_escalates_severity(self) -> None:
         """error_type set -> ERROR severity and ERROR status."""
         event = RoleAssignmentEvent(

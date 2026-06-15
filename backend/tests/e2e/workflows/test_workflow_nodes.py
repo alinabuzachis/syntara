@@ -12,6 +12,8 @@ from typing import Any
 import pytest
 from nexus_api_client.api import NexusApiRegistry
 from nexus_api_client.models.execution_status import ExecutionStatus
+from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.e2e.helpers import create_and_run_workflow
 
@@ -33,14 +35,14 @@ def test_script_node_bash(nexus_api: NexusApiRegistry):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "hello_script",
                     "name": "Hello Script",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "bash",
                         "code": 'echo "Hello from E2E test"',
                     },
@@ -66,14 +68,14 @@ def test_script_node_python(nexus_api: NexusApiRegistry):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "py_script",
                     "name": "Python Script",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": "import json; print(json.dumps({'result': 2 + 2}))",
                     },
@@ -103,14 +105,14 @@ def test_http_request_node(nexus_api: NexusApiRegistry, worker_base_url: str):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "health_check",
                     "name": "Health Check",
                     "type": "http_request",
-                    "config": {
+                    "parameters": {
                         "method": "GET",
                         "url": f"{worker_base_url}/health",
                     },
@@ -140,26 +142,26 @@ def test_condition_true_branch(nexus_api: NexusApiRegistry):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "check",
                     "name": "Check Condition",
                     "type": "condition",
-                    "config": {"condition": "1 == 1"},
+                    "parameters": {"condition": "1 == 1"},
                 },
                 {
                     "id": "true_branch",
                     "name": "True Branch",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "condition was true"'},
+                    "parameters": {"language": "bash", "code": 'echo "condition was true"'},
                 },
                 {
                     "id": "false_branch",
                     "name": "False Branch",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "condition was false"'},
+                    "parameters": {"language": "bash", "code": 'echo "condition was false"'},
                 },
             ],
             "edges": [
@@ -188,26 +190,26 @@ def test_condition_false_branch(nexus_api: NexusApiRegistry):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "check",
                     "name": "Check Condition",
                     "type": "condition",
-                    "config": {"condition": "1 == 0"},
+                    "parameters": {"condition": "1 == 0"},
                 },
                 {
                     "id": "true_branch",
                     "name": "True Branch",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "should not run"'},
+                    "parameters": {"language": "bash", "code": 'echo "should not run"'},
                 },
                 {
                     "id": "false_branch",
                     "name": "False Branch",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "condition was false"'},
+                    "parameters": {"language": "bash", "code": 'echo "condition was false"'},
                 },
             ],
             "edges": [
@@ -241,23 +243,23 @@ def test_loop_for_each(nexus_api: NexusApiRegistry):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "loop",
                     "name": "Loop Over Items",
                     "type": "loop",
-                    "config": {
-                        "loop_type": "for_each",
-                        "items": ["alpha", "bravo", "charlie"],
+                    "parameters": {
+                        "type": "for_each",
+                        "items": '["alpha", "bravo", "charlie"]',
                     },
                 },
                 {
                     "id": "loop_body",
                     "name": "Loop Body",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "Processing item"'},
+                    "parameters": {"language": "bash", "code": 'echo "Processing item"'},
                 },
             ],
             "edges": [
@@ -289,32 +291,32 @@ def test_parallel_paths_with_converge(nexus_api: NexusApiRegistry):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "path_a",
                     "name": "Path A",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "Path A done"'},
+                    "parameters": {"language": "bash", "code": 'echo "Path A done"'},
                 },
                 {
                     "id": "path_b",
                     "name": "Path B",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "Path B done"'},
+                    "parameters": {"language": "bash", "code": 'echo "Path B done"'},
                 },
                 {
                     "id": "join",
                     "name": "Join Paths",
                     "type": "converge",
-                    "config": {},
+                    "parameters": {},
                 },
                 {
                     "id": "final_step",
                     "name": "Final Step",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "All paths completed"'},
+                    "parameters": {"language": "bash", "code": 'echo "All paths completed"'},
                 },
             ],
             "edges": [
@@ -350,44 +352,44 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "setup",
                     "name": "Setup",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "setup done"'},
+                    "parameters": {"language": "bash", "code": 'echo "setup done"'},
                 },
                 {
                     "id": "gate",
                     "name": "Gate",
                     "type": "condition",
-                    "config": {"condition": "True"},
+                    "parameters": {"condition": "True"},
                 },
                 {
                     "id": "task_a",
                     "name": "Task A",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "task a"'},
+                    "parameters": {"language": "bash", "code": 'echo "task a"'},
                 },
                 {
                     "id": "task_b",
                     "name": "Task B",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "task b"'},
+                    "parameters": {"language": "bash", "code": 'echo "task b"'},
                 },
                 {
                     "id": "join",
                     "name": "Join",
                     "type": "converge",
-                    "config": {},
+                    "parameters": {},
                 },
                 {
                     "id": "finish",
                     "name": "Finish",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "done"'},
+                    "parameters": {"language": "bash", "code": 'echo "done"'},
                 },
             ],
             "edges": [
@@ -428,14 +430,14 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "prep",
                     "name": "Prep Data",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "bash",
                         "code": 'echo "jimmy"',
                     },
@@ -444,7 +446,7 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
                     "id": "agent",
                     "name": "Greet via Agent",
                     "type": "agentic",
-                    "config": {
+                    "parameters": {
                         "prompt": (
                             "You MUST use the get_greeting tool to greet jimmy. "
                             "Do not answer without calling the tool first."
@@ -478,14 +480,14 @@ def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "agent",
                     "name": "Agent Task",
                     "type": "agentic",
-                    "config": {
+                    "parameters": {
                         "prompt": (
                             "You MUST use the get_greeting tool to greet jimmy. "
                             "Do not answer without calling the tool first."
@@ -498,7 +500,7 @@ def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
                     "id": "post_process",
                     "name": "Post Process",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "bash",
                         "code": 'echo "Agent task finished, post-processing complete"',
                     },
@@ -530,23 +532,23 @@ def test_loop_with_agentic_body(
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "loop",
                     "name": "Loop Over Names",
                     "type": "loop",
-                    "config": {
-                        "loop_type": "for_each",
-                        "items": ["jimmy", "sarah"],
+                    "parameters": {
+                        "type": "for_each",
+                        "items": '["jimmy", "sarah"]',
                     },
                 },
                 {
                     "id": "greet",
                     "name": "Greet Person",
                     "type": "agentic",
-                    "config": {
+                    "parameters": {
                         "prompt": (
                             "You MUST use the get_greeting tool to greet someone. "
                             "Do not answer without calling the tool first."
@@ -583,14 +585,14 @@ def test_http_request_then_agentic(
             "name": "nodes",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "fetch",
                     "name": "Fetch Health",
                     "type": "http_request",
-                    "config": {
+                    "parameters": {
                         "method": "GET",
                         "url": f"{worker_base_url}/health",
                     },
@@ -599,7 +601,7 @@ def test_http_request_then_agentic(
                     "id": "analyze",
                     "name": "Analyze Response",
                     "type": "agentic",
-                    "config": {
+                    "parameters": {
                         "prompt": "Say 'Health check passed' in one sentence.",
                         "credential_id": llm_credential_id,
                         "model": llm_model,
@@ -632,7 +634,7 @@ def _switch_workflow_definition(cases: list[dict[str, str]], default_port: str =
             "id": "sw",
             "name": "Switch Router",
             "type": "switch",
-            "config": {"cases": cases, "default_port": default_port},
+            "parameters": {"cases": cases, "default_port": default_port},
         },
     ]
     edges: list[dict[str, Any]] = [{"from": "trigger", "to": "sw"}]
@@ -645,7 +647,7 @@ def _switch_workflow_definition(cases: list[dict[str, str]], default_port: str =
                 "id": node_id,
                 "name": f"Action {port}",
                 "type": "script",
-                "config": {"language": "bash", "code": f'echo "{port} executed"'},
+                "parameters": {"language": "bash", "code": f'echo "{port} executed"'},
             }
         )
         edges.append({"from": "sw", "to": node_id, "from_port": port})
@@ -655,7 +657,7 @@ def _switch_workflow_definition(cases: list[dict[str, str]], default_port: str =
             "id": "action_default",
             "name": "Default Action",
             "type": "script",
-            "config": {"language": "bash", "code": 'echo "default executed"'},
+            "parameters": {"language": "bash", "code": 'echo "default executed"'},
         }
     )
     edges.append({"from": "sw", "to": "action_default", "from_port": default_port})
@@ -663,7 +665,7 @@ def _switch_workflow_definition(cases: list[dict[str, str]], default_port: str =
     return {
         "name": "test",
         "schema_version": "2.0.0",
-        "triggers": [{"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}}],
+        "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
         "nodes": nodes,
         "edges": edges,
     }
@@ -877,28 +879,26 @@ def test_switch_in_operator(nexus_api: NexusApiRegistry):
 
 @pytest.mark.e2e
 def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
-    """Switch with empty cases array fails the workflow."""
-    result = create_and_run_workflow(
-        nexus_api,
-        "e2e-switch-empty-cases",
+    """Switch with empty cases array is rejected at schema validation."""
+    wf_def = WorkflowDefinition.from_dict(
         {
             "name": "test",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "sw",
                     "name": "Empty Switch",
                     "type": "switch",
-                    "config": {"cases": [], "default_port": "default"},
+                    "parameters": {"cases": [], "default_port": "default"},
                 },
                 {
                     "id": "action_default",
                     "name": "Default",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "should not run"'},
+                    "parameters": {"language": "bash", "code": 'echo "should not run"'},
                 },
             ],
             "edges": [
@@ -907,13 +907,15 @@ def test_switch_empty_cases_fails(nexus_api: NexusApiRegistry):
             ],
         },
     )
-
-    assert result.status == ExecutionStatus.FAILED, f"Expected failure but got: {result.status}"
-    assert result.error_details is not None, "Expected error details on failure"
-    assert "cases" in result.error_details.lower(), f"Expected 'cases' in error: {result.error_details}"
-    activities = {a.activity_id: a for a in (result.activities or [])}
-    if "action_default" in activities:
-        assert activities["action_default"].status != "completed", "Default should not run with empty cases"
+    response = nexus_api.workflows.create(
+        body=WorkflowCreate(
+            name="e2e-switch-empty-cases",
+            description="E2E test: empty switch cases",
+            workflow_definition=wf_def,
+        )
+    )
+    assert not response.is_success, "Empty cases should be rejected by schema validation"
+    assert response.status_code == 422
 
 
 @pytest.mark.e2e
@@ -926,14 +928,14 @@ def test_switch_after_script_node(nexus_api: NexusApiRegistry):
             "name": "test",
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 {
                     "id": "setup",
                     "name": "Setup",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "python",
                         "code": 'import json; print(json.dumps({"priority": "high"}))',
                     },
@@ -942,7 +944,7 @@ def test_switch_after_script_node(nexus_api: NexusApiRegistry):
                     "id": "sw",
                     "name": "Route by Priority",
                     "type": "switch",
-                    "config": {
+                    "parameters": {
                         "cases": [
                             {"port": "case_0", "label": "High", "condition": "${setup.stdout_json.priority} == 'high'"},
                             {"port": "case_1", "label": "Low", "condition": "${setup.stdout_json.priority} == 'low'"},
@@ -954,19 +956,19 @@ def test_switch_after_script_node(nexus_api: NexusApiRegistry):
                     "id": "action_high",
                     "name": "High Priority",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "high priority"'},
+                    "parameters": {"language": "bash", "code": 'echo "high priority"'},
                 },
                 {
                     "id": "action_low",
                     "name": "Low Priority",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "low priority"'},
+                    "parameters": {"language": "bash", "code": 'echo "low priority"'},
                 },
                 {
                     "id": "action_default",
                     "name": "Default",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "default"'},
+                    "parameters": {"language": "bash", "code": 'echo "default"'},
                 },
             ],
             "edges": [

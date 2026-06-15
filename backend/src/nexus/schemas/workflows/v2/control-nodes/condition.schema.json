@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/condition",
   "title": "Condition Node",
   "description": "Binary conditional branching (if/then/else)",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": [
       "condition"
@@ -53,7 +53,28 @@
       },
       {
         "title": "Failed Result",
-        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          },
+          "evaluated_result": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

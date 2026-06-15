@@ -255,7 +255,7 @@ class TestFunctionExecutionHandler:
             function_args={
                 "workflow_id": "wf-789",
                 "inputs": {"param1": "value1", "param2": [1, 2, 3]},
-                "config": {"timeout": 300, "retry": True},
+                "parameters": {"timeout": 300, "retry": True},
             },
             function_result={
                 "execution_id": "ex-123",
@@ -272,7 +272,7 @@ class TestFunctionExecutionHandler:
         assert result.structured_data.function_args == {
             "workflow_id": "wf-789",
             "inputs": {"param1": "value1", "param2": [1, 2, 3]},
-            "config": {"timeout": 300, "retry": True},
+            "parameters": {"timeout": 300, "retry": True},
         }
         assert result.structured_data.function_result == {
             "execution_id": "ex-123",

@@ -30,7 +30,7 @@ describe('getNodeTypeColor', () => {
       getNodeTypeColor(FlowNodeType.TASK, {
         type: ExecutorTypeEnum.SCRIPT,
         id: 'test',
-        config: {},
+        parameters: {},
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionScript)
   })
@@ -40,7 +40,7 @@ describe('getNodeTypeColor', () => {
       getNodeTypeColor(FlowNodeType.TASK, {
         type: ExecutorTypeEnum.AAP_JOB_TEMPLATE,
         id: 'test',
-        config: {},
+        parameters: {},
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionAap)
   })
@@ -52,7 +52,7 @@ describe('getNodeTypeColor', () => {
       getNodeTypeColor(FlowNodeType.TASK, {
         type: ExecutorTypeEnum.AGENTIC,
         id: 'test',
-        config: {},
+        parameters: {},
         metadata: { __executorType: DetectedExecutorType.AAP },
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionAgentic)
@@ -63,7 +63,7 @@ describe('getNodeTypeColor', () => {
       getNodeTypeColor(FlowNodeType.TASK, {
         type: ExecutorTypeEnum.AGENTIC,
         id: 'test',
-        config: {},
+        parameters: {},
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionAgentic)
   })
@@ -73,7 +73,7 @@ describe('getNodeTypeColor', () => {
       getNodeTypeColor(FlowNodeType.TASK, {
         type: ExecutorTypeEnum.HTTP_REQUEST,
         id: 'test',
-        config: {},
+        parameters: {},
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionHttpRequest)
   })

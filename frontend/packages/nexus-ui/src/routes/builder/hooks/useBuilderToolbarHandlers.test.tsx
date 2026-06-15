@@ -38,10 +38,10 @@ function minimalWorkflow(overrides: Partial<WorkflowDefinition> = {}): WorkflowD
     description: 'd',
     workflow: {
       activities: [
-        { type: 'script', id: 'task-1', name: 'Task 1', config: { language: 'python', code: 'print("hello")' } },
+        { type: 'script', id: 'task-1', name: 'Task 1', parameters: { language: 'python', code: 'print("hello")' } },
       ] as Activity[],
     },
-    triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+    triggers: [{ type: 'manual', id: 'trigger-1', parameters: {} }],
     ...overrides,
   }
 }
@@ -547,10 +547,10 @@ describe('useBuilderToolbarHandlers', () => {
     const currentWorkflow = minimalWorkflow({
       workflow: {
         activities: [
-          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: '', config: { duration: 99_999_999 } },
+          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: '', parameters: { duration: 99_999_999 } },
         ] as Activity[],
       },
-      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+      triggers: [{ type: 'manual', id: 'trigger-1', parameters: {} }],
     })
 
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
@@ -578,10 +578,15 @@ describe('useBuilderToolbarHandlers', () => {
     const currentWorkflow = minimalWorkflow({
       workflow: {
         activities: [
-          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'Long Wait', config: { duration: 99_999_999 } },
+          {
+            type: ActivityTypeEnum.WAIT,
+            id: 'wait-1',
+            name: 'Long Wait',
+            parameters: { duration: 99_999_999 },
+          },
         ] as Activity[],
       },
-      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+      triggers: [{ type: 'manual', id: 'trigger-1', parameters: {} }],
     })
 
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
@@ -609,10 +614,10 @@ describe('useBuilderToolbarHandlers', () => {
     const currentWorkflow = minimalWorkflow({
       workflow: {
         activities: [
-          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'Short Wait', config: { duration: 300 } },
+          { type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'Short Wait', parameters: { duration: 300 } },
         ] as Activity[],
       },
-      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+      triggers: [{ type: 'manual', id: 'trigger-1', parameters: {} }],
     })
 
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
@@ -633,9 +638,9 @@ describe('useBuilderToolbarHandlers', () => {
     }) as MockedFunction<ExecuteWorkflow>
     const currentWorkflow = minimalWorkflow({
       workflow: {
-        activities: [{ type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'No Config' }] as Activity[],
+        activities: [{ type: ActivityTypeEnum.WAIT, id: 'wait-1', name: 'No Config', parameters: {} }] as Activity[],
       },
-      triggers: [{ type: 'manual', id: 'trigger-1', config: {} }],
+      triggers: [{ type: 'manual', id: 'trigger-1', parameters: {} }],
     })
 
     vi.mocked(useWorkflowStore.getState).mockReturnValue({

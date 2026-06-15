@@ -1,4 +1,5 @@
 /** Mock data for Access Management (RBAC) endpoints. */
+import { mockDate } from './mockDates'
 
 // ── Users (simplified for display) ────────────────────────────────────────
 
@@ -43,8 +44,6 @@ export interface MockProject {
   updated_at: string
 }
 
-const now = new Date().toISOString()
-
 export const mockProjects: MockProject[] = [
   {
     id: 'p-001',
@@ -53,7 +52,7 @@ export const mockProjects: MockProject[] = [
     labels: {},
     is_default: true,
     created_at: '2024-01-15T19:00:00.000Z',
-    updated_at: now,
+    updated_at: mockDate.daysAgo2,
   },
   {
     id: 'p-002',
@@ -225,7 +224,7 @@ export const mockPolicies: MockPolicy[] = [
   {
     id: 'pol-008',
     name: 'audit:read:any',
-    description: 'View audit logs',
+    description: 'View audit data',
     is_builtin: true,
     is_project_eligible: true,
     scope: 'any',

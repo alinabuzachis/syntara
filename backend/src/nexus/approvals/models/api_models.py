@@ -29,6 +29,32 @@ class UserReference(SQLModel):
     name: str = Field(..., description="User's display name at time of action")
 
 
+class ApproverUserSummary(SQLModel):
+    """Summary of a user authorized to approve a request.
+
+    Similar to UserReference but represents an approver rather than a decider.
+    Used in API responses to show who can approve a request.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+
+    id: UUID = Field(..., description="User's unique identifier")
+    username: str = Field(..., description="User's username")
+
+
+class ApproverGroupSummary(SQLModel):
+    """Summary of a group whose members are authorized to approve a request.
+
+    Represents a group of users who can collectively approve a request.
+    Used in API responses to show which groups have approval authority.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+
+    id: UUID = Field(..., description="Group's unique identifier")
+    name: str = Field(..., description="Group's name")
+
+
 class ApprovalRequestStatus(str, Enum):
     """Approval request status enumeration."""
 
@@ -128,6 +154,17 @@ class ApprovalCreateRequest(SQLModel):
     next_step_approved: ActivitySummary = Field(..., description="First activity that executes if approved")
     next_step_rejected: ActivitySummary | None = Field(None, description="First activity that executes if rejected")
     workflow_context: WorkflowContext = Field(..., description="Workflow execution context")
+    # FK validation: UUIDs must exist in users/groups tables (enforced at service layer)
+    approver_user_ids: list[UUID] | None = Field(
+        None,
+        max_length=FieldLimits.APPROVER_LIST_MAX_LENGTH,
+        description="User IDs who can approve (null = any user with approval:decide permission)",
+    )
+    approver_group_ids: list[UUID] | None = Field(
+        None,
+        max_length=FieldLimits.APPROVER_LIST_MAX_LENGTH,
+        description="Group IDs whose members can approve",
+    )
 
 
 class ApprovalDecisionRequest(SQLModel):

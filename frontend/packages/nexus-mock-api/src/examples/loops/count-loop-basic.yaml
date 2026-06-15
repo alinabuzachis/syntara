@@ -9,14 +9,14 @@ nodes:
   - id: count_loop
     name: Count Loop
     type: loop
-    config:
+    parameters:
       type: count
       count: 5
       indexVariable: idx
 
   - id: count_task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Count loop iteration"

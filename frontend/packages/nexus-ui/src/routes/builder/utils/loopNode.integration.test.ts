@@ -35,14 +35,14 @@ describe('Loop Node Integration Tests', () => {
         type: 'loop' as const,
         id: loopId,
         name: 'Test Loop',
-        config: { type: 'for_each' as const, items: 'input.items' },
+        parameters: { type: 'for_each' as const, items: 'input.items' },
       }
 
       const genericActivity = {
         type: 'script' as const,
         id: genericId,
         name: '',
-        config: { language: 'python' as const, code: '' },
+        parameters: { language: 'python' as const, code: '' },
         metadata: { __isGeneric: true },
       }
 
@@ -140,19 +140,19 @@ describe('Loop Node Integration Tests', () => {
         type: 'loop' as const,
         id: loopId,
         name: 'Test Loop',
-        config: { type: 'for_each' as const, items: 'input.items' },
+        parameters: { type: 'for_each' as const, items: 'input.items' },
       }
       const task1 = {
         type: 'script' as const,
         id: task1Id,
         name: 'Task 1',
-        config: { language: 'python' as const, code: '' },
+        parameters: { language: 'python' as const, code: '' },
       }
       const task2 = {
         type: 'script' as const,
         id: task2Id,
         name: 'Task 2',
-        config: { language: 'python' as const, code: '' },
+        parameters: { language: 'python' as const, code: '' },
       }
 
       const edges = [
@@ -263,13 +263,13 @@ describe('Loop Node Integration Tests', () => {
         type: 'loop' as const,
         id: 'loop_1',
         name: 'Test Loop',
-        config: { type: 'for_each' as const, items: 'input.items' },
+        parameters: { type: 'for_each' as const, items: 'input.items' },
       }
       const genericActivity = {
         type: 'script' as const,
         id: 'task_1',
         name: '',
-        config: { language: 'python' as const, code: '' },
+        parameters: { language: 'python' as const, code: '' },
       }
 
       const edges = [
@@ -300,25 +300,25 @@ describe('Loop Node Integration Tests', () => {
         type: 'loop' as const,
         id: loopId,
         name: 'Test Loop',
-        config: { type: 'for_each' as const, items: 'input.items' },
+        parameters: { type: 'for_each' as const, items: 'input.items' },
       }
       const task1 = {
         type: 'script' as const,
         id: task1Id,
         name: 'Task 1',
-        config: { language: 'python' as const, code: '' },
+        parameters: { language: 'python' as const, code: '' },
       }
       const task2 = {
         type: 'script' as const,
         id: task2Id,
         name: 'Task 2',
-        config: { language: 'python' as const, code: '' },
+        parameters: { language: 'python' as const, code: '' },
       }
       const task3 = {
         type: 'script' as const,
         id: task3Id,
         name: 'Task 3',
-        config: { language: 'python' as const, code: '' },
+        parameters: { language: 'python' as const, code: '' },
       }
 
       const initialEdges = [

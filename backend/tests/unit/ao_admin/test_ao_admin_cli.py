@@ -1,12 +1,20 @@
 """Unit tests for the ao-admin CLI enable-user and reset-password commands."""
 
+import re
+from io import StringIO
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 import typer
 
-from nexus.ao_admin.__main__ import _enable_user_async, _get_actor, _reset_password_async, _validate_password
+from nexus.ao_admin.__main__ import (
+    _enable_user_async,
+    _get_actor,
+    _reset_password_async,
+    _resolve_password,
+    _validate_password,
+)
 from nexus.core.models.user import AuthType
 
 
@@ -362,6 +370,234 @@ class TestResetPassword:
 
 
 # ---------------------------------------------------------------------------
+# _resolve_password
+# ---------------------------------------------------------------------------
+
+
+class TestResolvePassword:
+    """Tests for _resolve_password helper (flag / stdin / interactive precedence)."""
+
+    def test_returns_password_from_flag(self) -> None:
+        """--password flag should be returned directly with non_interactive=True."""
+        password, non_interactive = _resolve_password("MySecureP@ss1", password_stdin=False)
+        assert password == "MySecureP@ss1"  # noqa: S105
+        assert non_interactive is True
+
+    def test_exits_when_flag_is_empty_string(self) -> None:
+        """--password '' should exit with code 1."""
+        with pytest.raises(typer.Exit) as exc_info:
+            _resolve_password("", password_stdin=False)
+        assert exc_info.value.exit_code == 1
+
+    def test_exits_when_both_password_and_stdin_given(self) -> None:
+        """--password and --password-stdin together should exit with code 1."""
+        with pytest.raises(typer.Exit) as exc_info:
+            _resolve_password("SomeValue", password_stdin=True)
+        assert exc_info.value.exit_code == 1
+
+    def test_reads_password_from_stdin_when_flag_set(self) -> None:
+        """--password-stdin should read one line from stdin."""
+        fake_stdin = StringIO("PipedPassword123!\n")
+        with patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin):
+            password, non_interactive = _resolve_password(None, password_stdin=True)
+        assert password == "PipedPassword123!"  # noqa: S105
+        assert non_interactive is True
+
+    def test_strips_only_trailing_newline_from_stdin(self) -> None:
+        """Should strip trailing newline but preserve spaces in the password."""
+        fake_stdin = StringIO("My Password 123!\n")
+        with patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin):
+            password, _ = _resolve_password(None, password_stdin=True)
+        assert password == "My Password 123!"  # noqa: S105
+
+    def test_exits_when_password_stdin_is_empty(self) -> None:
+        """Should exit with code 1 when --password-stdin gets empty input."""
+        fake_stdin = StringIO("")
+        with (
+            patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin),
+            pytest.raises(typer.Exit) as exc_info,
+        ):
+            _resolve_password(None, password_stdin=True)
+        assert exc_info.value.exit_code == 1
+
+    def test_exits_when_password_stdin_is_only_newline(self) -> None:
+        """Should exit with code 1 when --password-stdin gets only a newline."""
+        fake_stdin = StringIO("\n")
+        with (
+            patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin),
+            pytest.raises(typer.Exit) as exc_info,
+        ):
+            _resolve_password(None, password_stdin=True)
+        assert exc_info.value.exit_code == 1
+
+    def test_exits_when_non_tty_without_explicit_source(self) -> None:
+        """Should exit with code 1 when stdin is not a TTY and neither flag is given."""
+        fake_stdin = StringIO("some piped data\n")
+        with (
+            patch("nexus.ao_admin.__main__.sys.stdin", fake_stdin),
+            pytest.raises(typer.Exit) as exc_info,
+        ):
+            _resolve_password(None, password_stdin=False)
+        assert exc_info.value.exit_code == 1
+
+    def test_interactive_prompt_when_tty(self) -> None:
+        """Should use getpass when stdin is a TTY and no flag is provided."""
+        with (
+            patch("nexus.ao_admin.__main__.sys.stdin") as mock_stdin,
+            patch("nexus.ao_admin.__main__.getpass.getpass", side_effect=["MyPassword123!", "MyPassword123!"]),
+        ):
+            mock_stdin.isatty.return_value = True
+            password, non_interactive = _resolve_password(None, password_stdin=False)
+        assert password == "MyPassword123!"  # noqa: S105
+        assert non_interactive is False
+
+    def test_interactive_prompt_exits_on_mismatch(self) -> None:
+        """Should exit with code 1 when interactive passwords don't match."""
+        with (
+            patch("nexus.ao_admin.__main__.sys.stdin") as mock_stdin,
+            patch("nexus.ao_admin.__main__.getpass.getpass", side_effect=["password1", "password2"]),
+            pytest.raises(typer.Exit) as exc_info,
+        ):
+            mock_stdin.isatty.return_value = True
+            _resolve_password(None, password_stdin=False)
+        assert exc_info.value.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# reset-password CLI integration (non-interactive modes)
+# ---------------------------------------------------------------------------
+
+
+class TestResetPasswordNonInteractive:
+    """Tests for reset-password command with --password flag and stdin."""
+
+    def test_password_flag_skips_confirmation_and_prompts(self) -> None:
+        """--password flag should bypass both confirmation and getpass prompts."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        with (
+            patch("nexus.ao_admin.__main__._validate_password", return_value=(True, None)),
+            patch("nexus.ao_admin.__main__.asyncio.run") as mock_run,
+        ):
+            result = runner.invoke(app, ["reset-password", "--username", "alice", "--password", "ValidPassword123!"])
+
+        assert result.exit_code == 0
+        mock_run.assert_called_once()
+
+    def test_password_flag_still_validates(self) -> None:
+        """--password flag should still enforce password validation."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        with patch("nexus.ao_admin.__main__._resolve_password", return_value=("short", True)):
+            result = runner.invoke(app, ["reset-password", "--username", "alice", "--password", "short"])
+
+        assert result.exit_code == 1
+
+    def test_password_stdin_flag_through_cli(self) -> None:
+        """--password-stdin should flow through CliRunner without mocking _resolve_password."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        with (
+            patch("nexus.ao_admin.__main__._validate_password", return_value=(True, None)),
+            patch("nexus.ao_admin.__main__.asyncio.run") as mock_run,
+        ):
+            result = runner.invoke(
+                app,
+                ["reset-password", "--username", "alice", "--password-stdin"],
+                input="PipedPassword123!\n",
+            )
+
+        assert result.exit_code == 0
+        mock_run.assert_called_once()
+
+    def test_password_stdin_empty_through_cli(self) -> None:
+        """Empty stdin with --password-stdin should fail through CliRunner."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["reset-password", "--username", "alice", "--password-stdin"],
+            input="",
+        )
+
+        assert result.exit_code == 1
+        assert "No password provided via stdin" in result.output
+
+    def test_password_stdin_invalid_password_through_cli(self) -> None:
+        """Invalid password via --password-stdin should fail validation through CliRunner."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["reset-password", "--username", "alice", "--password-stdin"],
+            input="short\n",
+        )
+
+        assert result.exit_code == 1
+        assert "at least 14 characters" in result.output
+
+    def test_non_tty_without_flag_fails_through_cli(self) -> None:
+        """Piped stdin without --password-stdin should fail through CliRunner."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["reset-password", "--username", "alice"],
+            input="PipedPassword123!\n",
+        )
+
+        assert result.exit_code == 1
+        assert "--password-stdin" in result.output
+
+    def test_password_and_password_stdin_mutually_exclusive(self) -> None:
+        """--password and --password-stdin together should fail."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["reset-password", "--username", "alice", "--password", "X", "--password-stdin"],
+            input="Y\n",
+        )
+
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output
+
+    def test_help_shows_password_options(self) -> None:
+        """--password and --password-stdin should appear in the help output."""
+        from typer.testing import CliRunner
+
+        from nexus.ao_admin.__main__ import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["reset-password", "--help"])
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert result.exit_code == 0
+        assert "--password-stdin" in plain
+        assert "--password" in plain.split("--password-stdin")[0]
+
+
+# ---------------------------------------------------------------------------
 # Typer CLI integration
 # ---------------------------------------------------------------------------
 
@@ -376,6 +612,7 @@ class TestTyperCommands:
 
         runner = CliRunner()
         result = runner.invoke(app, ["--help"])
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
         assert result.exit_code == 0
-        assert "enable-user" in result.output
-        assert "reset-password" in result.output
+        assert "enable-user" in plain
+        assert "reset-password" in plain

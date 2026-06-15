@@ -5,7 +5,7 @@ description: AAP job template workflow using name-based reference
 triggers:
   - id: trigger_manual
     type: manual_trigger
-    config:
+    parameters:
       inputs:
         template_name:
           type: string
@@ -21,7 +21,7 @@ nodes:
   - id: launch_job_by_name
     type: aap_job_template
     name: Launch Job By Name
-    config:
+    parameters:
       job_template_name: ${trigger.template_name}
       organization_name: ${trigger.organization_name}
       verbosity: 3

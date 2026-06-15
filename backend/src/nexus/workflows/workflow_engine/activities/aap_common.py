@@ -22,7 +22,7 @@ from nexus.core.exceptions import SafeValueError
 from nexus.core.lib.url_validation import validate_host_url
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
-from .common import ActivityExecutionError
+from .common import ActivityExecutionError, is_retryable_http_status
 
 if TYPE_CHECKING:
     from httpx._client import UseClientDefault
@@ -89,7 +89,13 @@ AAP_JOB_TERMINAL_STATUSES = {status.lower() for status in AAPJobTerminalStatus}
 
 
 class AAPActivityExecutionError(ActivityExecutionError):
-    """Base class for AAP activity execution errors."""
+    """Base class for AAP activity execution errors.
+
+    The ``retryable`` flag controls how the activity-level catch block
+    converts this into a Temporal ``ApplicationError``.  HTTP status
+    classification sets it via ``is_retryable_http_status``; all other
+    paths default to ``False`` (non-retryable).
+    """
 
     def __init__(
         self,
@@ -97,20 +103,15 @@ class AAPActivityExecutionError(ActivityExecutionError):
         job_id: int | None = None,
         status: str | None = None,
         output: str | None = None,
+        *,
+        retryable: bool = False,
     ) -> None:
-        """Initialize AAP activity execution error.
-
-        Args:
-            message: Error message
-            job_id: AAP job ID (if available)
-            status: Job status (if available)
-            output: Job output/logs (if available)
-
-        """
+        """Initialize with optional retryable flag for HTTP status classification."""
         super().__init__(message)
         self.job_id = job_id
         self.status = status
         self.output = output
+        self.retryable = retryable
 
 
 async def lookup_resource_by_name(
@@ -188,10 +189,10 @@ async def lookup_resource_by_name(
             f"Failed to lookup {display_name} '{resource_name}' in org '{organization_name}': "
             f"HTTP {e.response.status_code}"
         )
-        raise error_class(msg, status=None) from e
+        raise error_class(msg, status=None, retryable=is_retryable_http_status(e.response.status_code)) from e
     except httpx.ConnectError as e:
         msg = f"Failed to connect to AAP for {display_name} lookup: {e}"
-        raise ApplicationError(msg, non_retryable=True) from e
+        raise error_class(msg) from e
     except httpx.HTTPError as e:
         msg = f"Failed to connect to AAP for {display_name} lookup: {e}"
         raise error_class(msg) from e
@@ -277,7 +278,7 @@ async def lookup_organization_id(
         return organization_id
     except httpx.HTTPStatusError as e:
         msg = f"Failed to lookup organization '{organization_name}': HTTP {e.response.status_code}"
-        raise error_class(msg, status=None) from e
+        raise error_class(msg, status=None, retryable=is_retryable_http_status(e.response.status_code)) from e
 
 
 async def resolve_single_label(
@@ -387,10 +388,9 @@ async def resolve_single_label(
                 msg = f"Failed to re-query label '{name}' after 409 Conflict: {retry_error}"
                 raise error_class(msg) from retry_error
 
-        # Generic error for all other status codes
         response_text = e.response.text if hasattr(e.response, "text") else ""
         msg = f"Failed to resolve/create label '{name}': HTTP {e.response.status_code} - {response_text}"
-        raise error_class(msg, status=None) from e
+        raise error_class(msg, status=None, retryable=is_retryable_http_status(e.response.status_code)) from e
     except httpx.HTTPError as e:
         msg = f"Failed to connect to AAP for label resolution: {e}"
         raise error_class(msg) from e
@@ -657,6 +657,28 @@ async def handle_cancellation(
         raise CancelledError(msg)
 
 
+class _TransientPollError(Exception):
+    """Raised when a poll request fails with a transient error.
+
+    Not propagated outside poll_until_complete — used to signal the poll loop
+    to log, sleep, and retry on the next cycle.
+    """
+
+
+_HTTP_NOT_FOUND = 404
+
+
+def _is_transient_poll_error(exc: httpx.HTTPError) -> bool:
+    """Return True if a poll HTTP error is transient and should be retried."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        if status == _HTTP_NOT_FOUND:
+            return False
+        return is_retryable_http_status(status)
+    # Connection / timeout errors are transient
+    return isinstance(exc, httpx.ConnectError | httpx.TimeoutException)
+
+
 async def fetch_job_status(
     client: httpx.AsyncClient,
     status_url: str,
@@ -667,19 +689,24 @@ async def fetch_job_status(
 ) -> dict[str, Any]:
     """Fetch current job status from AAP.
 
+    Transient HTTP errors (429, 502, 503, 504, connection/timeout) raise
+    _TransientPollError so the poll loop can retry on the next cycle.
+    Non-transient errors (404, 401, 403, etc.) raise error_class immediately.
+
     Args:
         client: HTTP client
         status_url: URL to fetch job status
         auth_headers: Authentication headers
         auth_param: Authentication parameter for request
         job_id: AAP job ID
-        error_class: Error class to raise on failure
+        error_class: Error class to raise on non-transient failure
 
     Returns:
         Job data dictionary
 
     Raises:
-        error_class: If status fetch fails
+        _TransientPollError: If error is transient (retry on next poll cycle)
+        error_class: If status fetch fails with a non-transient error
 
     """
     try:
@@ -688,6 +715,9 @@ async def fetch_job_status(
         job_data: dict[str, Any] = status_response.json()
         return job_data
     except httpx.HTTPError as e:
+        if _is_transient_poll_error(e):
+            msg = f"Transient error polling job {job_id} status: {e}"
+            raise _TransientPollError(msg) from e
         msg = f"Failed to poll job {job_id} status: {e}"
         raise error_class(msg, job_id=job_id) from e
 
@@ -706,6 +736,13 @@ async def poll_until_complete(
     error_class: type[AAPActivityExecutionError],
 ) -> dict[str, Any]:
     """Poll job status until completion.
+
+    Transient poll errors (429, 502, 503, 504, connection, timeout) are
+    absorbed and retried on the next poll cycle. The existing activity
+    timeout is the backstop — no separate retry counter.
+
+    If the timeout expires while poll errors are occurring, the error
+    message distinguishes "job timed out" from "launched but lost contact".
 
     Args:
         client: HTTP client
@@ -736,15 +773,41 @@ async def poll_until_complete(
     margin = math.ceil(poll_interval)
     effective_timeout = max(timeout_seconds - margin, 1)
 
+    last_poll_error: str | None = None
+
     while True:
         elapsed = time.time() - start_time
-        check_timeout(elapsed, effective_timeout, job_id, configured_timeout=timeout_seconds)
+        try:
+            check_timeout(elapsed, effective_timeout, job_id, configured_timeout=timeout_seconds)
+        except AAPActivityExecutionError as timeout_err:
+            if last_poll_error is not None:
+                msg = (
+                    f"AAP job {job_id} launched successfully but unable to determine completion "
+                    f"status — polling failed repeatedly until timeout ({timeout_seconds}s). "
+                    f"Last error: {last_poll_error}"
+                )
+                raise error_class(msg, job_id=job_id) from timeout_err
+            raise
 
         # Check for cancellation (Temporal best practice)
         await handle_cancellation(client, job_id, auth_headers, auth_param, base_url, job_type)
 
-        # Poll job status
-        job_data = await fetch_job_status(client, status_url, auth_headers, auth_param, job_id, error_class)
+        # Poll job status — transient errors are retried on next cycle
+        try:
+            job_data = await fetch_job_status(client, status_url, auth_headers, auth_param, job_id, error_class)
+        except _TransientPollError as e:
+            last_poll_error = str(e)
+            logger.warning(
+                "Transient error polling %s status, will retry next cycle",
+                job_type,
+                job_id=job_id,
+                error=str(e),
+            )
+            activity.heartbeat({"job_id": job_id, "status": "poll_error"})
+            await asyncio.sleep(poll_interval)
+            continue
+
+        last_poll_error = None
         status = job_data["status"]
 
         logger.info(

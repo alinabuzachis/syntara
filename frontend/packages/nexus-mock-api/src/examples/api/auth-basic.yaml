@@ -15,7 +15,7 @@ triggers:
 nodes:
   - id: fetch_with_basic_auth
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/basic-auth
       authentication:

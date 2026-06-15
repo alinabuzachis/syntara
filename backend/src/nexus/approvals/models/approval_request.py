@@ -8,23 +8,26 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
-from sqlalchemy import Column, String, text
+from sqlalchemy import Column, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship
 
 from nexus.approvals.models.api_models import (
     ActivitySummary,
     ApprovalRequestStatus,
+    ApproverGroupSummary,
+    ApproverUserSummary,
     UserReference,
     WorkflowContext,
 )
+from nexus.approvals.models.approval_approvers import ApprovalApproverGroup, ApprovalApproverUser
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:
-    from nexus.core.models import User
+    from nexus.core.models import Group, User
 
 
 class BaseApprovalRequest(BaseResource, table=False):
@@ -131,6 +134,7 @@ class ApprovalRequest(BaseApprovalRequest, table=True):
     """
 
     __tablename__ = "approval_requests"
+    __table_args__ = (UniqueConstraint("execution_id", "approval_node_id", name="uix_execution_approval_node"),)
 
     # Filterable and sortable fields for API endpoints
     __filterable_fields__: ClassVar[list[str]] = [
@@ -163,6 +167,17 @@ class ApprovalRequest(BaseApprovalRequest, table=True):
         sa_relationship_kwargs={"foreign_keys": "[ApprovalRequest.decided_by]"},
     )
 
+    # Many-to-many relationships through junction tables
+    approver_user_records: list["User"] = Relationship(
+        link_model=ApprovalApproverUser,
+        sa_relationship_kwargs={"viewonly": True},
+    )
+
+    approver_group_records: list["Group"] = Relationship(
+        link_model=ApprovalApproverGroup,
+        sa_relationship_kwargs={"viewonly": True},
+    )
+
 
 class ApprovalRequestRead(BaseApprovalRequest, table=False):
     """ApprovalRequest API response model with typed nested fields.
@@ -181,6 +196,16 @@ class ApprovalRequestRead(BaseApprovalRequest, table=False):
     )
     workflow_context: WorkflowContext = Field(  # type: ignore[assignment]
         ..., description="Workflow inputs and previous step output"
+    )
+
+    # Approver configuration - API returns summary objects
+    approver_users: list[ApproverUserSummary] = Field(
+        default_factory=list,
+        description="Users who can approve this request (empty = any user with permission)",
+    )
+    approver_groups: list[ApproverGroupSummary] = Field(
+        default_factory=list,
+        description="Groups whose members can approve this request",
     )
 
     # Decision field - API returns UserReference object

@@ -76,7 +76,6 @@ function applyScalarDefaults(
     { askFlag: 'ask_skip_tags_on_launch', defaultKey: 'skip_tags', formKey: 'skip_tags' },
     { askFlag: 'ask_diff_mode_on_launch', defaultKey: 'diff_mode', formKey: 'diff_mode' },
     { askFlag: 'ask_job_slice_count_on_launch', defaultKey: 'job_slice_count', formKey: 'job_slice_count' },
-    { askFlag: 'ask_timeout_on_launch', defaultKey: 'timeout', formKey: 'timeout' },
   ]
 
   for (const { askFlag, defaultKey, formKey, transform } of scalarFields) {

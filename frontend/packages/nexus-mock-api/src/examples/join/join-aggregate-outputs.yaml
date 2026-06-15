@@ -11,25 +11,25 @@ nodes:
 
   - id: data_task1
     type: script
-    config:
+    parameters:
       language: bash
       code: "echo '{\"value\": 10}'"
 
   - id: data_task2
     type: script
-    config:
+    parameters:
       language: bash
       code: "echo '{\"value\": 20}'"
 
   - id: data_task3
     type: script
-    config:
+    parameters:
       language: bash
       code: "echo '{\"value\": 30}'"
 
   - id: join_aggregate
     type: converge
-    config:
+    parameters:
       branches:
         - data_task1
         - data_task2

@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from nexus.workflows.utils.template_resolution import resolve_config_templates, resolve_value
+from nexus.workflows.utils.template_resolution import resolve_parameter_templates, resolve_value
 from nexus.workflows.workflow_engine.expression_resolver import ExpressionResolver
 
 
@@ -145,13 +145,13 @@ class TestResolveValue:
 
 
 class TestResolveConfigTemplates:
-    """Tests for resolve_config_templates function."""
+    """Tests for resolve_parameter_templates function."""
 
     def test_resolve_empty_config(self) -> None:
         """Test resolving empty config dictionary."""
         workflow_state: dict[str, Any] = {}
 
-        result = resolve_config_templates({}, workflow_state)
+        result = resolve_parameter_templates({}, workflow_state)
         assert result == {}
 
     def test_resolve_config_no_templates(self) -> None:
@@ -160,7 +160,7 @@ class TestResolveConfigTemplates:
 
         config = {"timeout": 30, "language": "python", "enabled": True}
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {"timeout": 30, "language": "python", "enabled": True}
 
     def test_resolve_config_with_template_timeout(self) -> None:
@@ -169,7 +169,7 @@ class TestResolveConfigTemplates:
 
         config = {"language": "bash", "timeout": "${input.custom_timeout}", "code": "echo hello"}
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {"language": "bash", "timeout": 60, "code": "echo hello"}
 
     def test_resolve_config_aap_job_template(self) -> None:
@@ -186,7 +186,7 @@ class TestResolveConfigTemplates:
             "extra_vars": {"key": "value"},
         }
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {
             "job_template_id": 42,
             "verbosity": 2,
@@ -212,7 +212,7 @@ class TestResolveConfigTemplates:
             },
         }
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {
             "job_template_id": 42,
             "timeout": 1800,
@@ -238,7 +238,7 @@ class TestResolveConfigTemplates:
         # Note: secrets need to be in inputs for this test
         workflow_state["inputs"]["secrets"] = {"api_token": "abc123"}
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result["method"] == "GET"
         assert result["url"] == "https://api.example.com/users/123"
         assert result["timeout"] == 30
@@ -254,7 +254,7 @@ class TestResolveConfigTemplates:
             "environment": {"API_KEY": "${input.api_key}", "DEBUG": "true"},
         }
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {
             "language": "python",
             "code": "print('Hello World')",
@@ -270,17 +270,17 @@ class TestResolveConfigTemplates:
 
         config = {"field": "${input.value}"}
 
-        result = resolve_config_templates(config, workflow_state, resolver=resolver)
+        result = resolve_parameter_templates(config, workflow_state, resolver=resolver)
         assert result == {"field": 100}
 
     def test_resolve_config_creates_default_resolver(self) -> None:
-        """Test that resolve_config_templates creates a default resolver when not provided."""
+        """Test that resolve_parameter_templates creates a default resolver when not provided."""
         workflow_state: dict[str, Any] = {"inputs": {"value": 42}}
 
         config = {"field": "${input.value}"}
 
         # Call without providing resolver
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {"field": 42}
 
     def test_resolve_config_mixed_types(self) -> None:
@@ -299,7 +299,7 @@ class TestResolveConfigTemplates:
             "static_str": "constant",
         }
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {
             "timeout": 60,
             "max_attempts": 3,
@@ -321,7 +321,7 @@ class TestResolveConfigTemplates:
             ]
         }
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {"servers": [{"name": "server1", "replicas": 3}, {"name": "server2", "port": 8080}]}
 
     def test_resolve_config_preserves_none_values(self) -> None:
@@ -330,7 +330,7 @@ class TestResolveConfigTemplates:
 
         config = {"field1": "${input.value}", "field2": None, "field3": "test"}
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {"field1": 42, "field2": None, "field3": "test"}
 
 
@@ -353,7 +353,7 @@ class TestTemplateResolutionEdgeCases:
 
         config = {"static_field": "value", "number": 42}
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {"static_field": "value", "number": 42}
 
     def test_resolve_value_empty_list(self) -> None:
@@ -383,7 +383,7 @@ class TestTemplateResolutionEdgeCases:
             "environment": {"KEY": "value"},
         }
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == config
 
     def test_resolve_config_all_fields_templates(self) -> None:
@@ -399,7 +399,7 @@ class TestTemplateResolutionEdgeCases:
             "environment": {"KEY": "${input.key}"},
         }
 
-        result = resolve_config_templates(config, workflow_state)
+        result = resolve_parameter_templates(config, workflow_state)
         assert result == {
             "timeout": 60,
             "language": "bash",

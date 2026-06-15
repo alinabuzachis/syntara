@@ -24,7 +24,7 @@ nodes:
   - id: fetch_country
     name: Fetch Country Information
     type: http_request
-    config:
+    parameters:
       method: GET
       url: https://restcountries.com/v3.1/alpha/${input.country_code}
       headers:
@@ -47,7 +47,7 @@ nodes:
   - id: fetch_neighbors
     name: Fetch Neighbor Information
     type: http_request
-    config:
+    parameters:
       method: GET
       url: https://restcountries.com/v3.1/alpha/${input.country_code}?fields=borders
       headers:
@@ -59,7 +59,7 @@ nodes:
   - id: analyze_country
     name: Analyze Country Data
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import json

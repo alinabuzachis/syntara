@@ -28,7 +28,7 @@ describe('SwitchNodeComponent', () => {
     id: 'switch-1',
     type: 'switch',
     name: 'Route by status',
-    config: {
+    parameters: {
       cases: [
         { port: buildSwitchCasePort(0), label: 'Path 1', condition: '${status} == "approved"' },
         { port: buildSwitchCasePort(1), label: 'Path 2', condition: '${status} == "rejected"' },
@@ -76,7 +76,7 @@ describe('SwitchNodeComponent', () => {
     it('renders with empty cases gracefully', () => {
       const emptyData = {
         ...baseSwitchData,
-        config: { cases: [], default_port: EdgeHandleEnum.DEFAULT },
+        parameters: { cases: [], default_port: EdgeHandleEnum.DEFAULT },
       } as SwitchActivity
 
       render(<SwitchNodeComponent {...createNodeProps(emptyData)} />)
@@ -103,7 +103,7 @@ describe('SwitchNodeComponent', () => {
 
   describe('Edge cases', () => {
     it('renders with missing config', () => {
-      const noConfigData = { ...baseSwitchData, config: undefined } as unknown as SwitchActivity
+      const noConfigData = { ...baseSwitchData, parameters: undefined } as unknown as SwitchActivity
 
       render(<SwitchNodeComponent {...createNodeProps(noConfigData)} />)
 
@@ -113,7 +113,7 @@ describe('SwitchNodeComponent', () => {
     it('renders with missing cases in config', () => {
       const noCasesData = {
         ...baseSwitchData,
-        config: { default_port: EdgeHandleEnum.DEFAULT },
+        parameters: { default_port: EdgeHandleEnum.DEFAULT },
       } as unknown as SwitchActivity
 
       render(<SwitchNodeComponent {...createNodeProps(noCasesData)} />)
@@ -124,7 +124,7 @@ describe('SwitchNodeComponent', () => {
     it('generates port from index when case has no port', () => {
       const noPortData = {
         ...baseSwitchData,
-        config: {
+        parameters: {
           cases: [{ port: '', label: 'No Port Case', condition: '${x} == 1' }],
           default_port: EdgeHandleEnum.DEFAULT,
         },
@@ -138,7 +138,7 @@ describe('SwitchNodeComponent', () => {
     it('falls back to Path N when case has no label', () => {
       const noLabelData = {
         ...baseSwitchData,
-        config: {
+        parameters: {
           cases: [
             { port: buildSwitchCasePort(0), label: '', condition: '${x} == 1' },
             { port: buildSwitchCasePort(1), label: '', condition: '${y} == 2' },
@@ -196,7 +196,7 @@ describe('SwitchNodeComponent', () => {
 
       const truncatedData = {
         ...baseSwitchData,
-        config: {
+        parameters: {
           cases: [
             {
               port: buildSwitchCasePort(0),

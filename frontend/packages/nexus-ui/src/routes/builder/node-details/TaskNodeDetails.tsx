@@ -1,4 +1,10 @@
-import { ActivityTypeEnum, ExecutorTypeEnum, type Activity, type TaskActivity } from '@ansible/nexus-contracts'
+import {
+  ActivityTypeEnum,
+  ExecutorTypeEnum,
+  type Activity,
+  type NodeSettings,
+  type TaskActivity,
+} from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts, type AlertMessage } from '../../../providers/alerts'
@@ -244,7 +250,6 @@ function buildAAPInitialData(taskName: string, config: Record<string, unknown>):
     job_credentials: c.jobCredentials ?? c.job_credentials ?? [],
     job_type: getField(c.job_type, c.jobType, ''),
     forks: c.forks,
-    timeout: c.timeout,
     job_slice_count: c.job_slice_count ?? c.jobSlicing,
     diff_mode: getField(c.diff_mode, c.diffMode, false),
     execution_environment: getField(c.execution_environment, c.executionEnvironment, ''),
@@ -295,6 +300,7 @@ type AAPTaskProps = {
   readonly config: Record<string, unknown>
   readonly taskName: string
   readonly nodeId: string
+  readonly settings: NodeSettings | undefined
   readonly onClose: () => void
   readonly onHeaderContentChange: (content: ReactNode | null) => void
   readonly projectId?: string
@@ -311,6 +317,7 @@ function renderAAPTaskDetails({
   config,
   taskName,
   nodeId,
+  settings,
   onClose,
   onHeaderContentChange,
   projectId,
@@ -319,7 +326,7 @@ function renderAAPTaskDetails({
 }: AAPTaskProps) {
   // Branch based on actual executor type
   if (actualExecutor === ExecutorTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE) {
-    const workflowInitialData = buildAAPWorkflowInitialData(taskName, config)
+    const workflowInitialData = { ...buildAAPWorkflowInitialData(taskName, config), settings }
 
     const handleWorkflowSubmit = (data: AAPWorkflowTemplateFormData) => {
       try {
@@ -330,7 +337,13 @@ function renderAAPTaskDetails({
           const workflowConfig = buildAAPWorkflowTemplateConfig(data)
           updateActivity(
             nodeId,
-            createAAPWorkflowTemplateActivity(nodeId, data.name, workflow_job_template_id, workflowConfig)
+            createAAPWorkflowTemplateActivity(
+              nodeId,
+              data.name,
+              workflow_job_template_id,
+              workflowConfig,
+              data.settings
+            )
           )
         }
 
@@ -355,7 +368,7 @@ function renderAAPTaskDetails({
   }
 
   // Default to AAP job template
-  const aapInitialData = buildAAPInitialData(taskName, config)
+  const aapInitialData = { ...buildAAPInitialData(taskName, config), settings }
 
   const handleAAPSubmit = (data: AAPJobTemplateFormData) => {
     try {
@@ -364,7 +377,10 @@ function renderAAPTaskDetails({
       } else {
         const job_template_id = validateJobTemplateId(data.job_template_id)
         const aapNodeConfig = buildAAPConfig(data)
-        updateActivity(nodeId, createAAPJobTemplateActivity(nodeId, data.name, job_template_id, aapNodeConfig))
+        updateActivity(
+          nodeId,
+          createAAPJobTemplateActivity(nodeId, data.name, job_template_id, aapNodeConfig, data.settings)
+        )
       }
 
       onClose()
@@ -410,8 +426,8 @@ export function TaskNodeDetails({
   // Detect the actual node type - handles disguised AAP/connector nodes
   const { actualExecutor, detectedExecutorType } = detectTaskNodeType(taskData as TaskActivity)
 
-  // In v2, config is at activity.config (not activity.task.config)
-  const config = taskData.config ?? {}
+  // In v2, parameters are at activity.parameters (not activity.task.parameters)
+  const config = taskData.parameters ?? {}
 
   // AAP (incl. connector-backed with executor still "agentic") must be checked before the generic
   // agentic branch, or those tasks would incorrectly show AI Agent details.
@@ -425,6 +441,7 @@ export function TaskNodeDetails({
       config,
       taskName: taskData.name ?? '',
       nodeId,
+      settings: taskData.settings,
       onClose,
       onHeaderContentChange,
       projectId,
@@ -473,6 +490,7 @@ export function TaskNodeDetails({
       (config as { credentialId?: string; credential_id?: string }).credentialId ??
       (config as { credentialId?: string; credential_id?: string }).credential_id ??
       undefined,
+    settings: taskData.settings,
   }
 
   const handleSubmit = (data: RegistryActionFormData) => {
@@ -484,7 +502,8 @@ export function TaskNodeDetails({
         ...taskData,
         name: data.name,
         type: data.executor,
-        config,
+        parameters: config,
+        settings: data.settings,
       } as Activity
 
       updateActivity(nodeId, updatedActivity)

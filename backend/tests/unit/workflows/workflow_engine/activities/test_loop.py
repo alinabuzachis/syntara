@@ -61,7 +61,7 @@ class TestForEachCompletion:
     async def test_iterate_does_not_include_iteration_results(self) -> None:
         config: dict[str, Any] = {"type": "for_each", "items": ["a", "b"], "current_index": 0}
         result = await loop(config, None, {"collected": [10]})
-        assert "iteration_results" not in result["output"]
+        assert result["output"]["iteration_results"] is None
 
 
 class TestForEachEmptyItems:
@@ -140,7 +140,7 @@ class TestLoopOutputMapping:
     async def test_empty_output_config_suppresses_fields(self) -> None:
         config: dict[str, Any] = {"type": "for_each", "items": ["a"], "current_index": 0}
         result = await loop(config, {}, {})
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_field_mapping_extracts_count(self) -> None:
@@ -226,7 +226,7 @@ class TestDoWhileIterationResults:
             "condition_result": None,
         }
         result = await loop(config, None, {"data": [1, 2]})
-        assert "iteration_results" not in result["output"]
+        assert result["output"]["iteration_results"] is None
 
     @pytest.mark.asyncio
     async def test_do_while_complete_includes_iteration_results(self) -> None:
@@ -261,7 +261,7 @@ class TestDoWhileOutputMapping:
             "condition_result": None,
         }
         result = await loop(config, {}, {})
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_do_while_output_mapping_does_not_affect_control(self) -> None:

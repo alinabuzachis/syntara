@@ -5,6 +5,7 @@ HTTP/API concerns in the FastAPI endpoints.
 """
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -134,6 +135,17 @@ class ExecutionService(BaseService):
         )
         self.temporal_service = temporal_service
 
+    async def _resolve_user_display_name(self, user_id: UUID) -> str:
+        """Resolve a user ID to a display name, falling back to UUID string."""
+        try:
+            result = await self.session.exec(select(User).where(User.id == user_id))
+            user = result.first()
+            if user and hasattr(user, "display_name"):
+                return user.display_name
+        except Exception:  # noqa: BLE001
+            logger.debug("Could not resolve user display name", user_id=str(user_id))
+        return str(user_id)
+
     async def create_execution(
         self,
         workflow_id: UUID,
@@ -204,7 +216,34 @@ class ExecutionService(BaseService):
             schema_version=workflow_version.schema_version,
         )
 
-        # Step 2: Start Temporal workflow FIRST (if temporal_service is available)
+        # Step 2: Build workflow context for expression resolution.
+        # Uses the reserved "workflow_context" namespace per the handbook proposal (P3).
+        # "now" and "today" are NOT included here — they are resolved dynamically by the
+        # workflow engine at each node execution so they reflect the current wall-clock time.
+        # Users who need the execution start time can reference ${workflow_context.execution.created_at}.
+        pre_generated_execution_id = str(uuid4())
+        now = datetime.now(UTC)
+        workflow_author = await self._resolve_user_display_name(workflow.created_by)
+        workflow_metadata: dict[str, Any] = {
+            "workflow_context": {
+                "workflow": {
+                    "name": workflow.name,
+                    "id": str(workflow.id),
+                    "version": workflow_version.version,
+                    "published": workflow.published_version is not None,
+                    "author": workflow_author,
+                },
+                "execution": {
+                    "id": pre_generated_execution_id,
+                    "mode": "standard",
+                    "created_by": self.user.display_name,
+                    "created_at": now.isoformat(),
+                    "workflow_version_id": str(workflow_version.id),
+                },
+            },
+        }
+
+        # Step 3: Start Temporal workflow FIRST (if temporal_service is available)
         from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
 
         if self.temporal_service is not None:
@@ -220,6 +259,8 @@ class ExecutionService(BaseService):
                     workflow_id=str(workflow.id),
                     request_id=request_id_context_var.get(),
                     trigger_node_id=trigger_node_id,
+                    workflow_metadata=workflow_metadata,
+                    execution_id=pre_generated_execution_id,
                 )
             temporal_workflow_id = temporal_result.temporal_workflow_id
             execution_id = UUID(temporal_result.execution_id)
@@ -230,8 +271,8 @@ class ExecutionService(BaseService):
                 execution_id=execution_id,
             )
         else:
-            # For testing without Temporal, generate a stub ID
-            execution_id = uuid4()
+            # For testing without Temporal, use the pre-generated ID
+            execution_id = UUID(pre_generated_execution_id)
             temporal_workflow_id = f"exec-{execution_id}"
             logger.warning(
                 "No Temporal service available, using stub workflow ID", temporal_workflow_id=temporal_workflow_id
@@ -282,6 +323,8 @@ class ExecutionService(BaseService):
         node_ids: set[str],
         all_nodes: list[dict[str, Any]],
         workflow_def: dict[str, Any],
+        *,
+        execute_target: bool = True,
     ) -> None:
         """Validate pre_resolved_nodes against the workflow definition."""
         from nexus.core.exceptions import SafeValueError  # noqa: PLC0415
@@ -299,7 +342,7 @@ class ExecutionService(BaseService):
             msg = f"pre_resolved_nodes contains invalid entries: {'; '.join(parts)}"
             raise SafeValueError(msg)
 
-        if target_node_id in pre_resolved_nodes:
+        if execute_target and target_node_id in pre_resolved_nodes:
             msg = (
                 f"target_node_id '{target_node_id}' must not appear in "
                 "pre_resolved_nodes — it would be skipped instead of executed"
@@ -326,6 +369,8 @@ class ExecutionService(BaseService):
         target_node_id: str,
         pre_resolved_nodes: dict[str, "PreResolvedNodeOutput"],
         trigger_inputs: dict[str, Any],
+        *,
+        execute_target: bool = True,
     ) -> ExecutionRead:
         """Create and start a test execution for a single node.
 
@@ -336,6 +381,7 @@ class ExecutionService(BaseService):
             target_node_id: The node to execute for real
             pre_resolved_nodes: Mock outputs for predecessor nodes
             trigger_inputs: Input data for the trigger node
+            execute_target: When False, run predecessors but skip the target node
 
         Returns:
             Created execution with mode=TEST and status=PENDING
@@ -405,12 +451,44 @@ class ExecutionService(BaseService):
             node_ids,
             all_nodes,
             workflow_def,
+            execute_target=execute_target,
         )
 
         # Convert PreResolvedNodeOutput objects to dicts for Temporal and metadata
         pre_resolved_dicts = {node_id: output.model_dump() for node_id, output in pre_resolved_nodes.items()}
 
-        # Step 3: Start Temporal workflow with test parameters (if temporal_service is available)
+        # When execute_target is False, add the target to pre_resolved so it's
+        # skipped by Temporal while predecessors still run. The target will still
+        # be scheduled and "complete" (returning pre-resolved output immediately),
+        # which triggers stop_after_nodes and prevents successor execution.
+        if not execute_target and target_node_id not in pre_resolved_dicts:
+            pre_resolved_dicts[target_node_id] = {"output": {}, "control": None}
+
+        # Step 3: Build workflow context for expression resolution (test mode).
+        # "now" and "today" are resolved dynamically per-node by the workflow engine.
+        pre_generated_execution_id = str(uuid4())
+        now = datetime.now(UTC)
+        workflow_author = await self._resolve_user_display_name(workflow.created_by)
+        workflow_metadata: dict[str, Any] = {
+            "workflow_context": {
+                "workflow": {
+                    "name": workflow.name,
+                    "id": str(workflow.id),
+                    "version": workflow_version.version,
+                    "published": workflow.published_version is not None,
+                    "author": workflow_author,
+                },
+                "execution": {
+                    "id": pre_generated_execution_id,
+                    "mode": "test",
+                    "created_by": self.user.display_name,
+                    "created_at": now.isoformat(),
+                    "workflow_version_id": str(workflow_version.id),
+                },
+            },
+        }
+
+        # Step 4: Start Temporal workflow with test parameters (if temporal_service is available)
         from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
 
         if self.temporal_service is not None:
@@ -429,6 +507,8 @@ class ExecutionService(BaseService):
                     pre_resolved_outputs=pre_resolved_dicts,
                     stop_after_nodes=[target_node_id],
                     include_node_results=True,  # Include results in response for test executions
+                    workflow_metadata=workflow_metadata,
+                    execution_id=pre_generated_execution_id,
                 )
             temporal_workflow_id = temporal_result.temporal_workflow_id
             execution_id = UUID(temporal_result.execution_id)
@@ -439,8 +519,8 @@ class ExecutionService(BaseService):
                 execution_id=execution_id,
             )
         else:
-            # For testing without Temporal, generate a stub ID
-            execution_id = uuid4()
+            # For testing without Temporal, use the pre-generated ID
+            execution_id = UUID(pre_generated_execution_id)
             temporal_workflow_id = f"test-exec-{execution_id}"
             logger.warning(
                 "No Temporal service available, using stub workflow ID", temporal_workflow_id=temporal_workflow_id
@@ -460,6 +540,7 @@ class ExecutionService(BaseService):
             execution_metadata={
                 "target_node_id": target_node_id,
                 "pre_resolved_nodes": pre_resolved_dicts,
+                "execute_target": execute_target,
             },
             created_by=self.user.id,
             updated_by=self.user.id,

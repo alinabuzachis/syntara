@@ -7,7 +7,7 @@ import { buildWorkflowDefinition } from './workflowDefinitionBuilder'
 
 /** Helper to create a minimal activity with a given ID for edge validation tests */
 function activity(id: string): Activity {
-  return { id, type: 'script', config: {} }
+  return { id, type: 'script', parameters: {} }
 }
 
 describe('buildWorkflowDefinition', () => {
@@ -43,7 +43,7 @@ describe('buildWorkflowDefinition', () => {
           id: 'webhook_trigger_1',
           type: 'webhook',
           name: 'My Webhook',
-          config: { url: 'https://example.com' },
+          parameters: { url: 'https://example.com' },
         },
       ]
 
@@ -54,7 +54,7 @@ describe('buildWorkflowDefinition', () => {
           id: 'webhook_trigger_1',
           type: 'webhook',
           name: 'My Webhook',
-          config: { url: 'https://example.com' },
+          parameters: { url: 'https://example.com' },
         },
       ])
     })
@@ -64,7 +64,7 @@ describe('buildWorkflowDefinition', () => {
         {
           id: 'trigger-1',
           type: 'manual_trigger',
-          config: {},
+          parameters: {},
         },
       ]
 
@@ -78,13 +78,13 @@ describe('buildWorkflowDefinition', () => {
         {
           id: 'trigger-1',
           type: 'manual_trigger',
-          config: undefined as unknown as Record<string, unknown>,
+          parameters: undefined as unknown as Record<string, unknown>,
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', [], triggers, { edges: [] })
 
-      expect(result.triggers[0].config).toEqual({})
+      expect(result.triggers[0].parameters).toEqual({})
     })
   })
 
@@ -95,9 +95,8 @@ describe('buildWorkflowDefinition', () => {
           id: 'task-1',
           type: 'script',
           name: 'My Script',
-          config: { code: 'print("hello")' },
-          timeout: 300,
-          retry_policy: { max_attempts: 3, backoff: 'exponential' },
+          parameters: { code: 'print("hello")' },
+          settings: { timeout: 300, retry_policy: { max_retries: 3 } },
           outputs: { result: '$.output' },
         },
       ]
@@ -108,9 +107,8 @@ describe('buildWorkflowDefinition', () => {
         id: 'task-1',
         type: 'script',
         name: 'My Script',
-        config: { code: 'print("hello")' },
-        timeout: 300,
-        retry_policy: { max_attempts: 3, backoff: 'exponential' },
+        parameters: { code: 'print("hello")' },
+        settings: { timeout: 300, retry_policy: { max_retries: 3 } },
         outputs: { result: '$.output' },
       })
     })
@@ -120,7 +118,7 @@ describe('buildWorkflowDefinition', () => {
         {
           id: 'task-1',
           type: 'script',
-          config: {},
+          parameters: {},
           inputs: { param1: 'value1', param2: 'value2' },
         } as Activity & { inputs: Record<string, unknown> },
       ]
@@ -136,7 +134,7 @@ describe('buildWorkflowDefinition', () => {
         {
           id: 'task-1',
           type: 'script',
-          config: {},
+          parameters: {},
         },
       ]
 
@@ -150,31 +148,30 @@ describe('buildWorkflowDefinition', () => {
         {
           id: 'task-1',
           type: 'script',
-          config: {},
+          parameters: {},
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       expect(result.nodes[0]).not.toHaveProperty('name')
-      expect(result.nodes[0]).not.toHaveProperty('timeout')
-      expect(result.nodes[0]).not.toHaveProperty('retry_policy')
+      expect(result.nodes[0]).not.toHaveProperty('settings')
       expect(result.nodes[0]).not.toHaveProperty('outputs')
     })
 
-    it('includes timeout when zero', () => {
+    it('includes settings when provided', () => {
       const activities: Activity[] = [
         {
           id: 'task-1',
           type: 'script',
-          config: {},
-          timeout: 0,
+          parameters: {},
+          settings: { timeout: 300, continue_on_failure: true },
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
-      expect(result.nodes[0]).toHaveProperty('timeout', 0)
+      expect(result.nodes[0]).toHaveProperty('settings', { timeout: 300, continue_on_failure: true })
     })
   })
 
@@ -281,7 +278,7 @@ describe('buildWorkflowDefinition', () => {
         {
           id: 'webhook_trigger_1',
           type: 'webhook',
-          config: {},
+          parameters: {},
         },
       ]
 
@@ -304,7 +301,7 @@ describe('buildWorkflowDefinition', () => {
         {
           id: 'webhook_trigger_1',
           type: 'webhook',
-          config: {},
+          parameters: {},
         },
       ]
 
@@ -325,7 +322,7 @@ describe('buildWorkflowDefinition', () => {
       const triggers: Activity[] = [
         {
           type: 'webhook',
-          config: {},
+          parameters: {},
         } as Activity, // No id property
       ]
 
@@ -364,9 +361,9 @@ describe('buildWorkflowDefinition', () => {
     it('handles multiple triggers with correct index mapping', () => {
       const activities = [activity('task-1'), activity('task-2'), activity('task-3')]
       const triggers: Activity[] = [
-        { id: 'trigger_a', type: 'manual_trigger', config: {} },
-        { id: 'trigger_b', type: 'webhook', config: {} },
-        { id: 'trigger_c', type: 'scheduled', config: {} },
+        { id: 'trigger_a', type: 'manual_trigger', parameters: {} },
+        { id: 'trigger_b', type: 'webhook', parameters: {} },
+        { id: 'trigger_c', type: 'scheduled', parameters: {} },
       ]
 
       const edges: EdgeConnection[] = [
@@ -390,7 +387,7 @@ describe('buildWorkflowDefinition', () => {
           id: 'webhook_trigger_1',
           type: 'webhook',
           name: 'My Webhook',
-          config: { url: 'https://example.com' },
+          parameters: { url: 'https://example.com' },
         },
       ]
 
@@ -399,13 +396,13 @@ describe('buildWorkflowDefinition', () => {
           id: 'loop-1',
           type: 'loop',
           name: 'Process Items',
-          config: { type: 'for_each', items: '$.items' },
+          parameters: { type: 'for_each', items: '$.items' },
         },
         {
           id: 'task-1',
           type: 'script',
           name: 'Process Item',
-          config: { code: 'print(item)' },
+          parameters: { code: 'print(item)' },
           inputs: { item: '$.current_item' },
         } as Activity & { inputs: Record<string, unknown> },
       ]
@@ -444,13 +441,13 @@ describe('buildWorkflowDefinition', () => {
           id: 'cond-1',
           type: 'condition',
           name: 'Check Status',
-          config: { condition: '!(${status} == "completed")' },
+          parameters: { condition: '!(${status} == "completed")' },
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
-      expect(result.nodes[0].config.condition).toBe('not (${status} == "completed")')
+      expect(result.nodes[0].parameters.condition).toBe('not (${status} == "completed")')
     })
 
     it('transforms UI negation syntax (!) to backend syntax (not) for loop nodes', () => {
@@ -459,13 +456,13 @@ describe('buildWorkflowDefinition', () => {
           id: 'loop-1',
           type: 'loop',
           name: 'While Loop',
-          config: { type: 'while', condition: '!(${done} == true)' },
+          parameters: { type: 'while', condition: '!(${done} == true)' },
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
-      expect(result.nodes[0].config.condition).toBe('not (${done} == true)')
+      expect(result.nodes[0].parameters.condition).toBe('not (${done} == true)')
     })
 
     it('preserves condition expressions without negation', () => {
@@ -474,13 +471,13 @@ describe('buildWorkflowDefinition', () => {
           id: 'cond-1',
           type: 'condition',
           name: 'Check Value',
-          config: { condition: '${value} > 10' },
+          parameters: { condition: '${value} > 10' },
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
-      expect(result.nodes[0].config.condition).toBe('${value} > 10')
+      expect(result.nodes[0].parameters.condition).toBe('${value} > 10')
     })
 
     it('handles complex nested expressions with negation', () => {
@@ -489,13 +486,13 @@ describe('buildWorkflowDefinition', () => {
           id: 'cond-1',
           type: 'condition',
           name: 'Complex Check',
-          config: { condition: '!((${a} > 5 && ${b} < 10))' },
+          parameters: { condition: '!((${a} > 5 && ${b} < 10))' },
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
-      expect(result.nodes[0].config.condition).toBe('not ((${a} > 5 and ${b} < 10))')
+      expect(result.nodes[0].parameters.condition).toBe('not ((${a} > 5 and ${b} < 10))')
     })
 
     it('does not transform non-condition/loop node configs', () => {
@@ -504,13 +501,13 @@ describe('buildWorkflowDefinition', () => {
           id: 'script-1',
           type: 'script',
           name: 'Script',
-          config: { code: 'if !done: pass' }, // Python code with !, not a condition expression
+          parameters: { code: 'if !done: pass' }, // Python code with !, not a condition expression
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
-      expect(result.nodes[0].config.code).toBe('if !done: pass')
+      expect(result.nodes[0].parameters.code).toBe('if !done: pass')
     })
 
     it('handles condition expressions that are already in backend format', () => {
@@ -519,14 +516,14 @@ describe('buildWorkflowDefinition', () => {
           id: 'cond-1',
           type: 'condition',
           name: 'Check',
-          config: { condition: 'not (${value} == "test")' },
+          parameters: { condition: 'not (${value} == "test")' },
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       // Should remain in backend format
-      expect(result.nodes[0].config.condition).toBe('not (${value} == "test")')
+      expect(result.nodes[0].parameters.condition).toBe('not (${value} == "test")')
     })
 
     it('transforms "contains" operator to Python "in" operator with reversed operands', () => {
@@ -535,7 +532,7 @@ describe('buildWorkflowDefinition', () => {
           id: 'cond1',
           type: 'condition',
           name: 'Check Message',
-          config: { condition: '${message.text} contains "Hello"' },
+          parameters: { condition: '${message.text} contains "Hello"' },
         },
       ]
 
@@ -543,7 +540,7 @@ describe('buildWorkflowDefinition', () => {
 
       // UI: ${message.text} contains "Hello"
       // Backend: "Hello" in ${message.text}
-      expect(result.nodes[0].config.condition).toBe('"Hello" in ${message.text}')
+      expect(result.nodes[0].parameters.condition).toBe('"Hello" in ${message.text}')
     })
 
     it('transforms negated "contains" to "not in" operator', () => {
@@ -552,7 +549,7 @@ describe('buildWorkflowDefinition', () => {
           id: 'cond1',
           type: 'condition',
           name: 'Check No Spam',
-          config: { condition: '!(${email.body} contains "spam")' },
+          parameters: { condition: '!(${email.body} contains "spam")' },
         },
       ]
 
@@ -560,7 +557,7 @@ describe('buildWorkflowDefinition', () => {
 
       // UI: !(${email.body} contains "spam")
       // Backend: "spam" not in ${email.body}
-      expect(result.nodes[0].config.condition).toBe('"spam" not in ${email.body}')
+      expect(result.nodes[0].parameters.condition).toBe('"spam" not in ${email.body}')
     })
 
     it('transforms "contains" in complex expressions', () => {
@@ -569,14 +566,14 @@ describe('buildWorkflowDefinition', () => {
           id: 'cond1',
           type: 'condition',
           name: 'Complex Check',
-          config: { condition: '${age} >= 18 && ${name} contains "Smith"' },
+          parameters: { condition: '${age} >= 18 && ${name} contains "Smith"' },
         },
       ]
 
       const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
 
       // Should transform both && to 'and' and 'contains' to 'in'
-      expect(result.nodes[0].config.condition).toBe('(${age} >= 18 and "Smith" in ${name})')
+      expect(result.nodes[0].parameters.condition).toBe('(${age} >= 18 and "Smith" in ${name})')
     })
   })
 
@@ -592,7 +589,7 @@ describe('buildWorkflowDefinition', () => {
     })
 
     it('includes position on triggers when nodePositions is provided', () => {
-      const triggers: Activity[] = [{ id: 'trigger_1', type: 'manual_trigger', config: {} }]
+      const triggers: Activity[] = [{ id: 'trigger_1', type: 'manual_trigger', parameters: {} }]
       const nodePositions = { trigger_1: { x: 50, y: 75 } }
 
       const result = buildWorkflowDefinition('Test', '', [], triggers, { edges: [], nodePositions })

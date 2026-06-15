@@ -90,6 +90,56 @@ def check_orphaned_directories(
     return errors, warnings
 
 
+def check_root_level_test_files(
+    test_type: str,
+    test_path: Path,
+    allowed_root_files: set[str],
+) -> list[str]:
+    """Check for test files at root of test directory.
+
+    Returns:
+        List of error messages (empty if no violations)
+
+    """
+    errors = []
+
+    # Skip if test directory doesn't exist
+    if not test_path.exists():
+        return errors
+
+    try:
+        root_test_files = []
+        for item in test_path.iterdir():
+            # Skip directories
+            try:
+                if not item.is_file():
+                    continue
+            except OSError:
+                # Skip items we can't check (broken symlinks, etc)
+                continue
+
+            # Check if it's a test file
+            name = item.name
+            if name.startswith("test_") and name.endswith(".py"):
+                root_test_files.append(name)
+
+    except (OSError, PermissionError):
+        # If we can't read the directory, skip silently
+        return errors
+
+    # Filter out allowed files
+    disallowed_root_files = [f for f in root_test_files if f not in allowed_root_files]
+
+    if disallowed_root_files:
+        file_list = "\n".join(f"  - {sanitize_for_terminal(name)}" for name in sorted(disallowed_root_files))
+        errors.append(
+            f"Test files found at tests/{test_type}/ root (must be in domain directories):\n{file_list}\n"
+            f"Move to: tests/{test_type}/<domain>/test_*.py"
+        )
+
+    return errors
+
+
 def format_error_block(title: str, items: list[str], fix_options: list[str] | None = None) -> str:
     """Format an error block matching the project's error output style."""
     lines = [
@@ -178,6 +228,23 @@ def verify_test_structure(repo_root: Path) -> tuple[bool, list[str], list[str]]:
         )
         errors.extend(dir_errors)
         warnings.extend(dir_warnings)
+
+    # Check for root-level test files (all tests must be in domain directories)
+    # Allow-list for specific files that are exceptions
+    allowed_root_files = {
+        "e2e": {"test_settings_endpoints.py"},  # Settings endpoints test stays at root
+    }
+
+    for test_type, (test_path, _, skip_validation) in test_dirs.items():
+        if skip_validation:
+            continue
+
+        file_errors = check_root_level_test_files(
+            test_type,
+            test_path,
+            allowed_root_files.get(test_type, set()),
+        )
+        errors.extend(file_errors)
 
     # Informational: source domains without tests (not an error, just FYI)
     all_test_domains = {domain for _, domains, _ in test_dirs.values() for domain in domains}

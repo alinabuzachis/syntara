@@ -4,11 +4,22 @@ import type { ActivityStatus } from '../workflows/execution/types'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
+export const executionStatusDisplayLabels: Record<ExecutionStatus, string> = {
+  pending: 'Pending',
+  running: 'Running',
+  paused: 'Paused',
+  completed: 'Completed',
+  completed_with_errors: 'Completed with errors',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+}
+
 const statusColors: Record<ExecutionStatus, string> = {
   pending: 'var(--pf-t--global--color--nonstatus--gray--300)',
   running: 'var(--pf-t--global--color--brand--default)',
   paused: 'var(--pf-t--global--color--status--warning--default)',
   completed: 'var(--pf-t--global--color--status--success--default)',
+  completed_with_errors: 'var(--pf-t--global--color--status--warning--default)',
   failed: 'var(--pf-t--global--color--status--danger--default)',
   cancelled: 'var(--pf-t--global--color--nonstatus--gray--300)',
 }

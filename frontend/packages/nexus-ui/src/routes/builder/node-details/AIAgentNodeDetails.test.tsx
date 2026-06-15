@@ -32,7 +32,7 @@ vi.mock('../../../stores/useWorkflowStore', async (importOriginal) => ({
       type: 'agentic',
       id: options.id,
       name: options.name,
-      config: {
+      parameters: {
         ...(options.tools && options.tools.length > 0 && { tool_selections: options.tools }),
         ...(options.prompt && { prompt: options.prompt }),
         ...(options.model && { model: options.model }),
@@ -103,7 +103,7 @@ describe('AIAgentNodeDetails Component', () => {
       type: 'agentic' as const,
       id: 'agent-1',
       name: 'Original Agent',
-      config: {
+      parameters: {
         model: 'anthropic/claude-3.5-sonnet',
         prompt: 'Original prompt',
       },
@@ -120,7 +120,7 @@ describe('AIAgentNodeDetails Component', () => {
         id: 'agent-1',
         name: 'Updated Agent',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           model: 'gpt-4',
           prompt: 'Updated prompt',
           tool_selections: ['calculator', 'web_search'],
@@ -135,7 +135,7 @@ describe('AIAgentNodeDetails Component', () => {
       type: 'agentic' as const,
       id: 'agent-1',
       name: 'Test Agent',
-      config: {},
+      parameters: {},
     }
 
     render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
@@ -150,7 +150,7 @@ describe('AIAgentNodeDetails Component', () => {
       type: 'agentic' as const,
       id: 'agent-1',
       name: 'Test Agent',
-      config: {
+      parameters: {
         tool_selections: [],
       },
     }
@@ -169,7 +169,7 @@ describe('AIAgentNodeDetails Component', () => {
       type: 'agentic' as const,
       id: 'agent-1',
       name: 'Test Agent',
-      config: {},
+      parameters: {},
     }
 
     render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
@@ -185,7 +185,7 @@ describe('AIAgentNodeDetails Component', () => {
       type: 'agentic' as const,
       id: 'agent-1',
       name: 'Test Agent',
-      config: {},
+      parameters: {},
     }
 
     render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)

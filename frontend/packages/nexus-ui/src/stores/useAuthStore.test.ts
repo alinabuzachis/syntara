@@ -146,7 +146,20 @@ describe('useAuthStore', () => {
       expect(state.csrfToken).toBeNull()
     })
 
-    it('clears auth state when CSRF token fetch fails after login', async () => {
+    it('succeeds and remains authenticated when CSRF endpoint returns 404 (JWT-only backend)', async () => {
+      mockFetchSuccess(createTokenResponse())
+      mockFetchError('Not found', 404)
+
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+
+      const state = useAuthStore.getState()
+      expect(state.isAuthenticated).toBe(true)
+      expect(state.accessToken).toBe('test-access-token')
+      expect(state.csrfToken).toBeNull()
+      expect(state.error).toBeNull()
+    })
+
+    it('clears auth state when CSRF endpoint returns 403 (potential misconfiguration)', async () => {
       mockFetchSuccess(createTokenResponse())
       mockFetchError('CSRF cookie missing', 403)
 
@@ -155,8 +168,8 @@ describe('useAuthStore', () => {
       )
 
       const state = useAuthStore.getState()
-      expect(state.accessToken).toBeNull()
       expect(state.isAuthenticated).toBe(false)
+      expect(state.accessToken).toBeNull()
       expect(state.csrfToken).toBeNull()
     })
 

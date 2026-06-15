@@ -114,9 +114,9 @@ async def _query_credentials_used_in_nodes(session: AsyncSession) -> int:
 
     Joins workflow_versions with workflows to find the current active version
     for each non-deleted workflow, then extracts credential_id from each node's
-    config using jsonb_path_query.
+    parameters using jsonb_path_query.
     """
-    # jsonb_path_query extracts all credential_id values from nodes[*].config
+    # jsonb_path_query extracts all credential_id values from nodes[*].parameters
     # in a single path expression, replacing CROSS JOIN LATERAL + arrow operators.
     stmt = text("""
         SELECT COUNT(DISTINCT cred_id)
@@ -126,7 +126,7 @@ async def _query_credentials_used_in_nodes(session: AsyncSession) -> int:
             AND w.current_version = wv.version
             AND w.deleted_at IS NULL
         CROSS JOIN LATERAL jsonb_path_query(
-            wv.workflow_definition, '$.nodes[*].config.credential_id'
+            wv.workflow_definition, '$.nodes[*].parameters.credential_id'
         ) AS cred_id
         WHERE wv.deleted_at IS NULL
     """)

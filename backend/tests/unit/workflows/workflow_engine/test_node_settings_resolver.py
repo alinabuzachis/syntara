@@ -18,7 +18,7 @@ def test_resolve_retry_policy_inline_fallbacks_match_catalog_defaults() -> None:
     catalog entries. If a catalog default is changed without updating the inline
     fallback (or vice versa), this test fails.
     """
-    node = ActivityNode(node_id="n", node_type="script", config={})
+    node = ActivityNode(node_id="n", node_type="script", parameters={})
 
     result_inline = resolve_retry_policy(node, {})
     result_catalog = resolve_retry_policy(node, _catalog_defaults())

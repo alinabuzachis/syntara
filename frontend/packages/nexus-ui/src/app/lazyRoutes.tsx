@@ -70,4 +70,3 @@ export const ProjectDetail = lazy(() =>
 )
 export const Credentials = lazy(() => import('../routes/configuration/credentials/Credentials'))
 export const CredentialDetail = lazy(() => import('../routes/configuration/credentials/CredentialDetail'))
-export const AuditLog = lazy(() => import('../routes/audit-log/AuditLog'))

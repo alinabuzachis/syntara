@@ -47,7 +47,11 @@ const descriptionStyle: CSSProperties = {
 function renderProjectOption(p: ProjectRead, reactKeyPrefix: string, favoriteProjectIdSet: Set<string>) {
   const projectId = p.id ?? ''
   const trimmedDescription = p.description?.trim() || undefined
-  const description = trimmedDescription ? <span style={descriptionStyle}>{trimmedDescription}</span> : undefined
+  const description = trimmedDescription ? (
+    <Content component={ContentVariants.small} style={descriptionStyle}>
+      {trimmedDescription}
+    </Content>
+  ) : undefined
   return (
     <SelectOption
       key={`${reactKeyPrefix}-${projectId}`}

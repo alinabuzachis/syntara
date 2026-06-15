@@ -68,8 +68,8 @@ function safeJSONReviver(key: string, value: unknown): unknown {
  * Returns DetectedExecutorType.AAP if found, undefined otherwise.
  */
 function detectAAPConnectorFromPrompt(data: TaskActivity): string | undefined {
-  const prompt = (data as Record<string, unknown>).config
-    ? ((data as Record<string, unknown>).config as Record<string, unknown>).prompt
+  const prompt = (data as Record<string, unknown>).parameters
+    ? ((data as Record<string, unknown>).parameters as Record<string, unknown>).prompt
     : undefined
 
   if (typeof prompt !== 'string') {

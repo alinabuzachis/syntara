@@ -218,6 +218,7 @@ class ApprovalsFactory:
         """
         self.session = session
         self.user = user
+        self._node_counter = 0  # Global counter for unique approval_node_id values
 
     def _get_decision_fields(
         self, status: ApprovalRequestStatus, name_prefix: str, index: int, timeout_at: datetime
@@ -280,9 +281,13 @@ class ApprovalsFactory:
         """
         decision_fields = self._get_decision_fields(status, name_prefix, index, timeout_at)
 
+        # Increment global counter to ensure unique approval_node_id across all factory calls
+        # This is required because (execution_id, approval_node_id) has a unique constraint
+        self._node_counter += 1
+
         return ApprovalRequest(
             execution_id=execution_id,
-            approval_node_id=f"approval_node_{index + 1}",
+            approval_node_id=f"approval_node_{self._node_counter}",
             name=f"{name_prefix} {index + 1}",
             status=status,
             timeout_at=decision_fields.timeout,

@@ -5,7 +5,7 @@ description: Conditional execution with different activity types
 triggers:
   - id: trigger_manual
     type: manual_trigger
-    config:
+    parameters:
       inputs:
         use_python:
           type: boolean
@@ -14,7 +14,7 @@ triggers:
 nodes:
   - id: check_condition
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo '{"condition_checked": true}'
@@ -22,7 +22,7 @@ nodes:
   - id: python_branch
     type: script
     condition: ${input.use_python} == true
-    config:
+    parameters:
       language: python
       code: |
         print("Python branch executed")
@@ -30,7 +30,7 @@ nodes:
   - id: api_branch
     type: http_request
     condition: ${input.use_python} == false
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/data
 edges:

@@ -72,13 +72,13 @@ export function NodeMenu(props: Readonly<NodeMenuProps>) {
               <DropdownItem
                 data-testid={`node-menu-item-${action.id}`}
                 key={action.id}
+                icon={action.icon}
                 onClick={() => {
                   action.onClick()
                   setIsMenuOpen(false)
                 }}
                 isDanger={action.variant === 'danger'}
               >
-                {action.icon && <span style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>{action.icon}</span>}
                 {action.label}
               </DropdownItem>
             )

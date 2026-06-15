@@ -17,34 +17,33 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
   const { showError } = useAlerts()
   const updateActivity = useWorkflowStore((state) => state.updateActivity)
 
-  // In v2, approval config is at activity.config (not activity.approval)
-  const approvalConfig = (taskData.config ?? {}) as {
-    approver_timeout?: number
+  const approvalConfig = (taskData.parameters ?? {}) as {
     approvers?: string[]
     prompt?: string
-    on_timeout?: string
-    onTimeout?: string
+    fallback_decision?: 'approve' | 'reject'
+    decision_window?: number
   }
 
-  const initialData: Partial<ApprovalFormSubmitData> | undefined = {
+  const initialData: Partial<ApprovalFormSubmitData> = {
     name: taskData.name,
     approvers: approvalConfig.approvers,
     prompt: approvalConfig.prompt,
-    timeout: approvalConfig.approver_timeout,
-    onTimeout: (approvalConfig.on_timeout ?? approvalConfig.onTimeout) as ApprovalFormSubmitData['onTimeout'],
+    fallback_decision: approvalConfig.fallback_decision,
+    decision_window: approvalConfig.decision_window,
+    settings: taskData.settings,
   }
 
   const handleSubmit = (data: ApprovalFormSubmitData) => {
     try {
-      // In v2, update the activity with config at top level
       updateActivity(nodeId, {
         name: data.name,
-        config: {
+        parameters: {
           ...(data.approvers && { approvers: data.approvers }),
           ...(data.prompt && { prompt: data.prompt }),
-          ...(data.timeout && { approver_timeout: data.timeout }),
-          ...(data.onTimeout && { on_timeout: data.onTimeout }),
+          ...(data.fallback_decision && { fallback_decision: data.fallback_decision }),
+          ...(data.decision_window !== undefined && { decision_window: data.decision_window }),
         },
+        settings: data.settings,
       } as Partial<Activity>)
       onClose()
     } catch (error) {

@@ -277,6 +277,8 @@ class InvocationService(BaseService):
                     agent=ctx.agent,
                     model=ctx.model,
                     metadata=ctx.audit_safe_metadata(),
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
 
@@ -300,6 +302,8 @@ class InvocationService(BaseService):
                     model=ctx.model,
                     metadata=ctx.audit_safe_metadata(),
                     error_type=type(e).__name__,
+                    activity_id=ctx.activity_id,
+                    activity_name=ctx.activity_name,
                 )
             )
             raise
@@ -354,7 +358,7 @@ class InvocationService(BaseService):
         if not invocation:
             logger.warning("Cancellation failed: Invocation not found", invocation_id=invocation_id)
 
-            # Dispatch NOT_FOUND audit event
+            # Dispatch NOT_FOUND audit event (no activity context available)
             AuditEventDispatcher.dispatch(
                 InvocationCancelledEvent(
                     invocation_id=invocation_id,
@@ -363,6 +367,11 @@ class InvocationService(BaseService):
                 )
             )
             return CancellationResult.NOT_FOUND
+
+        # Extract activity context from invocation metadata for audit correlation
+        context_data = invocation.context_data or {}
+        activity_id: str | None = context_data.get("activity_id")  # type: ignore[assignment]
+        activity_name: str | None = context_data.get("activity_name")  # type: ignore[assignment]
 
         # Check if invocation is in a cancellable state
         if invocation.status not in (InvocationStatus.CREATED, InvocationStatus.RUNNING):
@@ -379,6 +388,8 @@ class InvocationService(BaseService):
                     result=InvocationCancellationResult.NOT_CANCELLABLE,
                     reason=reason,
                     current_status=invocation.status,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             return CancellationResult.NOT_CANCELLABLE
@@ -421,6 +432,8 @@ class InvocationService(BaseService):
                     reason=reason,
                     files_cleaned=cleaned_file_ids,
                     current_status=InvocationStatus.CANCELLED,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             return CancellationResult.SUCCESS
@@ -434,6 +447,8 @@ class InvocationService(BaseService):
                     reason=reason,
                     files_cleaned=cleaned_file_ids,
                     error_type=type(e).__name__,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
             raise

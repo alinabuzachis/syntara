@@ -62,7 +62,7 @@ def _make_loop_node(
     config: dict[str, Any] = {"type": loop_type}
     if extra_config:
         config.update(extra_config)
-    return ActivityNode(node_id=node_id, node_type="loop", config=config)
+    return ActivityNode(node_id=node_id, node_type="loop", parameters=config)
 
 
 class TestCreateLoopStateForType:
@@ -108,7 +108,7 @@ class TestCreateLoopStateForType:
         assert state.items == ["x", "y"]
 
     def test_condition_read_from_loop_config(self) -> None:
-        """Condition must come from loop_config, not node.config, for consistency."""
+        """Condition must come from loop_config, not node.parameters, for consistency."""
         wf = _make_workflow()
         node = _make_loop_node(
             loop_type=LoopType.DO_WHILE,
@@ -125,7 +125,7 @@ class TestPreResolvedLoopStateInit:
 
     @pytest.mark.asyncio
     async def test_for_each_pre_resolved_initializes_state(self) -> None:
-        """Pre-resolved for_each loop node gets loop state from node.config."""
+        """Pre-resolved for_each loop node gets loop state from node.parameters."""
         node = _make_loop_node(extra_config={"items": ["a", "b", "c"]})
         wf = _make_workflow(pre_resolved_outputs={"loop_1": {"output": {"status": "completed"}}})
         await wf._execute_node(node, MagicMock())
@@ -136,7 +136,7 @@ class TestPreResolvedLoopStateInit:
 
     @pytest.mark.asyncio
     async def test_do_while_pre_resolved_initializes_state(self) -> None:
-        """Pre-resolved do_while loop node gets loop state from node.config."""
+        """Pre-resolved do_while loop node gets loop state from node.parameters."""
         node = _make_loop_node(
             loop_type=LoopType.DO_WHILE,
             extra_config={"condition": "${x}", "max_iterations": 10},
@@ -161,7 +161,7 @@ class TestPreResolvedLoopStateInit:
     @pytest.mark.asyncio
     async def test_non_loop_pre_resolved_does_not_init_loop_state(self) -> None:
         """Pre-resolved non-loop nodes should not touch loop state."""
-        node = ActivityNode(node_id="script_1", node_type="script", config={})
+        node = ActivityNode(node_id="script_1", node_type="script", parameters={})
         wf = _make_workflow(pre_resolved_outputs={"script_1": {"output": {"result": "ok"}}})
         await wf._execute_node(node, MagicMock())
         assert "script_1" not in wf.loop_state

@@ -9,7 +9,7 @@ nodes:
   - id: test_numeric_greater_than
     name: Test Numeric Greater Than
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "10 is greater than 5"
@@ -20,7 +20,7 @@ nodes:
     name: Test Numeric Equality
     type: script
     condition: 10 == 10
-    config:
+    parameters:
       language: bash
       code: |
         echo "Numbers are equal"
@@ -31,7 +31,7 @@ nodes:
     name: Test String Inequality
     type: script
     condition: "'test' != 'other'"
-    config:
+    parameters:
       language: bash
       code: |
         echo "Strings are not equal"
@@ -42,7 +42,7 @@ nodes:
     name: Test Numeric Less Than
     type: script
     condition: 3 < 5
-    config:
+    parameters:
       language: bash
       code: |
         echo "3 is less than 5"
@@ -53,7 +53,7 @@ nodes:
     name: Test Numeric Greater or Equal
     type: script
     condition: 5 >= 5
-    config:
+    parameters:
       language: bash
       code: |
         echo "5 is greater or equal to 5"
@@ -64,7 +64,7 @@ nodes:
     name: Test Numeric Less or Equal
     type: script
     condition: 5 <= 10
-    config:
+    parameters:
       language: bash
       code: |
         echo "5 is less or equal to 10"

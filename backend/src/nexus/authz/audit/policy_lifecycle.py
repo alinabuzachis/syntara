@@ -77,4 +77,5 @@ class PolicyLifecycleHandler(AuditEventHandler[PolicyLifecycleEvent]):
             source_component="nexus.authz",
             structured_data=data,
             resource_urn=f"urn:nexus:policy:{event.policy_id}",
+            resource_name=event.policy_name,
         )

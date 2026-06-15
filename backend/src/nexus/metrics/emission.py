@@ -81,6 +81,7 @@ class _BoundedDedup:
 
 
 emitted_completions: _BoundedDedup = _BoundedDedup()
+emitted_invocations: _BoundedDedup = _BoundedDedup()
 
 # Running counters for aggregate rate gauges.
 _workflow_completion_counts: list[int] = [0, 0]  # [completed, total]
@@ -94,6 +95,7 @@ _activity_success_lock = threading.Lock()
 def reset_emission_trackers() -> None:
     """Clear the process-local dedup set and running counters (testing helper)."""
     emitted_completions.clear()
+    emitted_invocations.clear()
     with _workflow_completion_lock:
         _workflow_completion_counts[:] = [0, 0]
     with _activity_success_lock:

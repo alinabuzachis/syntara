@@ -35,7 +35,6 @@ from nexus.authz.exceptions import (  # noqa: F401
 )
 from nexus.authz.opa_client import OPAClient
 from nexus.core.config.base import get_settings, validate_encryption_key_at_startup
-from nexus.core.database.audit_session import audit_engine
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
     generic_exception_handler,
@@ -52,6 +51,8 @@ from nexus.core.logging.logging import apply_runtime_log_level, build_uvicorn_lo
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
+from nexus.files.health import check_file_storage_health, validate_file_storage_at_startup
+from nexus.files.workers.file_cleanup import get_file_cleanup_worker
 from nexus.metrics.cleanup import get_metrics_cleanup_worker
 from nexus.metrics.completion_poller import get_completion_poller
 from nexus.metrics.dependencies import get_metrics_recorder
@@ -162,6 +163,8 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         raise RuntimeError(msg)
     app.state.opa_client = opa_client
 
+    await validate_file_storage_at_startup(settings)
+
     from nexus.authz.engine import init_opa_cache  # noqa: PLC0415
 
     init_opa_cache(
@@ -193,6 +196,9 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     session_cleanup_worker = get_session_cleanup_worker()
     session_cleanup_worker.start()
 
+    file_cleanup_worker = get_file_cleanup_worker()
+    file_cleanup_worker.start()
+
     periodic_collector.start()
     logger.info("Periodic analytics collector started")
 
@@ -204,12 +210,14 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         "metrics_cleanup_worker": metrics_cleanup_worker,
         "queue_depth_poller": queue_depth_poller,
         "session_cleanup_worker": session_cleanup_worker,
+        "file_cleanup_worker": file_cleanup_worker,
         "runtime_settings": runtime_settings,
     }
 
 
 async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     """Clean up application resources during shutdown."""
+    await resources["file_cleanup_worker"].stop()
     await resources["queue_depth_poller"].stop()
     await resources["session_cleanup_worker"].stop()
     await resources["metrics_cleanup_worker"].stop()
@@ -230,9 +238,6 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
 
     # Flush audit components last to ensure all events are captured
     await stop_audit_components()
-
-    await audit_engine.dispose()
-    logger.info("Audit database engine disposed")
 
     await engine.dispose()
     logger.info("Database engine disposed")
@@ -376,11 +381,14 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             },
         ) from e
 
+    file_storage_status = await check_file_storage_health()
+
     return {
         "status": "healthy",
         "timestamp": timestamp,
         "checks": {
             "database": db_status,
+            "file_storage": file_storage_status,
         },
     }
 

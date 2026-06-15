@@ -5,9 +5,7 @@ from typing import Any
 import structlog
 from temporalio import activity
 
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
-
-from .output_mapping import apply_output_mapping
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ConvergeOutput
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -41,13 +39,10 @@ async def converge(
     completed_branch_ids = list(predecessor_results.keys())
     total_branches = input_config.get("total_branches", len(completed_branch_ids))
 
-    full_result = {
-        "status": "completed",
-        "branch_count": total_branches,
-        "completed_count": len(completed_branch_ids),
-        "completed_branch_node_ids": completed_branch_ids,
-    }
+    output = ConvergeOutput(
+        branch_count=total_branches,
+        completed_count=len(completed_branch_ids),
+        completed_branch_node_ids=completed_branch_ids,
+    )
 
-    mapped_output = apply_output_mapping(full_result, output_config)
-
-    return {"output": mapped_output}
+    return {"output": output.dump(output_config)}

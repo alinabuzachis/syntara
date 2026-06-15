@@ -169,7 +169,6 @@ class TestAAPWorkflowJobTemplateExecution:
             result = await execute_aap_workflow_job_template_activity(activity_config, None)
 
             assert result["output"]["workflow_job_id"] == 123
-            assert result["output"]["status"] == "completed"
             assert result["output"]["workflow_job_status"] == "successful"
             assert result["output"]["artifacts"]["changed"] == 5
             assert result["output"]["created"] == "2026-04-23T20:10:58Z"
@@ -251,7 +250,7 @@ class TestAAPWorkflowJobTemplateExecution:
                         {"name": "server1", "ip": "10.0.0.1", "port": 8080},
                         {"name": "server2", "ip": "10.0.0.2", "port": 8081},
                     ],
-                    "config": {"timeout": 30, "retries": 3},
+                    "parameters": {"timeout": 30, "retries": 3},
                 },
             )
 
@@ -263,8 +262,8 @@ class TestAAPWorkflowJobTemplateExecution:
             assert call_body["extra_vars"]["hosts"][0]["port"] == 8080
             assert call_body["extra_vars"]["hosts"][1]["ip"] == "10.0.0.2"
             assert call_body["extra_vars"]["hosts"][1]["port"] == 8081
-            assert call_body["extra_vars"]["config"]["timeout"] == 30
-            assert call_body["extra_vars"]["config"]["retries"] == 3
+            assert call_body["extra_vars"]["parameters"]["timeout"] == 30
+            assert call_body["extra_vars"]["parameters"]["retries"] == 3
 
 
 class TestAAPWorkflowJobTemplateHeartbeat:
@@ -301,9 +300,7 @@ class TestAAPWorkflowJobTemplateHeartbeat:
 
             activity_config = build_activity_config(workflow_job_template_id=42)
 
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
-
-            assert result["output"]["status"] == "completed"
+            await execute_aap_workflow_job_template_activity(activity_config, None)
 
             # Verify heartbeats were sent (at least 2 times during polling)
             assert mock_heartbeat.call_count >= 2
@@ -587,7 +584,7 @@ class TestAAPWorkflowJobTemplateAuthentication:
             assert isinstance(mock_post.call_args.kwargs["auth"], httpx.BasicAuth)
 
     @pytest.mark.asyncio
-    async def test_aap_activity_with_pre_resolved_config(
+    async def test_aap_activity_with_pre_resolved_parameters(
         self,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
@@ -608,9 +605,8 @@ class TestAAPWorkflowJobTemplateAuthentication:
             # V2: flat config with already-resolved values
             activity_config = build_activity_config(workflow_job_template_id=42, limit="host1")
 
-            result = await execute_aap_workflow_job_template_activity(activity_config, None)
+            await execute_aap_workflow_job_template_activity(activity_config, None)
 
-            assert result["output"]["status"] == "completed"
             # Verify resolved values were used
             post_body = mock_post.call_args.kwargs["json"]
             assert post_body["limit"] == "host1"

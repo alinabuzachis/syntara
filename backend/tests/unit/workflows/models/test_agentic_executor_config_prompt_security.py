@@ -122,11 +122,13 @@ class TestDeadV1CodeRemoval:
 
         assert not hasattr(mod, "_extract_config"), "_extract_config should have been removed as dead V1 code"
 
-    def test_resolve_config_templates_import_removed(self) -> None:
-        """resolve_config_templates should not be imported in agentic_activity module."""
+    def test_resolve_parameter_templates_import_removed(self) -> None:
+        """resolve_parameter_templates should not be imported in agentic_activity module."""
         import nexus.workflows.workflow_engine.activities.agentic_activity as mod
 
-        assert not hasattr(mod, "resolve_config_templates"), "resolve_config_templates import should have been removed"
+        assert not hasattr(mod, "resolve_parameter_templates"), (
+            "resolve_parameter_templates import should have been removed"
+        )
 
 
 class TestAgenticExecutorConfigPromptValidatorIntegration:

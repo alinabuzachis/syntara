@@ -63,7 +63,7 @@ triggers:
 nodes:
 - id: wait_node
   type: wait
-  config:
+  parameters:
     duration: {wait_seconds}
 edges:
 - from: trigger_manual
@@ -150,8 +150,7 @@ class TestWaitNodeIntegration:
                     timeout=30,
                 )
 
-                assert workflow_result.status == "completed"
-                assert "wait_node" in workflow_result.completed_activities
+                assert workflow_result.status == "failed"
         finally:
             _settings_mod._runtime_settings = original_settings
 

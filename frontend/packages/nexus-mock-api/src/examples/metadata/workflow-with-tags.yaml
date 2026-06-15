@@ -17,7 +17,7 @@ nodes:
   - id: process_data
     name: Process Data
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Processing data with tags: data-processing, production, critical"

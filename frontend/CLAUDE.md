@@ -102,6 +102,7 @@ Items enforced by ESLint at error level are omitted -- ESLint is the source of t
 28. **New write actions must use `DisabledWithTooltip` + permission hook** -- never expose ungated create/edit/delete buttons; use a domain `use*Permissions` hook and `permissionTooltip()` for copy (see [`docs/permissions-rbac.md`](docs/permissions-rbac.md))
 29. **New permission-gated features need mock handlers** -- add role-aware responses in `packages/nexus-mock-api/src/handlers.ts` `can_i` block for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`
 30. **Use `useDocLink` for documentation URLs** -- never hardcode doc URLs; use `useDocLink('workflows')` from `src/utils/docs/useDocLink.ts`; pass the result to `NxPageHeader`'s `docLink` prop; add new keys to `docsUrls.json` when adding new pages (see [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) section 33)
+31. **No `new Date()` in mock API seed data** -- seed data in `packages/nexus-mock-api/src/resources/` and `utils/` must use deterministic timestamps from `mockDates.ts`, never `new Date()`. Dynamic timestamps cause visual regression baselines to go stale across CI runs because rendered dates change daily
 
 ### Feature Preservation Rules
 

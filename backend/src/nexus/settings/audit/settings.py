@@ -70,6 +70,12 @@ class SettingChangeHandler(AuditEventHandler[SettingChangeEvent]):
         if is_error:
             data.error_type = event.error_type
 
+        resource_urn = (
+            f"urn:nexus:setting:{event.category}:{event.setting}"
+            if event.category
+            else f"urn:nexus:setting:{event.setting}"
+        )
+
         return AuditEvent(
             event_category=EventCategory.SYSTEM_OPERATION,
             event_severity=EventSeverity.ERROR if is_error else EventSeverity.INFO,
@@ -78,7 +84,7 @@ class SettingChangeHandler(AuditEventHandler[SettingChangeEvent]):
             event_message=f"Setting '{event.setting}' updated",
             source_component="nexus.settings",
             structured_data=data,
-            resource_urn=f"urn:nexus:setting:{event.setting}",
+            resource_urn=resource_urn,
             resource_name=event.resource_name,
         )
 

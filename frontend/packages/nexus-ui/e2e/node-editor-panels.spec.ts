@@ -537,19 +537,19 @@ test.describe('Node editor panels', () => {
     await expect(varsToggle).toBeVisible()
     expect(
       await app
-        .getByText('T $now')
+        .getByText('T now')
         .isVisible()
         .catch(() => false)
     ).toBe(false)
 
     // Expand it
     await varsToggle.click()
-    await expect(app.getByText('T $now')).toBeVisible()
-    await expect(app.getByText('T $today')).toBeVisible()
+    await expect(app.getByText('T now')).toBeVisible()
+    await expect(app.getByText('T today')).toBeVisible()
 
     // Collapse it again
     await varsToggle.click()
-    await expect(app.getByText('T $now')).not.toBeVisible()
+    await expect(app.getByText('T now')).not.toBeVisible()
   })
 
   test('input panel view switching: Schema, Table, and JSON with execution data', async ({ app }) => {
@@ -646,9 +646,9 @@ test.describe('Node editor panels', () => {
     const inputToggle = app.getByRole('group', { name: 'Input view selection' })
     await expect(inputToggle).toBeVisible({ timeout: 10_000 })
 
-    // Schema view (default) — shows type labels
+    // Schema view (default) — shows type labels for upstream node data
     await expect(inputToggle.getByRole('button', { name: 'Schema', pressed: true })).toBeVisible()
-    await expect(app.getByText('T status')).toBeVisible()
+    await expect(app.getByText('T stdout')).toBeVisible()
 
     // Switch to Table view
     await inputToggle.getByRole('button', { name: 'Table' }).click()

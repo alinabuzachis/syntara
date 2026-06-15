@@ -125,7 +125,7 @@ function TriggerFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} hideSettingsTab />
 }
 
 export function TriggerNodeForm(props: TriggerNodeFormProps) {

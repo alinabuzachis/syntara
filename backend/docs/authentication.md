@@ -348,18 +348,34 @@ ao-admin reset-password --username alice
 
 # Non-interactive confirmation (still prompts for password securely)
 ao-admin reset-password --username alice --yes
+
+# Non-interactive — read password from stdin (recommended for scripts)
+cat /run/secrets/admin-password | ao-admin reset-password --username alice --password-stdin
+
+# Non-interactive — provide password as flag (⚠️ visible in process list and shell history)
+ao-admin reset-password --username alice --password 'MySecureP@ss1'
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--username` | *(required)* | Username of the account whose password will be reset |
+| `--password-stdin` | `false` | Read the new password from stdin (one line). Recommended for scripts and automation. |
+| `--password` | *(none)* | New password as a CLI argument. **Insecure** — the value is visible in the process list (`ps`) and may be saved in shell history. Prefer `--password-stdin`. |
 | `--yes` | `false` | Skip the confirmation prompt |
+
+> **Security note:** `--password` exposes the password in the process list and shell history. For automation, prefer `--password-stdin` which reads from a pipe or file and leaves no trace in process arguments:
+>
+> ```bash
+> cat /run/secrets/admin-password | ao-admin reset-password --username alice --password-stdin
+> ```
+
+When the password is supplied via `--password` or `--password-stdin`, the confirmation prompt is automatically skipped. The two flags are mutually exclusive. If stdin is not a terminal and neither `--password` nor `--password-stdin` is given, the command exits with an error instead of silently consuming input.
 
 **What happens when the command runs:**
 
-1. The user confirms the operation (unless `--yes`).
-2. The new password is collected via secure prompt (no echo), with confirmation.
-3. Password is validated (minimum 8 characters, must match confirmation).
+1. The password is resolved from `--password` flag, `--password-stdin`, or interactive prompt (with confirmation).
+2. If the password came from interactive prompt, the user confirms the operation (unless `--yes`).
+3. Password is validated (minimum 14 characters, at least 3 of 4 character classes).
 4. The user is looked up by username (case-insensitive, non-deleted users only).
 5. Identity provider users are rejected — only local users can have passwords reset.
 6. The password is hashed (Argon2id) and stored.

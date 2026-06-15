@@ -8,6 +8,7 @@ from uuid import UUID
 
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
+from nexus.workflows.models.workflow_validation_result import WorkflowValidationResult
 
 
 class WorkflowError(NexusError):
@@ -17,6 +18,16 @@ class WorkflowError(NexusError):
 @fastapi_exception(handler="nexus.workflows.error_handlers.validation_error_handler")
 class WorkflowValidationError(WorkflowError):
     """Workflow validation error."""
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.definition_invalid_handler")
+class WorkflowDefinitionInvalidError(WorkflowError):
+    """Raised when a workflow definition fails validation via the validate endpoint."""
+
+    def __init__(self, result: WorkflowValidationResult) -> None:
+        """Initialize with the validation result."""
+        self.result = result
+        super().__init__("Workflow definition validation failed")
 
 
 @fastapi_exception(handler="nexus.workflows.error_handlers.workflow_not_found_handler")

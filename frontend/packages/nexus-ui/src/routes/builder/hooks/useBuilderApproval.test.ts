@@ -204,8 +204,8 @@ describe('useBuilderApproval', () => {
       name: 'test',
       workflow: {
         activities: [
-          { id: 'a1', name: 'Step One', type: 'task', config: {} },
-          { id: 'a2', name: 'Step Two', type: 'approval', config: {} },
+          { id: 'a1', name: 'Step One', type: 'task', parameters: {} },
+          { id: 'a2', name: 'Step Two', type: 'approval', parameters: {} },
         ],
       },
     }

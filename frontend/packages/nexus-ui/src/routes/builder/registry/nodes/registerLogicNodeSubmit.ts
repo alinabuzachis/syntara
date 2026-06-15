@@ -84,14 +84,19 @@ export function submitLoopLogic(options: {
     return false
   }
 
-  const activity = createLoopActivity(activityId, name, loopType, {
-    items: data.items,
-    condition: data.condition,
-    maxIterations: data.maxIterations,
-    maxIterationsBehavior: data.maxIterationsBehavior,
-    indexVariable: data.indexVariable,
-    itemVariable: data.itemVariable,
-  })
+  const activity = createLoopActivity(
+    activityId,
+    name,
+    loopType,
+    {
+      items: data.items,
+      condition: data.condition,
+      maxIterations: data.maxIterations,
+      indexVariable: data.indexVariable,
+      itemVariable: data.itemVariable,
+    },
+    data.settings
+  )
 
   const genericNodeId = `task_${Date.now()}_${generateId()}`
   const genericName = getNodeDisplayName('Generic Step')
@@ -140,14 +145,16 @@ export function submitConvergeLogic(
     }
   }
 
-  const activity = createConvergeActivity(activityId, name, {
-    strategy: data.strategy,
-    timeout: data.timeout,
-    onTimeout: data.onTimeout,
-    ...(data.strategy === 'any' && {
-      requiredPathCount: data.requiredPathCount,
-    }),
-  })
+  const activity = createConvergeActivity(
+    activityId,
+    name,
+    {
+      strategy: data.strategy,
+      ...(data.strategy === 'any' && { requiredPathCount: data.requiredPathCount }),
+      ...(data.wait_duration !== undefined && { wait_duration: data.wait_duration }),
+    },
+    data.settings
+  )
 
   useWorkflowStore.getState().addActivity(activity)
   return true
@@ -173,7 +180,7 @@ export function submitSwitchLogic(
 
 export function submitWaitLogic(activityId: string, name: string, data: LogicFormData): boolean {
   const totalSeconds = timeUnitsToSeconds(data.seconds ?? 0, data.minutes ?? 0, data.hours ?? 0, data.days ?? 0)
-  const activity = createWaitActivity(activityId, name, { duration: totalSeconds })
+  const activity = createWaitActivity(activityId, name, { duration: totalSeconds }, data.settings)
   useWorkflowStore.getState().addActivity(activity)
   return true
 }

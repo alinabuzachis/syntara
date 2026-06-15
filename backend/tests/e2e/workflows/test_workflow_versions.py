@@ -79,7 +79,7 @@ class TestWorkflowVersionListing:
                         "id": "step1",
                         "name": "Step 1",
                         "type": "script",
-                        "config": {
+                        "parameters": {
                             "language": "python",
                             "code": "print('step 1')",
                         },
@@ -88,7 +88,7 @@ class TestWorkflowVersionListing:
                         "id": "step2",
                         "name": "Step 2",
                         "type": "script",
-                        "config": {
+                        "parameters": {
                             "language": "python",
                             "code": "print('step 2')",
                         },
@@ -351,7 +351,7 @@ class TestWorkflowVersionRetrieval:
                         "id": "task_1",
                         "name": "Task 1",
                         "type": "script",
-                        "config": {
+                        "parameters": {
                             "language": "python",
                             "code": "print('task 1')",
                         },
@@ -360,7 +360,7 @@ class TestWorkflowVersionRetrieval:
                         "id": "task_2",
                         "name": "Task 2",
                         "type": "script",
-                        "config": {
+                        "parameters": {
                             "language": "python",
                             "code": "print('task 2')",
                         },

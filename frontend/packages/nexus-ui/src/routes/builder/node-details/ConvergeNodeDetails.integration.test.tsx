@@ -14,7 +14,7 @@ describe('ConvergeNodeDetails snake_case Field Writing Logic', () => {
     onTimeout?: 'continue' | 'fail'
     requiredPathCount?: number
   }) {
-    const config: Record<string, unknown> = {
+    const parameters: Record<string, unknown> = {
       strategy: formData.strategy ?? 'all',
       ...(formData.timeout !== undefined && { timeout: formData.timeout }),
       ...(formData.onTimeout !== undefined && { on_timeout: formData.onTimeout }),
@@ -24,7 +24,7 @@ describe('ConvergeNodeDetails snake_case Field Writing Logic', () => {
         }),
     }
 
-    return config
+    return parameters
   }
 
   it('writes n_required in snake_case (not requiredPathCount)', () => {

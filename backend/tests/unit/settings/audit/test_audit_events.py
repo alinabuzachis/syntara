@@ -60,8 +60,16 @@ class TestSettingChangeHandler:
 
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == "urn:nexus:setting:ai.model_name"
+        assert audit_event.resource_urn == "urn:nexus:setting:ai_llm:ai.model_name"
         assert audit_event.resource_name == "AI Model Name"
+
+    def test_resource_urn_without_category(self) -> None:
+        handler = SettingChangeHandler()
+        event = self._make_event(category=None)
+
+        audit_event = handler.handle(event)
+
+        assert audit_event.resource_urn == "urn:nexus:setting:ai.model_name"
 
     def test_structured_data_fields(self) -> None:
         handler = SettingChangeHandler()

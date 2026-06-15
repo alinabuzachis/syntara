@@ -6,10 +6,8 @@ import structlog
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, SwitchOutput
 from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespace
-
-from .output_mapping import apply_output_mapping
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -25,7 +23,7 @@ def _validate_cases_structure(
     if not isinstance(cases, list):
         return f"'cases' must be a list, got {type(cases).__name__}"
     if not cases:
-        return "Missing or empty 'cases' in switch config"
+        return "Missing or empty 'cases' in switch parameters"
     if len(cases) > SWITCH_CASES_HARD_LIMIT:
         return f"Switch node has {len(cases)} cases, exceeding the maximum of {SWITCH_CASES_HARD_LIMIT}"
     return None
@@ -44,7 +42,7 @@ def _validate_case_ports(
     # scheduling both downstream branches instead of just one
     case_ports = [c["port"] for c in cases]
     if len(case_ports) != len(set(case_ports)):
-        return "Duplicate case ports in switch config"
+        return "Duplicate case ports in switch parameters"
 
     # A case port matching default_port would make both the case edge
     # and the default edge share the same from_port, executing both
@@ -130,30 +128,21 @@ async def switch(
 
         if evaluated:
             case_port = case["port"]
-            full_result = {
-                "status": "completed",
-                "matched_port": case_port,
-            }
-            mapped_output = apply_output_mapping(full_result, output_config)
+            output = SwitchOutput(matched_port=case_port)
 
             logger.info("switch_activity_completed", matched_port=case_port)
 
             return {
-                "output": mapped_output,
+                "output": output.dump(output_config),
                 "control": {"next_port": case_port},
             }
 
     # No case matched — route to default
-    full_result = {
-        "status": "completed",
-        "matched_port": default_port,
-    }
-    # Apply output mapping (suppresses fields before Temporal stores it)
-    mapped_output = apply_output_mapping(full_result, output_config)
+    output = SwitchOutput(matched_port=default_port)
 
     logger.info("switch_activity_completed", matched_port=default_port)
 
     return {
-        "output": mapped_output,
+        "output": output.dump(output_config),
         "control": {"next_port": default_port},
     }

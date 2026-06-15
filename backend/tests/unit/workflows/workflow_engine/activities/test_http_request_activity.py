@@ -166,7 +166,6 @@ class TestExecuteHttpRequestActivitySuccess:
         with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=resp):
             result = await execute_http_request_activity(VALID_CONFIG, None)
         output = result["output"]
-        assert output["status"] == "completed"
         assert output["status_code"] == 200
         assert output["body"] == {"result": "ok"}
         assert "elapsed" in output
@@ -193,7 +192,7 @@ class TestExecuteHttpRequestActivitySuccess:
         resp = _mock_response(200, json_body={"data": "x"})
         with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=resp):
             result = await execute_http_request_activity(VALID_CONFIG, {})
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_output_mapping_extracts_field(self) -> None:

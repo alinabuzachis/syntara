@@ -9,7 +9,7 @@ import { useUpstreamNodes } from './useUpstreamNodes'
 
 // Helper to create an Activity for tests
 function makeActivity(id: string, type: string, name?: string): Activity {
-  return { id, type, name, config: {} }
+  return { id, type, name, parameters: {} }
 }
 
 // Helper to create a WorkflowDefinition

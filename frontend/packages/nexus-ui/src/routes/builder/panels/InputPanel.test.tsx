@@ -75,7 +75,7 @@ describe('InputPanel', () => {
         id: 'real-trigger-id',
         name: 'Manual Trigger',
         type: 'manual_trigger',
-        config: {
+        parameters: {
           input_schema: {
             type: 'object',
             properties: {
@@ -150,8 +150,8 @@ describe('InputPanel', () => {
 
     await user.click(toggle)
 
-    expect(screen.getByText('T $now')).toBeInTheDocument()
-    expect(screen.getByText('T $today')).toBeInTheDocument()
+    expect(screen.getByText('{} workflow_context')).toBeInTheDocument()
+    expect(screen.getByText('T now')).toBeInTheDocument()
   })
 
   it('shows schema preview via sourceNodeId fallback when no edges exist', () => {

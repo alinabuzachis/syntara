@@ -39,7 +39,7 @@ const baseWaitNode: WaitActivity = {
   type: 'wait',
   id: 'wait-1',
   name: 'Wait 5 minutes',
-  config: {
+  parameters: {
     duration: 300,
   },
 }
@@ -91,7 +91,7 @@ describe('WaitNodeComponent', () => {
       const unnamed = {
         type: 'wait',
         id: 'wait-unnamed',
-        config: { duration: 60 },
+        parameters: { duration: 60 },
       } as WaitActivity
 
       render(
@@ -118,7 +118,7 @@ describe('WaitNodeComponent', () => {
     it('renders multiple duration parts', () => {
       const multiDuration: WaitActivity = {
         ...baseWaitNode,
-        config: { duration: 95400 },
+        parameters: { duration: 95400 },
       }
 
       render(
@@ -133,7 +133,7 @@ describe('WaitNodeComponent', () => {
     it('renders "Not configured" when no duration is set', () => {
       const noDuration: WaitActivity = {
         ...baseWaitNode,
-        config: { duration: 0 },
+        parameters: { duration: 0 },
       }
 
       render(
@@ -164,7 +164,7 @@ describe('WaitNodeComponent', () => {
     it('renders seconds when duration includes seconds', () => {
       const withSeconds: WaitActivity = {
         ...baseWaitNode,
-        config: { duration: 65 },
+        parameters: { duration: 65 },
       }
 
       render(
@@ -179,7 +179,7 @@ describe('WaitNodeComponent', () => {
     it('renders only seconds for sub-minute duration', () => {
       const secondsOnly: WaitActivity = {
         ...baseWaitNode,
-        config: { duration: 30 },
+        parameters: { duration: 30 },
       }
 
       render(
@@ -194,7 +194,7 @@ describe('WaitNodeComponent', () => {
     it('renders all parts when all time units present', () => {
       const allParts: WaitActivity = {
         ...baseWaitNode,
-        config: { duration: 90061 },
+        parameters: { duration: 90061 },
       }
 
       render(

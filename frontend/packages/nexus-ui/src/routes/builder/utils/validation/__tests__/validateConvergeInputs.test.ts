@@ -7,11 +7,11 @@ import { validateConvergeInputs } from '../rules/validateConvergeInputs'
 describe('validateConvergeInputs', () => {
   it('returns no errors for valid converge with inputs from different conditions', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
-      { type: 'condition', id: 'C2', name: 'Condition 2', config: { condition: 'y < 5' } },
-      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
-      { type: 'converge', id: 'J1', name: 'Join 1', config: { strategy: 'all' } },
+      { type: 'condition', id: 'C1', name: 'Condition 1', parameters: { condition: 'x > 10' } },
+      { type: 'condition', id: 'C2', name: 'Condition 2', parameters: { condition: 'y < 5' } },
+      { type: 'script', id: 'T1', name: 'Task 1', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', parameters: { language: 'python', code: '' } },
+      { type: 'converge', id: 'J1', name: 'Join 1', parameters: { strategy: 'all' } },
     ]
 
     const edges: EdgeConnection[] = [
@@ -27,10 +27,10 @@ describe('validateConvergeInputs', () => {
 
   it('detects converge receiving inputs from both branches of same condition', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
-      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
-      { type: 'converge', id: 'J1', name: 'Join 1', config: { strategy: 'all' } },
+      { type: 'condition', id: 'C1', name: 'Condition 1', parameters: { condition: 'x > 10' } },
+      { type: 'script', id: 'T1', name: 'Task 1', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', parameters: { language: 'python', code: '' } },
+      { type: 'converge', id: 'J1', name: 'Join 1', parameters: { strategy: 'all' } },
     ]
 
     const edges: EdgeConnection[] = [
@@ -54,8 +54,8 @@ describe('validateConvergeInputs', () => {
 
   it('handles converge with direct connections from condition (no intermediate tasks)', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
-      { type: 'converge', id: 'J1', name: 'Join 1', config: { strategy: 'all' } },
+      { type: 'condition', id: 'C1', name: 'Condition 1', parameters: { condition: 'x > 10' } },
+      { type: 'converge', id: 'J1', name: 'Join 1', parameters: { strategy: 'all' } },
     ]
 
     const edges: EdgeConnection[] = [
@@ -70,12 +70,12 @@ describe('validateConvergeInputs', () => {
 
   it('handles multi-level paths (condition -> task -> task -> converge)', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
-      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T3', name: 'Task 3', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T4', name: 'Task 4', config: { language: 'python', code: '' } },
-      { type: 'converge', id: 'J1', name: 'Join 1', config: { strategy: 'all' } },
+      { type: 'condition', id: 'C1', name: 'Condition 1', parameters: { condition: 'x > 10' } },
+      { type: 'script', id: 'T1', name: 'Task 1', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T3', name: 'Task 3', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T4', name: 'Task 4', parameters: { language: 'python', code: '' } },
+      { type: 'converge', id: 'J1', name: 'Join 1', parameters: { strategy: 'all' } },
     ]
 
     const edges: EdgeConnection[] = [
@@ -95,11 +95,11 @@ describe('validateConvergeInputs', () => {
 
   it('allows converge with only one branch from a condition', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
-      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T3', name: 'Task 3', config: { language: 'python', code: '' } },
-      { type: 'converge', id: 'J1', name: 'Join 1', config: { strategy: 'all' } },
+      { type: 'condition', id: 'C1', name: 'Condition 1', parameters: { condition: 'x > 10' } },
+      { type: 'script', id: 'T1', name: 'Task 1', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T3', name: 'Task 3', parameters: { language: 'python', code: '' } },
+      { type: 'converge', id: 'J1', name: 'Join 1', parameters: { strategy: 'all' } },
     ]
 
     const edges: EdgeConnection[] = [
@@ -120,10 +120,10 @@ describe('validateConvergeInputs', () => {
 
   it('handles cycles in graph without infinite loop', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
-      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
-      { type: 'converge', id: 'J1', name: 'Join 1', config: { strategy: 'all' } },
+      { type: 'condition', id: 'C1', name: 'Condition 1', parameters: { condition: 'x > 10' } },
+      { type: 'script', id: 'T1', name: 'Task 1', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', parameters: { language: 'python', code: '' } },
+      { type: 'converge', id: 'J1', name: 'Join 1', parameters: { strategy: 'all' } },
     ]
 
     const edges: EdgeConnection[] = [
@@ -139,8 +139,8 @@ describe('validateConvergeInputs', () => {
 
   it('uses condition ID as name when name is missing', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', config: { condition: 'x > 10' } } as Activity,
-      { type: 'converge', id: 'J1', config: { strategy: 'all' } } as Activity,
+      { type: 'condition', id: 'C1', parameters: { condition: 'x > 10' } } as Activity,
+      { type: 'converge', id: 'J1', parameters: { strategy: 'all' } } as Activity,
     ]
 
     const edges: EdgeConnection[] = [
@@ -155,9 +155,9 @@ describe('validateConvergeInputs', () => {
 
   it('ignores converge nodes with no condition ancestors', () => {
     const activities: Activity[] = [
-      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
-      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
-      { type: 'converge', id: 'J1', name: 'Join 1', config: { strategy: 'all' } },
+      { type: 'script', id: 'T1', name: 'Task 1', parameters: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', parameters: { language: 'python', code: '' } },
+      { type: 'converge', id: 'J1', name: 'Join 1', parameters: { strategy: 'all' } },
     ]
 
     const edges: EdgeConnection[] = [

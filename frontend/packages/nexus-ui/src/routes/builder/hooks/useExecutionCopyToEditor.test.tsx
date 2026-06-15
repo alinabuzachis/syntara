@@ -1,0 +1,144 @@
+import { renderHook } from '@testing-library/react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+
+import type { ExecutionCopyData } from './useExecutionCopyToEditor'
+import { useExecutionCopyToEditor } from './useExecutionCopyToEditor'
+
+vi.mock('../utils/parseImportedDefinition', () => ({
+  parseImportedDefinition: vi.fn((def: Record<string, unknown>) => ({
+    workflowDef: {
+      name: def.name ?? 'parsed-wf',
+      description: def.description ?? '',
+      workflow: { activities: [] },
+    },
+    edges: [],
+    nodePositions: {},
+  })),
+}))
+
+function buildOptions(overrides: Partial<Parameters<typeof useExecutionCopyToEditor>[0]> = {}) {
+  return {
+    executionCopy: undefined as ExecutionCopyData | undefined,
+    dispatch: vi.fn(),
+    markDirty: vi.fn(),
+    showSuccess: vi.fn(),
+    ...overrides,
+  }
+}
+
+function buildExecutionCopy(overrides: Partial<ExecutionCopyData> = {}): ExecutionCopyData {
+  return {
+    executionId: 'exec-123',
+    workflowDefinition: { name: 'test-wf', description: 'desc', nodes: [], triggers: [], edges: [] },
+    ...overrides,
+  }
+}
+
+describe('useExecutionCopyToEditor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useWorkflowStore.getState().setWorkflow({
+      schema_version: '2.0.0',
+      name: 'existing',
+      description: '',
+      workflow: { activities: [] },
+    })
+    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {})
+  })
+
+  it('does nothing when executionCopy is undefined', () => {
+    const opts = buildOptions()
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(opts.dispatch).not.toHaveBeenCalled()
+    expect(opts.showSuccess).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when currentWorkflow is null', () => {
+    useWorkflowStore.getState().setWorkflow(null)
+    const opts = buildOptions({ executionCopy: buildExecutionCopy() })
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(opts.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('calls replaceWorkflowContent with parsed definition', () => {
+    const replaceSpy = vi.spyOn(useWorkflowStore.getState(), 'replaceWorkflowContent')
+    const opts = buildOptions({ executionCopy: buildExecutionCopy() })
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(replaceSpy).toHaveBeenCalledOnce()
+  })
+
+  it('dispatches SET_WORKFLOW_NAME from parsed definition', () => {
+    const opts = buildOptions({ executionCopy: buildExecutionCopy() })
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(opts.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_WORKFLOW_NAME' }) as unknown)
+  })
+
+  it('dispatches SET_MOST_RECENT_EXECUTION with execution ID', () => {
+    const opts = buildOptions({ executionCopy: buildExecutionCopy({ executionId: 'exec-abc' }) })
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(opts.dispatch).toHaveBeenCalledWith({ type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-abc' })
+  })
+
+  it('calls markDirty', () => {
+    const opts = buildOptions({ executionCopy: buildExecutionCopy() })
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(opts.markDirty).toHaveBeenCalledOnce()
+  })
+
+  it('shows success toast', () => {
+    const opts = buildOptions({ executionCopy: buildExecutionCopy() })
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(opts.showSuccess).toHaveBeenCalledWith({
+      title: 'Run copied to editor',
+      description: 'The run has been loaded into the editor with pinned runtime data.',
+    })
+  })
+
+  it('cleans the URL query params', () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const opts = buildOptions({ executionCopy: buildExecutionCopy() })
+    renderHook(() => useExecutionCopyToEditor(opts))
+    expect(replaceStateSpy).toHaveBeenCalledWith({}, '', window.location.pathname)
+  })
+
+  it('applies only once even on re-render', () => {
+    const opts = buildOptions({ executionCopy: buildExecutionCopy() })
+    const { rerender } = renderHook(() => useExecutionCopyToEditor(opts))
+    rerender()
+    rerender()
+    expect(opts.showSuccess).toHaveBeenCalledOnce()
+  })
+
+  describe('preserveWorkflow mode', () => {
+    it('skips content replacement when preserveWorkflow is true', () => {
+      const replaceSpy = vi.spyOn(useWorkflowStore.getState(), 'replaceWorkflowContent')
+      const opts = buildOptions({ executionCopy: buildExecutionCopy({ preserveWorkflow: true }) })
+      renderHook(() => useExecutionCopyToEditor(opts))
+      expect(replaceSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not overwrite workflow name when preserveWorkflow is true', () => {
+      const dispatch = vi.fn()
+      const opts = buildOptions({ dispatch, executionCopy: buildExecutionCopy({ preserveWorkflow: true }) })
+      renderHook(() => useExecutionCopyToEditor(opts))
+      expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_WORKFLOW_NAME' }) as unknown)
+    })
+
+    it('still dispatches SET_MOST_RECENT_EXECUTION when preserveWorkflow is true', () => {
+      const opts = buildOptions({
+        executionCopy: buildExecutionCopy({ executionId: 'exec-fork', preserveWorkflow: true }),
+      })
+      renderHook(() => useExecutionCopyToEditor(opts))
+      expect(opts.dispatch).toHaveBeenCalledWith({ type: 'SET_MOST_RECENT_EXECUTION', payload: 'exec-fork' })
+    })
+
+    it('does not mark dirty or show toast when preserveWorkflow is true', () => {
+      const opts = buildOptions({ executionCopy: buildExecutionCopy({ preserveWorkflow: true }) })
+      renderHook(() => useExecutionCopyToEditor(opts))
+      expect(opts.markDirty).not.toHaveBeenCalled()
+      expect(opts.showSuccess).not.toHaveBeenCalled()
+    })
+  })
+})

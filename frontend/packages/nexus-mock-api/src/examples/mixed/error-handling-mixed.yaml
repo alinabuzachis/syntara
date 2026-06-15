@@ -10,14 +10,14 @@ triggers:
 nodes:
   - id: bash_success
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Bash executed successfully"
 
   - id: python_fail
     type: script
-    config:
+    parameters:
       language: python
       code: |
         raise Exception("Python intentional error")

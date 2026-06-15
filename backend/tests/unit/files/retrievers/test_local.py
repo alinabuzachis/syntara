@@ -243,3 +243,167 @@ async def test_delete_file_nonexistent_raises() -> None:
         retriever = LocalFileRetriever(storage_dir=str(tmpdir))
         with pytest.raises(FileContentNotFoundError, match="File not found"):
             await retriever.delete_file(str(Path(tmpdir) / "nonexistent.txt"))
+
+
+# =============================================================================
+# load_file tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_load_file_success() -> None:
+    """Test load_file reads back saved content."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        content = b"hello world"
+        saved_path = await retriever.save_file(content, "load-test.txt")
+
+        result = await retriever.load_file(saved_path)
+        assert result == content
+
+
+@pytest.mark.asyncio
+async def test_load_file_not_found_raises() -> None:
+    """Test load_file raises FileContentNotFoundError for missing file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        with pytest.raises(FileContentNotFoundError, match="File not found"):
+            await retriever.load_file(str(Path(tmpdir) / "does-not-exist.txt"))
+
+
+@pytest.mark.asyncio
+async def test_load_file_binary_content() -> None:
+    """Test load_file correctly handles binary content round-trip."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        content = bytes(range(256))
+        saved_path = await retriever.save_file(content, "binary.dat")
+
+        result = await retriever.load_file(saved_path)
+        assert result == content
+
+
+# =============================================================================
+# file_exists tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_file_exists_returns_true_for_existing_file() -> None:
+    """Test file_exists returns True when file exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        saved_path = await retriever.save_file(b"data", "exists-test.txt")
+
+        assert await retriever.file_exists(saved_path) is True
+
+
+@pytest.mark.asyncio
+async def test_file_exists_returns_false_for_nonexistent() -> None:
+    """Test file_exists returns False when file does not exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        assert await retriever.file_exists(str(Path(tmpdir) / "nope.txt")) is False
+
+
+@pytest.mark.asyncio
+async def test_file_exists_returns_false_for_directory() -> None:
+    """Test file_exists returns False when path is a directory, not a file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        # tmpdir itself is a directory, not a file
+        assert await retriever.file_exists(tmpdir) is False
+
+
+# =============================================================================
+# get_file_metadata tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_file_metadata_success() -> None:
+    """Test get_file_metadata returns correct metadata dict."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        content = b"metadata test content"
+        saved_path = await retriever.save_file(content, "meta-test.txt")
+
+        metadata = await retriever.get_file_metadata(saved_path)
+
+        assert metadata["size"] == len(content)
+        assert metadata["exists"] is True
+        assert metadata["path"] == saved_path
+        assert "modified" in metadata
+        # Verify modified is an ISO 8601 string
+        assert "T" in metadata["modified"]
+
+
+@pytest.mark.asyncio
+async def test_get_file_metadata_not_found_raises() -> None:
+    """Test get_file_metadata raises FileContentNotFoundError for missing file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+        with pytest.raises(FileContentNotFoundError, match="File not found"):
+            await retriever.get_file_metadata(str(Path(tmpdir) / "no-such-file.txt"))
+
+
+# =============================================================================
+# save_file error paths
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_save_file_storage_dir_permission_error() -> None:
+    """Test save_file raises when storage directory cannot be created."""
+    from unittest.mock import patch
+
+    retriever = LocalFileRetriever(storage_dir="/proc/fake-nexus-dir")
+
+    with (
+        patch("nexus.files.retrievers.local.Path.mkdir", side_effect=PermissionError("denied")),
+        pytest.raises(PermissionError),
+    ):
+        await retriever.save_file(b"data", "test.txt")
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***() -> None:
+    """Test save_file raises when parent directory for file cannot be created."""
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+
+        call_count = 0
+
+        original_mkdir = Path.mkdir
+
+        def failing_mkdir(self: Path, *args: object, **kwargs: object) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # Let storage dir creation succeed
+                original_mkdir(self, *args, **kwargs)  # type: ignore[arg-type]
+            else:
+                # Fail on parent dir creation
+                msg = "Cannot create parent"
+                raise OSError(msg)
+
+        with patch.object(Path, "mkdir", failing_mkdir), pytest.raises(OSError, match="Cannot create parent"):
+            await retriever.save_file(b"data", "nested/deep/test.txt")
+
+
+@pytest.mark.asyncio
+async def test_save_file_write_error() -> None:
+    """Test save_file raises when file write fails."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        retriever = LocalFileRetriever(storage_dir=str(tmpdir))
+
+        def failing_open(*args: object, **kwargs: object) -> object:
+            msg = "Disk full"
+            raise OSError(msg)
+
+        from unittest.mock import patch
+
+        with patch("aiofiles.open", side_effect=failing_open), pytest.raises(OSError, match="Disk full"):
+            await retriever.save_file(b"data", "fail-write.txt")

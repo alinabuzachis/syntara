@@ -1,10 +1,13 @@
 """Approvals API endpoints."""
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from fastapi import Depends, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+if TYPE_CHECKING:
+    from nexus.authz.opa_client import OPAClient
 
 from nexus.approvals.models import ApprovalRequestRead
 from nexus.approvals.models.api_models import (
@@ -17,7 +20,7 @@ from nexus.approvals.models.batch_response import BatchApprovalResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
 from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
@@ -52,6 +55,7 @@ _approval_perm_decide = PermissionChecker(
 def get_approval_service(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
+    opa_client: Annotated["OPAClient", Depends(get_opa_client)],
 ) -> ApprovalService:
     """Dependency provider for ApprovalService.
 
@@ -61,12 +65,13 @@ def get_approval_service(
     Args:
         db: Database session
         current_user: Current authenticated user
+        opa_client: OPA client for authorization checks
 
     Returns:
         ApprovalService configured with database session and user
 
     """
-    return ApprovalService(db, current_user)
+    return ApprovalService(db, current_user, opa_client)
 
 
 # ============================================================================
@@ -179,7 +184,6 @@ async def decide_approval(
 
 @router.post(
     "/batch",
-    dependencies=[Depends(PermissionChecker("approval", "decide"))],
     operation_id="batch_decide_approvals",
     summary="Batch approve/reject multiple requests",
     response_description="Batch decision results",
@@ -190,9 +194,13 @@ async def batch_decide_approvals(
 ) -> BatchApprovalResponse:
     """Submit decisions for multiple approval requests at once.
 
-    This endpoint processes each decision independently. If some decisions fail,
-    the successful ones are still recorded. The response includes detailed results
-    for each decision.
+    Authorization is validated per-approval: Each approval is checked for project-scoped
+    approval:decide permission AND approver list membership. Users with project-scoped
+    permissions can batch approve requests within their authorized projects.
+
+    This endpoint processes each decision independently. If some decisions fail due to
+    authorization or validation errors, the successful ones are still recorded. The
+    response includes detailed results for each decision.
 
     Use cases:
     - Approving multiple related requests at once

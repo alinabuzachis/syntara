@@ -64,7 +64,7 @@ async def test_middleware_extracts_path_params(
         # The request should fail (no such execution)
         assert response.status_code == 404
 
-        # Flush all pending AuditEventRecord writes
+        # Flush all pending outbox writes
         await get_outbox_worker().drain()
 
     # Verify _emit_otel_log_entry was called at least once
@@ -128,7 +128,7 @@ async def test_middleware_captures_request_id_in_structured_data(
         response = await base_client.get("/api/v1/users", headers=headers)
         assert response.status_code == 200
 
-        # Flush all pending AuditEventRecord writes
+        # Flush all pending outbox writes
         await get_outbox_worker().drain()
 
     # Verify _emit_otel_log_entry was called

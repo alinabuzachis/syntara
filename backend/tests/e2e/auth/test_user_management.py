@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import time
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+import httpx
 import pytest
 from nexus_api_client.models.auth_type import AuthType
 from nexus_api_client.models.login_request import LoginRequest
@@ -178,6 +180,7 @@ class TestLocalLoginRuntimeSettings:
     def test_local_login_runtime_setting(
         self,
         nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
         """Verify the runtime setting controls whether non-builtin local users can log in."""
@@ -204,15 +207,21 @@ class TestLocalLoginRuntimeSettings:
         ).assert_and_get()
 
         try:
-            """5. Authenticate as the non-builtin local user — verify login is rejected"""
-            assert (
-                nexus_api.authentication.login(
-                    body=LoginRequest(username=local_user.username, password=local_password)
-                ).status_code
-                == HTTPStatus.UNAUTHORIZED
+            """5. Authenticate as the non-builtin local user — verify login is rejected.
+
+            Use a raw HTTP POST to avoid triggering the nexus_api's auto-refresh
+            auth flow, which would try to re-login the admin user and fail while
+            local login is disabled.
+            """
+            login_resp = httpx.post(
+                f"{nexus_base_url}/api/v1/auth/login",
+                json={"username": local_user.username, "password": local_password},
+                timeout=10,
             )
+            assert login_resp.status_code == HTTPStatus.UNAUTHORIZED
         finally:
             nexus_api.settings.update(
                 key=local_login_setting_key,
                 body=SettingUpdate(value=True, expected_version=disabled_local_login_settings.version),
             )
+            time.sleep(2)

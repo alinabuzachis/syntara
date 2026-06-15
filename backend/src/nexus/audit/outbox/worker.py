@@ -1,15 +1,14 @@
 """Background worker that publishes audit events from the outbox.
 
 Periodically queries the outbox table for unpublished events, reconstructs
-AuditEvent objects, writes them to the audit database, then deletes the
-outbox records.
+AuditEvent objects, and emits them to the OTEL collector.
 
 Uses the shared ``PeriodicWorker`` with ``coordinate=True`` so that only
 one API-server instance across a scaled deployment processes the outbox per cycle
 (via PostgreSQL advisory locks).
 
 This guarantees at-least-once delivery of audit events even if the process
-crashes between business commit and audit write.
+crashes between business commit and OTEL emission.
 """
 
 from __future__ import annotations
@@ -25,13 +24,11 @@ from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlmodel import select
 
 from nexus.audit.models.audit_event import AuditEvent
-from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.audit.otel_logging import OTEL_AUDIT_LOGGER_NAME
 from nexus.audit.outbox.models import AuditEventSource, AuditOutboxRecord
 from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
 from nexus.core.config.base import get_settings
-from nexus.core.database.audit_session import AuditSessionLocal
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.workers.periodic import PeriodicWorker
 
@@ -50,39 +47,16 @@ logger = structlog.stdlib.get_logger(__name__)
 audit_logger_otel = structlog.stdlib.get_logger(OTEL_AUDIT_LOGGER_NAME)
 
 
-async def _handle_business_audit_records(
-    records: list[AuditOutboxRecord], audit_session_factory: async_sessionmaker[AsyncSession]
-) -> None:
-    logger.info("Writing AuditOutboxRecords to Audit database.", record_count=len(records))
+def _handle_business_audit_records(records: list[AuditOutboxRecord]) -> None:
+    logger.info("Exporting business AuditOutboxRecord records to OTEL Collector.", record_count=len(records))
 
-    audit_records: list[AuditEventRecord] = []
     for obr in records:
         try:
-            # Reconstruct AuditEvent from JSON payload
             audit_event = AuditEvent(**obr.event_payload)
             logger.debug("Converted AuditOutboxRecord record.", event_action=audit_event.event_action)
-
-            # Create AuditEventRecord from the event
-            audit_record = AuditEventRecord.from_event(audit_event)
-
-            # Override created_at with the outbox record's timestamp
-            # to preserve the original event creation time
-            audit_record.created_at = obr.created_at
-
-            audit_records.append(audit_record)
-
-            # Emit business event to OTEL collector
             _emit_otel_log_entry(audit_event, event_source=AuditEventSource.BUSINESS_EVENT)
-
         except ValidationError:
             logger.warning("Dropped malformed AuditOutboxRecord record.", id=obr.id)
-
-    # Write all audit records to audit database in a single batch
-    if audit_records:
-        logger.info("Saving AuditOutboxRecords to Audit database.", records=len(audit_records))
-        async with audit_session_factory() as audit_session:
-            audit_session.add_all(audit_records)
-            await audit_session.commit()
 
 
 def _handle_crud_audit_records(records: list[AuditOutboxRecord]) -> None:
@@ -114,25 +88,17 @@ def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource
 
 async def publish_outbox_events(
     session_factory: async_sessionmaker[AsyncSession] | None,
-    audit_session_factory: async_sessionmaker[AsyncSession] | None,
 ) -> None:
-    """Query outbox for unpublished events and write them to audit database.
+    """Query outbox for unpublished events and emit them to the OTEL collector.
 
     This is the callback invoked by ``PeriodicWorker`` each cycle.
 
     Uses row-level locking (FOR UPDATE SKIP LOCKED) to prevent race conditions
     across multiple workers - each worker locks the rows it processes, and other
     workers skip already-locked rows.
-
-    Reads from main database (audit_outbox) and writes to audit database
-    (audit_events) in batches for efficiency.
     """
     if session_factory is None:
-        logger.warning("SessionFactory not set. Unable to publish AuditOutboxRecord to AuditOutbox database.")
-        return
-
-    if audit_session_factory is None:
-        logger.warning("AuditSessionFactory not set. Unable to publish AuditOutboxRecord to AuditOutbox database.")
+        logger.warning("SessionFactory not set. Unable to publish AuditOutboxRecord events.")
         return
 
     settings = get_settings()
@@ -141,11 +107,10 @@ async def publish_outbox_events(
     logger.debug("Running AuditOutboxRecord export loop.....")
 
     async with session_factory() as main_session:
-        # Read batch of outbox records with row-level locking (FIFO processing)
         result = await main_session.exec(
             select(AuditOutboxRecord)
             .order_by(AuditOutboxRecord.created_at)  # type: ignore[arg-type]
-            .limit(batch_size)  # Process in batches to avoid overwhelming the audit database
+            .limit(batch_size)
             .with_for_update(skip_locked=True)
         )
         outbox_records = result.all()
@@ -155,26 +120,22 @@ async def publish_outbox_events(
             return
 
         try:
-            # Handle BUSINESS_EVENT Audit records (written to Postgres)
             business_records = [obr for obr in outbox_records if obr.event_source == AuditEventSource.BUSINESS_EVENT]
-            await _handle_business_audit_records(business_records, audit_session_factory)
+            _handle_business_audit_records(business_records)
 
-            # Handle CRUD_EVENT Audit records (exported to OTEL Collector)
             crud_records = [obr for obr in outbox_records if obr.event_source == AuditEventSource.CRUD_EVENT]
             _handle_crud_audit_records(crud_records)
 
-            # Delete all successfully published records from outbox
-            logger.info("Deleting AuditOutboxRecords from AuditOutbox database.", records=len(outbox_records))
+            logger.info("Deleting AuditOutboxRecords from outbox.", records=len(outbox_records))
             for outbox_record in outbox_records:
                 await main_session.delete(outbox_record)
 
             await main_session.commit()
-            logger.info("AuditOutboxWorker published AuditEventRecords", records=len(outbox_records))
+            logger.info("AuditOutboxWorker published events to OTEL", records=len(outbox_records))
 
         except Exception:
-            # Don't delete from outbox - will retry next cycle
             logger.exception(
-                "Failed to write AuditEvents batch to Audit database",
+                "Failed to publish AuditEvents batch to OTEL",
                 batch_size=len(outbox_records),
             )
 
@@ -187,14 +148,11 @@ async def publish_outbox_events(
 class AuditOutboxWorker(PeriodicWorker):
     """Periodic background worker that publishes audit events from the outbox.
 
-    Extends :class:`PeriodicWorker` to poll the audit_outbox table, publish
-    events to the audit database, then delete them. Provides :meth:`write_to_outbox`
+    Extends :class:`PeriodicWorker` to poll the audit_outbox table, emit
+    events to the OTEL collector, then delete them. Provides :meth:`write_to_outbox`
     for synchronous and asynchronous outbox writes. Uses a semaphore to limit
     concurrent writes and retries transient database errors.
     """
-
-    async def _wrap(self, session_factory: async_sessionmaker[AsyncSession] | None) -> None:
-        return await self._audit_callback(session_factory, self._audit_session_factory)
 
     def __init__(
         self,
@@ -202,8 +160,7 @@ class AuditOutboxWorker(PeriodicWorker):
         name: str,
         interval_seconds: float,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
-        audit_session_factory: async_sessionmaker[AsyncSession] | None = None,
-        audit_callback: Callable[[Any, Any], Awaitable[None]],
+        audit_callback: Callable[[Any], Awaitable[None]],
         cleanup_callback: Callable[[], Awaitable[None]] | None = None,
         coordinate: bool = True,
     ) -> None:
@@ -211,7 +168,7 @@ class AuditOutboxWorker(PeriodicWorker):
         super().__init__(
             name=name,
             interval_seconds=interval_seconds,
-            callback=self._wrap,
+            callback=audit_callback,
             session_factory=session_factory,
             cleanup_callback=cleanup_callback,
             coordinate=coordinate,
@@ -222,8 +179,6 @@ class AuditOutboxWorker(PeriodicWorker):
         self._semaphore = asyncio.Semaphore(settings.audit_writer_max_concurrent_writes)
         self._max_retries = settings.audit_writer_max_retries
         self._base_delay = settings.audit_writer_base_delay_seconds
-        self._audit_callback = audit_callback
-        self._audit_session_factory = audit_session_factory
 
     def write_to_outbox(self, event: AuditEvent, session: Session | None = None) -> None:
         """Write AuditEvent to outbox.
@@ -394,30 +349,27 @@ class AuditOutboxWorker(PeriodicWorker):
     async def drain(self) -> None:
         """Wait for all in-flight writes to complete.
 
-        Attempts to drain all pending audit events from the outbox to the audit database.
+        Attempts to drain all pending audit events from the outbox to the OTEL collector.
         If the database becomes unavailable during shutdown, logs a warning and continues
         gracefully rather than raising an exception.
 
         """
         pending = list(self._pending)
         while pending:
-            logger.info("Draining AuditEvent(s) to AuditOutbox database.", records=len(pending))
+            logger.info("Draining AuditEvent(s) to outbox.", records=len(pending))
             await asyncio.gather(*pending, return_exceptions=True)
             pending = list(self._pending)
 
         await asyncio.sleep(0.5)
 
-        # Manually trigger the outbox worker to process pending audit events
-        # This moves events from audit_outbox to the audit_events table
         try:
             pending_count = await self._get_pending_outbox_count()
             while pending_count:
-                logger.info("Draining AuditOutboxRecord(s) to Audit database.", records=pending_count)
-                await publish_outbox_events(self._session_factory, self._audit_session_factory)
+                logger.info("Draining AuditOutboxRecord(s) to OTEL.", records=pending_count)
+                await publish_outbox_events(self._session_factory)
                 pending_count = await self._get_pending_outbox_count()
         except (DatabaseError, OSError) as e:  # OSError covers socket/network errors like gaierror
-            # Database may be unavailable during shutdown - log and continue
-            logger.warning("Unable to drain outbox records to audit database", error=str(e), exc_info=True)
+            logger.warning("Unable to drain outbox records", error=str(e), exc_info=True)
 
 
 @lru_cache(maxsize=1)
@@ -428,7 +380,6 @@ def get_outbox_worker() -> AuditOutboxWorker:
         name="audit-outbox-worker",
         interval_seconds=settings.audit_outbox_poll_interval_seconds,
         session_factory=AsyncSessionLocal,
-        audit_session_factory=AuditSessionLocal,
         audit_callback=publish_outbox_events,
         coordinate=True,
     )

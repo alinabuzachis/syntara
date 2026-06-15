@@ -94,7 +94,7 @@ triggers:
 nodes:
 - id: {activity_id}
   type: script
-  config:
+  parameters:
     language: bash
     code: {script}
   settings:

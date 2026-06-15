@@ -42,6 +42,9 @@ class ApprovalCreateRequest:
             project_id (None | Unset | UUID): Project ID (denormalized from execution)
             timeout_at (datetime.datetime | None | Unset): When this request expires (null = no timeout)
             next_step_rejected (ActivitySummary | None | Unset): First activity that executes if rejected
+            approver_user_ids (list[UUID] | None | Unset): User IDs who can approve (null = any user with approval:decide
+                permission)
+            approver_group_ids (list[UUID] | None | Unset): Group IDs whose members can approve
     """
 
     execution_id: UUID
@@ -52,6 +55,8 @@ class ApprovalCreateRequest:
     project_id: None | Unset | UUID = UNSET
     timeout_at: datetime.datetime | None | Unset = UNSET
     next_step_rejected: ActivitySummary | None | Unset = UNSET
+    approver_user_ids: list[UUID] | None | Unset = UNSET
+    approver_group_ids: list[UUID] | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -91,6 +96,30 @@ class ApprovalCreateRequest:
         else:
             next_step_rejected = self.next_step_rejected
 
+        approver_user_ids: list[str] | None | Unset
+        if isinstance(self.approver_user_ids, Unset):
+            approver_user_ids = UNSET
+        elif isinstance(self.approver_user_ids, list):
+            approver_user_ids = []
+            for approver_user_ids_type_0_item_data in self.approver_user_ids:
+                approver_user_ids_type_0_item = str(approver_user_ids_type_0_item_data)
+                approver_user_ids.append(approver_user_ids_type_0_item)
+
+        else:
+            approver_user_ids = self.approver_user_ids
+
+        approver_group_ids: list[str] | None | Unset
+        if isinstance(self.approver_group_ids, Unset):
+            approver_group_ids = UNSET
+        elif isinstance(self.approver_group_ids, list):
+            approver_group_ids = []
+            for approver_group_ids_type_0_item_data in self.approver_group_ids:
+                approver_group_ids_type_0_item = str(approver_group_ids_type_0_item_data)
+                approver_group_ids.append(approver_group_ids_type_0_item)
+
+        else:
+            approver_group_ids = self.approver_group_ids
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -108,6 +137,10 @@ class ApprovalCreateRequest:
             field_dict["timeout_at"] = timeout_at
         if next_step_rejected is not UNSET:
             field_dict["next_step_rejected"] = next_step_rejected
+        if approver_user_ids is not UNSET:
+            field_dict["approver_user_ids"] = approver_user_ids
+        if approver_group_ids is not UNSET:
+            field_dict["approver_group_ids"] = approver_group_ids
 
         return field_dict
 
@@ -178,6 +211,50 @@ class ApprovalCreateRequest:
 
         next_step_rejected = _parse_next_step_rejected(d.pop("next_step_rejected", UNSET))
 
+        def _parse_approver_user_ids(data: object) -> list[UUID] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                approver_user_ids_type_0 = []
+                _approver_user_ids_type_0 = data
+                for approver_user_ids_type_0_item_data in _approver_user_ids_type_0:
+                    approver_user_ids_type_0_item = UUID(approver_user_ids_type_0_item_data)
+
+                    approver_user_ids_type_0.append(approver_user_ids_type_0_item)
+
+                return approver_user_ids_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[UUID] | None | Unset, data)
+
+        approver_user_ids = _parse_approver_user_ids(d.pop("approver_user_ids", UNSET))
+
+        def _parse_approver_group_ids(data: object) -> list[UUID] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                approver_group_ids_type_0 = []
+                _approver_group_ids_type_0 = data
+                for approver_group_ids_type_0_item_data in _approver_group_ids_type_0:
+                    approver_group_ids_type_0_item = UUID(approver_group_ids_type_0_item_data)
+
+                    approver_group_ids_type_0.append(approver_group_ids_type_0_item)
+
+                return approver_group_ids_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[UUID] | None | Unset, data)
+
+        approver_group_ids = _parse_approver_group_ids(d.pop("approver_group_ids", UNSET))
+
         approval_create_request = cls(
             execution_id=execution_id,
             approval_node_id=approval_node_id,
@@ -187,6 +264,8 @@ class ApprovalCreateRequest:
             project_id=project_id,
             timeout_at=timeout_at,
             next_step_rejected=next_step_rejected,
+            approver_user_ids=approver_user_ids,
+            approver_group_ids=approver_group_ids,
         )
 
         approval_create_request.additional_properties = d

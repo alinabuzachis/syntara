@@ -18,7 +18,7 @@ triggers:
 nodes:
   - id: create_resource
     type: http_request
-    config:
+    parameters:
       method: POST
       url: http://test-api.example.com/api/create
       headers:

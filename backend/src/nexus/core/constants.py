@@ -25,6 +25,9 @@ class FieldLimits:
     TIME_WINDOW_MAX_LENGTH = 50
     NAMESPACED_NAME_MAX_LENGTH = 200
 
+    # List length limits
+    APPROVER_LIST_MAX_LENGTH = 1000
+
     # Pagination limits
     MAX_ITEMS_PER_PAGE = 100
 

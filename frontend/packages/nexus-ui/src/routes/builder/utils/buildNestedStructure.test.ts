@@ -11,8 +11,8 @@ describe('buildNestedConditionStructure (v2)', () => {
   describe('Simple conditions', () => {
     it('returns flat activities unchanged', () => {
       const activities: Activity[] = [
-        { type: 'condition', id: 'A', name: 'Condition A', config: { condition: 'input.value > 10' } },
-        { type: 'script', id: 'B', name: 'Task B', config: { language: 'python', code: 'print("B")' } },
+        { type: 'condition', id: 'A', name: 'Condition A', parameters: { condition: 'input.value > 10' } },
+        { type: 'script', id: 'B', name: 'Task B', parameters: { language: 'python', code: 'print("B")' } },
       ]
       const edges = [{ id: 'A-B', source: 'A', target: 'B', sourceHandle: 'true', targetHandle: 'target' }]
 
@@ -25,9 +25,9 @@ describe('buildNestedConditionStructure (v2)', () => {
 
     it('returns all activities for then and else branches', () => {
       const activities: Activity[] = [
-        { type: 'condition', id: 'A', name: 'Condition A', config: { condition: 'input.value > 10' } },
-        { type: 'script', id: 'B', name: 'Task B', config: { language: 'python', code: 'print("B")' } },
-        { type: 'script', id: 'C', name: 'Task C', config: { language: 'python', code: 'print("C")' } },
+        { type: 'condition', id: 'A', name: 'Condition A', parameters: { condition: 'input.value > 10' } },
+        { type: 'script', id: 'B', name: 'Task B', parameters: { language: 'python', code: 'print("B")' } },
+        { type: 'script', id: 'C', name: 'Task C', parameters: { language: 'python', code: 'print("C")' } },
       ]
       const edges = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'true', targetHandle: 'target' },
@@ -43,9 +43,9 @@ describe('buildNestedConditionStructure (v2)', () => {
   describe('Nested conditions', () => {
     it('returns all flat activities including nested conditions', () => {
       const activities: Activity[] = [
-        { type: 'condition', id: 'A', name: 'Condition A', config: { condition: 'input.a > 10' } },
-        { type: 'condition', id: 'B', name: 'Condition B', config: { condition: 'input.b > 20' } },
-        { type: 'script', id: 'C', name: 'Task C', config: { language: 'python', code: 'print("C")' } },
+        { type: 'condition', id: 'A', name: 'Condition A', parameters: { condition: 'input.a > 10' } },
+        { type: 'condition', id: 'B', name: 'Condition B', parameters: { condition: 'input.b > 20' } },
+        { type: 'script', id: 'C', name: 'Task C', parameters: { language: 'python', code: 'print("C")' } },
       ]
       const edges = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'true', targetHandle: 'target' },
@@ -64,10 +64,10 @@ describe('buildNestedConditionStructure (v2)', () => {
   describe('Multiple top-level conditions', () => {
     it('returns all independent conditions and tasks', () => {
       const activities: Activity[] = [
-        { type: 'condition', id: 'A', name: 'Condition A', config: { condition: 'input.a > 10' } },
-        { type: 'script', id: 'B', name: 'Task B', config: { language: 'python', code: 'print("B")' } },
-        { type: 'condition', id: 'C', name: 'Condition C', config: { condition: 'input.c > 20' } },
-        { type: 'script', id: 'D', name: 'Task D', config: { language: 'python', code: 'print("D")' } },
+        { type: 'condition', id: 'A', name: 'Condition A', parameters: { condition: 'input.a > 10' } },
+        { type: 'script', id: 'B', name: 'Task B', parameters: { language: 'python', code: 'print("B")' } },
+        { type: 'condition', id: 'C', name: 'Condition C', parameters: { condition: 'input.c > 20' } },
+        { type: 'script', id: 'D', name: 'Task D', parameters: { language: 'python', code: 'print("D")' } },
       ]
       const edges = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'true', targetHandle: 'target' },
@@ -83,8 +83,8 @@ describe('buildNestedConditionStructure (v2)', () => {
   describe('Loop structures', () => {
     it('returns loop and body activities flat', () => {
       const activities: Activity[] = [
-        { type: 'loop', id: 'loop1', name: 'Process Items', config: { type: 'for_each', items: '${input.items}' } },
-        { type: 'script', id: 'task1', name: 'Process Item', config: { language: 'bash', code: 'echo $item' } },
+        { type: 'loop', id: 'loop1', name: 'Process Items', parameters: { type: 'for_each', items: '${input.items}' } },
+        { type: 'script', id: 'task1', name: 'Process Item', parameters: { language: 'bash', code: 'echo $item' } },
       ]
       const edges = [
         { id: 'loop1-task1', source: 'loop1', target: 'task1', sourceHandle: 'loop', targetHandle: 'target' },
@@ -100,10 +100,10 @@ describe('buildNestedConditionStructure (v2)', () => {
 
     it('round-trips loop with incoming and outgoing edges', () => {
       const activities: Activity[] = [
-        { type: 'script', id: 'task1', name: 'Before Loop', config: { language: 'bash', code: 'echo before' } },
-        { type: 'loop', id: 'loop1', name: 'Process Items', config: { type: 'for_each', items: '${input.items}' } },
-        { type: 'script', id: 'task2', name: 'Inside Loop', config: { language: 'bash', code: 'echo inside' } },
-        { type: 'script', id: 'task3', name: 'After Loop', config: { language: 'bash', code: 'echo after' } },
+        { type: 'script', id: 'task1', name: 'Before Loop', parameters: { language: 'bash', code: 'echo before' } },
+        { type: 'loop', id: 'loop1', name: 'Process Items', parameters: { type: 'for_each', items: '${input.items}' } },
+        { type: 'script', id: 'task2', name: 'Inside Loop', parameters: { language: 'bash', code: 'echo inside' } },
+        { type: 'script', id: 'task3', name: 'After Loop', parameters: { language: 'bash', code: 'echo after' } },
       ]
 
       const edges = [

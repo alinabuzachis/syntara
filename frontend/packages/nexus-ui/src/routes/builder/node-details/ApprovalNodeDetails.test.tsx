@@ -50,9 +50,7 @@ describe('ApprovalNodeDetails Component', () => {
     type: 'approval' as const,
     id: 'approval-1',
     name: 'Test Approval',
-    config: {
-      approver_timeout: 7200,
-    },
+    parameters: {},
     ...overrides,
   })
 
@@ -75,13 +73,10 @@ describe('ApprovalNodeDetails Component', () => {
   it('calls updateActivity when form auto-saves', () => {
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    // Simulate auto-save
     mockOnSubmitHandler?.({
       name: 'Updated Approval',
       approvers: ['admin'],
       prompt: 'Please approve',
-      timeout: 3600,
-      onTimeout: 'reject',
     })
 
     expect(mockUpdateActivity).toHaveBeenCalledWith(
@@ -89,11 +84,9 @@ describe('ApprovalNodeDetails Component', () => {
       expect.objectContaining({
         name: 'Updated Approval',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        config: expect.objectContaining({
+        parameters: expect.objectContaining({
           approvers: ['admin'],
           prompt: 'Please approve',
-          approver_timeout: 3600,
-          on_timeout: 'reject',
         }),
       })
     )
@@ -102,28 +95,19 @@ describe('ApprovalNodeDetails Component', () => {
   it('calls onClose after auto-save', () => {
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    // Simulate auto-save
     mockOnSubmitHandler?.({
       name: 'Updated Approval',
       approvers: ['admin'],
       prompt: 'Please approve',
-      timeout: 3600,
-      onTimeout: 'reject',
     })
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('renders form with initial data', () => {
-    render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
+  it('handles taskData without config', () => {
+    const taskDataWithoutConfig = createTaskData({ config: undefined })
 
-    expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
-  })
-
-  it('handles taskData without approval data', () => {
-    const taskDataWithoutApproval = createTaskData({ approval: undefined })
-
-    render(<ApprovalNodeDetails taskData={taskDataWithoutApproval} nodeId="approval-1" onClose={mockOnClose} />)
+    render(<ApprovalNodeDetails taskData={taskDataWithoutConfig} nodeId="approval-1" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
   })
@@ -135,54 +119,22 @@ describe('ApprovalNodeDetails Component', () => {
 
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    // Simulate auto-save
     mockOnSubmitHandler?.({
       name: 'Test Approval',
       approvers: ['user1'],
       prompt: 'Approve',
-      timeout: 86400,
-      onTimeout: 'fail',
     })
 
     expect(mockShowError).toHaveBeenCalledWith({ title: 'Update failed', description: 'The update failed' })
   })
 
-  it('reads on_timeout from snake_case config field', () => {
-    const taskDataWithSnakeCase = createTaskData({
-      config: {
-        approver_timeout: 7200,
-        on_timeout: 'continue',
-      },
+  it('passes settings from taskData to form', () => {
+    const taskDataWithSettings = createTaskData({
+      parameters: { decision_window: 7200 },
+      settings: { continue_on_failure: true },
     })
 
-    render(<ApprovalNodeDetails taskData={taskDataWithSnakeCase} nodeId="approval-1" onClose={mockOnClose} />)
-
-    expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
-  })
-
-  it('falls back to onTimeout (camelCase) when on_timeout not present', () => {
-    const taskDataWithCamelCase = createTaskData({
-      config: {
-        approver_timeout: 7200,
-        onTimeout: 'continue',
-      },
-    })
-
-    render(<ApprovalNodeDetails taskData={taskDataWithCamelCase} nodeId="approval-1" onClose={mockOnClose} />)
-
-    expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
-  })
-
-  it('prefers on_timeout over onTimeout when both present', () => {
-    const taskDataWithBoth = createTaskData({
-      config: {
-        approver_timeout: 7200,
-        on_timeout: 'continue',
-        onTimeout: 'reject',
-      },
-    })
-
-    render(<ApprovalNodeDetails taskData={taskDataWithBoth} nodeId="approval-1" onClose={mockOnClose} />)
+    render(<ApprovalNodeDetails taskData={taskDataWithSettings} nodeId="approval-1" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
   })

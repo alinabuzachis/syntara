@@ -41,7 +41,7 @@ The audit framework provides **comprehensive, type-safe event tracking** for cap
 graph TB
     subgraph "Event Sources"
         A1[Domain Events]
-        A2[audit Decorator]
+        A2["@audit Decorator"]
         A3[audit_context Manager]
         A4[AuditMiddleware]
         A5[Database Triggers<br/>CRUD Operations]
@@ -62,7 +62,6 @@ graph TB
         D1[Structured Logs<br/>stdout]
         D2[audit_outbox Table<br/>Atomic Commit]
         D3[AuditOutboxWorker<br/>Background Publisher]
-        D4[audit_events Table<br/>Audit Database]
         D5[OTEL Collector<br/>All Events]
     end
 
@@ -78,7 +77,6 @@ graph TB
     C2 --> D1
     C2 --> D2
     D2 --> D3
-    D3 --> D4
     D3 --> D5
 ```
 
@@ -87,7 +85,6 @@ graph TB
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | **AuditEvent** | In-memory event envelope | `audit/models/audit_event.py` |
-| **AuditEventRecord** | PostgreSQL table model | `audit/models/audit_event_record.py` |
 | **AuditOutboxRecord** | Transactional outbox table | `audit/outbox/models.py` |
 | **AuditTableMetadata** | Audit configuration per table | `audit/outbox/models.py` |
 | **AuditEventSource** | Event routing enum (BUSINESS_EVENT, CRUD_EVENT) | `audit/outbox/models.py` |
@@ -118,11 +115,7 @@ graph TB
 ```mermaid
 erDiagram
     AuditEvent ||--|| AuditContextData : "has structured_data"
-    AuditEvent ||--o| AuditEventRecord : "persists as"
-
-    AuditEventRecord ||--o| User : "actor_id references"
-    AuditEventRecord ||--o| Workflow : "workflow_id references"
-    AuditEventRecord ||--o| Execution : "execution_id references"
+    AuditEvent ||--|| AuditOutboxRecord : "persisted via outbox"
 
     AuditEvent {
         UUID event_id PK
@@ -141,26 +134,6 @@ erDiagram
         UUID execution_id FK
         string event_message
         AuditContextData structured_data
-    }
-
-    AuditEventRecord {
-        UUID id PK
-        timestamp created_at
-        EventCategory event_category
-        EventSeverity event_severity
-        EventStatus event_status
-        string event_action
-        UUID actor_id FK
-        ActorType actor_type
-        string actor_username
-        string source_component
-        string resource_urn "RFC 8141 URN, validated"
-        string resource_name "Human-readable name"
-        UUID workflow_id FK
-        string activity_id
-        UUID execution_id FK
-        string event_message
-        JSONB structured_data
     }
 
     AuditContextData {
@@ -223,27 +196,6 @@ class ActorType(StrEnum):
     SERVICE = "service"
 ```
 
-#### Database Indexes
-
-`AuditEventRecord` uses composite indexes for efficient filtering + sorting + pagination:
-
-```sql
--- Common query pattern: filter by field + sort by created_at DESC + cursor pagination
-CREATE INDEX ix_audit_events_actor_id_created_at_id
-    ON audit_events (actor_id, created_at, id);
-
-CREATE INDEX ix_audit_events_event_category_created_at_id
-    ON audit_events (event_category, created_at, id);
-
-CREATE INDEX ix_audit_events_workflow_id_created_at_id
-    ON audit_events (workflow_id, created_at, id);
-
-CREATE INDEX ix_audit_events_execution_id_created_at_id
-    ON audit_events (execution_id, created_at, id);
-
--- etc.
-```
-
 ### Event Flow
 
 #### Complete Event Processing Pipeline
@@ -300,7 +252,7 @@ sequenceDiagram
 
 #### Transactional Outbox Architecture
 
-This diagram shows the complete audit event flow from two different sources through the transactional outbox pattern to the audit database:
+This diagram shows the complete audit event flow from two different sources through the transactional outbox pattern to the OTEL Collector:
 
 ```mermaid
 sequenceDiagram
@@ -314,7 +266,6 @@ sequenceDiagram
     participant Outbox as audit_outbox Table
     participant BusinessDB as Business Database
     participant Worker as AuditOutboxWorker<br/>(Background)
-    participant AuditDB as audit_events Table<br/>(Audit Database)
     participant OTEL as OTEL Collector<br/>(All Events)
 
     rect rgb(230, 240, 250)
@@ -353,11 +304,6 @@ sequenceDiagram
         Worker->>Outbox: SELECT * FROM audit_outbox<br/>FOR UPDATE SKIP LOCKED
         Outbox-->>Worker: Unpublished events
 
-        Worker->>Worker: Separate by event_source
-
-        Worker->>AuditDB: INSERT BUSINESS_EVENTs<br/>INTO audit_events
-        AuditDB-->>Worker: Success
-
         Worker->>OTEL: Export ALL events<br/>to OTEL Collector<br/>(with audit.event_source discriminator)
         OTEL-->>Worker: Success
 
@@ -380,13 +326,11 @@ sequenceDiagram
 
 4. **Automatic CRUD Capture**: PostgreSQL triggers (`audit_crud_operation()`) observe all INSERT/UPDATE/DELETE operations on auditable tables without requiring developers to manually instrument code, guaranteeing audit trail completeness.
 
-5. **Dual Routing**: The background worker routes events by `event_source`:
-   - `BUSINESS_EVENT` → `audit_events` table (separate audit database) AND OTEL Collector (with `audit.event_source=business` discriminator)
-   - `CRUD_EVENT` → OTEL Collector only (with `audit.event_source=crud` discriminator)
+5. **OTEL Export**: The background worker exports all events to the OTEL Collector with an `audit.event_source` discriminator (`business` or `crud`).
 
-6. **Guaranteed Delivery**: The background worker polls the outbox and publishes to destinations. Events survive process crashes between business commit and audit publication.
+6. **Guaranteed Delivery**: The background worker polls the outbox and publishes to the OTEL Collector. Events survive process crashes between business commit and audit publication.
 
-7. **Non-Blocking**: Business transactions never wait for audit database writes or OTEL export. The worker processes events asynchronously in the background.
+7. **Non-Blocking**: Business transactions never wait for OTEL export. The worker processes events asynchronously in the background.
 
 #### Trigger-Based CRUD Audit System
 
@@ -821,7 +765,7 @@ Each layer can coexist — a single HTTP request may generate events from **all 
 - ✅ Automatic coverage of all database mutations
 - ✅ Selective field capture (FULL vs META mode)
 - ✅ Guaranteed capture (triggers can't be forgotten)
-- ✅ Routed to OTEL Collector only (not persisted to audit_events table)
+- ✅ Routed to OTEL Collector
 
 **Cons:**
 - ❌ No business semantics (just CRUD metadata)

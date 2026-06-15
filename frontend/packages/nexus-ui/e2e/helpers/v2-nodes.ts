@@ -339,8 +339,10 @@ export async function addConvergeNodeWithAnyStrategy(page: Page, name: string, r
 }
 
 /**
- * Add a converge node with timeout configuration.
- * V2 type: "converge", timeout: number (seconds), onTimeout: "fail" | "continue"
+ * Add a converge node with wait_duration configuration.
+ * V2 type: "converge", wait_duration stored in config (Parameters tab).
+ * The `action` param is accepted for API compatibility but ignored — on_timeout
+ * no longer exists; use the Settings tab continue_on_failure instead.
  */
 export async function addConvergeNodeWithTimeout(
   page: Page,
@@ -350,7 +352,7 @@ export async function addConvergeNodeWithTimeout(
     minutes?: number
     hours?: number
     days?: number
-    action: 'fail' | 'continue'
+    action?: 'fail' | 'continue'
     strategy?: 'all' | 'any'
     requiredPathCount?: number
   }
@@ -369,10 +371,7 @@ export async function addConvergeNodeWithTimeout(
     await requiredPathCountInput.fill(String(timeoutConfig.requiredPathCount))
   }
 
-  // Enable timeout
-  await page.getByRole('switch', { name: /Timeout/i }).click({ force: true })
-
-  // Fill timeout units
+  // Fill wait_duration units — DurationInput is always visible in Parameters tab
   if (timeoutConfig.seconds !== undefined) {
     await page.getByLabel(/Second\(s\)/i).fill(String(timeoutConfig.seconds))
   }
@@ -385,19 +384,6 @@ export async function addConvergeNodeWithTimeout(
   if (timeoutConfig.days !== undefined) {
     await page.getByLabel(/Day\(s\)/i).fill(String(timeoutConfig.days))
   }
-
-  // Select timeout action
-  // The timeout action is a PatternFly Select component with custom toggle
-  const timeoutActionButton = page.getByRole('button', { name: /Fail|Continue with partial data/i })
-  await expect(timeoutActionButton).toBeVisible()
-  await timeoutActionButton.click()
-
-  const actionOption =
-    timeoutConfig.action === 'fail'
-      ? page.getByRole('option', { name: 'Fail' })
-      : page.getByRole('option', { name: 'Continue with partial data' })
-  await expect(actionOption).toBeVisible()
-  await actionOption.click()
 
   await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
@@ -427,33 +413,31 @@ export async function createWorkflowWithBranchesForConverge(page: Page): Promise
  * Uses snake_case field names as they appear in the API payload.
  */
 export function expectConvergeNodeConfig(
-  nodes: Array<{ id: string; type: string; config: Record<string, unknown> }>,
+  nodes: Array<{ id: string; type: string; parameters: Record<string, unknown> }>,
   expected: {
     strategy: 'all' | 'any'
     n_required?: number
-    timeout?: number
+    wait_duration?: number
+    /** @deprecated on_timeout removed from schema; use Settings tab continue_on_failure */
     on_timeout?: 'fail' | 'continue'
+    /** @deprecated timeout renamed to wait_duration */
+    timeout?: number
   }
 ) {
   const convergeNode = nodes.find((n) => n.type === 'converge')
   expect(convergeNode).toBeDefined()
-  expect(convergeNode?.config.strategy).toBe(expected.strategy)
+  expect(convergeNode?.parameters.strategy).toBe(expected.strategy)
 
   if (expected.n_required !== undefined) {
-    expect(convergeNode?.config.n_required).toBe(expected.n_required)
+    expect(convergeNode?.parameters.n_required).toBe(expected.n_required)
   } else {
-    expect(convergeNode?.config.n_required).toBeUndefined()
+    expect(convergeNode?.parameters.n_required).toBeUndefined()
   }
 
-  if (expected.timeout !== undefined) {
-    expect(convergeNode?.config.timeout).toBe(expected.timeout)
+  const expectedDuration = expected.wait_duration ?? expected.timeout
+  if (expectedDuration !== undefined) {
+    expect(convergeNode?.parameters.wait_duration).toBe(expectedDuration)
   } else {
-    expect(convergeNode?.config.timeout).toBeUndefined()
-  }
-
-  if (expected.on_timeout !== undefined) {
-    expect(convergeNode?.config.on_timeout).toBe(expected.on_timeout)
-  } else {
-    expect(convergeNode?.config.on_timeout).toBeUndefined()
+    expect(convergeNode?.parameters.wait_duration).toBeUndefined()
   }
 }

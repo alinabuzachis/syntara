@@ -17,19 +17,19 @@ function triggersEqual(a: Trigger, b: Trigger): boolean {
   if (a.type !== b.type) return false
   if (a.name !== b.name) return false
 
-  // Deep compare config objects
-  const aConfig = a.config ?? {}
-  const bConfig = b.config ?? {}
-  const aKeys = Object.keys(aConfig).sort((a, b) => a.localeCompare(b))
-  const bKeys = Object.keys(bConfig).sort((a, b) => a.localeCompare(b))
+  // Deep compare parameters objects
+  const aParams = a.parameters ?? {}
+  const bParams = b.parameters ?? {}
+  const aKeys = Object.keys(aParams).sort((a, b) => a.localeCompare(b))
+  const bKeys = Object.keys(bParams).sort((a, b) => a.localeCompare(b))
 
   if (aKeys.length !== bKeys.length) return false
   if (!aKeys.every((key, i) => key === bKeys[i])) return false
 
-  // Compare config values - handle nested objects (like input_schema)
+  // Compare parameters values - handle nested objects (like input_schema)
   return aKeys.every((key) => {
-    const aVal = aConfig[key]
-    const bVal = bConfig[key]
+    const aVal = aParams[key]
+    const bVal = bParams[key]
     if (aVal === bVal) return true
     if (typeof aVal !== typeof bVal) return false
     if (typeof aVal === 'object' && aVal !== null && bVal !== null) {
@@ -126,7 +126,7 @@ function buildScheduledTrigger(data: TriggerFormData, triggerId: string, name: s
     id: triggerId,
     type: TriggerTypeEnum.SCHEDULED,
     name: name ?? 'Scheduled Trigger',
-    config: {
+    parameters: {
       schedule_type: scheduleType,
       ...(config.interval && { interval: config.interval }),
     },
@@ -151,7 +151,7 @@ function buildWebhookStyleTrigger(
     id: triggerId,
     type,
     name,
-    config: {
+    parameters: {
       webhook_path: webhookPath,
       ...(inputSchema && { input_schema: inputSchema }),
     },
@@ -165,7 +165,7 @@ function buildUpdatedTrigger(data: TriggerFormData, trigger: Trigger, name: stri
       id: trigger.id ?? 'manual_trigger',
       type: TriggerTypeEnum.MANUAL_TRIGGER,
       name: name ?? 'Manual Trigger',
-      config: {
+      parameters: {
         ...(inputSchema && { input_schema: inputSchema }),
       },
     }
@@ -210,18 +210,18 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
       return {
         name: trigger.name,
         triggerType: TriggerTypeEnum.MANUAL_TRIGGER,
-        inputSchema: serializeInputSchema(trigger.config?.input_schema),
+        inputSchema: serializeInputSchema(trigger.parameters?.input_schema),
       }
     }
 
     if (trigger.type === TriggerTypeEnum.SCHEDULED) {
-      const scheduleType = (trigger.config?.schedule_type as string) ?? 'interval'
+      const scheduleType = (trigger.parameters?.schedule_type as string) ?? 'interval'
       if (scheduleType === 'interval') {
         return {
           name: trigger.name,
           triggerType: TriggerTypeEnum.SCHEDULED,
           scheduleType: 'interval',
-          interval: trigger.config?.interval as string | undefined,
+          interval: trigger.parameters?.interval as string | undefined,
         }
       }
 
@@ -238,8 +238,8 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
       return {
         name: trigger.name,
         triggerType: trigger.type,
-        webhookPath: (trigger.config?.webhook_path as string) ?? '',
-        inputSchema: serializeInputSchema(trigger.config?.input_schema),
+        webhookPath: (trigger.parameters?.webhook_path as string) ?? '',
+        inputSchema: serializeInputSchema(trigger.parameters?.input_schema),
       }
     }
 

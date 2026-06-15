@@ -146,6 +146,40 @@ class TestOtelAuditPipeline:
                 otel_logger.removeHandler(handler)
 
     @patch("opentelemetry.exporter.otlp.proto.http._log_exporter.OTLPLogExporter")
+    def test_configure_otel_logging_adds_both_otel_and_stdout_handlers(
+        self,
+        mock_exporter_class: MagicMock,
+        override_settings,
+    ) -> None:
+        """configure_otel_logging adds both OTEL and stdout handlers for dual output."""
+        mock_exporter_instance = MagicMock()
+        mock_exporter_class.return_value = mock_exporter_instance
+
+        with override_settings(
+            otel_enabled=True,
+            otel_endpoint="https://otlp.example.com/v1/logs",
+            otel_service_name="nexus-test",
+        ):
+            configure_otel_logging()
+
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+
+            # Should have exactly 2 handlers: OTEL + stdout
+            assert len(otel_logger.handlers) == 2, "Should have both OTEL and stdout handlers"
+
+            # Verify handler types
+            handler_types = {type(h).__name__ for h in otel_logger.handlers}
+            assert "LoggingHandler" in handler_types, "Should have OTEL LoggingHandler"
+            assert "StreamHandler" in handler_types, "Should have stdout StreamHandler"
+
+            # Verify propagate is False (prevents duplicate logs in root logger)
+            assert otel_logger.propagate is False, "Should not propagate to avoid duplicates"
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    @patch("opentelemetry.exporter.otlp.proto.http._log_exporter.OTLPLogExporter")
     def test_configure_otel_logging_is_idempotent(
         self,
         mock_exporter_class: MagicMock,
@@ -166,7 +200,7 @@ class TestOtelAuditPipeline:
             otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
             initial_handler_count = len(otel_logger.handlers)
 
-            assert initial_handler_count == 1, "First call should add exactly one handler"
+            assert initial_handler_count == 2, "First call should add exactly two handlers (OTEL + stdout)"
             assert mock_exporter_class.call_count == 1, "Exporter should be created once"
 
             # Second call should be idempotent (no new handlers added)

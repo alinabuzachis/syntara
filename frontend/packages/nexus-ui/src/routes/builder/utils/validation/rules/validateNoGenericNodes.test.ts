@@ -6,12 +6,12 @@ import { validateNoGenericNodes } from './validateNoGenericNodes'
 describe('validateNoGenericNodes', () => {
   it('returns no errors for workflow without generic nodes', () => {
     const activities: Activity[] = [
-      { type: 'script', id: 'task-1', name: 'Normal Task', config: { language: 'python', code: 'print("hello")' } },
+      { type: 'script', id: 'task-1', name: 'Normal Task', parameters: { language: 'python', code: 'print("hello")' } },
       {
         type: 'condition',
         id: 'condition-1',
         name: 'Check Status',
-        config: { condition: '${output.status == "success"}' },
+        parameters: { condition: '${output.status == "success"}' },
       },
     ]
 
@@ -25,7 +25,7 @@ describe('validateNoGenericNodes', () => {
         type: 'script',
         id: 'generic-1',
         name: 'Placeholder',
-        config: { language: 'python', code: '' },
+        parameters: { language: 'python', code: '' },
         metadata: { __isGeneric: true },
       },
     ]
@@ -48,7 +48,7 @@ describe('validateNoGenericNodes', () => {
         type: 'script',
         id: 'generic-1',
         name: '',
-        config: { language: 'python', code: '' },
+        parameters: { language: 'python', code: '' },
         metadata: { __isGeneric: true },
       },
     ]
@@ -64,20 +64,20 @@ describe('validateNoGenericNodes', () => {
         type: 'script',
         id: 'generic-1',
         name: 'First Placeholder',
-        config: { language: 'python', code: '' },
+        parameters: { language: 'python', code: '' },
         metadata: { __isGeneric: true },
       },
       {
         type: 'script',
         id: 'normal-1',
         name: 'Normal Task',
-        config: { language: 'python', code: 'print("hello")' },
+        parameters: { language: 'python', code: 'print("hello")' },
       },
       {
         type: 'script',
         id: 'generic-2',
         name: 'Second Placeholder',
-        config: { language: 'python', code: '' },
+        parameters: { language: 'python', code: '' },
         metadata: { __isGeneric: true },
       },
     ]
@@ -94,7 +94,7 @@ describe('validateNoGenericNodes', () => {
         type: 'script',
         id: 'task-1',
         name: 'Task with other metadata',
-        config: { language: 'python', code: 'print("hello")' },
+        parameters: { language: 'python', code: 'print("hello")' },
         metadata: { someOtherFlag: true },
       },
     ]
@@ -109,7 +109,7 @@ describe('validateNoGenericNodes', () => {
         type: 'script',
         id: 'task-1',
         name: 'Not Generic',
-        config: { language: 'python', code: 'print("hello")' },
+        parameters: { language: 'python', code: 'print("hello")' },
         metadata: { __isGeneric: false },
       },
     ]
@@ -124,7 +124,7 @@ describe('validateNoGenericNodes', () => {
         type: 'script',
         id: 'task-1',
         name: 'Malicious Activity',
-        config: { language: 'python', code: 'print("hello")', __isGeneric: true },
+        parameters: { language: 'python', code: 'print("hello")', __isGeneric: true },
         // No metadata.__isGeneric, so not actually generic
       },
     ]

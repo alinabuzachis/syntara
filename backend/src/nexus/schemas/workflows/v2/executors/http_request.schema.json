@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/http_request",
   "title": "HTTP Request Node",
   "description": "Make HTTP API calls",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": [
       "method",
@@ -106,7 +106,7 @@
     "additionalProperties": false
   },
   "settingSchema": {
-    "$ref": "../common-definitions.schema.json#/$defs/executorSettings"
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsFull"
   },
   "resultSchema": {
     "description": "Result structure available in result namespace (discriminated union)",
@@ -150,7 +150,44 @@
       },
       {
         "title": "Failed Result",
-        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error",
+          "status_code",
+          "headers",
+          "elapsed"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          },
+          "status_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "body": {},
+          "headers": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "elapsed": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

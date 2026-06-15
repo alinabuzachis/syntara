@@ -35,13 +35,13 @@ async def multi_node_workflow(test_db_session: AsyncSession, test_user: User) ->
                 "id": "predecessor_node",
                 "name": "predecessor_node",
                 "type": "script",
-                "config": {"language": "bash", "code": "echo predecessor"},
+                "parameters": {"language": "bash", "code": "echo predecessor"},
             },
             {
                 "id": "test_activity",
                 "name": "test_activity",
                 "type": "script",
-                "config": {"language": "bash", "code": "echo test"},
+                "parameters": {"language": "bash", "code": "echo test"},
             },
         ],
         "edges": [
@@ -237,3 +237,65 @@ async def test_test_workflow_node_invalid_workflow_id(
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+    multi_node_workflow: Workflow,
+) -> None:
+    """Test execution with execute_target=False creates test execution with correct metadata."""
+    response = await auth_client.post(
+        f"/api/v1/workflows/{multi_node_workflow.id}/test",
+        json={
+            "target_node_id": "test_activity",
+            "pre_resolved_nodes": {
+                "predecessor_node": {
+                    "output": {"status": "mocked"},
+                    "control": None,
+                },
+            },
+            "trigger_inputs": {"key": "value"},
+            "execute_target": False,
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["mode"] == "test"
+    assert data["execution_metadata"]["execute_target"] is False
+    assert data["execution_metadata"]["target_node_id"] == "test_activity"
+
+
+@pytest.mark.asyncio
+async def test_test_node_execute_target_false_allows_target_in_pre_resolved(
+    auth_client: AsyncClient,
+    test_db_session: AsyncSession,
+    test_user: User,
+    multi_node_workflow: Workflow,
+) -> None:
+    """Test execution with execute_target=False allows target_node_id in pre_resolved_nodes."""
+    response = await auth_client.post(
+        f"/api/v1/workflows/{multi_node_workflow.id}/test",
+        json={
+            "target_node_id": "test_activity",
+            "pre_resolved_nodes": {
+                "test_activity": {
+                    "output": {"custom": "value"},
+                    "control": None,
+                },
+            },
+            "trigger_inputs": {},
+            "execute_target": False,
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["mode"] == "test"
+    # Verify the target is in pre_resolved_nodes
+    pre_resolved = data["execution_metadata"]["pre_resolved_nodes"]
+    assert "test_activity" in pre_resolved
+    assert pre_resolved["test_activity"]["output"] == {"custom": "value"}

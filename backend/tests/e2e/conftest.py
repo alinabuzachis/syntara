@@ -42,6 +42,7 @@ from nexus_api_client.models.mcp_configuration import MCPConfiguration
 from nexus_api_client.models.provider_status import ProviderStatus
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
 from nexus_api_client.models.tool_provider_create import ToolProviderCreate
+from nexus_api_client.models.tool_provider_patch import ToolProviderPatch
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.models.user_read import UserRead
@@ -288,18 +289,28 @@ class _AutoRefreshAuth(httpx.Auth):
     Reactive: retries once with a fresh token on any 401 response.
     """
 
-    def __init__(self, base_url: str, initial_token: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        initial_token: str,
+        *,
+        username: str | None = None,
+        password: str | None = None,
+    ) -> None:
         self._base_url = base_url
         self.token = initial_token
         self._last_refresh = time.monotonic()
+        self._username = username
+        self._password = password
 
     def _refresh(self) -> None:
-        # Retry login on transient 401s that can occur when parallel xdist
-        # workers modify auth/OIDC configuration mid-run.
         last_exc: Exception | None = None
         for attempt in range(3):
             try:
-                self.token = _generate_e2e_token(self._base_url)
+                if self._username and self._password:
+                    self.token = _login(self._base_url, self._username, self._password)
+                else:
+                    self.token = _generate_e2e_token(self._base_url)
                 self._last_refresh = time.monotonic()
                 return
             except RuntimeError as exc:
@@ -460,7 +471,13 @@ def viewer_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authentic
         pytest.fail(f"Failed to create viewer user: {resp.status_code} {resp.content!r}")
 
     token = _login(nexus_base_url, username, password)
-    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=token, verify_ssl=False)
+    return AuthenticatedClient(
+        base_url=f"{nexus_base_url}/api/v1",
+        token=token,
+        verify_ssl=False,
+        timeout=httpx.Timeout(60.0),
+        httpx_args={"auth": _AutoRefreshAuth(nexus_base_url, token, username=username, password=password)},
+    )
 
 
 @pytest.fixture(scope="session")
@@ -510,7 +527,13 @@ def auditor_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authenti
         pytest.fail(f"Failed to assign auditor role: {role_resp.status_code} {role_resp.content!r}")
 
     token = _login(nexus_base_url, username, password)
-    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token=token, verify_ssl=False)
+    return AuthenticatedClient(
+        base_url=f"{nexus_base_url}/api/v1",
+        token=token,
+        verify_ssl=False,
+        timeout=httpx.Timeout(60.0),
+        httpx_args={"auth": _AutoRefreshAuth(nexus_base_url, token, username=username, password=password)},
+    )
 
 
 @pytest.fixture(scope="session")
@@ -534,7 +557,7 @@ def worker_base_url() -> str:
 @pytest.fixture(scope="session")
 def nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
     """Get admin role group ID for Nexus API."""
-    groups_resp = nexus_api.groups.list()
+    groups_resp = nexus_api.groups.list(additional_params={"name": "admins"}, limit=100)
     if groups_resp.parsed is None or len(groups_resp.parsed.resources) == 0:
         msg = "Unable to retrieve admin group ID."
         raise RuntimeError(msg)
@@ -561,11 +584,18 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         pytest.skip(f"MCP server not reachable at {MCP_HEALTH_URL}: {exc}")
 
-    providers = nexus_api.tool_manager.get_tool_providers().assert_and_get()
+    providers = nexus_api.tool_manager.get_tool_providers(
+        additional_params={"name": MCP_PROVIDER_NAME}, limit=100
+    ).assert_and_get()
     existing = [p for p in providers.resources if p.name == MCP_PROVIDER_NAME]
 
     if existing:
         provider_id = str(existing[0].id)
+        if not existing[0].enabled:
+            nexus_api.tool_manager.patch_tool_provider(
+                provider_id=UUID(provider_id),
+                body=ToolProviderPatch(enabled=True),
+            ).assert_and_get()
     else:
         resp = nexus_api.tool_manager.register_tool_provider(
             body=ToolProviderCreate(
@@ -574,8 +604,16 @@ def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
                 configuration=MCPConfiguration(base_url=MCP_PROVIDER_URL),
             ),
         )
-        provider = resp.assert_and_get()
-        provider_id = str(provider.id)
+        if not resp.is_success and resp.status_code == 409:
+            providers = nexus_api.tool_manager.get_tool_providers(
+                additional_params={"name": MCP_PROVIDER_NAME}, limit=100
+            ).assert_and_get()
+            existing = [p for p in providers.resources if p.name == MCP_PROVIDER_NAME]
+            assert existing, f"MCP provider conflict but not found in list: {resp.content!r}"
+            provider_id = str(existing[0].id)
+        else:
+            provider = resp.assert_and_get()
+            provider_id = str(provider.id)
 
     pid = UUID(provider_id)
     validate_result = nexus_api.tool_manager.validate_tool_provider(provider_id=pid).assert_and_get()

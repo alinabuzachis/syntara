@@ -420,7 +420,7 @@ class TestEventSanitizer:
         data = AuditContextData(
             data_type="test",
             function_args={"user": {"name": "John", "credentials": {"secret_key": "sensitive_data"}}},
-            function_result={"config": {"debug": True}},
+            function_result={"parameters": {"debug": True}},
         )
 
         sanitized_data = sanitizer.sanitize(data)
@@ -429,7 +429,7 @@ class TestEventSanitizer:
         assert sanitized_data.function_args["user"]["name"] == "John"
         assert sanitized_data.function_args["user"]["credentials"]["secret_key"] == REDACTED
         assert sanitized_data.function_result is not None
-        assert sanitized_data.function_result["config"]["debug"] is True
+        assert sanitized_data.function_result["parameters"]["debug"] is True
 
     def test_sanitize_audit_data_with_lists(self) -> None:
         """Test sanitization of audit data with list structures."""

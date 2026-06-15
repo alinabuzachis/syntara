@@ -65,10 +65,10 @@ def _make_workflow(
 def _build_linear_graph() -> WorkflowGraph:
     """Build: trigger -> node_a -> node_b -> node_c (linear chain)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {"command": "echo A"}})
-    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {"command": "echo B"}})
-    backend.add_node("node_c", {"id": "node_c", "type": "script", "config": {"command": "echo C"}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {"command": "echo A"}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "parameters": {"command": "echo B"}})
+    backend.add_node("node_c", {"id": "node_c", "type": "script", "parameters": {"command": "echo C"}})
     backend.add_edge("trigger", "node_a", None)
     backend.add_edge("node_a", "node_b", None)
     backend.add_edge("node_b", "node_c", None)
@@ -78,10 +78,10 @@ def _build_linear_graph() -> WorkflowGraph:
 def _build_condition_graph() -> WorkflowGraph:
     """Build: trigger -> condition -> (true: node_a, false: node_b)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
-    backend.add_node("cond", {"id": "cond", "type": "condition", "config": {"condition": "true"}})
-    backend.add_node("node_a", {"id": "node_a", "type": "script", "config": {"command": "echo A"}})
-    backend.add_node("node_b", {"id": "node_b", "type": "script", "config": {"command": "echo B"}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
+    backend.add_node("cond", {"id": "cond", "type": "condition", "parameters": {"condition": "true"}})
+    backend.add_node("node_a", {"id": "node_a", "type": "script", "parameters": {"command": "echo A"}})
+    backend.add_node("node_b", {"id": "node_b", "type": "script", "parameters": {"command": "echo B"}})
     backend.add_edge("trigger", "cond", None)
     backend.add_edge("cond", "node_a", {"from_port": "true"})
     backend.add_edge("cond", "node_b", {"from_port": "false"})

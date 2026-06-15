@@ -92,6 +92,8 @@ class TemporalExecutionService:
         pre_resolved_outputs: dict[str, dict[str, Any]] | None = None,
         stop_after_nodes: list[str] | None = None,
         include_node_results: bool = False,
+        workflow_metadata: dict[str, Any] | None = None,
+        execution_id: str | None = None,
     ) -> WorkflowStartResponse:
         """Start a V2 workflow from dict definition.
 
@@ -105,6 +107,8 @@ class TemporalExecutionService:
             pre_resolved_outputs: Mock outputs for predecessor nodes (for test executions)
             stop_after_nodes: Stop execution after these nodes complete (for test executions)
             include_node_results: Include node results in workflow response (for test executions)
+            workflow_metadata: Optional workflow/execution metadata for expression resolution
+            execution_id: Optional pre-generated execution ID (auto-generated if not provided)
 
         Returns:
             WorkflowStartResponse containing:
@@ -170,7 +174,8 @@ class TemporalExecutionService:
                 workflow_id = str(uuid4())
 
             # Create execution record (will be the database record id)
-            execution_id = str(uuid4())
+            if execution_id is None:
+                execution_id = str(uuid4())
 
             # Generate Temporal workflow ID (must be unique for Temporal)
             temporal_workflow_id = f"{workflow_name}-{execution_id}"
@@ -198,6 +203,7 @@ class TemporalExecutionService:
                         request_id,
                         pre_resolved_outputs,
                         stop_after_nodes,
+                        workflow_metadata,
                     ],
                     id=temporal_workflow_id,
                     task_queue=self.task_queue,

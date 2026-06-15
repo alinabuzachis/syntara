@@ -46,7 +46,6 @@ class TestSwitchMatchesFirstCase:
             namespace={"status": "approved"},
         )
         result = await switch(config, None)
-        assert result["output"]["status"] == "completed"
         assert result["output"]["matched_port"] == "case_0"
 
 
@@ -104,7 +103,6 @@ class TestSwitchDefaultPort:
             namespace={"status": "pending"},
         )
         result = await switch(config, None)
-        assert result["output"]["status"] == "completed"
         assert result["output"]["matched_port"] == "default"
 
     @pytest.mark.asyncio
@@ -297,7 +295,7 @@ class TestSwitchOutputMapping:
     async def test_empty_output_config_suppresses_fields(self) -> None:
         cases = [{"port": "case_0", "label": "True", "condition": "True"}]
         result = await switch(_make_config(cases=cases), {})
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_output_mapping_does_not_affect_control(self) -> None:
@@ -422,7 +420,6 @@ class TestSwitchComplexExpressions:
         config = _make_config(cases=cases, namespace={"priority": 9, "approved": True})
         result = await switch(config, None)
         assert result["control"]["next_port"] == "case_0"
-        assert result["output"]["status"] == "completed"
         assert result["output"]["matched_port"] == "case_0"
 
     @pytest.mark.asyncio

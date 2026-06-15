@@ -21,7 +21,7 @@ def _converge_workflow_payload(
             "id": f"branch_{chr(97 + i)}",
             "name": f"Branch {chr(65 + i)}",
             "type": "script",
-            "config": {"language": "bash", "code": f'echo "Branch {chr(65 + i)}"'},
+            "parameters": {"language": "bash", "code": f'echo "Branch {chr(65 + i)}"'},
         }
         for i in range(branch_count)
     ]
@@ -33,7 +33,7 @@ def _converge_workflow_payload(
             "name": name,
             "schema_version": "2.0.0",
             "triggers": [
-                {"id": "trigger", "type": "manual_trigger", "config": {"inputs": {}}},
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
             ],
             "nodes": [
                 *branches,
@@ -41,13 +41,13 @@ def _converge_workflow_payload(
                     "id": "converge_node",
                     "name": "Converge Node",
                     "type": "converge",
-                    "config": converge_config,
+                    "parameters": converge_config,
                 },
                 {
                     "id": "final_action",
                     "name": "Final Action",
                     "type": "script",
-                    "config": {"language": "bash", "code": 'echo "Done"'},
+                    "parameters": {"language": "bash", "code": 'echo "Done"'},
                 },
             ],
             "edges": [
@@ -98,7 +98,6 @@ class TestConvergeCRUD:
         converge_config = {
             "strategy": "any",
             "n_required": 2,
-            "on_timeout": "continue",
         }
         payload = _converge_workflow_payload(
             "test-converge-config-preservation",
@@ -116,7 +115,7 @@ class TestConvergeCRUD:
         definition = get_response.json()["version"]["workflow_definition"]
         converge_nodes = [n for n in definition["nodes"] if n["type"] == "converge"]
         assert len(converge_nodes) == 1
-        assert converge_nodes[0]["config"] == converge_config
+        assert converge_nodes[0]["parameters"] == converge_config
 
     async def test_update_workflow_converge_configuration(self, jwt_client: AsyncClient) -> None:
         """Update converge node configuration via PATCH."""
@@ -153,7 +152,7 @@ class TestConvergeCRUD:
         definition = updated_workflow["version"]["workflow_definition"]
         converge_nodes = [n for n in definition["nodes"] if n["type"] == "converge"]
         assert len(converge_nodes) == 1
-        assert converge_nodes[0]["config"] == updated_config
+        assert converge_nodes[0]["parameters"] == updated_config
 
     async def test_delete_workflow_with_converge_node(self, jwt_client: AsyncClient) -> None:
         """Delete workflow containing converge node."""

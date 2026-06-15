@@ -126,7 +126,7 @@ describe('NodeRawDataView Component', () => {
             name: 'Nested Task',
             task: {
               executor: 'script',
-              config: {
+              parameters: {
                 language: 'python',
                 code: 'print("nested")',
               },

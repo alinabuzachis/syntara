@@ -1,6 +1,5 @@
 import {
   RhUiConnectedIcon,
-  RhUiDocumentIcon,
   RhUiFolderIcon,
   RhUiKeyIcon,
   RhUiLanguageIcon,
@@ -23,7 +22,6 @@ import {
   ApprovalDetail,
   Approvals,
   Authentication,
-  AuditLog,
   Workflows,
   BuilderEdit,
   BuilderNew,
@@ -304,13 +302,6 @@ export const NAV_ITEMS: TNavigationItem[] = [
             hidden: true,
           },
         ],
-      },
-      {
-        label: 'Audit Log',
-        path: AppRoute.SystemAdministration.AuditLog,
-        icon: <RhUiDocumentIcon />,
-        element: <AuditLog />,
-        requiredPermissions: [{ action: 'read', resourceType: 'audit' }],
       },
     ],
   },

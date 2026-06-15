@@ -147,50 +147,49 @@ export function useExecutionWebSocket(
   // Handle incoming WebSocket messages
   const handleMessage = useCallback(
     (message: WebSocketMessage) => {
-      // Type guard for message types
-      const msg = message as unknown as WebSocketMessage
+      const msg = message as unknown as Record<string, unknown>
 
-      switch (msg.type) {
+      // Server error envelope: {event_type: 'error', data: {code: ...}}
+      // Distinct from the typed streaming messages which use the `type` field.
+      if (msg['event_type'] === 'error') {
+        const code = (msg['data'] as Record<string, unknown> | undefined)?.['code']
+        if (code === 'EVENTS_EXPIRED') {
+          // Stream events have expired — the execution completed before we connected.
+          // REST API has the final state; trigger a refetch and stop streaming.
+          setComplete(true)
+          onExecutionComplete?.()
+        }
+        // INTERNAL_ERROR / STREAM_TIMEOUT: server will close the connection;
+        // the reconnect loop handles transient failures.
+        return
+      }
+
+      switch ((msg as unknown as WebSocketMessage).type) {
         case 'initial_snapshot': {
-          const snapshot = msg
-          // console.debug('[WebSocket] Received initial_snapshot', snapshot.event_id)
-
-          // Load full execution state
+          const snapshot = msg as unknown as WebSocketMessage & { type: 'initial_snapshot' }
           setExecution(snapshot.execution)
           setLastEventId(snapshot.event_id)
-
-          // Clear reconnection flag
           setIsReconnecting(false)
           break
         }
 
         case 'activity_patch': {
-          const patch = msg
-
-          // Apply incremental updates
+          const patch = msg as unknown as WebSocketMessage & { type: 'activity_patch' }
           applyPatch(patch.ops, patch.event_id)
           break
         }
 
         case 'final_snapshot': {
-          const snapshot = msg
-          // console.debug('[WebSocket] Received final_snapshot', snapshot.event_id)
-
-          // Load final execution state
+          const snapshot = msg as unknown as WebSocketMessage & { type: 'final_snapshot' }
           setExecution(snapshot.execution)
           setLastEventId(snapshot.event_id)
           setComplete(true)
-
-          // Notify callback
           onExecutionComplete?.()
-
-          // Server will disconnect after final_snapshot
           break
         }
 
-        default: {
-          // console.warn('[WebSocket] Unknown message type:', msg)
-        }
+        default:
+          break
       }
     },
     [setExecution, applyPatch, setComplete, setLastEventId, onExecutionComplete, setIsReconnecting]

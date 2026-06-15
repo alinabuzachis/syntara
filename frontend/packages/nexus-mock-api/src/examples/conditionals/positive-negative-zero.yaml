@@ -5,7 +5,7 @@ description: Test conditional branching with positive/negative/zero values
 triggers:
   - id: trigger_manual
     type: manual_trigger
-    config:
+    parameters:
       inputs:
         number:
           type: integer
@@ -15,7 +15,7 @@ nodes:
   - id: check_value
     name: Check Value
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Value is: $INPUT_VALUE"
@@ -29,7 +29,7 @@ nodes:
     name: Positive Branch
     type: script
     condition: ${input.number} > 0
-    config:
+    parameters:
       language: bash
       code: |
         echo "Value is positive"
@@ -38,7 +38,7 @@ nodes:
     name: Negative Branch
     type: script
     condition: ${input.number} < 0
-    config:
+    parameters:
       language: bash
       code: |
         echo "Value is negative"
@@ -47,7 +47,7 @@ nodes:
     name: Zero Branch
     type: script
     condition: ${input.number} == 0
-    config:
+    parameters:
       language: bash
       code: |
         echo "Value is zero"

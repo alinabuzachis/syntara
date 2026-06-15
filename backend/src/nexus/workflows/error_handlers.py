@@ -21,14 +21,42 @@ if TYPE_CHECKING:
         TriggerValidationError,
         WebhookTriggerNotFoundError,
         WebhookTriggerPathConflictError,
+        WorkflowDefinitionInvalidError,
         WorkflowNameConflictError,
         WorkflowNotFoundError,
         WorkflowNotPublishedError,
         WorkflowValidationError,
         WorkflowVersionNotFoundError,
     )
+    from nexus.workflows.models import WorkflowValidationResult
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+def build_validation_problem_response(
+    request: Request,
+    result: "WorkflowValidationResult",
+) -> JSONResponse:
+    """Build an RFC 9457 problem details response for workflow validation failures."""
+    content = {
+        "type": PROBLEM_TYPES["validation_error"],
+        "title": "Workflow Definition Invalid",
+        "detail": "The workflow definition failed validation",
+        "code": "WORKFLOW_DEFINITION_INVALID",
+        "retryable": False,
+        "instance": str(request.url),
+        "validation_result": result.model_dump(mode="json"),
+    }
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=content,
+        media_type="application/problem+json",
+    )
+
+
+def definition_invalid_handler(request: Request, exc: "WorkflowDefinitionInvalidError") -> JSONResponse:
+    """Return RFC 9457 problem details with validation_result extension."""
+    return build_validation_problem_response(request, exc.result)
 
 
 def validation_error_handler(request: Request, exc: "WorkflowValidationError") -> JSONResponse:

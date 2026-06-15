@@ -427,7 +427,7 @@ class TestToolInvocationHandler:
             actor_context=AuditActorContext(),
             tool_input={
                 "operation": "transform",
-                "config": {"format": "json", "indent": 2, "sort_keys": True},
+                "parameters": {"format": "json", "indent": 2, "sort_keys": True},
                 "filters": [{"field": "status", "value": "active"}],
             },
         )
@@ -437,6 +437,6 @@ class TestToolInvocationHandler:
 
         assert result.structured_data.tool_input == {
             "operation": "transform",
-            "config": {"format": "json", "indent": 2, "sort_keys": True},
+            "parameters": {"format": "json", "indent": 2, "sort_keys": True},
             "filters": [{"field": "status", "value": "active"}],
         }

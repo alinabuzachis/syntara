@@ -16,7 +16,7 @@ triggers:
 nodes:
   - id: bash_with_env
     type: script
-    config:
+    parameters:
       language: bash
       environment:
         API_URL: https://api.example.com
@@ -33,7 +33,7 @@ nodes:
 
   - id: python_with_env
     type: script
-    config:
+    parameters:
       language: python
       environment:
         DATABASE_HOST: db.example.com
@@ -60,11 +60,11 @@ nodes:
     inputs:
       user_name: ${inputs.user_name}
     outputs:
-      config: $.output
+      parameters: $.output
 
   - id: bash_with_combined
     type: script
-    config:
+    parameters:
       language: bash
       environment:
         SERVICE_NAME: WorkflowEngine

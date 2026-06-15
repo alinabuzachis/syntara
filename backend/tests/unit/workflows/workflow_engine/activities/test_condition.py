@@ -19,7 +19,6 @@ class TestConditionTrueEvaluation:
     @pytest.mark.asyncio
     async def test_true_literal_output_status_completed(self) -> None:
         result = await condition({"condition": "True", "namespace": {}}, None)
-        assert result["output"]["status"] == "completed"
         assert result["output"]["evaluated_result"] is True
 
     @pytest.mark.asyncio
@@ -40,7 +39,6 @@ class TestConditionFalseEvaluation:
     @pytest.mark.asyncio
     async def test_false_literal_output_status_completed(self) -> None:
         result = await condition({"condition": "False", "namespace": {}}, None)
-        assert result["output"]["status"] == "completed"
         assert result["output"]["evaluated_result"] is False
 
     @pytest.mark.asyncio
@@ -117,7 +115,7 @@ class TestConditionOutputMapping:
     @pytest.mark.asyncio
     async def test_empty_output_config_suppresses_fields(self) -> None:
         result = await condition({"condition": "True", "namespace": {}}, {})
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_field_mapping_extracts_specific_field(self) -> None:

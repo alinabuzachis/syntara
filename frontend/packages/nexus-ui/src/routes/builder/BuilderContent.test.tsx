@@ -159,13 +159,13 @@ describe('BuilderContent', () => {
           schema_version: '2.0.0' as const,
           name: 'Test Workflow',
           description: 'Test Description',
-          triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+          triggers: [{ id: 'manual_trigger', type: 'manual_trigger', parameters: {} }],
           nodes: [
             {
               type: 'script' as const,
               id: 'task-1',
               name: 'Task 1',
-              config: { language: 'python', code: '' },
+              parameters: { language: 'python', code: '' },
             },
           ],
           edges: [],
@@ -186,7 +186,7 @@ describe('BuilderContent', () => {
               id: 'manual_trigger',
               type: 'manual_trigger',
               name: 'Manual Trigger',
-              config: {
+              parameters: {
                 input_schema: {
                   type: 'object',
                   properties: { name: { type: 'string' } },
@@ -199,7 +199,7 @@ describe('BuilderContent', () => {
               type: 'script' as const,
               id: 'task-1',
               name: 'Task 1',
-              config: { language: 'python', code: 'print("hello")' },
+              parameters: { language: 'python', code: 'print("hello")' },
             },
           ],
           edges: [
@@ -1306,13 +1306,13 @@ describe('BuilderContent', () => {
             schema_version: '2.0.0' as const,
             name: 'Test Workflow',
             description: 'Test Description',
-            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', parameters: {} }],
             nodes: [
               {
                 type: 'script' as const,
                 id: 'task-1',
                 name: 'Task 1',
-                config: { language: 'python', code: '' },
+                parameters: { language: 'python', code: '' },
               },
             ],
             edges: [],
@@ -1338,13 +1338,13 @@ describe('BuilderContent', () => {
             schema_version: '2.0.0' as const,
             name: 'Parallel Workflow',
             description: 'Test parallel',
-            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', parameters: {} }],
             nodes: [
               {
                 type: 'script' as const,
                 id: 'branch-task-1',
                 name: 'Branch Task',
-                config: { language: 'python', code: '' },
+                parameters: { language: 'python', code: '' },
               },
             ],
             edges: [],
@@ -1673,7 +1673,7 @@ describe('BuilderContent', () => {
                 type: 'script' as const,
                 id: 'task-1',
                 name: 'Task 1',
-                config: { language: 'python', code: '' },
+                parameters: { language: 'python', code: '' },
               },
             ],
             edges: [],
@@ -2036,13 +2036,13 @@ describe('BuilderContent', () => {
             schema_version: '2.0.0' as const,
             name: 'Condition Workflow',
             description: '',
-            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', parameters: {} }],
             nodes: [
               {
                 type: 'condition' as const,
                 id: 'cond-1',
                 name: 'Condition',
-                config: { condition: 'true' },
+                parameters: { condition: 'true' },
               },
             ],
             edges: [],
@@ -2066,13 +2066,13 @@ describe('BuilderContent', () => {
             schema_version: '2.0.0' as const,
             name: 'Loop Workflow',
             description: '',
-            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', parameters: {} }],
             nodes: [
               {
                 type: 'loop' as const,
                 id: 'loop-1',
                 name: 'Loop',
-                config: { type: 'for_each', items: '[]' },
+                parameters: { type: 'for_each', items: '[]' },
               },
             ],
             edges: [],
@@ -2096,19 +2096,19 @@ describe('BuilderContent', () => {
             schema_version: '2.0.0' as const,
             name: 'Nested Workflow',
             description: '',
-            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', parameters: {} }],
             nodes: [
               {
                 type: 'condition' as const,
                 id: 'cond-1',
                 name: 'Outer Condition',
-                config: { condition: 'true' },
+                parameters: { condition: 'true' },
               },
               {
                 type: 'script' as const,
                 id: 'task-inner',
                 name: 'Inner Task',
-                config: { language: 'python', code: '' },
+                parameters: { language: 'python', code: '' },
               },
             ],
             edges: [{ from: 'cond-1', to: 'task-inner', from_port: 'true' }],
@@ -2480,8 +2480,10 @@ describe('BuilderContent', () => {
         version: {
           workflow_definition: {
             schema_version: '2.0.0' as const,
-            triggers: [{ id: 'webhook_trigger_1', type: 'webhook', config: {} as Record<string, never> }],
-            nodes: [{ id: 'task-1', type: 'script', config: { code: 'print("hello")' } as Record<string, unknown> }],
+            triggers: [{ id: 'webhook_trigger_1', type: 'webhook', parameters: {} as Record<string, never> }],
+            nodes: [
+              { id: 'task-1', type: 'script', parameters: { code: 'print("hello")' } as Record<string, unknown> },
+            ],
             edges: [{ from: 'webhook_trigger_1', to: 'task-1' }],
             $defs: {},
           },
@@ -2526,7 +2528,7 @@ describe('BuilderContent', () => {
           workflow_definition: {
             schema_version: '2.0.0' as const,
             triggers: [
-              { type: 'manual_trigger', config: {} as Record<string, never> }, // No id field
+              { type: 'manual_trigger', parameters: {} as Record<string, never> }, // No id field
             ],
             nodes: [],
             edges: [],
@@ -2570,10 +2572,10 @@ describe('BuilderContent', () => {
         version: {
           workflow_definition: {
             schema_version: '2.0.0' as const,
-            triggers: [{ id: 'trigger-1', type: 'manual_trigger', config: {} as Record<string, never> }],
+            triggers: [{ id: 'trigger-1', type: 'manual_trigger', parameters: {} as Record<string, never> }],
             nodes: [
-              { id: 'cond-1', type: 'condition', config: { condition: 'true' } as Record<string, unknown> },
-              { id: 'task-true', type: 'script', config: { code: '' } as Record<string, unknown> },
+              { id: 'cond-1', type: 'condition', parameters: { condition: 'true' } as Record<string, unknown> },
+              { id: 'task-true', type: 'script', parameters: { code: '' } as Record<string, unknown> },
             ],
             edges: [
               { from: 'trigger-1', to: 'cond-1' },
@@ -2623,8 +2625,8 @@ describe('BuilderContent', () => {
             schema_version: '2.0.0' as const,
             triggers: [],
             nodes: [
-              { id: 'task-1', type: 'script', config: { code: '' } as Record<string, unknown> },
-              { id: 'task-2', type: 'script', config: { code: '' } as Record<string, unknown> },
+              { id: 'task-1', type: 'script', parameters: { code: '' } as Record<string, unknown> },
+              { id: 'task-2', type: 'script', parameters: { code: '' } as Record<string, unknown> },
             ],
             edges: [
               { from: 'task-1', to: 'task-2' }, // No to_port
@@ -2672,8 +2674,8 @@ describe('BuilderContent', () => {
             schema_version: '2.0.0' as const,
             triggers: [],
             nodes: [
-              { id: 'loop-1', type: 'loop', config: { type: 'for_each', items: '[]' } as Record<string, unknown> },
-              { id: 'loop-body', type: 'script', config: { code: '' } as Record<string, unknown> },
+              { id: 'loop-1', type: 'loop', parameters: { type: 'for_each', items: '[]' } as Record<string, unknown> },
+              { id: 'loop-body', type: 'script', parameters: { code: '' } as Record<string, unknown> },
             ],
             edges: [
               { from: 'loop-1', to: 'loop-body', from_port: 'iterate' }, // v2 name

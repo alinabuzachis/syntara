@@ -15,6 +15,7 @@ from temporalio import workflow
 from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
+    from nexus.core.constants import FieldLimits
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
@@ -33,6 +34,7 @@ from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.converge_mixin import WorkflowConvergeMixin
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.models.workflow_definition import (
+    NODE_OUTPUT_MODELS,
     ConvergeStrategy,
     DoWhileLoopState,
     ForEachLoopState,
@@ -52,7 +54,7 @@ ALLOWED_TRIGGER_TYPES: set[str] = {
 
 # Marker value for pre-resolved node inputs in test executions
 PRE_RESOLVED_MARKER = "__pre_resolved"
-_APPROVAL_COMMENTS_MAX_LENGTH = 2000  # matches ApprovalDecisionRequest.notes max_length
+_APPROVAL_COMMENTS_MAX_LENGTH = FieldLimits.DESCRIPTION_MAX_LENGTH
 
 
 def _parse_items(items: Any) -> Any:  # noqa: ANN401
@@ -80,6 +82,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         request_id: str | None = None,
         pre_resolved_outputs: dict[str, dict[str, Any]] | None = None,
         stop_after_nodes: list[str] | None = None,
+        workflow_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute a v2 workflow with concurrent execution and convergence support.
 
@@ -95,6 +98,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
             request_id: Optional X-Request-Id (UUID) from the originating HTTP request
             pre_resolved_outputs: Optional dict mapping node IDs to pre-computed outputs for single-node testing
             stop_after_nodes: Optional list of node IDs to stop scheduling successors after execution
+            workflow_metadata: Optional dict of workflow/execution metadata for expression resolution
 
         Returns:
             Workflow execution result matching WorkflowResultResponse schema.
@@ -110,6 +114,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
             request_id=request_id,
             pre_resolved_outputs=pre_resolved_outputs,
             stop_after_nodes=stop_after_nodes,
+            workflow_metadata=workflow_metadata,
         )
         self._runtime_settings = cast(
             "dict[str, Any]",
@@ -134,11 +139,16 @@ class NexusWorkflow(WorkflowConvergeMixin):
         request_id: str | None = None,
         pre_resolved_outputs: dict[str, dict[str, Any]] | None = None,
         stop_after_nodes: list[str] | None = None,
+        workflow_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize all workflow state for a new execution."""
         self.execution_id = execution_id
         self.request_id = request_id
         self.resolver = NamespaceResolver()
+
+        if workflow_metadata:
+            for ns_key, ns_data in workflow_metadata.items():
+                self.resolver.set_namespace(ns_key, ns_data)
         self.node_inputs: dict[str, dict[str, Any]] = {}
         self.node_control_data: dict[str, dict[str, Any]] = {}
         self.skipped_nodes: set[str] = set()
@@ -247,7 +257,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
                     output = await task
                     # _execute_node already extracted output via _process_node_result,
                     # so output is the output data directly (not wrapped in {"output": ...})
-                    self.resolver.set_namespace(completed_node_id, output)
+                    self.resolver.set_namespace(completed_node_id, {**output, "status": "completed"})
 
                     workflow.logger.info(f"Node {completed_node_id} completed, pending: {list(pending_tasks.keys())}")
 
@@ -288,12 +298,33 @@ class NexusWorkflow(WorkflowConvergeMixin):
     ) -> None:
         """Record a node failure; skip downstream unless continue_on_failure is set."""
         # Unwrap Temporal's ActivityError to surface the inner ApplicationError message
+        app_error = None
         if isinstance(error, ActivityError) and isinstance(error.cause, ApplicationError):
-            error_message = error.cause.message or str(error.cause)
+            app_error = error.cause
+            error_message = app_error.message or str(app_error)
         else:
             error_message = str(error)
+
         self.failed_nodes[node_id] = error_message
-        self.resolver.set_namespace(node_id, {"status": "failed", "error": error_message})
+
+        # Extract output from ApplicationError.details if executor attached it
+        namespace_entry: dict[str, Any] = {}
+        if app_error is not None:
+            for detail in app_error.details:
+                if isinstance(detail, dict) and "output" in detail:
+                    namespace_entry = detail["output"]
+                    break
+
+        # If no output from executor (e.g. parameters resolution failed), build empty output from model
+        if not namespace_entry:
+            node = graph.get_node(node_id)
+            workflow.logger.debug(f"No output in ApplicationError.details for node {node_id}, using empty model")
+            namespace_entry = self._build_empty_node_output(node)
+
+        namespace_entry["status"] = "failed"
+        namespace_entry["error"] = error_message
+
+        self.resolver.set_namespace(node_id, namespace_entry)
         workflow.logger.error(f"Node {node_id} failed: {error_message}")
         if not continue_on_failure:
             self._has_unhandled_failure = True
@@ -302,6 +333,14 @@ class NexusWorkflow(WorkflowConvergeMixin):
             self._cof_failed_nodes.add(node_id)
 
         self._check_converge_successors(node_id, graph, pending_tasks)
+
+    @staticmethod
+    def _build_empty_node_output(node: ActivityNode) -> dict[str, Any]:
+        """Build an empty output dict for a node type using its output model."""
+        output_model_class = NODE_OUTPUT_MODELS.get(node.type)
+        if output_model_class:
+            return output_model_class().dump(node.outputs)
+        return {}
 
     async def _handle_continued_failure(
         self,
@@ -316,7 +355,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         scheduling successors. Raises ApplicationError for invalid fallback_decision.
         """
         if node.type == NodeType.APPROVAL:
-            resolved = self.node_inputs.get(node_id, node.config)
+            resolved = self.node_inputs.get(node_id, node.parameters)
             fallback = resolved.get("fallback_decision", "reject")
             if fallback not in {"approve", "reject"}:
                 msg = f"Invalid fallback_decision '{fallback}' on node {node_id}: must be 'approve' or 'reject'"
@@ -332,6 +371,14 @@ class NexusWorkflow(WorkflowConvergeMixin):
             pending_tasks[nid].cancel()
             del pending_tasks[nid]
             workflow.logger.info(f"Cancelled pending task for skipped node {nid}")
+
+    def _detach_in_flight_predecessors(
+        self, node_id: str, graph: WorkflowGraph, pending_tasks: dict[str, asyncio.Task[Any]]
+    ) -> None:
+        """Mark in-flight predecessors as detached when a converge node fails."""
+        for pred_id in graph.get_predecessors(node_id):
+            if pred_id in pending_tasks and not self.resolver.has_namespace(pred_id):
+                self._detached_nodes.add(pred_id)
 
     def _remove_detached_tasks(self, pending_tasks: dict[str, asyncio.Task[Any]]) -> None:
         """Remove detached in-flight tasks from the main loop without cancelling them.
@@ -565,8 +612,8 @@ class NexusWorkflow(WorkflowConvergeMixin):
         """
         predecessor_ids = graph.get_predecessors(node_id)
         node = graph.get_node(node_id)
-        strategy = node.config.get("strategy", ConvergeStrategy.ALL)
-        n_required = node.config.get("n_required")
+        strategy = node.parameters.get("strategy", ConvergeStrategy.ALL)
+        n_required = node.parameters.get("n_required")
 
         completed_count = 0
 
@@ -849,7 +896,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self,
         node: ActivityNode,
         node_type: str,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
         outputs: dict[str, str] | None,
         timeout_seconds: int,
         extra_args: list[Any] | None = None,
@@ -858,7 +905,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         activity_name = self._EXECUTOR_ACTIVITY_MAP.get(node_type)
         if not activity_name:
             return {"output": {"status": "skipped", "reason": f"Unknown executor type: {node_type}"}}
-        args: list[Any] = [resolved_config, outputs]
+        args: list[Any] = [resolved_parameters, outputs]
         if extra_args:
             args.extend(extra_args)
 
@@ -877,7 +924,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
     async def _execute_wait_node(
         self,
         node_id: str,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
         outputs: dict[str, str] | None,
     ) -> dict[str, Any]:
         """Execute a wait node using async completion + durable timer pattern.
@@ -886,19 +933,15 @@ class NexusWorkflow(WorkflowConvergeMixin):
         2. Sleep via workflow.sleep() (durable timer, no worker resources)
         3. Complete the async activity via local activity
         """
-        total_seconds = resolved_config.get("duration", 0)
+        total_seconds = resolved_parameters.get("duration", 0)
         if isinstance(total_seconds, bool) or not isinstance(total_seconds, int) or total_seconds <= 0:
-            return {
-                "output": {
-                    "status": "failed",
-                    "error": {"type": "ConfigError", "message": "Wait duration must be a positive integer (seconds)"},
-                }
-            }
+            msg = "Wait duration must be a positive integer (seconds)"
+            raise ApplicationError(msg, type="ConfigError", non_retryable=True)
 
         # Step 1: Start wait activity (validates config + global max, calls raise_complete_async)
         wait_handle = workflow.start_activity(
             ActivityName.WAIT,
-            args=[resolved_config, outputs],
+            args=[resolved_parameters, outputs],
             activity_id=node_id,
             start_to_close_timeout=timedelta(seconds=total_seconds + self._TEMPORAL_MARGIN),
         )
@@ -943,20 +986,20 @@ class NexusWorkflow(WorkflowConvergeMixin):
                 previous_output = None
         return {
             "id": prev_node.id,
-            "name": prev_node.config.get("name", prev_node.id),
+            "name": prev_node.parameters.get("name", prev_node.id),
             "type": prev_node.type,
             "output": previous_output,
         }
 
-    def _prepare_approval_args(
+    async def _prepare_approval_args(
         self,
         node: "ActivityNode",
         graph: "WorkflowGraph",
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
     ) -> list[Any]:
         """Build the positional argument list for create_approval_request_activity.
 
-        Returns a 7-element list matching the activity signature in
+        Returns a 9-element list matching the activity signature in
         ``approval_activity.create_approval_request_activity``::
 
             [0] execution_id:       str            — parent workflow execution ID
@@ -966,17 +1009,22 @@ class NexusWorkflow(WorkflowConvergeMixin):
             [4] workflow_context:   dict[str, Any]  — workflow name, inputs, previous step
             [5] timeout_at:         str | None      — ISO datetime when the request expires
             [6] next_step_rejected: dict[str, Any] | None — first activity if rejected
+            [7] approver_user_ids:  list[str] | None — user UUIDs who can approve
+            [8] approver_group_ids: list[str] | None — group UUIDs whose members can approve
 
         """
-        name = resolved_config.get("name") or f"Approval for {node.id}"
+        name = resolved_parameters.get("name") or f"Approval for {node.id}"
 
         # Build previous step context
         previous_step = self._get_previous_step_context(node.id, graph)
 
         # Build workflow context
+        wf_ctx = (
+            self.resolver.get_namespace("workflow_context") if self.resolver.has_namespace("workflow_context") else {}
+        )
+        execution_ns = wf_ctx.get("execution", {}) if isinstance(wf_ctx, dict) else {}
         workflow_context = {
-            # TODO(AAP-71408): Replace with actual workflow_version_id once threaded through run()  # noqa: TD003
-            "workflow_version_id": "00000000-0000-0000-0000-000000000000",
+            "workflow_version_id": execution_ns.get("workflow_version_id", "unknown"),
             "workflow_name": graph.metadata.get("name") or "Unknown",
             "inputs": self.resolver.namespaces.get("trigger", {}),
             "previous_step": previous_step,
@@ -993,9 +1041,9 @@ class NexusWorkflow(WorkflowConvergeMixin):
         first_approved = approved_successors[0]
         next_step_approved = {
             "id": first_approved.id,
-            "name": first_approved.config.get("name", first_approved.id),
+            "name": first_approved.parameters.get("name", first_approved.id),
             "type": first_approved.type,
-            "config": first_approved.config,
+            "parameters": first_approved.parameters,
         }
 
         rejected_successors = graph.get_next_activities_by_port(node.id, "rejected")
@@ -1004,13 +1052,30 @@ class NexusWorkflow(WorkflowConvergeMixin):
             first_rejected = rejected_successors[0]
             next_step_rejected = {
                 "id": first_rejected.id,
-                "name": first_rejected.config.get("name", first_rejected.id),
+                "name": first_rejected.parameters.get("name", first_rejected.id),
                 "type": first_rejected.type,
-                "config": first_rejected.config,
+                "parameters": first_rejected.parameters,
             }
 
         approval_timeout = resolve_decision_window(node, self._runtime_settings)
         timeout_at = (workflow.now() + timedelta(seconds=approval_timeout)).isoformat()
+
+        # Extract approver configuration (string arrays)
+        approver_users = resolved_parameters.get("approver_users")
+        approver_groups = resolved_parameters.get("approver_groups")
+
+        # Resolve approver usernames/groups to UUIDs (skip if none configured)
+        if approver_users or approver_groups:
+            approver_resolution = await workflow.execute_activity(
+                ActivityName.APPROVER_RESOLUTION,
+                args=[approver_users, approver_groups],
+                start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+            )
+            approver_user_ids = approver_resolution.get("user_ids") or None
+            approver_group_ids = approver_resolution.get("group_ids") or None
+        else:
+            approver_user_ids = None
+            approver_group_ids = None
 
         return [
             self.execution_id,
@@ -1020,12 +1085,14 @@ class NexusWorkflow(WorkflowConvergeMixin):
             workflow_context,
             timeout_at,
             next_step_rejected,
+            approver_user_ids,
+            approver_group_ids,
         ]
 
     async def _execute_converge_node(
         self,
         node_id: str,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
         outputs: dict[str, str] | None,
         graph: WorkflowGraph,
         timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
@@ -1034,7 +1101,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
 
         Args:
             node_id: Node ID
-            resolved_config: Resolved configuration
+            resolved_parameters: Resolved configuration
             outputs: Output mapping configuration
             graph: Workflow graph
             timeout_seconds: Activity timeout in seconds (default: DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
@@ -1049,15 +1116,15 @@ class NexusWorkflow(WorkflowConvergeMixin):
             if pred_id not in self.skipped_nodes and self.resolver.has_namespace(pred_id):
                 predecessor_results[pred_id] = self.resolver.get_namespace(pred_id)
 
-        # total_branches is injected at runtime (not part of the user-facing config schema)
+        # total_branches is injected at runtime (not part of the user-facing parameter schema)
         # so the converge activity can distinguish branch_count from completed_count.
-        config_with_counts = {**resolved_config, "total_branches": len(predecessor_ids)}
+        parameters_with_counts = {**resolved_parameters, "total_branches": len(predecessor_ids)}
 
         return cast(
             "dict[str, Any]",
             await workflow.execute_activity(
                 ActivityName.CONVERGE,
-                args=[config_with_counts, outputs, predecessor_results],
+                args=[parameters_with_counts, outputs, predecessor_results],
                 activity_id=node_id,
                 start_to_close_timeout=timedelta(seconds=timeout_seconds),
             ),
@@ -1067,7 +1134,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self,
         node_id: str,
         node: ActivityNode,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
         timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
     ) -> dict[str, Any]:
         """Execute a loop node.
@@ -1075,21 +1142,21 @@ class NexusWorkflow(WorkflowConvergeMixin):
         Args:
             node_id: Node ID
             node: Activity node
-            resolved_config: Resolved configuration
+            resolved_parameters: Resolved configuration
             timeout_seconds: Activity timeout in seconds (default: DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
 
         Returns:
             Activity result with output and control data
 
         """
-        loop_type = resolved_config.get("type", LoopType.FOR_EACH)
+        loop_type = resolved_parameters.get("type", LoopType.FOR_EACH)
 
         # Get or initialize loop state
         if node_id not in self.loop_state:
-            # Use resolved_config for most fields, but keep raw condition template
-            # from node.config so it can be re-evaluated each iteration.
-            loop_init_config = {**resolved_config, "condition": node.config.get("condition")}
-            self.loop_state[node_id] = self._create_loop_state_for_type(loop_type, node, loop_init_config)
+            # Use resolved_parameters for most fields, but keep raw condition template
+            # from node.parameters so it can be re-evaluated each iteration.
+            loop_init_parameters = {**resolved_parameters, "condition": node.parameters.get("condition")}
+            self.loop_state[node_id] = self._create_loop_state_for_type(loop_type, node, loop_init_parameters)
 
         # Initialize iteration results if not exists
         if node_id not in self.loop_iteration_results:
@@ -1118,7 +1185,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
                 self.resolver.set_context(loop_node_id=None)
 
         # Pass current state to activity
-        loop_config: dict[str, Any] = {
+        loop_parameters: dict[str, Any] = {
             "type": loop_type,
             "current_index": state.current_index,
         }
@@ -1126,10 +1193,10 @@ class NexusWorkflow(WorkflowConvergeMixin):
         max_iter = resolve_max_iterations(node, self._runtime_settings)
 
         if isinstance(state, ForEachLoopState):
-            loop_config["items"] = state.items
+            loop_parameters["items"] = state.items
             condition_result = True
         elif isinstance(state, DoWhileLoopState):
-            loop_config["condition_result"] = condition_result
+            loop_parameters["condition_result"] = condition_result
 
         if condition_result is True and state.current_index >= max_iter:
             msg = f"Loop {node_id} exceeded max_iterations ({max_iter})"
@@ -1139,7 +1206,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
             "dict[str, Any]",
             await workflow.execute_activity(
                 ActivityName.LOOP,
-                args=[loop_config, node.outputs, self.loop_iteration_results[node_id]],
+                args=[loop_parameters, node.outputs, self.loop_iteration_results[node_id]],
                 activity_id=f"{node_id}_iter_{state.current_index}",
                 start_to_close_timeout=timedelta(seconds=timeout_seconds),
             ),
@@ -1156,23 +1223,23 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self,
         loop_type: str,
         node: ActivityNode,
-        loop_config: dict[str, Any] | None = None,
+        loop_parameters: dict[str, Any] | None = None,
     ) -> LoopState:
         """Create appropriate loop state object for the given type.
 
-        All loop parameters are read from loop_config for consistency.
+        All loop parameters are read from loop_parameters for consistency.
         Callers are responsible for ensuring condition contains the raw
         template (not resolved value) when re-evaluation is needed.
         """
-        if loop_config is None:
-            loop_config = node.config
+        if loop_parameters is None:
+            loop_parameters = node.parameters
 
         if loop_type == LoopType.FOR_EACH:
-            items = _parse_items(loop_config.get("items", []))
+            items = _parse_items(loop_parameters.get("items", []))
             return ForEachLoopState(items=items)
 
-        condition = loop_config.get("condition")
-        max_iterations = loop_config.get("max_iterations")
+        condition = loop_parameters.get("condition")
+        max_iterations = loop_parameters.get("max_iterations")
         return DoWhileLoopState(condition=condition, max_iterations=max_iterations)
 
     async def _execute_node(
@@ -1180,7 +1247,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         node: ActivityNode,
         graph: WorkflowGraph,
     ) -> dict[str, Any]:
-        """Execute a single node: resolve config, dispatch, process result.
+        """Execute a single node: resolve parameters, dispatch, process result.
 
         Args:
             node: ActivityNode to execute
@@ -1195,7 +1262,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
             self.node_inputs[node.id] = {PRE_RESOLVED_MARKER: True}
 
             if node.type == NodeType.LOOP and node.id not in self.loop_state:
-                loop_type = node.config.get("type", LoopType.FOR_EACH)
+                loop_type = node.parameters.get("type", LoopType.FOR_EACH)
                 self.loop_state[node.id] = self._create_loop_state_for_type(loop_type, node)
                 if node.id not in self.loop_iteration_results:
                     self.loop_iteration_results[node.id] = {}
@@ -1205,35 +1272,45 @@ class NexusWorkflow(WorkflowConvergeMixin):
         node_id = node.id
         node_type = node.type
 
+        # Refresh workflow_context.now and workflow_context.today so each node
+        # sees the current wall-clock time, not the execution start time.
+        # Uses workflow.now() which is Temporal-safe (deterministic on replay).
+        if self.resolver.has_namespace("workflow_context"):
+            wf_ctx = self.resolver.get_namespace("workflow_context")
+            if isinstance(wf_ctx, dict):
+                current_time = workflow.now()
+                wf_ctx["now"] = current_time.isoformat()
+                wf_ctx["today"] = current_time.strftime("%Y-%m-%d")
+
         # Special handling for condition nodes (Tier 2)
         if node_type == NodeType.CONDITION:
             # Set loop context if this node is inside a loop body
             self.resolver.set_context(loop_node_id=self.loop_body_map.get(node_id))
 
-            resolved_config = {
-                "condition": node.config.get("condition"),  # Raw template (preserved)
+            resolved_parameters = {
+                "condition": node.parameters.get("condition"),  # Raw template (preserved)
                 "namespace": self.resolver.get_complete_namespace(),  # Complete namespace
             }
         elif node_type == NodeType.SWITCH:
             self.resolver.set_context(loop_node_id=self.loop_body_map.get(node_id))
 
-            resolved_config = {
-                "cases": node.config.get("cases", []),
-                "default_port": node.config.get("default_port", "default"),
+            resolved_parameters = {
+                "cases": node.parameters.get("cases", []),
+                "default_port": node.parameters.get("default_port", "default"),
                 "namespace": self.resolver.get_complete_namespace(),
             }
         else:
             # For all other nodes: standard resolution (Tier 1)
-            resolved_config = self._resolve_node_config(node)
+            resolved_parameters = self._resolve_node_parameters(node)
 
         timeout_seconds = resolve_timeout(node, self._runtime_settings)
-        self.node_inputs[node.id] = copy.deepcopy(resolved_config)
+        self.node_inputs[node.id] = copy.deepcopy(resolved_parameters)
 
-        result = await self._dispatch_node(node, resolved_config, graph, timeout_seconds)
+        result = await self._dispatch_node(node, resolved_parameters, graph, timeout_seconds)
         return self._process_node_result(node, result)
 
-    def _resolve_node_config(self, node: ActivityNode) -> dict[str, Any]:
-        """Resolve template expressions in a node's config.
+    def _resolve_node_parameters(self, node: ActivityNode) -> dict[str, Any]:
+        """Resolve template expressions in a node's parameters.
 
         Uses two-tier approach:
         - Tier 1 (template substitution): All fields except 'condition'
@@ -1245,26 +1322,26 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self.resolver.set_context(loop_node_id=self.loop_body_map.get(node.id))
 
         # For nodes with 'condition' field: preserve it, resolve other fields (Tier 1)
-        if node.type in (NodeType.CONDITION, NodeType.LOOP) and "condition" in node.config:
+        if node.type in (NodeType.CONDITION, NodeType.LOOP) and "condition" in node.parameters:
             return {
                 key: value if key == "condition" else self.resolver.resolve_value(value)
-                for key, value in node.config.items()
+                for key, value in node.parameters.items()
             }
 
         # For all other nodes: resolve everything (Tier 1)
-        return self.resolver.resolve_dict(node.config)
+        return self.resolver.resolve_dict(node.parameters)
 
     async def _resolve_and_inject_credentials(
         self,
         node: ActivityNode,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
     ) -> None:
         """Resolve and inject Nexus credentials for a task node.
 
-        If the node's config has a credential_id, calls the credential resolution
-        activity to decrypt and inject resolved credentials into the config.
+        If the node's parameters has a credential_id, calls the credential resolution
+        activity to decrypt and inject resolved credentials into the parameters.
         """
-        credential_id = resolved_config.get("credential_id")
+        credential_id = resolved_parameters.get("credential_id")
         if not credential_id:
             return
 
@@ -1277,20 +1354,20 @@ class NexusWorkflow(WorkflowConvergeMixin):
         )
 
         if node.id in resolved_creds:
-            resolved_config["_resolved_credentials"] = resolved_creds[node.id]
+            resolved_parameters["_resolved_credentials"] = resolved_creds[node.id]
 
     @staticmethod
-    def _scrub_activity_credentials(resolved_config: dict[str, Any]) -> None:
-        """Remove resolved credentials from config after execution."""
-        resolved_config.pop("_resolved_credentials", None)
-        scrubbed = scrub_credentials(resolved_config)
-        resolved_config.clear()
-        resolved_config.update(scrubbed)
+    def _scrub_activity_credentials(resolved_parameters: dict[str, Any]) -> None:
+        """Remove resolved credentials from parameters after execution."""
+        resolved_parameters.pop("_resolved_credentials", None)
+        scrubbed = scrub_credentials(resolved_parameters)
+        resolved_parameters.clear()
+        resolved_parameters.update(scrubbed)
 
     async def _dispatch_node(
         self,
         node: ActivityNode,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
         graph: WorkflowGraph,
         timeout_seconds: int,
     ) -> dict[str, Any]:
@@ -1299,18 +1376,18 @@ class NexusWorkflow(WorkflowConvergeMixin):
         Resolves credentials before dispatch and scrubs them after execution.
         """
         # Resolve credentials if the node has a credential_id
-        await self._resolve_and_inject_credentials(node, resolved_config)
+        await self._resolve_and_inject_credentials(node, resolved_parameters)
 
         try:
-            return await self._dispatch_node_to_executor(node, resolved_config, graph, timeout_seconds)
+            return await self._dispatch_node_to_executor(node, resolved_parameters, graph, timeout_seconds)
         finally:
-            self._scrub_activity_credentials(resolved_config)
+            self._scrub_activity_credentials(resolved_parameters)
 
     async def _execute_approval_node(
         self,
         node: ActivityNode,
         graph: WorkflowGraph,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
     ) -> dict[str, Any]:
         """Execute an approval node and build the resultSchema output from the signal payload.
 
@@ -1319,7 +1396,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         them explicitly and adds status: "completed".
         """
         node_id = node.id
-        approval_args = self._prepare_approval_args(node, graph, resolved_config)
+        approval_args = await self._prepare_approval_args(node, graph, resolved_parameters)
         # Approval uses async completion: start_to_close_timeout must cover the full
         # human decision window, not just the API call to create the request.
         # The margin lets the approval service send its signal right at the deadline
@@ -1369,7 +1446,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
     async def _dispatch_node_to_executor(
         self,
         node: ActivityNode,
-        resolved_config: dict[str, Any],
+        resolved_parameters: dict[str, Any],
         graph: WorkflowGraph,
         timeout_seconds: int,
     ) -> dict[str, Any]:
@@ -1383,7 +1460,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
                 extra_args = [self.execution_id, self.request_id]
             # Inject the operational timeout BEFORE adding the Temporal margin so
             # activities use the operator-configured deadline, not the Temporal ceiling.
-            config_with_timeout = {**resolved_config, ENGINE_TIMEOUT_SECONDS_KEY: timeout_seconds}
+            parameters_with_timeout = {**resolved_parameters, ENGINE_TIMEOUT_SECONDS_KEY: timeout_seconds}
             temporal_timeout = (
                 timeout_seconds + self._TEMPORAL_MARGIN
                 if node_type in self._EXECUTOR_TIMEOUT_MARGIN_TYPES
@@ -1392,21 +1469,21 @@ class NexusWorkflow(WorkflowConvergeMixin):
             return await self._execute_executor_node(
                 node,
                 node_type,
-                config_with_timeout,
+                parameters_with_timeout,
                 node.outputs,
                 timeout_seconds=temporal_timeout,
                 extra_args=extra_args,
             )
         if node_type == NodeType.APPROVAL:
-            return await self._execute_approval_node(node, graph, resolved_config)
+            return await self._execute_approval_node(node, graph, resolved_parameters)
         if node_type == NodeType.WAIT:
-            return await self._execute_wait_node(node_id, resolved_config, node.outputs)
+            return await self._execute_wait_node(node_id, resolved_parameters, node.outputs)
         if node_type == NodeType.CONVERGE:
             return await self._execute_converge_node(
-                node_id, resolved_config, node.outputs, graph, timeout_seconds=timeout_seconds
+                node_id, resolved_parameters, node.outputs, graph, timeout_seconds=timeout_seconds
             )
         if node_type == NodeType.LOOP:
-            return await self._execute_loop_node(node_id, node, resolved_config, timeout_seconds=timeout_seconds)
+            return await self._execute_loop_node(node_id, node, resolved_parameters, timeout_seconds=timeout_seconds)
 
         return {"output": {"status": "skipped", "reason": f"Unsupported node type: {node_type}"}}
 
@@ -1428,7 +1505,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
             f"Node {node.id} executed",
             extra={
                 "node_type": node.type,
-                "has_outputs_config": node.outputs is not None,
+                "has_output_mapping": node.outputs is not None,
                 "output_data_keys": list(output_data.keys()) if isinstance(output_data, dict) else "not-a-dict",
             },
         )

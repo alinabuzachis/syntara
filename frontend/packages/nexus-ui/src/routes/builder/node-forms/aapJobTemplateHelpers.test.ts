@@ -185,8 +185,6 @@ describe('applyDefaultValues', () => {
       const detail = {
         ask_forks_on_launch: true,
         forks: 5,
-        ask_timeout_on_launch: true,
-        timeout: 600,
         ask_job_slice_count_on_launch: true,
         job_slice_count: 2,
       }
@@ -195,7 +193,6 @@ describe('applyDefaultValues', () => {
       applyDefaultValues(detail as never, false, mockGetValues as never, mockSetValue as never)
 
       expect(mockSetValue).toHaveBeenCalledWith('forks', 5)
-      expect(mockSetValue).toHaveBeenCalledWith('timeout', 600)
       expect(mockSetValue).toHaveBeenCalledWith('job_slice_count', 2)
     })
   })

@@ -40,11 +40,8 @@ export function buildExpression(payload: DragPayload): string {
 }
 
 export function buildContextExpression(contextPath: string): string {
-  if (!contextPath.startsWith('$')) {
-    throw new Error('Context path must start with $')
-  }
-  const stripped = contextPath.slice(1)
-  for (const segment of stripped.split('.')) {
+  const pathToValidate = contextPath.startsWith('$') ? contextPath.slice(1) : contextPath
+  for (const segment of pathToValidate.split('.')) {
     validateFieldSegment(segment)
   }
   return `\${${contextPath}}`

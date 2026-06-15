@@ -31,7 +31,6 @@ vi.mock('../hooks/usePermissionChecks', () => ({
       'user:read': true,
       'group:read': true,
       'identity-provider:read': true,
-      'audit:read': true,
       'project:read': true,
       'role-assignment:read': true,
     },
@@ -250,8 +249,8 @@ describe('AppDockedNav', () => {
     const menu = screen.getByRole('menu')
     const menuItems = within(menu).getAllByRole('menuitem')
 
-    // System Administration has 4 child items: Access Management, Identity Providers, Settings, Audit Log
-    expect(menuItems.length).toBe(4)
+    // System Administration has 3 child items: Access Management, Identity Providers, Settings
+    expect(menuItems.length).toBe(3)
     expect(menu).toBeInTheDocument()
   })
 

@@ -42,7 +42,7 @@ APP_SEGMENT_ENDPOINT="http://mock-segment:${SEGMENT_SERVER_PORT}" \
 APP_SEGMENT_MAX_RETRIES=2 \
 APP_SEGMENT_TIMEOUT=5 \
 APP_COLLECTION_INTERVAL_SECONDS=10 \
-${COMPOSE_CMD} --profile telemetry-e2e up -d database temporal temporal-worker mock-segment opa mcp-server nexus \
+${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate database temporal temporal-worker mock-segment opa mcp-server nexus \
     > /tmp/nexus-e2e-infra.log 2>&1
 
 echo "⏳ Waiting for mock Segment server..."

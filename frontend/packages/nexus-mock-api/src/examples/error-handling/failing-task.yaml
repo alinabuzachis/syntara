@@ -11,7 +11,7 @@ nodes:
   - id: failing_task
     name: Failing Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Attempting task..."

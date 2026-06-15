@@ -22,7 +22,7 @@ describe('TaskActivityDetails', () => {
       type: 'script',
       id: 'task-1',
       name: 'Script Task',
-      config: {
+      parameters: {
         language: 'python',
         code: 'print("hello")',
       },
@@ -41,7 +41,7 @@ describe('TaskActivityDetails', () => {
       type: 'http_request',
       id: 'task-2',
       name: 'HTTP Request Task',
-      config: {
+      parameters: {
         method: 'GET',
         url: 'https://api.example.com',
       },
@@ -60,7 +60,7 @@ describe('TaskActivityDetails', () => {
       type: 'agentic',
       id: 'task-4',
       name: 'AI Agent Task',
-      config: {
+      parameters: {
         model: 'claude-3-sonnet',
         prompt: 'Analyze the data and provide insights',
         tool_selection_strategy: 'SELECTED',
@@ -83,7 +83,7 @@ describe('TaskActivityDetails', () => {
       type: 'aap_job_template',
       id: 'task-5',
       name: 'Launch Job',
-      config: {
+      parameters: {
         job_template_name: 'Demo template',
         job_template_id: 123,
       },
@@ -101,7 +101,7 @@ describe('TaskActivityDetails', () => {
       type: 'aap_job_template',
       id: 'task-6',
       name: 'Dynamic Launch Job',
-      config: {
+      parameters: {
         job_template_name: '${name_via_ai.analysis.default_job_template}',
         job_template_id: 123,
       },
@@ -119,7 +119,7 @@ describe('TaskActivityDetails', () => {
       type: 'aap_workflow_job_template',
       id: 'task-7',
       name: 'Launch Workflow',
-      config: {
+      parameters: {
         workflow_job_template_name: 'my-long-workflow-template-name',
       },
     } as TaskActivity
@@ -136,7 +136,7 @@ describe('TaskActivityDetails', () => {
       type: 'aap_workflow_job_template',
       id: 'task-8',
       name: 'Dynamic Launch Workflow',
-      config: {
+      parameters: {
         workflow_job_template_name: '{{workflow.context.template_name}}',
       },
     } as TaskActivity
@@ -153,7 +153,7 @@ describe('TaskActivityDetails', () => {
       type: 'agentic',
       id: 'task-9',
       name: 'AI Agent with Model',
-      config: {
+      parameters: {
         model: 'claude-3-opus',
         prompt: 'Analyze these files',
         tool_selection_strategy: 'SELECTED',

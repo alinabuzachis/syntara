@@ -37,6 +37,8 @@ class InvocationCreatedEvent:
     model: str | None = None
     metadata: dict[str, Any] | None = None
     error_type: str | None = field(default=None)
+    activity_id: str | None = field(default=None)
+    activity_name: str | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -89,5 +91,7 @@ class InvocationCreatedHandler(AuditEventHandler[InvocationCreatedEvent]):
             event_message=message,
             source_component="nexus.invocations.create",
             structured_data=data,
+            activity_id=event.activity_id,
             resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_name=event.activity_name,
         )

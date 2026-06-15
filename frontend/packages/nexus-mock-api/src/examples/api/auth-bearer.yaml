@@ -15,7 +15,7 @@ triggers:
 nodes:
   - id: fetch_protected_data
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/protected
       authentication:

@@ -1,6 +1,7 @@
 """HTTP request activity for v2 workflows."""
 
 import base64
+import json
 import time
 from http import HTTPStatus
 from typing import Any
@@ -17,11 +18,11 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityName,
     APIExecutorConfig,
     AuthenticationType,
+    HttpRequestOutput,
 )
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
-from .common import ActivityExecutionError
-from .output_mapping import apply_output_mapping
+from .common import ActivityExecutionError, is_retryable_http_status
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -159,14 +160,24 @@ async def execute_http_request_activity(
             # Strip query params from URL to avoid leaking tokens/keys stored there
             safe_url = config.url.split("?")[0]
             msg = f"HTTP {response.status_code} {response.reason_phrase} (url={safe_url}, elapsed={elapsed:.2f}s)"
-            # 429/502/503/504 are transient; all other 4xx/5xx are non-retryable
-            retryable_codes = {
-                HTTPStatus.TOO_MANY_REQUESTS,
-                HTTPStatus.BAD_GATEWAY,
-                HTTPStatus.SERVICE_UNAVAILABLE,
-                HTTPStatus.GATEWAY_TIMEOUT,
-            }
-            raise ApplicationError(msg, type="HTTPError", non_retryable=response.status_code not in retryable_codes)  # noqa: TRY301
+            max_error_body_length = 4096
+            try:
+                raw_body = response.text[:max_error_body_length]
+                error_body: Any = json.loads(raw_body) if raw_body.strip() else raw_body
+            except (json.JSONDecodeError, ValueError):
+                error_body = raw_body
+            output = HttpRequestOutput(
+                status_code=response.status_code,
+                body=error_body,
+                headers=dict(response.headers),
+                elapsed=elapsed,
+            )
+            raise ApplicationError(  # noqa: TRY301
+                msg,
+                {"output": output.dump(output_config)},
+                type="HTTPError",
+                non_retryable=not is_retryable_http_status(response.status_code),
+            )
 
         # Try to parse JSON response
         try:
@@ -174,19 +185,13 @@ async def execute_http_request_activity(
         except Exception:  # noqa: BLE001
             body_data = response.text
 
-        # Full result before mapping
-        full_result = {
-            "status": "completed",
-            "status_code": response.status_code,
-            "body": body_data,
-            "headers": dict(response.headers),
-            "elapsed": elapsed,
-        }
-
-        # Apply output mapping (suppresses fields before Temporal stores it)
-        mapped_output = apply_output_mapping(full_result, output_config)
-
-        return {"output": mapped_output}
+        output = HttpRequestOutput(
+            status_code=response.status_code,
+            body=body_data,
+            headers=dict(response.headers),
+            elapsed=elapsed,
+        )
+        return {"output": output.dump(output_config)}
 
     except ApplicationError:
         raise

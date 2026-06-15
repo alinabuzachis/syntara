@@ -750,6 +750,10 @@ export interface components {
            * @example ["server1", "server2", "server3"]
            */
           items: string
+          /**
+           * @description Maximum number of items to process. The node fails with an error if this limit is reached. Falls back to the system-configured default if not specified.
+           */
+          max_iterations?: number
         }
       | {
           /** @constant */
@@ -761,8 +765,7 @@ export interface components {
            */
           condition: string
           /**
-           * @description Maximum number of iterations (safety limit)
-           * @default 1000
+           * @description Maximum number of iterations. The node fails with an error if this limit is reached while the condition is still true. Falls back to the system-configured default if not specified.
            */
           max_iterations?: number
         }

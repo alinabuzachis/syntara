@@ -55,6 +55,12 @@ from .workflow import (
     WorkflowUpdate,
 )
 from .workflow_definition import WorkflowDefinition
+from .workflow_validation_result import (
+    ValidationIssue,
+    WorkflowValidateRequest,
+    WorkflowValidationProblemDetail,
+    WorkflowValidationResult,
+)
 from .workflow_version import (
     PublishVersionRequest,
     WorkflowVersion,
@@ -83,6 +89,7 @@ __all__ = [
     "JsonPatchOperation",
     "PublishVersionRequest",
     "SignalResponse",
+    "ValidationIssue",
     "WebhookTrigger",
     "WebhookTriggerRead",
     "Workflow",
@@ -93,6 +100,9 @@ __all__ = [
     "WorkflowRead",
     "WorkflowReadWithVersion",
     "WorkflowUpdate",
+    "WorkflowValidateRequest",
+    "WorkflowValidationProblemDetail",
+    "WorkflowValidationResult",
     "WorkflowVersion",
     "WorkflowVersionListResponse",
     "WorkflowVersionRead",

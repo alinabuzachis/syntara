@@ -17,6 +17,7 @@ with workflow.unsafe.imports_passed_through():
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.models.workflow_definition import (
+    NODE_OUTPUT_MODELS,
     ConvergeStrategy,
     NodeType,
 )
@@ -107,7 +108,7 @@ class WorkflowConvergeMixin:
                 When ``None``, only direct predecessor failures are checked.
 
         """
-        strategy = converge_node.config.get("strategy", ConvergeStrategy.ALL)
+        strategy = converge_node.parameters.get("strategy", ConvergeStrategy.ALL)
         predecessor_ids = graph.get_predecessors(converge_id)
 
         if strategy == ConvergeStrategy.ALL:
@@ -131,7 +132,7 @@ class WorkflowConvergeMixin:
                 return
 
         if self._all_predecessors_terminal(predecessor_ids) and not self._are_predecessors_complete(converge_id, graph):
-            n_req = converge_node.config.get("n_required", "?")
+            n_req = converge_node.parameters.get("n_required", "?")
             successes = self._count_successful_predecessors(predecessor_ids)
             error_msg = (
                 f"Converge node {converge_id}: required {n_req} successful branches, "
@@ -166,7 +167,12 @@ class WorkflowConvergeMixin:
         self.failed_nodes[node_id] = error_msg
         self._has_unhandled_failure = True
         self.skipped_nodes.discard(node_id)
-        self.resolver.set_namespace(node_id, {"status": "failed", "error": error_msg})
+        node = graph.get_node(node_id)
+        output_model_class = NODE_OUTPUT_MODELS.get(node.type)
+        fail_output = output_model_class().dump(node.outputs) if output_model_class else {}
+        fail_output["status"] = "failed"
+        fail_output["error"] = error_msg
+        self.resolver.set_namespace(node_id, fail_output)
         if pending_tasks is not None:
             try:
                 self._skip_incomplete_predecessors(node_id, graph, "converge failed", pending_tasks)
@@ -214,7 +220,7 @@ class WorkflowConvergeMixin:
             return True
 
         # Gate satisfied — for ANY, skip branches that haven't started
-        strategy = successor.config.get("strategy", ConvergeStrategy.ALL)
+        strategy = successor.parameters.get("strategy", ConvergeStrategy.ALL)
         if strategy == ConvergeStrategy.ANY:
             self._skip_incomplete_predecessors(node_id, graph, "n_required met", pending_tasks)
 
@@ -249,7 +255,7 @@ class WorkflowConvergeMixin:
     ) -> None:
         """Background task that waits for converge predecessors or fires a timeout.
 
-        Behavior depends on the node's ``on_timeout`` config:
+        Behavior depends on the node's ``on_timeout`` parameter:
 
         - ``"continue"``: skips incomplete predecessors and signals the main loop
           to schedule the converge node with partial results.
@@ -268,7 +274,7 @@ class WorkflowConvergeMixin:
 
             if timed_out:
                 node = graph.get_node(node_id)
-                on_timeout = node.config.get("on_timeout", "fail")
+                on_timeout = node.parameters.get("on_timeout", "fail")
 
                 if on_timeout == "continue":
                     reason = f"timeout after {timeout_seconds}s"

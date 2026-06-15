@@ -92,7 +92,15 @@ describe('executionFilters', () => {
       const statusValues = definition.options!.map((o) => o.value)
 
       // Values derived from ExecutionStatusEnum in @ansible/nexus-contracts
-      expect(statusValues).toEqual(['pending', 'running', 'paused', 'completed', 'failed', 'cancelled'])
+      expect(statusValues).toEqual([
+        'pending',
+        'running',
+        'paused',
+        'completed',
+        'completed_with_errors',
+        'failed',
+        'cancelled',
+      ])
     })
 
     it('provides human-readable labels for status values', () => {
@@ -100,7 +108,15 @@ describe('executionFilters', () => {
 
       const statusLabels = definition.options!.map((o) => o.label)
 
-      expect(statusLabels).toEqual(['Pending', 'Running', 'Paused', 'Completed', 'Failed', 'Cancelled'])
+      expect(statusLabels).toEqual([
+        'Pending',
+        'Running',
+        'Paused',
+        'Completed',
+        'Completed with errors',
+        'Failed',
+        'Cancelled',
+      ])
     })
 
     it('uses exact match query parameter without operator', () => {

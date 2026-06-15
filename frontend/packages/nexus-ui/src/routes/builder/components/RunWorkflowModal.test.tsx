@@ -315,15 +315,15 @@ describe('RunWorkflowModal', () => {
       const user = userEvent.setup()
       const objSchema = {
         type: 'object',
-        properties: { config: { type: 'object' } },
-        required: ['config'],
+        properties: { parameters: { type: 'object' } },
+        required: ['parameters'],
       }
       const { props } = renderModal({ inputSchema: objSchema })
 
-      act(() => mockSetCode?.('{"config": {"key": "value"}}'))
+      act(() => mockSetCode?.('{"parameters": {"key": "value"}}'))
       await user.click(screen.getByRole('button', { name: 'Run' }))
 
-      expect(props.onConfirm).toHaveBeenCalledWith({ config: { key: 'value' } }, undefined)
+      expect(props.onConfirm).toHaveBeenCalledWith({ parameters: { key: 'value' } }, undefined)
       expect(mockShowError).not.toHaveBeenCalled()
     })
 
@@ -331,17 +331,17 @@ describe('RunWorkflowModal', () => {
       const user = userEvent.setup()
       const objSchema = {
         type: 'object',
-        properties: { config: { type: 'object' } },
-        required: ['config'],
+        properties: { parameters: { type: 'object' } },
+        required: ['parameters'],
       }
       const { props } = renderModal({ inputSchema: objSchema })
 
-      act(() => mockSetCode?.('{"config": [1, 2]}'))
+      act(() => mockSetCode?.('{"parameters": [1, 2]}'))
       await user.click(screen.getByRole('button', { name: 'Run' }))
 
       expect(mockShowError).toHaveBeenCalledWith({
         title: 'Validation failed',
-        description: expect.stringContaining('Field "config" should be object') as unknown as string,
+        description: expect.stringContaining('Field "parameters" should be object') as unknown as string,
       })
       expect(props.onConfirm).not.toHaveBeenCalled()
     })
@@ -371,7 +371,7 @@ describe('RunWorkflowModal', () => {
           count: { type: 'integer' },
           enabled: { type: 'boolean' },
           tags: { type: 'array' },
-          config: { type: 'object' },
+          parameters: { type: 'object' },
           extra: {},
         },
       }
@@ -382,7 +382,7 @@ describe('RunWorkflowModal', () => {
       expect(parsed.count).toBe(0)
       expect(parsed.enabled).toBe(false)
       expect(parsed.tags).toEqual([])
-      expect(parsed.config).toEqual({})
+      expect(parsed.parameters).toEqual({})
       expect(parsed.extra).toBeNull()
     })
 

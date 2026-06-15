@@ -44,11 +44,6 @@ DATABASES: list[DatabaseConfig] = [
         ini_file="alembic.ini",
         script_location="src/nexus/core/database/migrations",
     ),
-    DatabaseConfig(
-        name="audit",
-        ini_file="alembic_audit.ini",
-        script_location="src/nexus/core/database/audit_migrations",
-    ),
 ]
 
 

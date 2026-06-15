@@ -17,14 +17,13 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
-  // In v2, loop config is at activity.config (not activity.loop)
-  const loopConfig = (loopData.config ?? {}) as {
+  // In v2, loop parameters are at activity.parameters (not activity.loop)
+  const loopConfig = (loopData.parameters ?? {}) as {
     type?: string
     items?: string
     condition?: string
     max_iterations?: number
     maxIterations?: number
-    maxIterationsBehavior?: 'continue' | 'fail'
     indexVariable?: string
     itemVariable?: string
   }
@@ -44,10 +43,10 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     type: loopType,
     items: loopType === 'forEach' ? loopConfig.items : undefined,
     condition: loopType === 'while' ? loopConfig.condition : undefined,
-    maxIterations: loopType === 'while' ? maxIterations : undefined,
-    maxIterationsBehavior: loopType === 'while' ? loopConfig.maxIterationsBehavior : undefined,
+    maxIterations,
     indexVariable: loopType === 'forEach' ? loopConfig.indexVariable : undefined,
     itemVariable: loopType === 'forEach' ? loopConfig.itemVariable : undefined,
+    settings: loopData.settings,
   }
 
   // Determine config type preserving original backend type when possible
@@ -64,26 +63,29 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     return 'while'
   }
 
-  const buildForEachConfig = (data: { items?: string; indexVariable?: string; itemVariable?: string }) => ({
+  const validMaxIterations = (value: number | undefined) =>
+    typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined
+
+  const buildForEachConfig = (data: {
+    items?: string
+    maxIterations?: number
+    indexVariable?: string
+    itemVariable?: string
+  }) => ({
     items: data.items ?? '',
     ...(data.indexVariable && { indexVariable: data.indexVariable }),
     ...(data.itemVariable && { itemVariable: data.itemVariable }),
+    ...(validMaxIterations(data.maxIterations) !== undefined && {
+      max_iterations: validMaxIterations(data.maxIterations),
+    }),
     condition: undefined,
-    max_iterations: undefined,
-    maxIterations: undefined,
-    maxIterationsBehavior: undefined,
   })
 
-  const buildWhileConfig = (data: {
-    condition?: string
-    maxIterations?: number
-    maxIterationsBehavior?: 'continue' | 'fail'
-  }) => ({
+  const buildWhileConfig = (data: { condition?: string; maxIterations?: number }) => ({
     condition: data.condition ?? '',
-    ...(typeof data.maxIterations === 'number' &&
-      Number.isInteger(data.maxIterations) &&
-      data.maxIterations > 0 && { max_iterations: data.maxIterations }),
-    ...(data.maxIterationsBehavior && { maxIterationsBehavior: data.maxIterationsBehavior }),
+    ...(validMaxIterations(data.maxIterations) !== undefined && {
+      max_iterations: validMaxIterations(data.maxIterations),
+    }),
     items: undefined,
     indexVariable: undefined,
     itemVariable: undefined,
@@ -103,7 +105,6 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     items?: string
     condition?: string
     maxIterations?: number
-    maxIterationsBehavior?: 'continue' | 'fail'
     indexVariable?: string
     itemVariable?: string
   }) => {
@@ -126,7 +127,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
       const updatedActivity: LoopActivity = {
         ...loopData,
         name: data.name,
-        config,
+        parameters: config,
       } as LoopActivity
 
       updateActivity(nodeId, updatedActivity)

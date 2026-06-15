@@ -7,13 +7,18 @@ import { ActivityStatusLabel, StatusLabel } from './ExecutionStatus'
 type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']
 
 describe('StatusLabel', () => {
-  it.each(['pending', 'running', 'paused', 'completed', 'failed', 'cancelled'] as const)(
-    'renders "%s" with capitalized text',
-    (status) => {
-      render(<StatusLabel status={status} />)
-      expect(screen.getByText(status.charAt(0).toUpperCase() + status.slice(1))).toBeInTheDocument()
-    }
-  )
+  it.each([
+    ['pending', 'Pending'],
+    ['running', 'Running'],
+    ['paused', 'Paused'],
+    ['completed', 'Completed'],
+    ['completed_with_errors', 'Completed with errors'],
+    ['failed', 'Failed'],
+    ['cancelled', 'Cancelled'],
+  ] as const)('renders "%s" as "%s"', (status, label) => {
+    render(<StatusLabel status={status} />)
+    expect(screen.getByText(label)).toBeInTheDocument()
+  })
 })
 
 describe('ActivityStatusLabel', () => {

@@ -49,7 +49,7 @@ describe('usePositionEventHandlers', () => {
     vi.clearAllMocks()
     storeState = {
       currentWorkflow: {
-        triggers: [{ id: 'trigger_manual', type: 'manual_trigger', config: {} }],
+        triggers: [{ id: 'trigger_manual', type: 'manual_trigger', parameters: {} }],
       },
       _positionUndoVersion: 0,
       nodePositions: {},

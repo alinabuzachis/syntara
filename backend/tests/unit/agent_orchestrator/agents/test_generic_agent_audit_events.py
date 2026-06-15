@@ -113,6 +113,8 @@ class TestGenericAgentExecutionEvents:
         assert execution_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
         assert execution_events[0].execution_id == execution_id
         assert execution_events[0].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
+        assert execution_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert execution_events[0].resource_name == "generic_agent"
 
         # Event 2: COMPLETED
         assert execution_events[1].event_action == "agent_completed"
@@ -120,6 +122,8 @@ class TestGenericAgentExecutionEvents:
         assert execution_events[1].execution_id == execution_id
         assert execution_events[1].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
         assert execution_events[1].structured_data.agent_type == "generic_agent"  # type: ignore[attr-defined]
+        assert execution_events[1].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert execution_events[1].resource_name == "generic_agent"
 
     @pytest.mark.asyncio
     async def test_execute_emits_failed_event_on_exception(self) -> None:
@@ -198,6 +202,8 @@ class TestGenericAgentLLMInteractionEvents:
         assert llm_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
         assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        # Without metadata, activity_name should be None
+        assert llm_events[0].resource_name is None
 
     @pytest.mark.asyncio
     async def test_execute_standard_emits_empty_response_event(self) -> None:
@@ -358,3 +364,42 @@ class TestGenericAgentLLMInteractionEvents:
         assert len(llm_events) == 1
         assert llm_events[0].structured_data.status == LLMInteractionStatus.ERROR  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.error_type == "RuntimeError"
+
+    @pytest.mark.asyncio
+    async def test_llm_interaction_includes_activity_context_from_metadata(self) -> None:
+        """LLMInteractionEvent includes activity_id and activity_name from state metadata."""
+        session_id = "sess-with-activity"
+        invocation_id = uuid4()
+        execution_id = uuid4()
+
+        # State with metadata containing activity context
+        state = _make_agent_state(
+            session_id=session_id,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            metadata={"activity_id": "activity-123", "activity_name": "agentic_v2"},
+        )
+
+        mock_llm = MagicMock()
+        mock_llm.bind_tools.return_value.ainvoke = AsyncMock(
+            return_value=AIMessage(content="response with activity", response_metadata={})
+        )
+        mock_llm.model_name = "test-model"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+            patch("nexus.metrics.instrumentation.record_llm_call", side_effect=lambda _, fn, **__: fn()),
+        ):
+            await agent._execute_standard(state)
+
+        events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+        llm_events = [e for e in events if e.event_action == "llm_call"]
+
+        assert len(llm_events) == 1
+        assert llm_events[0].structured_data.status == LLMInteractionStatus.SUCCESS  # type: ignore[attr-defined]
+        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        # Verify activity context from metadata (stored in AuditEvent, not structured_data)
+        assert llm_events[0].activity_id == "activity-123"
+        assert llm_events[0].resource_name == "agentic_v2"

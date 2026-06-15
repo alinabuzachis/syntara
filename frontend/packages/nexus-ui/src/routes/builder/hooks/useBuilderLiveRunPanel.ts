@@ -47,7 +47,9 @@ export function useBuilderLiveRunPanel({
 
   const isActive = mostRecentRunPanelOpen && !!mostRecentExecutionId
   const isRunningOrPending =
-    executionStatus === ExecutionStatusEnum.RUNNING || executionStatus === ExecutionStatusEnum.PENDING
+    executionStatus === ExecutionStatusEnum.RUNNING ||
+    executionStatus === ExecutionStatusEnum.PENDING ||
+    executionStatus === ExecutionStatusEnum.PAUSED
   const canvasExecutionStatus = isActive ? (executionStatus ?? null) : null
   const showMostRecentRunPanelInEditor = isActive && !isViewingExecution
 

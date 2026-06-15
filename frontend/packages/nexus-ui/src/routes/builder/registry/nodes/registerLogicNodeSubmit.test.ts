@@ -9,9 +9,9 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
     type: ActivityTypeEnum.CONDITION,
     condition,
   })),
-  createConvergeActivity: vi.fn((_id: string, _name: string, config: unknown) => ({
+  createConvergeActivity: vi.fn((_id: string, _name: string, parameters: unknown) => ({
     type: ActivityTypeEnum.CONVERGE,
-    config,
+    parameters,
   })),
   createGenericActivity: vi.fn((id: string, name: string, msg: string) => ({
     type: 'task',
@@ -30,7 +30,7 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
   })),
   createWaitActivity: vi.fn((_id: string, _name: string, config: unknown) => ({
     type: ActivityTypeEnum.WAIT,
-    config,
+    parameters: config,
   })),
   useWorkflowStore: {
     getState: vi.fn(() => ({

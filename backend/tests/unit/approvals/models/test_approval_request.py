@@ -98,12 +98,15 @@ class TestApprovalRequestValidation:
             execution_id=execution_id,
             approval_node_id="test",
             name="Test",
-            next_step_approved={"id": "test"},
-            workflow_context={},
+            next_step_approved={"id": "test", "name": "Test Step", "type": "task"},
+            workflow_context={
+                "workflow_version_id": str(uuid4()),
+                "workflow_name": "Test Workflow",
+                "inputs": {},
+            },
         )
 
         assert approval.status == ApprovalRequestStatus.PENDING
-        assert approval.workflow_context == {}
 
 
 class TestApprovalRequestHelperFactories:

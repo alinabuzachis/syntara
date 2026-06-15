@@ -5,7 +5,7 @@ description: Test nested/chained conditional logic
 triggers:
   - id: trigger_manual
     type: manual_trigger
-    config:
+    parameters:
       inputs:
         outer_value:
           type: integer
@@ -19,7 +19,7 @@ nodes:
   - id: outer_check
     name: Outer Check
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Outer check passed"
@@ -30,7 +30,7 @@ nodes:
     name: Inner Check
     type: script
     condition: ${input.outer_value} > 0
-    config:
+    parameters:
       language: bash
       code: |
         echo "Inner check passed"
@@ -41,7 +41,7 @@ nodes:
     name: Final Action
     type: script
     condition: ${input.inner_value} > 0
-    config:
+    parameters:
       language: bash
       code: |
         echo "Both conditions met"

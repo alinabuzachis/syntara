@@ -502,7 +502,7 @@ class TestActivityEventProcessing:
     def test_process_activity_completed_sets_completed_for_approval_nodes(self) -> None:
         """Test that approval activities get COMPLETED status on ACTIVITY_TASK_COMPLETED."""
         self.metadata.activity_definitions_map = {
-            "approval-node": {"id": "approval-node", "type": "approval", "config": {}},
+            "approval-node": {"id": "approval-node", "type": "approval", "parameters": {}},
         }
         self.metadata.pending_activity_updates[1] = {
             "activity_id": "approval-node",
@@ -525,7 +525,7 @@ class TestActivityEventProcessing:
     def test_process_activity_completed_sets_completed_for_non_approval_nodes(self) -> None:
         """Test that non-approval activities still get COMPLETED status."""
         self.metadata.activity_definitions_map = {
-            "script-node": {"id": "script-node", "type": "script", "config": {}},
+            "script-node": {"id": "script-node", "type": "script", "parameters": {}},
         }
         self.metadata.pending_activity_updates[1] = {
             "activity_id": "script-node",
@@ -2377,13 +2377,31 @@ class TestProcessHistoryEvent:
 
     @pytest.mark.asyncio
     async def test_handles_workflow_completion_event(self) -> None:
-        """Test that workflow completion events trigger final sync."""
+        """Test that workflow completion events trigger final sync.
+
+        Order matters: _sync_failed_nodes and _sync_skipped_nodes must run
+        BEFORE _update_execution_status_from_event so that
+        _finalize_non_terminal_activities (called inside the latter) does not
+        overwrite already-synced terminal statuses (e.g. a converge node that
+        is FAILED in the workflow but still PENDING in the DB).
+        """
         event = self._create_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED, event_id=20)
 
+        call_order: list[str] = []
+
+        async def track_failed(*_args: object, **_kwargs: object) -> None:
+            call_order.append("failed")
+
+        async def track_skipped(*_args: object, **_kwargs: object) -> None:
+            call_order.append("skipped")
+
+        async def track_status(*_args: object, **_kwargs: object) -> None:
+            call_order.append("status")
+
         with (
-            patch.object(self.service, "_update_execution_status_from_event", new_callable=AsyncMock) as mock_status,
-            patch.object(self.service, "_sync_skipped_nodes", new_callable=AsyncMock) as mock_skipped,
-            patch.object(self.service, "_sync_failed_nodes", new_callable=AsyncMock) as mock_failed,
+            patch.object(self.service, "_update_execution_status_from_event", side_effect=track_status) as mock_status,
+            patch.object(self.service, "_sync_skipped_nodes", side_effect=track_skipped) as mock_skipped,
+            patch.object(self.service, "_sync_failed_nodes", side_effect=track_failed) as mock_failed,
         ):
             result = await self.service._process_history_event(
                 event,
@@ -2397,6 +2415,7 @@ class TestProcessHistoryEvent:
         mock_status.assert_called_once()
         mock_skipped.assert_called_once()
         mock_failed.assert_called_once()
+        assert call_order == ["failed", "skipped", "status"]
         assert self.metadata.last_processed_event_id == 20
 
     @pytest.mark.asyncio

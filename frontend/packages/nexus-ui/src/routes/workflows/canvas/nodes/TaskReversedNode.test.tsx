@@ -29,7 +29,7 @@ describe('TaskReversedNodeComponent', () => {
     type: 'script',
     id: 'task-reversed-1',
     name: 'Loop Back Task',
-    config: {
+    parameters: {
       language: 'python',
       code: 'print("hello")',
     },
@@ -72,7 +72,7 @@ describe('TaskReversedNodeComponent', () => {
         type: 'agentic',
         id: 'task-reversed-2',
         name: 'AI Task',
-        config: {
+        parameters: {
           prompt: 'Do something smart',
           model: 'claude-3-sonnet',
         },
@@ -89,7 +89,7 @@ describe('TaskReversedNodeComponent', () => {
         type: 'http_request',
         id: 'task-reversed-3',
         name: 'API Call',
-        config: {
+        parameters: {
           url: 'https://example.com',
           method: 'GET',
         },

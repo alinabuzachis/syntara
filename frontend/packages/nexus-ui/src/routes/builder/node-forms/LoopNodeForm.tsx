@@ -15,10 +15,10 @@ import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
+import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 
 import { loopFormSchema, type LoopFormData } from './loopFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
-import { BehaviorHelp } from './shared/BehaviorHelp'
 import { ConditionalExpressionHelp } from './shared/ConditionalExpressionHelp'
 import { conditionValidationRules } from './shared/conditionValidation'
 import { zodResolver } from './shared/formSchemaUtils'
@@ -26,6 +26,7 @@ import { LoopTypeHelp } from './shared/LoopTypeHelp'
 import { MaxIterationsHelp } from './shared/MaxIterationsHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 export type { LoopFormData }
 
@@ -35,7 +36,6 @@ type LoopNodeFormProps = {
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-// eslint-disable-next-line max-lines-per-function
 function LoopFormFields({
   onHeaderContentChange,
   validationErrors,
@@ -54,6 +54,8 @@ function LoopFormFields({
   } = useFormContext<LoopFormData>()
   const errors = validationErrors ?? contextErrors
   const type = useWatch({ control, name: 'type' })
+  const { defaults } = useWorkflowEngineDefaults()
+  const maxIterDefault = defaults?.maxLoopIterations ?? null
 
   useEffect(() => {
     if (errors.items) document.getElementById('loop-items')?.focus()
@@ -156,133 +158,111 @@ function LoopFormFields({
         </>
       )}
 
+      <StackItem>
+        <FormGroup
+          label={
+            <>
+              Max iterations <MaxIterationsHelp />
+            </>
+          }
+          fieldId="loop-maxIterations"
+        >
+          <TextInput
+            {...register('maxIterations', { valueAsNumber: true })}
+            id="loop-maxIterations"
+            type="number"
+            min={1}
+            step={1}
+            placeholder={maxIterDefault !== null ? `${String(maxIterDefault)} — system default` : 'System default'}
+            style={{ width: '100%' }}
+            validated={errors.maxIterations ? 'error' : 'default'}
+          />
+          {errors.maxIterations && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.maxIterations.message}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </StackItem>
+
       {type === 'while' && (
-        <>
-          <StackItem>
-            <FormGroup
-              label={
-                <>
-                  Max iterations <MaxIterationsHelp />
-                </>
-              }
-              fieldId="loop-maxIterations"
-            >
-              <TextInput
-                {...register('maxIterations', { valueAsNumber: true })}
-                id="loop-maxIterations"
-                type="number"
-                min={1}
-                step={1}
-                placeholder="1000 (default)"
-                style={{ width: '100%' }}
-                validated={errors.maxIterations ? 'error' : 'default'}
-              />
-              {errors.maxIterations && (
-                <FormHelperText>
-                  <HelperText>
-                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                      {errors.maxIterations.message}
-                    </HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )}
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup
-              label={
-                <>
-                  Behaviour when max iteration is reached <BehaviorHelp />
-                </>
-              }
-              fieldId="loop-maxIterations-behavior"
-            >
-              <Controller
-                control={control}
-                name="maxIterationsBehavior"
-                render={({ field }) => (
-                  <FormSelect
-                    id="loop-maxIterations-behavior"
-                    aria-label="Behaviour when max iteration is reached"
-                    value={field.value || 'continue'}
-                    onChange={(_event, value) => field.onChange(value)}
-                  >
-                    <FormSelectOption value="continue" label="Continue to the done path" />
-                    <FormSelectOption value="fail" label="Fail" />
-                  </FormSelect>
-                )}
-              />
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup
-              label={
-                <>
-                  Conditional expression <ConditionalExpressionHelp />
-                </>
-              }
-              isRequired
-              fieldId="loop-condition-while"
-            >
-              <Controller
-                control={control}
-                name="condition"
-                rules={conditionValidationRules}
-                render={({ field, fieldState }) => {
-                  const conditionError = fieldState.error ?? errors.condition
-                  return (
-                    <>
-                      <ExpressionBuilder
-                        id="loop-condition-while"
-                        value={field.value ?? ''}
-                        onChange={field.onChange}
-                        error={!!conditionError}
-                        placeholder="Build your condition"
-                      />
-                      <FormHelperText>
-                        <HelperText>
-                          {conditionError ? (
-                            <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                              {conditionError.message}
-                            </HelperTextItem>
-                          ) : (
-                            <HelperTextItem>
-                              Build your condition using the visual builder or custom expression
-                            </HelperTextItem>
-                          )}
-                        </HelperText>
-                      </FormHelperText>
-                    </>
-                  )
-                }}
-              />
-            </FormGroup>
-          </StackItem>
-        </>
+        <StackItem>
+          <FormGroup
+            label={
+              <>
+                Conditional expression <ConditionalExpressionHelp />
+              </>
+            }
+            isRequired
+            fieldId="loop-condition-while"
+          >
+            <Controller
+              control={control}
+              name="condition"
+              rules={conditionValidationRules}
+              render={({ field, fieldState }) => {
+                const conditionError = fieldState.error ?? errors.condition
+                return (
+                  <>
+                    <ExpressionBuilder
+                      id="loop-condition-while"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      error={!!conditionError}
+                      placeholder="Build your condition"
+                    />
+                    <FormHelperText>
+                      <HelperText>
+                        {conditionError ? (
+                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                            {conditionError.message}
+                          </HelperTextItem>
+                        ) : (
+                          <HelperTextItem>
+                            Build your condition using the visual builder or custom expression
+                          </HelperTextItem>
+                        )}
+                      </HelperText>
+                    </FormHelperText>
+                  </>
+                )
+              }}
+            />
+          </FormGroup>
+        </StackItem>
       )}
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const settingsContent = <NodeSettingsForm supportsTimeout={false} supportsRetryPolicy={false} />
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function LoopNodeForm(props: LoopNodeFormProps) {
   const defaultValues: LoopFormData = {
     name: '',
     type: 'while',
-    maxIterationsBehavior: 'continue',
     indexVariable: 'index',
     itemVariable: 'item',
+    settings: {},
     ...props.initialData,
   }
 
+  const validMaxIterations = (value: number | undefined) =>
+    typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined
+
   const handleSubmit = (data: LoopFormData) => {
-    // Clean data: remove undefined fields based on type
+    const maxIter = validMaxIterations(data.maxIterations)
     const cleanedData: LoopFormData = {
       name: data.name,
       type: data.type,
+      settings: data.settings,
+      ...(maxIter !== undefined && { maxIterations: maxIter }),
       ...(data.type === 'forEach' && {
         items: data.items,
         indexVariable: data.indexVariable,
@@ -290,11 +270,6 @@ export function LoopNodeForm(props: LoopNodeFormProps) {
       }),
       ...(data.type === 'while' && {
         condition: data.condition,
-        maxIterations:
-          typeof data.maxIterations === 'number' && Number.isInteger(data.maxIterations) && data.maxIterations > 0
-            ? data.maxIterations
-            : undefined,
-        maxIterationsBehavior: data.maxIterationsBehavior || 'continue',
       }),
     }
     props.onSubmit(cleanedData)

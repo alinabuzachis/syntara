@@ -223,12 +223,13 @@ export function TagInputField({ label, fieldId, name, placeholder, helperText }:
           control={control}
           name={name}
           render={({ field }) => {
-            const items = field.value
-              ? String(field.value)
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : []
+            const items =
+              typeof field.value === 'string' && field.value
+                ? field.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                : []
             return (
               <TagInput
                 id={fieldId}

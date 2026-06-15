@@ -7,10 +7,13 @@ including happy paths, edge cases, and error handling.
 import hashlib
 import os
 from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from unittest.mock import patch
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from nexus.files.exceptions import FileContentNotFoundError
@@ -211,3 +214,131 @@ async def test_get_metadata_nonexistent_file(s3_retriever: S3FileRetriever) -> N
     """Test get_file_metadata for nonexistent file raises FileNotFoundError."""
     with pytest.raises(FileContentNotFoundError, match="File not found"):
         await s3_retriever.get_file_metadata("does-not-exist")
+
+
+# --- TLS / verify configuration ---
+
+
+class TestS3VerifySSL:
+    """Tests for S3 TLS verification configuration."""
+
+    def test_default_verify_is_true(self) -> None:
+        with mock_aws(), patch("nexus.files.retrievers.s3.boto3.client", wraps=boto3.client) as mock_client:
+            S3FileRetriever(endpoint_url=None, bucket_name=BUCKET_NAME, region_name=REGION)
+            mock_client.assert_called_once()
+            assert mock_client.call_args.kwargs["verify"] is True
+
+    def test_verify_false_passed_through(self) -> None:
+        with mock_aws(), patch("nexus.files.retrievers.s3.boto3.client", wraps=boto3.client) as mock_client:
+            S3FileRetriever(endpoint_url=None, bucket_name=BUCKET_NAME, region_name=REGION, verify_ssl=False)
+            assert mock_client.call_args.kwargs["verify"] is False
+
+    def ***REMOVED***(self) -> None:
+        with mock_aws(), patch("nexus.files.retrievers.s3.boto3.client", wraps=boto3.client) as mock_client:
+            S3FileRetriever(
+                endpoint_url=None,
+                bucket_name=BUCKET_NAME,
+                region_name=REGION,
+                ca_bundle="/var/run/secrets/ca.crt",
+            )
+            assert mock_client.call_args.kwargs["verify"] == "/var/run/secrets/ca.crt"
+
+    def test_verify_false_takes_precedence_over_ca_bundle(self) -> None:
+        with mock_aws(), patch("nexus.files.retrievers.s3.boto3.client", wraps=boto3.client) as mock_client:
+            S3FileRetriever(
+                endpoint_url=None,
+                bucket_name=BUCKET_NAME,
+                region_name=REGION,
+                verify_ssl=False,
+                ca_bundle="/var/run/secrets/ca.crt",
+            )
+            assert mock_client.call_args.kwargs["verify"] is False
+
+
+# --- cleanup_stale_multipart_uploads ---
+
+
+class TestCleanupStaleMultipartUploads:
+    """Tests for cleanup_stale_multipart_uploads method."""
+
+    @pytest.mark.asyncio
+    async def test_aborts_stale_uploads(self, s3_retriever: S3FileRetriever) -> None:
+        """Stale multipart uploads (older than threshold) are aborted."""
+        # Create a multipart upload via the underlying boto3 client
+        s3_retriever._client.create_multipart_upload(Bucket=BUCKET_NAME, Key="stale-upload.bin")
+
+        # Use threshold=0 so any upload is considered stale
+        aborted = await s3_retriever.cleanup_stale_multipart_uploads(threshold_hours=0)
+        assert aborted == 1
+
+        # Verify no multipart uploads remain
+        response = s3_retriever._client.list_multipart_uploads(Bucket=BUCKET_NAME)
+        assert response.get("Uploads", []) == []
+
+    @pytest.mark.asyncio
+    async def test_skips_recent_uploads(self, s3_retriever: S3FileRetriever) -> None:
+        """Recent multipart uploads (within threshold) are not aborted."""
+        # Mock list_multipart_uploads to return an upload with a recent Initiated time,
+        # since moto uses a hardcoded 2010 date that would always appear stale.
+        recent_time = datetime.now(tz=UTC) - timedelta(minutes=5)
+        with patch.object(
+            s3_retriever._client,
+            "list_multipart_uploads",
+            return_value={
+                "Uploads": [
+                    {
+                        "Key": "recent-upload.bin",
+                        "UploadId": "fake-upload-id",
+                        "Initiated": recent_time,
+                    },
+                ],
+            },
+        ):
+            aborted = await s3_retriever.cleanup_stale_multipart_uploads(threshold_hours=1)
+        assert aborted == 0
+
+    @pytest.mark.asyncio
+    async def test_handles_no_uploads(self, s3_retriever: S3FileRetriever) -> None:
+        """Returns 0 when no multipart uploads exist."""
+        aborted = await s3_retriever.cleanup_stale_multipart_uploads(threshold_hours=0)
+        assert aborted == 0
+
+    @pytest.mark.asyncio
+    async def test_handles_list_error_gracefully(self, s3_retriever: S3FileRetriever) -> None:
+        """Returns 0 and does not raise when list_multipart_uploads fails."""
+        error_response: dict[str, Any] = {"Error": {"Code": "AccessDenied", "Message": "Access Denied"}}
+        with patch.object(
+            s3_retriever._client,
+            "list_multipart_uploads",
+            side_effect=ClientError(error_response, "ListMultipartUploads"),  # type: ignore[arg-type]
+        ):
+            aborted = await s3_retriever.cleanup_stale_multipart_uploads(threshold_hours=0)
+            assert aborted == 0
+
+    @pytest.mark.asyncio
+    async def test_handles_abort_error_continues(self, s3_retriever: S3FileRetriever) -> None:
+        """Continues processing when abort fails for one upload."""
+        # Create two multipart uploads
+        s3_retriever._client.create_multipart_upload(Bucket=BUCKET_NAME, Key="fail-upload.bin")
+        s3_retriever._client.create_multipart_upload(Bucket=BUCKET_NAME, Key="succeed-upload.bin")
+
+        original_abort = s3_retriever._client.abort_multipart_upload
+        call_count = 0
+        error_response: dict[str, Any] = {"Error": {"Code": "InternalError", "Message": "Internal Error"}}
+
+        def abort_side_effect(**kwargs: Any) -> Any:  # noqa: ANN401
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ClientError(error_response, "AbortMultipartUpload")  # type: ignore[arg-type]
+            return original_abort(**kwargs)
+
+        with patch.object(
+            s3_retriever._client,
+            "abort_multipart_upload",
+            side_effect=abort_side_effect,
+        ):
+            aborted = await s3_retriever.cleanup_stale_multipart_uploads(threshold_hours=0)
+
+        # One failed, one succeeded
+        assert aborted == 1

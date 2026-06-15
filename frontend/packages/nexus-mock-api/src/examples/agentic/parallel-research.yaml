@@ -23,7 +23,7 @@ nodes:
 
   - id: technical_research
     type: agentic
-    config:
+    parameters:
       agent: production://technical-agent
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -40,7 +40,7 @@ nodes:
 
   - id: market_research
     type: agentic
-    config:
+    parameters:
       agent: production://market-agent
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -57,7 +57,7 @@ nodes:
 
   - id: regulatory_research
     type: agentic
-    config:
+    parameters:
       agent: production://compliance-agent
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -77,7 +77,7 @@ nodes:
 
   - id: synthesize_findings
     type: agentic
-    config:
+    parameters:
       agent: production://synthesis-agent
       model: claude-3-5-sonnet-20241022
       prompt: |

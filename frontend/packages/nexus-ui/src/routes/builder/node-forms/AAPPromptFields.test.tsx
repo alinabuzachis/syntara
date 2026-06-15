@@ -280,11 +280,11 @@ describe('AAPPromptFields', () => {
     it('handles undefined value', () => {
       render(
         <TestWrapper>
-          <NumberInputField label="Timeout" fieldId="test-timeout" name="timeout" placeholder="0" min={0} />
+          <NumberInputField label="Forks" fieldId="test-forks-undefined" name="forks" placeholder="0" min={0} />
         </TestWrapper>
       )
 
-      const input = screen.getByLabelText('Timeout')
+      const input = screen.getByLabelText('Forks')
       expect(input).toHaveValue(null)
     })
   })

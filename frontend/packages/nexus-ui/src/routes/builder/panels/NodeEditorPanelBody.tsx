@@ -1,6 +1,8 @@
 import { Flex, FlexItem, Panel, PanelMain, PanelMainBody } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 
+import type { WorkflowMetadata } from '../types/workflowMetadata'
+
 import { useAdjacentNodes } from './hooks/useAdjacentNodes'
 import { InputPanel } from './InputPanel'
 import { NodePanelNavigationArrow } from './NodePanelNavigationArrow'
@@ -16,6 +18,7 @@ type NodeEditorPanelBodyProps = {
   outputFlex: 'flex_1' | 'flex_2'
   parametersContent: ReactNode
   onNavigateToNode?: (nodeId: string) => void
+  workflowMetadata?: WorkflowMetadata
 }
 
 export function NodeEditorPanelBody({
@@ -28,6 +31,7 @@ export function NodeEditorPanelBody({
   outputFlex,
   parametersContent,
   onNavigateToNode,
+  workflowMetadata,
 }: Readonly<NodeEditorPanelBodyProps>) {
   const { upstream, downstream } = useAdjacentNodes(showNavigation ? nodeId : undefined)
   const showPreviousArrow = showNavigation && upstream.length > 0 && onNavigateToNode != null
@@ -66,7 +70,12 @@ export function NodeEditorPanelBody({
                 height: '100%',
               }}
             >
-              <InputPanel nodeId={nodeId ?? ''} executionData={inputData} sourceNodeId={sourceNodeId} />
+              <InputPanel
+                nodeId={nodeId ?? ''}
+                executionData={inputData}
+                sourceNodeId={sourceNodeId}
+                workflowMetadata={workflowMetadata}
+              />
             </FlexItem>
           )}
           <FlexItem

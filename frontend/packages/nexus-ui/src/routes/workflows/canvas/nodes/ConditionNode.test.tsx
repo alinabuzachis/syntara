@@ -27,7 +27,7 @@ describe('ConditionNodeComponent', () => {
     type: 'condition',
     id: 'condition-1',
     name: 'Check Status',
-    config: { condition: 'status === "active"' },
+    parameters: { condition: 'status === "active"' },
   } as ConditionActivity
 
   const createNodeProps = (data: ConditionActivity) => ({
@@ -72,7 +72,7 @@ describe('ConditionNodeComponent', () => {
       const unnamedCondition = {
         type: 'condition',
         id: 'condition-2',
-        config: { condition: 'x > 0' },
+        parameters: { condition: 'x > 0' },
       } as ConditionActivity
 
       render(<ConditionNodeComponent {...createNodeProps(unnamedCondition)} />)
@@ -114,7 +114,7 @@ describe('ConditionNodeDetails', () => {
     type: 'condition',
     id: 'condition-1',
     name: 'Test Condition',
-    config: { condition: 'x > 5' },
+    parameters: { condition: 'x > 5' },
   } as ConditionActivity
 
   it('renders condition name as title', () => {
@@ -127,7 +127,7 @@ describe('ConditionNodeDetails', () => {
     const unnamed = {
       type: 'condition',
       id: 'condition-2',
-      config: { condition: 'y < 10' },
+      parameters: { condition: 'y < 10' },
     } as ConditionActivity
 
     render(<ConditionNodeDetails conditionActivity={unnamed} />)

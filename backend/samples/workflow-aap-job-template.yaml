@@ -17,7 +17,7 @@ description: |
 triggers:
   - id: trigger_manual
     type: manual_trigger
-    config:
+    parameters:
       inputs:
         job_template_id:
           type: integer
@@ -86,7 +86,7 @@ nodes:
   - id: execute_job_template
     type: aap_job_template
     name: Execute AAP Job Template
-    config:
+    parameters:
       job_template_id: ${trigger.job_template_id}
       inventory_id: ${trigger.inventory_id}
       inventory_name: ${trigger.inventory_name}
@@ -120,7 +120,7 @@ nodes:
   - id: display_results
     type: script
     name: Display Job Results
-    config:
+    parameters:
       language: python
       code: |
         import json

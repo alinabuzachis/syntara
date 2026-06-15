@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
+
 /**
  * Zod schema for the AI Agent node form.
  * Single source of truth for shape and client-side validation.
@@ -12,6 +14,7 @@ export const aiAgentFormSchema = z
     tools: z.string(),
     credential_id: z.string().optional(),
     responseSchema: z.string().optional(),
+    settings: nodeSettingsSchema.optional(),
   })
   .superRefine((data, ctx) => {
     const v = data.responseSchema?.trim()

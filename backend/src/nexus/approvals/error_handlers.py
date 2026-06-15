@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from nexus.approvals.exceptions import (
         ApprovalAlreadyDecidedError,
         ApprovalAlreadyRequestedError,
+        ApprovalNotAuthorizedError,
         ApprovalNotFoundError,
     )
 
@@ -58,6 +59,20 @@ def approval_already_requested_handler(request: Request, exc: "ApprovalAlreadyRe
         title="Approval Already Requested",
         detail="An approval request already exists for this execution and approval node",
         code="APPROVAL_ALREADY_REQUESTED",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def approval_not_authorized_handler(request: Request, exc: "ApprovalNotAuthorizedError") -> JSONResponse:
+    """Handle ApprovalNotAuthorizedError with RFC 9457 format."""
+    logger.error("Approval authorization failed", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Not Authorized",
+        detail="You are not authorized to decide this approval request",
+        code="APPROVAL_NOT_AUTHORIZED",
         retryable=False,
         instance=str(request.url),
     )

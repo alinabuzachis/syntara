@@ -21,7 +21,7 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
       itemVariable?: string
     }
   ) {
-    const loopConfig = (loopData.config ?? {}) as {
+    const loopConfig = (loopData.parameters ?? {}) as {
       type?: string
       items?: string
       condition?: string
@@ -47,7 +47,7 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
     }
 
     // Merge changes into existing config
-    const config: Record<string, unknown> = {
+    const parameters: Record<string, unknown> = {
       ...loopConfig,
       type: configType,
       ...(formData.type === 'forEach'
@@ -73,13 +73,13 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
     }
 
     // Remove undefined fields
-    Object.keys(config).forEach((key) => {
-      if (config[key] === undefined) {
-        delete config[key]
+    Object.keys(parameters).forEach((key) => {
+      if (parameters[key] === undefined) {
+        delete parameters[key]
       }
     })
 
-    return config
+    return parameters
   }
 
   it('preserves indexVariable and itemVariable when editing forEach loop', () => {
@@ -87,7 +87,7 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
       type: 'loop',
       id: 'loop-1',
       name: 'ForEach Loop',
-      config: {
+      parameters: {
         type: 'for_each',
         items: 'input.items',
         indexVariable: 'idx',
@@ -120,7 +120,7 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
       type: 'loop',
       id: 'loop-1',
       name: 'While Loop',
-      config: {
+      parameters: {
         type: 'do_while',
         condition: 'counter < 10',
         max_iterations: 100,
@@ -150,7 +150,7 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
       type: 'loop',
       id: 'loop-1',
       name: 'Do-While Loop',
-      config: {
+      parameters: {
         type: 'do_while',
         condition: 'hasMore === true',
         maxIterationsBehavior: 'continue',
@@ -180,7 +180,7 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
       type: 'loop',
       id: 'loop-1',
       name: 'While Loop',
-      config: {
+      parameters: {
         type: 'do_while',
         condition: 'counter < 10',
         max_iterations: 100,
@@ -213,7 +213,7 @@ describe('LoopNodeDetails Field Preservation Logic', () => {
       type: 'loop',
       id: 'loop-1',
       name: 'ForEach Loop',
-      config: {
+      parameters: {
         type: 'for_each',
         items: 'input.items',
         indexVariable: 'idx',

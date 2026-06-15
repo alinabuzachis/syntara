@@ -15,7 +15,7 @@ nodes:
   - id: fast_task
     name: Fast Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Fast task completed"
@@ -23,7 +23,7 @@ nodes:
   - id: slow_task
     name: Slow Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         sleep 3

@@ -1,4 +1,10 @@
-import { ActivityTypeEnum, EdgeHandleEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import {
+  ActivityTypeEnum,
+  EdgeHandleEnum,
+  TriggerTypeEnum,
+  type Activity,
+  type NodeSettings,
+} from '@ansible/nexus-contracts'
 
 import { safeJSONReviver } from '../utils/jsonSafeParse'
 import { isValidWebhookPath } from '../utils/webhookPath'
@@ -14,9 +20,9 @@ import type { ActivityWithMetadata } from './workflowStoreTypes'
 // V2 key differences from v1:
 //   - Executor nodes use direct type ("script", "http_request", …)
 //     instead of type "task" with a task.executor wrapper
-//   - Config lives at node.config (not nested under task.config)
-//   - Control flow nodes store config in node.config
-//   - Triggers have id and config fields
+//   - Parameters live at node.parameters (not nested under task.parameters)
+//   - Control flow nodes store parameters in node.parameters
+//   - Triggers have id and parameters fields
 //   - No nested child arrays (then/else/do/onApproved/onRejected)
 // ============================================================================
 
@@ -37,7 +43,7 @@ export function createManualTrigger(
     id,
     type: TriggerTypeEnum.MANUAL_TRIGGER,
     name: name ?? 'Manual Trigger',
-    config: {
+    parameters: {
       ...(inputSchema && { input_schema: inputSchema }),
     },
   }
@@ -61,7 +67,7 @@ export function createScheduledTrigger(
     id,
     type: TriggerTypeEnum.SCHEDULED,
     name: name ?? 'Scheduled Trigger',
-    config: {
+    parameters: {
       schedule_type: scheduleType,
       ...(config.cron && { cron: config.cron }),
       ...(config.timezone && { timezone: config.timezone }),
@@ -85,7 +91,7 @@ export function createEventTrigger(
     id,
     type: TriggerTypeEnum.EVENT,
     name: name ?? 'Event Trigger',
-    config: {
+    parameters: {
       source,
       event_type: eventType,
       ...(filter && { filter }),
@@ -107,7 +113,7 @@ function createWebhookStyleTrigger(
     id,
     type,
     name,
-    config: {
+    parameters: {
       webhook_path: webhookPath,
       ...(inputSchema && { input_schema: inputSchema }),
     },
@@ -116,7 +122,6 @@ function createWebhookStyleTrigger(
 
 /**
  * Create a webhook trigger (v2).
- * Config uses snake_case to match the backend WebhookTriggerConfig model.
  */
 export function createWebhookTrigger(
   id: string,
@@ -135,7 +140,6 @@ export function createWebhookTrigger(
 
 /**
  * Create an EDA trigger (v2).
- * Config uses snake_case to match the backend WebhookTriggerConfig model.
  */
 export function createEdaTrigger(
   id: string,
@@ -150,25 +154,30 @@ export function createEdaTrigger(
 // Executor Node Factory Functions
 // ============================================================================
 
+export type CreateScriptActivityOptions = {
+  id: string
+  name: string
+  language: string
+  code: string
+  credentialId?: string
+  settings?: NodeSettings
+}
+
 /**
  * Create a script node (v2).
  */
-export function createScriptActivity(
-  id: string,
-  name: string,
-  language: string,
-  code: string,
-  credentialId?: string
-): Activity {
+export function createScriptActivity(options: CreateScriptActivityOptions): Activity {
+  const { id, name, language, code, credentialId, settings } = options
   return {
     id,
     type: ActivityTypeEnum.SCRIPT,
     name,
-    config: {
+    parameters: {
       language,
       code,
       ...(credentialId && { credential_id: credentialId }),
     },
+    ...(settings && { settings }),
   }
 }
 
@@ -182,13 +191,14 @@ export type CreateApiActivityOptions = {
   inputs?: string
   authentication?: string
   credentialId?: string
+  settings?: NodeSettings
 }
 
 /**
  * Create an HTTP request node (v2).
  */
 export function createApiActivity(options: CreateApiActivityOptions): Activity {
-  const { id, name, method, url, headers, body, authentication, credentialId } = options
+  const { id, name, method, url, headers, body, authentication, credentialId, settings } = options
   const config: Record<string, unknown> = { method, url }
 
   if (headers) {
@@ -221,10 +231,11 @@ export function createApiActivity(options: CreateApiActivityOptions): Activity {
     id,
     type: ActivityTypeEnum.HTTP_REQUEST,
     name,
-    config: {
+    parameters: {
       ...config,
       ...(credentialId && { credential_id: credentialId }),
     },
+    ...(settings && { settings }),
   }
 }
 
@@ -238,13 +249,14 @@ export type CreateAgenticActivityOptions = {
   fileIds?: string[]
   credentialId?: string
   responseSchema?: Record<string, unknown>
+  settings?: NodeSettings
 }
 
 /**
  * Create an agentic node (v2).
  */
 export function createAgenticActivity(options: CreateAgenticActivityOptions): Activity {
-  const { id, name, tools, prompt, model, fileIds, credentialId, responseSchema } = options
+  const { id, name, tools, prompt, model, fileIds, credentialId, responseSchema, settings } = options
   const config: Record<string, unknown> = {}
 
   if (prompt) config.prompt = prompt
@@ -258,7 +270,8 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
     id,
     type: ActivityTypeEnum.AGENTIC,
     name,
-    config,
+    parameters: config,
+    ...(settings && { settings }),
   }
 }
 
@@ -280,7 +293,6 @@ export type AAPJobTemplateConfig = {
   jobCredentials?: number[] // AAP Controller credential IDs for job execution (prompt-on-launch override)
   jobType?: string
   forks?: number
-  timeout?: number
   jobSlicing?: number
   diffMode?: boolean
   executionEnvironment?: string
@@ -306,7 +318,6 @@ const aapConfigMapping: [keyof AAPJobTemplateConfig, string, 'truthy' | 'defined
   ['jobCredentials', 'job_credentials', 'defined'],
   ['jobType', 'job_type', 'truthy'],
   ['forks', 'forks', 'defined'],
-  ['timeout', 'timeout', 'defined'],
   ['jobSlicing', 'job_slice_count', 'defined'],
   ['diffMode', 'diff_mode', 'defined'],
   ['executionEnvironment', 'execution_environment', 'truthy'],
@@ -323,7 +334,8 @@ export function createAAPJobTemplateActivity(
   id: string,
   name: string,
   jobTemplateId: number,
-  config?: AAPJobTemplateConfig
+  config?: AAPJobTemplateConfig,
+  settings?: NodeSettings
 ): Activity {
   const activityConfig: Record<string, unknown> = { job_template_id: jobTemplateId }
 
@@ -344,13 +356,15 @@ export function createAAPJobTemplateActivity(
     id,
     type: ActivityTypeEnum.AAP_JOB_TEMPLATE,
     name,
-    config: activityConfig,
+    parameters: activityConfig,
+    ...(settings && { settings }),
   }
 }
 
 /**
  * AAP Workflow Template config — matches the backend AAPWorkflowTemplateExecutorConfig fields.
  * Workflow templates do NOT support job-specific fields like job_type, verbosity, forks, etc.
+ * Timeout is configured via node settings, not here.
  */
 export type AAPWorkflowTemplateConfig = {
   credential_id?: string // Nexus credential for AAP authentication
@@ -374,7 +388,8 @@ export function createAAPWorkflowTemplateActivity(
   id: string,
   name: string,
   workflowTemplateId: number,
-  config?: AAPWorkflowTemplateConfig
+  config?: AAPWorkflowTemplateConfig,
+  settings?: NodeSettings
 ): Activity {
   const activityConfig: Record<string, unknown> = { workflow_job_template_id: workflowTemplateId }
 
@@ -397,7 +412,8 @@ export function createAAPWorkflowTemplateActivity(
     id,
     type: ActivityTypeEnum.AAP_WORKFLOW_JOB_TEMPLATE,
     name,
-    config: activityConfig,
+    parameters: activityConfig,
+    ...(settings && { settings }),
   }
 }
 
@@ -410,22 +426,25 @@ export type CreateApprovalActivityOptions = {
   name: string
   approvers: string[]
   prompt: string
-  timeout?: number
-  onTimeout?: 'fail' | 'approve' | 'reject'
+  fallback_decision?: 'approve' | 'reject'
+  decision_window?: number
+  settings?: NodeSettings
 }
 
 /**
  * Create an approval node (v2).
  */
 export function createApprovalActivity(options: CreateApprovalActivityOptions): Activity {
-  const { id, name, timeout } = options
+  const { id, name, fallback_decision, decision_window, settings } = options
   return {
     id,
     type: ActivityTypeEnum.APPROVAL,
     name,
-    config: {
-      ...(timeout !== undefined && { approver_timeout: timeout }),
+    parameters: {
+      ...(fallback_decision && { fallback_decision }),
+      ...(decision_window !== undefined && { decision_window }),
     },
+    ...(settings && { settings }),
   }
 }
 
@@ -441,7 +460,7 @@ export function createConditionActivity(id: string, name: string, condition: str
     id,
     type: ActivityTypeEnum.CONDITION,
     name,
-    config: {
+    parameters: {
       condition,
     },
   }
@@ -458,37 +477,38 @@ export function createLoopActivity(
     items?: string
     condition?: string
     maxIterations?: number
-    maxIterationsBehavior?: 'continue' | 'fail'
     indexVariable?: string
     itemVariable?: string
-  }
+  },
+  settings?: NodeSettings
 ): Activity {
+  const maxIterations =
+    config.maxIterations !== undefined && !Number.isNaN(config.maxIterations) ? config.maxIterations : undefined
+
   if (loopType === 'forEach') {
     return {
       id,
       type: ActivityTypeEnum.LOOP,
       name,
-      config: {
+      parameters: {
         type: 'for_each',
         items: config.items ?? '',
+        ...(maxIterations !== undefined && { max_iterations: maxIterations }),
       },
+      ...(settings && { settings }),
     }
-  }
-
-  // do_while
-  const loopConfig: Record<string, unknown> = {
-    type: 'do_while',
-    condition: config.condition ?? '',
-  }
-  if (config.maxIterations !== undefined && !Number.isNaN(config.maxIterations)) {
-    loopConfig.max_iterations = config.maxIterations
   }
 
   return {
     id,
     type: ActivityTypeEnum.LOOP,
     name,
-    config: loopConfig,
+    parameters: {
+      type: 'do_while',
+      condition: config.condition ?? '',
+      ...(maxIterations !== undefined && { max_iterations: maxIterations }),
+    },
+    ...(settings && { settings }),
   }
 }
 
@@ -500,22 +520,21 @@ export function createConvergeActivity(
   name: string,
   config?: {
     strategy?: 'all' | 'any'
-    timeout?: number
-    onTimeout?: 'continue' | 'fail'
-    aggregateOutputs?: boolean
     requiredPathCount?: number
-  }
+    wait_duration?: number
+  },
+  settings?: NodeSettings
 ): Activity {
   return {
     id,
     type: ActivityTypeEnum.CONVERGE,
     name,
-    config: {
+    parameters: {
       strategy: config?.strategy ?? 'all',
-      ...(config?.onTimeout != null && { on_timeout: config.onTimeout }),
-      ...(config?.timeout !== undefined && { timeout: config.timeout }),
       ...(config?.strategy === 'any' && config?.requiredPathCount != null && { n_required: config.requiredPathCount }),
+      ...(config?.wait_duration !== undefined && { wait_duration: config.wait_duration }),
     },
+    ...(settings && { settings }),
   }
 }
 
@@ -531,7 +550,7 @@ export function createSwitchActivity(
     id,
     type: ActivityTypeEnum.SWITCH,
     name,
-    config: {
+    parameters: {
       cases,
       default_port: EdgeHandleEnum.DEFAULT,
     },
@@ -541,12 +560,18 @@ export function createSwitchActivity(
 /**
  * Create a wait node (v2).
  */
-export function createWaitActivity(id: string, name: string, config: { duration: number }): Activity {
+export function createWaitActivity(
+  id: string,
+  name: string,
+  config: { duration: number },
+  settings?: NodeSettings
+): Activity {
   return {
     id,
     type: ActivityTypeEnum.WAIT,
     name,
-    config,
+    parameters: config,
+    ...(settings && { settings }),
   }
 }
 
@@ -567,7 +592,7 @@ export function createGenericActivity(
     id,
     type: 'generic',
     name,
-    config: {},
+    parameters: {},
     metadata: {
       __isGeneric: true,
       ...(customMessage ? { __customMessage: customMessage } : {}),

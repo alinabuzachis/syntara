@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/triggers/eda",
   "title": "EDA Trigger Node",
   "description": "Workflow entry point triggered by Event-Driven Ansible webhook events",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "required": ["webhook_path"],
     "properties": {
@@ -24,15 +24,40 @@
   },
   "resultSchema": {
     "description": "EDA trigger result contains the webhook payload from the Event-Driven Ansible event",
-    "type": "object",
-    "required": ["payload"],
-    "properties": {
-      "payload": {
+    "oneOf": [
+      {
+        "title": "Completed Result",
         "type": "object",
-        "description": "The webhook payload from EDA (arbitrary JSON object)",
+        "description": "Pass-through of EDA webhook payload",
+        "required": ["payload"],
+        "properties": {
+          "payload": {
+            "type": "object",
+            "description": "The webhook payload from EDA (arbitrary JSON object)",
+            "additionalProperties": true
+          }
+        },
         "additionalProperties": true
+      },
+      {
+        "title": "Failed Result",
+        "type": "object",
+        "description": "Trigger failure output for reporting purposes",
+        "required": ["status", "error"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       }
-    },
-    "additionalProperties": true
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
   }
 }

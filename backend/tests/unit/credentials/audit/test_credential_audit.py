@@ -159,6 +159,19 @@ class TestCredentialLifecycleHandler:
         result = CredentialLifecycleHandler().handle(event)
         assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
 
+    def test_resource_name_from_credential_name(self) -> None:
+        """resource_name is set from credential_name field."""
+        cred_id = uuid4()
+        event = CredentialLifecycleEvent(
+            credential_id=cred_id,
+            credential_name="aws-prod-creds",
+            credential_type_id=uuid4(),
+            action="created",
+        )
+        result = CredentialLifecycleHandler().handle(event)
+        assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
+        assert result.resource_name == "aws-prod-creds"
+
     def test_error_type_escalates_severity(self) -> None:
         """error_type set -> ERROR severity and ERROR status."""
         event = CredentialLifecycleEvent(
@@ -221,3 +234,16 @@ class TestCredentialEncryptionFailureHandler:
         assert result.structured_data.operation == "decrypt"
         assert result.structured_data.credential_name == "broken-cred"
         assert result.structured_data.error_type == "CredentialDecryptionError"
+
+    def test_resource_name_from_credential_name(self) -> None:
+        """resource_name is set from credential_name field."""
+        cred_id = uuid4()
+        event = CredentialEncryptionFailureEvent(
+            credential_id=cred_id,
+            credential_name="db-backup-creds",
+            operation="decrypt",
+            error_type="CryptographyError",
+        )
+        result = CredentialEncryptionFailureHandler().handle(event)
+        assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
+        assert result.resource_name == "db-backup-creds"

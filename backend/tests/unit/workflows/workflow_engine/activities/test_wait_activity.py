@@ -1,4 +1,4 @@
-"""Tests for wait activity and complete_wait local activity."""
+"""Tests for wait activity and complete_wait activity."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 

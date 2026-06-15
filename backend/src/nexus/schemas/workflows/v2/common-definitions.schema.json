@@ -4,37 +4,6 @@
   "title": "Common Schema Definitions",
   "description": "Shared schema definitions for workflow v2",
   "$defs": {
-    "baseErrorObject": {
-      "type": "object",
-      "description": "Standard error object structure",
-      "required": ["type", "message"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "Error type (e.g., 'TimeoutError', 'ExecutionError', 'HTTPError', 'ConnectionError', 'JobLaunchError', 'AgentError')"
-        },
-        "message": {
-          "type": "string",
-          "description": "Error message"
-        }
-      },
-      "additionalProperties": false
-    },
-    "baseFailedResult": {
-      "type": "object",
-      "description": "Base failed result structure (can be extended with additional properties)",
-      "required": ["status", "error"],
-      "properties": {
-        "status": {
-          "type": "string",
-          "const": "failed",
-          "description": "Execution failed"
-        },
-        "error": {
-          "$ref": "#/$defs/baseErrorObject"
-        }
-      }
-    },
     "credential_id": {
       "type": "string",
       "description": "Nexus credential UUID for authentication. When provided, the credential is resolved at execution time and injected into the node config.",
@@ -67,9 +36,20 @@
       },
       "additionalProperties": false
     },
-    "nodeSettings": {
+    "nodeSettingsCof": {
       "type": "object",
-      "description": "Engine-level settings that control how the workflow engine runs a node.",
+      "description": "Settings with continue_on_failure only (converge, loop, wait).",
+      "properties": {
+        "continue_on_failure": {
+          "type": "boolean",
+          "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
+        }
+      },
+      "additionalProperties": false
+    },
+    "nodeSettingsNoRetry": {
+      "type": "object",
+      "description": "Settings with continue_on_failure + timeout (script, agentic, approval). No retry_policy — retry is either not applicable or handled internally by the node's client.",
       "properties": {
         "continue_on_failure": {
           "type": "boolean",
@@ -79,24 +59,22 @@
           "type": "integer",
           "minimum": 1,
           "description": "Timeout in seconds."
-        },
-        "retry_policy": {
-          "$ref": "#/$defs/retry_policy"
         }
       },
       "additionalProperties": false
     },
-    "executorSettings": {
+    "nodeSettingsFull": {
       "type": "object",
-      "description": "Engine-level settings for executor nodes (script, http_request, agentic, AAP job/workflow template).",
+      "description": "Full settings with continue_on_failure, timeout, and retry_policy (http_request, aap_job_template, aap_workflow_job_template).",
       "properties": {
         "continue_on_failure": {
-          "$ref": "#/$defs/nodeSettings/properties/continue_on_failure"
+          "type": "boolean",
+          "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
         },
         "timeout": {
           "type": "integer",
           "minimum": 1,
-          "description": "Activity execution timeout in seconds. Falls back to the global timeout setting if not specified."
+          "description": "Timeout in seconds."
         },
         "retry_policy": {
           "$ref": "#/$defs/retry_policy"

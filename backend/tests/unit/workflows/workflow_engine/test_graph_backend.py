@@ -18,9 +18,9 @@ from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 def _linear_backend() -> InMemoryGraphBackend:
     """A -> B -> C linear chain."""
     b = InMemoryGraphBackend()
-    b.add_node("A", {"id": "A", "type": "action", "config": {}})
-    b.add_node("B", {"id": "B", "type": "action", "config": {}})
-    b.add_node("C", {"id": "C", "type": "action", "config": {}})
+    b.add_node("A", {"id": "A", "type": "action", "parameters": {}})
+    b.add_node("B", {"id": "B", "type": "action", "parameters": {}})
+    b.add_node("C", {"id": "C", "type": "action", "parameters": {}})
     b.add_edge("A", "B", {"from_port": "out"})
     b.add_edge("B", "C")
     return b
@@ -36,8 +36,8 @@ class TestAddNode:
 
     def test_add_and_retrieve_node(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("n1", {"id": "n1", "type": "script", "config": {}})
-        assert b.get_node_data("n1") == {"id": "n1", "type": "script", "config": {}}
+        b.add_node("n1", {"id": "n1", "type": "script", "parameters": {}})
+        assert b.get_node_data("n1") == {"id": "n1", "type": "script", "parameters": {}}
 
     def test_get_nonexistent_node_raises(self) -> None:
         b = InMemoryGraphBackend()
@@ -79,33 +79,33 @@ class TestAddEdge:
 
     def test_multiple_successors(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("A", {"id": "A", "type": "t", "config": {}})
-        b.add_node("B", {"id": "B", "type": "t", "config": {}})
-        b.add_node("C", {"id": "C", "type": "t", "config": {}})
+        b.add_node("A", {"id": "A", "type": "t", "parameters": {}})
+        b.add_node("B", {"id": "B", "type": "t", "parameters": {}})
+        b.add_node("C", {"id": "C", "type": "t", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("A", "C")
         assert sorted(b.get_successors("A")) == ["B", "C"]
 
     def test_multiple_predecessors(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("A", {"id": "A", "type": "t", "config": {}})
-        b.add_node("B", {"id": "B", "type": "t", "config": {}})
-        b.add_node("C", {"id": "C", "type": "t", "config": {}})
+        b.add_node("A", {"id": "A", "type": "t", "parameters": {}})
+        b.add_node("B", {"id": "B", "type": "t", "parameters": {}})
+        b.add_node("C", {"id": "C", "type": "t", "parameters": {}})
         b.add_edge("A", "C")
         b.add_edge("B", "C")
         assert sorted(b.get_predecessors("C")) == ["A", "B"]
 
     def test_edge_with_data(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("A", {"id": "A", "type": "t", "config": {}})
-        b.add_node("B", {"id": "B", "type": "t", "config": {}})
+        b.add_node("A", {"id": "A", "type": "t", "parameters": {}})
+        b.add_node("B", {"id": "B", "type": "t", "parameters": {}})
         b.add_edge("A", "B", {"from_port": "true"})
         assert b.get_successors("A") == ["B"]
 
     def test_edge_without_data(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("A", {"id": "A", "type": "t", "config": {}})
-        b.add_node("B", {"id": "B", "type": "t", "config": {}})
+        b.add_node("A", {"id": "A", "type": "t", "parameters": {}})
+        b.add_node("B", {"id": "B", "type": "t", "parameters": {}})
         b.add_edge("A", "B")
         assert b.get_successors("A") == ["B"]
 
@@ -167,9 +167,9 @@ class TestGetOutgoingEdges:
 
     def test_multiple_outgoing_edges(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("A", {"id": "A", "type": "t", "config": {}})
-        b.add_node("B", {"id": "B", "type": "t", "config": {}})
-        b.add_node("C", {"id": "C", "type": "t", "config": {}})
+        b.add_node("A", {"id": "A", "type": "t", "parameters": {}})
+        b.add_node("B", {"id": "B", "type": "t", "parameters": {}})
+        b.add_node("C", {"id": "C", "type": "t", "parameters": {}})
         b.add_edge("A", "B", {"from_port": "true"})
         b.add_edge("A", "C", {"from_port": "false"})
         edges = b.get_outgoing_edges("A")
@@ -204,14 +204,14 @@ class TestHasPath:
 
     def test_no_path_between_disconnected(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("X", {"id": "X", "type": "t", "config": {}})
-        b.add_node("Y", {"id": "Y", "type": "t", "config": {}})
+        b.add_node("X", {"id": "X", "type": "t", "parameters": {}})
+        b.add_node("Y", {"id": "Y", "type": "t", "parameters": {}})
         assert b.has_path("X", "Y") is False
 
     def test_path_in_diamond(self) -> None:
         b = InMemoryGraphBackend()
         for nid in ("A", "B", "C", "D"):
-            b.add_node(nid, {"id": nid, "type": "t", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "t", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("A", "C")
         b.add_edge("B", "D")
@@ -252,7 +252,7 @@ class TestFindCycles:
     def test_detects_cycle(self) -> None:
         b = InMemoryGraphBackend()
         for nid in ("A", "B", "C"):
-            b.add_node(nid, {"id": nid, "type": "t", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "t", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("B", "C")
         b.add_edge("C", "A")
@@ -261,7 +261,7 @@ class TestFindCycles:
 
     def test_detects_self_loop(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("A", {"id": "A", "type": "t", "config": {}})
+        b.add_node("A", {"id": "A", "type": "t", "parameters": {}})
         b.add_edge("A", "A")
         cycles = b.find_cycles()
         assert len(cycles) >= 1
@@ -292,7 +292,7 @@ class TestTopologicalSort:
     def test_raises_on_cycle(self) -> None:
         b = InMemoryGraphBackend()
         for nid in ("A", "B"):
-            b.add_node(nid, {"id": nid, "type": "t", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "t", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("B", "A")
         with pytest.raises(ValueError, match="cycle"):
@@ -304,14 +304,14 @@ class TestTopologicalSort:
 
     def test_single_node(self) -> None:
         b = InMemoryGraphBackend()
-        b.add_node("X", {"id": "X", "type": "t", "config": {}})
+        b.add_node("X", {"id": "X", "type": "t", "parameters": {}})
         assert b.topological_sort() == ["X"]
 
     def test_diamond_ordering(self) -> None:
         """A -> B, A -> C, B -> D, C -> D. A must come first, D last."""
         b = InMemoryGraphBackend()
         for nid in ("A", "B", "C", "D"):
-            b.add_node(nid, {"id": nid, "type": "t", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "t", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("A", "C")
         b.add_edge("B", "D")
@@ -347,7 +347,7 @@ class TestUnknownNodeEdgeCases:
         """Graph with two independent cycles."""
         b = InMemoryGraphBackend()
         for nid in ("A", "B", "C", "D"):
-            b.add_node(nid, {"id": nid, "type": "t", "config": {}})
+            b.add_node(nid, {"id": nid, "type": "t", "parameters": {}})
         b.add_edge("A", "B")
         b.add_edge("B", "A")  # cycle 1
         b.add_edge("C", "D")

@@ -5,10 +5,8 @@ from typing import Any
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ConditionOutput
 from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespace
-
-from .output_mapping import apply_output_mapping
 
 
 @activity.defn(name=ActivityName.CONDITION)
@@ -56,24 +54,17 @@ async def condition(
     namespace = input_config.get("namespace", {})
 
     if not condition_expr:
-        msg = "Missing 'condition' in config"
+        msg = "Missing 'condition' in parameters"
         raise ApplicationError(msg, type="ConfigError", non_retryable=True)
 
     try:
         # NEW: Use unified context-aware evaluator (Tier 2)
         evaluated_result = safe_eval_with_namespace(condition_expr, namespace)
 
-        # Full result before mapping (conforms to resultSchema for completed)
-        full_result = {
-            "status": "completed",
-            "evaluated_result": evaluated_result,
-        }
-
-        # Apply output mapping (suppresses fields before Temporal stores it)
-        mapped_output = apply_output_mapping(full_result, output_config)
+        output = ConditionOutput(evaluated_result=evaluated_result)
 
         return {
-            "output": mapped_output,
+            "output": output.dump(output_config),
             "control": {
                 "next_port": "true" if evaluated_result else "false",
             },

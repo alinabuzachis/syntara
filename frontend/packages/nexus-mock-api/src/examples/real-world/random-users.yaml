@@ -25,7 +25,7 @@ nodes:
   - id: fetch_users
     name: Fetch Random Users
     type: http_request
-    config:
+    parameters:
       method: GET
       url: https://randomuser.me/api/
       headers:
@@ -41,7 +41,7 @@ nodes:
   - id: process_users
     name: Process User Data
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import json

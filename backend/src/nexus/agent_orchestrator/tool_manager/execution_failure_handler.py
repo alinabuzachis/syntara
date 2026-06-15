@@ -194,6 +194,8 @@ def create_tool_awrapper(
     invocation_id: UUID,
     execution_id: UUID | None = None,
     request_id: UUID | None = None,
+    activity_id: str | None = None,
+    activity_name: str | None = None,
 ) -> Callable[
     [ToolCallRequest, Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]]],
     Awaitable[ToolMessage | Command[Any]],
@@ -208,6 +210,8 @@ def create_tool_awrapper(
         invocation_id: Invocation UUID for audit correlation
         execution_id: Optional parent workflow execution ID for telemetry
         request_id: Optional X-Request-Id from the originating HTTP request.
+        activity_id: Optional activity identifier from workflow context
+        activity_name: Optional activity name from workflow context
 
     Returns:
         An async ToolCallWrapper function for use with ToolNode awrap_tool_call
@@ -241,16 +245,16 @@ def create_tool_awrapper(
         tool_input = request.tool_call.get("args", {})
 
         # Emit audit event for tool invocation start
-        AuditEventDispatcher.dispatch(
-            ToolInvocationEvent(
-                tool_name=tool_name,
-                status=ToolInvocationStatus.STARTED,
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
-                tool_input=tool_input,
-            )
+        _emit_tool_invocation_audit(
+            tool_name=tool_name,
+            status=ToolInvocationStatus.STARTED,
+            session_id=session_id,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            request_id=request_id,
+            tool_input=tool_input,
+            activity_id=activity_id,
+            activity_name=activity_name,
         )
 
         try:
@@ -261,16 +265,16 @@ def create_tool_awrapper(
             tool_output = str(result.content) if hasattr(result, "content") else str(result)
 
             # Emit audit event for successful tool invocation
-            AuditEventDispatcher.dispatch(
-                ToolInvocationEvent(
-                    tool_name=tool_name,
-                    status=ToolInvocationStatus.COMPLETED,
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
-                    tool_output=tool_output,
-                )
+            _emit_tool_invocation_audit(
+                tool_name=tool_name,
+                status=ToolInvocationStatus.COMPLETED,
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                tool_output=tool_output,
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
 
             return result
@@ -282,16 +286,16 @@ def create_tool_awrapper(
             base_tool = request.tool
 
             # Emit audit event for failed tool invocation
-            AuditEventDispatcher.dispatch(
-                ToolInvocationEvent(
-                    tool_name=tool_name,
-                    status=ToolInvocationStatus.FAILED,
-                    session_id=session_id,
-                    invocation_id=invocation_id,
-                    execution_id=execution_id,
-                    request_id=request_id,
-                    error_type=error.__class__.__name__,
-                )
+            _emit_tool_invocation_audit(
+                tool_name=tool_name,
+                status=ToolInvocationStatus.FAILED,
+                session_id=session_id,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
+                request_id=request_id,
+                error_type=error.__class__.__name__,
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
 
             # Handle the error and extract tool_id for disabling
@@ -341,6 +345,8 @@ def create_tool_wrapper(
     invocation_id: UUID,
     execution_id: UUID | None = None,
     request_id: UUID | None = None,
+    activity_id: str | None = None,
+    activity_name: str | None = None,
     loop: asyncio.AbstractEventLoop | None = None,
 ) -> Callable[[ToolCallRequest, Callable[[ToolCallRequest], ToolMessage | Command[Any]]], ToolMessage | Command[Any]]:
     """Create a synchronous tool call wrapper that handles failures with tool context.
@@ -353,6 +359,8 @@ def create_tool_wrapper(
         invocation_id: Optional invocation UUID for audit correlation
         execution_id: Optional parent workflow execution ID for telemetry
         request_id: Optional X-Request-Id from the originating HTTP request.
+        activity_id: Optional activity identifier from workflow context
+        activity_name: Optional activity name from workflow context
         loop: Optional event loop to use for tool disable operations
 
     Returns:
@@ -415,6 +423,8 @@ def create_tool_wrapper(
             execution_id=execution_id,
             request_id=request_id,
             tool_input=tool_input,
+            activity_id=activity_id,
+            activity_name=activity_name,
         )
 
         try:
@@ -433,6 +443,8 @@ def create_tool_wrapper(
                 execution_id=execution_id,
                 request_id=request_id,
                 tool_output=tool_output,
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
 
             return result
@@ -452,6 +464,8 @@ def create_tool_wrapper(
                 execution_id=execution_id,
                 request_id=request_id,
                 error_type=error.__class__.__name__,
+                activity_id=activity_id,
+                activity_name=activity_name,
             )
 
             logger.exception(
@@ -508,6 +522,8 @@ def _emit_tool_invocation_audit(
     tool_input: dict[str, Any] | None = None,
     tool_output: str | None = None,
     error_type: str | None = None,
+    activity_id: str | None = None,
+    activity_name: str | None = None,
 ) -> None:
     """Emit tool invocation audit event if invocation_id is available.
 
@@ -521,6 +537,8 @@ def _emit_tool_invocation_audit(
         tool_input: Optional tool input parameters
         tool_output: Optional tool output
         error_type: Optional error type for failed invocations
+        activity_id: Optional activity identifier from workflow context
+        activity_name: Optional activity name from workflow context
 
     """
     AuditEventDispatcher.dispatch(
@@ -534,6 +552,8 @@ def _emit_tool_invocation_audit(
             tool_input=tool_input,
             tool_output=tool_output,
             error_type=error_type,
+            activity_id=activity_id,
+            activity_name=activity_name,
         )
     )
 

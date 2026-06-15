@@ -270,7 +270,6 @@ describe('AAPNodeForm', () => {
     expect(screen.getByLabelText(/Verbosity/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Run type/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Forks/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Timeout/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Job slicing/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Show changes/i)).toBeInTheDocument()
 
@@ -348,7 +347,6 @@ describe('AAPNodeForm', () => {
           verbosity: '3',
           job_type: 'run',
           forks: 10,
-          timeout: 300,
           job_slice_count: 2,
           diff_mode: true,
           execution_environment: 'Custom EE',

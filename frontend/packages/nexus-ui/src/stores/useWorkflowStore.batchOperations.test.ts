@@ -27,9 +27,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
   describe('Atomic operations', () => {
     it('removes activities and updates edges in single transaction', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       const edges: EdgeConnection[] = [
         { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -64,10 +64,10 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('removes multiple activities at once', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const activityD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityA, activityB, activityC, activityD]),
@@ -88,8 +88,8 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
   describe('Converge node cleanup', () => {
     it('removes converge from flat list', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
@@ -117,10 +117,10 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('handles multiple converge removals', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
-      const activityE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const activityD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
+      const activityE = createScriptActivity({ id: 'E', name: 'Task E', language: 'python', code: 'print("E")' })
 
       const convergeJ1 = createConvergeActivity('J1', 'Converge 1')
       const convergeJ2 = createConvergeActivity('J2', 'Converge 2')
@@ -226,8 +226,8 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     it('removes both activities and triggers atomically', () => {
       const trigger1 = createManualTrigger('test-trigger-1', false)
       const trigger2 = createManualTrigger('test-trigger-2', true)
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
 
       useWorkflowStore.setState({
         currentWorkflow: {
@@ -259,9 +259,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
     it('handles complex scenario with converges, triggers, and edges', () => {
       const trigger = createManualTrigger('test-trigger-1', false)
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
@@ -301,10 +301,10 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         type: 'condition',
         id: 'A',
         name: 'Condition A',
-        config: { condition: 'input.value > 10' },
+        parameters: { condition: 'input.value > 10' },
       }
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [conditionActivity, activityB, activityC]),
@@ -327,9 +327,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         type: 'condition',
         id: 'A',
         name: 'Condition A',
-        config: { condition: 'input.value > 10' },
+        parameters: { condition: 'input.value > 10' },
       }
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [conditionActivity, activityB]),
@@ -363,7 +363,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('handles empty nodeIds array', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityA]),
@@ -382,7 +382,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('handles non-existent node IDs gracefully', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityA]),
@@ -425,8 +425,8 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
   describe('State consistency', () => {
     it('maintains workflow structure integrity', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test Workflow', [activityA, activityB]),

@@ -117,6 +117,7 @@ class FileMetadata(BaseResource, table=True):
         default=None,
         description="Expiration timestamp for automatic cleanup; null means no expiration",
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        index=True,
     )
 
     # Conversion status

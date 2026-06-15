@@ -36,7 +36,7 @@ const {
     type: 'wait',
     id,
     name,
-    config,
+    parameters: config,
   })),
   mockRegister: vi.fn(),
 }))
@@ -62,8 +62,8 @@ vi.mock('../../utils/nodeNaming', () => ({
 }))
 
 vi.mock('../helpers/nodeTemplates', () => ({
-  createCustomNode: vi.fn((config: Record<string, unknown>, handler: (...args: unknown[]) => void) => ({
-    ...config,
+  createCustomNode: vi.fn((parameters: Record<string, unknown>, handler: (...args: unknown[]) => void) => ({
+    ...parameters,
     onSubmit: handler,
   })),
 }))
@@ -108,14 +108,15 @@ describe('registerLogicNode', () => {
       expect(mockCreateConvergeActivity).toHaveBeenCalledWith(
         expect.stringMatching(/^logic_\d+_[a-z0-9]+$/),
         'Join All',
-        expect.objectContaining({ strategy: 'all' })
+        expect.objectContaining({ strategy: 'all' }),
+        undefined
       )
       expect(mockAddActivity).toHaveBeenCalled()
       expect(onSuccess).toHaveBeenCalledWith(expect.stringMatching(/^logic_\d+_[a-z0-9]+$/))
       expect(onError).not.toHaveBeenCalled()
     })
 
-    it('passes timeout and onTimeout to factory for strategy all with timeout', () => {
+    it('passes settings to factory when provided', () => {
       const onSuccess = vi.fn()
       const onError = vi.fn()
       getHandler()(
@@ -123,8 +124,7 @@ describe('registerLogicNode', () => {
           logicType: 'converge',
           name: 'Join',
           strategy: 'all',
-          timeout: 3600,
-          onTimeout: 'continue',
+          settings: { timeout: 3600, continue_on_failure: true },
         },
         onSuccess,
         onError
@@ -133,11 +133,8 @@ describe('registerLogicNode', () => {
       expect(mockCreateConvergeActivity).toHaveBeenCalledWith(
         expect.any(String),
         'Join',
-        expect.objectContaining({
-          strategy: 'all',
-          timeout: 3600,
-          onTimeout: 'continue',
-        })
+        expect.objectContaining({ strategy: 'all' }),
+        expect.objectContaining({ timeout: 3600, continue_on_failure: true })
       )
       expect(onSuccess).toHaveBeenCalled()
     })
@@ -181,7 +178,8 @@ describe('registerLogicNode', () => {
         expect.objectContaining({
           strategy: 'any',
           requiredPathCount: 2,
-        })
+        }),
+        undefined
       )
       expect(mockAddActivity).toHaveBeenCalled()
       expect(onSuccess).toHaveBeenCalled()

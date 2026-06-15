@@ -10,8 +10,11 @@ import {
   RhUiPauseCircleFillIcon,
   RhUiStopCircleFillIcon,
   RhUiSyncIcon,
+  RhUiWarningFillIcon,
 } from '@patternfly/react-icons'
 import type React from 'react'
+
+import { executionStatusDisplayLabels } from './executionStatusConstants'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']
@@ -21,6 +24,7 @@ const statusMap: Record<ExecutionStatus, 'success' | 'danger' | 'warning' | 'inf
   running: 'custom',
   paused: 'warning',
   completed: 'success',
+  completed_with_errors: 'warning',
   failed: 'danger',
   cancelled: 'custom',
 }
@@ -30,17 +34,17 @@ const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: str
   running: RhUiSyncIcon,
   paused: RhUiPauseCircleFillIcon,
   completed: RhUiCheckCircleIcon,
+  completed_with_errors: RhUiWarningFillIcon,
   failed: RhUiCloseCircleIcon,
   cancelled: RhUiStopCircleFillIcon,
 }
 
 export function StatusLabel({ status }: Readonly<{ status: ExecutionStatus }>) {
   const IconComponent = statusIcons[status]
-  const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
     <Label variant="outline" status={statusMap[status]} icon={<IconComponent />}>
-      {capitalizedStatus}
+      {executionStatusDisplayLabels[status]}
     </Label>
   )
 }

@@ -245,7 +245,6 @@ db-seed-all: check-deps ## Run all database seeders including dev samples
 dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
 	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
-	@uv run alembic -c alembic_audit.ini upgrade head
 	@$(MAKE) db-seed
 	@echo "✅ Migrations and seeding complete"
 	@echo "🚀 Starting Nexus API server..."
@@ -275,33 +274,6 @@ db-clean: ## Stop database and remove all data (destructive)
 	@echo "⚠️  WARNING: This will delete all database data!"
 	$(COMPOSE_FINAL_CMD) down -v
 	@echo "✅ Database stopped and data purged"
-
-.PHONY: audit-db-upgrade
-audit-db-upgrade: check-deps ## Run audit database migrations to head
-	@echo "🔄 Running audit database migrations..."
-	uv run alembic -c alembic_audit.ini upgrade head
-	@echo "✅ Audit database migrations complete"
-
-.PHONY: audit-db-downgrade
-audit-db-downgrade: check-deps ## Downgrade audit database by one revision
-	@echo "🔄 Downgrading audit database..."
-	uv run alembic -c alembic_audit.ini downgrade -1
-	@echo "✅ Audit database downgrade complete"
-
-.PHONY: audit-db-revision
-audit-db-revision: check-deps ## Generate a new audit database migration (MSG="description")
-	@if [ -z "$(MSG)" ]; then \
-		echo "❌ Error: MSG is required"; \
-		echo "Usage: make audit-db-revision MSG=\"description of changes\""; \
-		exit 1; \
-	fi
-	@echo "📝 Generating audit database migration..."
-	uv run alembic -c alembic_audit.ini revision --autogenerate -m '$(MSG)'
-	@echo "✅ Audit database migration generated"
-
-.PHONY: audit-db-history
-audit-db-history: check-deps ## Show audit database migration history
-	uv run alembic -c alembic_audit.ini history
 
 .PHONY: cache-run
 cache-run: ## Start cache container (foreground, Ctrl+C to stop)

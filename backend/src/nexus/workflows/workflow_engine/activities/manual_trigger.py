@@ -40,9 +40,8 @@ async def manual_trigger(
 
     """
     # For prototype: skip input schema validation, just return inputs
-    full_result = {"status": "completed", **input_config}
 
     # Apply output mapping (suppresses fields before Temporal stores it)
-    mapped_output = apply_output_mapping(full_result, output_config)
+    mapped_output = apply_output_mapping(input_config, output_config)
 
     return {"output": mapped_output}

@@ -84,35 +84,36 @@ Check whether the changes follow:
 
 **Run through every item in CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-30).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
 
-| Search for...                                            | Flags violation of checklist item...                                         |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `as` casts on API responses                              | #1 -- unsafe casts (flag for contract fix, not more casts)                   |
-| New component without `toHaveNoViolations()`             | #2 -- missing vitest-axe test                                                |
-| Raw error JSX (`<span>Error`, `<p>Error`, `<div>Error`)  | #3 -- should use `NxErrorState` component                                    |
-| Manual `useState` per form field                         | #4 -- should use Zod + react-hook-form                                       |
-| `useForm` with `defaultValues` in modals                 | #5 -- verify `reset()` in `useEffect([isOpen, item])`                        |
-| Copy-pasted dialogs or action handlers                   | #6 -- extract to shared component/hook                                       |
-| String literals for type discriminators                  | #9 -- use enum constants from `@ansible/nexus-contracts`                     |
-| Display strings in conditionals                          | #10 -- compare API values, not translatable labels                           |
-| New route in `AppRoute.tsx` without registry entry       | Add to `e2e/visual-regression/page-registry.ts` (see `VISUAL_REGRESSION.md`) |
-| Title Case in alert titles                               | Use sentence case: "Workflow created", not "Created"                         |
-| Derived data without `useMemo` in custom hooks           | #13 -- wrap computed maps/arrays in `useMemo`                                |
-| New `use*.ts` hook without `use*.test.ts(x)`             | #14 -- every new hook needs a dedicated test file                            |
-| `useEffect` + `setState` for derived/computed values     | #15 -- compute during render or use `useMemo`                                |
-| `useEffect` + `setValue` watching form fields            | #16 -- move cascading resets to field's `onChange` handler                   |
-| `formState.isSubmitting` for loading state               | #18 -- use `isPending` from mutation hooks                                   |
-| `PlusCircleIcon` or non-`RhUi*` icons                    | #19 -- use `RhUiAddIcon`, `RhUiDuplicate`, etc.                              |
-| Inline style objects (`style={{ ... }}`)                 | #20 -- refactor to CSS module classes                                        |
-| `let` counter inside `.map()`                            | #21 -- pre-compute indices immutably                                         |
-| `aria-label` on `<span>` / `<div>`                       | #22 -- only use on interactive elements, widgets, landmarks, images          |
-| Any `eslint-disable` or `eslint-disable-next-line`       | #23 -- never suppress rules; fix the code so it passes                       |
-| Hook called unconditionally but used conditionally       | #24 -- extract to a conditionally-rendered wrapper component                 |
-| `useEffect` + `useState` for API calls                   | #25 -- use TanStack Query (`useQuery`/`useMutation`/`useQueries`)            |
-| Manual `Promise.all` + cancellation for parallel fetches | #25 -- use `useQueries` from TanStack Query                                  |
-| `// TODO` / `// FIXME` / `// HACK` / `// XXX`            | #26 -- track deferred work in Jira, not code comments                        |
-| Hardcoded `docs.redhat.com` or `docs.ansible.com` URLs   | #30 -- use `useDocLink('key')` from `src/utils/docs/useDocLink.ts`           |
-| `NxPageHeader` without `docLink` prop                    | #30 -- every page header should pass `docLink={useDocLink('key')}`           |
-| Hardcoded colors in CSS modules                          | ESLint can't catch these; review CSS module files manually                   |
+| Search for...                                               | Flags violation of checklist item...                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `as` casts on API responses                                 | #1 -- unsafe casts (flag for contract fix, not more casts)                      |
+| New component without `toHaveNoViolations()`                | #2 -- missing vitest-axe test                                                   |
+| Raw error JSX (`<span>Error`, `<p>Error`, `<div>Error`)     | #3 -- should use `NxErrorState` component                                       |
+| Manual `useState` per form field                            | #4 -- should use Zod + react-hook-form                                          |
+| `useForm` with `defaultValues` in modals                    | #5 -- verify `reset()` in `useEffect([isOpen, item])`                           |
+| Copy-pasted dialogs or action handlers                      | #6 -- extract to shared component/hook                                          |
+| String literals for type discriminators                     | #9 -- use enum constants from `@ansible/nexus-contracts`                        |
+| Display strings in conditionals                             | #10 -- compare API values, not translatable labels                              |
+| New route in `AppRoute.tsx` without registry entry          | Add to `e2e/visual-regression/page-registry.ts` (see `VISUAL_REGRESSION.md`)    |
+| Title Case in alert titles                                  | Use sentence case: "Workflow created", not "Created"                            |
+| Derived data without `useMemo` in custom hooks              | #13 -- wrap computed maps/arrays in `useMemo`                                   |
+| New `use*.ts` hook without `use*.test.ts(x)`                | #14 -- every new hook needs a dedicated test file                               |
+| `useEffect` + `setState` for derived/computed values        | #15 -- compute during render or use `useMemo`                                   |
+| `useEffect` + `setValue` watching form fields               | #16 -- move cascading resets to field's `onChange` handler                      |
+| `formState.isSubmitting` for loading state                  | #18 -- use `isPending` from mutation hooks                                      |
+| `PlusCircleIcon` or non-`RhUi*` icons                       | #19 -- use `RhUiAddIcon`, `RhUiDuplicate`, etc.                                 |
+| Inline style objects (`style={{ ... }}`)                    | #20 -- refactor to CSS module classes                                           |
+| `let` counter inside `.map()`                               | #21 -- pre-compute indices immutably                                            |
+| `aria-label` on `<span>` / `<div>`                          | #22 -- only use on interactive elements, widgets, landmarks, images             |
+| Any `eslint-disable` or `eslint-disable-next-line`          | #23 -- never suppress rules; fix the code so it passes                          |
+| Hook called unconditionally but used conditionally          | #24 -- extract to a conditionally-rendered wrapper component                    |
+| `useEffect` + `useState` for API calls                      | #25 -- use TanStack Query (`useQuery`/`useMutation`/`useQueries`)               |
+| Manual `Promise.all` + cancellation for parallel fetches    | #25 -- use `useQueries` from TanStack Query                                     |
+| `// TODO` / `// FIXME` / `// HACK` / `// XXX`               | #26 -- track deferred work in Jira, not code comments                           |
+| Hardcoded `docs.redhat.com` or `docs.ansible.com` URLs      | #30 -- use `useDocLink('key')` from `src/utils/docs/useDocLink.ts`              |
+| `NxPageHeader` without `docLink` prop                       | #30 -- every page header should pass `docLink={useDocLink('key')}`              |
+| Hardcoded colors in CSS modules                             | ESLint can't catch these; review CSS module files manually                      |
+| `new Date()` in `nexus-mock-api/src/resources/` or `utils/` | #31 -- use `mockDate.*` from `mockDates.ts` for deterministic visual regression |
 
 ### 3b. Rule Bypass Checks (BLOCKING -- do not approve if any are found)
 

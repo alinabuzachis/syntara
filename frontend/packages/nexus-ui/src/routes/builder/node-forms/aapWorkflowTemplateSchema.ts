@@ -4,6 +4,7 @@ import { hasExpressionValue } from '../utils/aapHelpers'
 
 import { validateExtraVars } from './shared/aapSchemaUtils'
 import { optionalNumber } from './shared/formSchemaUtils'
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
 
 /**
  * Zod schema for the AAP (Ansible Automation Platform) workflow template node form.
@@ -36,6 +37,7 @@ export const aapWorkflowTemplateSchema = z
     tags: z.string().optional(),
     skip_tags: z.string().optional(),
     labels: z.array(z.string()).optional(), // Label names (supports creating new labels)
+    settings: nodeSettingsSchema.optional(),
   })
   .superRefine((data, ctx) => {
     // Skip validation when using expression mode (${...} expressions resolve at runtime)

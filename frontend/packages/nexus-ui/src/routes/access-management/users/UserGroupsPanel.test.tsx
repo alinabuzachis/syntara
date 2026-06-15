@@ -429,7 +429,7 @@ describe('UserGroupsPanel', () => {
         {
           id: 'g-builtin-auditors',
           name: 'auditors',
-          description: 'Read-only access with audit log visibility',
+          description: 'Read-only access for compliance review',
           created_at: '2026-01-01T00:00:00Z',
           updated_at: '2026-01-02T00:00:00Z',
           is_builtin: true,

@@ -174,9 +174,37 @@ class FileStorageSettings(BaseSettings):
         description="S3 secret key — set via APP_S3_SECRET_ACCESS_KEY",
     )
 
+    s3_verify_ssl: bool = Field(
+        default=True,
+        description="Verify TLS certificate for S3 endpoint; disable only for development",
+    )
+
+    s3_ca_bundle: str | None = Field(
+        default=None,
+        description="Path to CA bundle for S3 endpoint TLS verification (e.g. OCP cluster CA)",
+    )
+
     file_retention_ttl_hours: int | None = Field(
         default=None,
         description="Default file retention TTL in hours; null means no expiration",
+    )
+
+    file_cleanup_interval_seconds: float = Field(
+        default=3600.0,
+        description="Seconds between periodic file cleanup cycles",
+        gt=0,
+    )
+
+    file_cleanup_batch_size: int = Field(
+        default=1000,
+        description="Maximum number of expired files to process per cleanup batch",
+        ge=1,
+    )
+
+    file_multipart_cleanup_threshold_hours: int = Field(
+        default=24,
+        description="Hours after which incomplete S3 multipart uploads are aborted",
+        ge=1,
     )
 
 
@@ -434,95 +462,15 @@ class DatabaseSettings(BaseSettings):
 # =============================================================================
 
 
-class AuditDatabaseSettings(BaseSettings):
-    """Audit database connection configuration settings.
-
-    Configures a separate PostgreSQL database for audit event persistence on the
-    same database instance as the main application database.  The audit database
-    uses a different database name (default ``nexus_audit``) and a dedicated
-    database user (default ``nexus_audit``) to ensure credential wiring is
-    validated.
-
-    You can either:
-    1. Set individual APP_AUDIT_DB_* variables (user, password, host, port, name)
-    2. Set APP_AUDIT_DATABASE_URL to override with a full connection string
+class AuditSettings(BaseSettings):
+    """Core audit system configuration settings.
 
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
-    audit_db_user: str = Field(
-        default="nexus_audit",
-        description="Audit database username",
-    )
-
-    audit_db_password: SecretStr = Field(
-        default=SecretStr("audit_pass"),
-        description="Audit database password",
-    )
-
-    audit_db_host: str = Field(
-        default="localhost",
-        description="Audit database host",
-    )
-
-    audit_db_port: int = Field(
-        default=5432,
-        description="Audit database port",
-        ge=1,
-        le=65535,
-    )
-
-    audit_db_name: str = Field(
-        default="nexus_audit",
-        description="Audit database name",
-    )
-
-    audit_db_pool_size: int = Field(
-        default=5,
-        description="Maximum number of persistent audit database connections in SQLAlchemy pool",
-        ge=1,
-    )
-
-    audit_db_max_overflow: int = Field(
-        default=10,
-        description="Maximum number of overflow connections beyond audit_db_pool_size",
-        ge=0,
-    )
-
-    audit_db_pool_timeout_seconds: float = Field(
-        default=30.0,
-        description="Seconds to wait for a free connection before pool checkout timeout",
-        gt=0,
-    )
-
-    audit_db_ssl_mode: str = Field(
-        default="prefer",
-        description="PostgreSQL SSL mode (disable, allow, prefer, require, verify-ca, verify-full)",
-    )
-
-    audit_db_ssl_root_cert: str | None = Field(
-        default=None,
-        description="Path to CA certificate file for server verification",
-    )
-
-    audit_db_ssl_cert: str | None = Field(
-        default=None,
-        description="Path to client certificate file (for mutual TLS)",
-    )
-
-    audit_db_ssl_key: str | None = Field(
-        default=None,
-        description="Path to client private key file (for mutual TLS)",
-    )
-
-    auditing_enabled: bool = Field(
-        default=True,
-        description="Enable or disable the audit system globally",
-    )
-
     audit_outbox_poll_interval_seconds: float = Field(
         default=5.0,
-        description="Seconds between audit outbox worker cycles (publishes events to audit database)",
+        description="Seconds between audit outbox worker cycles (publishes events to OTEL collector)",
         gt=0,
     )
 
@@ -531,66 +479,6 @@ class AuditDatabaseSettings(BaseSettings):
         description="Maximum number of audit events to process per outbox worker cycle",
         gt=0,
         le=1000,
-    )
-
-    @field_validator("audit_db_ssl_mode")
-    @classmethod
-    def _validate_audit_ssl_mode(cls, v: str) -> str:
-        return _validate_ssl_mode_value(v)
-
-    @model_validator(mode="after")
-    def _validate_audit_ssl_fields(self) -> Self:
-        _validate_ssl_fields(
-            self.audit_db_ssl_mode, self.audit_db_ssl_root_cert, self.audit_db_ssl_cert, self.audit_db_ssl_key
-        )
-        return self
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def audit_database_url(self) -> URL:
-        """Get the audit database URL.
-
-        If ``APP_AUDIT_DATABASE_URL`` is set, it is used verbatim and
-        all ``APP_AUDIT_DB_*`` / ``APP_AUDIT_DB_SSL_*`` fields are
-        ignored.  See :attr:`DatabaseSettings.database_url` for details.
-        """
-        override = os.environ.get("APP_AUDIT_DATABASE_URL")
-        if override:
-            return make_url(override)
-        return URL.create(
-            drivername="postgresql+asyncpg",
-            username=self.audit_db_user,
-            password=self.audit_db_password.get_secret_value(),
-            host=self.audit_db_host,
-            port=self.audit_db_port,
-            database=self.audit_db_name,
-        )
-
-
-class AuditExportSettings(BaseSettings):
-    """Audit data export configuration settings.
-
-    Configures the directory where exported audit CSV files are written and
-    the Temporal task queue used for export jobs.
-
-    Note: This class should not be instantiated directly. Use Settings via get_settings().
-    """
-
-    audit_export_dir: str = Field(
-        default=str(Path(tempfile.gettempdir()) / "nexus-audit-exports"),
-        description="Directory for audit export files",
-    )
-
-    audit_export_task_queue: str = Field(
-        default="nexus-workflow-queue",
-        description="Temporal task queue for audit export jobs (defaults to the main workflow queue)",
-    )
-
-    audit_export_batch_size: int = Field(
-        default=5000,
-        description="Number of rows fetched per batch during export",
-        ge=100,
-        le=50000,
     )
 
 
@@ -1756,9 +1644,8 @@ class Settings(
     RouterDiscoverySettings,
     CacheSettings,
     DatabaseSettings,
-    AuditDatabaseSettings,
+    AuditSettings,
     AuditWriterSettings,
-    AuditExportSettings,
     ServerSettings,
     RetrieverServiceSettings,
     AdapterRetrySettings,

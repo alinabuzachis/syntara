@@ -13,7 +13,7 @@ nodes:
   - id: fast_task
     name: Fast Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Fast task completed"
@@ -21,7 +21,7 @@ nodes:
   - id: slow_task
     name: Slow Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         sleep 3
@@ -30,7 +30,7 @@ nodes:
   - id: join_with_timeout_continue
     name: Join with Timeout (Continue)
     type: converge
-    config:
+    parameters:
       branches:
         - fast_task
         - slow_task
@@ -42,7 +42,7 @@ nodes:
   - id: post_join_task
     name: Post-Join Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Post-join task executed after timeout"

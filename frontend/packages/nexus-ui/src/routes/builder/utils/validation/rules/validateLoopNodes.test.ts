@@ -4,19 +4,19 @@ import { describe, expect, it } from 'vitest'
 import { validateLoopNodes } from './validateLoopNodes'
 
 /**
- * In v2, loop nodes use config: { type: 'for_each', items } or config: { type: 'do_while', condition, max_iterations }.
+ * In v2, loop nodes use parameters: { type: 'for_each', items } or parameters: { type: 'do_while', condition, max_iterations }.
  * Loop body is determined by edges (sourceHandle: 'loop'), not by a nested do[] array.
  * The validateLoopNodes function checks either nested do[] or edges for loop body presence.
  */
 describe('validateLoopNodes', () => {
   it('returns no errors for workflow without loop nodes', () => {
     const activities: Activity[] = [
-      { type: 'script', id: 'task-1', name: 'Normal Task', config: { language: 'python', code: 'print("hello")' } },
+      { type: 'script', id: 'task-1', name: 'Normal Task', parameters: { language: 'python', code: 'print("hello")' } },
       {
         type: 'condition',
         id: 'condition-1',
         name: 'Check Status',
-        config: { condition: '${output.status == "success"}' },
+        parameters: { condition: '${output.status == "success"}' },
       },
     ]
 
@@ -28,7 +28,12 @@ describe('validateLoopNodes', () => {
   describe('flat format validation (with edges)', () => {
     it('returns no errors when loop has edges from loop handle', () => {
       const activities: Activity[] = [
-        { type: 'loop', id: 'loop-1', name: 'Loop with Body', config: { type: 'for_each', items: '${input.items}' } },
+        {
+          type: 'loop',
+          id: 'loop-1',
+          name: 'Loop with Body',
+          parameters: { type: 'for_each', items: '${input.items}' },
+        },
       ]
 
       const edges = [{ id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' }]
@@ -39,7 +44,7 @@ describe('validateLoopNodes', () => {
 
     it('returns error when loop has no edges from loop handle', () => {
       const activities: Activity[] = [
-        { type: 'loop', id: 'loop-1', name: 'Empty Loop', config: { type: 'for_each', items: '${input.items}' } },
+        { type: 'loop', id: 'loop-1', name: 'Empty Loop', parameters: { type: 'for_each', items: '${input.items}' } },
       ]
 
       const edges = [{ id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'done' }]
@@ -55,7 +60,7 @@ describe('validateLoopNodes', () => {
           type: 'loop',
           id: 'loop-1',
           name: 'Disconnected Loop',
-          config: { type: 'for_each', items: '${input.items}' },
+          parameters: { type: 'for_each', items: '${input.items}' },
         },
       ]
 
@@ -68,8 +73,8 @@ describe('validateLoopNodes', () => {
 
     it('validates multiple loops with edges correctly', () => {
       const activities: Activity[] = [
-        { type: 'loop', id: 'loop-1', name: 'Loop 1', config: { type: 'for_each', items: '${input.items1}' } },
-        { type: 'loop', id: 'loop-2', name: 'Loop 2', config: { type: 'for_each', items: '${input.items2}' } },
+        { type: 'loop', id: 'loop-1', name: 'Loop 1', parameters: { type: 'for_each', items: '${input.items1}' } },
+        { type: 'loop', id: 'loop-2', name: 'Loop 2', parameters: { type: 'for_each', items: '${input.items2}' } },
       ]
 
       const edges = [
@@ -85,7 +90,7 @@ describe('validateLoopNodes', () => {
 
   it('returns error for loop without name', () => {
     const activities: Activity[] = [
-      { type: 'loop', id: 'loop-1', name: '', config: { type: 'for_each', items: '${input.items}' } },
+      { type: 'loop', id: 'loop-1', name: '', parameters: { type: 'for_each', items: '${input.items}' } },
     ]
 
     // In v2, edges must be provided for the validator to detect missing loop body

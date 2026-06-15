@@ -122,7 +122,7 @@ class WebhookTriggerService(BaseService):
                         trigger_type=trigger_type,
                     )
                     continue
-                webhook_nodes[node_id] = trigger.get("config", {})
+                webhook_nodes[node_id] = trigger.get("parameters", {})
 
         # Fetch existing triggers for this workflow and type
         result = await self.session.exec(
@@ -136,14 +136,14 @@ class WebhookTriggerService(BaseService):
         results: list[WebhookTriggerRead] = []
 
         # Create or update triggers
-        for node_id, config in webhook_nodes.items():
+        for node_id, parameters in webhook_nodes.items():
             try:
-                validated_config = WebhookTriggerConfig.model_validate(config)
+                validated_parameters = WebhookTriggerConfig.model_validate(parameters)
             except ValidationError as e:
-                msg = f"Invalid webhook trigger config for node '{node_id}': {e}"
+                msg = f"Invalid webhook trigger parameters for node '{node_id}': {e}"
                 raise TriggerValidationError(msg) from e
-            webhook_path = validated_config.webhook_path
-            input_schema = validated_config.input_schema
+            webhook_path = validated_parameters.webhook_path
+            input_schema = validated_parameters.input_schema
 
             if node_id in existing_triggers:
                 # Update existing trigger

@@ -19,6 +19,7 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import { useMaxWaitDuration } from './useMaxWaitDuration'
 import { createWaitFormSchema, type WaitFormData } from './waitFormSchema'
 import styles from './WaitNodeForm.module.css'
@@ -127,7 +128,9 @@ function WaitFormFields({ onHeaderContentChange, validationErrors }: WaitFormFie
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const settingsContent = <NodeSettingsForm supportsTimeout={false} supportsRetryPolicy={false} />
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function WaitNodeForm(props: Readonly<WaitNodeFormProps>) {
@@ -137,6 +140,7 @@ export function WaitNodeForm(props: Readonly<WaitNodeFormProps>) {
 
   const defaultValues: WaitFormData = {
     name: '',
+    settings: {},
     days: 0,
     hours: 0,
     minutes: 0,

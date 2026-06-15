@@ -44,8 +44,8 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
     ((props.data as Record<string, unknown>).metadata as { __showExecutionBadge?: boolean } | undefined)
       ?.__showExecutionBadge === true
 
-  // In v2, approval config has approver_timeout at config level (no approvers list)
-  const approvalConfig = (props.data.config ?? {}) as { approver_timeout?: number }
+  // In v2, approval parameters have approver_timeout at parameters level (no approvers list)
+  const approvalConfig = (props.data.parameters ?? {}) as { approver_timeout?: number }
 
   return (
     <NodeComponent

@@ -80,7 +80,7 @@ Route guard that checks a single permission via `useCanI`. Shows a spinner while
 Page-level access denied state. Two usage patterns:
 
 1. **Via `ProtectedRoute`** — for create/edit routes, set `routePermission` in `navigationItems.tsx` and `ProtectedRoute` handles the rest.
-2. **Inline in page components** — for pages that need custom loading/layout around the access-denied state (e.g. `AccessManagement.tsx`, `Authentication.tsx`, `AuditLog.tsx`, `Settings.tsx`, `EditGroupMapping.tsx`). Check permissions with `useCanI` and render `EmptyStateAccessDenied` directly when denied.
+2. **Inline in page components** — for pages that need custom loading/layout around the access-denied state (e.g. `AccessManagement.tsx`, `Authentication.tsx`, `Settings.tsx`, `EditGroupMapping.tsx`). Check permissions with `useCanI` and render `EmptyStateAccessDenied` directly when denied.
 
 Prefer `ProtectedRoute` (pattern 1) for simple route guards. Use inline rendering (pattern 2) when the page has surrounding chrome (breadcrumbs, tabs, layout) that should still render around the access-denied state.
 

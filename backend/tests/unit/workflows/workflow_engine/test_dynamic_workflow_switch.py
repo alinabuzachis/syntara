@@ -57,13 +57,13 @@ def _make_workflow(
 def _build_switch_graph() -> WorkflowGraph:
     """Build: trigger -> switch -> (case_0: action_a, case_1: action_b, default: action_c)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
     backend.add_node(
         "sw",
         {
             "id": "sw",
             "type": "switch",
-            "config": {
+            "parameters": {
                 "cases": [
                     {"port": "case_0", "label": "Approved", "condition": "${status} == 'approved'"},
                     {"port": "case_1", "label": "Rejected", "condition": "${status} == 'rejected'"},
@@ -72,9 +72,9 @@ def _build_switch_graph() -> WorkflowGraph:
             },
         },
     )
-    backend.add_node("action_a", {"id": "action_a", "type": "script", "config": {}})
-    backend.add_node("action_b", {"id": "action_b", "type": "script", "config": {}})
-    backend.add_node("action_c", {"id": "action_c", "type": "script", "config": {}})
+    backend.add_node("action_a", {"id": "action_a", "type": "script", "parameters": {}})
+    backend.add_node("action_b", {"id": "action_b", "type": "script", "parameters": {}})
+    backend.add_node("action_c", {"id": "action_c", "type": "script", "parameters": {}})
     backend.add_edge("trigger", "sw", None)
     backend.add_edge("sw", "action_a", {"from_port": "case_0"})
     backend.add_edge("sw", "action_b", {"from_port": "case_1"})
@@ -85,13 +85,13 @@ def _build_switch_graph() -> WorkflowGraph:
 def _build_switch_with_downstream_graph() -> WorkflowGraph:
     """Build: trigger -> switch -> (case_0: A -> D, case_1: B -> E, default: C -> F)."""
     backend = InMemoryGraphBackend()
-    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "config": {}})
+    backend.add_node("trigger", {"id": "trigger", "type": "manual_trigger", "parameters": {}})
     backend.add_node(
         "sw",
         {
             "id": "sw",
             "type": "switch",
-            "config": {
+            "parameters": {
                 "cases": [
                     {"port": "case_0", "label": "Case 0", "condition": "True"},
                     {"port": "case_1", "label": "Case 1", "condition": "False"},
@@ -100,12 +100,12 @@ def _build_switch_with_downstream_graph() -> WorkflowGraph:
             },
         },
     )
-    backend.add_node("a", {"id": "a", "type": "script", "config": {}})
-    backend.add_node("b", {"id": "b", "type": "script", "config": {}})
-    backend.add_node("c", {"id": "c", "type": "script", "config": {}})
-    backend.add_node("a_downstream", {"id": "a_downstream", "type": "script", "config": {}})
-    backend.add_node("b_downstream", {"id": "b_downstream", "type": "script", "config": {}})
-    backend.add_node("c_downstream", {"id": "c_downstream", "type": "script", "config": {}})
+    backend.add_node("a", {"id": "a", "type": "script", "parameters": {}})
+    backend.add_node("b", {"id": "b", "type": "script", "parameters": {}})
+    backend.add_node("c", {"id": "c", "type": "script", "parameters": {}})
+    backend.add_node("a_downstream", {"id": "a_downstream", "type": "script", "parameters": {}})
+    backend.add_node("b_downstream", {"id": "b_downstream", "type": "script", "parameters": {}})
+    backend.add_node("c_downstream", {"id": "c_downstream", "type": "script", "parameters": {}})
     backend.add_edge("trigger", "sw", None)
     backend.add_edge("sw", "a", {"from_port": "case_0"})
     backend.add_edge("sw", "b", {"from_port": "case_1"})

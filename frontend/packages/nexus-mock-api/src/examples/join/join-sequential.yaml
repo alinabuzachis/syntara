@@ -8,25 +8,25 @@ triggers:
 nodes:
   - id: seq1
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Step 1"
 
   - id: seq2
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Step 2"
 
   - id: seq3
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Step 3"
 
   - id: join_sequential
     type: converge
-    config:
+    parameters:
       branches:
         - seq1
         - seq2

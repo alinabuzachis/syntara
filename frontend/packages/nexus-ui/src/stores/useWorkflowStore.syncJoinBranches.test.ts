@@ -25,8 +25,8 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
   describe('Converge with 2+ incoming edges', () => {
     it('updates converge config.branches from incoming edges', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
@@ -43,15 +43,15 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const converge = activities.find((a) => a.id === 'J')
 
-      expect(converge?.config.branches).toContain('B')
-      expect(converge?.config.branches).toContain('C')
-      expect(converge?.config.branches).toHaveLength(2)
+      expect(converge?.parameters.branches).toContain('B')
+      expect(converge?.parameters.branches).toContain('C')
+      expect(converge?.parameters.branches).toHaveLength(2)
     })
 
     it('updates converge config.branches for three incoming edges', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const activityD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
@@ -69,14 +69,14 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const converge = activities.find((a) => a.id === 'J')
 
-      const branches = converge?.config.branches as string[]
+      const branches = converge?.parameters.branches as string[]
       expect(branches.sort()).toEqual(['B', 'C', 'D'])
     })
   })
 
   describe('Converge with single incoming edge', () => {
     it('sets single branch in converge config', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
@@ -90,13 +90,13 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const converge = activities.find((a) => a.id === 'J')
 
-      expect(converge?.config.branches).toEqual(['B'])
+      expect(converge?.parameters.branches).toEqual(['B'])
     })
   })
 
   describe('Converge with no incoming edges', () => {
     it('clears converge branches', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
@@ -110,16 +110,16 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const converge = activities.find((a) => a.id === 'J')
 
-      expect(converge?.config.branches).toEqual([])
+      expect(converge?.parameters.branches).toEqual([])
     })
   })
 
   describe('Multiple converges', () => {
     it('handles multiple independent converges', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
-      const activityE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
+      const activityC = createScriptActivity({ id: 'C', name: 'Task C', language: 'python', code: 'print("C")' })
+      const activityD = createScriptActivity({ id: 'D', name: 'Task D', language: 'python', code: 'print("D")' })
+      const activityE = createScriptActivity({ id: 'E', name: 'Task E', language: 'python', code: 'print("E")' })
       const convergeJ1 = createConvergeActivity('J1', 'Converge 1')
       const convergeJ2 = createConvergeActivity('J2', 'Converge 2')
 
@@ -141,8 +141,8 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       const join1 = activities.find((a) => a.id === 'J1')
       const join2 = activities.find((a) => a.id === 'J2')
 
-      const branches1 = join1?.config.branches as string[]
-      const branches2 = join2?.config.branches as string[]
+      const branches1 = join1?.parameters.branches as string[]
+      const branches2 = join2?.parameters.branches as string[]
 
       expect(branches1.sort()).toEqual(['B', 'C'])
       expect(branches2.sort()).toEqual(['D', 'E'])
@@ -158,8 +158,8 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
     })
 
     it('handles workflow with no joins', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityA = createScriptActivity({ id: 'A', name: 'Task A', language: 'python', code: 'print("A")' })
+      const activityB = createScriptActivity({ id: 'B', name: 'Task B', language: 'python', code: 'print("B")' })
 
       useWorkflowStore.setState({
         currentWorkflow: makeWorkflow('Test', [activityA, activityB]),

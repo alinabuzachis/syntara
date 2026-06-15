@@ -350,12 +350,11 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
 
             const convergeIndex = activities.findIndex((a) => a.id === convergeActivity.id)
             if (convergeIndex !== -1) {
-              // v2: converge config is at activity.config (flat)
-              const existingConfig = convergeActivity.config ?? {}
+              const existingParameters = convergeActivity.parameters ?? {}
               activities[convergeIndex] = {
                 ...convergeActivity,
-                config: {
-                  ...existingConfig,
+                parameters: {
+                  ...existingParameters,
                   branches: branchIds,
                 },
               } as Activity

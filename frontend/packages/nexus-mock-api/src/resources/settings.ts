@@ -1,5 +1,7 @@
 import type { SettingsAPI } from '@ansible/nexus-contracts'
 
+import { mockDate } from './mockDates'
+
 type RuntimeSetting = SettingsAPI['components']['schemas']['RuntimeSettingRead']
 type SettingCategory = SettingsAPI['components']['schemas']['SettingCategoryRead']
 
@@ -56,7 +58,6 @@ function makeSetting(
   overrides: Partial<RuntimeSetting> &
     Pick<RuntimeSetting, 'key' | 'name' | 'category' | 'value_type' | 'default_value'>
 ): RuntimeSetting {
-  const now = new Date().toISOString()
   const version = nextVersion++
   return {
     id: crypto.randomUUID(),
@@ -70,8 +71,8 @@ function makeSetting(
     cache_ttl_seconds: null,
     validation_schema: null,
     version,
-    created_at: now,
-    updated_at: now,
+    created_at: mockDate.daysAgo7,
+    updated_at: mockDate.daysAgo1,
     ...overrides,
   }
 }
@@ -452,6 +453,110 @@ export const settings: RuntimeSetting[] = [
     group: 'Execution',
     value_type: 'integer',
     default_value: 2592000,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.aap_timeout_seconds',
+    name: 'AAP timeout (seconds)',
+    description:
+      'Maximum execution time for AAP job template and workflow template activities. If the AAP job exceeds this timeout, the activity fails.',
+    helper_text: 'Minimum 1 second. Default: 3600 (1 hour).',
+    category: 'workflow_execution',
+    group: 'Execution',
+    value_type: 'integer',
+    default_value: 3600,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.approval_decision_window_seconds',
+    name: 'Approval decision window (seconds)',
+    description:
+      'Maximum time the workflow engine waits for an approval activity to complete. If no response is received within this period, the approval activity times out.',
+    helper_text: 'Minimum 1 second. Default: 86400 (24 hours).',
+    category: 'workflow_execution',
+    group: 'Execution',
+    value_type: 'integer',
+    default_value: 86400,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.converge_wait_duration_seconds',
+    name: 'Converge wait duration (seconds)',
+    description:
+      'Default time a converge node waits for incoming branches. Can be overridden per node via wait_duration config field.',
+    helper_text: 'Minimum 1 second. Default: 86400 (24 hours).',
+    category: 'workflow_execution',
+    group: 'Execution',
+    value_type: 'integer',
+    default_value: 86400,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.http_request_timeout_seconds',
+    name: 'HTTP request timeout (seconds)',
+    description:
+      'Maximum execution time for HTTP request activities. If the request does not complete within this time, the activity fails.',
+    helper_text: 'Minimum 1 second. Default: 30.',
+    category: 'workflow_execution',
+    group: 'Execution',
+    value_type: 'integer',
+    default_value: 30,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.continue_on_failure',
+    name: 'Default continue on failure',
+    description:
+      'System-wide default for continue-on-failure behavior. When enabled, downstream nodes continue executing even if an upstream node fails. Individual nodes can override this setting.',
+    helper_text: 'Applies to all node types that support continue-on-failure.',
+    category: 'workflow_execution',
+    group: 'Execution',
+    value_type: 'boolean',
+    default_value: false,
+  }),
+  makeSetting({
+    key: 'workflow_engine.retry_max_retries',
+    name: 'Default max retries',
+    description:
+      'Default number of retry attempts after a node failure. 0 disables retry. Individual nodes can override this setting.',
+    helper_text: 'Minimum 0. Default: 3.',
+    category: 'workflow_execution',
+    group: 'Retry policy',
+    value_type: 'integer',
+    default_value: 3,
+    validation_schema: { min: 0 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.retry_initial_interval',
+    name: 'Default retry initial interval (seconds)',
+    description: 'Default initial wait time before the first retry attempt.',
+    helper_text: 'Minimum 1 second. Default: 1.',
+    category: 'workflow_execution',
+    group: 'Retry policy',
+    value_type: 'integer',
+    default_value: 1,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.retry_max_interval',
+    name: 'Default retry max interval (seconds)',
+    description: 'Maximum wait time between retry attempts when using exponential backoff.',
+    helper_text: 'Minimum 1 second. Default: 60.',
+    category: 'workflow_execution',
+    group: 'Retry policy',
+    value_type: 'integer',
+    default_value: 60,
+    validation_schema: { min: 1 } as unknown as Record<string, never>,
+  }),
+  makeSetting({
+    key: 'workflow_engine.retry_backoff_coefficient',
+    name: 'Default retry backoff coefficient',
+    description: 'Multiplier applied to the retry interval on each attempt when using exponential backoff.',
+    helper_text: 'Minimum 1.0. Default: 2.0.',
+    category: 'workflow_execution',
+    group: 'Retry policy',
+    value_type: 'float',
+    default_value: 2.0,
     validation_schema: { min: 1 } as unknown as Record<string, never>,
   }),
 

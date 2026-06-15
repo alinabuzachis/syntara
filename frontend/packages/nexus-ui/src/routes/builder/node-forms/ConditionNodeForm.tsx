@@ -80,7 +80,7 @@ function ConditionFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  return <NodeFormTabsLayout parametersContent={parametersContent} hideSettingsTab />
 }
 
 export function ConditionNodeForm(props: ConditionNodeFormProps) {

@@ -48,9 +48,6 @@ async def webhook_trigger(
     """
     logger.info("Executing webhook trigger", payload_keys=list(input_config.keys()) if input_config else [])
 
-    full_result = {**input_config, "status": "completed"}
-
-    # Apply output mapping (suppresses fields before Temporal stores it)
-    mapped_output = apply_output_mapping(full_result, output_config)
+    mapped_output = apply_output_mapping(input_config, output_config)
 
     return {"output": mapped_output}

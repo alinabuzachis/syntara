@@ -1,11 +1,15 @@
 """Workflow API endpoints."""
 
-from typing import Annotated
+from collections.abc import Callable, Coroutine
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.responses import Response
 
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
@@ -13,9 +17,12 @@ from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
+from nexus.workflows.error_handlers import build_validation_problem_response
+from nexus.workflows.exceptions import WorkflowDefinitionInvalidError
 from nexus.workflows.executions_router import get_temporal_execution_service
 from nexus.workflows.models import (
     PublishVersionRequest,
+    ValidationIssue,
     Workflow,
     WorkflowCreate,
     WorkflowListParams,
@@ -23,6 +30,9 @@ from nexus.workflows.models import (
     WorkflowRead,
     WorkflowReadWithVersion,
     WorkflowUpdate,
+    WorkflowValidateRequest,
+    WorkflowValidationProblemDetail,
+    WorkflowValidationResult,
     WorkflowVersion,
     WorkflowVersionListResponse,
     WorkflowVersionRead,
@@ -30,7 +40,31 @@ from nexus.workflows.models import (
 from nexus.workflows.models.execution import ExecutionRead, TestExecutionCreate
 from nexus.workflows.services import ExecutionService, WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
+from nexus.workflows.validators import workflow_validator
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
+
+
+class _ValidationRoute(APIRoute):
+    """Converts RequestValidationError into RFC 9457 problem details on 422."""
+
+    def get_route_handler(self) -> Callable[..., Coroutine[Any, Any, Response]]:
+        original = super().get_route_handler()
+
+        async def handler(request: Request) -> Response:
+            try:
+                return await original(request)
+            except RequestValidationError as exc:
+                errors = []
+                for e in exc.errors():
+                    path_parts = [str(p) for p in e["loc"]]
+                    if path_parts and path_parts[0] == "body":
+                        path_parts = path_parts[1:]
+                    errors.append(ValidationIssue(message=f"{' -> '.join(path_parts)}: {e['msg']}"))
+                result = WorkflowValidationResult(valid=False, errors=errors)
+                return build_validation_problem_response(request, result)
+
+        return handler
+
 
 router = NexusRouter(prefix="/workflows", tags=["workflows"])
 
@@ -102,6 +136,30 @@ def get_execution_service(
 # ============================================================================
 # Workflow endpoints
 # ============================================================================
+
+
+_validate_router = NexusRouter(route_class=_ValidationRoute)
+
+
+@_validate_router.post(
+    "/validate",
+    response_model=WorkflowValidationResult,
+    dependencies=[Depends(_wf_perm_create)],
+    operation_id="validate_workflow_definition",
+    response_description="Validation result",
+    responses={422: {"model": WorkflowValidationProblemDetail, "description": "Unprocessable Content"}},
+)
+async def validate_workflow_definition(
+    request: WorkflowValidateRequest,
+) -> WorkflowValidationResult:
+    """Validate a workflow definition without saving it."""
+    result = workflow_validator.collect_validation_issues(request.workflow_definition.model_dump())
+    if not result.valid:
+        raise WorkflowDefinitionInvalidError(result)
+    return result
+
+
+router.include_router(_validate_router)
 
 
 @router.post(
@@ -234,6 +292,7 @@ async def test_workflow_node(
         target_node_id=request.target_node_id,
         pre_resolved_nodes=request.pre_resolved_nodes,
         trigger_inputs=request.trigger_inputs,
+        execute_target=request.execute_target,
     )
 
 

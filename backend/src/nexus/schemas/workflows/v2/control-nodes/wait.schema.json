@@ -2,10 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/wait",
   "title": "Wait Node",
-  "description": "Pause workflow execution for a specified duration",
-  "configSchema": {
+  "description": "Pause workflow execution for a specified duration in seconds.",
+  "parameterSchema": {
     "type": "object",
-    "required": ["duration"],
+    "required": [
+      "duration"
+    ],
     "properties": {
       "duration": {
         "type": "integer",
@@ -16,14 +18,7 @@
     "additionalProperties": false
   },
   "settingSchema": {
-    "type": "object",
-    "properties": {
-      "continue_on_failure": {
-        "type": "boolean",
-        "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
-      }
-    },
-    "additionalProperties": false
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsCof"
   },
   "resultSchema": {
     "description": "Result structure available in result namespace",
@@ -31,7 +26,9 @@
       {
         "title": "Completed Result",
         "type": "object",
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "properties": {
           "status": {
             "type": "string",
@@ -43,7 +40,22 @@
       },
       {
         "title": "Failed Result",
-        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "All executor fields are present but nullable. A null value means the failure occurred before that field was available."
       }
     ],
     "discriminator": {

@@ -579,37 +579,6 @@ describe('AAPPromptOnLaunchFields', () => {
     expect(screen.getByLabelText(/Job slicing/i)).toBeInTheDocument()
   })
 
-  it('renders timeout field when ask_timeout_on_launch is true', () => {
-    mockTemplateDetail.ask_timeout_on_launch = true
-
-    render(
-      <TestWrapper>
-        <PromptOnLaunchFields
-          extraVarsEditorRef={{ current: null }}
-          templateDetail={mockTemplateDetail}
-          isLoadingDetail={false}
-          inventories={[]}
-          loadingInventories={false}
-          executionEnvironments={[]}
-          loadingExecutionEnvironments={false}
-          credentials={[]}
-          loadingCredentials={false}
-          instanceGroups={[]}
-          loadingInstanceGroups={false}
-          onSearchInventories={vi.fn()}
-          onSearchExecutionEnvironments={vi.fn()}
-          onSearchCredentials={vi.fn()}
-          onSearchInstanceGroups={vi.fn()}
-          labels={[]}
-          loadingLabels={false}
-          onSearchLabels={vi.fn()}
-        />
-      </TestWrapper>
-    )
-
-    expect(screen.getByLabelText(/Timeout/i)).toBeInTheDocument()
-  })
-
   it('renders labels field when ask_labels_on_launch is true', () => {
     mockTemplateDetail.ask_labels_on_launch = true
 

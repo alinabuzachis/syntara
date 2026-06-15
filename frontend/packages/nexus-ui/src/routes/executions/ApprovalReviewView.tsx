@@ -35,7 +35,7 @@ import { ApprovalSummaryList } from '../approvals/ApprovalSummaryList'
 
 import { approvalDecisionSchema, type ApprovalDecisionFormData } from './approvalDecisionSchema'
 
-type NextStep = { id: string; name: string; type: string; config?: Record<string, unknown> }
+type NextStep = { id: string; name: string; type: string; parameters?: Record<string, unknown> }
 
 function NextStepSummary({
   step,
@@ -45,7 +45,7 @@ function NextStepSummary({
   resolveName: (id: string, fallback: string) => string
 }) {
   const displayName = resolveName(step.id, step.name)
-  const configEntries = step.config ? Object.entries(step.config).filter(([k]) => k !== 'name') : []
+  const configEntries = step.parameters ? Object.entries(step.parameters).filter(([k]) => k !== 'name') : []
 
   return (
     <Stack hasGutter={false}>

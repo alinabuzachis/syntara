@@ -19,6 +19,7 @@ function makeFormData(overrides: Partial<AAPJobTemplateFormData> = {}): AAPJobTe
     organization_name: '',
     job_template_name: '',
     job_template_id: undefined,
+    settings: {},
     ...overrides,
   }
 }
@@ -151,10 +152,9 @@ describe('buildAAPConfig', () => {
     )
   })
 
-  it('includes number fields (forks, timeout, job_slice_count) when finite', () => {
-    const result = buildAAPConfig(makeFormData({ forks: 10, timeout: 300, job_slice_count: 2 }))
+  it('includes number fields (forks, job_slice_count) when finite', () => {
+    const result = buildAAPConfig(makeFormData({ forks: 10, job_slice_count: 2 }))
     expect(result?.forks).toBe(10)
-    expect(result?.timeout).toBe(300)
     expect(result?.jobSlicing).toBe(2)
   })
 
@@ -205,7 +205,7 @@ describe('buildExpressionModeActivity', () => {
 
     const activity = buildExpressionModeActivity('node-1', 'AAP Job', data)
 
-    expect(activity.config.credential_id).toBe('cred-abc-123')
+    expect(activity.parameters.credential_id).toBe('cred-abc-123')
   })
 
   it('expression mode config has job_template_name but no job_template_id', () => {
@@ -216,9 +216,9 @@ describe('buildExpressionModeActivity', () => {
 
     const activity = buildExpressionModeActivity('node-1', 'AAP Job', data)
 
-    expect(activity.config.job_template_name).toBe('${trigger.template}')
-    expect(activity.config.organization_name).toBe('${trigger.org}')
-    expect(activity.config).not.toHaveProperty('job_template_id')
+    expect(activity.parameters.job_template_name).toBe('${trigger.template}')
+    expect(activity.parameters.organization_name).toBe('${trigger.org}')
+    expect(activity.parameters).not.toHaveProperty('job_template_id')
   })
 })
 
@@ -268,6 +268,7 @@ function makeWorkflowFormData(overrides: Partial<AAPWorkflowTemplateFormData> = 
     organization_name: '',
     workflow_job_template_name: '',
     workflow_job_template_id: undefined,
+    settings: {},
     ...overrides,
   }
 }
@@ -360,10 +361,10 @@ describe('buildWorkflowExpressionModeActivity', () => {
 
     const activity = buildWorkflowExpressionModeActivity('node-2', 'AAP Workflow', data)
 
-    expect(activity.config.workflow_job_template_name).toBe('${trigger.workflow}')
-    expect(activity.config.organization_name).toBe('${trigger.org}')
-    expect(activity.config.credential_id).toBe('cred-123')
-    expect(activity.config).not.toHaveProperty('workflow_job_template_id')
+    expect(activity.parameters.workflow_job_template_name).toBe('${trigger.workflow}')
+    expect(activity.parameters.organization_name).toBe('${trigger.org}')
+    expect(activity.parameters.credential_id).toBe('cred-123')
+    expect(activity.parameters).not.toHaveProperty('workflow_job_template_id')
   })
 
   it('preserves workflow-specific fields in expression mode', () => {
@@ -377,7 +378,7 @@ describe('buildWorkflowExpressionModeActivity', () => {
     const activity = buildWorkflowExpressionModeActivity('node-3', 'Deploy', data)
 
     // Activity config uses snake_case API field names
-    expect(activity.config.scm_branch).toBe('${vars.branch}')
-    expect(activity.config.labels).toEqual(['auto-deploy'])
+    expect(activity.parameters.scm_branch).toBe('${vars.branch}')
+    expect(activity.parameters.labels).toEqual(['auto-deploy'])
   })
 })

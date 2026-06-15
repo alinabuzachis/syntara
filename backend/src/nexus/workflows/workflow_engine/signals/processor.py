@@ -83,7 +83,7 @@ class WorkflowSignalProcessor:
 
             # Get retryable error codes from retry policy config (whitelist approach)
             # Default: common transient server errors that should be retried
-            retryable_codes: list[int] = DEFAULT_RETRYABLE_ERROR_CODES
+            retryable_codes: frozenset[int] | list[int] = DEFAULT_RETRYABLE_ERROR_CODES
             if retry_policy_config:
                 config_codes = retry_policy_config.get("retryableErrors")
                 if config_codes is not None:

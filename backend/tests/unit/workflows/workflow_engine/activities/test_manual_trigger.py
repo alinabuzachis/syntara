@@ -14,14 +14,13 @@ class TestManualTriggerPassThrough:
     async def test_inputs_included_in_output(self) -> None:
         inputs: dict[str, Any] = {"user_name": "alice", "action": "deploy"}
         result = await manual_trigger(inputs, None)
-        assert result["output"]["status"] == "completed"
         assert result["output"]["user_name"] == "alice"
         assert result["output"]["action"] == "deploy"
 
     @pytest.mark.asyncio
     async def test_empty_inputs(self) -> None:
         result = await manual_trigger({}, None)
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_no_control_in_result(self) -> None:
@@ -40,7 +39,7 @@ class TestManualTriggerOutputMapping:
     @pytest.mark.asyncio
     async def test_empty_output_config_suppresses_fields(self) -> None:
         result = await manual_trigger({"key": "val"}, {})
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_field_mapping_extracts_specific_field(self) -> None:
@@ -54,20 +53,29 @@ class TestManualTriggerOutputMapping:
 
 
 class TestManualTriggerStatusOverride:
-    """Input containing 'status' key overrides the default status."""
+    """Input containing 'status' key is treated as user data."""
 
     @pytest.mark.asyncio
-    async def test_status_key_in_input_overrides_completed(self) -> None:
+    async def test_status_key_in_input_passes_through(self) -> None:
         result = await manual_trigger({"status": "custom"}, None)
-        # The implementation uses {**input_config}, so user "status" wins
         assert result["output"]["status"] == "custom"
 
     @pytest.mark.asyncio
-    async def test_status_override_with_output_mapping(self) -> None:
+    async def test_status_key_with_empty_mapping_suppressed(self) -> None:
         result = await manual_trigger({"status": "override"}, {})
-        # Output mapping checks status != "completed", so mapping is skipped
-        # and the raw result is returned
-        assert result["output"]["status"] == "override"
+        assert result["output"] == {}
+
+
+class TestManualTriggerFailure:
+    """Trigger failure produces ApplicationError (no output in result)."""
+
+    @pytest.mark.asyncio
+    async def test_bad_output_mapping_raises_application_error(self) -> None:
+        from temporalio.exceptions import ApplicationError
+
+        with pytest.raises(ApplicationError) as exc_info:
+            await manual_trigger({"key": "val"}, {"x": "${result.nonexistent}"})
+        assert exc_info.value.type == "OutputMappingError"
 
 
 class TestManualTriggerNestedInput:
@@ -75,9 +83,9 @@ class TestManualTriggerNestedInput:
 
     @pytest.mark.asyncio
     async def test_nested_dict_in_input(self) -> None:
-        inputs: dict[str, Any] = {"config": {"key": "value", "nested": {"deep": True}}}
+        inputs: dict[str, Any] = {"foo": {"key": "value", "nested": {"deep": True}}}
         result = await manual_trigger(inputs, None)
-        assert result["output"]["config"] == {"key": "value", "nested": {"deep": True}}
+        assert result["output"]["foo"] == {"key": "value", "nested": {"deep": True}}
 
     @pytest.mark.asyncio
     async def test_list_in_input(self) -> None:

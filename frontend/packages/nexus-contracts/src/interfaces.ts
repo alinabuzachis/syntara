@@ -99,6 +99,7 @@ export const ExecutionStatusEnum = {
   RUNNING: 'running',
   PAUSED: 'paused',
   COMPLETED: 'completed',
+  COMPLETED_WITH_ERRORS: 'completed_with_errors',
   FAILED: 'failed',
   CANCELLED: 'cancelled',
 } as const
@@ -146,35 +147,64 @@ export type V2WorkflowDefinition = WorkflowAPI.components['schemas']['workflow_d
 export type V2RetryPolicy = WorkflowAPI.components['schemas']['retry_policy']
 
 // ============================================================================
-// Config Type Aliases (extracted from generated schemas)
+// Node-Level Settings Types (hand-written — settings live in .schema.json files,
+// not in the OpenAPI spec, so they are not generated)
 // ============================================================================
 
-/** Script node configuration */
+/** Per-node retry policy. All fields are optional — unset fields inherit from the global catalog. */
+export interface RetryPolicyConfig {
+  /** Number of retries after the initial attempt. 0 = explicitly no retry. Absent = use global catalog value. */
+  max_retries?: number
+  /** Backoff strategy. Absent = use global catalog value. */
+  backoff?: 'exponential' | 'fixed'
+  /** Initial retry interval in seconds. Absent = use global catalog value. */
+  initial_interval?: number
+  /** Maximum retry interval in seconds. Absent = use global catalog value. */
+  max_interval?: number
+  /** Multiplier applied to interval on each retry (exponential only). Absent = use global catalog value. */
+  backoff_coefficient?: number
+}
+
+/** Engine-level settings controlling how the workflow engine runs a node. */
+export interface NodeSettings {
+  /** When true, downstream nodes continue executing even if this node fails. */
+  continue_on_failure?: boolean
+  /** Timeout in seconds. Meaning varies by node type. Falls back to the global catalog default when absent. */
+  timeout?: number
+  /** Per-node retry policy. Absent = use all global catalog defaults. */
+  retry_policy?: RetryPolicyConfig
+}
+
+// ============================================================================
+// Parameters Type Aliases (extracted from generated schemas)
+// ============================================================================
+
+/** Script node parameters */
 export type ScriptConfig = WorkflowAPI.components['schemas']['script.schema_configSchema']
 
-/** HTTP request node configuration */
+/** HTTP request node parameters */
 export type HttpRequestConfig = WorkflowAPI.components['schemas']['http_request.schema_configSchema']
 
-/** Agentic (AI agent) node configuration */
+/** Agentic (AI agent) node parameters */
 export type AgenticConfig = WorkflowAPI.components['schemas']['agentic.schema_configSchema']
 
-/** AAP job template node configuration */
+/** AAP job template node parameters */
 export type AAPJobTemplateConfig = WorkflowAPI.components['schemas']['aap_job_template.schema_configSchema']
 
-/** AAP workflow job template node configuration */
+/** AAP workflow job template node parameters */
 export type AAPWorkflowJobTemplateConfig =
   WorkflowAPI.components['schemas']['aap_workflow_job_template.schema_configSchema']
 
-/** Approval node configuration */
+/** Approval node parameters */
 export type ApprovalConfig = WorkflowAPI.components['schemas']['approval.schema_configSchema']
 
-/** Condition node configuration */
+/** Condition node parameters */
 export type ConditionConfig = WorkflowAPI.components['schemas']['condition.schema_configSchema']
 
-/** Loop node configuration (discriminated union: for_each | do_while) */
+/** Loop node parameters (discriminated union: for_each | do_while) */
 export type LoopConfig = WorkflowAPI.components['schemas']['loop.schema_configSchema']
 
-/** Converge node configuration */
+/** Converge node parameters */
 export type ConvergeConfig = WorkflowAPI.components['schemas']['converge.schema_configSchema']
 
 // Inline type until AAP-77227 — replace with generated OpenAPI type via npm run gen
@@ -207,8 +237,7 @@ interface ActivityBase {
   name?: string
   description?: string
   outputs?: Record<string, string>
-  retry_policy?: V2RetryPolicy
-  timeout?: number
+  settings?: NodeSettings
   inputs?: Record<string, unknown>
   metadata?: Record<string, unknown>
   // SECURITY NOTE: Index signature allows arbitrary properties but TypedActivity interfaces
@@ -225,67 +254,67 @@ interface ActivityBase {
 /** Script execution node */
 export interface ScriptActivity extends ActivityBase {
   type: 'script'
-  config: ScriptConfig & { [key: string]: unknown }
+  parameters: ScriptConfig & { [key: string]: unknown }
 }
 
 /** HTTP request node */
 export interface HttpRequestActivity extends ActivityBase {
   type: 'http_request'
-  config: HttpRequestConfig & { [key: string]: unknown }
+  parameters: HttpRequestConfig & { [key: string]: unknown }
 }
 
 /** AI agent node */
 export interface AgenticActivity extends ActivityBase {
   type: 'agentic'
-  config: AgenticConfig & { [key: string]: unknown }
+  parameters: AgenticConfig & { [key: string]: unknown }
 }
 
 /** AAP job template node */
 export interface AAPJobTemplateActivity extends ActivityBase {
   type: 'aap_job_template'
-  config: AAPJobTemplateConfig & { [key: string]: unknown }
+  parameters: AAPJobTemplateConfig & { [key: string]: unknown }
 }
 
 /** AAP workflow job template node */
 export interface AAPWorkflowJobTemplateActivity extends ActivityBase {
   type: 'aap_workflow_job_template'
-  config: AAPWorkflowJobTemplateConfig & { [key: string]: unknown }
+  parameters: AAPWorkflowJobTemplateConfig & { [key: string]: unknown }
 }
 
 /** Approval gate node */
 export interface ApprovalActivity extends ActivityBase {
   type: 'approval'
-  config: ApprovalConfig & { [key: string]: unknown }
+  parameters: ApprovalConfig & { [key: string]: unknown }
 }
 
 /** Conditional branch node */
 export interface ConditionActivity extends ActivityBase {
   type: 'condition'
-  config: ConditionConfig & { [key: string]: unknown }
+  parameters: ConditionConfig & { [key: string]: unknown }
 }
 
 /** Loop iteration node */
 export interface LoopActivity extends ActivityBase {
   type: 'loop'
-  config: LoopConfig & { [key: string]: unknown }
+  parameters: LoopConfig & { [key: string]: unknown }
 }
 
 /** Parallel branch convergence node */
 export interface ConvergeActivity extends ActivityBase {
   type: 'converge'
-  config: ConvergeConfig & { [key: string]: unknown }
+  parameters: ConvergeConfig & { [key: string]: unknown }
 }
 
 /** Multi-case branching node */
 export interface SwitchActivity extends ActivityBase {
   type: 'switch'
-  config: SwitchConfig & { [key: string]: unknown }
+  parameters: SwitchConfig & { [key: string]: unknown }
 }
 
 /** Wait/delay node */
 export interface WaitActivity extends ActivityBase {
   type: 'wait'
-  config: WaitConfig & { [key: string]: unknown }
+  parameters: WaitConfig & { [key: string]: unknown }
 }
 
 // ============================================================================
@@ -293,15 +322,15 @@ export interface WaitActivity extends ActivityBase {
 // ============================================================================
 
 /**
- * Typed activity discriminated union - provides type safety for node configs.
+ * Typed activity discriminated union - provides type safety for node parameters.
  *
- * TypeScript can narrow the config type based on the 'type' discriminator:
+ * TypeScript can narrow the parameters type based on the 'type' discriminator:
  *
  * @example
  * function processActivity(activity: TypedActivity) {
  *   if (activity.type === 'script') {
- *     // activity.config is now ScriptConfig
- *     const language = activity.config.language  // ✅ Type-safe!
+ *     // activity.parameters is now ScriptConfig
+ *     const language = activity.parameters.language  // ✅ Type-safe!
  *   }
  * }
  *
@@ -309,9 +338,9 @@ export interface WaitActivity extends ActivityBase {
  * function getExecutor(activity: TypedActivity): string {
  *   switch (activity.type) {
  *     case 'script':
- *       return `${activity.config.language} script`  // ✅ config is ScriptConfig
+ *       return `${activity.parameters.language} script`  // ✅ parameters is ScriptConfig
  *     case 'http_request':
- *       return `HTTP ${activity.config.method}`  // ✅ config is HttpRequestConfig
+ *       return `HTTP ${activity.parameters.method}`  // ✅ parameters is HttpRequestConfig
  *     // ... TypeScript ensures all cases are handled
  *   }
  * }
@@ -338,17 +367,16 @@ export type TypedActivity =
  *
  * Use TypedActivity for new code to get full type safety.
  *
- * @deprecated Prefer TypedActivity for type-safe config access
+ * @deprecated Prefer TypedActivity for type-safe parameters access
  */
 export interface Activity {
   id: string
   type: string
   name?: string
   description?: string
-  config: Record<string, unknown>
+  parameters: Record<string, unknown>
   outputs?: Record<string, string>
-  retry_policy?: V2RetryPolicy
-  timeout?: number
+  settings?: NodeSettings
   [key: string]: unknown
 }
 

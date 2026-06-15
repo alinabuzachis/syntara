@@ -317,6 +317,12 @@ class TestExecutionCreate(SQLModel):
         description="Mock outputs for predecessor nodes. Keys are node IDs.",
     )
     trigger_inputs: dict[str, Any] = Field(default_factory=dict, description="Input data for the trigger node")
+    execute_target: bool = Field(
+        default=True,
+        description="When False, run predecessors up to (but not including) the target node. "
+        "Useful for populating upstream data without executing the target. "
+        "When True (default), target_node_id must not appear in pre_resolved_nodes.",
+    )
 
     @field_validator("target_node_id")
     @classmethod
@@ -339,8 +345,8 @@ class TestExecutionCreate(SQLModel):
 
     @model_validator(mode="after")
     def validate_target_not_in_pre_resolved(self) -> "TestExecutionCreate":
-        """Reject target_node_id appearing in pre_resolved_nodes."""
-        if self.target_node_id in self.pre_resolved_nodes:
+        """Reject target_node_id appearing in pre_resolved_nodes (unless execute_target is False)."""
+        if self.execute_target and self.target_node_id in self.pre_resolved_nodes:
             msg = (
                 f"target_node_id '{self.target_node_id}' must not appear in "
                 "pre_resolved_nodes — it would be skipped instead of executed"

@@ -43,7 +43,7 @@ describe('SwitchNodeDetails', () => {
     id: 'switch-1',
     type: 'switch',
     name: 'Route Request',
-    config: {
+    parameters: {
       cases: [
         { port: buildSwitchCasePort(0), label: 'Path 1', condition: '${trigger.priority} > 7' },
         { port: buildSwitchCasePort(1), label: 'Path 2', condition: '${trigger.status} == "rejected"' },
@@ -86,7 +86,7 @@ describe('SwitchNodeDetails', () => {
         id: 'switch-empty',
         type: 'switch',
         name: 'Empty Switch',
-        config: { cases: [], default_port: EdgeHandleEnum.DEFAULT },
+        parameters: { cases: [], default_port: EdgeHandleEnum.DEFAULT },
       }
 
       renderWithHeader(<SwitchNodeDetails switchData={emptySwitch} nodeId="switch-empty" onClose={mockOnClose} />)
@@ -99,7 +99,7 @@ describe('SwitchNodeDetails', () => {
         id: 'switch-no-config',
         type: 'switch',
         name: 'No Config',
-        config: {},
+        parameters: {},
       } as unknown as SwitchActivity
 
       renderWithHeader(
@@ -116,7 +116,7 @@ describe('SwitchNodeDetails', () => {
         id: 'switch-eq',
         type: 'switch',
         name: 'Equality Check',
-        config: {
+        parameters: {
           cases: [{ port: buildSwitchCasePort(0), label: 'Path 1', condition: '${status} == "active"' }],
           default_port: EdgeHandleEnum.DEFAULT,
         },
@@ -132,7 +132,7 @@ describe('SwitchNodeDetails', () => {
         id: 'switch-complex',
         type: 'switch',
         name: 'Complex',
-        config: {
+        parameters: {
           cases: [{ port: buildSwitchCasePort(0), label: 'Path 1', condition: 'some_complex && expression || thing' }],
           default_port: EdgeHandleEnum.DEFAULT,
         },
@@ -150,7 +150,7 @@ describe('SwitchNodeDetails', () => {
         id: 'switch-not',
         type: 'switch',
         name: 'Negated',
-        config: {
+        parameters: {
           cases: [{ port: buildSwitchCasePort(0), label: 'Path 1', condition: 'not (${status} == "active")' }],
           default_port: EdgeHandleEnum.DEFAULT,
         },
@@ -184,7 +184,7 @@ describe('SwitchNodeDetails', () => {
         id: 'switch-1',
         type: 'switch',
         name: 'Three Cases',
-        config: {
+        parameters: {
           cases: [
             { port: buildSwitchCasePort(0), label: 'Path A', condition: '${trigger.a} == "1"' },
             { port: buildSwitchCasePort(1), label: 'Path B', condition: '${trigger.b} == "2"' },

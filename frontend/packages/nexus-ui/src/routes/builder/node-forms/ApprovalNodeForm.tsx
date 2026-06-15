@@ -1,36 +1,40 @@
+import type { NodeSettings } from '@ansible/nexus-contracts'
 import {
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   Stack,
   StackItem,
   TextArea,
-  TextInput,
-  Title,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
-import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { TagInput } from '../../../components/forms/TagInput'
-import { secondsToTimeUnits, timeUnitsToSeconds } from '../utils/timeUtils'
+import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
+import { formatDuration } from '../utils/timeUtils'
 
 import { approvalFormSchema, type ApprovalFormData } from './approvalFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
-// Data structure for form submission (name + API approval definition)
-// Note: timeout is in seconds as a number
 export type ApprovalFormSubmitData = {
   name: string
   approvers: string[]
   prompt: string
-  timeout?: number
-  onTimeout?: 'fail' | 'approve' | 'reject'
+  fallback_decision?: 'approve' | 'reject'
+  /** How long (in seconds) the approver has to respond. Stored in config.decision_window. */
+  decision_window?: number
+  settings?: NodeSettings
   metadata?: {
     [key: string]: unknown
   }
@@ -56,7 +60,10 @@ function ApprovalFormFields({
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { approvers?: { message?: string } }
 }) {
-  const { register, control } = useFormContext<ApprovalFormData>()
+  const { register, control, setValue } = useFormContext<ApprovalFormData>()
+  const decisionWindow = useWatch({ control, name: 'decision_window' })
+  const { defaults } = useWorkflowEngineDefaults()
+  const approvalTimeoutDefault = defaults?.timeoutSeconds.approval ?? null
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="approval-name" ariaLabel="Name" />,
@@ -123,106 +130,91 @@ function ApprovalFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <Title headingLevel="h4" size="md" style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}>
-          Timeout after time interval:
-        </Title>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Second(s)" fieldId="approval-timeout-seconds">
-          <TextInput
-            {...register('timeoutSeconds', { valueAsNumber: true })}
-            id="approval-timeout-seconds"
-            placeholder="Enter number of seconds"
-            type="number"
-            min={0}
+        <FormGroup label="Fallback decision" fieldId="approval-fallback-decision">
+          <Controller
+            control={control}
+            name="fallback_decision"
+            render={({ field }) => (
+              <FormSelect
+                id="approval-fallback-decision"
+                aria-label="Fallback decision"
+                value={field.value ?? 'reject'}
+                onChange={(_event, value) => field.onChange(value)}
+              >
+                <FormSelectOption value="reject" label="Reject (default)" />
+                <FormSelectOption value="approve" label="Approve" />
+              </FormSelect>
+            )}
           />
+          <HelperText>
+            <HelperTextItem>
+              Determines the routing path when the approval cannot complete (decision window expired or send failure).
+              Only takes effect when &ldquo;Continue on failure&rdquo; is enabled in the Settings tab.
+            </HelperTextItem>
+          </HelperText>
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Minute(s)" fieldId="approval-timeout-minutes">
-          <TextInput
-            {...register('timeoutMinutes', { valueAsNumber: true })}
-            id="approval-timeout-minutes"
-            placeholder="Enter number of minutes"
-            type="number"
-            min={0}
-          />
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Hour(s)" fieldId="approval-timeout-hours">
-          <TextInput
-            {...register('timeoutHours', { valueAsNumber: true })}
-            id="approval-timeout-hours"
-            placeholder="Enter number of hours"
-            type="number"
-            min={0}
-          />
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Day(s)" fieldId="approval-timeout-days">
-          <TextInput
-            {...register('timeoutDays', { valueAsNumber: true })}
-            id="approval-timeout-days"
-            placeholder="Enter number of days"
-            type="number"
-            min={0}
-          />
+        <FormGroup label="Decision window" fieldId="approval-decision-window-days">
+          <Stack hasGutter>
+            <StackItem>
+              <DurationInput
+                value={decisionWindow}
+                onChange={(val) => setValue('decision_window', val, { shouldDirty: true })}
+                idPrefix="approval-decision-window"
+              />
+            </StackItem>
+            <StackItem>
+              <HelperText>
+                <HelperTextItem>
+                  {approvalTimeoutDefault !== null
+                    ? `How long the approver has to respond before the request expires. Falls back to system default (${formatDuration(approvalTimeoutDefault)}) if not set.`
+                    : 'How long the approver has to respond before the request expires. Falls back to system default if not set.'}
+                </HelperTextItem>
+              </HelperText>
+            </StackItem>
+          </Stack>
         </FormGroup>
       </StackItem>
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const settingsContent = (
+    <NodeSettingsForm
+      supportsTimeout={false}
+      continueOnFailureHelp="When enabled and the approval cannot complete (decision window expired or send failure), the workflow proceeds. The outcome is determined by the fallback decision in the approval config."
+    />
+  )
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
-  // Convert initialData from ApprovalFormSubmitData format (approvers as array, timeout as number)
-  // to ApprovalFormData format (approvers as comma-separated string, timeout broken into units)
   const initialApprovers = props.initialData?.approvers ?? []
-  const initialTimeout = props.initialData?.timeout ?? 86400
-  const timeUnits = secondsToTimeUnits(initialTimeout)
 
   const defaultValues: ApprovalFormData = {
     name: props.initialData?.name ?? '',
     approvers: initialApprovers.join(', '),
     prompt: props.initialData?.prompt ?? '',
-    timeoutSeconds: timeUnits.seconds,
-    timeoutMinutes: timeUnits.minutes,
-    timeoutHours: timeUnits.hours,
-    timeoutDays: timeUnits.days,
-    onTimeout: props.initialData?.onTimeout ?? 'fail',
+    fallback_decision: props.initialData?.fallback_decision ?? 'reject',
+    decision_window: props.initialData?.decision_window,
+    settings: props.initialData?.settings ?? {},
   }
 
   const handleSubmit = (data: ApprovalFormData) => {
-    // Parse comma-separated approvers into array and trim whitespace
     const approversList = data.approvers
       .split(',')
-      .map((email) => email.trim())
-      .filter((email) => email.length > 0)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
 
-    // Convert time units back to total seconds
-    // Ensure all values are valid numbers, default to 0 for undefined/NaN/null
-    const totalTimeoutSeconds = timeUnitsToSeconds(
-      Number(data.timeoutSeconds) || 0,
-      Number(data.timeoutMinutes) || 0,
-      Number(data.timeoutHours) || 0,
-      Number(data.timeoutDays) || 0
-    )
-
-    // Convert form data to API format
-    const submitData: ApprovalFormSubmitData = {
+    props.onSubmit({
       name: data.name.trim(),
       approvers: approversList,
       prompt: data.prompt.trim(),
-      // Timeout is in seconds as a number
-      timeout: totalTimeoutSeconds > 0 ? totalTimeoutSeconds : undefined,
-      // Only include onTimeout if timeout is specified
-      onTimeout: totalTimeoutSeconds > 0 ? (data.onTimeout as 'fail' | 'approve' | 'reject') : undefined,
-    }
-
-    props.onSubmit(submitData)
+      fallback_decision: data.fallback_decision,
+      decision_window: data.decision_window,
+      settings: data.settings,
+    })
   }
 
   const methods = useForm<ApprovalFormData>({

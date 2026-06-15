@@ -18,6 +18,7 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 export type { AAPWorkflowTemplateFormData } from './aapWorkflowTemplateSchema'
 
@@ -200,7 +201,9 @@ function AAPFormFields({
     </Stack>
   )
 
-  return <NodeFormTabsLayout parametersContent={parametersContent} />
+  const settingsContent = <NodeSettingsForm timeoutNodeType="aap" />
+
+  return <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
 }
 
 export function AAPWorkflowTemplateForm(props: Readonly<AAPWorkflowTemplateFormProps>) {
@@ -219,6 +222,7 @@ export function AAPWorkflowTemplateForm(props: Readonly<AAPWorkflowTemplateFormP
     tags: '',
     skip_tags: '',
     labels: [],
+    settings: {},
     ...props.initialData,
   }
 

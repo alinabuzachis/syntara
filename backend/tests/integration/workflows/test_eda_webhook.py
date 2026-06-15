@@ -17,7 +17,6 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.database.audit_session import get_audit_db
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.workflows.models.execution import Execution
@@ -65,14 +64,14 @@ async def eda_workflow(test_db_session: AsyncSession, test_user: User) -> Workfl
     """Create a published workflow with an EDA trigger via the service layer."""
     workflow_definition = {
         "schema_version": "2.0.0",
+        "name": "Test EDA Workflow",
         "triggers": [
             {
                 "id": "eda_trigger_1",
                 "type": "eda_trigger",
-                "config": {
+                "parameters": {
                     "webhook_path": "github-deployments",
                 },
-                "outputs": None,
             }
         ],
         "nodes": [],
@@ -108,15 +107,15 @@ async def eda_workflow_with_schema(test_db_session: AsyncSession, test_user: Use
 
     workflow_definition = {
         "schema_version": "2.0.0",
+        "name": "Test EDA Workflow With Schema",
         "triggers": [
             {
                 "id": "eda_trigger_validated",
                 "type": "eda_trigger",
-                "config": {
+                "parameters": {
                     "webhook_path": "validated-events",
                     "input_schema": input_schema,
                 },
-                "outputs": None,
             }
         ],
         "nodes": [],
@@ -150,7 +149,6 @@ async def temporal_client(
         yield test_db_session
 
     session_app.dependency_overrides[get_db] = override_get_db
-    session_app.dependency_overrides[get_audit_db] = override_get_db
     session_app.dependency_overrides[get_webhook_temporal_service] = lambda: mock_temporal
 
     async with AsyncClient(
@@ -407,8 +405,9 @@ class TestCrossTypePathIsolation:
             labels={},
             workflow_definition={
                 "schema_version": "2.0.0",
+                "name": "Generic Webhook Workflow",
                 "triggers": [
-                    {"id": "wh_1", "type": "webhook_trigger", "config": {"webhook_path": shared_path}},
+                    {"id": "wh_1", "type": "webhook_trigger", "parameters": {"webhook_path": shared_path}},
                 ],
                 "nodes": [],
                 "edges": [],
@@ -423,8 +422,9 @@ class TestCrossTypePathIsolation:
             labels={},
             workflow_definition={
                 "schema_version": "2.0.0",
+                "name": "EDA Webhook Workflow",
                 "triggers": [
-                    {"id": "eda_1", "type": "eda_trigger", "config": {"webhook_path": shared_path}},
+                    {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": shared_path}},
                 ],
                 "nodes": [],
                 "edges": [],
@@ -503,8 +503,9 @@ class TestCrossTypePathIsolation:
             labels={},
             workflow_definition={
                 "schema_version": "2.0.0",
+                "name": "Generic at eda path",
                 "triggers": [
-                    {"id": "wh_1", "type": "webhook_trigger", "config": {"webhook_path": "eda"}},
+                    {"id": "wh_1", "type": "webhook_trigger", "parameters": {"webhook_path": "eda"}},
                 ],
                 "nodes": [],
                 "edges": [],
@@ -519,8 +520,9 @@ class TestCrossTypePathIsolation:
             labels={},
             workflow_definition={
                 "schema_version": "2.0.0",
+                "name": "EDA trigger workflow",
                 "triggers": [
-                    {"id": "eda_1", "type": "eda_trigger", "config": {"webhook_path": "my-trigger"}},
+                    {"id": "eda_1", "type": "eda_trigger", "parameters": {"webhook_path": "my-trigger"}},
                 ],
                 "nodes": [],
                 "edges": [],

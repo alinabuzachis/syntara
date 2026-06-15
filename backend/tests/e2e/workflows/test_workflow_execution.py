@@ -35,7 +35,7 @@ def _workflow_definition_with_nodes(
         {
             "name": workflow_name,
             "schema_version": "2.0.0",
-            "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
             "nodes": list(nodes),
             "edges": edges or [],
         }
@@ -74,7 +74,7 @@ class TestWorkflowExecution:
                     "id": "script_node",
                     "name": "Hello Script",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'Hello from execution test'"},
+                    "parameters": {"language": "bash", "code": "echo 'Hello from execution test'"},
                 },
                 edges=[{"from": "trigger_manual", "to": "script_node"}],
             ),
@@ -173,19 +173,19 @@ class TestWorkflowExecution:
                     "id": "node_a",
                     "name": "First Script",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'Output from node A'"},
+                    "parameters": {"language": "bash", "code": "echo 'Output from node A'"},
                 },
                 {
                     "id": "node_b",
                     "name": "Second Script",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'Output from node B'"},
+                    "parameters": {"language": "bash", "code": "echo 'Output from node B'"},
                 },
                 {
                     "id": "node_c",
                     "name": "Third Script",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'Output from node C'"},
+                    "parameters": {"language": "bash", "code": "echo 'Output from node C'"},
                 },
                 edges=[
                     {"from": "trigger_manual", "to": "node_a"},
@@ -304,7 +304,7 @@ class TestWorkflowExecution:
                     "id": "script_node",
                     "name": "Conditional Script",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'Running script'; exit 0"},
+                    "parameters": {"language": "bash", "code": "echo 'Running script'; exit 0"},
                 },
                 edges=[{"from": "trigger_manual", "to": "script_node"}],
             ),
@@ -329,7 +329,7 @@ class TestWorkflowExecution:
                 "id": "script_node",
                 "name": "Failing Script",
                 "type": "script",
-                "config": {"language": "bash", "code": "echo 'This will fail'; exit 1"},
+                "parameters": {"language": "bash", "code": "echo 'This will fail'; exit 1"},
             },
             edges=[{"from": "trigger_manual", "to": "script_node"}],
         )
@@ -456,7 +456,7 @@ class TestWorkflowExecution:
                     "id": "sleep_node",
                     "name": "Long Running Script",
                     "type": "script",
-                    "config": {
+                    "parameters": {
                         "language": "bash",
                         "code": "echo 'Starting long sleep'; sleep 300; echo 'Sleep completed'",
                     },
@@ -465,7 +465,7 @@ class TestWorkflowExecution:
                     "id": "after_sleep_node",
                     "name": "Node After Sleep",
                     "type": "script",
-                    "config": {"language": "bash", "code": "echo 'This should not execute if cancelled'"},
+                    "parameters": {"language": "bash", "code": "echo 'This should not execute if cancelled'"},
                 },
                 edges=[
                     {"from": "trigger_manual", "to": "sleep_node"},

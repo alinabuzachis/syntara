@@ -36,6 +36,8 @@ async def create_approval_request_activity(
     workflow_context: dict[str, Any],
     timeout_at: str | None = None,
     next_step_rejected: dict[str, Any] | None = None,
+    approver_user_ids: list[str] | None = None,
+    approver_group_ids: list[str] | None = None,
 ) -> NoReturn:
     """Create an approval request via the Approvals API.
 
@@ -51,6 +53,8 @@ async def create_approval_request_activity(
         workflow_context: Context dict (workflow_version_id, workflow_name, inputs, previous_step).
         timeout_at: ISO datetime string when the request expires, or None.
         next_step_rejected: First activity if rejected (id, name, type), or None.
+        approver_user_ids: List of user UUIDs who can approve (None = any user with permission).
+        approver_group_ids: List of group UUIDs whose members can approve.
 
     Raises:
         ApprovalActivityError: If approval request creation fails.
@@ -72,6 +76,8 @@ async def create_approval_request_activity(
         "workflow_context": workflow_context,
         "timeout_at": timeout_at,
         "next_step_rejected": next_step_rejected,
+        "approver_user_ids": approver_user_ids,
+        "approver_group_ids": approver_group_ids,
     }
 
     try:

@@ -77,4 +77,5 @@ class RoleLifecycleHandler(AuditEventHandler[RoleLifecycleEvent]):
             source_component="nexus.authz",
             structured_data=data,
             resource_urn=f"urn:nexus:role:{event.role_id}",
+            resource_name=event.role_name,
         )

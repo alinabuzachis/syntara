@@ -54,7 +54,14 @@ export default function registerActionNode() {
           })
           const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) => {
             if (data.executor === ExecutorTypeEnum.SCRIPT && data.language && data.code) {
-              return createScriptActivity(id, name, data.language, data.code, data.credential_id)
+              return createScriptActivity({
+                id: id,
+                name: name,
+                language: data.language,
+                code: data.code,
+                credentialId: data.credential_id,
+                settings: data.settings,
+              })
             }
             if (data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.method && data.url) {
               return createApiActivity({

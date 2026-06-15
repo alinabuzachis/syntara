@@ -8,22 +8,15 @@ from typing import TYPE_CHECKING, NamedTuple
 import structlog
 
 from nexus.audit.models.audit_event import ActorType, AuditEvent
-from nexus.audit.otel_logging import AUDIT_LOGGER_NAME
 from nexus.audit.outbox.worker import get_outbox_worker
 from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
-from nexus.core.config.base import get_settings
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
-audit_logger = structlog.stdlib.get_logger(AUDIT_LOGGER_NAME)
-
-# Operational logger for diagnostics when audit emission itself fails.
-# Deliberately separate from ``audit_logger`` so failure notices don't
-# pollute the audit stream.
 logger = structlog.stdlib.get_logger(__name__)
 
 
@@ -113,15 +106,7 @@ def _do_emit_audit_event(event: AuditEvent, session: Session | None = None) -> N
                 If None, creates a background task to write to outbox with a new session.
 
     """
-    # Check if auditing is globally enabled
-    settings = get_settings()
-    if not settings.auditing_enabled:
-        return
-
-    # Emit as structured log entry for downstream log aggregation.
-    event_dict = event.model_dump(mode="json")
-    audit_logger.info("audit_event", **event_dict)
-
     # Write to outbox table for guaranteed delivery
+    logger.info("Writing AuditEvent to Audit outbox")
     outbox_worker = get_outbox_worker()
     outbox_worker.write_to_outbox(event, session)

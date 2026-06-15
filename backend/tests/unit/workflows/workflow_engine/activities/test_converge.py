@@ -17,7 +17,6 @@ class TestConvergeMergeResults:
             "node_b": {"value": 2},
         }
         result = await converge({}, None, predecessors)
-        assert result["output"]["status"] == "completed"
         assert result["output"]["branch_count"] == 2
         assert result["output"]["completed_count"] == 2
         assert set(result["output"]["completed_branch_node_ids"]) == {"node_a", "node_b"}
@@ -36,7 +35,6 @@ class TestConvergeEmptyPredecessors:
     @pytest.mark.asyncio
     async def test_empty_predecessors(self) -> None:
         result = await converge({}, None, {})
-        assert result["output"]["status"] == "completed"
         assert result["output"]["branch_count"] == 0
         assert result["output"]["completed_count"] == 0
         assert result["output"]["completed_branch_node_ids"] == []
@@ -54,7 +52,7 @@ class TestConvergeOutputMapping:
     @pytest.mark.asyncio
     async def test_empty_output_config_suppresses_fields(self) -> None:
         result = await converge({}, {}, {"a": {"v": 1}})
-        assert result["output"] == {"status": "completed"}
+        assert result["output"] == {}
 
     @pytest.mark.asyncio
     async def test_field_mapping_extracts_count(self) -> None:
@@ -97,7 +95,6 @@ class TestConvergePredecessorValuesNotLeaked:
     @pytest.mark.asyncio
     async def test_input_config_strategy_all_default(self) -> None:
         result = await converge({}, None, {"a": {}})
-        assert result["output"]["status"] == "completed"
         assert result["output"]["branch_count"] == 1
 
 
@@ -112,7 +109,6 @@ class TestConvergeAnyStrategy:
         }
         config = {"strategy": "any", "n_required": 2, "total_branches": 3}
         result = await converge(config, None, predecessors)
-        assert result["output"]["status"] == "completed"
         assert result["output"]["branch_count"] == 3
         assert result["output"]["completed_count"] == 2
         assert set(result["output"]["completed_branch_node_ids"]) == {"node_a", "node_b"}
@@ -184,5 +180,4 @@ class TestConvergeAnyStrategy:
     async def test_strategy_any_without_n_required(self) -> None:
         config = {"strategy": "any", "total_branches": 3}
         result = await converge(config, None, {"a": {}})
-        assert result["output"]["status"] == "completed"
         assert result["output"]["completed_count"] == 1

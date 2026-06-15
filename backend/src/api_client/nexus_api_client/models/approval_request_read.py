@@ -14,6 +14,8 @@ from ..types import UNSET, Unset
 if TYPE_CHECKING:
     from ..models.activity_summary import ActivitySummary
     from ..models.approval_request_read_labels import ApprovalRequestReadLabels
+    from ..models.approver_group_summary import ApproverGroupSummary
+    from ..models.approver_user_summary import ApproverUserSummary
     from ..models.user_reference import UserReference
     from ..models.workflow_context import WorkflowContext
 
@@ -52,6 +54,9 @@ class ApprovalRequestRead:
             status (ApprovalRequestStatus | Unset): Approval request status enumeration.
             timeout_at (datetime.datetime | None | Unset): When this request expires
             next_step_rejected (ActivitySummary | None | Unset): First activity that executes if rejected
+            approver_users (list[ApproverUserSummary] | Unset): Users who can approve this request (empty = any user with
+                permission)
+            approver_groups (list[ApproverGroupSummary] | Unset): Groups whose members can approve this request
             decided_by (None | Unset | UserReference): User who made the decision
             decided_at (datetime.datetime | None | Unset): When decision was made
             decision_notes (None | str | Unset): Notes provided with decision
@@ -70,6 +75,8 @@ class ApprovalRequestRead:
     status: ApprovalRequestStatus | Unset = UNSET
     timeout_at: datetime.datetime | None | Unset = UNSET
     next_step_rejected: ActivitySummary | None | Unset = UNSET
+    approver_users: list[ApproverUserSummary] | Unset = UNSET
+    approver_groups: list[ApproverGroupSummary] | Unset = UNSET
     decided_by: None | Unset | UserReference = UNSET
     decided_at: datetime.datetime | None | Unset = UNSET
     decision_notes: None | str | Unset = UNSET
@@ -132,6 +139,20 @@ class ApprovalRequestRead:
         else:
             next_step_rejected = self.next_step_rejected
 
+        approver_users: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.approver_users, Unset):
+            approver_users = []
+            for approver_users_item_data in self.approver_users:
+                approver_users_item = approver_users_item_data.to_dict()
+                approver_users.append(approver_users_item)
+
+        approver_groups: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.approver_groups, Unset):
+            approver_groups = []
+            for approver_groups_item_data in self.approver_groups:
+                approver_groups_item = approver_groups_item_data.to_dict()
+                approver_groups.append(approver_groups_item)
+
         decided_by: dict[str, Any] | None | Unset
         if isinstance(self.decided_by, Unset):
             decided_by = UNSET
@@ -181,6 +202,10 @@ class ApprovalRequestRead:
             field_dict["timeout_at"] = timeout_at
         if next_step_rejected is not UNSET:
             field_dict["next_step_rejected"] = next_step_rejected
+        if approver_users is not UNSET:
+            field_dict["approver_users"] = approver_users
+        if approver_groups is not UNSET:
+            field_dict["approver_groups"] = approver_groups
         if decided_by is not UNSET:
             field_dict["decided_by"] = decided_by
         if decided_at is not UNSET:
@@ -194,6 +219,8 @@ class ApprovalRequestRead:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.activity_summary import ActivitySummary
         from ..models.approval_request_read_labels import ApprovalRequestReadLabels
+        from ..models.approver_group_summary import ApproverGroupSummary
+        from ..models.approver_user_summary import ApproverUserSummary
         from ..models.user_reference import UserReference
         from ..models.workflow_context import WorkflowContext
 
@@ -294,6 +321,24 @@ class ApprovalRequestRead:
 
         next_step_rejected = _parse_next_step_rejected(d.pop("next_step_rejected", UNSET))
 
+        _approver_users = d.pop("approver_users", UNSET)
+        approver_users: list[ApproverUserSummary] | Unset = UNSET
+        if _approver_users is not UNSET:
+            approver_users = []
+            for approver_users_item_data in _approver_users:
+                approver_users_item = ApproverUserSummary.from_dict(approver_users_item_data)
+
+                approver_users.append(approver_users_item)
+
+        _approver_groups = d.pop("approver_groups", UNSET)
+        approver_groups: list[ApproverGroupSummary] | Unset = UNSET
+        if _approver_groups is not UNSET:
+            approver_groups = []
+            for approver_groups_item_data in _approver_groups:
+                approver_groups_item = ApproverGroupSummary.from_dict(approver_groups_item_data)
+
+                approver_groups.append(approver_groups_item)
+
         def _parse_decided_by(data: object) -> None | Unset | UserReference:
             if data is None:
                 return data
@@ -351,6 +396,8 @@ class ApprovalRequestRead:
             status=status,
             timeout_at=timeout_at,
             next_step_rejected=next_step_rejected,
+            approver_users=approver_users,
+            approver_groups=approver_groups,
             decided_by=decided_by,
             decided_at=decided_at,
             decision_notes=decision_notes,

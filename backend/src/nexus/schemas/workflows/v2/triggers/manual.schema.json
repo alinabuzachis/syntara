@@ -3,7 +3,7 @@
   "$id": "https://syntara-orchestration.io/schemas/workflows/v2/triggers/manual",
   "title": "Manual Trigger Node",
   "description": "Workflow entry point triggered manually with user-provided inputs",
-  "configSchema": {
+  "parameterSchema": {
     "type": "object",
     "properties": {
       "input_schema": {
@@ -16,7 +16,32 @@
   },
   "resultSchema": {
     "description": "Trigger result is the user-provided input data validated against the input_schema",
-    "type": "object",
-    "additionalProperties": true
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "description": "Pass-through of user-provided input data",
+        "additionalProperties": true
+      },
+      {
+        "title": "Failed Result",
+        "type": "object",
+        "description": "Trigger failure output for reporting purposes",
+        "required": ["status", "error"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
   }
 }

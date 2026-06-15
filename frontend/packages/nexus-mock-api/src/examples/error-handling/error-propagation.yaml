@@ -11,7 +11,7 @@ nodes:
   - id: first_task
     name: First Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "First task successful"
@@ -20,7 +20,7 @@ nodes:
   - id: second_task
     name: Second Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Second task fails"
@@ -29,7 +29,7 @@ nodes:
   - id: third_task
     name: Third Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "This should not execute if second task fails"

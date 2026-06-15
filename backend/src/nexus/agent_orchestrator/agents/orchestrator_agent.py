@@ -153,6 +153,11 @@ class OrchestratorAgent:
         request_id = state.get("request_id", None)
         original_prompt = state["original_prompt"]
 
+        # Extract activity context from metadata for audit correlation
+        metadata = state.get("metadata", {}) or {}
+        activity_id = metadata.get("activity_id")
+        activity_name = metadata.get("activity_name")
+
         try:
             logger.debug("Calling context manager for session", session_id=session_id)
 
@@ -161,6 +166,7 @@ class OrchestratorAgent:
 
             # Call context manager using PR 168 pattern with configurable timeout
             user_id = actor_context.actor_id if actor_context else None
+
             context_package = await asyncio.wait_for(
                 self.context_manager.plan_request(
                     session_id=session_id,
@@ -169,6 +175,8 @@ class OrchestratorAgent:
                     request_id=request_id,
                     query=original_prompt,
                     user_id=user_id,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 ),
                 timeout=timeout,
             )
@@ -196,6 +204,8 @@ class OrchestratorAgent:
                     status=ContextIntegrationStatus.SUCCESS,
                     grounding_score=context_package.grounding_score,
                     citations_count=len(context_package.citations) if context_package.citations else 0,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
 
@@ -216,6 +226,8 @@ class OrchestratorAgent:
                     execution_id=execution_id,
                     request_id=request_id,
                     status=ContextIntegrationStatus.TIMEOUT,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
 
@@ -243,6 +255,8 @@ class OrchestratorAgent:
                     execution_id=execution_id,
                     request_id=request_id,
                     status=ContextIntegrationStatus.FALLBACK,
+                    activity_id=activity_id,
+                    activity_name=activity_name,
                 )
             )
 
@@ -329,6 +343,8 @@ class OrchestratorAgent:
         routed_state["current_agent"] = target_agent
 
         duration_ms = (time.perf_counter() - start) * 1000
+        routed_state["routing_duration_ms"] = duration_ms
+
         recorder = get_metrics_recorder()
         recorder.record(
             MetricType.AGENT_ROUTING_DURATION,
