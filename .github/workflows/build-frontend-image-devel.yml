@@ -4,10 +4,10 @@ name: Deploy Frontend to Production
 on:
   push:
     branches:
-      - main
+      - devel
     paths:
       - 'frontend/**'
-      - '.github/workflows/build-frontend-image-main.yml'
+      - '.github/workflows/build-frontend-image-devel.yml'
   workflow_dispatch:
 
 jobs:

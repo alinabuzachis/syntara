@@ -3,14 +3,14 @@ name: CI Backend
 
 on:
   pull_request:
-    branches: [main]
+    branches: [devel]
     paths:
       - 'backend/**'
       - '.github/**'
   merge_group:
-    branches: [main]
+    branches: [devel]
   push:
-    branches: [main]
+    branches: [devel]
     paths:
       - 'backend/**'
       - '.github/**'
