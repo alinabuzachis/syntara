@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Get PR metadata
         id: pr
-        uses: actions/github-script@v9
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
             const pr = await github.rest.pulls.get({
@@ -42,7 +42,7 @@ jobs:
 
       - name: Dispatch baseline workflow
         if: steps.pr.outcome == 'success'
-        uses: actions/github-script@v9
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
             await github.rest.actions.createWorkflowDispatch({
