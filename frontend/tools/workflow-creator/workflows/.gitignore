@@ -1,4 +1,3 @@
 # Ignore all JSON files in this directory (used for temporary PR review workflows)
 *.json
 !.gitkeep
-

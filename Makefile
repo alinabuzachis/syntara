@@ -1,7 +1,8 @@
 COMPOSE_CMD ?= uv run podman-compose
 
 .PHONY: help install format lint test test-all typecheck dev gen-contracts \
-       services-up services-down services-logs secrets db-migrate db-seed setup sync
+       services-up services-down services-logs secrets db-migrate db-seed setup sync \
+       pre-commit-install
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -11,6 +12,11 @@ help: ## Show available targets
 install: ## Install backend and frontend dependencies
 	$(MAKE) -C backend install
 	cd frontend && npm ci
+	$(MAKE) pre-commit-install
+
+pre-commit-install: ## Install pre-commit hooks
+	uv run pre-commit install
+	uv run pre-commit install --hook-type commit-msg
 
 dev: ## Start backend API and frontend dev servers
 	$(MAKE) -C backend dev &

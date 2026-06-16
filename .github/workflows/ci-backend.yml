@@ -42,11 +42,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-${{ hashFiles('backend/.pre-commit-config.yaml') }}
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Run pre-commit
-        run: uv run pre-commit run --all-files
-        working-directory: backend
+        run: uv run --project backend pre-commit run --all-files
+        env:
+          SKIP: frontend-prettier,frontend-eslint,frontend-tsc
 
   mypy:
     runs-on: ubuntu-latest

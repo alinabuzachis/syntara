@@ -1,0 +1,168 @@
+---
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
+
+exclude: ^\.tekton/
+
+repos:
+  # =========================================================================
+  # Universal hooks (all files)
+  # =========================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-json
+        exclude: tsconfig.*\.json$
+      - id: check-toml
+      - id: check-yaml
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [--verbose]
+
+  # =========================================================================
+  # Backend hooks (Python — scoped to backend/)
+  # =========================================================================
+  - repo: local
+    hooks:
+      - id: backend-ruff-format
+        name: 'backend: ruff format'
+        entry: make -C backend ruff
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-pyrefly
+        name: 'backend: pyrefly type checking'
+        entry: make -C backend typecheck-pyrefly
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-sync-requirements
+        name: 'backend: sync requirements.txt with uv.lock'
+        entry: make -C backend sync-requirements
+        language: system
+        pass_filenames: false
+        files: ^backend/(uv\.lock|pyproject\.toml|requirements\.txt)$
+
+      - id: backend-api-spec-validation
+        name: 'backend: validate openapi sub-spec syntax'
+        entry: make -C backend api-spec-validation
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.(yaml|yml|py)$
+
+      - id: backend-api-spec-bundle
+        name: 'backend: bundle openapi sub-specs'
+        entry: make -C backend api-spec-bundle
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.(yaml|yml|py)$
+
+      - id: backend-api-spec-drift
+        name: 'backend: check openapi spec matches implementation'
+        entry: make -C backend api-spec-drift
+        verbose: true
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-generate-api-client
+        name: 'backend: generate python api client'
+        entry: make -C backend generate-api-client
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.(yaml|yml|py)$
+
+      - id: backend-check-api-paths
+        name: 'backend: check API paths use snake_case'
+        entry: make -C backend check-api-paths
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-check-dead-code
+        name: 'backend: check for dead code (vulture)'
+        entry: make -C backend check-dead-code
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-check-cycles
+        name: 'backend: check for import cycles (pyan3)'
+        entry: make -C backend check-cycles
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-check-orphans
+        name: 'backend: check for orphan modules'
+        entry: make -C backend check-orphans
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      - id: backend-verify-test-structure
+        name: 'backend: verify test structure matches source'
+        entry: make -C backend verify-test-structure
+        language: system
+        pass_filenames: false
+        files: ^backend/(tests/|src/nexus/)
+
+  # =========================================================================
+  # Frontend hooks (Node.js — scoped to frontend/)
+  # =========================================================================
+  - repo: local
+    hooks:
+      - id: frontend-prettier
+        name: 'frontend: prettier format'
+        entry: npm --prefix frontend run format
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx|js|jsx|json|yml|yaml|md|css)$
+
+      - id: frontend-eslint
+        name: 'frontend: eslint'
+        entry: npm --prefix frontend run lint
+        language: system
+        pass_filenames: false
+        files: ^frontend/packages/nexus-ui/(src|\.storybook)/.*\.(ts|tsx|js|jsx)$
+
+      - id: frontend-tsc
+        name: 'frontend: typescript type check'
+        entry: npm --prefix frontend run tsc
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx)$
+
+  # =========================================================================
+  # YAML formatting (all YAML files except Tekton)
+  # =========================================================================
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.21.0
+    hooks:
+      - id: yamlfmt
+        args:
+          - --formatter
+          - include_document_start=true,retain_line_breaks=true,scan_folded_as_literal=true

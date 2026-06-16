@@ -32,8 +32,7 @@
     "podman:build:mock-api": "podman build -f packages/nexus-mock-api/Containerfile -t nexus-mock-api:latest -t ghcr.io/syntara-orchestration/syntara-mock-api:latest .",
     "podman:run": "concurrently npm:podman:run:* -c auto",
     "podman:run:ui": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest",
-    "podman:run:mock-api": "podman run --rm -p 3000:3000 --name nexus-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest",
-    "prepare": "husky"
+    "podman:run:mock-api": "podman run --rm -p 3000:3000 --name nexus-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest"
   },
   "workspaces": [
     "packages/*"
@@ -56,37 +55,10 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-x": "^4.16.2",
     "eslint-plugin-no-only-tests": "^3.3.0",
-    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
-    "lint-staged": "^16.4.0",
     "mermaid": "^11.15.0",
     "prettier": "^3.8.3",
     "vitest": "^4.1.7"
-  },
-  "lint-staged": {
-    "*.{json,yml,yaml}": [
-      "prettier --write"
-    ],
-    "*.md": [
-      "prettier --write",
-      "node scripts/lint-mermaid.js"
-    ],
-    "packages/nexus-ui/{src,.storybook}/**/*.{ts,tsx,js,jsx}": [
-      "prettier --write",
-      "eslint --fix --config packages/nexus-ui/eslint.config.js"
-    ],
-    "packages/nexus-ui/{e2e,scripts}/**/*.{ts,tsx,js,jsx}": [
-      "prettier --write"
-    ],
-    "packages/nexus-contracts/**/*.ts": [
-      "prettier --write"
-    ],
-    "packages/nexus-mock-api/**/*.ts": [
-      "prettier --write"
-    ],
-    "scripts/**/*.js": [
-      "prettier --write"
-    ]
   },
   "os": [
     "darwin",
