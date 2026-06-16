@@ -219,6 +219,102 @@ class TestOtelAuditPipeline:
             for handler in otel_logger.handlers[:]:
                 otel_logger.removeHandler(handler)
 
+    def test_configure_otel_logging_when_disabled_adds_only_stdout_handler(
+        self,
+        override_settings,
+    ) -> None:
+        """configure_otel_logging adds only stdout handler when OTEL is disabled."""
+        with override_settings(
+            otel_enabled=False,
+        ):
+            configure_otel_logging()
+
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+
+            # Should have exactly 1 handler: stdout only
+            assert len(otel_logger.handlers) == 1, "Should have only stdout handler when OTEL is disabled"
+
+            # Verify handler type
+            handler = otel_logger.handlers[0]
+            assert isinstance(handler, logging.StreamHandler), "Handler should be StreamHandler"
+            assert type(handler).__name__ == "StreamHandler", "Should be StreamHandler, not OTEL LoggingHandler"
+
+            # Verify propagate is False (prevents duplicate logs in root logger)
+            assert otel_logger.propagate is False, "Should not propagate to avoid duplicates"
+
+            # Verify logger level is set to NOTSET (allows all levels)
+            assert otel_logger.level == logging.NOTSET, "Logger level should be NOTSET"
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    def test_configure_otel_logging_when_disabled_transitions_to_configured_state(
+        self,
+        override_settings,
+    ) -> None:
+        """configure_otel_logging transitions to CONFIGURED state even when OTEL is disabled."""
+        import nexus.audit.otel_logging as otel_module
+
+        with override_settings(
+            otel_enabled=False,
+        ):
+            # Initial state is UNCONFIGURED (guaranteed by fixture)
+            configure_otel_logging()
+
+            # Verify state transitioned to CONFIGURED
+            with otel_module._otel_state_lock:
+                assert otel_module._otel_state == OtelLoggingState.CONFIGURED
+
+            # Verify subsequent calls are idempotent
+            configure_otel_logging()
+
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+            assert len(otel_logger.handlers) == 1, "Should still have exactly one handler"
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    def test_audit_events_logged_to_stdout_when_otel_disabled(
+        self,
+        override_settings,
+    ) -> None:
+        """Audit events can be logged through stream handler when OTEL is disabled."""
+        import io
+        from unittest.mock import patch
+
+        with override_settings(
+            otel_enabled=False,
+        ):
+            # Capture stderr (StreamHandler default) to verify logs are written
+            with patch("sys.stderr", new=io.StringIO()) as mock_stderr:
+                configure_otel_logging()
+
+                # Verify the stream handler was configured and can emit logs
+                otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+
+                # Emit a test log
+                test_record = logging.LogRecord(
+                    name=OTEL_AUDIT_LOGGER_NAME,
+                    level=logging.INFO,
+                    pathname="test",
+                    lineno=1,
+                    msg="test audit event",
+                    args=(),
+                    exc_info=None,
+                )
+                otel_logger.handle(test_record)
+
+                # Verify something was written to stderr
+                output = mock_stderr.getvalue()
+                assert len(output) > 0, "Should write to stderr when OTEL is disabled"
+                assert "test audit event" in output, "Should contain the log message"
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
 
 class TestOtelEndpointValidation:
     """Tests for OTLP endpoint security validation."""
