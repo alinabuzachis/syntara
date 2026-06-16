@@ -2,14 +2,14 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Default — catch-all for anything not matched below
-* @matburt @jewzaam @robinbobbitt @TheRealHaoLiu @zkayyali812 @hakbailey
+* @syntara-orchestration/syntara-leads
 
 # Backend (Python/FastAPI)
-/backend/ @hakbailey @manstis @bzwei @AaronH88 @thenets @alisonlhart @Qalthos @Alex-Izquierdo
+/backend/ @syntara-orchestration/syntara-backend
 
 # Frontend (React/TypeScript)
-/frontend/ @hakbailey @gitdallas @nixocio @lgalis @skochay330 @mfrances17 @nicklemmon
+/frontend/ @syntara-orchestration/ui-team
 
 # UX design system — requires UX team review
-/frontend/.claude/skills/patternfly-ux-design-system.md @trahman73 @tiyiprh @aratti96
-/frontend/.cursor/rules/patternfly-ux-design-system.mdc @trahman73 @tiyiprh @aratti96
+/frontend/.claude/skills/patternfly-ux-design-system.md @syntara-orchestration/uxd-team
+/frontend/.cursor/rules/patternfly-ux-design-system.mdc @syntara-orchestration/uxd-team
