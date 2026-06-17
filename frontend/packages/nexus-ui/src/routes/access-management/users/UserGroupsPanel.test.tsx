@@ -57,6 +57,15 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const mockGroups = [
   {
+    id: 'g-auth',
+    name: 'authenticated',
+    description: 'All authenticated users',
+    is_builtin: true,
+    source: 'local',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
     id: 'g1',
     name: 'platform-admins',
     description: 'Full admins',
@@ -132,7 +141,7 @@ describe('UserGroupsPanel', () => {
 
       const table = screen.getByRole('grid', { name: 'User groups table' })
       const rows = within(table).getAllByRole('row')
-      // rows[0] is the header row, rows[1] is synthetic authenticated
+      // rows[0] is the header row
       expect(within(rows[1]).getByText('authenticated')).toBeInTheDocument()
       expect(within(rows[2]).getByText('platform-admins')).toBeInTheDocument()
       expect(within(rows[3]).getByText('developers')).toBeInTheDocument()
@@ -383,7 +392,7 @@ describe('UserGroupsPanel', () => {
 
       const table = screen.getByRole('grid', { name: 'User groups table' })
       const rows = within(table).getAllByRole('row')
-      // rows[1] is synthetic authenticated (no actions), rows[2] is first user group
+      // rows[1] is authenticated (no actions), rows[2] is first user group
       const actionsButtons = within(rows[2]).getAllByRole('button')
       expect(actionsButtons.length).toBeGreaterThan(0)
     })
@@ -464,8 +473,8 @@ describe('UserGroupsPanel', () => {
 
       const table = screen.getByRole('grid', { name: 'User groups table' })
       const rows = within(table).getAllByRole('row')
-      // rows[1] is synthetic authenticated (no actions), rows[2] is the auditors group
-      const actionsButtons = within(rows[2]).getAllByRole('button')
+      // rows[0] is header, rows[1] is the auditors group
+      const actionsButtons = within(rows[1]).getAllByRole('button')
       expect(actionsButtons.length).toBeGreaterThan(0)
     })
 
@@ -514,7 +523,7 @@ describe('UserGroupsPanel', () => {
 
       render(<UserGroupsPanel userId="user-123" />, { wrapper })
 
-      // Open actions menu for the first user group (rows[1] is authenticated, rows[2] is first user group)
+      // Open actions menu for the first user group (rows[2] is first user group)
       const table = screen.getByRole('grid', { name: 'User groups table' })
       const rows = within(table).getAllByRole('row')
       const actionsButtons = within(rows[2]).getAllByRole('button')
@@ -729,27 +738,14 @@ describe('UserGroupsPanel', () => {
     })
   })
 
-  describe('Authenticated group augmentation', () => {
-    it('adds authenticated group from allGroups when user groups do not include it', () => {
-      vi.mocked(useAllGroups).mockReturnValue({
-        groups: [
-          {
-            id: 'g-auth',
-            name: 'authenticated',
-            description: 'All authenticated users',
-            created_at: '2026-01-01T00:00:00Z',
-            updated_at: '2026-01-02T00:00:00Z',
-            is_builtin: true,
-          },
-        ],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+  describe('Authenticated group from API', () => {
+    it('displays authenticated group returned by API with All users label', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}/groups') {
           return {
-            data: { resources: [mockGroups[0]] },
+            data: {
+              resources: [mockGroups[0], mockGroups[1]],
+            },
             isPending: false,
             isError: false,
             error: null,
@@ -769,94 +765,9 @@ describe('UserGroupsPanel', () => {
 
       render(<UserGroupsPanel userId="user-123" />, { wrapper })
 
-      // authenticated group should be shown with "All users" label
       expect(screen.getByText('authenticated')).toBeInTheDocument()
       expect(screen.getByText('All users')).toBeInTheDocument()
-      // platform-admins should also be shown
       expect(screen.getByText('platform-admins')).toBeInTheDocument()
-    })
-
-    it('shows synthetic authenticated group when useAllGroups returns empty (no group:read permission)', () => {
-      vi.mocked(useAllGroups).mockReturnValue({
-        groups: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
-      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
-        if (path === '/users/{user_id}/groups') {
-          return {
-            data: { resources: [mockGroups[0]] },
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
-        return {
-          data: { resources: [] },
-          isPending: false,
-          isError: false,
-          error: null,
-          isFetching: false,
-          refetch: vi.fn(),
-        } as never
-      })
-
-      render(<UserGroupsPanel userId="user-123" />, { wrapper })
-
-      // Synthetic authenticated group should be shown with "All users" label
-      expect(screen.getByText('authenticated')).toBeInTheDocument()
-      expect(screen.getByText('All users')).toBeInTheDocument()
-      // User's real group should also be shown
-      expect(screen.getByText('platform-admins')).toBeInTheDocument()
-
-      // Verify there are 3 rows total (header + authenticated + platform-admins)
-      const table = screen.getByRole('grid', { name: 'User groups table' })
-      const rows = within(table).getAllByRole('row')
-      expect(rows).toHaveLength(3)
-    })
-
-    it('synthetic authenticated group has no remove action', () => {
-      vi.mocked(useAllGroups).mockReturnValue({
-        groups: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
-      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
-        if (path === '/users/{user_id}/groups') {
-          return {
-            data: { resources: [mockGroups[0]] },
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
-        return {
-          data: { resources: [] },
-          isPending: false,
-          isError: false,
-          error: null,
-          isFetching: false,
-          refetch: vi.fn(),
-        } as never
-      })
-
-      render(<UserGroupsPanel userId="user-123" />, { wrapper })
-
-      // Synthetic authenticated group should render in the first data row
-      expect(screen.getByText('authenticated')).toBeInTheDocument()
-      expect(screen.getByText('All users')).toBeInTheDocument()
-
-      // The authenticated row (first data row) should not have an actions button
-      const table = screen.getByRole('grid', { name: 'User groups table' })
-      const rows = within(table).getAllByRole('row')
-      const authenticatedRow = rows[1]
-      expect(within(authenticatedRow).queryByRole('button')).not.toBeInTheDocument()
     })
   })
 
@@ -1049,19 +960,18 @@ describe('UserGroupsPanel', () => {
 
       render(<UserGroupsPanel userId="user-123" />, { wrapper })
 
-      // First page shows 20 items: synthetic authenticated + group-0..group-18
-      expect(screen.getByText('authenticated')).toBeInTheDocument()
+      // First page shows 20 items: group-0..group-19
       expect(screen.getByText('group-0')).toBeInTheDocument()
-      expect(screen.getByText('group-18')).toBeInTheDocument()
-      expect(screen.queryByText('group-19')).not.toBeInTheDocument()
+      expect(screen.getByText('group-19')).toBeInTheDocument()
+      expect(screen.queryByText('group-20')).not.toBeInTheDocument()
 
       // Click next page
       const nextButton = screen.getByRole('button', { name: /next/i })
       await user.click(nextButton)
 
-      // Second page should show remaining groups (group-19..group-24)
+      // Second page should show remaining groups (group-20..group-24)
       await waitFor(() => {
-        expect(screen.getByText('group-19')).toBeInTheDocument()
+        expect(screen.getByText('group-20')).toBeInTheDocument()
         expect(screen.getByText('group-24')).toBeInTheDocument()
         expect(screen.queryByText('group-0')).not.toBeInTheDocument()
       })

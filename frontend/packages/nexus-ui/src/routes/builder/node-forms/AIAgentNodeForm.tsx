@@ -102,7 +102,7 @@ function AIAgentFormFields({
     setUploadingFiles(newFiles)
 
     try {
-      const response = await uploadFiles(files)
+      const response = await uploadFiles(files, projectId)
 
       // Move files to completed with success status and server-assigned IDs
       const successFiles = newFiles.map((f) => {

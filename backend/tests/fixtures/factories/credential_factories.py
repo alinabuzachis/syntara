@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import pytest
@@ -38,7 +38,7 @@ class CredentialFactory(Protocol):
         prefix: str | None = None,
         name: str | None = None,
         type_id: UUID | None = None,
-    ) -> tuple[UUID, str]: ...
+    ) -> tuple[UUID, str, dict[str, Any]]: ...
 
 
 @pytest.fixture(scope="module")
@@ -53,7 +53,7 @@ def create_credential() -> Generator[CredentialFactory, None, None]:
         prefix: str | None = None,
         name: str | None = None,
         type_id: UUID | None = None,
-    ) -> tuple[UUID, str]:
+    ) -> tuple[UUID, str, dict[str, Any]]:
         """Create an HTTP Bearer Token credential. Returns ``(credential_id, name)``."""
         prefx = prefix or "test"
         credential_name = name or unique_name(f"e2e-rbac-cred-{prefx}")
@@ -70,7 +70,7 @@ def create_credential() -> Generator[CredentialFactory, None, None]:
         nonlocal test_api, created_credential_id
         test_api = api
         created_credential_id = UUID(str(cred.id))
-        return created_credential_id, str(cred.name)
+        return created_credential_id, str(cred.name), cred.to_dict()
 
     yield _create_credential
 

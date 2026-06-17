@@ -26,6 +26,7 @@ from nexus.auth.exceptions import (
 )
 from nexus.auth.passwords import hash_password
 from nexus.auth.services.idp_group_sync import sync_idp_groups
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User, UserIdentity
 from nexus.core.models.group import Group, user_groups, user_idp_groups
@@ -233,12 +234,12 @@ async def test_list_members_group_not_found(test_db_session: AsyncSession, test_
 
 @pytest.mark.asyncio
 async def test_list_user_groups_empty(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test listing groups for a user with no memberships."""
+    """Test listing groups for a user with no explicit memberships returns only authenticated."""
     service = GroupsService(test_db_session, test_user)
 
     result = await service.list_user_groups(test_user.id)
 
-    assert len(result.resources) == 0
+    assert {g.name for g in result.resources} == {AUTHENTICATED_GROUP_NAME}
     assert result.next is None
 
 
@@ -341,7 +342,7 @@ async def test_set_user_groups_success(test_db_session: AsyncSession, test_user:
 
 @pytest.mark.asyncio
 async def test_set_user_groups_empty_clears_all(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test that setting empty list removes all memberships."""
+    """Test that setting empty list removes all memberships except authenticated."""
     service = GroupsService(test_db_session, test_user)
     member = await _create_test_user(test_db_session, "clearuser", "clearuser@example.com")
 
@@ -350,7 +351,7 @@ async def test_set_user_groups_empty_clears_all(test_db_session: AsyncSession, t
 
     result = await service.set_user_groups(member.id, [])
 
-    assert len(result.resources) == 0
+    assert {g.name for g in result.resources} == {AUTHENTICATED_GROUP_NAME}
 
 
 @pytest.mark.asyncio
@@ -535,10 +536,7 @@ async def test_get_member_counts_multiple_groups(test_db_session: AsyncSession, 
     await service.add_member(group_a.id, member2.id)
     await service.add_member(group_b.id, member1.id)
 
-    counts = await service.get_member_counts(
-        [group_a.id, group_b.id],
-        [group_a.name, group_b.name],
-    )
+    counts = await service.get_member_counts([group_a.id, group_b.id])
     assert counts[group_a.id] == 2
     assert counts[group_b.id] == 1
 

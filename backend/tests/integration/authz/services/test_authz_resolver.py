@@ -43,7 +43,7 @@ async def seeded_db(test_db_session: AsyncSession) -> AsyncSession:
 
 @pytest.mark.asyncio
 async def testget_user_group_ids_includes_authenticated(seeded_db: AsyncSession, test_user: User) -> None:
-    """All users implicitly belong to the 'authenticated' group."""
+    """All users belong to the 'authenticated' group."""
     group_ids = await get_user_group_ids(seeded_db, test_user.id)
     # Find the authenticated group
     result = await seeded_db.exec(select(Group).where(Group.name == "authenticated"))
@@ -429,8 +429,7 @@ async def test_resolve_user_groups_includes_explicit(seeded_db: AsyncSession, te
 async def test_resolve_user_groups_empty_when_no_groups(
     seeded_db: AsyncSession,
 ) -> None:
-    """User with no explicit groups still gets authenticated group."""
-    # Create a user not in any explicit group
+    """User with only authenticated group membership gets that group."""
     orphan = User(
         id=uuid4(),
         username="orphan",
@@ -439,6 +438,11 @@ async def test_resolve_user_groups_empty_when_no_groups(
         password_hash="$argon2id$test",  # noqa: S106
     )
     seeded_db.add(orphan)
+    await seeded_db.flush()
+
+    # Add to authenticated group (explicit membership)
+    auth_group = (await seeded_db.exec(select(Group).where(Group.name == "authenticated"))).one()
+    await seeded_db.exec(insert(user_groups).values(user_id=orphan.id, group_id=auth_group.id))
     await seeded_db.commit()
 
     groups = await resolve_user_groups(seeded_db, orphan.id)

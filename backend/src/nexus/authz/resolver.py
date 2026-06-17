@@ -165,7 +165,7 @@ def _add_stmt(
 
 
 async def get_user_group_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
-    """Return group IDs for a user, including the implicit 'authenticated' group."""
+    """Return group IDs for a user."""
     result = await db.exec(
         select(user_groups.c.group_id)
         .join(Group, Group.id == user_groups.c.group_id)  # type: ignore[arg-type]
@@ -174,19 +174,7 @@ async def get_user_group_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
             Group.deleted_at.is_(None),  # type: ignore[union-attr]
         )
     )
-    group_ids = list(result.all())
-
-    auth_group_result = await db.exec(
-        select(Group).where(
-            Group.name == AUTHENTICATED_GROUP_NAME,
-            Group.deleted_at.is_(None),  # type: ignore[union-attr]
-        )
-    )
-    auth_group = auth_group_result.first()
-    if auth_group and auth_group.id not in group_ids:
-        group_ids.append(auth_group.id)
-
-    return group_ids
+    return list(result.all())
 
 
 async def resolve_effective_policies(
@@ -196,7 +184,7 @@ async def resolve_effective_policies(
     """Resolve all effective policies for a user.
 
     Resolution order:
-    1. Global: user → groups (+ implicit "authenticated") → roles → policies
+    1. Global: user → groups (including "authenticated") → roles → policies
     2. Global: user → direct role assignments → policies
     3. Project-scoped: user + group assignments with project_id set → policies
     """

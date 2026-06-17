@@ -61,6 +61,8 @@ const yamlFiles = [
   'api/simple-get-request.yaml',
   'api/post-with-body.yaml',
   'mixed/sequential-mixed-types.yaml',
+  'converge/converge-all-strategy.yaml',
+  'approval/approval-gate-basic.yaml',
 ]
 
 // Project IDs to distribute workflows across

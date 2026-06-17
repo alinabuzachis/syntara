@@ -35,7 +35,6 @@ from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.error_data import ErrorData
-from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
 from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.login_request import LoginRequest
 from nexus_api_client.models.mcp_configuration import MCPConfiguration
@@ -768,19 +767,6 @@ def llm_credential_id(nexus_api: NexusApiRegistry, worker_id: str) -> Generator[
 
 
 @pytest.fixture(scope="session")
-def bearer_token_type_id(nexus_api: NexusApiRegistry) -> UUID:
-    """Return the credential type ID for 'HTTP Bearer Token'.
-
-    This is a preseeded credential type used in E2E tests.
-    """
-    types_list = nexus_api.credentials.list_types().assert_and_get()
-    for ct in types_list.resources:
-        if ct.name == "HTTP Bearer Token":
-            return UUID(str(ct.id))
-    pytest.fail("Preseeded 'HTTP Bearer Token' credential type not found")
-
-
-@pytest.fixture(scope="session")
 def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
     """Return the first available project ID.
 
@@ -789,57 +775,6 @@ def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
     projects_list = nexus_api.projects.list().assert_and_get()
     assert len(projects_list.resources) > 0, "No projects available"
     return UUID(str(projects_list.resources[0].id))
-
-
-@pytest.fixture
-def credential_factory(
-    nexus_api: NexusApiRegistry,
-    bearer_token_type_id: UUID,
-    first_project_id: UUID,
-) -> Generator[Callable[..., dict[str, Any]], None, None]:
-    """Factory that creates HTTP Bearer Token credentials with automatic cleanup.
-
-    Usage:
-        def test_something(credential_factory):
-            cred = credential_factory("my-cred-name")
-            # Use cred["id"], cred["inputs"], etc.
-            # Cleanup happens automatically after test
-
-    The factory function takes:
-        name: Credential name
-        inputs: Optional credential inputs dict (defaults to {"token": "test-secret-value-e2e"})
-
-    And returns:
-        Credential data as dict with keys: id, name, inputs, etc.
-
-    Args:
-        nexus_api: Admin API client for creating credentials
-        bearer_token_type_id: Pre-fetched bearer token credential type ID
-        first_project_id: Pre-fetched project ID to scope credentials to
-
-    """
-    created_credential_ids: list[UUID] = []
-
-    def _create(name: str, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
-        cred = nexus_api.credentials.create(
-            body=CredentialCreate(
-                name=name,
-                credential_type_id=bearer_token_type_id,
-                project_id=first_project_id,
-                inputs=CredentialCreateInputs.from_dict(inputs or {"token": "test-secret-value-e2e"}),
-            ),
-        ).assert_and_get()
-        created_credential_ids.append(UUID(str(cred.id)))
-        result: dict[str, Any] = cred.to_dict()
-        return result
-
-    yield _create
-
-    for cred_id in created_credential_ids:
-        try:
-            nexus_api.credentials.delete(credential_id=cred_id)
-        except Exception:
-            pass  # Best effort cleanup
 
 
 @pytest.fixture
@@ -888,51 +823,6 @@ def local_user_factory(
             nexus_api.users.delete(user_id=user_id)
         except Exception:
             logger.warning("Failed to clean up local user %s", user_id, exc_info=True)
-
-
-@pytest.fixture
-def identity_provider_factory(
-    nexus_api: NexusApiRegistry,
-    nexus_base_url: str,
-) -> Generator[Callable[[IdentityProviderCreate], Any], None, None]:
-    """Factory that creates identity providers with automatic cleanup.
-
-    Eliminates try/finally blocks by tracking created providers and cleaning up
-    automatically on test teardown. Use this instead of manual create/delete.
-
-    Usage:
-        def test_something(identity_provider_factory):
-            provider = identity_provider_factory(
-                IdentityProviderCreate(
-                    name="test-provider",
-                    configuration=OIDCConfiguration(...),
-                )
-            )
-            # Use provider.id
-            # Cleanup happens automatically
-
-    Args:
-        nexus_api: Admin API client for creating providers
-        nexus_base_url: Base URL for redirect URI construction
-
-    Returns:
-        Factory function that creates and tracks identity providers
-
-    """
-    created_provider_ids: list[UUID] = []
-
-    def _create(body: IdentityProviderCreate) -> Any:  # noqa: ANN401
-        provider = nexus_api.identity_providers.create(body=body).assert_and_get()
-        created_provider_ids.append(UUID(str(provider.id)))
-        return provider
-
-    yield _create
-
-    for provider_id in created_provider_ids:
-        try:
-            nexus_api.identity_providers.delete(provider_id=provider_id)
-        except Exception:
-            pass
 
 
 @pytest.fixture

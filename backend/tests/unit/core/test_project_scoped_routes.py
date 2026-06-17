@@ -32,6 +32,7 @@ _MODEL_TO_ROUTE_SEGMENT: dict[str, str] = {
     "Role": "/roles",
     "Policy": "/policies",
     "RoleAssignment": "/role_assignments",
+    "ServiceAccount": "/service_accounts",
 }
 
 # Junction/internal tables with project_id FK that are not first-class
@@ -44,6 +45,7 @@ _JUNCTION_TABLES: set[str] = {
 # Add the route, then move the model out of this set.
 _MODELS_WITHOUT_LIST_ROUTE: set[str] = {
     "Execution",
+    "ServiceAccount",
 }
 
 

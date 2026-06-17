@@ -33,6 +33,8 @@ const MOCK_CONDITION_WORKFLOW_ID = '6'
 const MOCK_LOOP_WORKFLOW_ID = '3'
 const MOCK_AGENTIC_WORKFLOW_ID = '48'
 const MOCK_HTTP_WORKFLOW_ID = '49'
+const MOCK_CONVERGE_WORKFLOW_ID = '52'
+const MOCK_APPROVAL_WORKFLOW_ID = '53'
 const MOCK_EXECUTION_FAILED_ID = 'exec-3'
 const MOCK_EXECUTION_RUNNING_ID = 'exec-4'
 const MOCK_EXECUTION_PAUSED_ID = 'exec-6'
@@ -212,7 +214,7 @@ export const builderInteractivePages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit-script-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -224,7 +226,7 @@ export const builderInteractivePages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit-condition-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -236,7 +238,7 @@ export const builderInteractivePages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit-loop-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_LOOP_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -250,7 +252,7 @@ export const builderInteractivePages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit-agentic-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_AGENTIC_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -263,13 +265,37 @@ export const builderInteractivePages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit-http-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_HTTP_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
       // simple-get-request http activity has no display name — card title is executor label "REST API"
       await openStepEditorFromCanvasTitle(page, 'REST API')
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'builder-edit-converge-node-form',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONVERGE_WORKFLOW_ID),
+    perceptual: true,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      await openStepEditorFromCanvasTitle(page, 'Converge')
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'builder-edit-approval-node-form',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_APPROVAL_WORKFLOW_ID),
+    perceptual: true,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+    },
+    setup: async (page) => {
+      await openStepEditorFromCanvasTitle(page, /Deployment Approval/i)
     },
   },
   {
@@ -292,6 +318,34 @@ export const builderInteractivePages: PageEntry[] = [
   },
   {
     section: 'workflows',
+    name: 'builder-new-webhook-trigger-form',
+    path: AppRoute.WorkflowBuilder.New,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
+        timeout: 30_000,
+      })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Webhook trigger' }).click()
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
+    name: 'builder-new-manual-trigger-form',
+    path: AppRoute.WorkflowBuilder.New,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
+        timeout: 30_000,
+      })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Manual trigger' }).click()
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
     name: 'builder-new-verify-errors',
     path: AppRoute.WorkflowBuilder.New,
     waitFor: async (page) => {
@@ -307,7 +361,7 @@ export const builderInteractivePages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit-verify-node-errors',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.01,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -549,7 +603,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-failed',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_FAILED_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByRole('heading', { name: /run failed/i })).toBeVisible()
@@ -559,7 +613,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-running',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_RUNNING_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Running', { exact: true }).first()).toBeVisible()
@@ -569,7 +623,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-paused',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PAUSED_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Paused', { exact: true }).first()).toBeVisible()
@@ -579,7 +633,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-cancelled',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_CANCELLED_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Cancelled', { exact: true }).first()).toBeVisible()
@@ -589,7 +643,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-pending',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PENDING_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible()
@@ -739,6 +793,15 @@ export const detailTabPages: PageEntry[] = [
     waitFor: async (page) => {
       await expect(page.getByText('Production API Auth').first()).toBeVisible()
       await expect(page.getByRole('tab', { name: /Workflows/i, selected: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/users',
+    name: 'user-detail-identities-tab',
+    path: AppRoute.AccessManagement.UserDetailTab.replace(':userId', MOCK_USER_ID).replace(':tab', 'identities'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Identities/i, selected: true })).toBeVisible()
     },
   },
   {

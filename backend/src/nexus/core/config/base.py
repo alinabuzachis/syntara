@@ -1145,11 +1145,13 @@ class TelemetrySettings(BaseSettings):
     segment_write_key: SecretStr = Field(
         default=SecretStr(""),
         description="Segment write API key for telemetry transmission",
+        exclude=True,
     )
 
     segment_endpoint: HttpUrl = Field(  # type: ignore[assignment]
         default="https://api.segment.io",
         description="Segment API endpoint URL",
+        exclude=True,
     )
 
     segment_max_retries: int = Field(
@@ -1167,16 +1169,19 @@ class TelemetrySettings(BaseSettings):
     entitlement_id: str = Field(
         default="",
         description="Unique Nexus installation identifier for anonymized telemetry tracking",
+        exclude=True,
     )
 
     collection_interval_seconds: int = Field(
         default=3600,
         description="Interval in seconds between periodic analytics collection cycles",
+        exclude=True,
     )
 
     container_image_version: str = Field(
         default="",
         description="Container image version/tag, injected at build time via APP_CONTAINER_IMAGE_VERSION",
+        exclude=True,
     )
 
 

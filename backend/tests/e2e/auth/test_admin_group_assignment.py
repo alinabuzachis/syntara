@@ -30,6 +30,8 @@ if TYPE_CHECKING:
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
     from nexus_api_client.models.user_read import UserRead
 
+    from tests.fixtures.factories.group_factories import GroupFactory
+
 pytestmark = [pytest.mark.e2e]
 
 
@@ -41,13 +43,13 @@ class TestAPI36AdminManualGroupAssignment:
         nexus_api: NexusApiRegistry,
         nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """Assign local user to group, verify membership source and persistence across login."""
         user, password = local_user_factory()
 
         group_name = unique_name("e2e-manual-grp")
-        group_id = nexus_group_factory(group_name)
+        group_id, _ = create_group(nexus_api, group_name=group_name)
 
         add_to_group(nexus_api, group_id, user.id)
 
@@ -64,7 +66,7 @@ class TestAPI36AdminManualGroupAssignment:
         keycloak_user_factory: Callable[[], tuple[str, str]],
         oidc_user_factory: Callable[[UUID, str, str], NexusApiRegistry],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """Add federated user to group, verify manual source, remove, verify removal."""
         provider = group_mapping_provider_factory(allow_all_authenticated=True)
@@ -75,7 +77,7 @@ class TestAPI36AdminManualGroupAssignment:
         user_id = get_user_id_by_username(nexus_api, kc_username)
 
         group_name = unique_name("e2e-fed-manual")
-        group_id = nexus_group_factory(group_name)
+        group_id, _ = create_group(nexus_api, group_name=group_name)
 
         add_to_group(nexus_api, group_id, user_id)
 

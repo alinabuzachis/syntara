@@ -43,6 +43,8 @@ if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
 
+    from tests.fixtures.factories.group_factories import GroupFactory
+
 pytestmark = [pytest.mark.e2e]
 
 _NO_GROUP_MATCH_CODE = "no_group_match"
@@ -118,14 +120,14 @@ class TestAPI24AllowAllWithPreCreatedMappings:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-24: Mapped group and builtin ``users`` both assigned via IdP membership."""
         username, password = keycloak_user_factory()
         claim_value = "platform-admins"
         add_keycloak_user_to_group(keycloak_service_with_group_mapping.url, username, claim_value)
 
-        admins_group_id = nexus_group_factory(f"e2e-admins-map-{uuid4().hex[:8]}")
+        admins_group_id, _ = create_group(nexus_api, group_name=f"e2e-admins-map-{uuid4().hex[:8]}")
         provider = group_mapping_provider_factory(
             group_mapping_entries=[
                 OIDCGroupMappingEntry(

@@ -48,12 +48,14 @@ def _retry_api_call(fn, *, retries: int = API_RETRIES, delay: float = API_RETRY_
     raise last_exc  # type: ignore[misc]
 
 
-def _poll_execution(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> ExecutionRead:
+def poll_execution(
+    api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT, interval: int = POLL_INTERVAL
+) -> ExecutionRead:
     """Poll until execution reaches a terminal state, returning the final ExecutionRead."""
     elapsed = 0
     while elapsed < timeout:
-        time.sleep(POLL_INTERVAL)
-        elapsed += POLL_INTERVAL
+        time.sleep(interval)
+        elapsed += interval
         response = _retry_api_call(lambda: api.executions.get(execution_id=UUID(exec_id), include="activities"))
         execution: ExecutionRead = response.assert_and_get()
         if execution.status in TERMINAL_STATUSES:
@@ -92,4 +94,4 @@ def create_and_run_workflow(
 
     exec_response = _retry_api_call(lambda: api.executions.create(body=ExecutionCreate(workflow_id=wf_id)))
     execution = exec_response.assert_and_get()
-    return _poll_execution(api, str(execution.id), timeout=timeout)
+    return poll_execution(api, str(execution.id), timeout=timeout)

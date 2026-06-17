@@ -54,6 +54,8 @@ if TYPE_CHECKING:
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
     from nexus_api_client.models.user_info import UserInfo
 
+    from tests.fixtures.factories.group_factories import GroupFactory
+
 pytestmark = [pytest.mark.e2e]
 
 _INVALID_JMESPATH = "[[[bad"
@@ -131,14 +133,14 @@ class TestAPI8AutoGroupMapping:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-8: Login assigns the user to Nexus groups that match ``groups`` claim values."""
         username, password = keycloak_user_factory()
         idp_group = unique_name("nexus-e2e-operators")
         add_keycloak_user_to_group(keycloak_service_with_group_mapping.url, username, idp_group)
 
-        nexus_group_id = nexus_group_factory(unique_name("e2e-mapped-group"))
+        nexus_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-mapped-group"))
         provider = group_mapping_provider_factory(
             group_mapping_entries=[
                 OIDCGroupMappingEntry(idp_group_value=idp_group, nexus_group_id=nexus_group_id),
@@ -170,7 +172,7 @@ class TestAPI10ManualGroupMapping:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-10: ``platform-admins`` claim maps to target group; other users are not assigned."""
         matched_user, matched_password = keycloak_user_factory()
@@ -178,7 +180,7 @@ class TestAPI10ManualGroupMapping:
         claim_value = "platform-admins"
         add_keycloak_user_to_group(keycloak_service_with_group_mapping.url, matched_user, claim_value)
 
-        target_group_id = nexus_group_factory(unique_name("e2e-admins-map"))
+        target_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-admins-map"))
         provider = group_mapping_provider_factory(
             group_mapping_entries=[
                 OIDCGroupMappingEntry(
@@ -226,16 +228,16 @@ class TestAPI11JmespathGroupFiltering:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-11: Only ``nexus-*`` claim groups are considered; ``other-team`` is ignored."""
         username, password = keycloak_user_factory()
         for group_name in ("nexus-admins", "nexus-operators", "other-team", "unrelated-group"):
             add_keycloak_user_to_group(keycloak_service_with_group_mapping.url, username, group_name)
 
-        admins_group_id = nexus_group_factory(unique_name("e2e-nexus-admins"))
-        operators_group_id = nexus_group_factory(unique_name("e2e-nexus-operators"))
-        other_team_group_id = nexus_group_factory(unique_name("e2e-other-team"))
+        admins_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-nexus-admins"))
+        operators_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-nexus-operators"))
+        other_team_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-other-team"))
 
         provider = group_mapping_provider_factory(
             group_jmespath_expression="groups[?starts_with(@, 'nexus-')]",
@@ -279,7 +281,7 @@ class TestAPI12JmespathNestedClaims:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-12: ``realm_access.roles[*]`` extracts nested roles into group mapping."""
         kc_url = keycloak_service_with_group_mapping.url
@@ -288,8 +290,8 @@ class TestAPI12JmespathNestedClaims:
         username, password = keycloak_user_factory()
         set_keycloak_user_attributes(kc_url, username, {"roles": ["viewer", "editor"]})
 
-        viewer_group_id = nexus_group_factory(unique_name("e2e-viewer"))
-        editor_group_id = nexus_group_factory(unique_name("e2e-editor"))
+        viewer_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-viewer"))
+        editor_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-editor"))
 
         provider = group_mapping_provider_factory(
             group_jmespath_expression="realm_access.roles[*]",
@@ -329,13 +331,13 @@ class TestAPI14JmespathNoResultsDeniesLogin:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-14: Login is denied when the JMESPath filter excludes all token groups."""
         username, password = keycloak_user_factory()
         add_keycloak_user_to_group(keycloak_service_with_group_mapping.url, username, "nexus-admins")
 
-        nexus_group_id = nexus_group_factory(unique_name("e2e-unused-map"))
+        nexus_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-unused-map"))
         provider = group_mapping_provider_factory(
             group_jmespath_expression="groups[?starts_with(@, 'no-nexus-prefix-')]",
             group_mapping_entries=[
@@ -365,7 +367,7 @@ class TestAPI15ClaimDataConfiguration:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-15: ``department`` claim value maps to the configured Nexus group."""
         ensure_user_attribute_claim_mapper(
@@ -381,7 +383,7 @@ class TestAPI15ClaimDataConfiguration:
             {"department": [department_value]},
         )
 
-        dept_group_id = nexus_group_factory(unique_name("e2e-dept-group"))
+        dept_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-dept-group"))
         provider = group_mapping_provider_factory(
             group_jmespath_expression="department",
             group_mapping_entries=[
@@ -417,7 +419,7 @@ class TestAPI21GroupMappingUpdatesOnReauth:
         keycloak_service_with_group_mapping: HttpApiService,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         group_mapping_provider_factory: Callable[..., IdentityProviderResponse],
-        nexus_group_factory: Callable[[str], UUID],
+        create_group: GroupFactory,
     ) -> None:
         """API-21: Re-login after IdP attribute change updates group membership."""
         kc_url = keycloak_service_with_group_mapping.url
@@ -428,8 +430,8 @@ class TestAPI21GroupMappingUpdatesOnReauth:
         viewer_value = unique_name("viewer")
         set_keycloak_user_attributes(kc_url, username, {"role": [admin_value]})
 
-        admin_group_id = nexus_group_factory(unique_name("e2e-role-admin"))
-        viewer_group_id = nexus_group_factory(unique_name("e2e-role-viewer"))
+        admin_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-role-admin"))
+        viewer_group_id, _ = create_group(nexus_api, group_name=unique_name("e2e-role-viewer"))
 
         provider = group_mapping_provider_factory(
             group_jmespath_expression="role",

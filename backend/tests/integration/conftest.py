@@ -12,14 +12,18 @@ across multiple database connections (e.g. API clients, concurrent sessions).
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import clear_opa_cache, init_opa_cache
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
+from nexus.core.models.group import Group
 
 
 async def _truncate_all_tables(engine: AsyncEngine) -> None:
@@ -79,6 +83,17 @@ async def test_db_session(
         raise
     finally:
         await session.close()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _seed_authenticated_group(test_db_session: AsyncSession) -> None:
+    """Ensure the built-in authenticated group exists for every integration test."""
+    result = await test_db_session.exec(
+        select(Group).where(Group.name == AUTHENTICATED_GROUP_NAME, Group.deleted_at.is_(None))  # type: ignore[union-attr]
+    )
+    if not result.first():
+        test_db_session.add(Group(id=uuid4(), name=AUTHENTICATED_GROUP_NAME, is_builtin=True, labels={}))
+        await test_db_session.flush()
 
 
 @pytest.fixture(autouse=True)

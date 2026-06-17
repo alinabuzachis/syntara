@@ -102,31 +102,8 @@ class GroupsService(BaseService):
                 raise GroupNameConflictError(group_name) from e
             raise
 
-    async def _get_active_user_count(self) -> int:
-        """Count all active, non-deleted users."""
-        result = await self.session.exec(
-            select(func.count())
-            .select_from(User)
-            .where(
-                User.deleted_at.is_(None),  # type: ignore[union-attr]
-                col(User.is_enabled) == True,  # noqa: E712
-            )
-        )
-        count: int = result.one()
-        return count
-
-    async def get_member_counts(self, group_ids: list[UUID], group_names: list[str] | None = None) -> dict[UUID, int]:
-        """Get member counts for a batch of groups.
-
-        The implicit ``authenticated`` group counts all active users
-        instead of explicit ``user_groups`` memberships.
-
-        Args:
-            group_ids: UUIDs of the groups to count.
-            group_names: Parallel list of group names (same order as group_ids).
-                         Used to detect the implicit ``authenticated`` group.
-
-        """
+    async def get_member_counts(self, group_ids: list[UUID]) -> dict[UUID, int]:
+        """Get member counts for a batch of groups."""
         if not group_ids:
             return {}
 
@@ -139,23 +116,11 @@ class GroupsService(BaseService):
             )
             .group_by(user_groups.c.group_id)
         )
-        counts: dict[UUID, int] = dict(result.all())
-
-        # Override count for the implicit "authenticated" group
-        if group_names:
-            auth_ids = [
-                gid for gid, name in zip(group_ids, group_names, strict=True) if name == AUTHENTICATED_GROUP_NAME
-            ]
-            if auth_ids:
-                active_count = await self._get_active_user_count()
-                for gid in auth_ids:
-                    counts[gid] = active_count
-
-        return counts
+        return dict(result.all())
 
     async def get_member_count(self, group: Group) -> int:
         """Get member count for a single group."""
-        counts = await self.get_member_counts([group.id], [group.name])
+        counts = await self.get_member_counts([group.id])
         return counts.get(group.id, 0)
 
     def enrich_group_read(self, group: Group, member_count: int = 0) -> GroupRead:
@@ -252,8 +217,7 @@ class GroupsService(BaseService):
         # Enrich with member counts
         if response.resources:
             group_ids = [r.id for r in response.resources]
-            group_names = [r.name for r in response.resources]
-            counts = await self.get_member_counts(group_ids, group_names)
+            counts = await self.get_member_counts(group_ids)
             for resource in response.resources:
                 resource.member_count = counts.get(resource.id, 0)
 
@@ -695,19 +659,31 @@ class GroupsService(BaseService):
         # Validate user exists
         user = await get_user_by_id(self.session, user_id)
 
+        # Always include the authenticated group
+        auth_result = await self.session.exec(
+            select(Group.id).where(
+                Group.name == AUTHENTICATED_GROUP_NAME,
+                Group.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+        auth_group_id = auth_result.first()
+        if not auth_group_id:
+            msg = f"Required built-in group '{AUTHENTICATED_GROUP_NAME}' is missing from the database"
+            raise RuntimeError(msg)
+
         # Validate all desired groups exist (deduplicate first)
         desired = set(group_ids)
-        if desired:
-            result = await self.session.exec(
-                select(Group.id).filter(
-                    col(Group.id).in_(desired),
-                    Group.deleted_at.is_(None),  # type: ignore[union-attr]
-                )
+        desired.add(auth_group_id)
+        result = await self.session.exec(
+            select(Group.id).filter(
+                col(Group.id).in_(desired),
+                Group.deleted_at.is_(None),  # type: ignore[union-attr]
             )
-            found = set(result.all())
-            missing = desired - found
-            if missing:
-                raise GroupNotFoundError(next(iter(missing)))
+        )
+        found = set(result.all())
+        missing = desired - found
+        if missing:
+            raise GroupNotFoundError(next(iter(missing)))
 
         # Get current memberships
         # Race condition note (TOCTOU): concurrent set_user_groups calls for

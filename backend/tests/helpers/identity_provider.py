@@ -8,7 +8,7 @@ from nexus.core.models import User
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 
 
-class IdentityProviderFactory:
+class IdentityProviderCreate:
     """Factory for creating identity providers."""
 
     def __init__(self, session: AsyncSession, user: User) -> None:

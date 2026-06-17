@@ -594,6 +594,17 @@ describe('builderReducer', () => {
       expect(result.validationErrors).toEqual(errors)
     })
 
+    it('SET_VALIDATION_ERRORS preserves nodeName field', () => {
+      const errors = [
+        { message: 'MyNode: is disconnected', nodeId: 'node-1', nodeName: 'MyNode' },
+        { message: 'Missing trigger', nodeId: null },
+      ]
+      const action: BuilderAction = { type: 'SET_VALIDATION_ERRORS', payload: errors }
+      const result = builderReducer(initialState, action)
+
+      expect(result.validationErrors).toEqual(errors)
+    })
+
     it('CLEAR_VALIDATION_ERRORS resets to empty array', () => {
       const stateWithErrors: BuilderState = {
         ...initialState,

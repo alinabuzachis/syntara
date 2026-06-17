@@ -14,14 +14,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.authz.models.assignments import PrincipalType, RoleAssignment
 from nexus.authz.models.project import Project
 from nexus.authz.opa_client import OPAClient
-from nexus.authz.resolver import resolve_effective_policies, resolve_user_groups
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME, resolve_effective_policies, resolve_user_groups
 from nexus.core.models.group import Group
 
 logger = structlog.stdlib.get_logger(__name__)
 
 PROJECT_ADMIN_ROLE_NAME = "project-admin"
 PROJECT_USER_ROLE_NAME = "project-user"
-AUTHENTICATED_GROUP_NAME = "authenticated"
 
 # ---------------------------------------------------------------------------
 # In-process TTL cache for OPA evaluation results

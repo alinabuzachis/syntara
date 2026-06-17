@@ -52,6 +52,7 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.auth.services.token_service import TokenService
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.config.base import Settings, get_settings
 from nexus.core.database.session import get_db
 from nexus.core.logging.logging import configure_structlog
@@ -75,7 +76,7 @@ from tests.fixtures.mock_mcp_provider import MockMCPProvider
 from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.credential import CredentialFactory
 from tests.helpers.execution import ExecutionFactory
-from tests.helpers.identity_provider import IdentityProviderFactory
+from tests.helpers.identity_provider import IdentityProviderCreate
 from tests.helpers.token_usage import TokenUsageFactory
 from tests.helpers.tool_manager import ToolFactory
 from tests.helpers.tool_provider import ToolProviderFactory
@@ -91,6 +92,7 @@ pytest_plugins = [
     "tests.fixtures.external_services.azuread",
     "tests.fixtures.factories.credential_factories",
     "tests.fixtures.factories.group_factories",
+    "tests.fixtures.factories.identity_provider_factories",
     "tests.fixtures.factories.policy_factories",
     "tests.fixtures.factories.project_factories",
     "tests.fixtures.factories.role_factories",
@@ -901,14 +903,22 @@ async def user_factory(
         test_db_session.add(user)
         await test_db_session.flush()
 
+        from sqlalchemy import insert
+
+        from nexus.core.models.group import Group, user_groups
+
         if group_names:
-            from sqlalchemy import insert
-
-            from nexus.core.models.group import Group, user_groups
-
             for name in group_names:
                 group = (await test_db_session.exec(select(Group).where(Group.name == name))).one()
                 await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
+
+        # Always add the authenticated group if it exists and wasn't already added above
+        if not group_names or AUTHENTICATED_GROUP_NAME not in group_names:
+            auth_group = (
+                await test_db_session.exec(select(Group).where(Group.name == AUTHENTICATED_GROUP_NAME))
+            ).first()
+            if auth_group:
+                await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=auth_group.id))
 
         await test_db_session.commit()
         return user
@@ -1614,9 +1624,9 @@ async def tool_provider_factory(test_db_session: AsyncSession, test_user: User) 
 
 
 @pytest_asyncio.fixture
-async def identity_provider_factory(test_db_session: AsyncSession, test_user: User) -> IdentityProviderFactory:
+async def identity_provider_create(test_db_session: AsyncSession, test_user: User) -> IdentityProviderCreate:
     """Factory for creating identity providers for tests."""
-    return IdentityProviderFactory(test_db_session, test_user)
+    return IdentityProviderCreate(test_db_session, test_user)
 
 
 @pytest_asyncio.fixture

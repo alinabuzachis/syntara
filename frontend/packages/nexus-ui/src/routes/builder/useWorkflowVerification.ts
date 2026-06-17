@@ -24,13 +24,13 @@ export function resolveNodeId(error: ValidationResultError): string | null {
   return match?.[1] ?? null
 }
 
-export function formatValidationMessage(raw: string): string {
+export function parseValidationMessage(raw: string): { message: string; nodeName?: string } {
   const nameMatch = NODE_NAME_IN_MESSAGE.exec(raw)
   const suffixMatch = ERROR_SUFFIX_PATTERN.exec(raw)
   if (nameMatch && suffixMatch) {
-    return `${nameMatch[1]}: ${suffixMatch[1]}`
+    return { message: `${nameMatch[1]}: ${suffixMatch[1]}`, nodeName: nameMatch[1] }
   }
-  return raw
+  return { message: raw }
 }
 
 export function extractValidationErrors(err: Record<string, unknown> | undefined): ValidationError[] | null {
@@ -39,10 +39,10 @@ export function extractValidationErrors(err: Record<string, unknown> | undefined
   const validationResult = err.validation_result as { errors?: ValidationResultError[] } | undefined
 
   if (validationResult?.errors && Array.isArray(validationResult.errors)) {
-    return validationResult.errors.map((e) => ({
-      message: formatValidationMessage(e.message),
-      nodeId: resolveNodeId(e),
-    }))
+    return validationResult.errors.map((e) => {
+      const parsed = parseValidationMessage(e.message)
+      return { ...parsed, nodeId: resolveNodeId(e) }
+    })
   }
 
   return null
@@ -94,10 +94,10 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
           dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
           showSuccess({ title: 'Workflow definition is valid' })
         } else if (response.ok && data && !data.valid) {
-          const errors: ValidationError[] = data.errors.map((e) => ({
-            message: formatValidationMessage(e.message),
-            nodeId: resolveNodeId(e),
-          }))
+          const errors: ValidationError[] = data.errors.map((e) => {
+            const parsed = parseValidationMessage(e.message)
+            return { ...parsed, nodeId: resolveNodeId(e) }
+          })
           dispatch({ type: 'SET_VALIDATION_ERRORS', payload: errors })
         } else {
           const err = error as Record<string, unknown> | undefined

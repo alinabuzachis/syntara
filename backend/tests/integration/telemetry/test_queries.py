@@ -33,7 +33,7 @@ from nexus.telemetry.queries import (
 from nexus.workflows.models.execution import ExecutionStatus
 from tests.helpers.credential import CredentialFactory
 from tests.helpers.execution import ExecutionFactory
-from tests.helpers.identity_provider import IdentityProviderFactory
+from tests.helpers.identity_provider import IdentityProviderCreate
 from tests.helpers.token_usage import TokenUsageFactory
 from tests.helpers.tool_provider import ToolProviderFactory
 from tests.helpers.workflow import WorkflowFactory
@@ -222,10 +222,10 @@ class TestQueryIdentityProviderHealth:
     async def test_returns_health(
         self,
         test_db_session: AsyncSession,
-        identity_provider_factory: IdentityProviderFactory,
+        identity_provider_create: IdentityProviderCreate,
     ):
-        await identity_provider_factory.create_many(2, prefix="enabled", enabled=True)
-        await identity_provider_factory.create("disabled-0", enabled=False)
+        await identity_provider_create.create_many(2, prefix="enabled", enabled=True)
+        await identity_provider_create.create("disabled-0", enabled=False)
         await test_db_session.commit()
 
         result = await query_identity_provider_health(test_db_session)

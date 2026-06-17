@@ -46,6 +46,8 @@ export type PageEntry = {
   setup?: (page: Page) => Promise<void>
   /** Override the default maxDiffPixelRatio for pages with non-deterministic rendering (e.g. canvas) */
   maxDiffPixelRatio?: number
+  /** Use looks-same perceptual comparison (CIEDE2000) instead of pixelmatch for canvas pages with subpixel jitter */
+  perceptual?: boolean
   /** Mock API role to log in as (default: admin). Used for permission gating screenshots. */
   role?: 'viewer' | 'auditor' | 'user'
 }
@@ -124,7 +126,7 @@ export const pages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.05,
+    perceptual: true,
     waitFor: async (page) => {
       // ReactFlow + Zustand + lazy-load initialization is slow in CI — extend timeout
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
@@ -782,7 +784,7 @@ export const pages: PageEntry[] = [
     name: 'viewer-builder-read-only',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     role: 'viewer',
-    maxDiffPixelRatio: 0.01,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -820,6 +822,44 @@ export const pages: PageEntry[] = [
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click({ force: true })
       await expect(page.getByRole('menuitem').first()).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-executions-list',
+    path: AppRoute.Executions.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByText('Workflow Runs', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-approvals-list',
+    path: AppRoute.Approvals.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByText('Approvals', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('row').nth(1)).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-integrations-list',
+    path: AppRoute.Configuration.Integrations.Root,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+    },
+  },
+  {
+    section: 'permission-gating',
+    name: 'viewer-settings',
+    path: AppRoute.SystemAdministration.Settings,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
     },
   },
 ]

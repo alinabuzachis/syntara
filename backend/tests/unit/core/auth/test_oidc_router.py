@@ -880,7 +880,18 @@ class TestOidcCallback:
         auto_created_user.is_builtin = False
         auth_type_result = MagicMock()
         auth_type_result.one_or_none.return_value = auto_created_user
-        db.exec.side_effect = [provider_result, identity_result, email_check_result, username_result, auth_type_result]
+        auth_group_result = MagicMock()
+        auth_group_result.first.return_value = MagicMock(id=uuid4())
+        auth_group_insert_result = MagicMock()
+        db.exec.side_effect = [
+            provider_result,
+            identity_result,
+            email_check_result,
+            username_result,
+            auth_group_result,
+            auth_group_insert_result,
+            auth_type_result,
+        ]
 
         mock_oidc_service = _make_oidc_service_mock(state_data=state_data, user_claims=user_claims)
 
@@ -1410,7 +1421,16 @@ class TestResolveOidcUser:
         email_check_result.one_or_none.return_value = None
         not_taken_result = MagicMock()
         not_taken_result.one_or_none.return_value = None
-        db.exec.side_effect = [deleted_result, email_check_result, not_taken_result]
+        auth_group_result = MagicMock()
+        auth_group_result.first.return_value = MagicMock(id=uuid4())
+        auth_group_insert_result = MagicMock()
+        db.exec.side_effect = [
+            deleted_result,
+            email_check_result,
+            not_taken_result,
+            auth_group_result,
+            auth_group_insert_result,
+        ]
 
         user, identity = await _resolve_oidc_user(db, user_claims, provider)
 
@@ -1618,7 +1638,10 @@ class TestAutoCreateUser:
         taken_result.one_or_none.return_value = existing_user
         not_taken_result = MagicMock()
         not_taken_result.one_or_none.return_value = None
-        db.exec.side_effect = [taken_result, not_taken_result]
+        auth_group_result = MagicMock()
+        auth_group_result.first.return_value = MagicMock(id=uuid4())
+        auth_group_insert_result = MagicMock()
+        db.exec.side_effect = [taken_result, not_taken_result, auth_group_result, auth_group_insert_result]
 
         result = await _auto_create_user(db, user_claims, "Azure", email=email)
 

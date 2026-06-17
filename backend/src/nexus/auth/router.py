@@ -20,6 +20,7 @@ from uuid import UUID
 import structlog
 from fastapi import Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
+from sqlalchemy import insert as sa_insert
 from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -99,11 +100,7 @@ logger = structlog.stdlib.get_logger(__name__)
 
 
 async def _get_user_group_names(db: AsyncSession, user_id: UUID) -> list[str]:
-    """Fetch group names for a user to include in JWT claims.
-
-    Includes both explicit memberships (from the ``user_groups`` table) and
-    the implicit ``authenticated`` group that all authenticated users belong to.
-    """
+    """Fetch group names for a user to include in JWT claims."""
     result = await db.exec(
         select(Group.name)
         .join(user_groups, Group.id == user_groups.c.group_id)  # type: ignore[arg-type]
@@ -113,14 +110,7 @@ async def _get_user_group_names(db: AsyncSession, user_id: UUID) -> list[str]:
         )
         .order_by(col(Group.name))
     )
-    names = list(result.all())
-
-    # Add the implicit "authenticated" group if not already present
-    if AUTHENTICATED_GROUP_NAME not in names:
-        names.append(AUTHENTICATED_GROUP_NAME)
-        names.sort()
-
-    return names
+    return list(result.all())
 
 
 router = NexusRouter(prefix="/auth", tags=["Authentication"])
@@ -1346,8 +1336,7 @@ async def _auto_create_user(
         last_name = None
 
     # Truncate username to leave room for the random suffix (hyphen + 16 hex chars)
-    max_base_len = FieldLimits.NAME_MAX_LENGTH - 17
-    preferred_username = preferred_username[:max_base_len]
+    preferred_username = preferred_username[: FieldLimits.NAME_MAX_LENGTH - 17]
 
     # Resolve unique username: try preferred, then append a random suffix
     username = preferred_username
@@ -1382,6 +1371,18 @@ async def _auto_create_user(
         msg = "Unable to create account. Contact your administrator."
         raise OIDCError(msg) from e
     logger.info("Auto-created user from OIDC", user_id=str(user.id), username=username, provider=provider_name)
+
+    # Add user to the authenticated group
+    auth_group = (
+        await db.exec(
+            select(Group).where(Group.name == AUTHENTICATED_GROUP_NAME, Group.deleted_at.is_(None))  # type: ignore[union-attr]
+        )
+    ).first()
+    if not auth_group:
+        msg = f"Required built-in group '{AUTHENTICATED_GROUP_NAME}' is missing from the database"
+        raise RuntimeError(msg)
+    await db.exec(sa_insert(user_groups).values(user_id=user.id, group_id=auth_group.id))
+
     return user
 
 
@@ -1853,9 +1854,17 @@ async def _resolve_and_login_user(
             await db.flush()
             # No groups resolved from this provider (no mappings matched
             # or extraction failed) — check if the user has any group
-            # memberships from other sources (manually assigned).
+            # memberships from other sources (manually assigned),
+            # excluding the authenticated group which all users have.
             other_groups = await db.exec(
-                select(user_groups.c.group_id).where(user_groups.c.user_id == user.id).limit(1)
+                select(user_groups.c.group_id)
+                .join(Group, Group.id == user_groups.c.group_id)  # type: ignore[arg-type]
+                .where(
+                    user_groups.c.user_id == user.id,
+                    Group.name != AUTHENTICATED_GROUP_NAME,
+                    Group.deleted_at.is_(None),  # type: ignore[union-attr]
+                )
+                .limit(1)
             )
             if other_groups.first() is None:
                 logger.error(

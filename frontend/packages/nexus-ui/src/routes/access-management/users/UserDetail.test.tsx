@@ -590,7 +590,7 @@ describe('UserDetail', () => {
       expect(screen.getByText('Identity Provider')).toBeInTheDocument()
     })
 
-    it('does not add +1 when authenticated group is already in the list', () => {
+    it('uses total for group count when available', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
@@ -602,7 +602,6 @@ describe('UserDetail', () => {
           } as never
         }
         if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
-        // groups includes the builtin 'authenticated' group
         return {
           data: { resources: [{ id: 'g-auth', name: 'authenticated' }], total: 1 },
           isPending: false,
@@ -614,7 +613,6 @@ describe('UserDetail', () => {
 
       render(<UserDetail />, { wrapper })
 
-      // total=1 and authenticated IS in the list → groupCount = total (no +1)
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
       expect(groupsTab).toHaveTextContent('1')
     })
@@ -647,10 +645,8 @@ describe('UserDetail', () => {
 
       render(<UserDetail />, { wrapper })
 
-      // groupCount: total is undefined, so count = resources.length = 2
-      // +1 for implicit 'authenticated' group (not in the list)
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
-      expect(groupsTab).toHaveTextContent('3')
+      expect(groupsTab).toHaveTextContent('2')
     })
   })
 
@@ -1187,7 +1183,7 @@ describe('UserDetail', () => {
   // ---- Group count edge cases --------------------------------------------
 
   describe('Group count', () => {
-    it('does not add +1 for authenticated group when it is already in the list', () => {
+    it('shows correct group count from API total', () => {
       mockQueryByPath({
         '/users/{user_id}': mockUser,
         '/users/{user_id}/groups': mockGroupsWithAuthenticated,
@@ -1200,12 +1196,12 @@ describe('UserDetail', () => {
       expect(groupsTab).toHaveTextContent('2')
     })
 
-    it('adds +1 for implicit authenticated group when not in the list', () => {
+    it('shows group count from API without adjustment', () => {
       render(<UserDetail />, { wrapper })
 
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
-      // mockGroupsData has total=1, no authenticated group -> +1 = 2
-      expect(groupsTab).toHaveTextContent('2')
+      // mockGroupsData has total=1
+      expect(groupsTab).toHaveTextContent('1')
     })
   })
 
@@ -1290,7 +1286,7 @@ describe('UserDetail', () => {
   })
 
   describe('computeGroupCount with undefined groupsData', () => {
-    it('defaults group count to 1 (the implicit authenticated group) when groups query returns no data', () => {
+    it('defaults group count to 0 when groups query returns no data', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
         if (path === '/users/{user_id}') {
           return {
@@ -1307,9 +1303,8 @@ describe('UserDetail', () => {
 
       render(<UserDetail />, { wrapper })
 
-      // groupsData = undefined → apiGroupCount = 0, hasAuthenticatedGroup = false → groupCount = 0 + 1 = 1
       const groupsTab = screen.getByRole('tab', { name: /Groups/i })
-      expect(groupsTab).toHaveTextContent('1')
+      expect(groupsTab).toHaveTextContent('0')
     })
   })
 

@@ -351,7 +351,11 @@ export function BuilderContent(props: BuilderContentProps) {
                 </Alert>
               </StackItem>
             )}
-            <ValidationBanner errors={state.validationErrors} dispatch={dispatch} />
+            <ValidationBanner
+              errors={state.validationErrors}
+              dispatch={dispatch}
+              onNavigateToNode={handleNavigateToNode}
+            />
             <StackItem isFilled style={{ minHeight: 0 }}>
               <Flex
                 alignItems={{ default: 'alignItemsStretch' }}

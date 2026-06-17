@@ -22,7 +22,13 @@ class UserFactory(Protocol):
     """Protocol ensuring type safety for optional and keyword arguments on the factory."""
 
     def __call__(
-        self, api: NexusApiRegistry, prefix: str | None = None, user_name: str | None = None
+        self,
+        api: NexusApiRegistry,
+        prefix: str | None = None,
+        user_name: str | None = None,
+        email: str | None = None,
+        first_name: str | None = None,
+        password: str | None = None,
     ) -> tuple[UUID, str, str]: ...
 
 
@@ -33,17 +39,22 @@ def create_user() -> Generator[UserFactory, None, None]:
     test_api = None
 
     def _create_user(
-        api: NexusApiRegistry, prefix: str | None = None, user_name: str | None = None
+        api: NexusApiRegistry,
+        prefix: str | None = None,
+        user_name: str | None = None,
+        email: str | None = None,
+        first_name: str | None = None,
+        password: str | None = None,
     ) -> tuple[UUID, str, str]:
         """Create a test user. Returns ``(user_id, username, password)``."""
         prefix = prefix or "test"
         name = user_name or unique_name(f"e2e-rbac-{prefix}")
-        password = generate_test_password()
+        password = password or generate_test_password()
         resp = api.users.create(
             body=UserCreate(
                 username=name,
-                email=f"{name}@example.com",
-                first_name=f"RBAC Test {prefix}",
+                email=email or f"{name}@example.com",
+                first_name=first_name or f"RBAC Test {prefix}",
                 password=password,
             ),
         )

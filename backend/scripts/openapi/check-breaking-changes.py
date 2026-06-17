@@ -53,27 +53,9 @@ def run_command(cmd: list[str], capture_output: bool = True) -> subprocess.Compl
         sys.exit(2)
 
 
-def _resolve_git_path(spec_path: str) -> str:
-    """Resolve a spec path to be relative to the git repo root.
-
-    `git show ref:path` requires paths relative to the repo root, but
-    spec_path may be relative to the current working directory.
-    """
-    toplevel = run_command(["git", "rev-parse", "--show-toplevel"])
-    if toplevel.returncode != 0:
-        return spec_path
-    repo_root = Path(toplevel.stdout.strip())
-    absolute = Path.cwd() / spec_path
-    try:
-        return str(absolute.resolve().relative_to(repo_root.resolve()))
-    except ValueError:
-        return spec_path
-
-
 def get_spec_from_git(ref: str, spec_path: str) -> str:
     """Get OpenAPI spec content from a git reference."""
-    git_path = _resolve_git_path(spec_path)
-    result = run_command(["git", "show", f"{ref}:{git_path}"])
+    result = run_command(["git", "show", f"{ref}:{spec_path}"])
     if result.returncode != 0:
         print(f"ERROR: Failed to get spec from git ref '{ref}'", file=sys.stderr)
         print(result.stderr, file=sys.stderr)

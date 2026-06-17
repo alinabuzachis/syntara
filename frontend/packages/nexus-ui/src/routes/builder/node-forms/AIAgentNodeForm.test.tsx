@@ -194,6 +194,17 @@ describe('AIAgentNodeForm', () => {
     })
   })
 
+  it('forwards projectId to uploadFiles when uploading files', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="project-789" />)
+
+    await user.click(screen.getByTestId('upload-files'))
+
+    await waitFor(() => {
+      expect(mockUploadFiles).toHaveBeenCalledWith(expect.any(Array), 'project-789')
+    })
+  })
+
   it('handles file upload error', async () => {
     const user = userEvent.setup()
     mockUploadFiles.mockRejectedValueOnce(new Error('Upload failed'))

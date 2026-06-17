@@ -745,7 +745,7 @@ async def _user_group_names(session: AsyncSession, user: User) -> set[str]:
 
 @pytest.mark.asyncio
 async def test_create_user_no_groups_by_default(test_db_session: AsyncSession, test_user: User) -> None:
-    """When group_names is omitted, no groups are assigned."""
+    """When group_names is omitted, only the authenticated group is assigned."""
     service = UsersService(test_db_session, test_user)
     user = await service.create_user(
         username="defaultuser",
@@ -755,12 +755,12 @@ async def test_create_user_no_groups_by_default(test_db_session: AsyncSession, t
     )
 
     names = await _user_group_names(test_db_session, user)
-    assert len(names) == 0
+    assert names == {"authenticated"}
 
 
 @pytest.mark.asyncio
 async def test_create_user_explicit_groups(test_db_session: AsyncSession, test_user: User) -> None:
-    """When group_names has specific values, those groups are used instead of defaults."""
+    """When group_names has specific values, those groups are used plus the authenticated group."""
     g1 = await _create_group(test_db_session, "team-alpha")
     g2 = await _create_group(test_db_session, "team-beta")
     await test_db_session.commit()
@@ -775,7 +775,7 @@ async def test_create_user_explicit_groups(test_db_session: AsyncSession, test_u
     )
 
     names = await _user_group_names(test_db_session, user)
-    assert names == {g1.name, g2.name}
+    assert names == {g1.name, g2.name, "authenticated"}
 
 
 @pytest.mark.asyncio

@@ -1682,13 +1682,13 @@ class TestGetUserGroupNames:
     """Tests for _get_user_group_names helper."""
 
     @pytest.mark.asyncio
-    async def test_returns_groups_with_implicit_authenticated(self) -> None:
-        """Should return explicit groups plus implicit 'authenticated' group, sorted."""
+    async def test_returns_groups_sorted(self) -> None:
+        """Should return groups from the DB query sorted by name."""
         from nexus.auth.router import _get_user_group_names
 
         user_id = uuid4()
         mock_result = MagicMock()
-        mock_result.all.return_value = ["engineering", "ops"]
+        mock_result.all.return_value = ["authenticated", "engineering", "ops"]
         db = AsyncMock()
         db.exec.return_value = mock_result
 
@@ -1697,8 +1697,8 @@ class TestGetUserGroupNames:
         assert names == ["authenticated", "engineering", "ops"]
 
     @pytest.mark.asyncio
-    async def test_no_explicit_groups_returns_only_authenticated(self) -> None:
-        """Should return just 'authenticated' when user has no explicit groups."""
+    async def test_returns_empty_when_no_groups(self) -> None:
+        """Should return empty list when user has no group memberships."""
         from nexus.auth.router import _get_user_group_names
 
         user_id = uuid4()
@@ -1709,38 +1709,7 @@ class TestGetUserGroupNames:
 
         names = await _get_user_group_names(db, user_id)
 
-        assert names == ["authenticated"]
-
-    @pytest.mark.asyncio
-    async def test_authenticated_already_present_not_duplicated(self) -> None:
-        """Should not duplicate 'authenticated' when it's already in the list."""
-        from nexus.auth.router import _get_user_group_names
-
-        user_id = uuid4()
-        mock_result = MagicMock()
-        mock_result.all.return_value = ["authenticated", "admins"]
-        db = AsyncMock()
-        db.exec.return_value = mock_result
-
-        names = await _get_user_group_names(db, user_id)
-
-        assert names == ["authenticated", "admins"]
-        assert names.count("authenticated") == 1
-
-    @pytest.mark.asyncio
-    async def test_single_group_sorted_with_authenticated(self) -> None:
-        """Should sort correctly when one group is present."""
-        from nexus.auth.router import _get_user_group_names
-
-        user_id = uuid4()
-        mock_result = MagicMock()
-        mock_result.all.return_value = ["zebra-team"]
-        db = AsyncMock()
-        db.exec.return_value = mock_result
-
-        names = await _get_user_group_names(db, user_id)
-
-        assert names == ["authenticated", "zebra-team"]
+        assert names == []
 
 
 # =============================================================================

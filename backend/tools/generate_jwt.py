@@ -225,18 +225,29 @@ def print_tokens(tokens: dict, *, as_json: bool = False) -> None:
 async def main() -> int:
     """Run the JWT generation CLI."""
     # When ``--json`` is requested, suppress all log output so that stdout
-    # contains only valid JSON.  ``podman-compose exec`` merges container
-    # stderr into stdout, so redirecting to stderr alone is not enough.
+    # contains only valid JSON.  The Makefile invokes this via
+    # ``podman-compose exec -T`` (no TTY) so stderr stays separate, but we
+    # still silence logs here as a safeguard.
     # We check for ``--json`` early (before argparse) so that logging is
     # silenced before any nexus code runs.
+    # nexus/__init__.py configures structlog with stdlib processors
+    # (including filter_by_level) at import time. We must override the full
+    # processor chain here, not just the factory, because PrintLogger lacks
+    # the .disabled attribute that filter_by_level requires.
+    _processors = [
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.dev.ConsoleRenderer(),
+    ]
     if "--json" in sys.argv:
         logging.disable(logging.CRITICAL)
         structlog.configure(
+            processors=_processors,
             logger_factory=structlog.PrintLoggerFactory(file=io.StringIO()),
         )
     else:
         logging.basicConfig(stream=sys.stderr, level=logging.WARNING, force=True)
         structlog.configure(
+            processors=_processors,
             logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         )
 

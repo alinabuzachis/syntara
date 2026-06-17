@@ -151,6 +151,53 @@ npx playwright test e2e/visual-regression/page-screenshots --update-snapshots
 npm exec tsx -- scripts/check-visual-baselines.ts
 ```
 
+## Running in a Container (CI-Matching Screenshots)
+
+macOS and Linux render fonts differently, so screenshots taken on macOS will not match the Linux baselines used in CI. To generate or compare screenshots that match CI exactly, run the tests inside a Linux container.
+
+**Prerequisites:**
+
+- [Podman](https://podman.io/getting-started/installation) installed and running
+- On macOS:
+  ```bash
+  brew install podman
+  podman machine init --memory 4096
+  podman machine start
+  ```
+- Podman machine needs at least **4 GB RAM** (the script checks this automatically)
+
+**Compare baselines** (fail if screenshots differ from committed baselines):
+
+```bash
+npm run e2e:visual-regression:container
+```
+
+**Update baselines** (regenerate Linux PNGs):
+
+```bash
+npm run e2e:visual-regression:container:update
+```
+
+**What happens under the hood:**
+
+1. The script checks that Podman is available (and has enough memory)
+2. Extracts the Playwright version from `package-lock.json`
+3. Pulls `mcr.microsoft.com/playwright:v<version>-noble` (Ubuntu 24.04, x86_64)
+4. Copies source files into the container (excluding `node_modules` and `.git`)
+5. Runs `npm ci` + `vite build` inside the container
+6. Starts the mock API and preview server, then runs the visual regression tests
+7. Updated snapshots are copied back to your working tree
+
+**First run** takes 8-10 minutes (pulling image + `npm ci` + build). Subsequent runs skip the image pull.
+
+**Troubleshooting:**
+
+| Problem                         | Solution                                                                          |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| "Podman machine is not running" | Run `podman machine start`                                                        |
+| "At least 4096MB is required"   | `podman machine stop && podman machine set --memory 4096 && podman machine start` |
+| Disk space                      | The Playwright image is ~2 GB. Use `podman system prune` to reclaim space         |
+
 ## Reviewing Screenshot Diffs in PRs
 
 The PR comment is built by [`actions/github-script`](https://github.com/actions/github-script) inline in `.github/workflows/pull-request.yml`. When screenshots differ, `generate-visual-diff-report.js` writes `visual-diff-summary.json`, then the workflow pushes each diff/actual/expected PNG to a temporary orphan branch (`visual-diffs/pr-<number>`) and posts a table with links to each image in the PR comment. Click any link to view the image in GitHub's file viewer.

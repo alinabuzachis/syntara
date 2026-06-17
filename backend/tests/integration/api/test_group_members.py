@@ -410,8 +410,8 @@ class TestSetUserGroups:
 
         data = response.json()
         assert "resources" in data
-        returned_ids = {g["id"] for g in data["resources"]}
-        assert returned_ids == {str(g.id) for g in desired}
+        returned_names = {g["name"] for g in data["resources"]}
+        assert returned_names == {g.name for g in desired} | {"authenticated"}
 
     @pytest.mark.asyncio
     async def test_set_user_groups_replaces_existing(
@@ -433,16 +433,15 @@ class TestSetUserGroups:
         assert response.status_code == 200
 
         data = response.json()
-        returned_ids = {g["id"] for g in data["resources"]}
-        assert returned_ids == {str(g.id) for g in new_groups}
-        # old_group should no longer be present
-        assert str(old_group.id) not in returned_ids
+        returned_names = {g["name"] for g in data["resources"]}
+        assert returned_names == {g.name for g in new_groups} | {"authenticated"}
+        assert old_group.name not in returned_names
 
     @pytest.mark.asyncio
     async def test_set_user_groups_empty_clears_all(
         self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
-        """Test that sending an empty list removes all memberships."""
+        """Test that sending an empty list retains only the authenticated group."""
         _group, members = group_with_members
         member = members[0]
 
@@ -454,7 +453,8 @@ class TestSetUserGroups:
         assert response.status_code == 200
 
         data = response.json()
-        assert len(data["resources"]) == 0
+        returned_names = {g["name"] for g in data["resources"]}
+        assert returned_names == {"authenticated"}
 
     @pytest.mark.asyncio
     async def test_set_user_groups_idempotent(

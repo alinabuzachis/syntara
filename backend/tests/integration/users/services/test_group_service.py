@@ -366,10 +366,7 @@ async def test_get_member_counts_multiple_groups(test_db_session: AsyncSession, 
     await service.add_member(group_a.id, second_user.id)
     await service.add_member(group_b.id, test_user.id)
 
-    counts = await service.get_member_counts(
-        [group_a.id, group_b.id],
-        [group_a.name, group_b.name],
-    )
+    counts = await service.get_member_counts([group_a.id, group_b.id])
 
     assert counts[group_a.id] == 2
     assert counts[group_b.id] == 1

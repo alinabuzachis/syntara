@@ -437,29 +437,6 @@ def group_mapping_provider_factory(
 
 
 @pytest.fixture
-def nexus_group_factory(
-    nexus_api: NexusApiRegistry,
-) -> Generator[Callable[[str], UUID], None, None]:
-    """Factory that creates Nexus groups with automatic cleanup (group-mapping E2E tests)."""
-    from tests.e2e.auth.group_mapping_helpers import create_nexus_group, delete_nexus_group
-
-    created_group_ids: list[UUID] = []
-
-    def _create(name: str) -> UUID:
-        group_id = create_nexus_group(nexus_api, name)
-        created_group_ids.append(group_id)
-        return group_id
-
-    yield _create
-
-    for group_id in created_group_ids:
-        try:
-            delete_nexus_group(nexus_api, group_id)
-        except Exception:
-            logger.warning("Failed to clean up Nexus group %s", group_id, exc_info=True)
-
-
-@pytest.fixture
 def oidc_user_factory(
     nexus_base_url: str,
     nexus_api: NexusApiRegistry,

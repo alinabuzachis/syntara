@@ -7,6 +7,7 @@ import type { FlowPosition } from './types'
 export type ValidationError = {
   message: string
   nodeId: string | null
+  nodeName?: string
 }
 
 // Builder state interface

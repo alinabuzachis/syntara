@@ -217,7 +217,7 @@ class TestMultiGroupMembership:
         ).assert_and_get()
 
         # credential:read no longer works (visibility-filtered -- returns empty, not 403)
-        cred_id, _ = create_credential(admin_api, proj_id, "multi-rsec-cred")
+        cred_id, *_ = create_credential(admin_api, proj_id, "multi-rsec-cred")
         cred_list = user_api.credentials.list().assert_and_get()
         resource_ids = {str(r.id) for r in cred_list.resources}
         assert str(cred_id) not in resource_ids, f"User removed from security group should not see credential {cred_id}"

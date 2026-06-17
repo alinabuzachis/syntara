@@ -369,7 +369,8 @@ secrets-clean: ## Remove generated secrets
 
 .PHONY: generate-token
 generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creator|approver|administrator|viewer KEY=primary|backup)
-	@$(COMPOSE_FINAL_CMD) exec nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role $(ROLE)) $(if $(KEY),--key $(KEY))' | jq -r .access_token
+	@# -T disables TTY so uv progress bars and ANSI escapes stay on stderr instead of merging into stdout
+	@$(COMPOSE_FINAL_CMD) exec -T nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role "$(ROLE)") $(if $(KEY),--key "$(KEY)")' | jq -r .access_token
 
 .PHONY: _ensure-secrets
 _ensure-secrets:

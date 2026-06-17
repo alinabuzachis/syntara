@@ -72,7 +72,7 @@ async def _seed_groups_and_project(
         auth_group = Group(
             id=uuid4(),
             name="authenticated",
-            description="Implicit group for all authenticated users.",
+            description="All authenticated users.",
             is_builtin=True,
             labels={},
         )
@@ -215,8 +215,10 @@ async def _seed_assignments_and_admin(
         await session.flush()
         logger.info("Bootstrap admin user created", user_id=str(admin_user.id))
 
+    await _ensure_group_membership(session, system_user, auth_group)
     await _ensure_group_membership(session, system_user, admin_group)
     await _ensure_group_membership(session, system_user, users_group)
+    await _ensure_group_membership(session, admin_user, auth_group)
     await _ensure_group_membership(session, admin_user, admin_group)
     await _ensure_group_membership(session, admin_user, users_group)
 

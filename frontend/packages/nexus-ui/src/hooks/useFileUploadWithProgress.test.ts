@@ -188,6 +188,37 @@ describe('useFileUploadWithProgress', () => {
     })
   })
 
+  it('appends project_id to FormData when provided', async () => {
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
+    const projectId = '550e8400-e29b-41d4-a716-446655440000'
+
+    act(() => {
+      detachPromise(result.current.uploadFiles([file], projectId))
+    })
+
+    await waitFor(() => {
+      const xhr = getLastXhr()
+      const sentFormData = xhr.send.mock.calls[0][0] as FormData
+      expect(sentFormData.get('project_id')).toBe(projectId)
+    })
+  })
+
+  it('does not append project_id when not provided', async () => {
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
+
+    act(() => {
+      detachPromise(result.current.uploadFiles([file]))
+    })
+
+    await waitFor(() => {
+      const xhr = getLastXhr()
+      const sentFormData = xhr.send.mock.calls[0][0] as FormData
+      expect(sentFormData.has('project_id')).toBe(false)
+    })
+  })
+
   it('sets Authorization header with Bearer token from auth store', async () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })

@@ -62,7 +62,7 @@ class TestZeroRoleBaseline:
         create_user: UserFactory,
     ) -> None:
         proj_id, _ = create_project(admin_api, "norole-cr")
-        cred_id, _ = create_credential(admin_api, proj_id, "norole-cr")
+        cred_id, *_ = create_credential(admin_api, proj_id, "norole-cr")
         _, username, password = create_user(admin_api, "norole-cr")
         user_api = api_for(nexus_base_url, username, password)
         credentials = user_api.credentials.list().assert_and_get()

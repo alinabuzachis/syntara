@@ -18,6 +18,8 @@ import { appBaseUrl, toAppUrl } from '../fixtures'
 import { isSkipWebServerForPlaywrightTests } from '../playwrightWebServerEnv'
 
 import { loginPages, pages } from './page-registry'
+import { assertPerceptualScreenshot } from './perceptualScreenshot'
+import { stabilizeReactFlowViewport } from './stabilizeViewport'
 
 const SCREENSHOT_OPTIONS = {
   maxDiffPixelRatio: 0.005,
@@ -85,11 +87,19 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
         if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
       })
 
+      // Snap React Flow viewport to integer pixels (no-op for non-canvas pages)
+      await stabilizeReactFlowViewport(page)
+
       // Screenshot with section-based directory organization
-      const options = entry.maxDiffPixelRatio
-        ? { ...SCREENSHOT_OPTIONS, maxDiffPixelRatio: entry.maxDiffPixelRatio }
-        : SCREENSHOT_OPTIONS
-      await expect(page).toHaveScreenshot([entry.section, `${entry.name}.png`], options)
+      const snapshotName = [entry.section, `${entry.name}.png`]
+      if (entry.perceptual) {
+        await assertPerceptualScreenshot(page, test.info(), snapshotName)
+      } else {
+        const options = entry.maxDiffPixelRatio
+          ? { ...SCREENSHOT_OPTIONS, maxDiffPixelRatio: entry.maxDiffPixelRatio }
+          : SCREENSHOT_OPTIONS
+        await expect(page).toHaveScreenshot(snapshotName, options)
+      }
     })
   }
 })

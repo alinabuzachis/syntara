@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 class ProjectFactory(Protocol):
     """Protocol ensuring type safety for optional and keyword arguments on the factory."""
 
-    def __call__(self, api: NexusApiRegistry, prefix: str) -> tuple[UUID, str]: ...
+    def __call__(
+        self, api: NexusApiRegistry, prefix: str | None = None, name: str | None = None
+    ) -> tuple[UUID, str]: ...
 
 
 @pytest.fixture(scope="module")
@@ -31,8 +33,8 @@ def create_project() -> Generator[ProjectFactory, None, None]:
     created_project_id = None
     test_api = None
 
-    def _create_project(api: NexusApiRegistry, prefix: str) -> tuple[UUID, str]:
-        name = unique_name(f"e2e-rbac-{prefix}")
+    def _create_project(api: NexusApiRegistry, prefix: str | None = None, name: str | None = None) -> tuple[UUID, str]:
+        name = name or unique_name(f"e2e-rbac-{prefix or 'test'}")
         resp = api.projects.create(body=ProjectCreate(name=name))
         project = resp.assert_and_get()
         nonlocal created_project_id, test_api

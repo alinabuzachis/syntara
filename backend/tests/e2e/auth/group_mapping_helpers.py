@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from nexus_api_client.models.group_create import GroupCreate
 from nexus_api_client.models.identity_provider_patch import IdentityProviderPatch
 from nexus_api_client.models.oidc_claim_mapping import OIDCClaimMapping
 from nexus_api_client.models.oidc_configuration import OIDCConfiguration
@@ -70,19 +69,6 @@ def create_group_mapping_provider(
             allow_all_authenticated=allow_all_authenticated,
         ),
     )
-
-
-def create_nexus_group(nexus_api: NexusApiRegistry, name: str) -> UUID:
-    """Create a Nexus group and return its id."""
-    group = nexus_api.groups.create(body=GroupCreate(name=name)).assert_and_get()
-    group_id = group.id
-    assert isinstance(group_id, UUID)
-    return group_id
-
-
-def delete_nexus_group(nexus_api: NexusApiRegistry, group_id: UUID) -> None:
-    """Delete a Nexus group (ignores 404)."""
-    nexus_api.groups.delete(group_id=group_id)
 
 
 def get_user_id_by_username(nexus_api: NexusApiRegistry, username: str) -> UUID:

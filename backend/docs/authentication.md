@@ -4,12 +4,14 @@ This document describes how authentication works in Nexus. It is intended for de
 
 ## Overview
 
-Nexus supports two authentication methods:
+Nexus supports two authentication methods for human users:
 
 - **Local authentication** — username/password with JWT tokens
 - **Federated authentication** — OIDC (OpenID Connect) via external identity providers (Azure AD, Google, Okta, AAP, etc.)
 
 Both methods produce the same JWT access/refresh token pair. Passwords are hashed with Argon2id.
+
+For machine-to-machine authentication (OAuth 2.0 client credentials grant), see [Service Accounts](service-accounts.md).
 
 ## Token Lifecycle
 

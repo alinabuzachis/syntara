@@ -138,7 +138,7 @@ class TestRoleStacking:
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
         # Cannot read credentials (visibility-filtered -- returns empty, not 403)
-        cred_id, _ = create_credential(admin_api, proj_id, "stack-grp-deny")
+        cred_id, *_ = create_credential(admin_api, proj_id, "stack-grp-deny")
         cred_list = user_api.credentials.list().assert_and_get()
         resource_ids = {str(r.id) for r in cred_list.resources}
         assert str(cred_id) not in resource_ids, f"Group-only user should not see credential {cred_id}"

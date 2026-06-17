@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import {
   useWorkflowVerification,
   resolveNodeId,
-  formatValidationMessage,
+  parseValidationMessage,
   extractValidationErrors,
 } from './useWorkflowVerification'
 
@@ -240,6 +240,91 @@ describe('useWorkflowVerification', () => {
       })
     })
   })
+
+  it('uses fallback defaults when workflow has no triggers, name, or description', async () => {
+    mockGetState.mockReturnValue({
+      currentWorkflow: {
+        workflow: { activities: [] },
+      },
+      edges: [],
+      nodePositions: {},
+      _positionsUserModified: false,
+    })
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: { valid: true, errors: [], warnings: [] },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      expect(mockBuildDefinition).toHaveBeenCalledWith('workflow', '', [], [], {
+        edges: [],
+        nodePositions: {},
+      })
+    })
+  })
+
+  it('passes nodePositions when _positionsUserModified is true', async () => {
+    const positions = { 'node-1': { x: 100, y: 200 } }
+    mockGetState.mockReturnValue({
+      ...workflowState,
+      nodePositions: positions,
+      _positionsUserModified: true,
+    })
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: { valid: true, errors: [], warnings: [] },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      expect(mockBuildDefinition).toHaveBeenCalledWith('Test', 'desc', [], [], {
+        edges: [],
+        nodePositions: positions,
+      })
+    })
+  })
+
+  it('includes nodeName in dispatched errors when 200 response has structured messages', async () => {
+    mockGetState.mockReturnValue(workflowState)
+    mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+    mockPost.mockResolvedValue({
+      data: {
+        valid: false,
+        errors: [
+          { message: "{'name': 'Run Job'} Node is disconnected", node_id: 'node-1' },
+          { message: 'Missing trigger', node_id: null },
+        ],
+        warnings: [],
+      },
+      error: undefined,
+      response: { ok: true },
+    })
+
+    const { result } = renderVerificationHook()
+
+    act(() => result.current.handleVerify())
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_VALIDATION_ERRORS',
+        payload: [
+          { message: 'Run Job: Node is disconnected', nodeId: 'node-1', nodeName: 'Run Job' },
+          { message: 'Missing trigger', nodeId: null },
+        ],
+      })
+    })
+  })
 })
 
 describe('resolveNodeId', () => {
@@ -256,13 +341,31 @@ describe('resolveNodeId', () => {
   })
 })
 
-describe('formatValidationMessage', () => {
-  it('extracts node name and error suffix from structured message', () => {
-    expect(formatValidationMessage("{'name': 'MyNode'} Node is disconnected")).toBe('MyNode: Node is disconnected')
+describe('parseValidationMessage', () => {
+  it('extracts message and nodeName from structured message', () => {
+    expect(parseValidationMessage("{'name': 'MyNode'} Node is disconnected")).toEqual({
+      message: 'MyNode: Node is disconnected',
+      nodeName: 'MyNode',
+    })
   })
 
-  it('returns raw message when format does not match', () => {
-    expect(formatValidationMessage('Node A is disconnected')).toBe('Node A is disconnected')
+  it('returns raw message without nodeName when format does not match', () => {
+    expect(parseValidationMessage('Node A is disconnected')).toEqual({
+      message: 'Node A is disconnected',
+    })
+  })
+
+  it('returns raw message when name matches but suffix does not', () => {
+    expect(parseValidationMessage("{'name': 'MyNode'}")).toEqual({
+      message: "{'name': 'MyNode'}",
+    })
+  })
+
+  it('extracts name with spaces and special characters', () => {
+    expect(parseValidationMessage("{'name': 'My Node - v2'} has invalid config")).toEqual({
+      message: 'My Node - v2: has invalid config',
+      nodeName: 'My Node - v2',
+    })
   })
 })
 
@@ -289,5 +392,23 @@ describe('extractValidationErrors', () => {
 
   it('returns null for undefined input', () => {
     expect(extractValidationErrors(undefined)).toBeNull()
+  })
+
+  it('returns empty array when validation_result has empty errors array', () => {
+    expect(extractValidationErrors({ validation_result: { errors: [] } })).toEqual([])
+  })
+
+  it('returns null when validation_result has no errors field', () => {
+    expect(extractValidationErrors({ validation_result: { valid: false } })).toBeNull()
+  })
+
+  it('extracts nodeName from structured Python-dict messages', () => {
+    const err = {
+      validation_result: {
+        errors: [{ message: "{'name': 'Run Job'} Node is disconnected", node_id: 'node-5' }],
+      },
+    }
+    const result = extractValidationErrors(err)
+    expect(result).toEqual([{ message: 'Run Job: Node is disconnected', nodeId: 'node-5', nodeName: 'Run Job' }])
   })
 })

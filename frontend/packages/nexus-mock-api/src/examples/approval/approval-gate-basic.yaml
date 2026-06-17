@@ -1,0 +1,43 @@
+---
+schema_version: "2.0.0"
+name: approval-gate-basic-test
+description: Workflow with an approval gate before deployment
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: pre_check
+    name: Pre-deployment Check
+    type: script
+    parameters:
+      language: bash
+      code: |
+        echo "Running pre-deployment checks..."
+        echo "All checks passed"
+    outputs:
+      result: $.stdout
+
+  - id: approval_gate
+    name: Deployment Approval
+    type: approval
+    approval:
+      approvers:
+        - admin
+      prompt: "Please approve the deployment to production"
+      timeout: 86400
+
+  - id: deploy
+    name: Deploy to Production
+    type: script
+    parameters:
+      language: bash
+      code: echo "Deploying to production..."
+    outputs:
+      result: $.stdout
+edges:
+  - source: trigger_manual
+    target: pre_check
+  - source: pre_check
+    target: approval_gate
+  - source: approval_gate
+    target: deploy

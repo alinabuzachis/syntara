@@ -26,6 +26,7 @@ from nexus.auth.exceptions import (
     UserUsernameConflictError,
 )
 from nexus.auth.passwords import hash_password
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
@@ -180,20 +181,27 @@ class UsersService(BaseService):
         await self.session.refresh(user)
 
         explicit = group_names is not None
-        resolved_names = group_names if explicit else []
-        if resolved_names:
-            result = await self.session.exec(select(Group).where(col(Group.name).in_(resolved_names)))
-            groups = list(result.all())
-            if explicit:
-                found_names = {g.name for g in groups}
-                missing = [n for n in resolved_names if n not in found_names]
-                if missing:
-                    raise GroupNamesNotFoundError(missing)
-            if groups:
-                await self.session.exec(
-                    sa_insert(user_groups).values([{"user_id": user.id, "group_id": g.id} for g in groups])
-                )
-                await self.session.commit()
+        resolved_names = list(group_names) if group_names is not None else []
+
+        # Always include the authenticated group
+        if AUTHENTICATED_GROUP_NAME not in resolved_names:
+            resolved_names.append(AUTHENTICATED_GROUP_NAME)
+
+        result = await self.session.exec(select(Group).where(col(Group.name).in_(resolved_names)))
+        groups = list(result.all())
+        found_names = {g.name for g in groups}
+        if AUTHENTICATED_GROUP_NAME not in found_names:
+            msg = f"Required built-in group '{AUTHENTICATED_GROUP_NAME}' is missing from the database"
+            raise RuntimeError(msg)
+        if explicit:
+            missing = [n for n in (group_names or []) if n not in found_names]
+            if missing:
+                raise GroupNamesNotFoundError(missing)
+        if groups:
+            await self.session.exec(
+                sa_insert(user_groups).values([{"user_id": user.id, "group_id": g.id} for g in groups])
+            )
+            await self.session.commit()
 
         return user
 
