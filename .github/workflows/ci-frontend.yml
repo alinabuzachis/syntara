@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.check.outputs.code }}
+      backend: ${{ steps.check.outputs.backend }}
     steps:
       - id: check
         env:
@@ -37,12 +38,18 @@ jobs:
           if [ -z "$FILES" ]; then
             echo "::warning::No files from API, running all CI as fallback"
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if echo "$FILES" | grep -qvE '(\.md$|^LICENSE$)'; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$FILES" | grep -qE '^backend/'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
           fi
 
   checks:
@@ -614,14 +621,14 @@ jobs:
                 per_page: 100,
               });
 
-              const e2e = statuses.find(s => s.context === 'E2E Tests');
+              const e2e = statuses.find(s => s.context === 'E2E Tests (AO Operator)');
 
               if (e2e?.state === 'success') {
-                console.log('E2E Tests passed');
+                console.log('E2E Tests (AO Operator) passed');
                 return;
               }
               if (e2e?.state === 'failure' || e2e?.state === 'error') {
-                core.setFailed(`E2E Tests ${e2e.state}: ${e2e.target_url}`);
+                core.setFailed(`E2E Tests (AO Operator) ${e2e.state}: ${e2e.target_url}`);
                 return;
               }
 
@@ -629,7 +636,7 @@ jobs:
               console.log(`E2E status: ${e2e?.state ?? 'not reported yet'} (${elapsed}s elapsed)`);
               await new Promise(r => setTimeout(r, interval));
             }
-            core.setFailed('Timed out waiting for E2E Tests status');
+            core.setFailed('Timed out waiting for E2E Tests (AO Operator) status');
 
   # Single required status check for branch protection. All merge-blocking jobs
   # are listed in `needs` so we manage requirements in code instead of maintaining

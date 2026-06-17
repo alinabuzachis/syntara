@@ -1,6 +1,6 @@
-"""Application-wide constants.
+"""Application-wide API constants.
 
-This module contains true constants that don't change based on environment.
+This module contains global constants that don't change based on environment.
 For configurable values, use get_settings() from nexus.core.config.base.
 """
 

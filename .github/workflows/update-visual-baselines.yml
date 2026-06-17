@@ -90,8 +90,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
-            ADDED=$(git diff --cached --diff-filter=A --name-only | wc -l | tr -d ' ')
-            MODIFIED=$(git diff --cached --diff-filter=M --name-only | wc -l | tr -d ' ')
+            ADDED=$(git diff --cached --diff-filter=A --name-only --relative | wc -l | tr -d ' ')
+            MODIFIED=$(git diff --cached --diff-filter=M --name-only --relative | wc -l | tr -d ' ')
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "added=${ADDED}" >> $GITHUB_OUTPUT
             echo "modified=${MODIFIED}" >> $GITHUB_OUTPUT
@@ -101,8 +101,8 @@ jobs:
                 echo "::error::Unexpected file outside snapshot dir: ${file}"
                 exit 1
               fi
-            done < <(git diff --cached --name-only)
-            git diff --cached --name-only > /tmp/changed-baselines.txt
+            done < <(git diff --cached --name-only --relative)
+            git diff --cached --name-only --relative > /tmp/changed-baselines.txt
           fi
 
       - name: Commit updated baselines (signed via API)

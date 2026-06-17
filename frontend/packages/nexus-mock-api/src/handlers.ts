@@ -579,6 +579,27 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  http.post('/api/v1/workflows/validate', async (request) => {
+    const body = await request.request.json()
+    const nodes: unknown[] = body?.workflow_definition?.nodes ?? []
+    if (nodes.length === 0) {
+      return HttpResponse.json({
+        valid: false,
+        errors: [
+          { message: 'Workflow must have at least one trigger step', node_id: null },
+          { message: 'No steps have been added to the workflow', node_id: null },
+          { message: 'Workflow cannot be saved without any steps', node_id: null },
+        ],
+        warnings: [],
+      })
+    }
+    return HttpResponse.json({
+      valid: false,
+      errors: [{ message: 'Step is missing required configuration', node_id: 'check_temperature' }],
+      warnings: [],
+    })
+  }),
+
   http.post('/api/v1/workflows/:workflowId/versions/:version/publish', async (request) => {
     const workflowId = request.params.workflowId
     const workflow = workflows.find((w) => w.id === workflowId)
