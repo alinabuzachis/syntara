@@ -7,6 +7,7 @@ import { FlowNodeType } from '../../../../constants'
 import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
 import { useIsActiveExecution } from '../../../builder/ActiveExecutionContext'
 import { useIsExecutionView } from '../../../builder/ExecutionViewContext'
+import { useIsVersionView } from '../../../builder/VersionViewContext'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
 import { semanticZoomActivityTitle } from '../semanticZoom'
@@ -130,6 +131,7 @@ function TriggerNodeDetails(
   const isExecutionView = useIsExecutionView()
   const isActiveExecution = useIsActiveExecution()
   const nodesConnectable = useStore((s) => s.nodesConnectable)
+  const isVersionView = useIsVersionView()
   const isManualTrigger = props.triggerKind === TriggerTypeEnum.MANUAL_TRIGGER
   const isScheduledTrigger = props.triggerKind === TriggerTypeEnum.SCHEDULED
   const isWebhookTrigger = props.triggerKind === TriggerTypeEnum.WEBHOOK_TRIGGER
@@ -144,6 +146,7 @@ function TriggerNodeDetails(
           props.menuActions.length > 0 &&
           !isExecutionView &&
           !isActiveExecution &&
+          !isVersionView &&
           nodesConnectable && (
             <FlexItem>
               <NodeMenu menuActions={props.menuActions} />

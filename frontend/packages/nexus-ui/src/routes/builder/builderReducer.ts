@@ -16,6 +16,8 @@ export type BuilderState = {
   deleteDialogOpen: boolean
   detailsOpen: boolean
   historyCardOpen: boolean
+  versionHistoryOpen: boolean
+  viewingVersion: number | null
   isKebabOpen: boolean
   addNodePanelOpen: boolean
   nodeEditorMode: 'add' | 'edit' | null
@@ -46,6 +48,10 @@ export type BuilderAction =
   | { type: 'TOGGLE_DETAILS' }
   | { type: 'SET_HISTORY_CARD_OPEN'; payload: boolean }
   | { type: 'TOGGLE_HISTORY' }
+  | { type: 'SET_VERSION_HISTORY_OPEN'; payload: boolean }
+  | { type: 'TOGGLE_VERSION_HISTORY' }
+  | { type: 'SET_VIEWING_VERSION'; payload: number | null }
+  | { type: 'EXIT_VERSION_VIEW' }
   | { type: 'SET_KEBAB_OPEN'; payload: boolean }
   | { type: 'SET_ADD_NODE_PANEL'; payload: boolean }
   | { type: 'OPEN_NODE_EDITOR_ADD'; payload: { nodeTypeId: string; nodeSubtypeId: string | null } }
@@ -81,7 +87,10 @@ export type BuilderAction =
   | { type: 'SET_MOST_RECENT_EXECUTION'; payload: string }
   | { type: 'CLOSE_MOST_RECENT_RUN_PANEL' }
   | { type: 'SET_SELECTED_TRIGGER'; payload: number }
-  | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[] } }
+  | {
+      type: 'INIT_WORKFLOW'
+      payload: { name: string; description: string; tags: string[]; initialViewVersion?: number | null }
+    }
   | { type: 'SET_VALIDATION_ERRORS'; payload: ValidationError[] }
   | { type: 'CLEAR_VALIDATION_ERRORS' }
 
@@ -97,6 +106,8 @@ const SIMPLE_STATE_KEY_MAP: Record<
     | 'deleteDialogOpen'
     | 'detailsOpen'
     | 'historyCardOpen'
+    | 'versionHistoryOpen'
+    | 'viewingVersion'
     | 'isKebabOpen'
     | 'addNodePanelOpen'
     | 'selectedNode'
@@ -117,6 +128,8 @@ const SIMPLE_STATE_KEY_MAP: Record<
   SET_DELETE_DIALOG: 'deleteDialogOpen',
   SET_DETAILS_OPEN: 'detailsOpen',
   SET_HISTORY_CARD_OPEN: 'historyCardOpen',
+  SET_VERSION_HISTORY_OPEN: 'versionHistoryOpen',
+  SET_VIEWING_VERSION: 'viewingVersion',
   SET_KEBAB_OPEN: 'isKebabOpen',
   SET_ADD_NODE_PANEL: 'addNodePanelOpen',
   SET_SELECTED_NODE: 'selectedNode',
@@ -188,6 +201,7 @@ function handlePanelActions(state: BuilderState, action: BuilderAction): Builder
         selectedNode: null,
         detailsOpen: false,
         historyCardOpen: false,
+        versionHistoryOpen: false,
         sourceNodeId: action.payload.sourceId,
         targetNodeId: action.payload.targetId ?? null,
         edgeIdToReplace: action.payload.edgeId ?? null,
@@ -210,6 +224,7 @@ function handlePanelActions(state: BuilderState, action: BuilderAction): Builder
         selectedNode: null,
         detailsOpen: false,
         historyCardOpen: false,
+        versionHistoryOpen: false,
         sourceNodeId: action.payload.sourceNodeId,
         targetNodeId: null,
         edgeIdToReplace: null,
@@ -240,6 +255,7 @@ function handlePanelActions(state: BuilderState, action: BuilderAction): Builder
         selectedNode: null,
         detailsOpen: false,
         historyCardOpen: false,
+        versionHistoryOpen: false,
       }
     // All other actions are handled by the main reducer
     default:
@@ -251,6 +267,9 @@ function handlePanelActions(state: BuilderState, action: BuilderAction): Builder
  * Helper: Handle node click actions
  */
 function handleNodeClick(state: BuilderState, action: Extract<BuilderAction, { type: 'NODE_CLICK' }>): BuilderState {
+  if (state.viewingVersion !== null) {
+    return state
+  }
   if (action.payload.isGeneric) {
     return {
       ...state,
@@ -260,6 +279,7 @@ function handleNodeClick(state: BuilderState, action: Extract<BuilderAction, { t
       selectedNode: null,
       detailsOpen: false,
       historyCardOpen: false,
+      versionHistoryOpen: false,
       sourceNodeId: null,
       replacementNodeId: action.payload.node.id,
       newNodeDesiredPosition: null,
@@ -280,6 +300,7 @@ function handleNodeClick(state: BuilderState, action: Extract<BuilderAction, { t
     addNodePanelOpen: false,
     detailsOpen: false,
     historyCardOpen: false,
+    versionHistoryOpen: false,
     replacementNodeId: null,
   }
 }
@@ -290,6 +311,8 @@ const SIMPLE_ACTIONS = [
   'SET_DELETE_DIALOG',
   'SET_DETAILS_OPEN',
   'SET_HISTORY_CARD_OPEN',
+  'SET_VERSION_HISTORY_OPEN',
+  'SET_VIEWING_VERSION',
   'SET_KEBAB_OPEN',
   'SET_ADD_NODE_PANEL',
   'SET_SELECTED_NODE',
@@ -340,6 +363,7 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
             ...state,
             detailsOpen: true,
             historyCardOpen: false,
+            versionHistoryOpen: false,
             addNodePanelOpen: false,
             ...clearEditorAndOtherPanels(),
           }
@@ -355,6 +379,7 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
             ...state,
             historyCardOpen: true,
             detailsOpen: false,
+            versionHistoryOpen: false,
             addNodePanelOpen: false,
             ...clearEditorAndOtherPanels(),
           }
@@ -363,6 +388,24 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
             historyCardOpen: false,
           }
     }
+    case 'TOGGLE_VERSION_HISTORY': {
+      const panelIsOpening = !state.versionHistoryOpen
+      return panelIsOpening
+        ? {
+            ...state,
+            versionHistoryOpen: true,
+            detailsOpen: false,
+            historyCardOpen: false,
+            addNodePanelOpen: false,
+            ...clearEditorAndOtherPanels(),
+          }
+        : {
+            ...state,
+            versionHistoryOpen: false,
+          }
+    }
+    case 'EXIT_VERSION_VIEW':
+      return { ...state, viewingVersion: null }
     case 'NODE_CLICK':
       return handleNodeClick(state, action)
     case 'CLEAR_SELECTED_IF_DELETED':
@@ -400,6 +443,8 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
         addNodePanelOpen: false,
         detailsOpen: false,
         historyCardOpen: false,
+        versionHistoryOpen: action.payload.initialViewVersion != null,
+        viewingVersion: action.payload.initialViewVersion ?? null,
         selectedTriggerIndex: 0,
         mostRecentExecutionId: null,
         mostRecentRunPanelOpen: false,
@@ -425,6 +470,8 @@ export function getInitialBuilderState(): BuilderState {
     deleteDialogOpen: false,
     detailsOpen: false,
     historyCardOpen: false,
+    versionHistoryOpen: false,
+    viewingVersion: null,
     isKebabOpen: false,
     addNodePanelOpen: false,
     nodeEditorMode: null,

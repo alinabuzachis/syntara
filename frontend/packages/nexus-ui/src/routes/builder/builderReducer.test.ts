@@ -417,6 +417,18 @@ describe('builderReducer', () => {
       expect(result.historyCardOpen).toBe(false)
       expect(result.replacementNodeId).toBeNull()
     })
+
+    it('is a no-op when viewingVersion is set', () => {
+      const stateViewing: BuilderState = { ...initialState, viewingVersion: 2, versionHistoryOpen: true }
+      const node = { id: 'task-1', type: 'script' } as Node<NodeType['data']>
+      const action: BuilderAction = { type: 'NODE_CLICK', payload: { node, isGeneric: false } }
+      const result = builderReducer(stateViewing, action)
+
+      expect(result.versionHistoryOpen).toBe(true)
+      expect(result.viewingVersion).toBe(2)
+      expect(result.nodeEditorMode).toBeNull()
+      expect(result.selectedNode).toBeNull()
+    })
   })
 
   describe('CLEAR_SELECTED_IF_DELETED action', () => {
@@ -520,6 +532,29 @@ describe('builderReducer', () => {
       expect(result.replacementNodeId).toBeNull()
       expect(result.newNodeDesiredPosition).toBeNull()
     })
+
+    it('sets viewingVersion and versionHistoryOpen when initialViewVersion is provided', () => {
+      const action: BuilderAction = {
+        type: 'INIT_WORKFLOW',
+        payload: { name: 'Test', description: '', tags: [], initialViewVersion: 3 },
+      }
+      const result = builderReducer(initialState, action)
+
+      expect(result.viewingVersion).toBe(3)
+      expect(result.versionHistoryOpen).toBe(true)
+    })
+
+    it('resets viewingVersion when initialViewVersion is not provided', () => {
+      const stateViewing: BuilderState = { ...initialState, viewingVersion: 2, versionHistoryOpen: true }
+      const action: BuilderAction = {
+        type: 'INIT_WORKFLOW',
+        payload: { name: 'Test', description: '', tags: [] },
+      }
+      const result = builderReducer(stateViewing, action)
+
+      expect(result.viewingVersion).toBeNull()
+      expect(result.versionHistoryOpen).toBe(false)
+    })
   })
 
   describe('Most recent run panel actions', () => {
@@ -561,6 +596,41 @@ describe('builderReducer', () => {
 
       expect(result.mostRecentExecutionId).toBeNull()
       expect(result.mostRecentRunPanelOpen).toBe(false)
+    })
+  })
+
+  describe('Version history actions', () => {
+    it('TOGGLE_VERSION_HISTORY opens panel and closes other panels', () => {
+      const stateWithDetails = { ...initialState, detailsOpen: true, historyCardOpen: true }
+      const result = builderReducer(stateWithDetails, { type: 'TOGGLE_VERSION_HISTORY' })
+
+      expect(result.versionHistoryOpen).toBe(true)
+      expect(result.detailsOpen).toBe(false)
+      expect(result.historyCardOpen).toBe(false)
+      expect(result.addNodePanelOpen).toBe(false)
+    })
+
+    it('TOGGLE_VERSION_HISTORY closes panel when already open', () => {
+      const stateWithPanel = { ...initialState, versionHistoryOpen: true }
+      const result = builderReducer(stateWithPanel, { type: 'TOGGLE_VERSION_HISTORY' })
+
+      expect(result.versionHistoryOpen).toBe(false)
+    })
+
+    it('SET_VERSION_HISTORY_OPEN sets versionHistoryOpen', () => {
+      const result = builderReducer(initialState, { type: 'SET_VERSION_HISTORY_OPEN', payload: true })
+      expect(result.versionHistoryOpen).toBe(true)
+    })
+
+    it('SET_VIEWING_VERSION sets viewingVersion', () => {
+      const result = builderReducer(initialState, { type: 'SET_VIEWING_VERSION', payload: 3 })
+      expect(result.viewingVersion).toBe(3)
+    })
+
+    it('EXIT_VERSION_VIEW resets viewingVersion to null', () => {
+      const stateViewing = { ...initialState, viewingVersion: 2 }
+      const result = builderReducer(stateViewing, { type: 'EXIT_VERSION_VIEW' })
+      expect(result.viewingVersion).toBeNull()
     })
   })
 

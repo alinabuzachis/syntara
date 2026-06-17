@@ -3,6 +3,8 @@ import type { EdgeProps, MarkerType } from '@xyflow/react'
 import { BaseEdge } from '@xyflow/react'
 import { useMemo } from 'react'
 
+import { useIsVersionView } from '../VersionViewContext'
+
 import {
   BUTTON_EDGE_DEFAULT_STROKE,
   CANVAS_EDGE_HIGHLIGHT_STROKE,
@@ -45,6 +47,7 @@ type EdgePathProps = {
  */
 export function EdgePath(props: EdgePathProps) {
   const { edgePath, markerEnd, style, selected, isEdgeHovered, data, sourceHandle, onMouseEnter, onMouseLeave } = props
+  const isVersionView = useIsVersionView()
 
   // Determine stroke color and style: execution status > approval handle > interactive state > default
   const { strokeColor, strokeOpacity, strokeDasharray } = useMemo(() => {
@@ -145,7 +148,7 @@ export function EdgePath(props: EdgePathProps) {
         <BaseEdge path={edgePath} markerEnd={effectiveMarkerEnd as EdgeProps['markerEnd']} style={edgeStyle} />
       )}
       {/* Invisible wider path for hover detection */}
-      {!data?.isPending && (
+      {!data?.isPending && !isVersionView && (
         <path
           d={edgePath}
           fill="none"

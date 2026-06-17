@@ -184,6 +184,11 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
   display: none !important;
 }
 
+.version-view-readonly .react-flow__handle {
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 /* Disable Compass screen warning above 720px, show custom warning below. */
 @media (max-width: 1200px) {
   .pf-v6-c-compass.pf-m-no-screen-warning {

@@ -142,6 +142,38 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/workflows/{workflow_id}/versions/{version}/restore': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['restore_workflow_version']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/workflows/{workflow_id}/versions/{version}/export': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['export_workflow_version']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/workflows/validate': {
     parameters: {
       query?: never
@@ -1630,6 +1662,66 @@ export interface operations {
         }
       }
       /** @description Workflow not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  restore_workflow_version: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+        version: number
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowWithVersion']
+        }
+      }
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  export_workflow_version: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+        version: number
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, unknown>
+        }
+      }
       404: {
         headers: {
           [name: string]: unknown

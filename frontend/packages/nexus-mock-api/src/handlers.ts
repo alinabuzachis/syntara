@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { v4 as uuidv4 } from 'uuid'
+import { mockDate } from './resources/mockDates'
 import type * as ApprovalsAPI from '@ansible/nexus-contracts/src/approvals-api.js'
 import type * as ExecutionsAPI from '@ansible/nexus-contracts/src/executions-api.js'
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
@@ -65,6 +66,48 @@ type UpdateWorkflowBody =
   WorkflowAPI.paths['/workflows/{workflow_id}']['patch']['requestBody']['content']['application/json']
 
 type MutableWorkflowWithVersion = { -readonly [K in keyof WorkflowWithVersion]: WorkflowWithVersion[K] }
+
+type MockVersionRecord = {
+  id: string
+  workflow_id: string
+  version: number
+  schema_version: string
+  workflow_definition: unknown
+  change_description: string
+  status: string
+  publish_name: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+  deleted_at: null
+  deleted_by: null
+}
+
+const workflowVersionStore = new Map<string, MockVersionRecord[]>()
+
+function getOrCreateVersionStore(workflowId: string, workflow: WorkflowWithVersion): MockVersionRecord[] {
+  if (!workflowVersionStore.has(workflowId)) {
+    const now = mockDate.daysAgo1
+    workflowVersionStore.set(workflowId, [
+      {
+        id: uuidv4(),
+        workflow_id: workflowId,
+        version: 1,
+        schema_version: workflow.version?.schema_version ?? '2.0.0',
+        workflow_definition: workflow.version?.workflow_definition,
+        change_description: 'Initial version',
+        status: 'draft',
+        publish_name: null,
+        created_by: 'user-1',
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+        deleted_by: null,
+      },
+    ])
+  }
+  return workflowVersionStore.get(workflowId)!
+}
 
 /** Mock seed data may use camelCase timestamps; API uses snake_case */
 type ApprovalTimestamps = Approval & { createdAt?: string; updatedAt?: string }
@@ -527,7 +570,27 @@ export const handlers = [
 
     const body = (await request.request.json()) as UpdateWorkflowBody
     const now = new Date().toISOString()
-    const nextVersion = (workflow.version?.version ?? workflow.current_version ?? 1) + 1
+    const currentVersionNum = workflow.version?.version ?? workflow.current_version ?? 1
+    const nextVersion = currentVersionNum + 1
+
+    const versions = getOrCreateVersionStore(String(workflowId), workflow)
+    if (!versions.some((v) => v.version === currentVersionNum)) {
+      versions.push({
+        id: uuidv4(),
+        workflow_id: String(workflowId),
+        version: currentVersionNum,
+        schema_version: workflow.version?.schema_version ?? '2.0.0',
+        workflow_definition: JSON.parse(JSON.stringify(workflow.version?.workflow_definition)),
+        change_description: workflow.version?.change_description ?? `Version ${currentVersionNum}`,
+        status: 'draft',
+        publish_name: null,
+        created_by: workflow.version?.created_by ?? 'user-1',
+        created_at: workflow.version?.created_at ?? now,
+        updated_at: workflow.version?.created_at ?? now,
+        deleted_at: null,
+        deleted_by: null,
+      })
+    }
 
     const mutableWorkflow = workflow as MutableWorkflowWithVersion
     mutableWorkflow.name = body.name ?? workflow.name
@@ -545,8 +608,24 @@ export const handlers = [
       workflow_definition: nextDefinition,
       created_by: mutableWorkflow.updated_by ?? workflow.version?.created_by ?? 'user-1',
       created_at: now,
-      change_description: 'Updated via mock API',
+      change_description: body.change_description ?? 'Updated via mock API',
     }
+
+    versions.push({
+      id: uuidv4(),
+      workflow_id: String(workflowId),
+      version: nextVersion,
+      schema_version: mutableWorkflow.version.schema_version ?? '2.0.0',
+      workflow_definition: JSON.parse(JSON.stringify(nextDefinition)),
+      change_description: mutableWorkflow.version.change_description ?? '',
+      status: 'draft',
+      publish_name: null,
+      created_by: mutableWorkflow.version.created_by ?? 'user-1',
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      deleted_by: null,
+    })
 
     return HttpResponse.json(workflow)
   }),
@@ -675,6 +754,136 @@ export const handlers = [
       versionObj.publish_name = null
     }
     return HttpResponse.json(mutableWorkflow)
+  }),
+
+  http.get('/api/v1/workflows/:workflowId/versions', (request) => {
+    const workflowId = String(request.params.workflowId)
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Workflow not found', code: 'WORKFLOW_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
+    const versions = getOrCreateVersionStore(workflowId, workflow)
+    const sorted = [...versions].sort((a, b) => b.version - a.version)
+
+    return HttpResponse.json({ resources: sorted })
+  }),
+
+  http.get('/api/v1/workflows/:workflowId/versions/:version', (request) => {
+    const workflowId = String(request.params.workflowId)
+    const versionNum = Number(request.params.version)
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Workflow not found', code: 'WORKFLOW_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
+    const versions = getOrCreateVersionStore(workflowId, workflow)
+    const found = versions.find((v) => v.version === versionNum)
+    if (!found) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: `Version ${versionNum} not found`, code: 'VERSION_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
+    return HttpResponse.json(found)
+  }),
+
+  http.post('/api/v1/workflows/:workflowId/versions/:version/restore', (request) => {
+    const workflowId = String(request.params.workflowId)
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Workflow not found', code: 'WORKFLOW_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
+    const now = new Date().toISOString()
+    const restoredVersionNum = Number(request.params.version)
+    const versions = getOrCreateVersionStore(workflowId, workflow)
+    const sourceVersion = versions.find((v) => v.version === restoredVersionNum)
+    if (!sourceVersion) {
+      return HttpResponse.json(
+        {
+          type: 'not-found',
+          title: 'Not Found',
+          detail: `Version ${restoredVersionNum} not found`,
+          code: 'VERSION_NOT_FOUND',
+        },
+        { status: 404 }
+      )
+    }
+
+    const nextVersion = Math.max(...versions.map((v) => v.version)) + 1
+    const restoredDef = JSON.parse(JSON.stringify(sourceVersion.workflow_definition))
+
+    const newVersionRecord: MockVersionRecord = {
+      id: uuidv4(),
+      workflow_id: workflowId,
+      version: nextVersion,
+      schema_version: sourceVersion.schema_version,
+      workflow_definition: restoredDef,
+      change_description: `Restored from version ${restoredVersionNum}`,
+      status: 'draft',
+      publish_name: null,
+      created_by: 'user-1',
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      deleted_by: null,
+    }
+    versions.push(newVersionRecord)
+
+    const mutableWorkflow = workflow as MutableWorkflowWithVersion
+    mutableWorkflow.current_version = nextVersion
+    mutableWorkflow.updated_at = now
+    mutableWorkflow.version = {
+      version: nextVersion,
+      schema_version: sourceVersion.schema_version,
+      workflow_definition: restoredDef,
+      created_by: 'user-1',
+      created_at: now,
+      change_description: `Restored from version ${restoredVersionNum}`,
+    }
+
+    return HttpResponse.json(workflow)
+  }),
+
+  http.get('/api/v1/workflows/:workflowId/versions/:version/export', (request) => {
+    const workflowId = String(request.params.workflowId)
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Workflow not found', code: 'WORKFLOW_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
+    const versionNum = Number(request.params.version)
+    const versions = getOrCreateVersionStore(workflowId, workflow)
+    const versionRecord = versions.find((v) => v.version === versionNum)
+    if (!versionRecord) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: `Version ${versionNum} not found`, code: 'VERSION_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
+    const definition = versionRecord.workflow_definition ?? {}
+    return new HttpResponse(JSON.stringify(definition, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Disposition': `attachment; filename="${workflow.name}-v${versionNum}.json"`,
+      },
+    })
   }),
 
   http.get('/api/v1/executions', ({ request }) => {

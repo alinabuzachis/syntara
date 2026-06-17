@@ -78,6 +78,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     onNodesDeleted,
     disableDeleteKey,
     disableSpacePanning,
+    readOnly: readOnlyProp,
     newNodeDesiredPosition,
     onClearDesiredPosition,
     selectedActivityId,
@@ -109,7 +110,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const effectiveExecutionStatus = resolveExecutionStatus(executionStatus, storeExecutionStatus)
   const isActiveExecution =
     effectiveExecutionStatus !== null && !TERMINAL_EXECUTION_STATUSES.has(effectiveExecutionStatus)
-  const isReadOnly = isExecutionView || isActiveExecution || !canEdit
+  const isReadOnly = isExecutionView || isActiveExecution || readOnlyProp || !canEdit
   // Button-edge maintenance must also see null for terminal states so it recreates the "+" buttons.
   const buttonEdgeExecutionStatus = isActiveExecution ? effectiveExecutionStatus : null
 
@@ -271,17 +272,27 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Drag-end positions are persisted to the store via onNodeDragStop instead
   // of here, because onNodesChange drag-end events may omit the final position
   // for some node types (e.g. loop nodes).
-  const onNodesChange = useCallback((changes: NodeChange<NodeType>[]) => {
-    setNodes((nds) => applyNodeChanges(changes, nds))
-  }, [])
+  const onNodesChange = useCallback(
+    (changes: NodeChange<NodeType>[]) => {
+      const filtered = isReadOnly
+        ? changes.filter((c) => c.type === 'dimensions' || c.type === 'position' || c.type === 'select')
+        : changes
+      setNodes((nds) => applyNodeChanges(filtered, nds))
+    },
+    [isReadOnly]
+  )
 
   useExternalNodeSelection(selectedActivityId, setNodes)
 
   const { onNodeDragStop, onLayout } = usePositionEventHandlers(nodes, edges, setNodes, setEdges)
 
-  const onEdgesChange = useCallback((changes: EdgeChange<EdgeType>[]) => {
-    setEdges((eds) => applyEdgeChanges(changes, eds))
-  }, [])
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange<EdgeType>[]) => {
+      if (isReadOnly) return
+      setEdges((eds) => applyEdgeChanges(changes, eds))
+    },
+    [isReadOnly]
+  )
 
   // Read positions snapshot once per version (non-reactive — avoids re-renders during drag)
   const hasStoredPositions = useMemo(
@@ -542,6 +553,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
       {/* eslint-disable-next-line nexus/prefer-pf-text-components -- full-bleed canvas container for ReactFlow */}
       <div
         ref={containerRef}
+        className={readOnlyProp ? 'version-view-readonly' : undefined}
         style={{
           width: '100%',
           height: '100%',

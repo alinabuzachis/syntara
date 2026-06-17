@@ -1,0 +1,355 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { renderHook, act } from '@testing-library/react'
+import { createElement } from 'react'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { useVersionHistory } from './useVersionHistory'
+
+const mockMutate = vi.fn()
+const mockRefetch = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowError = vi.fn()
+
+vi.mock('../../../providers/alerts', () => ({
+  useAlerts: () => ({
+    showSuccess: mockShowSuccess,
+    showError: mockShowError,
+  }),
+}))
+
+vi.mock('../../../utils/apiErrors', () => ({
+  getErrorMessage: (e: unknown) => (e instanceof Error ? e.message : 'Unknown error'),
+}))
+
+vi.mock('../../../client', () => ({
+  workflowClient: {
+    useQuery: vi.fn((_method: string, _path: string, _params: unknown, opts: { enabled: boolean }) => ({
+      data: opts.enabled ? { resources: mockVersions } : undefined,
+      refetch: mockRefetch,
+    })),
+    useMutation: vi.fn(() => ({
+      mutate: mockMutate,
+      isPending: false,
+    })),
+  },
+}))
+
+let mockVersions = [
+  { version: 3, status: 'draft', workflow_definition: { name: 'v3' } },
+  { version: 2, status: 'published', workflow_definition: { name: 'v2' } },
+  { version: 1, status: 'previously_published', workflow_definition: { name: 'v1' } },
+]
+
+function makeWrapper(queryClient: QueryClient) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+}
+
+describe('useVersionHistory', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockRefetch.mockResolvedValue({ data: { resources: mockVersions } })
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    mockVersions = [
+      { version: 3, status: 'draft', workflow_definition: { name: 'v3' } },
+      { version: 2, status: 'published', workflow_definition: { name: 'v2' } },
+      { version: 1, status: 'previously_published', workflow_definition: { name: 'v1' } },
+    ]
+  })
+
+  it('returns all versions when no status filter is set', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.filteredVersions).toHaveLength(3)
+  })
+
+  it('filters versions by status when filter is set', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.setStatusFilter(['published'])
+    })
+
+    expect(result.current.filteredVersions).toHaveLength(1)
+    expect(result.current.filteredVersions[0].version).toBe(2)
+  })
+
+  it('returns empty array when no versions match the filter', () => {
+    mockVersions = [{ version: 1, status: 'draft', workflow_definition: { name: 'v1' } }]
+
+    const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.setStatusFilter(['published'])
+    })
+
+    expect(result.current.filteredVersions).toHaveLength(0)
+  })
+
+  it('returns empty array when workflowId is null', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: null, isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.filteredVersions).toHaveLength(0)
+  })
+
+  it('returns empty array when isNew is true', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: true }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.filteredVersions).toHaveLength(0)
+  })
+
+  describe('exportVersion', () => {
+    it('creates a download link for the version definition', () => {
+      const mockClick = vi.fn()
+      const originalCreateElement = document.createElement.bind(document)
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string, options?: ElementCreationOptions) => {
+        if (tag === 'a') {
+          return { click: mockClick, href: '', download: '' } as unknown as HTMLAnchorElement
+        }
+        return originalCreateElement(tag, options)
+      })
+      const mockCreateObjectURL = vi.fn().mockReturnValue('blob:mock-url')
+      const mockRevokeObjectURL = vi.fn()
+      vi.spyOn(URL, 'createObjectURL').mockImplementation(mockCreateObjectURL)
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(mockRevokeObjectURL)
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.exportVersion(2, 'my-workflow')
+      })
+
+      expect(mockCreateObjectURL).toHaveBeenCalled()
+      expect(mockClick).toHaveBeenCalled()
+      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+
+      vi.restoreAllMocks()
+    })
+
+    it('does nothing when version is not found in the list', () => {
+      const mockCreateObjectURL = vi.fn()
+      vi.spyOn(URL, 'createObjectURL').mockImplementation(mockCreateObjectURL)
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.exportVersion(99, 'my-workflow')
+      })
+
+      expect(mockCreateObjectURL).not.toHaveBeenCalled()
+    })
+
+    it('does nothing when version has no workflow_definition', () => {
+      mockVersions = [{ version: 1, status: 'draft', workflow_definition: null as unknown as { name: string } }]
+      const mockCreateObjectURL = vi.fn()
+      vi.spyOn(URL, 'createObjectURL').mockImplementation(mockCreateObjectURL)
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.exportVersion(1, 'my-workflow')
+      })
+
+      expect(mockCreateObjectURL).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('openInNewWindow', () => {
+    it('opens a new window with the version URL', () => {
+      const mockOpen = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.openInNewWindow(2)
+      })
+
+      expect(mockOpen).toHaveBeenCalledWith('/workflow-builder/wf-1?version=2', '_blank', 'noopener,noreferrer')
+      mockOpen.mockRestore()
+    })
+
+    it('does nothing when workflowId is null', () => {
+      const mockOpen = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: null, isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.openInNewWindow(2)
+      })
+
+      expect(mockOpen).not.toHaveBeenCalled()
+      mockOpen.mockRestore()
+    })
+  })
+
+  it('returns empty filteredVersions when allVersions is undefined', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: null, isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.filteredVersions).toEqual([])
+  })
+
+  it('filters versions with multiple status values', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.setStatusFilter(['draft', 'published'])
+    })
+
+    expect(result.current.filteredVersions).toHaveLength(2)
+  })
+
+  it('exposes restoreMutation', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.restoreMutation).toBeDefined()
+    expect(result.current.restoreMutation.isPending).toBe(false)
+  })
+
+  it('exposes versionsQuery', () => {
+    const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    expect(result.current.versionsQuery).toBeDefined()
+    expect(result.current.versionsQuery.refetch).toBeDefined()
+  })
+
+  describe('publishVersion', () => {
+    it('calls publish mutation with correct params', () => {
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.publishVersion(2)
+      })
+
+      expect(mockMutate).toHaveBeenCalledWith(
+        {
+          params: { path: { workflow_id: 'wf-1', version: 2 } },
+          body: { publish_name: null, change_description: null },
+        },
+        expect.objectContaining({
+          onSuccess: expect.any(Function) as unknown,
+          onError: expect.any(Function) as unknown,
+        })
+      )
+    })
+
+    it('passes publishName and changeDescription when provided', () => {
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.publishVersion(2, 'Release 1.0', 'First public release')
+      })
+
+      expect(mockMutate).toHaveBeenCalledWith(
+        {
+          params: { path: { workflow_id: 'wf-1', version: 2 } },
+          body: { publish_name: 'Release 1.0', change_description: 'First public release' },
+        },
+        expect.objectContaining({
+          onSuccess: expect.any(Function) as unknown,
+          onError: expect.any(Function) as unknown,
+        })
+      )
+    })
+
+    it('refetches versions and invalidates queries on publish success', () => {
+      mockMutate.mockImplementation((_params: unknown, callbacks?: { onSuccess?: () => void }) => {
+        callbacks?.onSuccess?.()
+      })
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.publishVersion(2)
+      })
+
+      expect(mockRefetch).toHaveBeenCalled()
+      expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Version published successfully' })
+    })
+
+    it('does not call mutation when workflowId is null', () => {
+      const { result } = renderHook(() => useVersionHistory({ workflowId: null, isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.publishVersion(2)
+      })
+
+      expect(mockMutate).not.toHaveBeenCalled()
+    })
+
+    it('shows success alert on publish success', () => {
+      mockMutate.mockImplementation((_params: unknown, callbacks?: { onSuccess?: () => void }) => {
+        callbacks?.onSuccess?.()
+      })
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.publishVersion(2)
+      })
+
+      expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Version published successfully' })
+    })
+
+    it('shows error alert on publish failure', () => {
+      const mockError = new Error('Publish failed')
+      mockMutate.mockImplementation((_params: unknown, callbacks?: { onError?: (error: unknown) => void }) => {
+        callbacks?.onError?.(mockError)
+      })
+
+      const { result } = renderHook(() => useVersionHistory({ workflowId: 'wf-1', isNew: false }), {
+        wrapper: makeWrapper(queryClient),
+      })
+
+      act(() => {
+        result.current.publishVersion(2)
+      })
+
+      expect(mockShowError).toHaveBeenCalledWith({
+        title: 'Failed to publish version',
+        description: 'Publish failed',
+      })
+    })
+  })
+})

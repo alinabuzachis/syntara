@@ -3,6 +3,7 @@ import { useStore } from '@xyflow/react'
 
 import { useIsActiveExecution } from '../../../../builder/ActiveExecutionContext'
 import { useIsExecutionView } from '../../../../builder/ExecutionViewContext'
+import { useIsVersionView } from '../../../../builder/VersionViewContext'
 import type { NodeMenuAction } from '../hooks/useNodeMenuActions'
 
 import { NodeExpandToggle } from './NodeExpandToggle'
@@ -55,6 +56,7 @@ export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
   const isExecutionView = useIsExecutionView()
   const isActiveExecution = useIsActiveExecution()
   const nodesConnectable = useStore((s) => s.nodesConnectable)
+  const isVersionView = useIsVersionView()
 
   return (
     <Stack>
@@ -72,6 +74,7 @@ export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
                 props.menuActions.length > 0 &&
                 !isExecutionView &&
                 !isActiveExecution &&
+                !isVersionView &&
                 nodesConnectable && (
                   <FlexItem>
                     <NodeMenu menuActions={props.menuActions} />
