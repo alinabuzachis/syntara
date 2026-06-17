@@ -68,36 +68,144 @@ jobs:
             frontend/packages/nexus-ui/playwright-report/
           retention-days: 7
 
-      - name: Commit updated baselines
-        id: commit
-        continue-on-error: true
-        working-directory: frontend/packages/nexus-ui
+      - name: Validate inputs
         env:
           PR_REF: ${{ inputs.pr_ref }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ ! "${PR_REF}" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
+            echo "::error::Invalid branch ref: '${PR_REF}'"
+            exit 1
+          fi
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid PR number: '${PR_NUMBER}'"
+            exit 1
+          fi
+
+      - name: Detect changed baselines
+        id: detect
+        working-directory: frontend/packages/nexus-ui
+        run: |
           git add e2e/visual-regression/page-screenshots.spec.ts-snapshots/
           if git diff --cached --quiet; then
-            echo "committed=false" >> $GITHUB_OUTPUT
-            echo "No changes to commit"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
           else
             ADDED=$(git diff --cached --diff-filter=A --name-only | wc -l | tr -d ' ')
             MODIFIED=$(git diff --cached --diff-filter=M --name-only | wc -l | tr -d ' ')
-            git commit -m "chore: update visual regression baselines (${ADDED} new, ${MODIFIED} changed)"
-            git push origin "HEAD:${PR_REF}"
-            echo "committed=true" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "added=${ADDED}" >> $GITHUB_OUTPUT
             echo "modified=${MODIFIED}" >> $GITHUB_OUTPUT
+            SNAPSHOT_PREFIX="e2e/visual-regression/page-screenshots.spec.ts-snapshots/"
+            while IFS= read -r file; do
+              if [[ "${file}" != "${SNAPSHOT_PREFIX}"* ]]; then
+                echo "::error::Unexpected file outside snapshot dir: ${file}"
+                exit 1
+              fi
+            done < <(git diff --cached --name-only)
+            git diff --cached --name-only > /tmp/changed-baselines.txt
           fi
+
+      - name: Commit updated baselines (signed via API)
+        id: commit
+        if: steps.detect.outputs.has_changes == 'true'
+        continue-on-error: true
+        uses: actions/github-script@v9
+        env:
+          PR_REF: ${{ inputs.pr_ref }}
+          ADDED: ${{ steps.detect.outputs.added }}
+          MODIFIED: ${{ steps.detect.outputs.modified }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const prRef = process.env.PR_REF;
+            if (!/^[a-zA-Z0-9.\/_-]+$/.test(prRef)) {
+              core.setFailed(`Invalid branch ref: '${prRef}'`);
+              return;
+            }
+
+            const added = process.env.ADDED || '0';
+            const modified = process.env.MODIFIED || '0';
+            const message = `chore: update visual regression baselines (${added} new, ${modified} changed)`;
+
+            const changedFiles = fs.readFileSync('/tmp/changed-baselines.txt', 'utf8')
+              .trim().split('\n').filter(Boolean);
+
+            if (changedFiles.length === 0) {
+              core.setOutput('committed', 'false');
+              return;
+            }
+
+            const snapshotPrefix = 'e2e/visual-regression/page-screenshots.spec.ts-snapshots/';
+            for (const file of changedFiles) {
+              if (!file.startsWith(snapshotPrefix) || file.includes('..')) {
+                core.setFailed(`Unexpected file path: '${file}'`);
+                return;
+              }
+            }
+
+            const headRef = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${prRef}`,
+            });
+            const headSha = headRef.data.object.sha;
+
+            const treeEntries = [];
+            for (const file of changedFiles) {
+              const fullPath = `frontend/packages/nexus-ui/${file}`;
+              const content = fs.readFileSync(
+                path.join(process.env.GITHUB_WORKSPACE, fullPath)
+              );
+              const blob = await github.rest.git.createBlob({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                content: content.toString('base64'),
+                encoding: 'base64',
+              });
+              treeEntries.push({
+                path: fullPath,
+                mode: '100644',
+                type: 'blob',
+                sha: blob.data.sha,
+              });
+            }
+
+            const tree = await github.rest.git.createTree({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base_tree: headSha,
+              tree: treeEntries,
+            });
+
+            const commit = await github.rest.git.createCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              message,
+              tree: tree.data.sha,
+              parents: [headSha],
+            });
+
+            await github.rest.git.updateRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${prRef}`,
+              sha: commit.data.sha,
+            });
+
+            core.info(`Created verified commit ${commit.data.sha}`);
+            core.setOutput('committed', 'true');
+            core.setOutput('added', added);
+            core.setOutput('modified', modified);
 
       - name: Post result comment
         if: ${{ !cancelled() }}
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
-          COMMITTED: ${{ steps.commit.outputs.committed }}
-          ADDED: ${{ steps.commit.outputs.added }}
-          MODIFIED: ${{ steps.commit.outputs.modified }}
+          COMMITTED: ${{ steps.commit.outputs.committed || 'false' }}
+          ADDED: ${{ steps.detect.outputs.added }}
+          MODIFIED: ${{ steps.detect.outputs.modified }}
           TESTS_FAILED: ${{ steps.screenshots.outcome == 'failure' || steps.screenshots.conclusion == 'failure' }}
           COMMIT_FAILED: ${{ steps.commit.outcome == 'failure' }}
           COMMIT_OUTCOME: ${{ steps.commit.outcome }}
