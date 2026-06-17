@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from uuid import UUID
 
     from nexus_api_client.api import NexusApiRegistry
 
@@ -18,14 +18,15 @@ if not os.environ.get("APP_BASE_URL"):
 
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.conftest import api_for, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import (
-    ResourceTracker,
-    assign_role_to_user,
-    create_project_role,
+from tests.fixtures.factories import (
+    AssignProjectRoleFactory,
+    ProjectFactory,
+    ProjectRoleFactory,
+    UserFactory,
+    WorkflowFactory,
     get_bearer_token_type_id,
 )
 
@@ -40,37 +41,36 @@ _POLICIES = [
 
 
 @pytest.fixture(scope="module")
-def workflow_manager_env(admin_api: NexusApiRegistry, nexus_base_url: str) -> Generator[Any, None, None]:
+def workflow_manager_env(
+    admin_api: NexusApiRegistry,
+    create_project: ProjectFactory,
+    create_project_role: ProjectRoleFactory,
+    create_user: UserFactory,
+    assign_project_role_to_user: AssignProjectRoleFactory,
+    nexus_base_url: str,
+) -> tuple[NexusApiRegistry, UUID]:
     """Create project, user, role, assignment and return the user's API."""
-    tracker = ResourceTracker(admin_api)
-
-    user_id, name, password = tracker.user("wfmgr")
-    project_id, _ = tracker.project("wfmgr")
+    user_id, name, password = create_user(admin_api, "wfmgr")
+    project_id, _ = create_project(admin_api, "wfmgr")
 
     role_name = create_project_role(admin_api, project_id, "wfmgr", _POLICIES)
-    assign_role_to_user(admin_api, project_id, user_id, role_name)
+    assign_project_role_to_user(admin_api, project_id, user_id, role_name)
 
     user_api = api_for(nexus_base_url, name, password)
-    yield user_api, project_id
-    tracker.cleanup()
+    return user_api, project_id
 
 
 class TestWorkflowManagerAllowed:
     """Positive: workflow CRUD within the project."""
 
-    def test_create_workflow(self, workflow_manager_env):
+    def test_create_workflow(self, workflow_manager_env, create_workflow: WorkflowFactory):
         user_api, project_id = workflow_manager_env
         wf_name = unique_name("e2e-rbac-wf-wfmgr")
-        resp = user_api.workflows.create(
-            body=WorkflowCreate(
-                name=wf_name,
-                workflow_definition=MINIMAL_WORKFLOW_DEFINITION,
-                project_id=project_id,
-            ),
+        workflow_id, workflow_name = create_workflow(
+            user_api, project_id, name=wf_name, definition=MINIMAL_WORKFLOW_DEFINITION
         )
-        wf = resp.assert_and_get()
-        assert wf.id is not None
-        assert str(wf.name).startswith("e2e-rbac-wf-")
+        assert workflow_id is not None
+        assert str(workflow_name).startswith("e2e-rbac-wf-")
 
     def test_list_workflows(self, workflow_manager_env):
         user_api, project_id = workflow_manager_env

@@ -3,9 +3,10 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
-import { useLocation, useParams } from 'wouter'
 
 import { approvalsClient } from '../../client'
+import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useParams } from '../../hooks/routing/useParams'
 
 import ApprovalDetail from './ApprovalDetail'
 
@@ -16,11 +17,28 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  usersClient: {
+    useQuery: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+    })),
+  },
 }))
 
-// Mock wouter
-vi.mock('wouter', () => ({
-  useLocation: vi.fn(),
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn((selector: (state: { username: string; userId: string }) => unknown) => {
+    const state = { username: 'testuser', userId: 'test-user-id' }
+
+    return selector(state)
+  }),
+}))
+
+// Mock routing bridge hooks
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: vi.fn(),
+}))
+
+vi.mock('../../hooks/routing/useParams', () => ({
   useParams: vi.fn(),
 }))
 
@@ -36,6 +54,8 @@ describe('ApprovalDetail Component', () => {
     name: 'Test Approval',
     description: 'This is a test approval requiring manual review',
     status: 'pending',
+    approver_users: [],
+    approver_groups: [],
     timeout_at: new Date(now + 22 * 60 * 60 * 1000).toISOString(),
     next_step_approved: {
       id: 'apply_changes',
@@ -83,7 +103,7 @@ describe('ApprovalDetail Component', () => {
       isPending: false,
     } as never)
     vi.mocked(useParams).mockReturnValue({ approvalId: '550e8400-e29b-41d4-a716-446655440001' })
-    vi.mocked(useLocation).mockReturnValue(['/', vi.fn()])
+    vi.mocked(useNavigate).mockReturnValue(vi.fn())
   })
 
   const mockApprovalQuery = (data: Approval | null, isPending = false, error: unknown = null) => {

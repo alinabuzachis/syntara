@@ -1,9 +1,9 @@
 import type { ToolProviderCreate } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import { toolManagerClient } from '../../../../client'
+import { navigate } from '../../../../hooks/routing/navigate'
 import type { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 

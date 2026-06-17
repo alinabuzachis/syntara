@@ -14,14 +14,13 @@ if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
 
 from tests.e2e.conftest import api_for
-from tests.e2e.fixtures.factories import (
+from tests.fixtures.factories import (
+    AssignProjectRoleFactory,
+    GroupFactory,
+    ProjectFactory,
+    UserFactory,
+    UserRoleAssignmentFactory,
     add_to_group,
-    assign_role_to_group,
-    assign_role_to_user,
-    assign_system_role,
-    create_group,
-    create_project,
-    create_user,
 )
 
 pytestmark = [pytest.mark.e2e]
@@ -34,6 +33,8 @@ class TestProjectListNoRoles:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_user: UserFactory,
     ) -> None:
         _, hidden_name = create_project(admin_api, "hidden")
         _, name, password = create_user(admin_api, "filter-none")
@@ -52,6 +53,9 @@ class TestProjectListWithRoles:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_user: UserFactory,
+        assign_project_role_to_user: AssignProjectRoleFactory,
     ) -> None:
         proj_a_id, proj_a_name = create_project(admin_api, "filt-a")
         proj_b_id, proj_b_name = create_project(admin_api, "filt-b")
@@ -59,8 +63,8 @@ class TestProjectListWithRoles:
 
         user_id, name, password = create_user(admin_api, "filter-two")
 
-        assign_role_to_user(admin_api, proj_a_id, user_id, "project-user")
-        assign_role_to_user(admin_api, proj_b_id, user_id, "project-user")
+        assign_project_role_to_user(admin_api, proj_a_id, user_id, "project-user")
+        assign_project_role_to_user(admin_api, proj_b_id, user_id, "project-user")
 
         user_api = api_for(nexus_base_url, name, password)
         projects = user_api.projects.list().assert_and_get()
@@ -78,6 +82,9 @@ class TestSystemAuditorSeesAll:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_user: UserFactory,
+        assign_system_role: UserRoleAssignmentFactory,
     ) -> None:
         _, proj_x_name = create_project(admin_api, "audit-x")
         _, proj_y_name = create_project(admin_api, "audit-y")
@@ -101,14 +108,19 @@ class TestNoDuplicateProjects:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_group: GroupFactory,
+        create_user: UserFactory,
+        assign_project_role_to_user: AssignProjectRoleFactory,
+        assign_project_role_to_group: AssignProjectRoleFactory,
     ) -> None:
         proj_id, proj_name = create_project(admin_api, "dedup")
         user_id, name, password = create_user(admin_api, "filter-dup")
         group_id, _ = create_group(admin_api, "dedup")
 
-        assign_role_to_user(admin_api, proj_id, user_id, "project-user")
+        assign_project_role_to_user(admin_api, proj_id, user_id, "project-user")
         add_to_group(admin_api, group_id, user_id)
-        assign_role_to_group(admin_api, proj_id, group_id, "project-auditor")
+        assign_project_role_to_group(admin_api, proj_id, group_id, "project-auditor")
 
         user_api = api_for(nexus_base_url, name, password)
         projects = user_api.projects.list().assert_and_get()

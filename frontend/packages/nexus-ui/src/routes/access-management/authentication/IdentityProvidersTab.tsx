@@ -15,7 +15,6 @@ import { RhUiAddIcon, RhUiBanIcon, RhUiEditIcon, RhUiSecurityIcon, RhUiTrashIcon
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { adminClient, identityProvidersClient } from '../../../client'
@@ -28,6 +27,7 @@ import { ProviderIcon } from '../../../components/ProviderIcon'
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
+import { navigate } from '../../../hooks/routing/navigate'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useDialogState } from '../../../hooks/useDialogState'
@@ -352,7 +352,7 @@ export function IdentityProvidersTab() {
           <NxEmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
         </StackItem>
       ) : (
-        <NxScrollableTableContainer aria-label="Identity providers table" footer={getFooterProps(query.data)}>
+        <NxScrollableTableContainer caption="Identity providers table" footer={getFooterProps(query.data)}>
           <Thead>
             <Tr>
               <Th sort={getSortParams(0)}>Name</Th>

@@ -25,12 +25,15 @@ vi.mock('../../../client', () => ({
 }))
 
 const mockUseParams = vi.fn(() => ({ projectId: 'proj-1' }))
-vi.mock('wouter', () => ({
-  useParams: () => mockUseParams(),
-  useLocation: () => ['/system-administration/access-management/projects/proj-1/details', vi.fn()],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/access-management/projects/proj-1/details',
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/useParams', () => ({
+  useParams: () => mockUseParams(),
+}))
+
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 
@@ -223,7 +226,7 @@ describe('ProjectDetail', () => {
   })
 
   it('calls navigate when back button is clicked in not-found state', async () => {
-    const { navigate } = await import('wouter/use-browser-location')
+    const { navigate } = await import('../../../hooks/routing/navigate')
     const user = userEvent.setup()
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: undefined,

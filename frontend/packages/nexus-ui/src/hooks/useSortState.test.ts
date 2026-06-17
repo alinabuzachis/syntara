@@ -8,9 +8,15 @@ const mockNavigate = vi.fn()
 let mockSearch = ''
 let mockLocation = '/system-administration/access-management/roles'
 
-vi.mock('wouter', () => ({
+vi.mock('./routing/useLocation', () => ({
+  useLocation: () => mockLocation,
+}))
+vi.mock('./routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('./routing/useSearch', () => ({
   useSearch: () => mockSearch,
-  useLocation: () => [mockLocation, mockNavigate],
 }))
 
 const sortFieldByColumn: Record<number, string> = {

@@ -46,6 +46,7 @@ def _make_workflow(
     wf.loop_iteration_results = {}
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
+    wf._converge_branch_nodes = {}
     wf.pre_resolved_outputs = pre_resolved_outputs or {}
     wf.stop_after_nodes = set()
     wf.execution_id = "test-exec-id"

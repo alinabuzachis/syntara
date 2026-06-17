@@ -1,8 +1,9 @@
 import { Button } from '@patternfly/react-core'
-import { useLocation } from 'wouter'
+
+import { useNavigate } from '../../hooks/routing/useNavigate'
 
 export function LinkCell(props: { href: string; children: React.ReactNode }) {
-  const [, setLocation] = useLocation()
+  const setLocation = useNavigate()
 
   return (
     <Button

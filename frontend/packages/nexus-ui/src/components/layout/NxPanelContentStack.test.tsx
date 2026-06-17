@@ -36,6 +36,28 @@ describe('NxPanelContentStack', () => {
     /* eslint-enable testing-library/no-node-access */
   })
 
+  it('does not apply gutter by default', () => {
+    const { container } = render(
+      <NxPanelContentStack>
+        <div>Item</div>
+      </NxPanelContentStack>
+    )
+    /* eslint-disable testing-library/no-node-access -- Stack root has no accessible role; class checked via container. */
+    expect(container.firstElementChild).not.toHaveClass('pf-m-gutter')
+    /* eslint-enable testing-library/no-node-access */
+  })
+
+  it('applies gutter when hasGutter is passed', () => {
+    const { container } = render(
+      <NxPanelContentStack hasGutter>
+        <div>Item</div>
+      </NxPanelContentStack>
+    )
+    /* eslint-disable testing-library/no-node-access -- Stack root has no accessible role; class checked via container. */
+    expect(container.firstElementChild).toHaveClass('pf-m-gutter')
+    /* eslint-enable testing-library/no-node-access */
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations with minimal content', async () => {
       const { container } = render(

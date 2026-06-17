@@ -3,9 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { navigate } from 'wouter/use-browser-location'
 
 import { toolManagerClient } from '../../../../client'
+import { navigate } from '../../../../hooks/routing/navigate'
 import { AlertProvider } from '../../../../providers/alerts'
 
 import { IntegrationForm } from './IntegrationForm'
@@ -17,7 +17,7 @@ vi.mock('../../../../client', () => ({
   },
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 
@@ -300,7 +300,7 @@ describe('IntegrationForm Component', () => {
     })
 
     it('shows error and does not refresh tools when validation returns valid: false', async () => {
-      const { navigate } = await import('wouter/use-browser-location')
+      const { navigate } = await import('../../../../hooks/routing/navigate')
       const mockNav = vi.mocked(navigate)
       const mockProviderId = 'test-provider-invalid'
 
@@ -368,7 +368,7 @@ describe('IntegrationForm Component', () => {
     })
 
     it('navigates to integrations list after all API calls complete', async () => {
-      const { navigate } = await import('wouter/use-browser-location')
+      const { navigate } = await import('../../../../hooks/routing/navigate')
       const mockNav = vi.mocked(navigate)
       const mockProviderId = 'test-provider-456'
 
@@ -435,7 +435,7 @@ describe('IntegrationForm Component', () => {
 
   describe('Navigation', () => {
     it('navigates back to integrations list when Cancel is clicked', async () => {
-      const { navigate } = await import('wouter/use-browser-location')
+      const { navigate } = await import('../../../../hooks/routing/navigate')
       const mockNav = vi.mocked(navigate)
 
       render(<IntegrationForm />, { wrapper })

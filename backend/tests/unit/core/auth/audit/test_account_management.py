@@ -35,6 +35,8 @@ class TestAccountEnableHandler:
         assert result.source_component == "nexus.auth.account_management"
         assert "alice" in result.event_message
         assert "ops@corp.com" in result.event_message
+        assert result.resource_urn == "urn:nexus:user:alice"
+        assert result.resource_name == "alice"
 
     def test_structured_data(self) -> None:
         event = AccountEnableEvent(
@@ -78,6 +80,8 @@ class TestPasswordResetHandler:
         assert result.source_component == "nexus.auth.account_management"
         assert "charlie" in result.event_message
         assert "security-team@corp.com" in result.event_message
+        assert result.resource_urn == "urn:nexus:user:charlie"
+        assert result.resource_name == "charlie"
 
     def test_structured_data(self) -> None:
         event = PasswordResetEvent(

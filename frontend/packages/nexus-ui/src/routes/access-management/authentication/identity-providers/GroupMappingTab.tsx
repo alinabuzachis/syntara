@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
+import { navigate } from '../../../../hooks/routing/navigate'
 import { useAllGroups } from '../../../access/useAllGroups'
 import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../../adminConstants'
 

@@ -1,8 +1,8 @@
 import { Button, Flex, FlexItem, Label, LabelGroup, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiLockIcon } from '@patternfly/react-icons'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
+import { navigate } from '../../hooks/routing/navigate'
 
 import type { PolicyStatement } from './types'
 

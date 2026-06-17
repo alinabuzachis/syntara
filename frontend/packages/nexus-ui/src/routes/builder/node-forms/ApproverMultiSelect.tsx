@@ -1,0 +1,230 @@
+/**
+ * Generic multi-select component for approvers (users or groups) with typeahead filtering
+ */
+
+import {
+  Button,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Label,
+  LabelGroup,
+  MenuToggle,
+  Select,
+  SelectList,
+  SelectOption,
+  TextInputGroup,
+  TextInputGroupMain,
+  TextInputGroupUtilities,
+} from '@patternfly/react-core'
+import { RhUiCloseIcon, RhUiErrorIcon } from '@patternfly/react-icons'
+import { useCallback, useMemo, useRef, useState } from 'react'
+
+// Generic item type for multi-select
+export type SelectableItem = {
+  id: string
+  [key: string]: unknown
+}
+
+type ApproverMultiSelectProps<T extends SelectableItem> = Readonly<{
+  value: readonly string[]
+  onChange: (value: string[]) => void
+  items: readonly T[]
+  isLoading: boolean
+  validationError?: Readonly<{ message?: string }>
+  getItemId: (item: T) => string
+  getItemValue: (item: T) => string
+  getItemLabel: (item: T) => string
+  placeholderText: string
+  emptyText: string
+  loadingText: string
+  helperText: string
+}>
+
+export function ApproverMultiSelect<T extends SelectableItem>({
+  value,
+  onChange,
+  items,
+  isLoading,
+  validationError,
+  getItemId,
+  getItemValue,
+  getItemLabel,
+  placeholderText,
+  emptyText,
+  loadingText,
+  helperText,
+}: ApproverMultiSelectProps<T>) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [filterValue, setFilterValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const selectedValues = useMemo(() => value ?? [], [value])
+
+  const handleSelect = useCallback(
+    (_event: React.MouseEvent | undefined, selection: string | number | undefined) => {
+      if (!selection) return
+      const itemValue = String(selection)
+
+      const newValues = selectedValues.includes(itemValue)
+        ? selectedValues.filter((v) => v !== itemValue)
+        : [...selectedValues, itemValue]
+
+      onChange(newValues)
+    },
+    [selectedValues, onChange]
+  )
+
+  const clearAll = useCallback(() => {
+    onChange([])
+    setFilterValue('')
+    inputRef.current?.focus()
+  }, [onChange])
+
+  // Filter items based on search input
+  const filteredItems = useMemo(() => {
+    if (!filterValue) return items
+    const lowerFilter = filterValue.toLowerCase()
+    return items.filter((item) => getItemLabel(item).toLowerCase().includes(lowerFilter))
+  }, [items, filterValue, getItemLabel])
+
+  // Reset filter when menu closes
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    setIsOpen(isOpen)
+    if (!isOpen) {
+      setFilterValue('')
+    }
+  }, [])
+
+  // Get selected item labels for display
+  const selectedLabels = useMemo(
+    () =>
+      selectedValues
+        .map((val) => items.find((item) => getItemValue(item) === val))
+        .filter((item): item is T => item !== undefined),
+    [selectedValues, items, getItemValue]
+  )
+
+  const handleRemoveSelection = useCallback(
+    (valueToRemove: string) => {
+      onChange(selectedValues.filter((v) => v !== valueToRemove))
+    },
+    [selectedValues, onChange]
+  )
+
+  const toggle = useCallback(
+    (toggleRef: React.Ref<HTMLButtonElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        variant="typeahead"
+        onClick={() => setIsOpen((prev) => !prev)}
+        isExpanded={isOpen}
+        isFullWidth
+        isDisabled={isLoading}
+        status={validationError ? 'danger' : undefined}
+      >
+        <TextInputGroup isPlain isDisabled={isLoading}>
+          <TextInputGroupMain
+            value={filterValue}
+            onChange={(_event, val) => {
+              setFilterValue(val)
+              if (!isOpen) setIsOpen(true)
+            }}
+            onClick={() => {
+              if (!isOpen) setIsOpen(true)
+            }}
+            placeholder={selectedValues.length === 0 ? placeholderText : ''}
+            autoComplete="off"
+            innerRef={inputRef}
+          >
+            {selectedLabels.length > 0 && (
+              <LabelGroup numLabels={3}>
+                {selectedLabels.map((item) => (
+                  <Label
+                    key={getItemId(item)}
+                    color="blue"
+                    onClose={(e) => {
+                      e.stopPropagation()
+                      handleRemoveSelection(getItemValue(item))
+                    }}
+                  >
+                    {getItemLabel(item)}
+                  </Label>
+                ))}
+              </LabelGroup>
+            )}
+          </TextInputGroupMain>
+          {selectedValues.length > 0 && (
+            <TextInputGroupUtilities>
+              <Button
+                variant="plain"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  clearAll()
+                }}
+                aria-label="Clear all"
+              >
+                <RhUiCloseIcon />
+              </Button>
+            </TextInputGroupUtilities>
+          )}
+        </TextInputGroup>
+      </MenuToggle>
+    ),
+    [
+      isOpen,
+      isLoading,
+      selectedValues.length,
+      placeholderText,
+      filterValue,
+      validationError,
+      clearAll,
+      selectedLabels,
+      getItemId,
+      getItemLabel,
+      getItemValue,
+      handleRemoveSelection,
+    ]
+  )
+
+  return (
+    <>
+      <Select
+        isOpen={isOpen}
+        selected={selectedValues}
+        onSelect={handleSelect}
+        onOpenChange={handleOpenChange}
+        toggle={toggle}
+        shouldFocusToggleOnSelect
+      >
+        <SelectList>
+          {filteredItems.map((item) => (
+            <SelectOption
+              key={getItemId(item)}
+              value={getItemValue(item)}
+              hasCheckbox
+              isSelected={selectedValues.includes(getItemValue(item))}
+            >
+              {getItemLabel(item)}
+            </SelectOption>
+          ))}
+          {filteredItems.length === 0 && !isLoading && <SelectOption isDisabled>{emptyText}</SelectOption>}
+          {isLoading && <SelectOption isDisabled>{loadingText}</SelectOption>}
+        </SelectList>
+      </Select>
+      {validationError && (
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+              {validationError.message}
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
+      )}
+      <FormHelperText>
+        <HelperText>
+          <HelperTextItem>{helperText}</HelperTextItem>
+        </HelperText>
+      </FormHelperText>
+    </>
+  )
+}

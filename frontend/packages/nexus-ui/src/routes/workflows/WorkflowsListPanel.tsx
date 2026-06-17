@@ -77,7 +77,7 @@ export function WorkflowsListPanel({
           <NxEmptyStateFilter clearAllFilters={onClearAllFilters} />
         </NxPageBody>
       ) : (
-        <NxScrollableTableContainer aria-label="Workflows table" footer={footer}>
+        <NxScrollableTableContainer caption="Workflows table" footer={footer}>
           <Thead>
             <Tr>
               <Th>Name</Th>

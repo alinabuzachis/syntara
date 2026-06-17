@@ -3,7 +3,6 @@ import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, Label, StackItem, T
 import { RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { resolveLinkError } from '../../../app/authErrorMessages'
@@ -19,6 +18,7 @@ import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilte
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
+import { navigate } from '../../../hooks/routing/navigate'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts, type AlertConfig } from '../../../providers/alerts'
@@ -413,7 +413,7 @@ export function UserIdentitiesPanel({
         </StackItem>
       ) : (
         <NxScrollableTableContainer
-          aria-label="User identities table"
+          caption="User identities table"
           footer={{
             page,
             perPage,

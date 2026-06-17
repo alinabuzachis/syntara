@@ -56,7 +56,7 @@ export function SwitchNodeComponent(props: NodeProps<SwitchNode>) {
   const iconNode = renderNodeIcon(metadata.icon, RegistryNodeId.LOGIC_SWITCH, 'canvas', getNodeTypeColor('switch'))
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
-    nodeType: MenuNodeType.ACTIVITY,
+    nodeType: MenuNodeType.CONTROL_FLOW,
   })
 
   const executionState = (props.data as Record<string, unknown>).__executionState as

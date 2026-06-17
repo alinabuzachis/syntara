@@ -6,8 +6,11 @@ import { useUrlTab } from './useUrlTab'
 const mockSetLocation = vi.fn()
 let mockLocation = '/'
 
-vi.mock('wouter', () => ({
-  useLocation: () => [mockLocation, mockSetLocation],
+vi.mock('./routing/useLocation', () => ({
+  useLocation: () => mockLocation,
+}))
+vi.mock('./routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
 }))
 
 describe('useUrlTab', () => {

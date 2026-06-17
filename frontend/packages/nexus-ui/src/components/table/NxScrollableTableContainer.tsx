@@ -1,11 +1,12 @@
 import { Stack, StackItem } from '@patternfly/react-core'
-import { Table } from '@patternfly/react-table'
-import type { ReactNode } from 'react'
+import { Caption, Table } from '@patternfly/react-table'
+import { type ReactNode, useRef } from 'react'
 
 import { NxPanel } from '../layout/NxPanel'
 
 import styles from './NxScrollableTableContainer.module.css'
 import { PaginationFooter, type PaginationFooterProps } from './PaginationFooter'
+import { useScrollOverflow } from './useScrollOverflow'
 
 /** Footer props passed to {@link NxScrollableTableContainer}. Forwarded directly to {@link PaginationFooter}. */
 export type TableFooterProps = PaginationFooterProps
@@ -15,8 +16,8 @@ type NxScrollableTableContainerProps = {
   children: ReactNode
   /** Pagination footer props — always renders {@link PaginationFooter} when provided. */
   footer?: TableFooterProps
-  /** Aria label for the table */
-  'aria-label': string
+  /** Accessible caption for the table — rendered as a visually hidden `<caption>` element (W3C recommended). */
+  caption: string
   /** Whether the table is expandable (affects table layout) */
   isExpandable?: boolean
   /** Opt out of fixed table layout when not expandable */
@@ -33,30 +34,41 @@ type NxScrollableTableContainerProps = {
 export function NxScrollableTableContainer({
   children,
   footer,
-  'aria-label': ariaLabel,
+  caption,
   isExpandable,
   useFixedLayout = true,
 }: NxScrollableTableContainerProps) {
   const useFixed = !isExpandable && useFixedLayout
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  useScrollOverflow(scrollRef, wrapperRef)
   return (
     <StackItem isFilled data-testid="scrollable-table-container-root" className={styles.root}>
       <NxPanel hasNoPadding isFullHeight isScrollable className={styles.panel}>
         <Stack className={styles.shellStack}>
-          <StackItem isFilled className={styles.scrollContainer}>
-            <Table
-              aria-label={ariaLabel}
-              isPlain
-              isStickyHeader
-              isExpandable={isExpandable}
-              // NOTE: We deliberately do not use `table-layout: fixed` for expandable tables because
-              // PatternFly's expandable row layout relies on the browser's automatic table layout to
-              // correctly size columns and expansion control cells. For non-expandable tables, we use
-              // a fixed layout to keep column widths stable.
-              className={`${styles.table}${useFixed ? ` ${styles.tableFixedLayout}` : ''}`}
+          <div
+            ref={wrapperRef}
+            className={`${styles.scrollWrapper}${footer ? ` ${styles.scrollWrapperHasFooter}` : ''}`}
+          >
+            <div
+              className={styles.scrollContainer}
+              ref={scrollRef}
+              tabIndex={0}
+              role="region"
+              aria-label={caption}
+              data-testid="scroll-container"
             >
-              {children}
-            </Table>
-          </StackItem>
+              <Table
+                isPlain
+                isStickyHeader
+                isExpandable={isExpandable}
+                className={`${styles.table}${useFixed ? ` ${styles.tableFixedLayout}` : ''}`}
+              >
+                <Caption className="pf-v6-u-screen-reader">{caption}</Caption>
+                {children}
+              </Table>
+            </div>
+          </div>
           {footer && (
             <StackItem className={styles.footer}>
               <PaginationFooter {...footer} />

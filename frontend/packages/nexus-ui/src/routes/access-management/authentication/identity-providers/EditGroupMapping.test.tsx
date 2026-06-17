@@ -49,13 +49,19 @@ vi.mock('../../../access/useAllGroups', () => ({
 }))
 
 const mockNavigate = vi.fn()
-vi.mock('wouter', () => ({
-  useLocation: () => ['/', vi.fn()],
+vi.mock('../../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/',
+}))
+
+vi.mock('../../../../hooks/routing/useParams', () => ({
   useParams: () => ({ providerId: mockProviderIdRef.current }),
+}))
+
+vi.mock('../../../../hooks/routing/useSearch', () => ({
   useSearch: () => mockSearchRef.current,
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../../hooks/routing/navigate', () => ({
   navigate: (...args: unknown[]): void => {
     mockNavigate(...args)
   },

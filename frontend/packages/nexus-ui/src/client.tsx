@@ -129,6 +129,11 @@ export const authClient = createClient(authFetchClient)
 export const OIDC_REDIRECT_URI = `${backendOrigin}/api/v1/auth/oidc/callback`
 export const OIDC_AUTHORIZE_PATH = '/api/v1/auth/oidc/authorize'
 
+// SECURITY NOTE: These fetch clients include authentication middleware (authMiddleware)
+// which automatically attaches the auth token from localStorage. They are exported
+// for use in other modules that need direct fetch access (e.g., file downloads).
+// All API calls should use the typed query/mutation clients (e.g., usersClient)
+// rather than the raw fetchClient to ensure type safety and proper error handling.
 const usersFetchClient = createFetchClient<UsersAPI.paths>({ baseUrl: '/api/v1' })
 usersFetchClient.use(authMiddleware)
 export const usersClient = createClient(usersFetchClient)

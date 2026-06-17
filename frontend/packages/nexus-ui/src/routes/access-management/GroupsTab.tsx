@@ -3,7 +3,6 @@ import { Badge, Button, Content, ContentVariants, Flex, FlexItem, StackItem, Tru
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import { useMemo } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
@@ -17,6 +16,7 @@ import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
+import { navigate } from '../../hooks/routing/navigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -150,7 +150,7 @@ export function GroupsTab() {
               <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
             </NxPageBody>
           ) : (
-            <NxScrollableTableContainer aria-label="Groups table" footer={getFooterProps(data)}>
+            <NxScrollableTableContainer caption="Groups table" footer={getFooterProps(data)}>
               <Thead>
                 <Tr>
                   <Th sort={getSortParams(0)}>Name</Th>

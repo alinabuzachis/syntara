@@ -13,7 +13,7 @@ vi.mock('../../../client', () => ({
   },
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

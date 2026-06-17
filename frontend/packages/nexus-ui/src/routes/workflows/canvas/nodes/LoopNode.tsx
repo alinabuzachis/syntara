@@ -20,7 +20,7 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
   const iconNode = renderNodeIcon(metadata.icon, 'logic-loop', 'canvas', getNodeTypeColor('loop'))
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
-    nodeType: MenuNodeType.ACTIVITY,
+    nodeType: MenuNodeType.CONTROL_FLOW,
   })
 
   // Extract execution state if present

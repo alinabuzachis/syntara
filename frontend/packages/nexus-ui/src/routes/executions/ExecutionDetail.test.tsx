@@ -15,9 +15,18 @@ const mockUseParams = vi.fn(() => ({ executionId: 'exec-123' }))
 const mockUseSearch = vi.fn(() => '')
 
 // Mock wouter
-vi.mock('wouter', () => ({
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/',
+}))
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
+}))
+
+vi.mock('../../hooks/routing/useParams', () => ({
   useParams: () => mockUseParams(),
-  useLocation: () => ['/', mockSetLocation],
+}))
+
+vi.mock('../../hooks/routing/useSearch', () => ({
   useSearch: () => mockUseSearch(),
 }))
 
@@ -111,6 +120,20 @@ vi.mock('../../client', () => ({
       refetch: vi.fn(),
     })),
   },
+  usersClient: {
+    useQuery: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+    })),
+  },
+}))
+
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn((selector: (state: { username: string; userId: string }) => unknown) => {
+    const state = { username: 'testuser', userId: 'test-user-id' }
+
+    return selector(state)
+  }),
 }))
 
 // Mock workflow store with required selectors

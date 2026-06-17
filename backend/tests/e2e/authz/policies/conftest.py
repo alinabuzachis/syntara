@@ -31,7 +31,7 @@ from nexus_api_client.models.workflow_update import WorkflowUpdate
 
 from tests.e2e.conftest import generate_test_password, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import get_bearer_token_type_id
+from tests.fixtures.factories import get_bearer_token_type_id
 
 if TYPE_CHECKING:
     from collections.abc import Callable

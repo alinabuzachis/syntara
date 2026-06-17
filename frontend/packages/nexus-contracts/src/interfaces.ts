@@ -167,6 +167,8 @@ export interface RetryPolicyConfig {
 
 /** Engine-level settings controlling how the workflow engine runs a node. */
 export interface NodeSettings {
+  /** When true, the node is skipped during execution. Downstream nodes still execute but receive no output from this node. */
+  disabled?: boolean
   /** When true, downstream nodes continue executing even if this node fails. */
   continue_on_failure?: boolean
   /** Timeout in seconds. Meaning varies by node type. Falls back to the global catalog default when absent. */

@@ -33,8 +33,14 @@ const mockNavigate = vi.fn()
 const mockSearchParams = new URLSearchParams()
 const mockSetSearchParams = vi.fn()
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/configuration/integrations', mockNavigate],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/configuration/integrations',
+}))
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 
@@ -146,7 +152,7 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Check page header
-      expect(screen.getByText('Integrations')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Integrations' })).toBeInTheDocument()
 
       // Check Configure Integration button
       expect(screen.getByText('Configure integration')).toBeInTheDocument()
@@ -227,8 +233,8 @@ describe('Integrations Component', () => {
       // Check for error state
       const errorElement = screen.getByTestId('error-state')
       expect(errorElement).toBeInTheDocument()
-      // Title also appears in the global alert; scope to the error state container
-      expect(within(errorElement).getByText('Error loading integrations')).toBeInTheDocument()
+      // Body shows the Error message; scope to the error state container
+      expect(within(errorElement).getByText('Failed to load integrations')).toBeInTheDocument()
     })
   })
 
@@ -296,7 +302,7 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Table should have row action menus (PF Table uses role="grid")
-      const table = screen.getByRole('grid', { name: 'Integrations table' })
+      const table = screen.getByRole('grid', { name: 'Integrations' })
       expect(table).toBeInTheDocument()
 
       // Each row should have actions available

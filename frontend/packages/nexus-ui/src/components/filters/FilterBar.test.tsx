@@ -125,22 +125,40 @@ describe('FilterBar', () => {
       expect(screen.queryByText('Clear all filters')).not.toBeInTheDocument()
     })
 
-    it('applies compact styling when isCompact is true', () => {
+    it('applies compact class when isCompact is true', () => {
       render(<FilterBar {...defaultProps} isCompact />)
 
       const toolbar = screen.getByRole('search', { name: 'Filters' })
-      expect(toolbar).toBeInTheDocument()
-      expect(toolbar.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe(
-        'var(--pf-t--global--spacer--xs)'
-      )
+      expect(toolbar.className).toContain('compact')
     })
 
-    it('does not apply compact styling when isCompact is false', () => {
+    it('does not apply compact class when isCompact is false', () => {
       render(<FilterBar {...defaultProps} />)
 
       const toolbar = screen.getByRole('search', { name: 'Filters' })
-      expect(toolbar).toBeInTheDocument()
-      expect(toolbar.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe('')
+      expect(toolbar.className).not.toContain('compact')
+    })
+
+    it('applies custom className to the root toolbar element', () => {
+      render(<FilterBar {...defaultProps} className="my-custom-class" />)
+
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
+      expect(toolbar.className).toContain('my-custom-class')
+    })
+
+    it('merges custom className with compact class when both are provided', () => {
+      render(<FilterBar {...defaultProps} isCompact className="my-custom-class" />)
+
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
+      expect(toolbar.className).toContain('compact')
+      expect(toolbar.className).toContain('my-custom-class')
+    })
+
+    it('does not apply extra class when className is not provided', () => {
+      render(<FilterBar {...defaultProps} />)
+
+      const toolbar = screen.getByRole('search', { name: 'Filters' })
+      expect(toolbar.className).not.toContain('my-custom-class')
     })
   })
 

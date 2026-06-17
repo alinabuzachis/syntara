@@ -2,7 +2,6 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { AlertActionLink, Button, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiImportIcon } from '@patternfly/react-icons'
 import { useCallback, useMemo, useState } from 'react'
-import { useLocation } from 'wouter'
 
 import { executionsClient, workflowClient, workflowFetchClient } from '../../client'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
@@ -11,6 +10,7 @@ import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { useQueryState } from '../../components/states/useQueryState'
+import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
@@ -46,7 +46,7 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
 export default function Workflows() {
   const workflowsDocLink = useDocLink('workflows')
   const { showAlert, showSuccess, showError } = useAlerts()
-  const [, setLocation] = useLocation()
+  const setLocation = useNavigate()
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const permissions = useWorkflowPermissions()
   const projectExtraParams = useMemo(
@@ -278,6 +278,40 @@ export default function Workflows() {
           return
         }
 
+        // Transform approval nodes: convert approver_users/approver_groups from objects to string arrays
+        // The API returns {id, username}/{id, name} objects but the workflow schema expects string arrays
+        const transformedDefinition = {
+          ...definition,
+          nodes: definition.nodes?.map((node) => {
+            if (node.type === 'approval' && node.config) {
+              const config = node.config as Record<string, unknown>
+              const transformedConfig: Record<string, unknown> = { ...config }
+
+              // Extract usernames from ApproverUserSummary[] -> string[]
+              if (config.approver_users && Array.isArray(config.approver_users)) {
+                transformedConfig.approver_users = config.approver_users.map((u: unknown) =>
+                  typeof u === 'object' && u !== null && 'username' in u
+                    ? (u as { username: string }).username
+                    : String(u)
+                )
+              }
+
+              // Extract group names from ApproverGroupSummary[] -> string[]
+              if (config.approver_groups && Array.isArray(config.approver_groups)) {
+                transformedConfig.approver_groups = config.approver_groups.map((g: unknown) =>
+                  typeof g === 'object' && g !== null && 'name' in g ? (g as { name: string }).name : String(g)
+                )
+              }
+
+              return {
+                ...node,
+                config: transformedConfig,
+              }
+            }
+            return node
+          }),
+        }
+
         const timestamp = Date.now().toString(36)
         const duplicateName = `${workflow.name ?? 'workflow'} - duplicate-${timestamp}`
 
@@ -285,7 +319,7 @@ export default function Workflows() {
           body: {
             name: duplicateName,
             description: workflow.description ?? '',
-            workflow_definition: definition as unknown as WorkflowDefinitionSchema,
+            workflow_definition: transformedDefinition as unknown as WorkflowDefinitionSchema,
             labels: (workflow.labels as Record<string, string> | undefined) ?? {},
             is_enabled: false,
             ...(workflow.project_id ? { project_id: workflow.project_id } : {}),

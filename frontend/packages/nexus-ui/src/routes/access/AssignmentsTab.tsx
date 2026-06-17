@@ -205,7 +205,7 @@ export function AssignmentsTab() {
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer
-            aria-label="Role assignments"
+            caption="Role assignments"
             footer={{
               page,
               perPage,

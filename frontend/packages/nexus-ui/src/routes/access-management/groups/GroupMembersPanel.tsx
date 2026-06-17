@@ -209,7 +209,7 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer
-            aria-label="Group members table"
+            caption="Group members table"
             footer={{
               page,
               perPage,

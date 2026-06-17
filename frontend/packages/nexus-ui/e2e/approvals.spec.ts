@@ -17,7 +17,7 @@ test('user filters approvals by name and status', async ({ app }) => {
   await app.getByPlaceholder('Filter by name').fill('Policy')
   await app.getByRole('button', { name: 'Apply filter' }).click()
 
-  const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+  const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
   await expect(nameChipGroup.getByText('Policy')).toBeVisible()
   await expect(app).toHaveURL(/name%5Bcontains%5D=Policy/)
 
@@ -28,7 +28,7 @@ test('user filters approvals by name and status', async ({ app }) => {
   await app.getByRole('button', { name: 'Filter by status' }).click()
   await app.getByRole('option', { name: 'Approved' }).click()
 
-  const statusChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Status' })
+  const statusChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Status' })
   await expect(nameChipGroup.getByText('Policy')).toBeVisible()
   await expect(statusChipGroup.getByText('Approved')).toBeVisible()
   await expect(app).toHaveURL(/name%5Bcontains%5D=Policy/)
@@ -44,9 +44,9 @@ test('user filters approvals by name and status', async ({ app }) => {
   await expect(app).toHaveURL(/status=approved/)
 
   // Step 4: Clear all filters
-  await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
+  await app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' }).click()
 
-  await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
+  await expect(app.getByRole('search', { name: 'Filters' }).getByRole('list')).toHaveCount(0)
   await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
   await expect(app).not.toHaveURL(/status=/)
 
@@ -60,7 +60,7 @@ test('user filters approvals by name and status', async ({ app }) => {
   await app.getByPlaceholder('Filter by name').fill(impossibleName)
   await app.getByRole('button', { name: 'Apply filter' }).click()
 
-  const filterChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+  const filterChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
   await expect(filterChipGroup).toBeVisible()
 
   const tableVisible = await table.isVisible().catch(() => false)

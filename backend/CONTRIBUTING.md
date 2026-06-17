@@ -143,6 +143,46 @@ pre-commit run --all
 
 The pre-commit configuration file is located at `.pre-commit-config.yaml` in the repository.
 
+### OpenAPI Spec Changes
+
+**If your PR modifies `src/nexus/schemas/openapi.yaml`**, two automated checks apply:
+
+#### Local Validation (Before Pushing)
+
+Pre-commit runs OpenAPI checks automatically when `openapi.yaml` changes. You can also run them manually:
+
+```bash
+# Check for breaking changes against main branch
+make check-openapi-breaking
+
+# Or run the script directly with custom options
+./scripts/openapi/check-breaking-changes.py --base main --head HEAD --format text
+```
+
+This helps you catch issues before pushing to GitHub and speeds up your development workflow.
+
+#### 1. Regenerate Frontend Contracts
+
+Since backend and frontend live in the same monorepo, include the regenerated TypeScript contracts in the same PR:
+
+```bash
+make gen-contracts
+```
+
+This updates `frontend/packages/nexus-contracts/src/` with types matching your schema changes.
+
+#### 2. Breaking Changes Check (AAP-77358)
+
+The pre-commit hook (enforced in CI) compares your spec against `main` to detect breaking changes (removed fields, type changes, deleted endpoints).
+
+**If breaking changes are detected**, you must acknowledge them in the PR description:
+
+- Add to PR description: `breaking-change-ack: <detailed justification>`
+- Minimum 20 characters explaining why necessary, migration path, and how UI is updated
+- Example: `breaking-change-ack: Removing deprecated created_by_id field in favor of created_by object. UI PR #456 updates all references. Migration guide added to API docs.`
+
+**This check blocks merge** until breaking changes are acknowledged. See [OpenAPI Breaking Changes](docs/openapi-breaking-changes.md) for details.
+
 ### Submitting a Pull Request
 
 1. Push your branch to your fork:
@@ -159,6 +199,8 @@ The pre-commit configuration file is located at `.pre-commit-config.yaml` in the
    - Testing instructions
 
 4. **Link related issues** - Reference any related issues in your pull request
+
+5. **For OpenAPI changes** - See [OpenAPI Spec Changes](#openapi-spec-changes) above
 
 ## CI Commands for Maintainers
 

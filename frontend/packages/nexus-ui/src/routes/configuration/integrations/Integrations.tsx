@@ -1,6 +1,6 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import { ProviderStatusEnum } from '@ansible/nexus-contracts'
-import { Button, Label, StackItem, Truncate } from '@patternfly/react-core'
+import { Button, Truncate } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
   RhUiCloseCircleIcon,
@@ -11,20 +11,22 @@ import {
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useMemo } from 'react'
-import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { toolManagerClient } from '../../../client'
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
-import { NxPanel } from '../../../components/layout/NxPanel'
-import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
-import { useQueryState } from '../../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
+import {
+  NxListPanel,
+  NxListPanelSkeletonTbody,
+  NxListPanelTable,
+  NxListPanelToolbar,
+  NxListPanelView,
+} from '../../../components/panels/list/NxListPanel'
+import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -42,9 +44,9 @@ import {
   getIntegrationTypeFilterDefinition,
 } from './integrationFilters'
 
-// Extended type to handle tool_count and configuration access
-// Note: OpenAPI schema has conflicting types for configuration.provider_type (both 'mcp' and 'MCPConfiguration')
-// which creates a 'never' type. We work around this by omitting the problematic configuration and re-adding it.
+// Extended type to handle tool_count and configuration access.
+// OpenAPI schema has conflicting types for configuration.provider_type (both 'mcp' and 'MCPConfiguration')
+// which produces a 'never' type. Worked around by omitting the problematic field and re-adding it.
 type ToolProviderWithToolCount = Omit<ToolProvider, 'configuration'> & {
   tool_count?: number
   configuration: {
@@ -54,37 +56,34 @@ type ToolProviderWithToolCount = Omit<ToolProvider, 'configuration'> & {
   }
 }
 
-type ProviderStatus = (typeof ProviderStatusEnum)[keyof typeof ProviderStatusEnum]
-
-const statusMap: Record<ProviderStatus, 'success' | 'danger' | 'custom'> = {
+const statusMap: Partial<Record<string, 'success' | 'danger' | 'custom'>> = {
   [ProviderStatusEnum.AVAILABLE]: 'success',
   [ProviderStatusEnum.ERROR]: 'danger',
   [ProviderStatusEnum.VALIDATING]: 'custom',
 }
 
-const statusIcons: Record<ProviderStatus, React.ComponentType<{ className?: string }>> = {
+const statusIcons: Partial<Record<string, React.ComponentType<{ className?: string }>>> = {
   [ProviderStatusEnum.AVAILABLE]: RhUiCheckCircleIcon,
   [ProviderStatusEnum.ERROR]: RhUiCloseCircleIcon,
   [ProviderStatusEnum.VALIDATING]: RhUiSyncIcon,
 }
 
 function StatusLabel({ status }: { status: string }) {
-  const providerStatus = status as ProviderStatus
-  const Icon = statusIcons[providerStatus] || RhUiCloseCircleIcon
-  const labelStatus = statusMap[providerStatus] || 'custom'
+  const Icon = statusIcons[status] ?? RhUiCloseCircleIcon
+  const labelStatus = statusMap[status] ?? 'custom'
   const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
-    <Label variant="outline" status={labelStatus} icon={<Icon />}>
+    <NxLabel status={labelStatus} icon={<Icon />}>
       {capitalizedStatus}
-    </Label>
+    </NxLabel>
   )
 }
 
 // eslint-disable-next-line max-lines-per-function
 export default function Integrations() {
   const integrationsDocLink = useDocLink('integrations')
-  const [, navigate] = useLocation()
+  const navigate = useNavigate()
 
   const {
     cursor,
@@ -100,7 +99,6 @@ export default function Integrations() {
   const validateDialog = useDialogState<ToolProviderWithToolCount>()
   const deleteDialog = useDialogState<ToolProviderWithToolCount>()
 
-  // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
     () => [
       getIntegrationNameFilterDefinition(),
@@ -110,11 +108,8 @@ export default function Integrations() {
     []
   )
 
-  // Query tool providers with server-side filtering
   const query = toolManagerClient.useQuery('get', '/tool_manager/tool_providers', {
-    params: {
-      query: queryParams,
-    },
+    params: { query: queryParams },
   })
 
   const { showAlert } = useAlerts()
@@ -128,7 +123,6 @@ export default function Integrations() {
     initialDirection: 'asc',
   })
 
-  // Sort the results (client-side sorting of current page)
   const results = sortData(integrations, (provider) => {
     switch (activeSortIndex) {
       case 0:
@@ -226,7 +220,6 @@ export default function Integrations() {
     )
   }
 
-  // Row actions for PF ActionsColumn
   const getRowActions = (provider: ToolProviderWithToolCount): IAction[] => [
     {
       title: <IconLabel icon={<RhUiViewIcon />}>View and enable/disable tools</IconLabel>,
@@ -244,21 +237,6 @@ export default function Integrations() {
     },
   ]
 
-  const queryState = useQueryState(query, {
-    title: 'Error loading integrations',
-    onRetry: () => detachPromise(query.refetch()),
-  })
-  if (queryState) {
-    return (
-      <NxPage>
-        <NxPageHeader title="Integrations" docLink={integrationsDocLink} />
-        <NxPageBody>
-          <NxPanel isFullHeight>{queryState}</NxPanel>
-        </NxPageBody>
-      </NxPage>
-    )
-  }
-
   return (
     <NxPage>
       <NxPageHeader
@@ -271,39 +249,40 @@ export default function Integrations() {
         }
       />
 
-      {results.length === 0 && !hasActiveFilters ? (
-        <NxPageBody>
-          <IntegrationEmptyState />
-        </NxPageBody>
-      ) : (
-        <NxPageBody>
-          <NxPanel isFullHeight>
-            <NxPanelContentStack variant="inset">
-              <StackItem>
-                <FilterBar
-                  fieldDefinitions={filterFieldDefinitions}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  showClearAll={true}
-                />
-              </StackItem>
-
-              {results.length === 0 ? (
-                <NxPageBody isCentered>
-                  <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                </NxPageBody>
-              ) : (
-                <NxScrollableTableContainer aria-label="Integrations table" footer={getFooterProps(query.data)}>
-                  <Thead>
-                    <Tr>
-                      <Th sort={getSortParams(0)}>Name</Th>
-                      <Th sort={getSortParams(1)}>Status</Th>
-                      <Th sort={getSortParams(2)}>Integration type</Th>
-                      <Th sort={getSortParams(3)}>API URL</Th>
-                      <Th sort={getSortParams(4)}>Tools</Th>
-                      <Th screenReaderText="Actions" />
-                    </Tr>
-                  </Thead>
+      <NxPageBody>
+        <NxListPanel>
+          <NxListPanelView
+            isPending={query.isPending}
+            isFetching={query.isFetching}
+            error={query.error}
+            onRetry={() => detachPromise(query.refetch())}
+            isEmpty={results.length === 0}
+            hasActiveFilters={hasActiveFilters}
+            onClearAllFilters={handleClearAllFilters}
+            noDataState={<IntegrationEmptyState />}
+            toolbar={
+              <NxListPanelToolbar
+                filters={filters}
+                filterDefinitions={filterFieldDefinitions}
+                onFilterChange={handleFilterChange}
+                clearAllFilters={handleClearAllFilters}
+              />
+            }
+            body={
+              <NxListPanelTable caption="Integrations" footer={getFooterProps(query.data)}>
+                <Thead>
+                  <Tr>
+                    <Th sort={getSortParams(0)}>Name</Th>
+                    <Th sort={getSortParams(1)}>Status</Th>
+                    <Th sort={getSortParams(2)}>Integration type</Th>
+                    <Th sort={getSortParams(3)}>API URL</Th>
+                    <Th sort={getSortParams(4)}>Tools</Th>
+                    <Th screenReaderText="Actions" />
+                  </Tr>
+                </Thead>
+                {query.isFetching ? (
+                  <NxListPanelSkeletonTbody columnsCount={6} />
+                ) : (
                   <Tbody>
                     {results.map((provider) => (
                       <Tr key={provider.id}>
@@ -328,12 +307,12 @@ export default function Integrations() {
                       </Tr>
                     ))}
                   </Tbody>
-                </NxScrollableTableContainer>
-              )}
-            </NxPanelContentStack>
-          </NxPanel>
-        </NxPageBody>
-      )}
+                )}
+              </NxListPanelTable>
+            }
+          />
+        </NxListPanel>
+      </NxPageBody>
 
       <NxConfirmationDialog
         isOpen={validateDialog.isOpen}

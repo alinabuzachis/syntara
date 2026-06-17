@@ -222,7 +222,7 @@ export function ProjectRolesTab({ projectId }: Readonly<{ projectId: string }>) 
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer
-            aria-label="Project roles"
+            caption="Project roles"
             footer={{
               page,
               perPage,

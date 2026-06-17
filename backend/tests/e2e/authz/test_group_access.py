@@ -18,12 +18,14 @@ from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.conftest import api_for, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import (
-    ResourceTracker,
+from tests.fixtures.factories import (
+    AssignProjectRoleFactory,
+    GroupFactory,
+    ProjectFactory,
+    ProjectRoleFactory,
+    UserFactory,
+    WorkflowFactory,
     add_to_group,
-    assign_role_to_group,
-    assign_role_to_user,
-    create_project_role,
 )
 
 pytestmark = [pytest.mark.e2e]
@@ -40,47 +42,54 @@ WRITE_POLICIES = [
 
 
 @pytest.fixture(scope="module")
-def group_access_env(admin_api: NexusApiRegistry, nexus_base_url: str):
+def group_access_env(
+    admin_api: NexusApiRegistry,
+    assign_project_role_to_group: AssignProjectRoleFactory,
+    assign_project_role_to_user: AssignProjectRoleFactory,
+    create_group: GroupFactory,
+    create_user: UserFactory,
+    create_project: ProjectFactory,
+    create_project_role: ProjectRoleFactory,
+    create_workflow: WorkflowFactory,
+    nexus_base_url: str,
+):
     """Create project, group, two users, and assign roles."""
-    tracker = ResourceTracker(admin_api)
-
     # Create project
-    project_id, _ = tracker.project("tc14")
+    project_id, _ = create_project(admin_api, "tc14")
 
     # Roles
     reader_role = create_project_role(admin_api, project_id, "grp-reader", READ_POLICIES)
     writer_role = create_project_role(admin_api, project_id, "grp-writer", WRITE_POLICIES)
 
     # Group
-    group_id, _ = tracker.group("tc14-grp")
+    group_id, _ = create_group(admin_api, "tc14-grp")
 
     # User 1 (group only)
-    u1_id, u1_name, u1_pass = tracker.user("tc14-grponly")
+    u1_id, u1_name, u1_pass = create_user(admin_api, "tc14-grponly")
 
     # User 2 (group + direct)
-    u2_id, u2_name, u2_pass = tracker.user("tc14-grpdirect")
+    u2_id, u2_name, u2_pass = create_user(admin_api, "tc14-grpdirect")
 
     # Both users in the group
     add_to_group(admin_api, group_id, u1_id)
     add_to_group(admin_api, group_id, u2_id)
 
     # Group gets read-only role
-    assign_role_to_group(admin_api, project_id, group_id, reader_role)
+    assign_project_role_to_group(admin_api, project_id, group_id, reader_role)
 
     # User 2 additionally gets direct writer role
-    assign_role_to_user(admin_api, project_id, u2_id, writer_role)
+    assign_project_role_to_user(admin_api, project_id, u2_id, writer_role)
 
     # Seed a workflow for read tests
-    tracker.workflow(project_id, "tc14")
+    create_workflow(admin_api, project_id, "tc14")
 
     u1_api = api_for(nexus_base_url, u1_name, u1_pass)
     u2_api = api_for(nexus_base_url, u2_name, u2_pass)
-    yield {
+    return {
         "project_id": project_id,
         "u1_api": u1_api,
         "u2_api": u2_api,
     }
-    tracker.cleanup()
 
 
 class TestGroupAccess:

@@ -65,6 +65,8 @@ class TestLoginAttemptHandler:
         assert result.actor_type == ActorType.USER
         assert result.actor_username == "alice"
         assert result.source_component == "nexus.auth.login"
+        assert result.resource_urn == "urn:nexus:user:alice"
+        assert result.resource_name == "alice"
 
     def test_failed_login_business_error_known_user(self) -> None:
         """Failed login with LoginErrorReason → SECURITY_EVENT / WARNING / ERROR / 'login' / USER actor."""
@@ -150,3 +152,19 @@ class TestLoginAttemptHandler:
         assert result.structured_data.method == LoginMethod.OIDC
         assert result.structured_data.error_type is None
         assert result.structured_data.error_message is None
+        assert result.resource_urn == "urn:nexus:user:carol"
+        assert result.resource_name == "carol"
+
+    def test_login_with_no_username(self) -> None:
+        """Login attempt with no username → resource_urn and resource_name are None."""
+        event = LoginAttemptEvent(
+            username=None,
+            method=LoginMethod.PASSWORD,
+            error_type=LoginErrorReason.UNKNOWN_USER,
+        )
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.actor_username is None
+        assert result.resource_urn is None
+        assert result.resource_name is None

@@ -52,14 +52,17 @@ src/nexus/schemas/
 
 ## Pre-commit Hooks
 
-Two hooks run automatically on commit:
+These hooks run automatically on commit (and in CI via the `pre-commit` job):
 
 | Hook | Behaviour |
 |------|-----------|
 | `api-spec-bundle` | Always runs; regenerates the bundled spec before commit |
 | `api-spec-drift` | Advisory only (`|| true`); warns when the committed spec diverges from the generated one but does not block the commit |
+| `check-openapi-breaking` | Runs when `openapi.yaml` changes; compares against `main` and blocks on unacknowledged breaking changes |
 
 The drift hook is non-blocking by design — it surfaces drift early without enforcing it at commit time. CI enforces it strictly.
+
+In CI, `OPENAPI_PR_BODY` is set from the pull request description so `breaking-change-ack:` acknowledgments are honored. Locally, add the acknowledgment to your PR description before CI runs.
 
 ## CI Checks
 

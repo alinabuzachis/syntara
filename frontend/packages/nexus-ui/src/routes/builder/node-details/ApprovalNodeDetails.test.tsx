@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { ApprovalNodeDetails } from './ApprovalNodeDetails'
 
@@ -75,7 +76,8 @@ describe('ApprovalNodeDetails Component', () => {
 
     mockOnSubmitHandler?.({
       name: 'Updated Approval',
-      approvers: ['admin'],
+      approver_users: ['admin'],
+      approver_groups: [],
       prompt: 'Please approve',
     })
 
@@ -85,7 +87,8 @@ describe('ApprovalNodeDetails Component', () => {
         name: 'Updated Approval',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         parameters: expect.objectContaining({
-          approvers: ['admin'],
+          approver_users: ['admin'],
+          // approver_groups is omitted when empty
           prompt: 'Please approve',
         }),
       })
@@ -97,15 +100,16 @@ describe('ApprovalNodeDetails Component', () => {
 
     mockOnSubmitHandler?.({
       name: 'Updated Approval',
-      approvers: ['admin'],
+      approver_users: ['admin'],
+      approver_groups: [],
       prompt: 'Please approve',
     })
 
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('handles taskData without config', () => {
-    const taskDataWithoutConfig = createTaskData({ config: undefined })
+  it('handles taskData without parameters', () => {
+    const taskDataWithoutConfig = createTaskData({ parameters: undefined })
 
     render(<ApprovalNodeDetails taskData={taskDataWithoutConfig} nodeId="approval-1" onClose={mockOnClose} />)
 
@@ -121,7 +125,8 @@ describe('ApprovalNodeDetails Component', () => {
 
     mockOnSubmitHandler?.({
       name: 'Test Approval',
-      approvers: ['user1'],
+      approver_users: ['user1'],
+      approver_groups: [],
       prompt: 'Approve',
     })
 
@@ -137,5 +142,15 @@ describe('ApprovalNodeDetails Component', () => {
     render(<ApprovalNodeDetails taskData={taskDataWithSettings} nodeId="approval-1" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
+  })
+
+  describe('Accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(
+        <ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />
+      )
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
   })
 })

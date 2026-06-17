@@ -36,11 +36,21 @@ vi.mock('../../components/details/NxCodeBlock', () => ({
   NxCodeBlock: ({ jsonObject }: { jsonObject: unknown }) => <pre>{JSON.stringify(jsonObject)}</pre>,
 }))
 
-vi.mock('wouter', async () => {
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/access-management/policies',
+}))
+const mockNavigate = vi.fn()
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../hooks/routing/useSearch', () => ({
+  useSearch: () => '',
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', async () => {
   const React = await import('react')
   return {
-    useLocation: () => ['/system-administration/access-management/policies', vi.fn()],
-    useSearch: () => '',
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })

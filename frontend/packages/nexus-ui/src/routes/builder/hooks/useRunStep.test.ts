@@ -3,7 +3,7 @@ import type { ReactFlowInstance } from '@xyflow/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
-import type { TestStepDialogData } from '../components/TestStepDialog'
+import type { RunStepDialogData as TestStepDialogData } from '../components/RunStepDialog'
 
 import { useRunStep } from './useRunStep'
 

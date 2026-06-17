@@ -17,7 +17,7 @@ import { useState } from 'react'
 export type BulkRejectDialogProps = {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (note: string) => void
+  onConfirm: (note: string | null) => void
   approvalCount: number
   isLoading?: boolean
 }
@@ -31,15 +31,12 @@ export function BulkRejectDialog({
 }: Readonly<BulkRejectDialogProps>) {
   const [note, setNote] = useState('')
 
+  // SECURITY: Notes are optional to match batch approval UX consistency
+  // Audit trail is maintained via: approval status, decided_by, decided_at (always recorded)
+  // Notes provide additional context but are not required for accountability
   const handleConfirm = () => {
-    const trimmedNote = note.trim()
-    if (!trimmedNote) {
-      return // Don't submit if note is empty
-    }
-    onConfirm(trimmedNote)
+    onConfirm(note.trim() || null)
   }
-
-  const isValid = note.trim().length > 0
 
   return (
     <Modal
@@ -50,7 +47,7 @@ export function BulkRejectDialog({
       key={isOpen ? 'open' : 'closed'}
     >
       <ModalHeader
-        title={`Reject ${approvalCount} step${approvalCount === 1 ? '' : 's'}`}
+        title={`Reject ${approvalCount} approval step${approvalCount === 1 ? '' : 's'}`}
         labelId="bulk-reject-title"
         titleIconVariant="warning"
       />
@@ -58,20 +55,19 @@ export function BulkRejectDialog({
         <Stack hasGutter>
           <StackItem>
             <Content component={ContentVariants.p}>
-              You are about to reject {approvalCount} step{approvalCount === 1 ? '' : 's'}.
+              You are about to reject {approvalCount} approval step{approvalCount === 1 ? '' : 's'}.
             </Content>
           </StackItem>
 
           <StackItem>
-            <FormGroup label="Rejection reason" fieldId="rejection-note" isRequired>
+            <FormGroup label="Rejection note" fieldId="rejection-note">
               <TextArea
                 id="rejection-note"
                 value={note}
                 onChange={(_event, value) => setNote(value)}
-                placeholder="Required: Explain why these approvals are being rejected"
+                placeholder="Optional note for these rejections"
                 rows={3}
                 maxLength={1000}
-                isRequired
               />
             </FormGroup>
           </StackItem>
@@ -83,7 +79,7 @@ export function BulkRejectDialog({
           variant="danger"
           onClick={handleConfirm}
           isLoading={isLoading}
-          isDisabled={isLoading || !isValid}
+          isDisabled={isLoading}
         >
           Reject
         </Button>

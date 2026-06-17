@@ -1,8 +1,10 @@
-import { Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { Flex, FlexItem, Stack, StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { NxPageBody } from '../../../../components/layout/NxPage'
+
+import { useNodeFormTabBar } from './useNodeFormTabBar'
 
 type NodeFormTabsLayoutProps = {
   parametersContent: ReactNode
@@ -13,14 +15,20 @@ type NodeFormTabsLayoutProps = {
 
 export function NodeFormTabsLayout({ parametersContent, settingsContent, hideSettingsTab }: NodeFormTabsLayoutProps) {
   const [activeTabKey, setActiveTabKey] = useState<number>(0)
+  const tabBarAction = useNodeFormTabBar()
 
   return (
     <Stack hasGutter style={{ height: '100%', minHeight: 0, flex: 1 }}>
       <StackItem>
-        <Tabs activeKey={activeTabKey} onSelect={(_event, key) => setActiveTabKey(Number(key))}>
-          <Tab eventKey={0} title="Parameters" />
-          {!hideSettingsTab && <Tab eventKey={1} title="Settings" />}
-        </Tabs>
+        <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
+          <FlexItem>
+            <Tabs activeKey={activeTabKey} onSelect={(_event, key) => setActiveTabKey(Number(key))}>
+              <Tab eventKey={0} title="Parameters" />
+              {!hideSettingsTab && <Tab eventKey={1} title="Settings" />}
+            </Tabs>
+          </FlexItem>
+          {tabBarAction && <FlexItem>{tabBarAction}</FlexItem>}
+        </Flex>
       </StackItem>
       <NxPageBody>
         <Stack hasGutter>

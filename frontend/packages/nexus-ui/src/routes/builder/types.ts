@@ -2,6 +2,8 @@ import type { NodeMouseHandler } from '@xyflow/react'
 
 import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 
+import type { ValidationError } from './builderReducer'
+
 /** Flow coordinate (e.g. for node placement or edge end position) */
 export type FlowPosition = { x: number; y: number }
 
@@ -47,6 +49,8 @@ export type BuilderFlowProps = {
   disableSpacePanning?: boolean
   /** Activity ID of the externally selected node (e.g. from table row click). */
   selectedActivityId?: string | null
+  /** Validation errors from the verify workflow action */
+  validationErrors?: ValidationError[]
 }
 
 /**

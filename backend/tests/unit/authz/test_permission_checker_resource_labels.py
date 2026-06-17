@@ -46,28 +46,33 @@ class TestResolveProjectFromResource:
     async def test_no_model_returns_empty(self) -> None:
         checker = PermissionChecker("credential", "read")
         db = AsyncMock()
-        result = await checker._resolve_project_from_resource(db, str(uuid4()))
+        checker.resource_id = str(uuid4())
+        result = await checker._resolve_project_from_resource(db)
         assert result == ""
 
     async def test_empty_resource_id_returns_empty(self, checker: PermissionChecker) -> None:
         db = AsyncMock()
-        result = await checker._resolve_project_from_resource(db, "")
+        checker.resource_id = ""
+        result = await checker._resolve_project_from_resource(db)
         assert result == ""
 
     async def test_invalid_uuid_raises(self, checker: PermissionChecker) -> None:
         db = AsyncMock()
         with pytest.raises(RequestValidationError):
-            await checker._resolve_project_from_resource(db, "not-a-uuid")
+            checker.resource_id = "not-a-uuid"
+            await checker._resolve_project_from_resource(db)
 
     async def test_no_row_returns_empty(self, checker: PermissionChecker) -> None:
         db = _mock_db_with_results(None)
-        result = await checker._resolve_project_from_resource(db, str(uuid4()))
+        checker.resource_id = str(uuid4())
+        result = await checker._resolve_project_from_resource(db)
         assert result == ""
 
     async def test_row_with_project_id(self, checker: PermissionChecker) -> None:
         project_id = uuid4()
         db = _mock_db_with_results(project_id, "my-project")
-        result = await checker._resolve_project_from_resource(db, str(uuid4()))
+        checker.resource_id = str(uuid4())
+        result = await checker._resolve_project_from_resource(db)
         assert result == "my-project"
 
 
@@ -86,28 +91,33 @@ class TestResolveResourceLabels:
     async def test_no_model_returns_empty(self) -> None:
         checker = PermissionChecker("credential", "read")
         db = AsyncMock()
-        result = await checker._resolve_resource_labels(db, str(uuid4()))
+        checker.resource_id = str(uuid4())
+        result = await checker._resolve_resource_labels(db)
         assert result == {}
 
     async def test_empty_resource_id_returns_empty(self, checker: PermissionChecker) -> None:
         db = AsyncMock()
-        result = await checker._resolve_resource_labels(db, "")
+        checker.resource_id = ""
+        result = await checker._resolve_resource_labels(db)
         assert result == {}
 
     async def test_invalid_uuid_raises(self, checker: PermissionChecker) -> None:
         db = AsyncMock()
         with pytest.raises(RequestValidationError):
-            await checker._resolve_resource_labels(db, "not-a-uuid")
+            checker.resource_id = "not-a-uuid"
+            await checker._resolve_resource_labels(db)
 
     async def test_no_row_returns_empty(self, checker: PermissionChecker) -> None:
         db = _mock_db_with_results(None)
-        result = await checker._resolve_resource_labels(db, str(uuid4()))
+        checker.resource_id = str(uuid4())
+        result = await checker._resolve_resource_labels(db)
         assert result == {}
 
     async def test_returns_labels(self, checker: PermissionChecker) -> None:
         labels = {"env": "production", "team": "platform"}
         db = _mock_db_with_results(labels)
-        result = await checker._resolve_resource_labels(db, str(uuid4()))
+        checker.resource_id = str(uuid4())
+        result = await checker._resolve_resource_labels(db)
         assert result == labels
 
 
@@ -141,9 +151,9 @@ class TestResolveResourceProjectIncludesLabels:
             project_id,
             "my-project",
             expected_labels,
+            "test-credential",  # resource_name
         )
-        rid, rproject, rlabels = await checker._resolve_resource_project(request, db)
-        assert rid == resource_id
+        _, rproject, rlabels = await checker._resolve_resource_project(request, db)
         assert rproject == "my-project"
         assert rlabels == expected_labels
 
@@ -164,8 +174,7 @@ class TestResolveResourceProjectIncludesLabels:
         request.path_params = {"project_id": project_id}
 
         db = _mock_db_with_results("my-project")
-        rid, rproject, _ = await checker._resolve_resource_project(request, db)
-        assert rid == project_id
+        _, rproject, _ = await checker._resolve_resource_project(request, db)
         assert rproject == "my-project"
 
     async def test_labels_fetched_when_project_resolved_via_path(self) -> None:
@@ -183,9 +192,8 @@ class TestResolveResourceProjectIncludesLabels:
         request = MagicMock()
         request.path_params = {"project_id": project_id, "credential_id": credential_id}
 
-        db = _mock_db_with_results("my-project", expected_labels)
-        rid, rproject, rlabels = await checker._resolve_resource_project(request, db)
-        assert rid == credential_id
+        db = _mock_db_with_results("my-project", expected_labels, "test-credential")
+        _, rproject, rlabels = await checker._resolve_resource_project(request, db)
         assert rproject == "my-project"
         assert rlabels == expected_labels
 
@@ -305,7 +313,7 @@ class TestCallPassesResourceLabels:
                 checker,
                 "_resolve_resource_project",
                 new_callable=AsyncMock,
-                return_value=(resource_id, "my-project", expected_labels),
+                return_value=("my-resource", "my-project", expected_labels),
             ),
             patch(
                 "nexus.authz.dependencies.authorize",

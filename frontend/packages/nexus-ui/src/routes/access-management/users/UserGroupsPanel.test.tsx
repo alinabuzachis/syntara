@@ -30,10 +30,13 @@ vi.mock('../../access/useAllGroups', () => ({
   useAllGroups: vi.fn(),
 }))
 
-vi.mock('wouter', async () => {
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/access-management/users/user-123/groups',
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', async () => {
   const React = await import('react')
   return {
-    useLocation: () => ['/system-administration/access-management/users/user-123/groups', vi.fn()],
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })

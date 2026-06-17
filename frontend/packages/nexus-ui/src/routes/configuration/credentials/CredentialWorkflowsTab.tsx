@@ -2,7 +2,6 @@ import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Label, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useState } from 'react'
-import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'
@@ -12,6 +11,7 @@ import { NxPanelContentStack } from '../../../components/layout/NxPanelContentSt
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
+import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { StatusLabel } from '../../builder/ExecutionStatus'
@@ -31,7 +31,7 @@ const descriptionStyle = { margin: 0, color: 'var(--pf-t--global--text--color--s
 const labelMarginStyle = { marginRight: 'var(--pf-t--global--spacer--xs)' } as const
 
 export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWorkflowsTabProps>) {
-  const [, navigate] = useLocation()
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
 
@@ -74,7 +74,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
     <NxPanelContentStack style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
       <NxPageBody style={{ overflow: 'auto' }}>
         <NxScrollableTableContainer
-          aria-label="Workflows using this credential"
+          caption="Workflows using this credential"
           footer={{
             page,
             perPage,

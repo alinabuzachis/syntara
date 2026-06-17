@@ -29,6 +29,8 @@ class TestUserLoginHandler:
         assert audit.actor_username == "alice"
         assert audit.source_component == "nexus.auth.login"
         assert "local" in audit.event_message
+        assert audit.resource_urn == "urn:nexus:user:alice"
+        assert audit.resource_name == "alice"
 
     def test_audit_event_fields_oidc(self) -> None:
         user_id = uuid4()
@@ -68,3 +70,14 @@ class TestUserLoginHandler:
         assert audit is not None
         data = audit.structured_data.model_dump()
         assert data["is_first_login"] is True
+
+    def test_login_with_no_username(self) -> None:
+        """Login with no username → resource_urn and resource_name are None."""
+        user_id = uuid4()
+        event = UserLoginEvent(user_id=user_id, username=None, amr=[AMR.PASSWORD], idp="local")
+        audit = UserLoginHandler().handle(event)
+
+        assert audit is not None
+        assert audit.actor_username is None
+        assert audit.resource_urn is None
+        assert audit.resource_name is None

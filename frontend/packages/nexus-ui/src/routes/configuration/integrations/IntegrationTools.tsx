@@ -11,7 +11,6 @@ import type { ThProps } from '@patternfly/react-table'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useParams } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import { breadcrumbsIntegrationTools } from '../../../app/breadcrumbBuilders'
@@ -27,6 +26,8 @@ import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilte
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer.tsx'
+import { useNavigate } from '../../../hooks/routing/useNavigate'
+import { useParams } from '../../../hooks/routing/useParams'
 import { useCursorPagination, useCursorReset, type UseCursorPaginationResult } from '../../../hooks/useCursorPagination'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
@@ -170,7 +171,7 @@ function IntegrationToolsLoadedView({
                   />
                 </NxPageBody>
               ) : (
-                <NxScrollableTableContainer aria-label="Tools table" isExpandable footer={getFooterProps(queryData)}>
+                <NxScrollableTableContainer caption="Tools table" isExpandable footer={getFooterProps(queryData)}>
                   <Thead>
                     <Tr>
                       <Th
@@ -229,7 +230,7 @@ function IntegrationToolsLoadedView({
 export default function IntegrationTools() {
   const integrationsDocLink = useDocLink('integrations')
   const params = useParams()
-  const [, navigate] = useLocation()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const provider_id = params?.provider_id ?? ''
   const { showAlert } = useAlerts()

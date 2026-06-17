@@ -199,14 +199,17 @@ define _e2e-run
 	./tools/scripts/e2e-run.sh $(1)
 endef
 
+# Default to empty so it runs all tests if not provided
+E2E_TARGET ?=
+
 .PHONY: test-e2e
 test-e2e: check-deps ## Run all E2E tests (starts full stack)
 ifndef APP_BASE_URL
-	$(call _e2e-run,tests/e2e/ -v)
+	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v)
 else
 	@echo "🧪 Running end to end tests..."
 	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
-	uv run pytest tests/e2e/ -v
+	uv run pytest tests/e2e/$(E2E_TARGET) -v
 endif
 
 .PHONY: test-e2e-telemetry
@@ -480,6 +483,7 @@ services-clean: ## Stop all services and remove all data (destructive)
 # API spec governance
 # ========================================================
 OPENAPI_SPEC ?= src/nexus/schemas/openapi.yaml
+OPENAPI_BASE_REF ?= devel
 VERBOSITY ?= -v
 
 .PHONY: api-spec-validation
@@ -658,6 +662,61 @@ check-orphans: ## Check for unimported Python modules
 	@echo "🔍 Checking for orphan modules..."
 	uv run python tools/ci/check_orphan_modules.py
 	@echo "✅ No new orphan modules detected"
+
+
+.PHONY: check-openapi-breaking
+check-openapi-breaking: ## Check OpenAPI spec for breaking changes against main branch
+	@echo "Checking OpenAPI spec for breaking changes..."
+	@if ! command -v oasdiff &> /dev/null; then \
+		echo "Installing oasdiff..."; \
+		./scripts/openapi/install-oasdiff.sh; \
+	fi
+	@PR_BODY_TEXT="$${PR_BODY:-$${OPENAPI_PR_BODY:-}}"; \
+	if [ -n "$$PR_BODY_TEXT" ]; then \
+		./scripts/openapi/check-breaking-changes.py \
+			--base $(OPENAPI_BASE_REF) \
+			--head HEAD \
+			--format text \
+			--pr-body "$$PR_BODY_TEXT"; \
+	else \
+		./scripts/openapi/check-breaking-changes.py \
+			--base $(OPENAPI_BASE_REF) \
+			--head HEAD \
+			--format text; \
+	fi
+	@echo "OpenAPI breaking changes check complete"
+
+.PHONY: check-openapi-breaking-pre-commit
+check-openapi-breaking-pre-commit: ## Pre-commit: breaking changes when openapi.yaml changed vs base ref
+	@BASE_REF=""; \
+	if git rev-parse --verify $(OPENAPI_BASE_REF) >/dev/null 2>&1; then \
+		BASE_REF="$(OPENAPI_BASE_REF)"; \
+	elif git rev-parse --verify origin/$(OPENAPI_BASE_REF) >/dev/null 2>&1; then \
+		BASE_REF="origin/$(OPENAPI_BASE_REF)"; \
+	fi; \
+	if [ -n "$$BASE_REF" ] && git diff --quiet "$$BASE_REF" -- $(OPENAPI_SPEC) 2>/dev/null; then \
+		echo "OpenAPI spec unchanged vs $$BASE_REF, skipping breaking changes check"; \
+		exit 0; \
+	fi; \
+	if [ -z "$$BASE_REF" ]; then \
+		BASE_REF="$(OPENAPI_BASE_REF)"; \
+	fi; \
+	$(MAKE) check-openapi-breaking OPENAPI_BASE_REF="$$BASE_REF"
+
+.PHONY: check-openapi-companion
+check-openapi-companion: ## Check if companion UI PR is needed for OpenAPI changes
+	@echo "Companion PR check requires a PR description"
+	@echo "Usage: make check-openapi-companion PR_BODY='your PR description'"
+	@if [ -z "$(PR_BODY)" ]; then \
+		echo "Error: PR_BODY variable not set"; \
+		exit 1; \
+	fi
+	@./scripts/openapi/check-companion-pr.py \
+		--pr-body "$(PR_BODY)" \
+		--format text
+
+.PHONY: check-openapi
+check-openapi: check-openapi-breaking ## Run all OpenAPI checks (alias for check-openapi-breaking)
 
 
 # Pre-commit targets

@@ -12,8 +12,6 @@ import {
   TabTitleText,
 } from '@patternfly/react-core'
 import { useMemo } from 'react'
-import { useParams } from 'wouter'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
@@ -22,6 +20,8 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
+import { navigate } from '../../../hooks/routing/navigate'
+import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { useDocLink } from '../../../utils/docs/useDocLink'

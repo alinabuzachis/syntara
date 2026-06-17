@@ -1,0 +1,64 @@
+import type { AuthzAPI } from '@ansible/nexus-contracts'
+import { useQuery } from '@tanstack/react-query'
+
+import { fetchAllPages, MAX_PAGE_SIZE } from '../../../utils/fetchAllPages'
+import { accessFetchClient } from '../../access/accessClient'
+
+type WhoCanUser = AuthzAPI.components['schemas']['WhoCanUser']
+
+/**
+ * Hook to fetch all users who have approval:decide permission.
+ *
+ * Uses /authz/who_can endpoint with cursor pagination to fetch all authorized users.
+ * When a project is specified, returns users who can approve on that specific project
+ * (includes both system-level and project-scoped permissions).
+ *
+ * @param projectId - Optional project ID to scope the permission check to a specific project.
+ *                    If provided, returns users with approval:decide permission on that project.
+ *                    If omitted, returns only users with system-level approval:decide permission.
+ * @returns Object containing users array, loading state, and error
+ */
+export function useApprovalDecideUsers(projectId?: string | null) {
+  async function fetchAllApprovalDecideUsers(): Promise<WhoCanUser[]> {
+    return fetchAllPages<WhoCanUser>(async (cursor: string | undefined) => {
+      const result = await accessFetchClient.POST('/authz/who_can', {
+        body: {
+          action: 'decide',
+          resource_type: 'approval',
+          limit: MAX_PAGE_SIZE,
+          cursor,
+          ...(projectId && { resource_project: projectId }),
+        },
+      })
+
+      // WhoCanResponse already has the correct shape {resources, next} for fetchAllPages
+      if (!result.data) {
+        return { data: undefined, error: result.error }
+      }
+
+      return {
+        data: result.data,
+        error: result.error,
+      }
+    })
+  }
+
+  const {
+    data: users = [],
+    isPending,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['approval-decide-users', projectId],
+    queryFn: fetchAllApprovalDecideUsers,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+  })
+
+  return {
+    users,
+    isLoading: isPending,
+    error,
+    refetch,
+  }
+}

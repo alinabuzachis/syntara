@@ -33,6 +33,7 @@ export default defineConfig({
         'e2e/',
         '**/*.test.{ts,tsx}',
         '**/*.spec.{ts,tsx}',
+        '**/*.stories.*',
       ],
     },
   },

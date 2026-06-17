@@ -4,6 +4,8 @@ import { approvalsClient } from '../../client'
 import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 
+type DecisionType = 'approved' | 'rejected'
+
 export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSuccess: () => void) {
   const { showSuccess, showAlert } = useAlerts()
   const handleError = useMutationErrorHandler()
@@ -12,12 +14,17 @@ export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSucce
 
   const bulkDecisionMutation = approvalsClient.useMutation('post', '/approvals/batch')
 
-  const handleBulkApprove = (note: string | null) => {
+  const handleBulkDecision = (note: string | null, status: DecisionType, setDialogOpen: (open: boolean) => void) => {
     const decisions = Array.from(selectedApprovalIds).map((approvalId) => ({
       approval_id: approvalId,
-      status: 'approved' as const,
+      status,
       notes: note,
     }))
+
+    const actionLabel = status === 'approved' ? 'approved' : 'rejected'
+    const actionPastTense = status === 'approved' ? 'Approved' : 'Rejected'
+    const actionNoun = status === 'approved' ? 'approval' : 'rejection'
+    const successTitle = status === 'approved' ? 'Approvals submitted' : 'Approvals rejected'
 
     bulkDecisionMutation.mutate(
       { body: { decisions } },
@@ -25,17 +32,17 @@ export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSucce
         onSuccess: (response) => {
           const { total_success, total_failed } = response
 
-          setBulkApproveDialogOpen(false)
+          setDialogOpen(false)
 
           if (total_failed === 0) {
             showSuccess({
-              title: 'Approvals submitted',
-              description: `Successfully approved ${total_success} approval${total_success === 1 ? '' : 's'}.`,
+              title: successTitle,
+              description: `Successfully ${actionLabel} ${total_success} approval${total_success === 1 ? '' : 's'}.`,
             })
           } else {
             showAlert({
               title: 'Partial success',
-              description: `Approved ${total_success} approval${total_success === 1 ? '' : 's'}, but ${total_failed} failed. Check the list and try again.`,
+              description: `${actionPastTense} ${total_success} approval${total_success === 1 ? '' : 's'}, but ${total_failed} failed. Check the list and try again.`,
               variant: 'warning',
               autoDismiss: false,
             })
@@ -43,51 +50,20 @@ export function useBulkApprovalActions(selectedApprovalIds: Set<string>, onSucce
 
           onSuccess()
         },
-        onError: handleError({ title: 'Bulk approval failed' }),
+        onError: handleError({ title: `Bulk ${actionNoun} failed` }),
         onSettled: () => {
-          setBulkApproveDialogOpen(false)
+          setDialogOpen(false)
         },
       }
     )
   }
 
-  const handleBulkReject = (note: string) => {
-    const decisions = Array.from(selectedApprovalIds).map((approvalId) => ({
-      approval_id: approvalId,
-      status: 'rejected' as const,
-      notes: note,
-    }))
+  const handleBulkApprove = (note: string | null) => {
+    handleBulkDecision(note, 'approved', setBulkApproveDialogOpen)
+  }
 
-    bulkDecisionMutation.mutate(
-      { body: { decisions } },
-      {
-        onSuccess: (response) => {
-          const { total_success, total_failed } = response
-
-          setBulkRejectDialogOpen(false)
-
-          if (total_failed === 0) {
-            showSuccess({
-              title: 'Approvals rejected',
-              description: `Successfully rejected ${total_success} approval${total_success === 1 ? '' : 's'}.`,
-            })
-          } else {
-            showAlert({
-              title: 'Partial success',
-              description: `Rejected ${total_success} approval${total_success === 1 ? '' : 's'}, but ${total_failed} failed. Check the list and try again.`,
-              variant: 'warning',
-              autoDismiss: false,
-            })
-          }
-
-          onSuccess()
-        },
-        onError: handleError({ title: 'Bulk rejection failed' }),
-        onSettled: () => {
-          setBulkRejectDialogOpen(false)
-        },
-      }
-    )
+  const handleBulkReject = (note: string | null) => {
+    handleBulkDecision(note, 'rejected', setBulkRejectDialogOpen)
   }
 
   return {

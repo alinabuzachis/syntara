@@ -1,0 +1,23 @@
+/* Layout for ApprovalReadOnlyView full-height panel */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollContent {
+  min-height: 0;
+  overflow: auto;
+}
+
+.alertContainer {
+  flex-shrink: 0;
+}

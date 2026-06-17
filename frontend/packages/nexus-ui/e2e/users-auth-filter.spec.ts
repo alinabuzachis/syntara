@@ -39,7 +39,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
   })
 
   test('filtering by Local or AAP shows only matching users', async ({ app }) => {
-    const toolbar = app.locator('#filter-toolbar')
+    const toolbar = app.getByRole('search', { name: 'Filters' })
     const table = app.getByRole('grid', { name: 'Users' })
     const dataRows = table.getByRole('row').filter({ hasNot: app.locator('th') })
 
@@ -77,7 +77,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
   })
 
   test('combining Email and Authentication filters narrows results', async ({ app }) => {
-    const toolbar = app.locator('#filter-toolbar')
+    const toolbar = app.getByRole('search', { name: 'Filters' })
     const table = app.getByRole('grid', { name: 'Users' })
 
     // Apply Email filter
@@ -90,7 +90,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
     await expect(emailChipGroup.getByText('admin@nexus.local')).toBeVisible()
 
     // Add Authentication filter
-    await app.getByLabel('Filters').getByRole('button', { name: 'Email', exact: true }).click()
+    await toolbar.getByRole('button', { name: 'Email', exact: true }).click()
     await app.getByRole('option', { name: 'Authentication' }).click()
     await app.getByRole('button', { name: 'Filter by authentication' }).click()
     await app.getByRole('option', { name: 'Local' }).click()
@@ -112,7 +112,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
   })
 
   test('clearing filters restores unfiltered results', async ({ app }) => {
-    const toolbar = app.locator('#filter-toolbar')
+    const toolbar = app.getByRole('search', { name: 'Filters' })
     const table = app.getByRole('grid', { name: 'Users' })
     const dataRows = table.getByRole('row').filter({ hasNot: app.locator('th') })
 
@@ -129,7 +129,7 @@ test.describe('Users Table — Authentication Method Filter (UI-34)', () => {
     await expect(emailChipGroup.getByText('admin@nexus.local')).toBeVisible()
 
     // Add Authentication filter
-    await app.getByLabel('Filters').getByRole('button', { name: 'Email', exact: true }).click()
+    await toolbar.getByRole('button', { name: 'Email', exact: true }).click()
     await app.getByRole('option', { name: 'Authentication' }).click()
     await app.getByRole('button', { name: 'Filter by authentication' }).click()
     await app.getByRole('option', { name: 'Local' }).click()

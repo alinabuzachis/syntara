@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
+from urllib.parse import quote
 from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
@@ -79,6 +80,18 @@ class OIDCFlowHandler(AuditEventHandler[OIDCFlowEvent]):
             stage=event.stage.value,
         )
 
+        # Determine resource identifier with cascading fallback
+        # 1. Prefer username if available
+        # 2. Fall back to user_id if username is None
+        # 3. If both are None, leave resource fields as None
+        resource_identifier: str | None = None
+        if event.username is not None:
+            resource_identifier = event.username
+        elif event.user_id is not None:
+            resource_identifier = str(event.user_id)
+
+        resource_urn = f"urn:nexus:user:{quote(resource_identifier, safe='')}" if resource_identifier else None
+
         return AuditEvent(
             event_category=category,
             event_severity=severity,
@@ -90,4 +103,6 @@ class OIDCFlowHandler(AuditEventHandler[OIDCFlowEvent]):
             actor_id=event.user_id,
             actor_type=actor_type,
             actor_username=event.username,
+            resource_urn=resource_urn,
+            resource_name=resource_identifier,
         )

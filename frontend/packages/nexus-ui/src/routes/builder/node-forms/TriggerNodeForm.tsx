@@ -17,10 +17,6 @@ import { WebhookFields } from './WebhookTriggerFields'
 
 export type { TriggerFormData }
 
-// ---------------------------------------------------------------------------
-// Main form fields orchestrator
-// ---------------------------------------------------------------------------
-
 type TriggerNodeFormProps = {
   onSubmit: (data: TriggerFormData) => void
   initialData?: Partial<TriggerFormData>

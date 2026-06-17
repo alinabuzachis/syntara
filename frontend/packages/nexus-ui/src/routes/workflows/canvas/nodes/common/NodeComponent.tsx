@@ -1,5 +1,6 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
-import { Label } from '@patternfly/react-core'
+import { Icon, Label } from '@patternfly/react-core'
+import { RhUiWarningFillIcon } from '@patternfly/react-icons'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -42,6 +43,39 @@ const NODE_BOTTOM_BADGE_STYLE: React.CSSProperties = {
 const WORKFLOW_NODE_PANEL_RADIUS_STYLE = {
   '--pf-v6-c-panel--BorderRadius': 'var(--pf-t--global--border--radius--medium)',
 } as React.CSSProperties
+
+const VALIDATION_BADGE_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '-20px',
+  right: '-20px',
+  width: '48px',
+  height: '48px',
+  borderRadius: '50%',
+  backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+  borderColor: 'var(--pf-t--global--color--status--warning--default)',
+  borderStyle: 'solid',
+  borderWidth: '2px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 10,
+}
+
+function ValidationErrorBadge() {
+  return (
+    <div
+      data-testid="validation-error-badge"
+      style={VALIDATION_BADGE_STYLE}
+      title="Verification error"
+      role="img"
+      aria-label="Verification error"
+    >
+      <Icon size="xl">
+        <RhUiWarningFillIcon style={{ color: 'var(--pf-t--global--color--status--warning--default)' }} />
+      </Icon>
+    </div>
+  )
+}
 
 const isWideTaskNode = (nodeProps: NodeProps) => {
   if (nodeProps.type === FlowNodeType.GENERIC) {
@@ -131,6 +165,8 @@ export function NodeComponent(props: {
   const summary = props.semanticZoomSummary
   const mockDataPinned =
     (props.nodeProps.data as { metadata?: { __mockDataPinned?: boolean } }).metadata?.__mockDataPinned === true
+  const hasValidationError = props.nodeProps.data.__validationError === true
+  const isDisabled = (props.nodeProps.data as { settings?: { disabled?: boolean } }).settings?.disabled === true
 
   const panelStyle: React.CSSProperties = {
     overflow: 'visible', // Allow execution badge to overflow outside node
@@ -173,6 +209,18 @@ export function NodeComponent(props: {
               outline: '2px solid var(--pf-t--global--color--brand--default)',
               outlineOffset: -2,
             }),
+          // Disabled node: dashed gray border + reduced opacity (matches skipped execution state).
+          // Individual border-side properties avoid CSS shorthand so React can diff
+          // borderTop* correctly when toggling back to enabled.
+          ...(isDisabled && {
+            borderTopWidth: 2,
+            borderTopStyle: 'dashed' as const,
+            borderTopColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
+            borderRight: '2px dashed var(--pf-t--global--color--nonstatus--gray--default)',
+            borderBottom: '2px dashed var(--pf-t--global--color--nonstatus--gray--default)',
+            borderLeft: '2px dashed var(--pf-t--global--color--nonstatus--gray--default)',
+            opacity: 0.5,
+          }),
           ...props.style, // Merge with custom styles (will override borders if specified)
         }),
   }
@@ -222,6 +270,7 @@ export function NodeComponent(props: {
             </Label>
           </div>
         )}
+        {!isSemanticZoom && hasValidationError && <ValidationErrorBadge />}
         {!props.disableTarget && (
           <Handle
             type="target"

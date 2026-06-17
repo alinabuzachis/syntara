@@ -350,7 +350,7 @@ export default function Credentials() {
               ) : (
                 <NxScrollableTableContainer
                   isExpandable
-                  aria-label="Credentials table"
+                  caption="Credentials table"
                   footer={getFooterProps(query.data)}
                 >
                   <Thead>

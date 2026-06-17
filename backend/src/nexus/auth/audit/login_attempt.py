@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from urllib.parse import quote
 from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
@@ -113,4 +114,6 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
             actor_id=event.user_id,
             actor_type=actor_type,
             actor_username=event.username,
+            resource_urn=f"urn:nexus:user:{quote(event.username, safe='')}" if event.username else None,
+            resource_name=event.username,
         )

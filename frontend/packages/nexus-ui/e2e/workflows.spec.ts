@@ -17,6 +17,19 @@ test('workflows page toolbar shows Import workflow before Create workflow', asyn
   expect(importBox?.x).toBeLessThan(createBox?.x ?? Infinity)
 })
 
+test('workflows table renders data rows', async ({ app }) => {
+  await app.goto(toAppUrl('/workflows'))
+  await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
+  const workflowsTable = app.getByRole('grid', { name: 'Workflows table' })
+  await expect(workflowsTable).toBeVisible()
+  const pagination = app.getByText(/\d+\s*-\s*\d+\s+of\s+(\d+)/)
+  await expect(pagination).toBeVisible()
+  const total = Number((await pagination.textContent())?.match(/of\s+(\d+)/)?.[1] ?? '0')
+  test.skip(total === 0, 'No workflows in table to assert row visibility')
+  // Kebab aria-label is stable when row accessible names are not (grouped table + Truncate).
+  await expect(workflowsTable.getByLabel(/^Actions for /).nth(0)).toBeVisible()
+})
+
 test('user searches, views, and deletes a workflow', async ({ app }) => {
   test.setTimeout(90_000)
   // Arrange - Create a workflow to manage

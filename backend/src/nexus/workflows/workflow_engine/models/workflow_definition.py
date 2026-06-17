@@ -208,13 +208,19 @@ class NodeSettingsBase(BaseModel):
 
 
 class NodeSettingsCof(NodeSettingsBase):
-    """Settings with continue_on_failure only (converge, loop, wait)."""
+    """Settings with continue_on_failure only (converge, loop)."""
 
     continue_on_failure: bool | None = None
 
 
-class NodeSettingsNoRetry(NodeSettingsCof):
-    """Settings with continue_on_failure + timeout (script, agentic, approval)."""
+class NodeSettingsCofDisabled(NodeSettingsCof):
+    """Settings with disabled and continue_on_failure (wait)."""
+
+    disabled: bool | None = None
+
+
+class NodeSettingsNoRetry(NodeSettingsCofDisabled):
+    """Settings with disabled, continue_on_failure, and timeout (script, agentic, approval)."""
 
     timeout: int | None = Field(default=None, ge=1)
 

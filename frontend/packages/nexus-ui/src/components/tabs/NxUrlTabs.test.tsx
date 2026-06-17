@@ -11,8 +11,11 @@ const { mockSetLocation, mockGetLocation } = vi.hoisted(() => ({
   mockGetLocation: vi.fn().mockReturnValue('/base/tab-a'),
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: (): [string, typeof mockSetLocation] => [mockGetLocation() as string, mockSetLocation],
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => mockGetLocation() as string,
+}))
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
 }))
 
 describe('NxUrlTabs', () => {

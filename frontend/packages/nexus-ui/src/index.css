@@ -8,6 +8,7 @@
   --pf-t--custom--color--redhat-logo: #e00;
 
   --nexus-form-max-width: 600px;
+  --nexus-disabled-opacity: 0.5;
 
   /* Solid chroma centers: nested color-mix() of --pf-t--color--* to hug legacy RGB */
   --nexus-deep-space-chroma-left: color-mix(
@@ -131,6 +132,17 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
       var(--pf-t--global--background--color--glass--primary--default)
     );
   backdrop-filter: var(--pf-t--global--background--filter--glass--blur--primary);
+}
+
+/*
+ * Safari only: PF sticky-header ::before uses inset:0 on a sticky thead; WebKit sizes it to the
+ * scrollport height and covers tbody rows. Chrome/Firefox keep PF ::before/::after (header shadow).
+ */
+@supports (hanging-punctuation: first) and (font: -apple-system-body) and (-webkit-appearance: none) {
+  table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead::before,
+  table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead::after {
+    display: none;
+  }
 }
 
 /**

@@ -1,9 +1,7 @@
 import { Content, Tab } from '@patternfly/react-core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useMemo } from 'react'
-import { Router } from 'wouter'
-import { memoryLocation } from 'wouter/memory-location'
 
+import { createTestRouter } from '../../test/createTestRouter'
 import { NxPanel } from '../layout/NxPanel'
 
 import { NxUrlTabs } from './NxUrlTabs'
@@ -35,46 +33,44 @@ function StandardTabs({ basePath, defaultTab }: { basePath: string; defaultTab?:
   )
 }
 
-// --- Story components ---
-
+const DefaultStoryRouter = createTestRouter('/resource/details')
 function DefaultStory() {
-  const { hook } = useMemo(() => memoryLocation({ path: '/resource/details', record: true }), [])
   return (
-    <Router hook={hook}>
+    <DefaultStoryRouter>
       <NxPanel>
         <StandardTabs basePath="/resource" />
       </NxPanel>
-    </Router>
+    </DefaultStoryRouter>
   )
 }
 
+const SecondTabActiveRouter = createTestRouter('/resource/activity-log')
 function SecondTabActiveStory() {
-  const { hook } = useMemo(() => memoryLocation({ path: '/resource/activity-log', record: true }), [])
   return (
-    <Router hook={hook}>
+    <SecondTabActiveRouter>
       <NxPanel>
         <StandardTabs basePath="/resource" />
       </NxPanel>
-    </Router>
+    </SecondTabActiveRouter>
   )
 }
 
+const DefaultTabFallbackRouter = createTestRouter('/resource')
 function DefaultTabFallbackStory() {
   // URL has no tab segment — `defaultTab` takes over without any redirect.
-  const { hook } = useMemo(() => memoryLocation({ path: '/resource', record: true }), [])
   return (
-    <Router hook={hook}>
+    <DefaultTabFallbackRouter>
       <NxPanel>
         <StandardTabs basePath="/resource" defaultTab="activity-log" />
       </NxPanel>
-    </Router>
+    </DefaultTabFallbackRouter>
   )
 }
 
+const ValidTabsRouter = createTestRouter('/resource/details')
 function ValidTabsStory() {
-  const { hook } = useMemo(() => memoryLocation({ path: '/resource/details', record: true }), [])
   return (
-    <Router hook={hook}>
+    <ValidTabsRouter>
       <NxPanel>
         <NxUrlTabs
           basePath="/resource"
@@ -93,22 +89,20 @@ function ValidTabsStory() {
           </Tab>
         </NxUrlTabs>
       </NxPanel>
-    </Router>
+    </ValidTabsRouter>
   )
 }
 
+const TabNavigationRouter = createTestRouter('/resource/details')
 function TabNavigationStory() {
-  const { hook } = useMemo(() => memoryLocation({ path: '/resource/details', record: true }), [])
   return (
-    <Router hook={hook}>
+    <TabNavigationRouter>
       <NxPanel>
         <StandardTabs basePath="/resource" />
       </NxPanel>
-    </Router>
+    </TabNavigationRouter>
   )
 }
-
-// --- Meta ---
 
 const meta: Meta<typeof NxUrlTabs> = {
   component: NxUrlTabs,

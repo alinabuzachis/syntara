@@ -12,7 +12,7 @@ import {
 } from '../../../../stores/useWorkflowStore'
 import type { LogicFormData } from '../../node-forms/LogicNodeForm'
 import { getDefaultNodeBaseName, getNodeDisplayName } from '../../utils/nodeNaming'
-import { serializeSwitchCases } from '../../utils/switchCaseHelpers'
+import { buildSwitchCasePort } from '../../utils/switchCaseHelpers'
 import { timeUnitsToSeconds } from '../../utils/timeUtils'
 
 export function generateSecureRandomId(): string {
@@ -171,7 +171,11 @@ export function submitSwitchLogic(
     return false
   }
 
-  const cases = serializeSwitchCases(data.cases)
+  const cases = data.cases.map((c, i) => ({
+    port: buildSwitchCasePort(i),
+    label: c.label || `Path ${i + 1}`,
+    condition: c.condition,
+  }))
 
   const activity = createSwitchActivity(activityId, name, cases)
   useWorkflowStore.getState().addActivity(activity)

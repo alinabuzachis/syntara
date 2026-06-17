@@ -67,11 +67,20 @@ describe('SwitchNodeForm', () => {
     })
   })
 
+  describe('Reorder paths', () => {
+    it('renders drag handle for each path', () => {
+      renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
+
+      expect(screen.getByRole('button', { name: 'Reorder path 1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Reorder path 2' })).toBeInTheDocument()
+    })
+  })
+
   describe('Initial Data', () => {
     it('pre-populates form with initialData', () => {
       const initialData: Partial<SwitchFormData> = {
         name: 'My Switch',
-        cases: [{ id: '1', variable: 'status', operator: '==', value: 'active', negate: false }],
+        cases: [{ caseId: '1', condition: '${status} == "active"' }],
       }
 
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
@@ -120,31 +129,27 @@ describe('SwitchNodeForm', () => {
   })
 
   describe('Validation', () => {
-    it('shows field required error when submitting with empty variable', async () => {
+    it('shows condition required error when submitting with empty conditions', async () => {
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getAllByText('Field is required').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
       })
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
-    it('shows value required error when submitting with empty value', async () => {
-      const user = userEvent.setup()
+    it('shows condition required error when submitting with empty condition', async () => {
       const initialData: Partial<SwitchFormData> = {
-        cases: [{ id: 'c1', label: 'Path 1', variable: '', operator: '==' as const, value: '', negate: false }],
+        cases: [{ caseId: 'c1', label: 'Path 1', condition: '' }],
       }
       renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
-
-      const fieldInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      await user.type(fieldInputs[0], 'trigger.status')
 
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getByText('Value is required')).toBeInTheDocument()
+        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
       })
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
@@ -155,7 +160,7 @@ describe('SwitchNodeForm', () => {
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getAllByText('Field is required').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
       })
 
       const collapseButtons = screen.getAllByRole('button', { name: /path \d+/i })
@@ -173,7 +178,7 @@ describe('SwitchNodeForm', () => {
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(screen.getAllByText('Field is required').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('Condition is required').length).toBeGreaterThan(0)
       })
     })
   })
@@ -194,12 +199,58 @@ describe('SwitchNodeForm', () => {
     })
   })
 
+  describe('Path expression label', () => {
+    it('renders Path expression label for each expanded case', () => {
+      renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
+
+      const labels = screen.getAllByText('Path expression')
+      expect(labels.length).toBe(2)
+    })
+  })
+
+  describe('Condition round-trip', () => {
+    it('submits with condition string from initial data', async () => {
+      const initialData: Partial<SwitchFormData> = {
+        name: 'Test',
+        cases: [{ caseId: 'c1', label: 'Path 1', condition: '${status} == "active"' }],
+      }
+      renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
+
+      fireEvent.submit(screen.getByTestId('switch-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled()
+      })
+
+      const submittedData = mockOnSubmit.mock.calls[0][0] as SwitchFormData
+      expect(submittedData.cases[0].condition).toBe('${status} == "active"')
+    })
+  })
+
   describe('Accessibility', () => {
     it('has no accessibility violations including nested-interactive (excluding known PatternFly Tabs aria-valid-attr-value issue)', async () => {
       const { container } = renderWithHeader(<SwitchNodeForm onSubmit={mockOnSubmit} />)
 
       const results = await axe(container, {
         rules: {
+          'aria-valid-attr-value': { enabled: false },
+          'nested-interactive': { enabled: true },
+        },
+      })
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations with single path (excluding known PatternFly Tabs aria-valid-attr-value issue)', async () => {
+      const { container } = renderWithHeader(
+        <SwitchNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ cases: [{ caseId: 'c1', label: 'Solo', condition: '${x} == 1' }] }}
+        />
+      )
+
+      const results = await axe(container, {
+        rules: {
+          // Known false positive: PatternFly Tabs generates aria-selected on non-tab roles
           'aria-valid-attr-value': { enabled: false },
           'nested-interactive': { enabled: true },
         },

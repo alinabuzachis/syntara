@@ -59,7 +59,7 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
       // Verify filter chip appears
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup).toBeVisible()
       await expect(nameChipGroup.getByText(searchTerm)).toBeVisible()
 
@@ -90,11 +90,11 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
       await app.getByPlaceholder('Filter by name').fill(searchTerm)
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup).toBeVisible()
 
       // Clear filter via "Clear all filters" button
-      await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
+      await app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' }).click()
 
       // Verify filter chip is removed
       await expect(nameChipGroup).not.toBeVisible()
@@ -129,7 +129,7 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
       await app.getByPlaceholder('Filter by name').fill(searchTerm)
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup).toBeVisible()
 
       // Remove filter chip by clicking its close button
@@ -172,7 +172,7 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
       // Verify filter chip updates
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup.getByText(secondSearchTerm)).toBeVisible()
 
       // Verify second workflow appears
@@ -194,7 +194,7 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Wait for filter to be applied
-    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+    const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
     await expect(nameChipGroup).toBeVisible()
 
     // Check for empty state
@@ -234,7 +234,7 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
 
       // Verify filter is restored
       await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup.getByText(searchTerm)).toBeVisible()
     } finally {
       for (const wf of workflows) {
@@ -263,7 +263,7 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
       // Verify filter chip appears
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup).toBeVisible()
 
       // Verify table shows results
@@ -297,7 +297,7 @@ test.describe('Workflows Table - Search, Filter, and Sort', () => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
       // Verify filter is applied
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup).toBeVisible()
 
       // Reload the page

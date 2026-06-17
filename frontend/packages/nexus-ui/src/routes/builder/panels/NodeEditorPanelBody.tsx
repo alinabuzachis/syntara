@@ -121,7 +121,7 @@ export function NodeEditorPanelBody({
               height: '100%',
             }}
           >
-            <OutputPanel outputData={outputData} />
+            <OutputPanel outputData={outputData} nodeId={nodeId ?? ''} />
           </FlexItem>
         </Flex>
       </FlexItem>

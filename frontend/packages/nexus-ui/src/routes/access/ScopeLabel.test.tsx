@@ -2,11 +2,12 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
-import { navigate } from 'wouter/use-browser-location'
+
+import { navigate } from '../../hooks/routing/navigate'
 
 import { PolicyTypeLabel, ProjectLabel, ScopeLabel } from './ScopeLabel'
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

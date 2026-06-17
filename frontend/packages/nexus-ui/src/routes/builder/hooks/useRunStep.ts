@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { getAncestorNodes } from '../../../utils/graphTraversal'
-import type { TestStepDialogData } from '../components/TestStepDialog'
+import type { RunStepDialogData as TestStepDialogData } from '../components/RunStepDialog'
 
 type UseRunStepParams = {
   reactFlowInstance: ReactFlowInstance

@@ -11,6 +11,7 @@ vi.mock('./hooks/useNodeMenuActions', () => ({
   useNodeMenuActions: vi.fn(),
   MenuNodeType: {
     ACTIVITY: 'activity',
+    CONTROL_FLOW: 'control-flow',
     TRIGGER: 'trigger',
   },
 }))

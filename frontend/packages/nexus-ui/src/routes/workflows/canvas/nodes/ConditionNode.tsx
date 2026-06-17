@@ -29,7 +29,7 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   )
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
-    nodeType: MenuNodeType.ACTIVITY,
+    nodeType: MenuNodeType.CONTROL_FLOW,
   })
 
   // Extract execution state if present

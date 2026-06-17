@@ -1,0 +1,257 @@
+---
+# Auth/RBAC Compliance Exclusions (AAP-77366)
+#
+# Routes listed here are excluded from the RBAC compliance test because
+# they legitimately cannot use PermissionChecker/VisibilityFilter.
+#
+# Each exclusion MUST include:
+#   - method: HTTP method (GET, POST, etc.)
+#   - path: Full API path as registered by FastAPI
+#   - justification: Why RBAC is not applicable
+#
+# Routes are split into two sections:
+#   - authenticated: Requires a valid JWT but has no RBAC
+#   - public: No authentication required at all
+#
+# The compliance test validates that each entry's declared auth posture
+# matches reality.  If a route gains RBAC, the staleness test will
+# catch it and ask you to remove the entry.
+
+authenticated:
+  # -- auth --
+  - method: GET
+    path: /api/v1/auth/me
+    justification: Returns own user info; scoped to caller
+
+  # -- authz: introspection / reference data --
+  - method: POST
+    path: /api/v1/authz/can_i
+    justification: Checks caller's own permissions
+
+  - method: POST
+    path: /api/v1/authz/what_can_i
+    justification: Checks caller's own permissions
+
+  - method: GET
+    path: /api/v1/roles
+    justification: Read-only role catalog
+
+  - method: GET
+    path: /api/v1/roles/{role_id}
+    justification: Read-only role catalog
+
+  - method: GET
+    path: /api/v1/role_assignments/{assignment_id}
+    justification: Visibility filtered in handler
+
+  - method: GET
+    path: /api/v1/policies
+    justification: Read-only policy catalog
+
+  - method: GET
+    path: /api/v1/policies/{policy_id}
+    justification: Read-only policy catalog
+
+  # -- users / groups --
+  - method: GET
+    path: /api/v1/users/me
+    justification: Returns own user info; scoped to caller
+
+  - method: GET
+    path: /api/v1/users/{user_id}/role_assignments
+    justification: Visibility filtered in handler
+
+  - method: GET
+    path: /api/v1/groups/{group_id}/role_assignments
+    justification: Visibility filtered in handler
+
+  # -- approvals --
+  - method: POST
+    path: /api/v1/approvals/batch
+    justification: Per-approval authorization inline; spans multiple projects
+
+  # -- executions --
+  - method: POST
+    path: /api/v1/executions
+    justification: Authorization enforced inline via authorize()
+
+  # -- credentials --
+  - method: GET
+    path: /api/v1/credential_types
+    justification: Read-only credential type catalog
+
+  - method: GET
+    path: /api/v1/credential_types/{credential_type_id}
+    justification: Read-only credential type catalog
+
+  # -- aap: proxy to Controller which enforces its own RBAC --
+  - method: GET
+    path: /api/v1/aap/credentials
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/execution_environments
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/instance_groups
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/inventories
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/job_templates
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/job_templates/{job_template_id}
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/labels
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/organizations
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/workflow_job_templates
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  - method: GET
+    path: /api/v1/aap/workflow_job_templates/{workflow_job_template_id}
+    justification: Proxy to Controller; Controller enforces RBAC
+
+  # -- tool_manager: AAP-56797 pending admin-role RBAC --
+  - method: GET
+    path: /api/v1/tool_manager/tools
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: GET
+    path: /api/v1/tool_manager/tools/{tool_id}
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: PATCH
+    path: /api/v1/tool_manager/tools/bulk_update
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: PATCH
+    path: /api/v1/tool_manager/tools/{tool_id}
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: GET
+    path: /api/v1/tool_manager/tool_providers
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: POST
+    path: /api/v1/tool_manager/tool_providers
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: GET
+    path: /api/v1/tool_manager/tool_providers/{provider_id}
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: PUT
+    path: /api/v1/tool_manager/tool_providers/{provider_id}
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: PATCH
+    path: /api/v1/tool_manager/tool_providers/{provider_id}
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: DELETE
+    path: /api/v1/tool_manager/tool_providers/{provider_id}
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: POST
+    path: /api/v1/tool_manager/tool_providers/{provider_id}/validate
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: POST
+    path: /api/v1/tool_manager/tool_providers/test
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  - method: POST
+    path: /api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools
+    justification: "AAP-56797: pending admin-role RBAC"
+
+  # -- tool_manager/metrics: internal observability --
+  - method: GET
+    path: /api/v1/tool_manager/metrics/tools
+    justification: Internal observability; no user data
+
+  - method: GET
+    path: /api/v1/tool_manager/metrics/executions
+    justification: Internal observability; no user data
+
+public:
+  # -- auth: pre-authentication flow --
+  - method: POST
+    path: /api/v1/auth/login
+    justification: Login; no user context yet
+
+  - method: POST
+    path: /api/v1/auth/refresh
+    justification: Token refresh via cookie; no access token
+
+  - method: POST
+    path: /api/v1/auth/logout
+    justification: Must work with expired tokens
+
+  - method: POST
+    path: /api/v1/auth/csrf_token
+    justification: CSRF token from session cookie; pre-auth
+
+  - method: GET
+    path: /api/v1/auth/providers
+    justification: Login page discovers auth methods
+
+  - method: GET
+    path: /api/v1/auth/oidc/authorize
+    justification: OIDC redirect; no user context yet
+
+  - method: GET
+    path: /api/v1/auth/oidc/callback
+    justification: OIDC callback from IdP; no user context yet
+
+  # -- authz --
+  - method: GET
+    path: /api/v1/authz/resource_actions
+    justification: Read-only resource-actions catalog
+
+  - method: GET
+    path: /api/v1/authz/validate_name
+    justification: Stateless name validation helper
+
+  # -- webhooks: external triggers --
+  - method: POST
+    path: /api/v1/webhooks/{webhook_path}
+    justification: Auth via webhook secret, not user token
+
+  - method: POST
+    path: /api/v1/webhooks/eda/{webhook_path}
+    justification: Auth via webhook secret, not user token
+
+  # -- example: demo scaffold, not deployed --
+  - method: GET
+    path: /api/v1/example
+    justification: Demo scaffold; not deployed to production
+
+  - method: POST
+    path: /api/v1/example
+    justification: Demo scaffold; not deployed to production
+
+  - method: GET
+    path: /api/v1/example/{item_id}
+    justification: Demo scaffold; not deployed to production
+
+  - method: PUT
+    path: /api/v1/example/{item_id}
+    justification: Demo scaffold; not deployed to production
+
+  - method: DELETE
+    path: /api/v1/example/{item_id}
+    justification: Demo scaffold; not deployed to production

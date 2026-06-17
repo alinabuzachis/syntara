@@ -28,13 +28,12 @@ vi.mock('../../client', () => ({
 
 const mockSetLocation = vi.fn()
 
-vi.mock('wouter', async (importOriginal) => {
-  const actual: Record<string, unknown> = await importOriginal()
-  return {
-    ...actual,
-    useLocation: () => ['/workflow-builder/workflow-1', mockSetLocation],
-  }
-})
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/workflow-builder/workflow-1',
+}))
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
+}))
 
 vi.mock('../../app/useUnsavedChanges', () => ({
   useUnsavedChanges: () => ({

@@ -23,7 +23,7 @@ type IdentityProviderPermissions = {
  * Permission checks for identity provider management actions.
  *
  * Checks: identity-provider:create, identity-provider:update,
- * identity-provider:delete, identity-provider:test, admin:revocation:revoke.
+ * identity-provider:delete, identity-provider:test, admin:revocation:execute.
  * All values default to `false` (safe-false) until the checks resolve.
  */
 export function useIdentityProviderPermissions(): IdentityProviderPermissions {
@@ -32,7 +32,7 @@ export function useIdentityProviderPermissions(): IdentityProviderPermissions {
   const { allowed: canUpdate, isChecking: c2 } = useCanI('update', resourceType)
   const { allowed: canDelete, isChecking: c3 } = useCanI('delete', resourceType)
   const { allowed: canTest, isChecking: c4 } = useCanI('test', resourceType)
-  const { allowed: canRevoke, isChecking: c5 } = useCanI('revoke', 'admin:revocation')
+  const { allowed: canRevoke, isChecking: c5 } = useCanI('execute', 'admin:revocation')
 
   const updatePermission = `${resourceType}:update` as const
 
@@ -50,7 +50,7 @@ export function useIdentityProviderPermissions(): IdentityProviderPermissions {
       delete: permissionTooltip('delete this identity provider', `${resourceType}:delete`),
       test: permissionTooltip('test sign-in for this identity provider', `${resourceType}:test`),
       editMapping: permissionTooltip('edit group mapping', updatePermission),
-      revoke: permissionTooltip('revoke tokens for this identity provider', 'admin:revocation:revoke'),
+      revoke: permissionTooltip('revoke tokens for this identity provider', 'admin:revocation:execute'),
     },
   }
 }

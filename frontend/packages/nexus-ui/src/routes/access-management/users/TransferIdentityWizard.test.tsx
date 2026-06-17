@@ -25,14 +25,17 @@ vi.mock('../../access/accessClient', () => ({
 }))
 
 const mockNavigate = vi.fn<(path: string) => void>()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: (path: string): void => {
     mockNavigate(path)
   },
 }))
 
-vi.mock('wouter', () => ({
+vi.mock('../../../hooks/routing/useParams', () => ({
   useParams: () => ({ userId: 'target-user' }),
+}))
+
+vi.mock('../../../hooks/routing/Link', () => ({
   Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode; [key: string]: unknown }) => (
     <a href={href} {...rest}>
       {children}

@@ -39,6 +39,7 @@ vi.mock('./hooks/useNodeMenuActions', () => ({
   useNodeMenuActions: vi.fn(),
   MenuNodeType: {
     ACTIVITY: 'activity',
+    CONTROL_FLOW: 'control-flow',
     TRIGGER: 'trigger',
   },
 }))
@@ -261,6 +262,7 @@ describe('ConvergeNode Menu Actions', () => {
       onViewDetails: vi.fn(),
       onDuplicate: vi.fn(),
       onReplace: vi.fn(),
+      onToggleDisabled: vi.fn(),
     }
   }
 
@@ -289,7 +291,7 @@ describe('ConvergeNode Menu Actions', () => {
       // Assert
       expect(mockUseNodeMenuActions).toHaveBeenCalledWith({
         nodeId: baseConvergeNode.id,
-        nodeType: 'activity',
+        nodeType: 'control-flow',
       })
     })
 
@@ -327,7 +329,7 @@ describe('ConvergeNode Menu Actions', () => {
       // Assert - Should render without errors and call hook
       expect(mockUseNodeMenuActions).toHaveBeenCalledWith({
         nodeId: baseConvergeNode.id,
-        nodeType: 'activity',
+        nodeType: 'control-flow',
       })
       expect(screen.getByText('Wait for All')).toBeInTheDocument()
     })

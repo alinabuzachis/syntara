@@ -11,7 +11,7 @@ const mockValidateMutation = vi.fn()
 const mockRefreshMutation = vi.fn()
 const mockHandleError = vi.fn(() => vi.fn())
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../../hooks/routing/navigate', () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   navigate: vi.fn((...args: unknown[]) => mockNavigate(...args)),
 }))

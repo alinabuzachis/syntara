@@ -70,8 +70,12 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
 
   useEffect(() => {
     if (searchTerm && scrollContainerRef.current) {
-      const firstMark = scrollContainerRef.current.querySelector('mark')
-      firstMark?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      requestAnimationFrame(() => {
+        const firstMark = scrollContainerRef.current?.querySelector('mark')
+        if (firstMark && typeof firstMark.scrollIntoView === 'function') {
+          firstMark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      })
     }
   }, [searchTerm, view, highlightedJson])
 

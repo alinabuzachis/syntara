@@ -18,9 +18,9 @@ import {
 import type { DropEvent } from '@patternfly/react-core'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { useLocation } from 'wouter'
 
 import { workflowFetchClient } from '../../client'
+import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -38,7 +38,7 @@ type ImportWorkflowDialogProps = Readonly<{
 
 export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkflowDialogProps) {
   const { showAlert, showError } = useAlerts()
-  const [, setLocation] = useLocation()
+  const setLocation = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [filename, setFilename] = useState('')
   const [fileError, setFileError] = useState<string | null>(null)

@@ -20,7 +20,10 @@ import { permissionTooltip } from '../../hooks/permissionUtils'
 import type { ProjectRead } from '../access/types'
 
 import type { ApprovalWithDetails } from './Approvals'
+import styles from './ApprovalsTableBody.module.css'
 import { ApprovalStatusBadges } from './approvalUtils'
+import { isApprovalSelectable } from './isApprovalSelectable'
+import { useCanDecideApproval } from './useCanDecideApproval'
 
 function DecidedCell({ approval }: Readonly<{ approval: ApprovalWithDetails }>) {
   const decidedAt = approval.decided_at
@@ -43,7 +46,74 @@ function DecidedCell({ approval }: Readonly<{ approval: ApprovalWithDetails }>) 
   )
 }
 
-const DECIDE_TOOLTIP = permissionTooltip('approve or reject this approval', 'approval:decide')
+const RBAC_DECIDE_TOOLTIP = permissionTooltip('approve or reject this approval', 'approval:decide')
+const APPROVER_LIST_TOOLTIP = 'You are not on the approver list for this approval'
+
+function SelectCheckboxCell({
+  approval,
+  rowIndex,
+  isPending,
+  isSelected,
+  canDecideOnThisApproval,
+  canDecideBasedOnApproverList,
+  isLoadingPermissions,
+  isCheckingApproverList,
+  onSelectRow,
+}: Readonly<{
+  approval: ApprovalWithDetails
+  rowIndex: number
+  isPending: boolean
+  isSelected: boolean
+  canDecideOnThisApproval: boolean
+  canDecideBasedOnApproverList: boolean
+  isLoadingPermissions: boolean
+  isCheckingApproverList: boolean
+  onSelectRow?: (approval: ApprovalWithDetails, checked: boolean) => void
+}>) {
+  const showDisabledWithTooltip = !isApprovalSelectable(
+    approval,
+    canDecideOnThisApproval,
+    canDecideBasedOnApproverList,
+    isLoadingPermissions,
+    isCheckingApproverList
+  )
+
+  // Determine which tooltip to show: RBAC permission missing vs not on approver list
+  const disabledTooltip = canDecideOnThisApproval ? APPROVER_LIST_TOOLTIP : RBAC_DECIDE_TOOLTIP
+
+  if (showDisabledWithTooltip) {
+    return (
+      <Td aria-label={`Select row ${rowIndex}`} className={styles.disabledCheckboxCell}>
+        <Tooltip content={disabledTooltip}>
+          <span>
+            <Checkbox
+              id={`select-approval-${approval.id}`}
+              isChecked={false}
+              isDisabled
+              aria-label={`Select row ${rowIndex}`}
+              onChange={() => undefined}
+            />
+          </span>
+        </Tooltip>
+      </Td>
+    )
+  }
+
+  return (
+    <Td
+      select={
+        isPending
+          ? {
+              rowIndex,
+              onSelect: (_event, isSelecting) => onSelectRow?.(approval, isSelecting),
+              isSelected,
+              isDisabled: isLoadingPermissions || isCheckingApproverList || !canDecideBasedOnApproverList,
+            }
+          : undefined
+      }
+    />
+  )
+}
 
 function ApprovalRow({
   approval,
@@ -67,40 +137,27 @@ function ApprovalRow({
   isLoadingPermissions?: boolean
 }>) {
   const isPending = approval.status === 'pending'
-  const showDisabledWithTooltip = showSelect && isPending && !canDecideOnThisApproval && !isLoadingPermissions
+
+  // SECURITY: Client-side check for UX only - disables checkbox for unauthorized users
+  // Backend ALWAYS validates and returns 403 via ApprovalService._is_user_authorized_approver()
+  const { canDecide: canDecideBasedOnApproverList, isLoading: isCheckingApproverList } = useCanDecideApproval(approval)
 
   return (
     <Fragment key={approval.id}>
       <Tr isContentExpanded={isExpanded}>
-        {showSelect &&
-          (showDisabledWithTooltip ? (
-            <Td aria-label={`Select row ${rowIndex}`}>
-              <Tooltip content={DECIDE_TOOLTIP}>
-                <span>
-                  <Checkbox
-                    id={`select-approval-${approval.id}`}
-                    isChecked={false}
-                    isDisabled
-                    aria-label={`Select row ${rowIndex}`}
-                    onChange={() => undefined}
-                  />
-                </span>
-              </Tooltip>
-            </Td>
-          ) : (
-            <Td
-              select={
-                isPending
-                  ? {
-                      rowIndex,
-                      onSelect: (_event, isSelecting) => onSelectRow?.(approval, isSelecting),
-                      isSelected,
-                      isDisabled: isLoadingPermissions,
-                    }
-                  : undefined
-              }
-            />
-          ))}
+        {showSelect && (
+          <SelectCheckboxCell
+            approval={approval}
+            rowIndex={rowIndex}
+            isPending={isPending}
+            isSelected={isSelected}
+            canDecideOnThisApproval={canDecideOnThisApproval}
+            canDecideBasedOnApproverList={canDecideBasedOnApproverList}
+            isLoadingPermissions={isLoadingPermissions}
+            isCheckingApproverList={isCheckingApproverList}
+            onSelectRow={onSelectRow}
+          />
+        )}
         <Td
           expand={{
             rowIndex,

@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import ClassVar
+from urllib.parse import quote
 from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
@@ -86,6 +87,9 @@ class SessionLifecycleHandler(AuditEventHandler[SessionLifecycleEvent]):
             lifecycle_action=event.action.value,
         )
 
+        # Use username if available, otherwise fall back to user_id
+        resource_identifier = event.username if event.username is not None else str(event.user_id)
+
         return AuditEvent(
             event_category=category,
             event_severity=severity,
@@ -97,4 +101,6 @@ class SessionLifecycleHandler(AuditEventHandler[SessionLifecycleEvent]):
             actor_id=event.user_id,
             actor_type=ActorType.USER,
             actor_username=event.username,
+            resource_urn=f"urn:nexus:user:{quote(resource_identifier, safe='')}",
+            resource_name=resource_identifier,
         )

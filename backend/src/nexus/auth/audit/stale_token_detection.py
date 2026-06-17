@@ -1,6 +1,7 @@
 """StaleTokenDetectionEvent and handler for auth-domain audit."""
 
 from dataclasses import dataclass
+from urllib.parse import quote
 from uuid import UUID
 
 import structlog
@@ -25,6 +26,7 @@ class StaleTokenDetectionEvent:
     user_id: str
     token_version: int
     current_version: int
+    user_name: str | None = None
 
 
 class StaleTokenDetectionHandler(AuditEventHandler[StaleTokenDetectionEvent]):
@@ -54,4 +56,6 @@ class StaleTokenDetectionHandler(AuditEventHandler[StaleTokenDetectionEvent]):
             structured_data=data,
             actor_id=actor_id,
             actor_type=ActorType.USER,
+            resource_urn=f"urn:nexus:user:{quote(event.user_id, safe='')}",
+            resource_name=event.user_name or event.user_id,
         )

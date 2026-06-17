@@ -21,9 +21,19 @@ vi.mock('../../../client', () => ({
 const mockSearchParams = new URLSearchParams()
 const mockSetSearchParams = vi.fn()
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/configuration/integrations/provider-1/tools', vi.fn()],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/configuration/integrations/provider-1/tools',
+}))
+const mockNavigate = vi.fn()
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../../hooks/routing/useParams', () => ({
   useParams: () => ({ provider_id: 'provider-1' }),
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 

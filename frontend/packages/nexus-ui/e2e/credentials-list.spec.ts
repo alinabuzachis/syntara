@@ -62,7 +62,9 @@ test.describe('Credentials Empty State', () => {
       await filterCredentialByName(app, nonexistent)
 
       await expect(app.getByText('No results found')).toBeVisible()
-      await expect(app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' })).toBeVisible()
+      await expect(
+        app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' })
+      ).toBeVisible()
     } finally {
       await deleteCredentialByName(app, credName)
     }
@@ -240,7 +242,9 @@ test.describe('Name Keyword Filtering', () => {
       await filterCredentialByName(app, nonexistent)
 
       await expect(app.getByText('No results found')).toBeVisible()
-      await expect(app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' })).toBeVisible()
+      await expect(
+        app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' })
+      ).toBeVisible()
     } finally {
       await deleteCredentialByName(app, credName)
     }

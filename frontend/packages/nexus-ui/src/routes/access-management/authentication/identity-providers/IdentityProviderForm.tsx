@@ -11,8 +11,6 @@ import {
 import { RhUiArrowLeftIcon, RhUiSearchIcon, RhUiSyncIcon } from '@patternfly/react-icons'
 import { useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { useParams } from 'wouter'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import {
@@ -26,6 +24,8 @@ import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
 import { useQueryState } from '../../../../components/states/useQueryState'
+import { navigate } from '../../../../hooks/routing/navigate'
+import { useParams } from '../../../../hooks/routing/useParams'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 import { getErrorMessage, getErrorStatus, isConflictError } from '../../../../utils/apiErrors'

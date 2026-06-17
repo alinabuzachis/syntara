@@ -74,18 +74,31 @@ const VALID_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 let mockLocationValue = `/system-administration/access-management/users/${VALID_USER_ID}`
 const mockSetLocation = vi.fn()
 const mockUseParams = vi.fn((): { userId?: string } => ({ userId: VALID_USER_ID }))
-vi.mock('wouter', async () => {
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => mockLocationValue,
+}))
+
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
+}))
+
+vi.mock('../../../hooks/routing/useParams', () => ({
+  useParams: () => mockUseParams(),
+}))
+
+vi.mock('../../../hooks/routing/useSearch', () => ({
+  useSearch: () => '',
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', async () => {
   const React = await import('react')
   return {
-    useLocation: () => [mockLocationValue, mockSetLocation],
-    useParams: () => mockUseParams(),
-    useSearch: () => '',
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })
 
 const mockNavigate = vi.fn()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: (...args: unknown[]): void => {
     mockNavigate(...args)
   },

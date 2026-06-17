@@ -4,11 +4,8 @@ import { switchFormSchema } from './switchFormSchema'
 
 describe('switchFormSchema', () => {
   const validCase = {
-    id: 'test-id',
-    variable: 'status',
-    operator: '==',
-    value: 'active',
-    negate: false,
+    caseId: 'test-id',
+    condition: '${status} == "active"',
   }
 
   describe('valid data', () => {
@@ -24,7 +21,7 @@ describe('switchFormSchema', () => {
     it('accepts valid switch data with multiple cases', () => {
       const result = switchFormSchema.safeParse({
         name: '',
-        cases: [validCase, { ...validCase, id: 'test-2', variable: 'priority' }],
+        cases: [validCase, { caseId: 'test-2', condition: '${priority} > 5' }],
       })
 
       expect(result.success).toBe(true)
@@ -50,19 +47,10 @@ describe('switchFormSchema', () => {
       expect(result.success).toBe(false)
     })
 
-    it('rejects case with empty variable', () => {
+    it('rejects case with empty condition', () => {
       const result = switchFormSchema.safeParse({
         name: 'My Switch',
-        cases: [{ ...validCase, variable: '' }],
-      })
-
-      expect(result.success).toBe(false)
-    })
-
-    it('rejects case with whitespace-only variable', () => {
-      const result = switchFormSchema.safeParse({
-        name: 'My Switch',
-        cases: [{ ...validCase, variable: '   ' }],
+        cases: [{ caseId: 'test-id', condition: '' }],
       })
 
       expect(result.success).toBe(false)

@@ -7,17 +7,17 @@ import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
 import { UnsavedChangesProvider } from './UnsavedChangesProvider'
 
-// Mock wouter - needed to control current location and capture navigation calls
-const mockSetLocation = vi.fn()
+// Mock routing bridge hooks
+const mockNavigate = vi.fn()
 let mockLocation = '/workflow-builder/123'
 
-vi.mock('wouter', async (importOriginal) => {
-  const actual: Record<string, unknown> = await importOriginal()
-  return {
-    ...actual,
-    useLocation: () => [mockLocation, mockSetLocation],
-  }
-})
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => mockLocation,
+}))
+
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
 
 // Mock workflow store - needed to control isDirty state and capture state clearing
 vi.mock('../../stores/useWorkflowStore', () => ({
@@ -90,7 +90,7 @@ describe('UnsavedChangesProvider', () => {
 
       expect(mockSetWorkflow).toHaveBeenCalledWith(null)
       expect(mockSetEdges).toHaveBeenCalledWith([])
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
+      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
     })
 
     it('saves and navigates when save succeeds', async () => {
@@ -109,7 +109,7 @@ describe('UnsavedChangesProvider', () => {
 
       await waitFor(() => {
         expect(saveHandler).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
+        expect(mockNavigate).toHaveBeenCalledWith('/workflows')
       })
     })
 
@@ -132,7 +132,7 @@ describe('UnsavedChangesProvider', () => {
         expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
       })
 
-      expect(mockSetLocation).not.toHaveBeenCalled()
+      expect(mockNavigate).not.toHaveBeenCalled()
     })
 
     it('stays on page when modal is closed', async () => {
@@ -147,7 +147,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByRole('button', { name: /close/i }))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockSetLocation).not.toHaveBeenCalled()
+      expect(mockNavigate).not.toHaveBeenCalled()
     })
 
     it('disables buttons while save is in progress', async () => {
@@ -189,7 +189,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/456')
+      expect(mockNavigate).toHaveBeenCalledWith('/workflow-builder/456')
     })
 
     it('navigates without modal when no unsaved changes', async () => {
@@ -205,7 +205,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
+      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
     })
 
     it('navigates without modal when not on builder route', async () => {
@@ -221,7 +221,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
 
       expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
-      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
+      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
     })
   })
 

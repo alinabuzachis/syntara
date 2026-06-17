@@ -3,18 +3,18 @@ import { Alert, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
-import { useLocation } from 'wouter'
 
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
 import { NxPage } from '../../components/layout/NxPage'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
-import { useDialogState } from '../../hooks/useDialogState'
+import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
+import { detachPromise } from '../../utils/detachPromise'
 import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExpandedAllContext'
 
 import { BuilderFlow } from './BuilderFlow'
@@ -23,7 +23,6 @@ import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
 import { BuilderDialogs } from './components/BuilderDialogs'
 import { BuilderSidePanels } from './components/BuilderSidePanels'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
-import type { TestStepDialogData } from './components/TestStepDialog'
 import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
 import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
@@ -37,10 +36,11 @@ import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle
 import { useExecutionCopyToEditor, type ExecutionCopyData } from './hooks/useExecutionCopyToEditor'
 import { useNodePanelNavigation } from './hooks/useNodePanelNavigation'
 import { usePublishWorkflow, useUnpublishWorkflow } from './hooks/usePublishWorkflow'
-import { useRunStep } from './hooks/useRunStep'
+import { useRunStepDialog } from './hooks/useRunStepDialog'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext } from './NodeActionsContext'
 import { useBuilderPermissions } from './useBuilderPermissions'
+import { ValidationBanner } from './ValidationBanner'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 type BuilderContentProps = {
@@ -51,8 +51,9 @@ type BuilderContentProps = {
 }
 
 // eslint-disable-next-line max-lines-per-function, complexity
-export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: BuilderContentProps) {
-  const [, setLocation] = useLocation()
+export function BuilderContent(props: BuilderContentProps) {
+  const { workflow, isNew, workflowId, executionCopy } = props
+  const setLocation = useNavigate()
   const { showSuccess, showError } = useAlerts()
   const workflowProjectId = isNew ? undefined : (workflow as { project_id?: string })?.project_id
   const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)
@@ -83,7 +84,7 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
   )
 
   const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
-  const testStepDialog = useDialogState<TestStepDialogData>()
+
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
     confirmDialogOpen,
@@ -129,6 +130,12 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
     mostRecentRunPanelOpen,
   })
 
+  const mostRecentExecutionStatus = mostRecentExecutionQuery.data?.status
+  const isTerminalStatus =
+    mostRecentExecutionStatus === ExecutionStatusEnum.COMPLETED ||
+    mostRecentExecutionStatus === ExecutionStatusEnum.FAILED ||
+    mostRecentExecutionStatus === ExecutionStatusEnum.CANCELLED
+
   useBuilderWorkflowLifecycle({
     workflowId,
     isNew,
@@ -153,8 +160,6 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
   )
   const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
-
-  const isPending = isCreating || isUpdating
 
   const wfName = workflow?.name ?? ''
   const wfId = workflow?.id ?? ''
@@ -198,6 +203,11 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
     updateWorkflow,
   })
 
+  const { runStepDialog, lastRunStepNodeIdRef, pinnedMockDataForDialog, handleRunStep } = useRunStepDialog(
+    handleSaveWorkflow,
+    isTerminalStatus
+  )
+
   useEffect(() => {
     registerSaveHandler(handleSaveWorkflow)
     return () => unregisterSaveHandler()
@@ -220,12 +230,6 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
       handleSaveWorkflow,
       currentWorkflow,
     })
-
-  const handleRunStep = useRunStep({
-    reactFlowInstance,
-    openTestStepDialog: testStepDialog.open,
-    handleSaveWorkflow,
-  })
 
   const {
     handleNodeClick,
@@ -268,11 +272,6 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
     isViewingExecution: false,
   })
 
-  const isTerminalStatus =
-    mostRecentExecution?.status === ExecutionStatusEnum.COMPLETED ||
-    mostRecentExecution?.status === ExecutionStatusEnum.COMPLETED_WITH_ERRORS ||
-    mostRecentExecution?.status === ExecutionStatusEnum.FAILED ||
-    mostRecentExecution?.status === ExecutionStatusEnum.CANCELLED
   const isLiveRunActive = showMostRecentRunPanelInEditor && !isTerminalStatus
 
   const handleCloseMostRecentRunPanel = useCallback(() => {
@@ -299,9 +298,6 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
 
   const triggers = currentWorkflow?.triggers ?? []
   const selectedTrigger = triggers[selectedTriggerIndex] ?? triggers[0]
-  const triggerName = selectedTrigger?.name ?? 'Trigger'
-  const triggerNodeId = selectedTrigger?.id
-  const triggerInputSchema = selectedTrigger?.parameters?.input_schema as Record<string, unknown> | undefined
 
   const nodeExpandedAllContextValue = useMemo(
     () => ({ expandAllEvent, collapseAllEvent }),
@@ -320,7 +316,7 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
                 workflowTags={workflowTags}
                 isNew={isNew}
                 workflow={workflow?.id ? { id: workflow.id } : undefined}
-                isPending={isPending}
+                isPending={isCreating || isUpdating}
                 isDirty={isDirty}
                 lastSavedAt={workflow?.updated_at}
                 isKebabOpen={isKebabOpen}
@@ -355,6 +351,7 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
                 </Alert>
               </StackItem>
             )}
+            <ValidationBanner errors={state.validationErrors} dispatch={dispatch} />
             <StackItem isFilled style={{ minHeight: 0 }}>
               <Flex
                 alignItems={{ default: 'alignItemsStretch' }}
@@ -412,6 +409,7 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
                           onNodesDeleted={handleNodesDeleted}
                           newNodeDesiredPosition={state.newNodeDesiredPosition}
                           onClearDesiredPosition={handleClearDesiredPosition}
+                          validationErrors={state.validationErrors}
                         />
                       </NxPanel>
                     </StackItem>
@@ -473,7 +471,7 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
                   nodeSubtypeId={nodeEditorNodeSubtypeId}
                   sourceNodeId={sourceNodeId}
                   replacementNodeId={replacementNodeId}
-                  executionId={null}
+                  executionId={mostRecentExecutionId}
                   workflowId={workflowId}
                   onConnect={handleConnectFromPanel}
                   onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
@@ -483,6 +481,7 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
                     (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
                   }
                   workflowMetadata={workflowMetadata}
+                  onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
                 />
               </Flex>
             </StackItem>
@@ -500,13 +499,19 @@ export function BuilderContent({ workflow, isNew, workflowId, executionCopy }: B
             approvalViewOpen={approvalViewOpen}
             activityNameMap={activityNameMap}
             handleApprovalClose={handleApprovalClose}
-            triggerName={triggerName}
-            triggerNodeId={triggerNodeId}
-            triggerInputSchema={triggerInputSchema}
-            testStepDialog={testStepDialog}
-            onTestExecutionCreated={(executionId) => {
+            triggerName={selectedTrigger?.name ?? 'Trigger'}
+            triggerNodeId={selectedTrigger?.id}
+            triggerInputSchema={
+              (selectedTrigger?.parameters as Record<string, unknown> | undefined)?.input_schema as
+                | Record<string, unknown>
+                | undefined
+            }
+            runStepDialog={runStepDialog}
+            onRunStepExecutionCreated={(executionId, { clearMocksOnComplete }) => {
+              lastRunStepNodeIdRef.current = clearMocksOnComplete ? (runStepDialog.item?.nodeId ?? null) : null
               dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
             }}
+            pinnedMockData={pinnedMockDataForDialog}
           />
         </NxPage>
       </NodeExpandedAllContext.Provider>

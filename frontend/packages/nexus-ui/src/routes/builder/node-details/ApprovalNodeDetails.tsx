@@ -17,8 +17,10 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
   const { showError } = useAlerts()
   const updateActivity = useWorkflowStore((state) => state.updateActivity)
 
+  // In v2, approval parameters are at activity.parameters
   const approvalConfig = (taskData.parameters ?? {}) as {
-    approvers?: string[]
+    approver_users?: string[]
+    approver_groups?: string[]
     prompt?: string
     fallback_decision?: 'approve' | 'reject'
     decision_window?: number
@@ -26,7 +28,8 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
 
   const initialData: Partial<ApprovalFormSubmitData> = {
     name: taskData.name,
-    approvers: approvalConfig.approvers,
+    approver_users: approvalConfig.approver_users,
+    approver_groups: approvalConfig.approver_groups,
     prompt: approvalConfig.prompt,
     fallback_decision: approvalConfig.fallback_decision,
     decision_window: approvalConfig.decision_window,
@@ -38,7 +41,8 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
       updateActivity(nodeId, {
         name: data.name,
         parameters: {
-          ...(data.approvers && { approvers: data.approvers }),
+          ...(data.approver_users && data.approver_users.length > 0 && { approver_users: data.approver_users }),
+          ...(data.approver_groups && data.approver_groups.length > 0 && { approver_groups: data.approver_groups }),
           ...(data.prompt && { prompt: data.prompt }),
           ...(data.fallback_decision && { fallback_decision: data.fallback_decision }),
           ...(data.decision_window !== undefined && { decision_window: data.decision_window }),

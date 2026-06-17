@@ -862,38 +862,42 @@ describe('workflowFactories', () => {
     })
 
     describe('createApprovalActivity', () => {
-      it('creates an approval activity with empty config', () => {
+      it('creates an approval activity', () => {
         const activity = createApprovalActivity({
           id: 'appr-1',
           name: 'Approval Gate',
-          approvers: ['admin@example.com'],
+          approver_users: ['admin@example.com'],
           prompt: 'Please approve',
         })
 
         expect(activity.type).toBe('approval')
         expect(activity.id).toBe('appr-1')
         expect(activity.name).toBe('Approval Gate')
-        expect(activity.parameters).toEqual({})
+        expect(activity.parameters).toEqual({
+          prompt: 'Please approve',
+          approver_users: ['admin@example.com'],
+        })
       })
 
       it('passes settings when provided', () => {
         const activity = createApprovalActivity({
           id: 'appr-1',
           name: 'Approval',
-          approvers: ['admin@example.com'],
+          approver_users: ['admin@example.com'],
           prompt: 'Approve?',
           settings: { timeout: 7200, continue_on_failure: true },
         })
 
         expect(activity.settings).toEqual({ timeout: 7200, continue_on_failure: true })
-        expect(activity.parameters).toEqual({})
+        expect(activity.parameters.prompt).toBe('Approve?')
+        expect(activity.parameters.approver_users).toEqual(['admin@example.com'])
       })
 
       it('includes fallback_decision and decision_window', () => {
         const activity = createApprovalActivity({
           id: 'appr-2',
           name: 'Approval',
-          approvers: ['admin@example.com'],
+          approver_users: ['admin@example.com'],
           prompt: 'Approve?',
           fallback_decision: 'reject',
           decision_window: 86400,
@@ -907,11 +911,22 @@ describe('workflowFactories', () => {
         const activity = createApprovalActivity({
           id: 'appr-3',
           name: 'Approval',
-          approvers: ['admin@example.com'],
+          approver_users: ['admin@example.com'],
           prompt: 'Approve?',
         })
 
         expect(activity).not.toHaveProperty('settings')
+      })
+
+      it('includes approver_groups', () => {
+        const activity = createApprovalActivity({
+          id: 'appr-4',
+          name: 'Approval',
+          approver_groups: ['admins', 'deployers'],
+          prompt: 'Approve?',
+        })
+
+        expect(activity.parameters.approver_groups).toEqual(['admins', 'deployers'])
       })
     })
 

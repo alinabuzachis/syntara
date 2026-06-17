@@ -18,11 +18,11 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { useEffect } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { navigate } from '../../hooks/routing/navigate'
 
 import { buildPolicyDefinitionJson } from './policyUtils'
 import { PolicyTypeLabel } from './ScopeLabel'

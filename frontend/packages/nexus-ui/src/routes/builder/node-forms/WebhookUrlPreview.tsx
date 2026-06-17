@@ -1,4 +1,13 @@
-import { ClipboardCopy, Divider, FormGroup, StackItem, TextInput } from '@patternfly/react-core'
+import {
+  ClipboardCopy,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Divider,
+  FormGroup,
+  StackItem,
+} from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 
 type WebhookUrlPreviewProps = {
@@ -13,7 +22,7 @@ type WebhookUrlPreviewProps = {
 }
 
 /**
- * Shared HTTP method (disabled POST) + URL preview (ClipboardCopy) + divider,
+ * Shared HTTP method (read-only POST) + URL preview (ClipboardCopy) + divider,
  * used by both webhook and EDA trigger forms.
  */
 export function WebhookUrlPreview({
@@ -25,9 +34,12 @@ export function WebhookUrlPreview({
   return (
     <>
       <StackItem>
-        <FormGroup label={httpMethodLabel} fieldId={`${fieldIdPrefix}-http-method`}>
-          <TextInput id={`${fieldIdPrefix}-http-method`} aria-label="HTTP method" value="POST" isDisabled />
-        </FormGroup>
+        <DescriptionList isCompact>
+          <DescriptionListGroup>
+            <DescriptionListTerm>{httpMethodLabel}</DescriptionListTerm>
+            <DescriptionListDescription>POST</DescriptionListDescription>
+          </DescriptionListGroup>
+        </DescriptionList>
       </StackItem>
 
       <StackItem>

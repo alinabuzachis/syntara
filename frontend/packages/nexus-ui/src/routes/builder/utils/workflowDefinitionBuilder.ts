@@ -17,6 +17,37 @@ function hasId(trigger: Activity): trigger is Activity & { id: string } {
   return 'id' in trigger && typeof trigger.id === 'string'
 }
 
+function isSwitchCaseArray(val: unknown): val is Array<{ port: string; label: string; condition: string }> {
+  return (
+    Array.isArray(val) &&
+    val.every((c) => typeof c === 'object' && c !== null && 'port' in c && 'label' in c && 'condition' in c)
+  )
+}
+
+/**
+ * Transform approval node approver lists from objects to string arrays.
+ * The API returns {id, username}/{id, name} objects but the workflow schema expects string arrays.
+ */
+function transformApprovalApprovers(parameters: Record<string, unknown>): Record<string, unknown> {
+  const transformed = { ...parameters }
+
+  // Extract usernames from ApproverUserSummary[] -> string[]
+  if (parameters.approver_users && Array.isArray(parameters.approver_users)) {
+    transformed.approver_users = parameters.approver_users.map((u: unknown) =>
+      typeof u === 'object' && u !== null && 'username' in u ? (u as { username: string }).username : String(u)
+    )
+  }
+
+  // Extract group names from ApproverGroupSummary[] -> string[]
+  if (parameters.approver_groups && Array.isArray(parameters.approver_groups)) {
+    transformed.approver_groups = parameters.approver_groups.map((g: unknown) =>
+      typeof g === 'object' && g !== null && 'name' in g ? (g as { name: string }).name : String(g)
+    )
+  }
+
+  return transformed
+}
+
 /**
  * SECURITY: Validates node/edge IDs to prevent injection attacks.
  * Allows alphanumeric, hyphen, underscore, and period (common ID patterns).
@@ -224,6 +255,21 @@ export function buildWorkflowDefinition(
           ...parameters,
           condition: transformConditionForBackend(parameters.condition) ?? parameters.condition,
         }
+      }
+
+      if (a.type === ActivityTypeEnum.SWITCH && isSwitchCaseArray(parameters.cases)) {
+        parameters = {
+          ...parameters,
+          cases: parameters.cases.map((c) => ({
+            ...c,
+            condition: transformConditionForBackend(c.condition) ?? c.condition,
+          })),
+        }
+      }
+
+      // Transform approval node approvers from objects to string arrays
+      if (a.type === 'approval' && parameters) {
+        parameters = transformApprovalApprovers(parameters)
       }
 
       // Strip UI-internal fields from converge parameters before sending to the API.

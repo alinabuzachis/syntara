@@ -159,7 +159,7 @@ function RoleAssignmentsTable({
 }>) {
   return (
     <NxScrollableTableContainer
-      aria-label="Project role assignments"
+      caption="Project role assignments"
       footer={{
         page,
         perPage,

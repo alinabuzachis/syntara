@@ -11,6 +11,14 @@ import pytest
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
+    from tests.fixtures.factories import (
+        AssignProjectRoleFactory,
+        ProjectFactory,
+        ProjectRoleFactory,
+        UserFactory,
+        WorkflowFactory,
+    )
+
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
@@ -18,13 +26,6 @@ from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.conftest import api_for, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import (
-    assign_role_to_user,
-    create_project,
-    create_project_role,
-    create_user,
-    create_workflow,
-)
 
 pytestmark = [pytest.mark.e2e]
 
@@ -36,6 +37,11 @@ class TestCrossProjectIsolation:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_project_role: ProjectRoleFactory,
+        create_user: UserFactory,
+        assign_project_role_to_user: AssignProjectRoleFactory,
+        create_workflow: WorkflowFactory,
     ) -> None:
         # -- setup --
         alpha_id, _ = create_project(admin_api, "alpha")
@@ -49,7 +55,7 @@ class TestCrossProjectIsolation:
             "writer",
             ["workflow:read:project", "workflow:create:project"],
         )
-        assign_role_to_user(admin_api, alpha_id, user_id, writer_role)
+        assign_project_role_to_user(admin_api, alpha_id, user_id, writer_role)
 
         # Reader role: read-only workflows
         reader_role = create_project_role(
@@ -58,7 +64,7 @@ class TestCrossProjectIsolation:
             "reader",
             ["workflow:read:project"],
         )
-        assign_role_to_user(admin_api, beta_id, user_id, reader_role)
+        assign_project_role_to_user(admin_api, beta_id, user_id, reader_role)
 
         # Seed a workflow in each project so reads return data
         create_workflow(admin_api, alpha_id, "alpha-seed")
@@ -70,13 +76,9 @@ class TestCrossProjectIsolation:
         user_api.projects.list_workflows(project_id=alpha_id).assert_successful()
 
         # -- can create workflow in alpha --
-        user_api.workflows.create(
-            body=WorkflowCreate(
-                name=unique_name("cross-alpha"),
-                workflow_definition=MINIMAL_WORKFLOW_DEFINITION,
-                project_id=alpha_id,
-            ),
-        ).assert_successful()
+        create_workflow(
+            api=user_api, project_id=alpha_id, name=unique_name("cross-alpha"), definition=MINIMAL_WORKFLOW_DEFINITION
+        )
 
         # -- can read workflows in beta --
         user_api.projects.list_workflows(project_id=beta_id).assert_successful()

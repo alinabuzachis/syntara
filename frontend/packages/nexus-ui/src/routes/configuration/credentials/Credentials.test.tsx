@@ -51,8 +51,14 @@ vi.mock('../../../hooks/useProjectSelector', () => ({
   }),
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/configuration/credentials', mockNavigate],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/configuration/credentials',
+}))
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 

@@ -15,8 +15,6 @@ import {
   type WizardStepType,
 } from '@patternfly/react-core'
 import { useState } from 'react'
-import { Link, useParams } from 'wouter'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsUserDetailEarlyShell } from '../../../app/breadcrumbBuilders'
@@ -26,6 +24,9 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { Link } from '../../../hooks/routing/Link'
+import { navigate } from '../../../hooks/routing/navigate'
+import { useParams } from '../../../hooks/routing/useParams'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { detachPromise } from '../../../utils/detachPromise'

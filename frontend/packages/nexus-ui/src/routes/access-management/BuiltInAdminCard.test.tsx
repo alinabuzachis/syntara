@@ -8,7 +8,7 @@ import { BuiltInAdminCard } from './BuiltInAdminCard'
 
 const mockNavigate = vi.fn()
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../hooks/routing/navigate', () => ({
   navigate: (path: string): void => {
     mockNavigate(path)
   },

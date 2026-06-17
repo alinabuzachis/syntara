@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import { downloadWorkflowDefinition, parseWorkflowFile, validateFileSize } from '../../utils/downloadWorkflowExport'
 
 import type { BuilderAction } from './builderReducer'
+import { useWorkflowVerification } from './useWorkflowVerification'
 import { parseImportedDefinition } from './utils/parseImportedDefinition'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
@@ -17,6 +18,7 @@ type UseWorkflowImportExportOptions = Readonly<{
 export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImportExportOptions) {
   const importFileRef = useRef<HTMLInputElement>(null)
   const { showError } = useAlerts()
+  const verification = useWorkflowVerification({ dispatch })
 
   const handleImportFile = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,5 +85,5 @@ export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImpo
     dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
   }, [dispatch, showError])
 
-  return { importFileRef, handleImportFile, handleExport }
+  return { importFileRef, handleImportFile, handleExport, ...verification }
 }

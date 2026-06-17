@@ -330,16 +330,22 @@ describe('registerLogicNodeSubmit', () => {
           {
             logicType: ActivityTypeEnum.SWITCH,
             name: 'Route',
-            cases: [{ id: 'c1', variable: 'status', operator: '==', value: 'approved', negate: false }],
+            cases: [{ caseId: 'c1', condition: '${status} == "approved"' }],
           } as never,
           onError
         )
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
+      const activity = mockAddActivity.mock.calls[0][0] as {
+        cases: Array<{ port: string; label: string; condition: string }>
+      }
+      expect(activity.cases[0].condition).toBe('${status} == "approved"')
+      expect(activity.cases[0].port).toBe('case_0')
+      expect(activity.cases[0].label).toBe('Path 1')
       expect(onError).not.toHaveBeenCalled()
     })
 
-    it('returns true for multiple cases with different operators', () => {
+    it('returns true for multiple cases with different conditions', () => {
       const onError = vi.fn()
       expect(
         submitSwitchLogic(
@@ -349,14 +355,20 @@ describe('registerLogicNodeSubmit', () => {
             logicType: ActivityTypeEnum.SWITCH,
             name: 'Multi Route',
             cases: [
-              { id: 'c1', variable: 'priority', operator: '>', value: '7', negate: false },
-              { id: 'c2', variable: 'status', operator: '==', value: 'rejected', negate: true },
+              { caseId: 'c1', condition: '${priority} > 7' },
+              { caseId: 'c2', condition: 'not(${status} == "rejected")' },
             ],
           } as never,
           onError
         )
       ).toBe(true)
       expect(mockAddActivity).toHaveBeenCalled()
+      const activity = mockAddActivity.mock.calls[0][0] as {
+        cases: Array<{ port: string; label: string; condition: string }>
+      }
+      expect(activity.cases).toHaveLength(2)
+      expect(activity.cases[0].port).toBe('case_0')
+      expect(activity.cases[1].port).toBe('case_1')
       expect(onError).not.toHaveBeenCalled()
     })
 
@@ -369,13 +381,18 @@ describe('registerLogicNodeSubmit', () => {
           logicType: ActivityTypeEnum.SWITCH,
           name: 'Named Paths',
           cases: [
-            { id: 'c1', label: 'High Priority', variable: 'priority', operator: '>', value: '7', negate: false },
-            { id: 'c2', label: 'Low Priority', variable: 'priority', operator: '<', value: '3', negate: false },
+            { caseId: 'c1', label: 'High Priority', condition: '${priority} > 7' },
+            { caseId: 'c2', label: 'Low Priority', condition: '${priority} < 3' },
           ],
         } as never,
         onError
       )
       expect(mockAddActivity).toHaveBeenCalled()
+      const activity = mockAddActivity.mock.calls[0][0] as {
+        cases: Array<{ port: string; label: string; condition: string }>
+      }
+      expect(activity.cases[0].label).toBe('High Priority')
+      expect(activity.cases[1].label).toBe('Low Priority')
       expect(onError).not.toHaveBeenCalled()
     })
   })

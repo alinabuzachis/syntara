@@ -14,7 +14,6 @@ import {
 } from '@patternfly/react-core'
 import { RhUiBackwardsIcon, RhUiDislikeIcon, RhUiLikeIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
-import { useLocation, useParams } from 'wouter'
 
 import { AppRoute } from '../../app/AppRoute'
 import { breadcrumbsApprovalDetail, breadcrumbsApprovalsPage } from '../../app/breadcrumbBuilders'
@@ -25,6 +24,8 @@ import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
+import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useParams } from '../../hooks/routing/useParams'
 import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
@@ -33,6 +34,7 @@ import { useDocLink } from '../../utils/docs/useDocLink'
 
 import { ApprovalSummaryList } from './ApprovalSummaryList'
 import { ApprovalStatusBadges } from './approvalUtils'
+import { useCanDecideApproval } from './useCanDecideApproval'
 
 const getDecisionCopy = (decision: 'approved' | 'rejected') => ({
   label: decision === 'approved' ? 'Approval notes' : 'Rejection notes',
@@ -49,7 +51,7 @@ const getNotesLabel = (status: string) => {
 export default function ApprovalDetail() {
   const approvalsDocLink = useDocLink('approvals')
   const { approvalId } = useParams<{ approvalId: string }>()
-  const [, setLocation] = useLocation()
+  const setLocation = useNavigate()
   const { showSuccess } = useAlerts()
 
   const approvalQuery = approvalsClient.useQuery('get', '/approvals/{approval_id}', {
@@ -73,6 +75,11 @@ export default function ApprovalDetail() {
 
   const [pendingDecision, setPendingDecision] = useState<'approved' | 'rejected' | undefined>(undefined)
   const [pendingReason, setPendingReason] = useState('')
+
+  // SECURITY: Client-side check for UX only - disables buttons for unauthorized users
+  // Backend ALWAYS validates and returns 403 via ApprovalService._is_user_authorized_approver()
+  // Must be called before any early returns (React hooks rule)
+  const { canDecide: canDecideBasedOnApproverList, isLoading: isCheckingApproverList } = useCanDecideApproval(approval)
 
   // Guard against missing approvalId
   if (!approvalId) {
@@ -111,7 +118,8 @@ export default function ApprovalDetail() {
   const decisionNotes = approval?.decision_notes ?? undefined
   const notesLabel = getNotesLabel(approvalStatus)
   const isSubmitting = decisionMutation.isPending || (decisionMutation.isSuccess && approvalQuery.isFetching)
-  const canSubmit = isPending && Boolean(pendingDecision) && !decisionMutation.isSuccess
+
+  const canSubmit = isPending && Boolean(pendingDecision) && !decisionMutation.isSuccess && canDecideBasedOnApproverList
   const decisionCopy = pendingDecision ? getDecisionCopy(pendingDecision) : undefined
 
   const handleSubmit = () => {
@@ -169,7 +177,7 @@ export default function ApprovalDetail() {
             <Button
               icon={<RhUiLikeIcon />}
               variant="secondary"
-              isDisabled={isSubmitting}
+              isDisabled={isSubmitting || isCheckingApproverList || !canDecideBasedOnApproverList}
               onClick={() => setPendingDecision('approved')}
             >
               Approve
@@ -180,7 +188,7 @@ export default function ApprovalDetail() {
               icon={<RhUiDislikeIcon />}
               variant="secondary"
               isDanger
-              isDisabled={isSubmitting}
+              isDisabled={isSubmitting || isCheckingApproverList || !canDecideBasedOnApproverList}
               onClick={() => setPendingDecision('rejected')}
             >
               Reject

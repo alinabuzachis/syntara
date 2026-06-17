@@ -89,6 +89,13 @@ _EXTERNAL_SERVICES_AVAILABLE = find_spec("external_services") is not None
 
 pytest_plugins = [
     "tests.fixtures.external_services.azuread",
+    "tests.fixtures.factories.credential_factories",
+    "tests.fixtures.factories.group_factories",
+    "tests.fixtures.factories.policy_factories",
+    "tests.fixtures.factories.project_factories",
+    "tests.fixtures.factories.role_factories",
+    "tests.fixtures.factories.user_factories",
+    "tests.fixtures.factories.workflow_factories",
 ]
 
 if _EXTERNAL_SERVICES_AVAILABLE:

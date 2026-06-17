@@ -424,27 +424,31 @@ export function createAAPWorkflowTemplateActivity(
 export type CreateApprovalActivityOptions = {
   id: string
   name: string
-  approvers: string[]
-  prompt: string
+  approver_users?: string[]
+  approver_groups?: string[]
+  prompt?: string
   fallback_decision?: 'approve' | 'reject'
   decision_window?: number
-  settings?: NodeSettings
+  settings?: Activity['settings']
 }
 
 /**
  * Create an approval node (v2).
  */
 export function createApprovalActivity(options: CreateApprovalActivityOptions): Activity {
-  const { id, name, fallback_decision, decision_window, settings } = options
+  const { id, name, approver_users, approver_groups, prompt, fallback_decision, decision_window, settings } = options
   return {
     id,
     type: ActivityTypeEnum.APPROVAL,
     name,
     parameters: {
-      ...(fallback_decision && { fallback_decision }),
+      ...(prompt && { prompt }),
+      ...(fallback_decision !== undefined && { fallback_decision }),
       ...(decision_window !== undefined && { decision_window }),
+      ...(approver_users !== undefined && approver_users.length > 0 && { approver_users }),
+      ...(approver_groups !== undefined && approver_groups.length > 0 && { approver_groups }),
     },
-    ...(settings && { settings }),
+    ...(settings ? { settings } : {}),
   }
 }
 

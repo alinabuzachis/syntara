@@ -16,13 +16,13 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon, RhUiServerFillIcon } from '@patternfly/react-icons'
 import { Controller, type Control, useForm } from 'react-hook-form'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import { breadcrumbsIntegrationConfigure } from '../../../../app/breadcrumbBuilders'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { navigate } from '../../../../hooks/routing/navigate'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useDocLink } from '../../../../utils/docs/useDocLink'
 

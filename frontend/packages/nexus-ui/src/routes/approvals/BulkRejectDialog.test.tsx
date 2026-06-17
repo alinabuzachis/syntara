@@ -16,40 +16,40 @@ describe('BulkRejectDialog', () => {
   it('renders modal with correct title', () => {
     render(<BulkRejectDialog {...defaultProps} />)
 
-    expect(screen.getByRole('dialog', { name: /reject 2 steps/i })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /reject 2 approval steps/i })).toBeInTheDocument()
   })
 
   it('renders singular title for single approval', () => {
     render(<BulkRejectDialog {...defaultProps} approvalCount={1} />)
 
-    expect(screen.getByRole('dialog', { name: /reject 1 step$/i })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /reject 1 approval step$/i })).toBeInTheDocument()
   })
 
   it('displays approval count message', () => {
     render(<BulkRejectDialog {...defaultProps} />)
 
-    expect(screen.getByText(/You are about to reject 2 steps/)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to reject 2 approval steps/)).toBeInTheDocument()
   })
 
-  it('renders required rejection reason field', () => {
+  it('renders optional rejection note field', () => {
     render(<BulkRejectDialog {...defaultProps} />)
 
-    const field = screen.getByLabelText(/rejection reason/i)
+    const field = screen.getByLabelText(/rejection note/i)
     expect(field).toBeInTheDocument()
-    expect(field).toBeRequired()
+    expect(field).not.toBeRequired()
   })
 
-  it('disables reject button when note is empty', () => {
+  it('enables reject button even when note is empty', () => {
     render(<BulkRejectDialog {...defaultProps} />)
 
-    expect(screen.getByRole('button', { name: /reject/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /reject/i })).toBeEnabled()
   })
 
-  it('enables reject button when note has content', async () => {
+  it('remains enabled when note has content', async () => {
     const user = userEvent.setup()
     render(<BulkRejectDialog {...defaultProps} />)
 
-    const noteField = screen.getByLabelText(/rejection reason/i)
+    const noteField = screen.getByLabelText(/rejection note/i)
     await user.type(noteField, 'Test rejection reason')
 
     expect(screen.getByRole('button', { name: /reject/i })).toBeEnabled()
@@ -61,7 +61,7 @@ describe('BulkRejectDialog', () => {
 
     render(<BulkRejectDialog {...defaultProps} onConfirm={onConfirm} />)
 
-    const noteField = screen.getByLabelText(/rejection reason/i)
+    const noteField = screen.getByLabelText(/rejection note/i)
     await user.type(noteField, '  Test rejection reason  ')
 
     await user.click(screen.getByRole('button', { name: /reject/i }))
@@ -69,16 +69,15 @@ describe('BulkRejectDialog', () => {
     expect(onConfirm).toHaveBeenCalledWith('Test rejection reason')
   })
 
-  it('does not call onConfirm when note is empty', () => {
+  it('calls onConfirm with null when note is empty', async () => {
+    const user = userEvent.setup()
     const onConfirm = vi.fn()
 
     render(<BulkRejectDialog {...defaultProps} onConfirm={onConfirm} />)
 
-    const rejectButton = screen.getByRole('button', { name: /reject/i })
-    // Button is disabled when note is empty
-    expect(rejectButton).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /reject/i }))
 
-    expect(onConfirm).not.toHaveBeenCalled()
+    expect(onConfirm).toHaveBeenCalledWith(null)
   })
 
   it('calls onClose when cancel button clicked', async () => {
@@ -96,7 +95,7 @@ describe('BulkRejectDialog', () => {
     const user = userEvent.setup()
     render(<BulkRejectDialog {...defaultProps} isLoading={true} />)
 
-    const noteField = screen.getByLabelText(/rejection reason/i)
+    const noteField = screen.getByLabelText(/rejection note/i)
     await user.type(noteField, 'Test reason')
 
     expect(screen.getByRole('button', { name: /reject/i })).toBeDisabled()
@@ -112,19 +111,19 @@ describe('BulkRejectDialog', () => {
   it('displays approval count in message', () => {
     render(<BulkRejectDialog {...defaultProps} />)
 
-    expect(screen.getByText(/You are about to reject 2 steps/)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to reject 2 approval steps/)).toBeInTheDocument()
   })
 
   it('displays singular form for single approval', () => {
     render(<BulkRejectDialog {...defaultProps} approvalCount={1} />)
 
-    expect(screen.getByText(/You are about to reject 1 step\./)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to reject 1 approval step\./)).toBeInTheDocument()
   })
 
   it('displays plural form for multiple approvals', () => {
     render(<BulkRejectDialog {...defaultProps} approvalCount={2} />)
 
-    expect(screen.getByText(/You are about to reject 2 steps/)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to reject 2 approval steps/)).toBeInTheDocument()
   })
 
   it('has warning icon in header', () => {
@@ -146,7 +145,7 @@ describe('BulkRejectDialog', () => {
     const user = userEvent.setup()
     const { container } = render(<BulkRejectDialog {...defaultProps} />)
 
-    const noteField = screen.getByLabelText(/rejection reason/i)
+    const noteField = screen.getByLabelText(/rejection note/i)
     await user.type(noteField, 'Test rejection reason')
 
     const results = await axe(container)

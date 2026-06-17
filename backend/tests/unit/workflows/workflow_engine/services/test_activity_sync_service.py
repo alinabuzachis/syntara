@@ -2815,3 +2815,118 @@ class TestFinalizeNonTerminalActivities:
         execution = Mock(spec=Execution)
         execution.activities = None
         ActivitySyncService._finalize_non_terminal_activities(execution, uuid4())
+
+
+class TestInitializeMonitoringWorkflowLookup:
+    """Test _initialize_monitoring workflow name loading logic."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.mock_temporal_client = AsyncMock()
+        self.mock_session_factory = Mock()
+        self.service = ActivitySyncService(self.mock_temporal_client, self.mock_session_factory)
+        self.execution_id = uuid4()
+        self.workflow_id = uuid4()
+        self.workflow_version_id = uuid4()
+
+    def _create_mock_execution(self) -> Execution:
+        """Create a mock Execution object."""
+        return Execution(
+            id=self.execution_id,
+            workflow_id=self.workflow_id,
+            workflow_version_id=self.workflow_version_id,
+            status=ExecutionStatus.PENDING,
+            last_processed_event_id=0,
+        )
+
+    def _create_mock_workflow(self, name: str = "test-workflow") -> Mock:
+        """Create a mock Workflow object."""
+        workflow = Mock()
+        workflow.id = self.workflow_id
+        workflow.name = name
+        return workflow
+
+    def _create_mock_session(
+        self,
+        execution: Execution | None,
+        workflow: Mock | None,
+        activity_defs: list[dict[str, str]] | None = None,
+    ) -> Mock:
+        """Create a mock session that returns execution and workflow from queries."""
+        # Mock execution query result
+        exec_result = Mock()
+        exec_result.one_or_none.return_value = execution
+
+        # Mock workflow query result
+        workflow_result = Mock()
+        workflow_result.one_or_none.return_value = workflow
+
+        # Mock workflow version query result (for activity definitions)
+        wf_version_result = Mock()
+        wf_version_result.one_or_none.return_value = Mock(workflow_definition={"nodes": activity_defs or []})
+
+        # Mock activity query result (for building activity index map - empty list)
+        activity_result = Mock()
+        activity_result.all.return_value = []
+
+        mock_session = AsyncMock()
+        # Order: execution query, workflow query, workflow_version query,
+        # activity creation check query, activity index map query
+        mock_session.exec = AsyncMock(
+            side_effect=[
+                exec_result,
+                workflow_result,
+                wf_version_result,
+                Mock(one_or_none=Mock(return_value=None)),
+                activity_result,
+            ]
+        )
+        mock_session.commit = AsyncMock()
+        mock_session.add = Mock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        self.mock_session_factory.return_value = mock_session
+        return mock_session
+
+    @pytest.mark.asyncio
+    async def test_workflow_found_uses_workflow_name(self) -> None:
+        """When workflow exists, metadata should include workflow.name."""
+        execution = self._create_mock_execution()
+        workflow = self._create_mock_workflow(name="my-workflow")
+        self._create_mock_session(execution, workflow)
+
+        metadata = await self.service._initialize_monitoring(self.execution_id)
+
+        assert metadata.execution_id == self.execution_id
+        assert metadata.workflow_id == self.workflow_id
+        assert metadata.workflow_name == "my-workflow"
+
+    @pytest.mark.asyncio
+    async def test_workflow_not_found_raises_error(self) -> None:
+        """When workflow does not exist, should raise RuntimeError."""
+        execution = self._create_mock_execution()
+        self._create_mock_session(execution, workflow=None)
+
+        with pytest.raises(RuntimeError, match=f"Workflow {self.workflow_id} not found in database"):
+            await self.service._initialize_monitoring(self.execution_id)
+
+    @pytest.mark.asyncio
+    async def test_execution_not_found_raises_error(self) -> None:
+        """When execution does not exist, should raise RuntimeError."""
+        self._create_mock_session(execution=None, workflow=None)
+
+        with pytest.raises(RuntimeError, match=f"Execution {self.execution_id} not found in database"):
+            await self.service._initialize_monitoring(self.execution_id)
+
+    @pytest.mark.asyncio
+    async def test_request_id_threaded_to_metadata(self) -> None:
+        """Request ID should be passed through to metadata."""
+        request_id = uuid4()
+        execution = self._create_mock_execution()
+        workflow = self._create_mock_workflow()
+        self._create_mock_session(execution, workflow)
+
+        metadata = await self.service._initialize_monitoring(self.execution_id, request_id=request_id)
+
+        assert metadata.request_id == request_id

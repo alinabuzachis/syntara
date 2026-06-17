@@ -423,7 +423,7 @@ export function ReadOnlyView({ entries, nexusGroups, onEditMapping }: Readonly<R
         </StackItem>
       ) : (
         <NxScrollableTableContainer
-          aria-label="Group mappings"
+          caption="Group mappings"
           footer={{
             page,
             perPage,

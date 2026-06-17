@@ -47,7 +47,7 @@ const mockCanILocation = vi.hoisted(() => {
   }
 })
 
-vi.mock('wouter', async () => {
+vi.mock('../../hooks/routing/useLocation', async () => {
   const React = await import('react')
   return {
     useLocation: () => {
@@ -58,12 +58,23 @@ vi.mock('wouter', async () => {
           mockCanILocation.listeners.delete(forceUpdate)
         }
       }, [forceUpdate])
-      const setLoc = (path: string) => {
-        mockCanILocation.current = path
-        mockCanILocation.listeners.forEach((fn) => fn())
-      }
-      return [mockCanILocation.current, setLoc]
+      return mockCanILocation.current
     },
+  }
+})
+
+const mockCanINavigate = (path: string) => {
+  mockCanILocation.current = path
+  mockCanILocation.listeners.forEach((fn) => fn())
+}
+
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockCanINavigate,
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', async () => {
+  const React = await import('react')
+  return {
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })

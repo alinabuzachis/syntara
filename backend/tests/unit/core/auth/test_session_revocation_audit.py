@@ -107,3 +107,49 @@ class TestSessionRevocationHandler:
         audit_event = handler.handle(event)
 
         assert audit_event.source_component == "nexus.auth.revocation"
+
+    def test_resource_fields_for_user_target(self) -> None:
+        """Resource fields should use user URN pattern for user targets."""
+        event = SessionRevocationEvent(
+            actor_username="admin-cli",
+            actor_source="cli",
+            target_type="user",
+            target_identifier="alice",
+            sessions_revoked=3,
+        )
+        handler = SessionRevocationHandler()
+        audit_event = handler.handle(event)
+
+        assert audit_event.resource_urn == "urn:nexus:user:alice"
+        assert audit_event.resource_name == "alice"
+
+    def test_resource_fields_for_idp_target(self) -> None:
+        """Resource fields should use identity_provider URN pattern for IdP targets."""
+        event = SessionRevocationEvent(
+            actor_username="ops-admin",
+            actor_source="cli",
+            target_type="idp",
+            target_identifier="Corporate Okta",
+            sessions_revoked=12,
+        )
+        handler = SessionRevocationHandler()
+        audit_event = handler.handle(event)
+
+        # URL-encoded to comply with RFC 8141 (spaces become %20)
+        assert audit_event.resource_urn == "urn:nexus:identity_provider:Corporate%20Okta"
+        assert audit_event.resource_name == "Corporate Okta"
+
+    def test_resource_fields_for_unknown_target_type(self) -> None:
+        """Resource fields should use generic URN pattern for unknown target types."""
+        event = SessionRevocationEvent(
+            actor_username="admin-cli",
+            actor_source="cli",
+            target_type="unknown_type",
+            target_identifier="test_target",
+            sessions_revoked=1,
+        )
+        handler = SessionRevocationHandler()
+        audit_event = handler.handle(event)
+
+        assert audit_event.resource_urn == "urn:nexus:unknown_type:test_target"
+        assert audit_event.resource_name == "test_target"

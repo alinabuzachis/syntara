@@ -581,4 +581,46 @@ describe('builderReducer', () => {
       expect(state.workflowTags).toEqual([])
     })
   })
+
+  describe('Validation error actions', () => {
+    it('SET_VALIDATION_ERRORS sets validation errors', () => {
+      const errors = [
+        { message: 'Node A is disconnected', nodeId: 'node-1' },
+        { message: 'Missing trigger', nodeId: null },
+      ]
+      const action: BuilderAction = { type: 'SET_VALIDATION_ERRORS', payload: errors }
+      const result = builderReducer(initialState, action)
+
+      expect(result.validationErrors).toEqual(errors)
+    })
+
+    it('CLEAR_VALIDATION_ERRORS resets to empty array', () => {
+      const stateWithErrors: BuilderState = {
+        ...initialState,
+        validationErrors: [{ message: 'Some error', nodeId: 'node-1' }],
+      }
+      const action: BuilderAction = { type: 'CLEAR_VALIDATION_ERRORS' }
+      const result = builderReducer(stateWithErrors, action)
+
+      expect(result.validationErrors).toEqual([])
+    })
+
+    it('INIT_WORKFLOW clears validation errors', () => {
+      const stateWithErrors: BuilderState = {
+        ...initialState,
+        validationErrors: [{ message: 'Stale error', nodeId: null }],
+      }
+      const action: BuilderAction = {
+        type: 'INIT_WORKFLOW',
+        payload: { name: 'New', description: '', tags: [] },
+      }
+      const result = builderReducer(stateWithErrors, action)
+
+      expect(result.validationErrors).toEqual([])
+    })
+
+    it('getInitialBuilderState has empty validationErrors', () => {
+      expect(initialState.validationErrors).toEqual([])
+    })
+  })
 })

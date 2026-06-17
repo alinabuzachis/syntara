@@ -11,6 +11,17 @@ import pytest
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
+    from tests.fixtures.factories import (
+        AssignProjectRoleFactory,
+        CredentialFactory,
+        ProjectFactory,
+        ProjectRoleFactory,
+        RoleFactory,
+        UserFactory,
+        UserRoleAssignmentFactory,
+        WorkflowFactory,
+    )
+
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
 
@@ -18,13 +29,6 @@ from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.conftest import api_for, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import (
-    ResourceTracker,
-    assign_role_to_user,
-    assign_system_role,
-    create_project_role,
-    create_system_role,
-)
 
 pytestmark = [pytest.mark.e2e]
 
@@ -40,41 +44,49 @@ PROJECT_A_WRITE_POLICIES = [
 
 
 @pytest.fixture(scope="module")
-def mixed_scopes_env(admin_api: NexusApiRegistry, nexus_base_url: str):
+def mixed_scopes_env(
+    admin_api: NexusApiRegistry,
+    create_project: ProjectFactory,
+    create_workflow: WorkflowFactory,
+    create_credential: CredentialFactory,
+    create_role: RoleFactory,
+    create_project_role: ProjectRoleFactory,
+    create_user: UserFactory,
+    assign_system_role: UserRoleAssignmentFactory,
+    assign_project_role_to_user: AssignProjectRoleFactory,
+    nexus_base_url: str,
+):
     """Two projects; user gets global read + project-a create."""
-    tracker = ResourceTracker(admin_api)
-
     # Create projects
-    proj_a_id, _ = tracker.project("tc16-a")
-    proj_b_id, _ = tracker.project("tc16-b")
+    proj_a_id, _ = create_project(admin_api, "tc16-a")
+    proj_b_id, _ = create_project(admin_api, "tc16-b")
 
     # Seed workflows
-    tracker.workflow(proj_a_id, "tc16a")
-    tracker.workflow(proj_b_id, "tc16b")
+    create_workflow(admin_api, proj_a_id, "tc16a")
+    create_workflow(admin_api, proj_b_id, "tc16b")
 
     # Seed credentials
-    tracker.credential(proj_a_id, "tc16a")
-    tracker.credential(proj_b_id, "tc16b")
+    create_credential(admin_api, proj_a_id, "tc16a")
+    create_credential(admin_api, proj_b_id, "tc16b")
 
     # Global read role
-    global_role = create_system_role(admin_api, "mixed-reader", GLOBAL_READ_POLICIES)
+    global_role = create_role(admin_api, "mixed-reader", GLOBAL_READ_POLICIES)
 
     # Project-a scoped create role
-    create_role = create_project_role(admin_api, proj_a_id, "creator", PROJECT_A_WRITE_POLICIES)
+    project_role_name = create_project_role(admin_api, proj_a_id, "creator", PROJECT_A_WRITE_POLICIES)
 
     # User
-    user_id, name, password = tracker.user("tc16")
+    user_id, name, password = create_user(admin_api, "tc16")
 
     assign_system_role(admin_api, user_id, global_role)
-    assign_role_to_user(admin_api, proj_a_id, user_id, create_role)
+    assign_project_role_to_user(admin_api, proj_a_id, user_id, project_role_name)
 
     user_api = api_for(nexus_base_url, name, password)
-    yield {
+    return {
         "proj_a_id": proj_a_id,
         "proj_b_id": proj_b_id,
         "user_api": user_api,
     }
-    tracker.cleanup()
 
 
 class TestMixedScopes:

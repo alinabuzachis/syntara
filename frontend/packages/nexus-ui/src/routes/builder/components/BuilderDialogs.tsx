@@ -8,9 +8,9 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
 
 import { ApprovalReviewModal } from './ApprovalReviewModal'
+import type { RunStepDialogData, RunStepExecutionCreatedOptions } from './RunStepDialog'
+import { RunStepDialog } from './RunStepDialog'
 import { RunWorkflowModal } from './RunWorkflowModal'
-import type { TestStepDialogData } from './TestStepDialog'
-import { TestStepDialog } from './TestStepDialog'
 
 const RUN_CONFIRM_DISMISSED_KEY = 'nexus-run-workflow-confirm-dismissed'
 
@@ -45,8 +45,9 @@ type BuilderDialogsProps = Readonly<{
   triggerName: string
   triggerNodeId?: string
   triggerInputSchema?: Record<string, unknown>
-  testStepDialog: DialogState<TestStepDialogData>
-  onTestExecutionCreated?: (executionId: string) => void
+  runStepDialog: DialogState<RunStepDialogData>
+  onRunStepExecutionCreated?: (executionId: string, options: RunStepExecutionCreatedOptions) => void
+  pinnedMockData?: Record<string, Record<string, unknown>>
 }>
 
 type UseRunConfirmStateParams = {
@@ -135,8 +136,9 @@ export function BuilderDialogs({
   triggerName,
   triggerNodeId,
   triggerInputSchema,
-  testStepDialog,
-  onTestExecutionCreated,
+  runStepDialog,
+  onRunStepExecutionCreated,
+  pinnedMockData,
 }: BuilderDialogsProps) {
   const isDirty = useWorkflowStore((state) => state.isDirty)
   // Only show input step if trigger has a non-empty input schema with properties or type defined
@@ -222,14 +224,15 @@ export function BuilderDialogs({
         activityNameMap={activityNameMap}
         onClose={handleApprovalClose}
       />
-      <TestStepDialog
-        isOpen={testStepDialog.isOpen}
-        onClose={testStepDialog.close}
-        onExecutionCreated={onTestExecutionCreated}
-        nodeId={testStepDialog.item?.nodeId ?? null}
-        nodeName={testStepDialog.item?.nodeName ?? ''}
+      <RunStepDialog
+        isOpen={runStepDialog.isOpen}
+        onClose={runStepDialog.close}
+        onExecutionCreated={onRunStepExecutionCreated}
+        nodeId={runStepDialog.item?.nodeId ?? null}
+        nodeName={runStepDialog.item?.nodeName ?? ''}
         workflowId={workflowId ?? ''}
-        predecessors={testStepDialog.item?.predecessors}
+        predecessors={runStepDialog.item?.predecessors}
+        pinnedMockData={pinnedMockData}
       />
     </>
   )

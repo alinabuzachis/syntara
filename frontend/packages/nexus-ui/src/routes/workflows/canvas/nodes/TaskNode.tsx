@@ -41,6 +41,7 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
+    disabled: props.data.settings?.disabled ?? false,
   })
 
   // Extract execution state if present

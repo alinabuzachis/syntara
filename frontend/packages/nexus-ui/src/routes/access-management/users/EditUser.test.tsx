@@ -28,13 +28,19 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/', vi.fn()],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/',
+}))
+
+vi.mock('../../../hooks/routing/useParams', () => ({
   useParams: () => ({ userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

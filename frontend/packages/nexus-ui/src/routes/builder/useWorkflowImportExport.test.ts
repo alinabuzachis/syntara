@@ -14,6 +14,8 @@ const mockBuildDefinition = vi.fn<(...args: unknown[]) => Record<string, unknown
 const mockReplaceWorkflowContent = vi.fn()
 const mockGetState = vi.fn<() => Record<string, unknown>>()
 
+const mockHandleVerify = vi.fn()
+
 vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({ showError: mockShowError }),
 }))
@@ -32,6 +34,10 @@ vi.mock('../../utils/downloadWorkflowExport', () => ({
   downloadWorkflowDefinition: (...args: unknown[]) => mockDownload(...args) as void,
   parseWorkflowFile: (...args: unknown[]) => mockParseWorkflowFile(...args),
   validateFileSize: (...args: unknown[]) => mockValidateFileSize(...args) as void,
+}))
+
+vi.mock('./useWorkflowVerification', () => ({
+  useWorkflowVerification: () => ({ handleVerify: mockHandleVerify, isVerifying: false }),
 }))
 
 vi.mock('./utils/parseImportedDefinition', () => ({
@@ -204,5 +210,12 @@ describe('useWorkflowImportExport', () => {
 
     expect(result.current.importFileRef).toBeDefined()
     expect(result.current.importFileRef.current).toBeNull()
+  })
+
+  it('delegates handleVerify and isVerifying from useWorkflowVerification', () => {
+    const { result } = renderImportExportHook()
+
+    expect(result.current.handleVerify).toBe(mockHandleVerify)
+    expect(result.current.isVerifying).toBe(false)
   })
 })

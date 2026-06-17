@@ -21,7 +21,7 @@ from tests.e2e.auth.group_mapping_helpers import (
     user_group_names,
 )
 from tests.e2e.conftest import api_for, unique_name
-from tests.e2e.fixtures.factories import add_to_group, remove_from_group
+from tests.fixtures.factories.group_factories import add_to_group, remove_from_group
 
 if TYPE_CHECKING:
     from collections.abc import Callable

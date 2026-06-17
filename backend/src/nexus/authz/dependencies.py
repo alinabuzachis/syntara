@@ -22,6 +22,7 @@ from nexus.authz.exceptions import AuthorizationDeniedError
 from nexus.authz.models.project import Project
 from nexus.authz.opa_client import OPAClient
 from nexus.core.database.session import get_db
+from nexus.core.models.base import BaseResource, NamedResource
 from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -89,6 +90,7 @@ class PermissionChecker:
         self.resource_model = resource_model
         self.resource_id_param = resource_id_param
         self.body_project_field = body_project_field
+        self.resource_id: str = ""
 
     async def _resolve_project_name(self, db: AsyncSession, project_id: str | UUID) -> str:
         """Look up project name by ID, returning empty string if not found."""
@@ -100,21 +102,21 @@ class PermissionChecker:
         )
         return result.first() or ""
 
-    async def _resolve_project_from_resource(self, db: AsyncSession, resource_id: str) -> str:
+    async def _resolve_project_from_resource(self, db: AsyncSession) -> str:
         """Look up project name from a resource's project_id field."""
-        if not self.resource_model or not resource_id:
+        if not self.resource_model or not self.resource_id:
             return ""
         model = self.resource_model
         try:
-            rid = UUID(str(resource_id))
+            rid = UUID(str(self.resource_id))
         except ValueError:
             raise RequestValidationError(
                 [
                     {
                         "type": "uuid_parsing",
                         "loc": ("path", self.resource_id_param or "id"),
-                        "msg": f"Invalid UUID format: {resource_id}",
-                        "input": resource_id,
+                        "msg": f"Invalid UUID format: {self.resource_id}",
+                        "input": self.resource_id,
                     }
                 ]
             ) from None
@@ -126,28 +128,54 @@ class PermissionChecker:
             return ""
         return await self._resolve_project_name(db, proj_id)
 
-    async def _resolve_resource_labels(self, db: AsyncSession, resource_id: str) -> dict[str, str]:
+    async def _resolve_resource_labels(self, db: AsyncSession) -> dict[str, str]:
         """Look up resource labels by ID."""
-        if not self.resource_model or not resource_id:
+        if not self.resource_model or not self.resource_id:
             return {}
         model = self.resource_model
+        if not issubclass(model, BaseResource):
+            return {}
+
         try:
-            rid = UUID(str(resource_id))
+            rid = UUID(str(self.resource_id))
         except ValueError:
             raise RequestValidationError(
                 [
                     {
                         "type": "uuid_parsing",
                         "loc": ("path", self.resource_id_param or "id"),
-                        "msg": f"Invalid UUID format: {resource_id}",
-                        "input": resource_id,
+                        "msg": f"Invalid UUID format: {self.resource_id}",
+                        "input": self.resource_id,
                     }
                 ]
             ) from None
-        res = await db.exec(
-            select(model.labels).where(model.id == rid)  # type: ignore[attr-defined]
-        )
-        return res.first() or {}
+        res = await db.exec(select(model.labels).where(model.id == rid))
+        labels = res.first()
+        return dict(labels) if labels else {}
+
+    async def _resolve_resource_name(self, db: AsyncSession) -> str:
+        """Look up resource name by ID."""
+        if not self.resource_model or not self.resource_id:
+            return ""
+        model = self.resource_model
+        if not issubclass(model, NamedResource):
+            return ""
+
+        try:
+            rid = UUID(str(self.resource_id))
+        except ValueError:
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "uuid_parsing",
+                        "loc": ("path", self.resource_id_param or "id"),
+                        "msg": f"Invalid UUID format: {self.resource_id}",
+                        "input": self.resource_id,
+                    }
+                ]
+            ) from None
+        res = await db.exec(select(model.name).where(model.id == rid))
+        return res.first() or ""
 
     async def _resolve_project_from_path(self, request: Request, db: AsyncSession) -> str:
         """Resolve project name from the project_param path parameter."""
@@ -168,14 +196,15 @@ class PermissionChecker:
         """Resolve resource_id, resource_project, and resource_labels from the request context.
 
         Returns:
-            Tuple of (resource_id, resource_project, resource_labels).
+            Tuple of (resource_project, resource_labels).
 
         """
         if self.resource_id_param:
-            resource_id = request.path_params.get(self.resource_id_param, "")
+            self.resource_id = str(request.path_params.get(self.resource_id_param, ""))
         else:
-            resource_id = request.path_params.get("id", request.path_params.get("workflow_id", ""))
+            self.resource_id = str(request.path_params.get("id", request.path_params.get("workflow_id", "")))
 
+        resource_name = ""
         resource_project = ""
         resource_labels: dict[str, str] = {}
 
@@ -186,18 +215,21 @@ class PermissionChecker:
                 # resource_id_param, so resource_id would be empty. Use project_id
                 # from the path as the resource ID for OPA scope matching.
                 resource_id_from_project_path = request.path_params.get(self.project_param, "")
-                resource_id = resource_id_from_project_path
+                self.resource_id = resource_id_from_project_path
 
-        if not resource_project and self.resource_model and self.resource_id_param and resource_id:
-            resource_project = await self._resolve_project_from_resource(db, resource_id)
+        if not resource_project and self.resource_model and self.resource_id_param and self.resource_id:
+            resource_project = await self._resolve_project_from_resource(db)
 
-        if self.resource_model and resource_id:
-            resource_labels = await self._resolve_resource_labels(db, resource_id)
+        if self.resource_model and self.resource_id:
+            resource_labels = await self._resolve_resource_labels(db)
+
+        if self.resource_model and self.resource_id:
+            resource_name = await self._resolve_resource_name(db)
 
         if not resource_project and self.body_project_field:
             resource_project = await self._resolve_project_from_body(request, db)
 
-        return str(resource_id) if resource_id else "", resource_project, resource_labels
+        return resource_name, resource_project, resource_labels
 
     async def _resolve_project_from_body(self, request: Request, db: AsyncSession) -> str:
         """Extract and resolve project from the request body.
@@ -247,13 +279,13 @@ class PermissionChecker:
 
         """
         opa_client = get_opa_client(request)
-        resource_id, resource_project, resource_labels = await self._resolve_resource_project(request, db)
+        resource_name, resource_project, resource_labels = await self._resolve_resource_project(request, db)
 
         authz_request = AuthzRequest(
             user_id=current_user.id,
             action=self.action,
             resource_type=self.resource_type,
-            resource_id=resource_id,
+            resource_id=self.resource_id,
             resource_project=resource_project,
             resource_labels=resource_labels,
             user_labels=current_user.labels,
@@ -270,7 +302,9 @@ class PermissionChecker:
                 AuthorizationDeniedEvent(
                     user_id=current_user.id,
                     username=current_user.username,
+                    resource_id=self.resource_id,
                     resource_type=self.resource_type,
+                    resource_name=resource_name,
                     action=self.action,
                     denied_by=authz_result.denied_by,
                 )

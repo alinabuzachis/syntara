@@ -74,6 +74,7 @@ Consult these standards when making changes.
 - [Error Handling Strategy](/docs/error-handling-strategy.md) — RFC 9457 compliance, exception patterns
 
 **Domain Standards:**
+- [Access Control](/docs/standards/access-control.md) — authentication, RBAC (PermissionChecker/VisibilityFilter), compliance tests, exclusion lists
 - [Testing](/docs/standards/testing.md) — test organization, naming, fixtures, markers, infrastructure
 - [Imports and Modules](/docs/standards/imports-and-modules.md) — import ordering, `__init__.py` patterns, domain module structure
 - [Logging](/docs/standards/logging.md) — structlog usage, log levels, structured context

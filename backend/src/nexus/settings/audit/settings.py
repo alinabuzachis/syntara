@@ -8,6 +8,7 @@ Requirements: AAP-74712
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from urllib.parse import quote
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
@@ -71,9 +72,9 @@ class SettingChangeHandler(AuditEventHandler[SettingChangeEvent]):
             data.error_type = event.error_type
 
         resource_urn = (
-            f"urn:nexus:setting:{event.category}:{event.setting}"
+            f"urn:nexus:setting:{quote(event.category, safe='')}:{quote(event.setting, safe='')}"
             if event.category
-            else f"urn:nexus:setting:{event.setting}"
+            else f"urn:nexus:setting:{quote(event.setting, safe='')}"
         )
 
         return AuditEvent(

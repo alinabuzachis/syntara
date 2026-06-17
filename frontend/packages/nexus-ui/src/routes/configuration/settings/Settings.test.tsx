@@ -19,8 +19,11 @@ const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
 const mockShowWarning = vi.fn()
 
-vi.mock('wouter', () => ({
-  useLocation: (): [string, typeof mockSetLocation] => [mockLocation.value, mockSetLocation],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => mockLocation.value,
+}))
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
 }))
 
 vi.mock('../../../client', () => ({

@@ -31,7 +31,8 @@ export default function registerApprovalNode() {
           createApprovalActivity({
             id,
             name,
-            approvers: data.approvers,
+            approver_users: data.approver_users,
+            approver_groups: data.approver_groups,
             prompt: data.prompt,
             fallback_decision: data.fallback_decision,
             decision_window: data.decision_window,

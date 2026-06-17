@@ -1,6 +1,7 @@
 import { Button, Card, CardBody, Flex, FlexItem, Label, Switch, Tooltip } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiLockIcon, RhUiUnlockIcon } from '@patternfly/react-icons'
-import { navigate } from 'wouter/use-browser-location'
+
+import { navigate } from '../../hooks/routing/navigate'
 
 import { getUserDetailPath } from './accessManagementPaths'
 import { BUILTIN_ADMIN_TOGGLE_DISABLED_REASON } from './adminConstants'

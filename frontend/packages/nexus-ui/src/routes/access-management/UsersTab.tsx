@@ -4,7 +4,6 @@ import { RhUiAddIcon, RhUiBanIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patt
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../app/flexCenteredBothAxes'
@@ -18,6 +17,7 @@ import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
+import { navigate } from '../../hooks/routing/navigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
 import { useDialogState } from '../../hooks/useDialogState'
@@ -227,7 +227,7 @@ export function UsersTab() {
             <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
           </StackItem>
         ) : (
-          <NxScrollableTableContainer aria-label="Users" footer={getFooterProps(data)}>
+          <NxScrollableTableContainer caption="Users" footer={getFooterProps(data)}>
             <Thead>
               <Tr>
                 <Th sort={getSortParams(0)}>Username</Th>

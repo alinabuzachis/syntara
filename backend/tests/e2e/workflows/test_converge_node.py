@@ -21,7 +21,8 @@ def test_converge_any_2_of_3_strategy(nexus_api: NexusApiRegistry):
 
     Branches A and B succeed, meeting the any-2-of-3 threshold. Branch C
     fails immediately. The converge fires with the 2 successful branches.
-    The workflow status is FAILED because branch C failed.
+    The workflow status is COMPLETED_WITH_ERRORS because the converge
+    succeeded (handling the branch failure) but a failure is still recorded.
     """
     result = create_and_run_workflow(
         nexus_api,
@@ -79,13 +80,90 @@ def test_converge_any_2_of_3_strategy(nexus_api: NexusApiRegistry):
         },
     )
 
-    assert result.status == ExecutionStatus.FAILED
+    assert result.status == ExecutionStatus.COMPLETED_WITH_ERRORS
     activities = {a.activity_id: a for a in (result.activities or [])}
 
     assert activities["branch_a"].status == "completed"
     assert activities["branch_b"].status == "completed"
     assert activities["branch_c"].status == "failed"
     assert activities["converge_node"].status == "completed"
+    assert activities["final_action"].status == "completed"
+
+
+@pytest.mark.e2e
+def test_converge_timeout_continue_on_failure(nexus_api: NexusApiRegistry):
+    """Test converge timeout with continue_on_failure=true.
+
+    The slow branch (sleep 2) feeds through slow_intermediate before
+    reaching converge. The fast branch connects directly. When the 1s
+    timeout fires, slow_intermediate has not been scheduled yet (slow_branch
+    is still in-flight), so it is skipped. With continue_on_failure=true
+    the converge is marked as failed but downstream continues.
+
+    Trigger -> fast_branch ----------------------> converge -> final_action
+            -> slow_branch -> slow_intermediate ->
+    """
+    result = create_and_run_workflow(
+        nexus_api,
+        "e2e-converge-timeout-cof",
+        {
+            "name": "converge",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
+            ],
+            "nodes": [
+                {
+                    "id": "fast_branch",
+                    "name": "Fast Branch",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'echo "Fast branch done"'},
+                },
+                {
+                    "id": "slow_branch",
+                    "name": "Slow Branch",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'sleep 2 && echo "Slow branch done"'},
+                },
+                {
+                    "id": "slow_intermediate",
+                    "name": "Slow Intermediate (should be skipped)",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'echo "Intermediate"'},
+                },
+                {
+                    "id": "converge_node",
+                    "name": "Converge with timeout",
+                    "type": "converge",
+                    "parameters": {"wait_duration": 1},
+                    "settings": {"continue_on_failure": True},
+                },
+                {
+                    "id": "final_action",
+                    "name": "Final Action",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'echo "Executed after CoF"'},
+                },
+            ],
+            "edges": [
+                {"from": "trigger", "to": "fast_branch"},
+                {"from": "trigger", "to": "slow_branch"},
+                {"from": "fast_branch", "to": "converge_node"},
+                {"from": "slow_branch", "to": "slow_intermediate"},
+                {"from": "slow_intermediate", "to": "converge_node"},
+                {"from": "converge_node", "to": "final_action"},
+            ],
+        },
+        timeout=10,
+    )
+
+    activities = {a.activity_id: a for a in (result.activities or [])}
+
+    assert result.status == ExecutionStatus.COMPLETED_WITH_ERRORS
+    assert activities["fast_branch"].status == "completed"
+    assert activities["slow_branch"].status == "skipped"
+    assert activities["slow_intermediate"].status == "skipped"
+    assert activities["converge_node"].status == "failed"
     assert activities["final_action"].status == "completed"
 
 
@@ -169,7 +247,7 @@ def test_converge_all_strategy(nexus_api: NexusApiRegistry):
 
 @pytest.mark.e2e
 def test_converge_timeout_fail_and_skip_downstream(nexus_api: NexusApiRegistry):
-    """Test converge timeout fails and skips downstream.
+    """Test converge timeout marks node as failed and skips downstream.
 
     A fast branch completes instantly, triggering the converge to start
     waiting (and the timeout handler). The slow branch feeds through an
@@ -237,10 +315,87 @@ def test_converge_timeout_fail_and_skip_downstream(nexus_api: NexusApiRegistry):
     activities = {a.activity_id: a for a in (result.activities or [])}
 
     assert activities["fast_branch"].status == "completed"
-    assert activities["slow_branch"].status == "completed"
+    assert activities["slow_branch"].status == "skipped"
     assert activities["intermediate"].status == "skipped"
     assert activities["converge_node"].status == "failed"
     assert activities["downstream_action"].status == "skipped"
+
+
+@pytest.mark.e2e
+def test_converge_cof_any_strategy_threshold_not_met(nexus_api: NexusApiRegistry):
+    """Test converge CoF with ANY strategy when n_required threshold is not met.
+
+    With any-2-of-3 and continue_on_failure=true, 2 branches fail and only
+    1 succeeds. The threshold cannot be met, so converge is marked as failed
+    via _evaluate_converge_failure, but continue_on_failure allows the
+    downstream node to execute.
+
+    Trigger -> success_branch -----> converge (any 2/3, CoF) -> final_action
+            -> failing_branch_a ->
+            -> failing_branch_b ->
+    """
+    result = create_and_run_workflow(
+        nexus_api,
+        "e2e-converge-cof-any-threshold",
+        {
+            "name": "converge",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
+            ],
+            "nodes": [
+                {
+                    "id": "success_branch",
+                    "name": "Success Branch",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'sleep 1 && echo "success"'},
+                },
+                {
+                    "id": "failing_branch_a",
+                    "name": "Failing Branch A",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": "exit 1"},
+                },
+                {
+                    "id": "failing_branch_b",
+                    "name": "Failing Branch B",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": "exit 1"},
+                },
+                {
+                    "id": "converge_node",
+                    "name": "Converge (any 2/3, CoF)",
+                    "type": "converge",
+                    "parameters": {"strategy": "any", "n_required": 2},
+                    "settings": {"continue_on_failure": True},
+                },
+                {
+                    "id": "final_action",
+                    "name": "Final Action",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'echo "downstream executed"'},
+                },
+            ],
+            "edges": [
+                {"from": "trigger", "to": "success_branch"},
+                {"from": "trigger", "to": "failing_branch_a"},
+                {"from": "trigger", "to": "failing_branch_b"},
+                {"from": "success_branch", "to": "converge_node"},
+                {"from": "failing_branch_a", "to": "converge_node"},
+                {"from": "failing_branch_b", "to": "converge_node"},
+                {"from": "converge_node", "to": "final_action"},
+            ],
+        },
+    )
+
+    assert result.status == ExecutionStatus.COMPLETED_WITH_ERRORS
+    activities = {a.activity_id: a for a in (result.activities or [])}
+
+    assert activities["success_branch"].status == "completed"
+    assert activities["failing_branch_a"].status == "failed"
+    assert activities["failing_branch_b"].status == "failed"
+    assert activities["converge_node"].status == "failed"
+    assert activities["final_action"].status == "completed"
 
 
 @pytest.mark.e2e
@@ -307,6 +462,93 @@ def test_converge_no_timeout_when_all_complete(nexus_api: NexusApiRegistry):
     assert activities["final_action"].status == "completed"
 
 
+@pytest.mark.e2e
+def test_converge_timeout_multihop_starts_at_fork(nexus_api: NexusApiRegistry):
+    """Test timeout starts at fork completion when ALL branches are multi-hop.
+
+    Both branches have intermediate nodes. The 1s timeout must start when
+    the fork completes (step1 nodes are scheduled), not when step1 nodes
+    complete and step2 nodes are scheduled.
+
+    With fork detection: timeout fires at ~1s (from fork completion).
+    Without fork detection: timeout would fire at ~3s (2s step1 + 1s wait).
+
+    Trigger -> branch_a_step1 (2s) -> branch_a_step2 -> converge (1s) -> downstream
+            -> branch_b_step1 (2s) -> branch_b_step2 -> ↗
+    """
+    result = create_and_run_workflow(
+        nexus_api,
+        "e2e-converge-timeout-multihop",
+        {
+            "name": "converge",
+            "schema_version": "2.0.0",
+            "triggers": [
+                {"id": "trigger", "type": "manual_trigger", "parameters": {}},
+            ],
+            "nodes": [
+                {
+                    "id": "branch_a_step1",
+                    "name": "Branch A Step 1 (2s)",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'sleep 2 && echo "A1 done"'},
+                },
+                {
+                    "id": "branch_a_step2",
+                    "name": "Branch A Step 2",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'echo "A2 done"'},
+                },
+                {
+                    "id": "branch_b_step1",
+                    "name": "Branch B Step 1 (2s)",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'sleep 2 && echo "B1 done"'},
+                },
+                {
+                    "id": "branch_b_step2",
+                    "name": "Branch B Step 2",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'echo "B2 done"'},
+                },
+                {
+                    "id": "converge_node",
+                    "name": "Converge (1s timeout)",
+                    "type": "converge",
+                    "parameters": {"wait_duration": 1},
+                },
+                {
+                    "id": "downstream",
+                    "name": "Downstream",
+                    "type": "script",
+                    "parameters": {"language": "bash", "code": 'echo "downstream"'},
+                },
+            ],
+            "edges": [
+                {"from": "trigger", "to": "branch_a_step1"},
+                {"from": "trigger", "to": "branch_b_step1"},
+                {"from": "branch_a_step1", "to": "branch_a_step2"},
+                {"from": "branch_b_step1", "to": "branch_b_step2"},
+                {"from": "branch_a_step2", "to": "converge_node"},
+                {"from": "branch_b_step2", "to": "converge_node"},
+                {"from": "converge_node", "to": "downstream"},
+            ],
+        },
+        timeout=10,
+    )
+
+    assert result.status == ExecutionStatus.FAILED
+    activities = {a.activity_id: a for a in (result.activities or [])}
+
+    # Timeout fires at ~1s (from fork start). In-flight step1 nodes are detached.
+    # step2 nodes are never scheduled. All show as skipped.
+    assert activities["branch_a_step1"].status == "skipped"
+    assert activities["branch_b_step1"].status == "skipped"
+    assert activities["branch_a_step2"].status == "skipped"
+    assert activities["branch_b_step2"].status == "skipped"
+    assert activities["converge_node"].status == "failed"
+    assert activities["downstream"].status == "skipped"
+
+
 # ---------------------------------------------------------------------------
 # Branch Failure Tests
 # ---------------------------------------------------------------------------
@@ -318,7 +560,8 @@ def test_converge_one_branch_fails_all_strategy(nexus_api: NexusApiRegistry):
 
     The success branches sleep briefly so the failure is processed first.
     ALL strategy is strict: any predecessor failure fails the converge
-    and skips downstream nodes.
+    and skips downstream nodes. In-flight parallel branches are not
+    cancelled — they run to completion while the converge node fails.
     """
     result = create_and_run_workflow(
         nexus_api,

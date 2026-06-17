@@ -125,6 +125,8 @@ class NexusWorkflow(WorkflowConvergeMixin):
             ),
         )
 
+        self._build_converge_branch_nodes_index(graph)
+
         pending_tasks: dict[str, asyncio.Task[Any]] = {}
         await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
         await self._process_pending_tasks(pending_tasks, graph)
@@ -159,6 +161,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self._timeout_tasks: dict[str, asyncio.Task[Any]] = {}
         self._timed_out_converge_nodes: set[str] = set()
         self._detached_nodes: set[str] = set()
+        self._converge_branch_nodes: dict[str, set[str]] = {}
         self._cof_failed_nodes: set[str] = set()
         self._has_unhandled_failure: bool = False
         self._runtime_settings = {}  # populated by run() after settings fetch
@@ -213,7 +216,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
             pending_tasks=pending_tasks,
         )
 
-    async def _process_pending_tasks(  # noqa: C901
+    async def _process_pending_tasks(
         self,
         pending_tasks: dict[str, asyncio.Task[Any]],
         graph: WorkflowGraph,
@@ -222,17 +225,13 @@ class NexusWorkflow(WorkflowConvergeMixin):
         while pending_tasks or self._timed_out_converge_nodes:
             # Cancel pending tasks for nodes that were skipped (by timeout or "any" converge)
             self._cancel_skipped_pending_tasks(pending_tasks)
-            # Remove in-flight tasks detached by a converge fail (don't cancel, just unblock the loop)
             self._remove_detached_tasks(pending_tasks)
 
-            # Schedule any converge nodes whose timeout handlers fired
+            # Schedule successors of converge nodes that failed with continue_on_failure
             for node_id in list(self._timed_out_converge_nodes):
                 self._timed_out_converge_nodes.discard(node_id)
-                if node_id not in pending_tasks:
-                    node = graph.get_node(node_id)
-                    workflow.logger.info(f"Scheduling converge node {node_id} after timeout")
-                    task = asyncio.create_task(self._execute_node(node=node, graph=graph))
-                    pending_tasks[node_id] = task
+                workflow.logger.info(f"Scheduling successors of CoF-failed converge node {node_id}")
+                await self._schedule_successors(node_id, graph, pending_tasks)
 
             if not pending_tasks:
                 break
@@ -327,7 +326,8 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self.resolver.set_namespace(node_id, namespace_entry)
         workflow.logger.error(f"Node {node_id} failed: {error_message}")
         if not continue_on_failure:
-            self._has_unhandled_failure = True
+            if node_id not in self._converge_branch_nodes:
+                self._has_unhandled_failure = True
             self._mark_downstream_as_skipped(node_id, graph)
         else:
             self._cof_failed_nodes.add(node_id)
@@ -383,8 +383,8 @@ class NexusWorkflow(WorkflowConvergeMixin):
     def _remove_detached_tasks(self, pending_tasks: dict[str, asyncio.Task[Any]]) -> None:
         """Remove detached in-flight tasks from the main loop without cancelling them.
 
-        When a converge node fails on timeout, in-flight predecessors should keep
-        running in Temporal but no longer block the workflow from completing.
+        When a converge node fails, in-flight predecessors keep running in
+        Temporal but no longer block the workflow from completing.
         """
         detached = [nid for nid in pending_tasks if nid in self._detached_nodes]
         for nid in detached:
@@ -400,11 +400,11 @@ class NexusWorkflow(WorkflowConvergeMixin):
     def _build_result(self, execution_id: str, include_node_results: bool) -> dict[str, Any]:  # noqa: FBT001
         """Build the final workflow execution result."""
         node_outputs = self.resolver.get_all_namespaces()
-        # _has_unhandled_failure is set by any node that fails WITHOUT continue_on_failure.
-        # In concurrent branches, a single unhandled failure dominates: if branch A fails
-        # without CoF and branch B fails with CoF, the workflow is still "failed" (not
-        # "completed_with_errors"). "completed_with_errors" requires that every failure
-        # in the execution was individually recovered via continue_on_failure.
+        # _has_unhandled_failure tracks whether any failure was NOT absorbed by
+        # continue_on_failure.  For nodes in a parallel branch the flag is deferred
+        # to the converge node: CoF absorbs it, no-CoF sets the flag directly, and
+        # a successful converge reconciles any unabsorbed branch failures.  Nodes
+        # outside any parallel branch set the flag eagerly on failure.
         if self._has_unhandled_failure:
             workflow_status = "failed"
         elif self.failed_nodes:
@@ -473,10 +473,19 @@ class NexusWorkflow(WorkflowConvergeMixin):
             if self._should_skip_successor(successor, completed_node_id, is_loop_iterate, pending_tasks, graph):
                 continue
 
+            # Disabled nodes are skipped but their successors still execute
+            if getattr(successor.settings, "disabled", None):
+                self.skipped_nodes.add(successor.id)
+                self.resolver.set_namespace(successor.id, {})
+                workflow.logger.info(f"Node {successor.id} is disabled — skipping, scheduling its successors")
+                await self._schedule_successors(successor.id, graph, pending_tasks)
+                continue
+
             # All dependencies met — schedule execution
             workflow.logger.info(f"Scheduling node: {successor.id} (type: {successor.type})")
             task = asyncio.create_task(self._execute_node(node=successor, graph=graph))
             pending_tasks[successor.id] = task
+            self._handle_converge_timeout(successor.id, graph, pending_tasks)
 
         # Check if a loop body just completed and needs re-iteration
         self._check_loop_body_completion(completed_node_id, graph, pending_tasks)
@@ -531,8 +540,8 @@ class NexusWorkflow(WorkflowConvergeMixin):
     ) -> bool:
         """Check whether a successor should be skipped (not scheduled).
 
-        Side effects: starts a converge timeout task if configured, and marks
-        remaining predecessors as skipped when an 'any' converge is satisfied.
+        Side effects: marks remaining predecessors as skipped when an
+        'any' converge is satisfied.
         """
         node_id = successor.id
 

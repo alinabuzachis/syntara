@@ -1507,7 +1507,40 @@ When adding new permission-gated features, add role-aware responses in `packages
 
 ---
 
-## 32. No `// TODO` Comments in Shipped Code
+## 32. No Section-Divider Comments — Use JSDoc on Declarations Instead
+
+Do not use `// ---`, `// ===`, or `// -----...-----` banners to separate regions of a file. These comments explain _where_ code lives, not _why_ it exists. They add visual noise without adding meaning, and they drift out of sync with the code as the file evolves.
+
+```typescript
+// ❌ BAD — section dividers that explain nothing
+// ---------------------------------------------------------------------------
+// Help text components
+// ---------------------------------------------------------------------------
+function WebhookPathHelp() { ... }
+
+// --- Story components ---
+function DefaultStory() { ... }
+
+// ✅ GOOD — if a declaration needs context, attach it as JSDoc
+/**
+ * Shared between `NxListPanelTabs` and `NxListPanelContent`. Placed at `NxListPanel`
+ * (not `NxListPanelTabs`) so `NxListPanelContent` rendered via a TanStack Router `<Outlet>`
+ * can still consume it as a descendant of `NxListPanel` but not of `NxListPanelTabs`.
+ */
+type NxListPanelTabContextValue = { ... }
+```
+
+**Why:** Section banners explain _what_ code is, which well-named identifiers already communicate. JSDoc on a declaration travels with the symbol into tooling (IDE hover, generated docs), so the documentation stays attached even after the file is reorganised or the symbol is moved.
+
+**What to do instead:**
+
+- If a group of declarations has a non-obvious purpose, add a `/** */` JSDoc comment to the first (or most important) declaration in the group.
+- If the code is self-explanatory, write no comment at all.
+- Never write a freestanding comment whose sole purpose is to label a file region.
+
+---
+
+## 33. No `// TODO` Comments in Shipped Code
 
 Do not ship `// TODO`, `// FIXME`, `// HACK`, or `// XXX` comments in PRs. These represent deferred work that should be tracked in Jira, not buried in source code where it is invisible to project management and will rot.
 

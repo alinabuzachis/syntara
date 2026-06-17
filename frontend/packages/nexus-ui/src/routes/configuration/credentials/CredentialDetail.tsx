@@ -1,7 +1,6 @@
 import { Badge, Button, DescriptionList, Label, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
 import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
-import { useLocation, useParams } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsCredentialDetail, breadcrumbsCredentialEarlyShell } from '../../../app/breadcrumbBuilders'
@@ -17,6 +16,8 @@ import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
+import { useNavigate } from '../../../hooks/routing/useNavigate'
+import { useParams } from '../../../hooks/routing/useParams'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
@@ -49,7 +50,7 @@ function getTypeDisplayText(typeName: string | undefined, typeLoadError: boolean
 export default function CredentialDetail() {
   const credentialsDocLink = useDocLink('credentials')
   const { credentialId } = useParams<{ credentialId: string }>()
-  const [, navigate] = useLocation()
+  const navigate = useNavigate()
   const credentialBasePath = AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId ?? '')
   const [activeTab] = useUrlTab<CredentialTab>(credentialBasePath)
   const { canReadWorkflows, isLoading: permissionsLoading } = useCredentialDetailPermissions()
@@ -185,7 +186,6 @@ export default function CredentialDetail() {
     },
   ]
 
-  // --- Error states ---
   const queryState = useQueryState(credQuery, {
     title: 'Error loading credential',
     onRetry: () => detachPromise(credQuery.refetch()),

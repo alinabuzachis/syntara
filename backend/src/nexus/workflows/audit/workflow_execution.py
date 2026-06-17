@@ -38,6 +38,7 @@ class WorkflowExecutionErrorEvent:
     error_type: str | None = field(default=None)
     retry_reason: str | None = field(default=None)
     request_id: UUID | None = field(default=None)
+    workflow_name: str | None = field(default=None)
 
 
 class WorkflowExecutionErrorHandler(AuditEventHandler[WorkflowExecutionErrorEvent]):
@@ -58,6 +59,8 @@ class WorkflowExecutionErrorHandler(AuditEventHandler[WorkflowExecutionErrorEven
             retry_reason=event.retry_reason,
         )
 
+        resource_urn = f"urn:nexus:workflow:{event.workflow_id}" if event.workflow_id else None
+
         return AuditEvent(
             event_category=EventCategory.WORKFLOW_EVENT,
             event_severity=EventSeverity.ERROR,
@@ -69,4 +72,6 @@ class WorkflowExecutionErrorHandler(AuditEventHandler[WorkflowExecutionErrorEven
             execution_id=event.execution_id,
             workflow_id=event.workflow_id,
             activity_id=event.activity_id,
+            resource_urn=resource_urn,
+            resource_name=event.workflow_name,
         )

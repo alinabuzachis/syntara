@@ -34,8 +34,11 @@ vi.mock('./useGroupPermissions', () => ({
 const mockSetSearchParams = vi.fn()
 let mockSearchParams = new URLSearchParams()
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/system-administration/access-management/groups', vi.fn()],
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/access-management/groups',
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 

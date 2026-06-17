@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  SWITCH_CASE_PORT_PREFIX,
-  buildSwitchCasePort,
-  isSwitchCasePort,
-  serializeSwitchCases,
-} from './switchCaseHelpers'
+import { SWITCH_CASE_PORT_PREFIX, buildSwitchCasePort, isSwitchCasePort } from './switchCaseHelpers'
 
 describe('SWITCH_CASE_PORT_PREFIX', () => {
   it('equals "case_"', () => {
@@ -58,63 +53,5 @@ describe('isSwitchCasePort', () => {
 
   it('returns false for source handle', () => {
     expect(isSwitchCasePort('source')).toBe(false)
-  })
-})
-
-describe('serializeSwitchCases', () => {
-  it('serializes a single case with default label', () => {
-    const result = serializeSwitchCases([
-      { id: 'c1', variable: '${input.status}', operator: '==', value: "'active'", negate: false },
-    ])
-
-    expect(result).toHaveLength(1)
-    expect(result[0].port).toBe('case_0')
-    expect(result[0].label).toBe('Path 1')
-    expect(result[0].condition).toBeTruthy()
-  })
-
-  it('serializes multiple cases with correct port indices', () => {
-    const result = serializeSwitchCases([
-      { id: 'c1', variable: '${input.a}', operator: '==', value: '1' },
-      { id: 'c2', variable: '${input.b}', operator: '>', value: '2' },
-      { id: 'c3', variable: '${input.c}', operator: '<', value: '3' },
-    ])
-
-    expect(result).toHaveLength(3)
-    expect(result[0].port).toBe('case_0')
-    expect(result[1].port).toBe('case_1')
-    expect(result[2].port).toBe('case_2')
-  })
-
-  it('uses provided label when available', () => {
-    const result = serializeSwitchCases([
-      { id: 'c1', label: 'Priority High', variable: '${input.priority}', operator: '==', value: "'high'" },
-    ])
-
-    expect(result[0].label).toBe('Priority High')
-  })
-
-  it('falls back to Path N when label is empty', () => {
-    const result = serializeSwitchCases([
-      { id: 'c1', label: '', variable: '${input.x}', operator: '==', value: '1' },
-      { id: 'c2', label: '', variable: '${input.y}', operator: '==', value: '2' },
-    ])
-
-    expect(result[0].label).toBe('Path 1')
-    expect(result[1].label).toBe('Path 2')
-  })
-
-  it('preserves negate flag in serialized condition', () => {
-    const result = serializeSwitchCases([
-      { id: 'c1', variable: '${input.status}', operator: '==', value: "'disabled'", negate: true },
-    ])
-
-    expect(result[0].condition).toContain('not')
-  })
-
-  it('handles missing negate as false', () => {
-    const result = serializeSwitchCases([{ id: 'c1', variable: '${input.x}', operator: '==', value: '1' }])
-
-    expect(result[0].condition).not.toContain('not')
   })
 })

@@ -40,8 +40,7 @@ type SelectionAction =
       type: 'SELECT_ALL'
       approvals: ApprovalWithDetails[]
       checked: boolean
-      approvalPermissions: Map<string, boolean>
-      isLoadingPermissions: boolean
+      selectableApprovalIds: Set<string>
     }
   | { type: 'SELECT_ROW'; approval: ApprovalWithDetails; checked: boolean }
   | { type: 'CLEAR_SELECTION' }
@@ -74,10 +73,9 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
     }
     case 'SELECT_ALL': {
       const updated = new Set(state.selectedIds)
-      // Only select approvals that are pending AND user has permission to decide
-      const selectableApprovals = action.approvals.filter(
-        (a) => a.status === 'pending' && !action.isLoadingPermissions && action.approvalPermissions.get(a.id) === true
-      )
+      // Only select approvals that are in the selectable set
+      // This set already reflects all permission checks (RBAC + approver list) from row rendering logic
+      const selectableApprovals = action.approvals.filter((a) => action.selectableApprovalIds.has(a.id))
 
       if (action.checked) {
         selectableApprovals.forEach((a) => updated.add(a.id))
@@ -116,9 +114,10 @@ export function useApprovalSelection(
     sortDirection: string
     approvalPermissions: Map<string, boolean>
     isLoadingPermissions: boolean
+    selectableApprovalIds: Set<string>
   }
 ) {
-  const { filters, activeSortIndex, sortDirection, approvalPermissions, isLoadingPermissions } = options
+  const { filters, activeSortIndex, sortDirection, selectableApprovalIds } = options
 
   const [state, dispatch] = useReducer(selectionReducer, {
     selectedIds: new Set<string>(),
@@ -144,9 +143,9 @@ export function useApprovalSelection(
 
   const handleSelectAll = useCallback(
     (checked: boolean) => {
-      dispatch({ type: 'SELECT_ALL', approvals: sortedApprovals, checked, approvalPermissions, isLoadingPermissions })
+      dispatch({ type: 'SELECT_ALL', approvals: sortedApprovals, checked, selectableApprovalIds })
     },
-    [sortedApprovals, approvalPermissions, isLoadingPermissions]
+    [sortedApprovals, selectableApprovalIds]
   )
 
   const handleSelectRow = useCallback((approval: ApprovalWithDetails, checked: boolean) => {

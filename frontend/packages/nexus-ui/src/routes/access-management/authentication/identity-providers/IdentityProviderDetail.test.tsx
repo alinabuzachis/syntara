@@ -44,14 +44,24 @@ const VALID_PROVIDER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
 const mockSetLocation = vi.fn()
 const mockLocationRef = { current: `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}` }
-vi.mock('wouter', () => ({
-  useLocation: (): [string, typeof mockSetLocation] => [mockLocationRef.current, mockSetLocation],
+vi.mock('../../../../hooks/routing/useLocation', () => ({
+  useLocation: () => mockLocationRef.current,
+}))
+
+vi.mock('../../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
+}))
+
+vi.mock('../../../../hooks/routing/useParams', () => ({
   useParams: () => ({ providerId: VALID_PROVIDER_ID }),
+}))
+
+vi.mock('../../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
 const mockNavigate = vi.fn()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../../hooks/routing/navigate', () => ({
   navigate: (...args: unknown[]): void => {
     mockNavigate(...args)
   },

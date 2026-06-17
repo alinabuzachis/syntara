@@ -1,7 +1,8 @@
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { useLocation } from 'wouter'
 
+import { useLocation } from '../../hooks/routing/useLocation'
+import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
 import { UnsavedChangesContext } from './unsavedChangesContext'
@@ -11,7 +12,8 @@ type UnsavedChangesProviderProps = {
 }
 
 export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProviderProps>) {
-  const [location, setLocation] = useLocation()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -33,7 +35,7 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
     (targetPath: string) => {
       // If navigating within builder or no unsaved changes, proceed immediately
       if (targetPath.startsWith('/workflow-builder') || !hasUnsavedChanges()) {
-        setLocation(targetPath)
+        navigate(targetPath)
         return
       }
 
@@ -41,7 +43,7 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
       setPendingTarget(targetPath)
       setIsModalOpen(true)
     },
-    [hasUnsavedChanges, setLocation]
+    [hasUnsavedChanges, navigate]
   )
 
   // Register save handler from BuilderContent
@@ -71,14 +73,14 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
       setWorkflow(null)
       setEdges([])
       setIsModalOpen(false)
-      setLocation(pendingTarget)
+      navigate(pendingTarget)
       setPendingTarget(null)
     } else if (!success) {
       // Save failed - close modal, user stays in builder with error toast
       setIsModalOpen(false)
       setPendingTarget(null)
     }
-  }, [saveHandler, pendingTarget, setWorkflow, setEdges, setLocation])
+  }, [saveHandler, pendingTarget, setWorkflow, setEdges, navigate])
 
   // Handle exit without saving
   const handleExitWithoutSaving = useCallback(() => {
@@ -86,10 +88,10 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
       setWorkflow(null)
       setEdges([])
       setIsModalOpen(false)
-      setLocation(pendingTarget)
+      navigate(pendingTarget)
       setPendingTarget(null)
     }
-  }, [pendingTarget, setWorkflow, setEdges, setLocation])
+  }, [pendingTarget, setWorkflow, setEdges, navigate])
 
   // Handle modal close (cancel)
   const handleClose = useCallback(() => {

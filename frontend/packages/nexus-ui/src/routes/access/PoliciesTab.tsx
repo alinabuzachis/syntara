@@ -222,7 +222,7 @@ export function PoliciesTab() {
             <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
-          <NxScrollableTableContainer aria-label="Policies" footer={tableFooter}>
+          <NxScrollableTableContainer caption="Policies" footer={tableFooter}>
             <PoliciesTableBody
               policies={policies}
               projectNameMap={projectNameMap}

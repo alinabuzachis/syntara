@@ -1,8 +1,8 @@
 import { Button, Switch } from '@patternfly/react-core'
-import type { IAction } from '@patternfly/react-table'
-import { ActionsColumn } from '@patternfly/react-table'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
+
+import { NxKebabMenu } from '../NxKebabMenu'
 
 import { NxPageHeader } from './NxPageHeader'
 
@@ -23,7 +23,12 @@ function SwitchToggleHeader() {
   )
 }
 
-const kebabItems: IAction[] = [{ title: 'Edit' }, { title: 'Duplicate' }, { isSeparator: true }, { title: 'Delete' }]
+const kebabActions = [
+  { key: 'edit', title: 'Edit', onClick: () => {} },
+  { key: 'duplicate', title: 'Duplicate', onClick: () => {} },
+  { key: 'sep', isSeparator: true },
+  { key: 'delete', title: 'Delete', isDanger: true, onClick: () => {} },
+]
 
 function DetailPageToolbarHeader() {
   const [enabled, setEnabled] = useState(true)
@@ -40,7 +45,7 @@ function DetailPageToolbarHeader() {
             onChange={(_event, checked) => setEnabled(checked)}
           />
           <Button variant="secondary">Edit</Button>
-          <ActionsColumn items={kebabItems} />
+          <NxKebabMenu aria-label="More actions" actions={kebabActions} />
         </>
       }
     />
@@ -146,7 +151,7 @@ export const WithKebab: Story = {
     },
   },
   args: {
-    toolbar: <ActionsColumn items={kebabItems} />,
+    toolbar: <NxKebabMenu aria-label="More actions" actions={kebabActions} />,
   },
 }
 

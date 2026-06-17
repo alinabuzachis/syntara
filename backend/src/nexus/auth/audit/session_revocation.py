@@ -1,6 +1,7 @@
 """Audit events and handlers for targeted session revocation."""
 
 from dataclasses import dataclass
+from urllib.parse import quote
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
@@ -46,6 +47,18 @@ class SessionRevocationHandler(AuditEventHandler[SessionRevocationEvent]):
             actor_source=event.actor_source,
         )
 
+        # Construct resource URN based on target type
+        # URL-encode the identifier to comply with RFC 8141 (URNs cannot contain spaces or special characters)
+        encoded_identifier = quote(event.target_identifier, safe="")
+
+        if event.target_type == "user":
+            resource_urn = f"urn:nexus:user:{encoded_identifier}"
+        elif event.target_type == "idp":
+            resource_urn = f"urn:nexus:identity_provider:{encoded_identifier}"
+        else:
+            # Fallback for unknown target types
+            resource_urn = f"urn:nexus:{event.target_type}:{encoded_identifier}"
+
         return AuditEvent(
             event_category=EventCategory.SECURITY_EVENT,
             event_severity=EventSeverity.CRITICAL,
@@ -60,4 +73,6 @@ class SessionRevocationHandler(AuditEventHandler[SessionRevocationEvent]):
             structured_data=data,
             actor_type=ActorType.USER,
             actor_username=event.actor_username,
+            resource_urn=resource_urn,
+            resource_name=event.target_identifier,
         )

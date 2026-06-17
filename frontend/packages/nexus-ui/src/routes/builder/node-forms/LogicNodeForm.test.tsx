@@ -80,12 +80,9 @@ describe('LogicNodeForm', () => {
             name: 'Test Switch',
             cases: [
               {
-                id: 'c1',
+                caseId: 'c1',
                 label: 'Path 1',
-                variable: '${status}',
-                operator: '==' as const,
-                value: "'active'",
-                negate: false,
+                condition: '${status} == "active"',
               },
             ],
           }}
@@ -103,9 +100,7 @@ describe('LogicNodeForm', () => {
           initialData={{
             logicType: ActivityTypeEnum.SWITCH,
             name: 'Switch Submit',
-            cases: [
-              { id: 'c1', label: 'Path 1', variable: '${x}', operator: '==' as const, value: '1', negate: false },
-            ],
+            cases: [{ caseId: 'c1', label: 'Path 1', condition: '${x} == 1' }],
           }}
         />
       )

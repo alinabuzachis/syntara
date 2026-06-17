@@ -2,7 +2,6 @@ import { Content, ContentVariants, EmptyState, EmptyStateBody, Label, StackItem,
 import { RhUiKeyIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useCallback, useState } from 'react'
-import { Link } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { flexCenteredBothAxes } from '../../../app/flexCenteredBothAxes'
@@ -11,6 +10,7 @@ import { NxPanelContentStack } from '../../../components/layout/NxPanelContentSt
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import type { PaginationFooterProps } from '../../../components/table/PaginationFooter'
+import { Link } from '../../../hooks/routing/Link'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
@@ -102,7 +102,7 @@ export function SelectUserStep({
           <NxEmptyStateFilter clearAllFilters={usersFilter.clearAllFilters} />
         </StackItem>
       ) : (
-        <NxScrollableTableContainer aria-label="Select a user" footer={footerProps} useFixedLayout={false}>
+        <NxScrollableTableContainer caption="Select a user" footer={footerProps} useFixedLayout={false}>
           <Thead>
             <Tr>
               <Th screenReaderText="Select" className="pf-v6-c-table__check" />
@@ -218,7 +218,7 @@ export function SelectIdentityStep({
       )}
       {identities.length > 0 && (
         <NxScrollableTableContainer
-          aria-label="Select an identity"
+          caption="Select an identity"
           useFixedLayout={false}
           footer={{
             page,

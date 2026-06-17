@@ -2,14 +2,15 @@ import { Button, EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter
 import { RhUiArrowLeftIcon, RhUiSearchIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
-import { useParams, useSearch } from 'wouter'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import { EmptyStateAccessDenied } from '../../../../components/EmptyStateAccessDenied'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { navigate } from '../../../../hooks/routing/navigate'
+import { useParams } from '../../../../hooks/routing/useParams'
+import { useSearch } from '../../../../hooks/routing/useSearch'
 import { useCanI } from '../../../../hooks/useCanI'
 import { detachPromise } from '../../../../utils/detachPromise'
 

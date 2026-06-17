@@ -17,6 +17,7 @@ from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph, _
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     NodeSettingsBase,
     NodeSettingsCof,
+    NodeSettingsCofDisabled,
     NodeSettingsFull,
     NodeSettingsNoRetry,
 )
@@ -154,6 +155,25 @@ class TestParseNodeSettings:
         settings = _parse_node_settings("http_request", None)
         assert isinstance(settings, NodeSettingsFull)
         assert settings.retry_policy is None
+
+    def test_converge_rejects_disabled(self) -> None:
+        with pytest.raises(ValidationError):
+            _parse_node_settings("converge", {"disabled": True})
+
+    def test_wait_gets_cof_disabled(self) -> None:
+        settings = _parse_node_settings("wait", {"disabled": True, "continue_on_failure": True})
+        assert isinstance(settings, NodeSettingsCofDisabled)
+        assert settings.disabled is True
+        assert settings.continue_on_failure is True
+
+    def test_wait_rejects_timeout(self) -> None:
+        with pytest.raises(ValidationError):
+            _parse_node_settings("wait", {"timeout": 300})
+
+    def test_script_accepts_disabled(self) -> None:
+        settings = _parse_node_settings("script", {"disabled": True})
+        assert isinstance(settings, NodeSettingsNoRetry)
+        assert settings.disabled is True
 
 
 class TestActivityNodeToDict:

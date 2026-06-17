@@ -28,12 +28,15 @@ vi.mock('../../../hooks/useCanI', () => ({
   useCanI: vi.fn(() => ({ allowed: true, isChecking: false, isError: false })),
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/system-administration/authentication', vi.fn()],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/authentication',
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

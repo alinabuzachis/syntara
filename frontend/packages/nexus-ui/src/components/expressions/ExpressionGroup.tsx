@@ -147,17 +147,20 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
     onChange({ operator: value as LogicalOperator })
   }
 
-  // Styling for visual hierarchy
-  const containerStyle: React.CSSProperties = {
-    border: '1px solid var(--pf-t--global--color--border--default)',
-    borderRadius: 'var(--pf-t--global--border-radius--default)',
-    padding: 'var(--pf-t--global--spacer--sm)',
-    backgroundColor: level === 0 ? 'var(--pf-t--global--color--surface--primary)' : 'transparent',
-    ...(level > 0 && {
-      marginLeft: 'var(--pf-t--global--spacer--md)',
-      borderLeft: '2px solid var(--pf-t--global--color--brand--default)',
-    }),
-  }
+  // Styling for visual hierarchy — level 0 has no border/padding so content fills the
+  // full width of the parent (matching the mode dropdown above). Nested groups get
+  // indented with a left accent border.
+  const containerStyle: React.CSSProperties =
+    level === 0
+      ? { backgroundColor: 'var(--pf-t--global--color--surface--primary)' }
+      : {
+          border: '1px solid var(--pf-t--global--color--border--default)',
+          borderRadius: 'var(--pf-t--global--border-radius--default)',
+          padding: 'var(--pf-t--global--spacer--sm)',
+          marginLeft: 'var(--pf-t--global--spacer--md)',
+          borderLeft: '2px solid var(--pf-t--global--color--brand--default)',
+          backgroundColor: 'transparent',
+        }
 
   return (
     <div style={containerStyle}>

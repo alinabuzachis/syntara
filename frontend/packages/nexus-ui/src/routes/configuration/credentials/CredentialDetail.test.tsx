@@ -76,8 +76,14 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => [`/configuration/credentials/${wouterMock.credentialId ?? ''}`, mockNavigate],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => `/configuration/credentials/${wouterMock.credentialId ?? ''}`,
+}))
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../../hooks/routing/useParams', () => ({
   useParams: () => mockUseParams(),
 }))
 

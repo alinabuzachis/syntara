@@ -365,7 +365,7 @@ export function RolesTab() {
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer
-            aria-label="Roles"
+            caption="Roles"
             isExpandable
             footer={{
               page,

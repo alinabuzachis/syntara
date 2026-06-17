@@ -36,6 +36,12 @@ trap cleanup EXIT
 
 ${MAKE} _deps-install-dev
 
+# Fix SELinux context if running on SELinux-enabled system
+if command -v chcon >/dev/null 2>&1 && getenforce 2>/dev/null | grep -qi enforcing; then
+    echo "🔒 Fixing SELinux context for api_client..."
+    chcon -R -t container_file_t src/api_client 2>/dev/null || true
+fi
+
 echo "🚀 Starting mock Segment, database, Temporal, OPA, and MCP server..."
 APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
 APP_SEGMENT_ENDPOINT="http://mock-segment:${SEGMENT_SERVER_PORT}" \

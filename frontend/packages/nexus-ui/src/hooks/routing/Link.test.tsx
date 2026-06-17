@@ -9,7 +9,7 @@ import { Link } from './Link'
 import { useLocation } from './useLocation'
 
 function LocationDisplay() {
-  const [path] = useLocation()
+  const path = useLocation()
   return <span data-testid="path">{path}</span>
 }
 

@@ -13,6 +13,7 @@ import {
 import {
   RhUiPlayIcon,
   RhUiCodeIcon,
+  RhUiCheckCircleIcon,
   RhUiExportIcon,
   RhUiHistoryIcon,
   RhUiImportIcon,
@@ -58,11 +59,14 @@ type WorkflowKebabMenuProps = Readonly<{
   isKebabOpen: boolean
   publishedVersion: number | null
   dispatch: Dispatch<BuilderAction>
-  markDirty: () => void
   handleToggleHistory: () => void
   handleToggleDetails: () => void
   onUnpublish: () => void
   builderPermissions: BuilderPermissions
+  importFileRef: React.RefObject<HTMLInputElement | null>
+  handleImportFile: (event: React.ChangeEvent<HTMLInputElement>) => void
+  handleExport: () => void
+  handleVerify: () => void
 }>
 
 function WorkflowKebabMenu({
@@ -71,14 +75,15 @@ function WorkflowKebabMenu({
   isKebabOpen,
   publishedVersion,
   dispatch,
-  markDirty,
   handleToggleHistory,
   handleToggleDetails,
   onUnpublish,
   builderPermissions,
+  importFileRef,
+  handleImportFile,
+  handleExport,
+  handleVerify,
 }: WorkflowKebabMenuProps) {
-  const { importFileRef, handleImportFile, handleExport } = useWorkflowImportExport({ dispatch, markDirty })
-
   const renderKebabMenuToggle = useCallback(
     (toggleRef: Ref<MenuToggleElement>) => (
       <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
@@ -125,6 +130,12 @@ function WorkflowKebabMenu({
         <Divider />
         <DropdownGroup label="Actions">
           <DropdownList>
+            <DropdownItem onClick={handleVerify}>
+              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <RhUiCheckCircleIcon />
+              </Icon>
+              Verify workflow
+            </DropdownItem>
             <DropdownItem onClick={handleExport}>
               <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
                 <RhUiExportIcon />
@@ -384,6 +395,11 @@ export function BuilderEditorToolbar({
   triggers,
   builderPermissions,
 }: BuilderEditorToolbarProps) {
+  const { importFileRef, handleImportFile, handleExport, handleVerify, isVerifying } = useWorkflowImportExport({
+    dispatch,
+    markDirty,
+  })
+
   if (!builderPermissions.canEdit && hasNoWorkflowNodes && isNew) {
     return null
   }
@@ -459,6 +475,15 @@ export function BuilderEditorToolbar({
         </>
       )}
 
+      {isVerifying && (
+        <>
+          <Divider orientation={{ default: 'vertical' }} />
+          <Button variant="plain" isLoading isAriaDisabled>
+            Verifying...
+          </Button>
+        </>
+      )}
+
       <Divider orientation={{ default: 'vertical' }} />
       <WorkflowKebabMenu
         isNew={isNew}
@@ -466,11 +491,14 @@ export function BuilderEditorToolbar({
         isKebabOpen={isKebabOpen}
         publishedVersion={publishedVersion}
         dispatch={dispatch}
-        markDirty={markDirty}
         handleToggleHistory={handleToggleHistory}
         handleToggleDetails={handleToggleDetails}
         onUnpublish={onUnpublish}
         builderPermissions={builderPermissions}
+        importFileRef={importFileRef}
+        handleImportFile={handleImportFile}
+        handleExport={handleExport}
+        handleVerify={handleVerify}
       />
     </>
   )

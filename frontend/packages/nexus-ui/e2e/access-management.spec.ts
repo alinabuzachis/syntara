@@ -162,10 +162,10 @@ test.describe('Access Management — Roles Tab Filtering', () => {
     await expect(nameChipGroup.getByText('admin')).toBeVisible()
 
     // Clear all filters
-    await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
+    await app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' }).click()
 
     // Filter chips gone from toolbar, URL clean
-    await expect(app.locator('#filter-toolbar .pf-v6-c-label-group')).toHaveCount(0)
+    await expect(app.getByRole('search', { name: 'Filters' }).getByRole('list')).toHaveCount(0)
     expect(app.url()).not.toContain('name%5Bcontains%5D')
   })
 })
@@ -234,7 +234,7 @@ test.describe('Access Management — Roles Tab Sorting', () => {
     expect(app.url()).toContain('sort=')
 
     // Clear filters
-    await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
+    await app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' }).click()
 
     // Filter gone, sort preserved
     expect(app.url()).not.toContain('name%5Bcontains%5D')

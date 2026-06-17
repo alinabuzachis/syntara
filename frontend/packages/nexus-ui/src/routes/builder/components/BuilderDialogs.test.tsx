@@ -46,7 +46,7 @@ function renderDialogs(overrides: Partial<React.ComponentProps<typeof BuilderDia
     activityNameMap: new Map(),
     handleApprovalClose: vi.fn(),
     triggerName: 'Manual Trigger',
-    testStepDialog: {
+    runStepDialog: {
       isOpen: false,
       item: null,
       open: vi.fn(),
@@ -162,7 +162,7 @@ describe('BuilderDialogs', () => {
       handleApprovalClose: vi.fn(),
       triggerName: 'Manual Trigger',
       triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
-      testStepDialog: {
+      runStepDialog: {
         isOpen: false,
         item: null,
         open: vi.fn(),

@@ -1,7 +1,6 @@
-import type { NodeSettings } from '@ansible/nexus-contracts'
+import type { Activity } from '@ansible/nexus-contracts'
 import {
   FormGroup,
-  FormHelperText,
   FormSelect,
   FormSelectOption,
   HelperText,
@@ -10,27 +9,117 @@ import {
   StackItem,
   TextArea,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { TagInput } from '../../../components/forms/TagInput'
+import { HelpPopover } from '../../../components/expressions/HelpPopover'
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
 
 import { approvalFormSchema, type ApprovalFormData } from './approvalFormSchema'
+import {
+  APPROVER_GROUPS_EMPTY,
+  APPROVER_GROUPS_HELPER_TEXT,
+  APPROVER_GROUPS_LABEL,
+  APPROVER_GROUPS_LOADING,
+  APPROVER_GROUPS_PLACEHOLDER,
+  APPROVER_GROUPS_WARNING,
+  APPROVER_USERS_EMPTY,
+  APPROVER_USERS_HELPER_TEXT,
+  APPROVER_USERS_LABEL,
+  APPROVER_USERS_LOADING,
+  APPROVER_USERS_PLACEHOLDER,
+} from './approverConstants'
+import { ApproverMultiSelect } from './ApproverMultiSelect'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
+import { useApprovalDecideGroups } from './useApprovalDecideGroups'
+import { useApprovalDecideUsers } from './useApprovalDecideUsers'
 
+// Approver user type
+type ApproverUser = Readonly<{ id: string; username: string }>
+
+// Component for approver users multi-select
+function ApproverUsersSelect({
+  value,
+  onChange,
+  users,
+  isLoading,
+  validationError,
+}: Readonly<{
+  value: readonly string[]
+  onChange: (value: string[]) => void
+  users: ReadonlyArray<ApproverUser>
+  isLoading: boolean
+  validationError?: Readonly<{ message?: string }>
+}>) {
+  return (
+    <ApproverMultiSelect<ApproverUser>
+      value={value}
+      onChange={onChange}
+      items={users}
+      isLoading={isLoading}
+      validationError={validationError}
+      getItemId={(item) => item.id}
+      getItemValue={(item) => item.username}
+      getItemLabel={(item) => item.username}
+      placeholderText={APPROVER_USERS_PLACEHOLDER}
+      emptyText={APPROVER_USERS_EMPTY}
+      loadingText={APPROVER_USERS_LOADING}
+      helperText={APPROVER_USERS_HELPER_TEXT}
+    />
+  )
+}
+
+// Approver group type
+type ApproverGroup = Readonly<{ id: string; name: string }>
+
+// Component for approver groups multi-select
+function ApproverGroupsSelect({
+  value,
+  onChange,
+  groups,
+  isLoading,
+  validationError,
+}: Readonly<{
+  value: readonly string[]
+  onChange: (value: string[]) => void
+  groups: ReadonlyArray<ApproverGroup>
+  isLoading: boolean
+  validationError?: Readonly<{ message?: string }>
+}>) {
+  return (
+    <ApproverMultiSelect<ApproverGroup>
+      value={value}
+      onChange={onChange}
+      items={groups}
+      isLoading={isLoading}
+      validationError={validationError}
+      getItemId={(item) => item.id}
+      getItemValue={(item) => item.name}
+      getItemLabel={(item) => item.name}
+      placeholderText={APPROVER_GROUPS_PLACEHOLDER}
+      emptyText={APPROVER_GROUPS_EMPTY}
+      loadingText={APPROVER_GROUPS_LOADING}
+      helperText={APPROVER_GROUPS_HELPER_TEXT}
+    />
+  )
+}
+
+type NodeSettings = Activity['settings']
+
+// Data structure for form submission (name + API approval definition)
 export type ApprovalFormSubmitData = {
   name: string
-  approvers: string[]
-  prompt: string
+  approver_users?: string[] // Usernames who can approve
+  approver_groups?: string[] // Group names whose members can approve
+  prompt?: string
   fallback_decision?: 'approve' | 'reject'
   /** How long (in seconds) the approver has to respond. Stored in config.decision_window. */
   decision_window?: number
@@ -56,14 +145,20 @@ function ApprovalFormFields({
   onHeaderContentChange,
   validationErrors,
 }: {
-  initialApprovers: string[]
   onHeaderContentChange?: (content: ReactNode | null) => void
-  validationErrors?: { approvers?: { message?: string } }
+  validationErrors?: { approver_users?: { message?: string }; approver_groups?: { message?: string } }
 }) {
   const { register, control, setValue } = useFormContext<ApprovalFormData>()
   const decisionWindow = useWatch({ control, name: 'decision_window' })
   const { defaults } = useWorkflowEngineDefaults()
   const approvalTimeoutDefault = defaults?.timeoutSeconds.approval ?? null
+
+  // Get the workflow's project ID (not the UI-selected project, which can diverge on deep links / navigation)
+  const workflowProjectId = useWorkflowStore((state) => state.projectId)
+
+  // Fetch users with approval:decide permission and all groups
+  const { users, isLoading: isLoadingUsers } = useApprovalDecideUsers(workflowProjectId)
+  const { groups, isLoading: isLoadingGroups } = useApprovalDecideGroups()
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="approval-name" ariaLabel="Name" />,
@@ -80,42 +175,46 @@ function ApprovalFormFields({
   const parametersContent = (
     <Stack hasGutter>
       <StackItem>
-        <FormGroup label="Usernames to notify" isRequired fieldId="approval-approvers">
+        <FormGroup label={APPROVER_USERS_LABEL} fieldId="approval-approver-users">
           <Controller
-            name="approvers"
+            name="approver_users"
             control={control}
-            rules={{ required: true }}
-            render={({ field }) => {
-              const approversList = field.value
-                ? field.value
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                : []
-              return (
-                <>
-                  <TagInput
-                    id="approval-approvers-inline-input"
-                    value={approversList}
-                    onChange={(arr) => field.onChange(arr.join(', '))}
-                    ariaLabel="Add approver"
-                    placeholder="username1"
-                    helperText={
-                      validationErrors?.approvers ? undefined : 'Type a username and press Enter or comma to add'
-                    }
-                  />
-                  {validationErrors?.approvers && (
-                    <FormHelperText>
-                      <HelperText>
-                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                          {validationErrors.approvers.message}
-                        </HelperTextItem>
-                      </HelperText>
-                    </FormHelperText>
-                  )}
-                </>
-              )
-            }}
+            render={({ field: { value, onChange } }) => (
+              <ApproverUsersSelect
+                value={value ?? []}
+                onChange={onChange}
+                users={users}
+                isLoading={isLoadingUsers}
+                validationError={validationErrors?.approver_users}
+              />
+            )}
+          />
+        </FormGroup>
+      </StackItem>
+      <StackItem>
+        <FormGroup
+          label={APPROVER_GROUPS_LABEL}
+          fieldId="approval-approver-groups"
+          labelHelp={
+            <HelpPopover
+              ariaLabel="Approver groups help"
+              headerContent="Empty group warning"
+              bodyContent={APPROVER_GROUPS_WARNING}
+            />
+          }
+        >
+          <Controller
+            name="approver_groups"
+            control={control}
+            render={({ field: { value, onChange } }) => (
+              <ApproverGroupsSelect
+                value={value ?? []}
+                onChange={onChange}
+                groups={groups}
+                isLoading={isLoadingGroups}
+                validationError={validationErrors?.approver_groups}
+              />
+            )}
           />
         </FormGroup>
       </StackItem>
@@ -155,7 +254,7 @@ function ApprovalFormFields({
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Decision window" fieldId="approval-decision-window-days">
+        <FormGroup label="Decision window" fieldId="approval-decision-window">
           <Stack hasGutter>
             <StackItem>
               <DurationInput
@@ -190,11 +289,10 @@ function ApprovalFormFields({
 }
 
 export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
-  const initialApprovers = props.initialData?.approvers ?? []
-
   const defaultValues: ApprovalFormData = {
     name: props.initialData?.name ?? '',
-    approvers: initialApprovers.join(', '),
+    approver_users: props.initialData?.approver_users ?? [],
+    approver_groups: props.initialData?.approver_groups ?? [],
     prompt: props.initialData?.prompt ?? '',
     fallback_decision: props.initialData?.fallback_decision ?? 'reject',
     decision_window: props.initialData?.decision_window,
@@ -202,15 +300,11 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
   }
 
   const handleSubmit = (data: ApprovalFormData) => {
-    const approversList = data.approvers
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
-
     props.onSubmit({
       name: data.name.trim(),
-      approvers: approversList,
-      prompt: data.prompt.trim(),
+      approver_users: data.approver_users && data.approver_users.length > 0 ? data.approver_users : undefined,
+      approver_groups: data.approver_groups && data.approver_groups.length > 0 ? data.approver_groups : undefined,
+      prompt: data.prompt?.trim() || '',
       fallback_decision: data.fallback_decision,
       decision_window: data.decision_window,
       settings: data.settings,
@@ -229,11 +323,7 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="approval-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <ApprovalFormFields
-          initialApprovers={initialApprovers}
-          onHeaderContentChange={props.onHeaderContentChange}
-          validationErrors={errors}
-        />
+        <ApprovalFormFields onHeaderContentChange={props.onHeaderContentChange} validationErrors={errors} />
       </NodeFormContainer>
     </FormProvider>
   )

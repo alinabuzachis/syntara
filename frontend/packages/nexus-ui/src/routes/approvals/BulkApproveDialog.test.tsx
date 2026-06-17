@@ -16,19 +16,19 @@ describe('BulkApproveDialog', () => {
   it('renders modal with correct title', () => {
     render(<BulkApproveDialog {...defaultProps} />)
 
-    expect(screen.getByRole('dialog', { name: /approve 2 steps/i })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /approve 2 approval steps/i })).toBeInTheDocument()
   })
 
   it('renders singular title for single approval', () => {
     render(<BulkApproveDialog {...defaultProps} approvalCount={1} />)
 
-    expect(screen.getByRole('dialog', { name: /approve 1 step$/i })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /approve 1 approval step$/i })).toBeInTheDocument()
   })
 
   it('displays approval count message', () => {
     render(<BulkApproveDialog {...defaultProps} />)
 
-    expect(screen.getByText(/You are about to approve 2 steps/)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to approve 2 approval steps/)).toBeInTheDocument()
   })
 
   it('shows note field by default', () => {
@@ -112,19 +112,19 @@ describe('BulkApproveDialog', () => {
   it('displays approval count in message', () => {
     render(<BulkApproveDialog {...defaultProps} />)
 
-    expect(screen.getByText(/You are about to approve 2 steps/)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to approve 2 approval steps/)).toBeInTheDocument()
   })
 
   it('displays singular form for single approval', () => {
     render(<BulkApproveDialog {...defaultProps} approvalCount={1} />)
 
-    expect(screen.getByText(/You are about to approve 1 step\./)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to approve 1 approval step\./)).toBeInTheDocument()
   })
 
   it('displays plural form for multiple approvals', () => {
     render(<BulkApproveDialog {...defaultProps} approvalCount={2} />)
 
-    expect(screen.getByText(/You are about to approve 2 steps/)).toBeInTheDocument()
+    expect(screen.getByText(/You are about to approve 2 approval steps/)).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

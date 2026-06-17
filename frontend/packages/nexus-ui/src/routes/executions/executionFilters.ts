@@ -83,10 +83,12 @@ export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition =>
  * // Generates query param: status=completed
  * ```
  */
-const EXECUTION_STATUS_OPTIONS = Object.values(ExecutionStatusEnum).map((status) => ({
-  value: status,
-  label: executionStatusDisplayLabels[status] ?? status.charAt(0).toUpperCase() + status.slice(1),
-}))
+const EXECUTION_STATUS_OPTIONS = Object.values(ExecutionStatusEnum)
+  .filter((status): status is keyof typeof executionStatusDisplayLabels => status in executionStatusDisplayLabels)
+  .map((status) => ({
+    value: status,
+    label: executionStatusDisplayLabels[status],
+  }))
 
 export const getExecutionStatusFilterDefinition = (): FilterFieldDefinition => ({
   key: 'status',

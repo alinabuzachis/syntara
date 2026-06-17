@@ -38,7 +38,7 @@
     },
     "nodeSettingsCof": {
       "type": "object",
-      "description": "Settings with continue_on_failure only (converge, loop, wait).",
+      "description": "Settings with continue_on_failure only (converge, loop).",
       "properties": {
         "continue_on_failure": {
           "type": "boolean",
@@ -49,8 +49,12 @@
     },
     "nodeSettingsNoRetry": {
       "type": "object",
-      "description": "Settings with continue_on_failure + timeout (script, agentic, approval). No retry_policy — retry is either not applicable or handled internally by the node's client.",
+      "description": "Settings with disabled, continue_on_failure, and timeout (script, agentic, approval). No retry_policy — retry is either not applicable or handled internally by the node's client.",
       "properties": {
+        "disabled": {
+          "type": "boolean",
+          "description": "When true, the node is skipped during execution. Downstream nodes still execute but receive no output from this node."
+        },
         "continue_on_failure": {
           "type": "boolean",
           "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
@@ -67,6 +71,10 @@
       "type": "object",
       "description": "Full settings with continue_on_failure, timeout, and retry_policy (http_request, aap_job_template, aap_workflow_job_template).",
       "properties": {
+        "disabled": {
+          "type": "boolean",
+          "description": "When true, the node is skipped during execution. Downstream nodes still execute but receive no output from this node."
+        },
         "continue_on_failure": {
           "type": "boolean",
           "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."

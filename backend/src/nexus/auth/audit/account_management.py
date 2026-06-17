@@ -1,6 +1,7 @@
 """Audit events and handlers for account management operations."""
 
 from dataclasses import dataclass
+from urllib.parse import quote
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
@@ -66,6 +67,8 @@ class AccountEnableHandler(AuditEventHandler[AccountEnableEvent]):
             structured_data=data,
             actor_type=ActorType.USER,
             actor_username=event.actor_username,
+            resource_urn=f"urn:nexus:user:{quote(event.target_username, safe='')}",
+            resource_name=event.target_username,
         )
 
 
@@ -93,4 +96,6 @@ class PasswordResetHandler(AuditEventHandler[PasswordResetEvent]):
             structured_data=data,
             actor_type=ActorType.USER,
             actor_username=event.actor_username,
+            resource_urn=f"urn:nexus:user:{quote(event.target_username, safe='')}",
+            resource_name=event.target_username,
         )

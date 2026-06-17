@@ -18,7 +18,7 @@ type UserPermissions = {
 /**
  * Permission checks for user management actions.
  *
- * Checks: user:create, user:update, user:delete, admin:revocation:revoke.
+ * Checks: user:create, user:update, user:delete, admin:revocation:execute.
  * All values default to `false` (safe-false) until the checks resolve.
  */
 export function useUserPermissions(): UserPermissions {
@@ -26,7 +26,7 @@ export function useUserPermissions(): UserPermissions {
   const { allowed: canCreate, isChecking: isCheckingCreate } = useCanI('create', resourceType)
   const { allowed: canUpdate, isChecking: isCheckingUpdate } = useCanI('update', resourceType)
   const { allowed: canDelete, isChecking: isCheckingDelete } = useCanI('delete', resourceType)
-  const { allowed: canRevoke, isChecking: isCheckingRevoke } = useCanI('revoke', 'admin:revocation')
+  const { allowed: canRevoke, isChecking: isCheckingRevoke } = useCanI('execute', 'admin:revocation')
 
   return {
     canCreate,
@@ -38,7 +38,7 @@ export function useUserPermissions(): UserPermissions {
       create: permissionTooltip('create a user', `${resourceType}:create`),
       update: permissionTooltip('edit this user', `${resourceType}:update`),
       delete: permissionTooltip('delete this user', `${resourceType}:delete`),
-      revoke: permissionTooltip('revoke tokens for this user', 'admin:revocation:revoke'),
+      revoke: permissionTooltip('revoke tokens for this user', 'admin:revocation:execute'),
     },
   }
 }

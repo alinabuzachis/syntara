@@ -173,6 +173,109 @@ describe('buildWorkflowDefinition', () => {
 
       expect(result.nodes[0]).toHaveProperty('settings', { timeout: 300, continue_on_failure: true })
     })
+
+    it('transforms approval node approver users from objects to string arrays', () => {
+      const activities: Activity[] = [
+        {
+          id: 'approval-1',
+          type: 'approval',
+          parameters: {
+            approver_users: [
+              { id: 'user-1', username: 'alice' },
+              { id: 'user-2', username: 'bob' },
+            ],
+          },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      expect(result.nodes[0].parameters).toEqual({
+        approver_users: ['alice', 'bob'],
+      })
+    })
+
+    it('transforms approval node approver groups from objects to string arrays', () => {
+      const activities: Activity[] = [
+        {
+          id: 'approval-1',
+          type: 'approval',
+          parameters: {
+            approver_groups: [
+              { id: 'group-1', name: 'admins' },
+              { id: 'group-2', name: 'reviewers' },
+            ],
+          },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      expect(result.nodes[0].parameters).toEqual({
+        approver_groups: ['admins', 'reviewers'],
+      })
+    })
+
+    it('transforms both approver users and groups in approval node', () => {
+      const activities: Activity[] = [
+        {
+          id: 'approval-1',
+          type: 'approval',
+          parameters: {
+            approver_users: [{ id: 'user-1', username: 'alice' }],
+            approver_groups: [{ id: 'group-1', name: 'admins' }],
+            other_field: 'unchanged',
+          },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      expect(result.nodes[0].parameters).toEqual({
+        approver_users: ['alice'],
+        approver_groups: ['admins'],
+        other_field: 'unchanged',
+      })
+    })
+
+    it('handles approver arrays that are already strings', () => {
+      const activities: Activity[] = [
+        {
+          id: 'approval-1',
+          type: 'approval',
+          parameters: {
+            approver_users: ['alice', 'bob'],
+            approver_groups: ['admins'],
+          },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      expect(result.nodes[0].parameters).toEqual({
+        approver_users: ['alice', 'bob'],
+        approver_groups: ['admins'],
+      })
+    })
+
+    it('does not transform approvers for non-approval nodes', () => {
+      const activities: Activity[] = [
+        {
+          id: 'script-1',
+          type: 'script',
+          parameters: {
+            approver_users: [{ id: 'user-1', username: 'alice' }],
+          },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      // Should remain unchanged for non-approval nodes
+      expect(result.nodes[0].parameters).toEqual({
+        approver_users: [{ id: 'user-1', username: 'alice' }],
+      })
+    })
   })
 
   describe('Edge mapping', () => {
@@ -574,6 +677,48 @@ describe('buildWorkflowDefinition', () => {
 
       // Should transform both && to 'and' and 'contains' to 'in'
       expect(result.nodes[0].parameters.condition).toBe('(${age} >= 18 and "Smith" in ${name})')
+    })
+
+    it('transforms switch case conditions from UI to backend format', () => {
+      const activities: Activity[] = [
+        {
+          id: 'switch-1',
+          type: 'switch',
+          name: 'Route',
+          parameters: {
+            cases: [
+              { port: 'case_0', label: 'Path 1', condition: '!(${status} == "blocked")' },
+              { port: 'case_1', label: 'Path 2', condition: '${priority} > 5' },
+            ],
+            default_port: 'default',
+          },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      const cases = result.nodes[0].parameters.cases as Array<{ condition: string }>
+      expect(cases[0].condition).toBe('not (${status} == "blocked")')
+      expect(cases[1].condition).toBe('${priority} > 5')
+    })
+
+    it('transforms switch case conditions with contains operator', () => {
+      const activities: Activity[] = [
+        {
+          id: 'switch-1',
+          type: 'switch',
+          name: 'Route',
+          parameters: {
+            cases: [{ port: 'case_0', label: 'Path 1', condition: '${name} contains "admin"' }],
+            default_port: 'default',
+          },
+        },
+      ]
+
+      const result = buildWorkflowDefinition('Test', '', activities, [], { edges: [] })
+
+      const cases = result.nodes[0].parameters.cases as Array<{ condition: string }>
+      expect(cases[0].condition).toBe('"admin" in ${name}')
     })
   })
 

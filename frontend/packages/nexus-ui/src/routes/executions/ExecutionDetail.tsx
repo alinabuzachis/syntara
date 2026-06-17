@@ -12,7 +12,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import type React from 'react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useParams, useSearch } from 'wouter'
 
 import { executionsClient } from '../../client'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
@@ -21,6 +20,9 @@ import { NxPanel } from '../../components/layout/NxPanel'
 import { ResizableDivider } from '../../components/ResizableDivider'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
+import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useParams } from '../../hooks/routing/useParams'
+import { useSearch } from '../../hooks/routing/useSearch'
 import { useDialogState } from '../../hooks/useDialogState'
 import type { FilterConfig } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
@@ -296,7 +298,7 @@ export default function ExecutionDetail() {
   const executionsDocLink = useDocLink('executions')
   const params = useParams<{ executionId: string }>()
   const executionId = params.executionId
-  const [, setLocation] = useLocation()
+  const setLocation = useNavigate()
   const searchParams = useSearch()
 
   const { reset } = useExecutionStore.getState()

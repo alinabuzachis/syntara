@@ -142,6 +142,27 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/workflows/validate': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Validate workflow definition
+     * @description Validate a workflow definition without creating or updating a workflow.
+     *     Returns validation results indicating whether the definition is valid.
+     */
+    post: operations['validate_workflow']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -723,12 +744,26 @@ export interface components {
     'approval.schema_configSchema': {
       credential_id?: components['schemas']['credential_id']
       /**
-       * @description Time limit in seconds for approver to respond. If the timeout expires, the decision is set to 'expired' and the workflow follows the rejection path. If not set, waits indefinitely until approved, rejected, or workflow is cancelled.
-       * @example 604800
-       * @example 86400
-       * @example 3600
+       * @description List of usernames who can approve this request. Leave empty to allow any user with approval:decide permission.
        */
-      approver_timeout?: number
+      approver_users?: string[]
+      /**
+       * @description List of group names whose members can approve this request. Leave empty to allow any user with approval:decide permission.
+       */
+      approver_groups?: string[]
+      /**
+       * @description Message to display to approvers when requesting approval.
+       */
+      prompt?: string
+      /**
+       * @description Decision to apply when the approval cannot complete for any reason and continue_on_failure is true. Defaults to 'reject'.
+       * @enum {string}
+       */
+      fallback_decision?: 'approve' | 'reject'
+      /**
+       * @description How long (in seconds) the approver has to respond before the approval expires. Falls back to the system-configured default if not specified.
+       */
+      decision_window?: number
     }
     'condition.schema_configSchema': {
       /**
@@ -994,6 +1029,25 @@ export interface components {
      *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
      *     }
      */
+    /**
+     * WorkflowValidationResult
+     * @description Result of validating a workflow definition
+     */
+    /** @description A single validation error with optional node reference */
+    WorkflowValidationError: {
+      /** @description Human-readable error message */
+      message: string
+      /** @description ID of the node this error relates to, or null for workflow-level errors */
+      node_id: string | null
+    }
+    WorkflowValidationResult: {
+      /** @description Whether the workflow definition is valid */
+      valid: boolean
+      /** @description Validation errors that prevent the workflow from being used */
+      errors: components['schemas']['WorkflowValidationError'][]
+      /** @description Non-blocking validation warnings */
+      warnings: string[]
+    }
     ErrorData: {
       /**
        * Type
@@ -1577,6 +1631,53 @@ export interface operations {
       }
       /** @description Workflow not found */
       404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  validate_workflow: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          workflow_definition: components['schemas']['workflow_definition.schema']
+        }
+      }
+    }
+    responses: {
+      /** @description Workflow definition is valid */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowValidationResult']
+        }
+      }
+      /** @description Invalid workflow definition */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData'] & {
+            /** @description Structured validation result with per-node errors */
+            validation_result?: components['schemas']['WorkflowValidationResult']
+          }
+        }
+      }
+      /** @description Validation error */
+      422: {
         headers: {
           [name: string]: unknown
         }

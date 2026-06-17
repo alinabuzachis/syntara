@@ -239,17 +239,6 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByLabelText('Webhook path')).toBeInTheDocument()
     })
 
-    it('shows HTTP method field as disabled POST', () => {
-      renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />
-      )
-
-      const httpMethodInput = screen.getByRole('textbox', { name: 'HTTP method' })
-      expect(httpMethodInput).toBeInTheDocument()
-      expect(httpMethodInput).toHaveValue('POST')
-      expect(httpMethodInput).toBeDisabled()
-    })
-
     it('shows URL display with base URL', () => {
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER }} />

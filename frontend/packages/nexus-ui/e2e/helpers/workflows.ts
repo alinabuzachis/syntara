@@ -440,8 +440,10 @@ export async function addScriptNode(page: Page, name: string, code: string) {
   await expect(saveButton).toBeEnabled({ timeout: 20000 })
   await saveButton.click()
 
-  // Wait for panel to close (Save and close closes it automatically)
-  await expect(panel).toHaveCount(0, { timeout: 10000 })
+  // Wait for the Script form to close — AddNodePanel unmounts immediately when Script
+  // is selected so panel.toHaveCount(0) passes instantly and is not a useful gate.
+  // Waiting for the Save button to leave the DOM is the real signal that the form unmounted.
+  await expect(page.getByRole('button', { name: 'Save and close' })).not.toBeAttached({ timeout: 15000 })
 
   // Wait for UI to stabilize
   await waitForUIReady(page)

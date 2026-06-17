@@ -1,7 +1,10 @@
 import type { ThProps } from '@patternfly/react-table'
 import { SortByDirection } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
-import { useLocation, useSearch } from 'wouter'
+
+import { useLocation } from './routing/useLocation'
+import { useNavigate } from './routing/useNavigate'
+import { useSearch } from './routing/useSearch'
 
 export type UseSortStateResult = {
   activeSortIndex: number | undefined
@@ -12,7 +15,8 @@ export type UseSortStateResult = {
 
 export function useSortState(sortFieldByColumn: Record<number, string>, onSortChange?: () => void): UseSortStateResult {
   const search = useSearch()
-  const [location, navigate] = useLocation()
+  const location = useLocation()
+  const navigate = useNavigate()
   const searchParams = useMemo(() => new URLSearchParams(search), [search])
 
   const { activeSortIndex, sortDirection } = useMemo(() => {

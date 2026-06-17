@@ -6,7 +6,7 @@ import { IntegrationEmptyState } from './IntegrationEmptyState'
 
 // Mock wouter navigation
 const mockNavigate = vi.fn()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: (...args: unknown[]): void => {
     mockNavigate(...args)
   },
@@ -48,7 +48,7 @@ describe('IntegrationEmptyState', () => {
   it('renders empty state image', () => {
     render(<IntegrationEmptyState />)
 
-    const image = screen.getByRole('img', { name: 'No data' })
+    const image = screen.getByRole('img', { name: 'No integrations configured' })
     expect(image).toBeInTheDocument()
   })
 })

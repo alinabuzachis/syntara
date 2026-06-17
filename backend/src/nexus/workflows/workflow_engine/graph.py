@@ -10,6 +10,7 @@ from nexus.workflows.workflow_engine.graph_backend import IGraphBackend, InMemor
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     NodeSettingsBase,
     NodeSettingsCof,
+    NodeSettingsCofDisabled,
     NodeSettingsFull,
     NodeSettingsNoRetry,
     NodeType,
@@ -22,7 +23,7 @@ _NODE_SETTINGS_CLASS: dict[str, type[NodeSettingsBase]] = {
     NodeType.SCRIPT: NodeSettingsNoRetry,
     NodeType.AGENTIC: NodeSettingsNoRetry,
     NodeType.APPROVAL: NodeSettingsNoRetry,
-    NodeType.WAIT: NodeSettingsCof,
+    NodeType.WAIT: NodeSettingsCofDisabled,
     NodeType.CONVERGE: NodeSettingsCof,
     NodeType.LOOP: NodeSettingsCof,
     NodeType.CONDITION: NodeSettingsBase,

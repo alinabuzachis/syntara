@@ -36,6 +36,7 @@ from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
 from nexus.workflows.audit.workflow_start import WorkflowStartEvent
 from nexus.workflows.models.activity_execution import TERMINAL_ACTIVITY_STATUSES, ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.utils.datetime import ensure_timezone_aware
@@ -94,6 +95,7 @@ class ExecutionMonitorMetadata:
         pending_activity_updates: Map of event IDs to activity update data awaiting database sync
         pending_sync_event_ids: Set of event IDs that need to be synced to database
         request_id: Optional X-Request-Id (UUID) from the originating HTTP request, for telemetry correlation
+        workflow_name: Name of the workflow (for audit events)
 
     """
 
@@ -106,6 +108,7 @@ class ExecutionMonitorMetadata:
     workflow_id: UUID | None = None
     request_id: UUID | None = None
     workflow_run_timeout_seconds: float | None = None
+    workflow_name: str | None = None
 
 
 class ActivitySyncService:
@@ -331,6 +334,15 @@ class ActivitySyncService:
             workflow_version_id = execution.workflow_version_id
             last_processed_event_id = execution.last_processed_event_id
 
+            # Load workflow name for audit events
+            workflow_result = await session.exec(select(Workflow).where(Workflow.id == workflow_id))
+            workflow = workflow_result.one_or_none()
+            if not workflow:
+                msg = f"Workflow {workflow_id} not found in database"
+                logger.error(msg)
+                raise RuntimeError(msg)
+            workflow_name = workflow.name
+
         activity_definitions_map = await self._fetch_activity_definitions_map(workflow_version_id)
 
         await self._create_all_activities_upfront(execution_id, activity_definitions_map)
@@ -346,6 +358,7 @@ class ActivitySyncService:
             pending_activity_updates={},
             workflow_id=workflow_id,
             request_id=request_id,
+            workflow_name=workflow_name,
         )
 
     async def _build_activity_index_map(self, execution_id: UUID) -> dict[str, int]:
@@ -1060,6 +1073,7 @@ class ActivitySyncService:
                         error_count=error_count,
                         error_type=error_type,
                         request_id=metadata.request_id,
+                        workflow_name=metadata.workflow_name,
                     )
                 )
 
@@ -1075,6 +1089,7 @@ class ActivitySyncService:
                             elapsed_time_ms=elapsed_time_ms,
                             error_type="WorkflowTimedOut",
                             request_id=metadata.request_id,
+                            workflow_name=metadata.workflow_name,
                         )
                     )
 
@@ -1341,6 +1356,7 @@ class ActivitySyncService:
                             retry_count=timeout_info["retry_count"],
                             error_type="ActivityTimedOut",
                             request_id=metadata.request_id,
+                            workflow_name=metadata.workflow_name,
                         )
                     )
 
@@ -1360,6 +1376,7 @@ class ActivitySyncService:
                                 error_type=retry_info["error_type"],
                                 retry_reason=retry_info["retry_reason"],
                                 request_id=metadata.request_id,
+                                workflow_name=metadata.workflow_name,
                             )
                         )
 

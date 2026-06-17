@@ -123,6 +123,13 @@ repos:
         pass_filenames: false
         files: ^backend/.*\.py$
 
+      - id: backend-check-openapi-breaking
+        name: 'backend: check openapi breaking changes against main'
+        entry: make -C backend check-openapi-breaking-pre-commit
+        language: system
+        pass_filenames: false
+        files: ^backend/src/nexus/schemas/openapi\.yaml$
+
       - id: backend-verify-test-structure
         name: 'backend: verify test structure matches source'
         entry: make -C backend verify-test-structure

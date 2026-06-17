@@ -17,13 +17,19 @@ vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/', vi.fn()],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/',
+}))
+
+vi.mock('../../../hooks/routing/useParams', () => ({
   useParams: () => ({}),
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

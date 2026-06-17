@@ -10,15 +10,19 @@ import pytest
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
+    from tests.fixtures.factories import (
+        CredentialFactory,
+        ProjectFactory,
+        RoleFactory,
+        UserFactory,
+        UserRoleAssignmentFactory,
+        WorkflowFactory,
+    )
+
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
 from tests.e2e.conftest import api_for
-from tests.e2e.fixtures.factories import (
-    ResourceTracker,
-    assign_system_role,
-    create_system_role,
-)
 
 pytestmark = [pytest.mark.e2e]
 
@@ -30,38 +34,44 @@ GLOBAL_READ_POLICIES = [
 
 
 @pytest.fixture(scope="module")
-def global_roles_env(admin_api: NexusApiRegistry, nexus_base_url: str):
+def global_roles_env(
+    admin_api: NexusApiRegistry,
+    create_project: ProjectFactory,
+    create_workflow: WorkflowFactory,
+    create_credential: CredentialFactory,
+    create_user: UserFactory,
+    create_role: RoleFactory,
+    assign_system_role: UserRoleAssignmentFactory,
+    nexus_base_url: str,
+):
     """Create two projects, a global role, and a user with that role."""
-    tracker = ResourceTracker(admin_api)
-
     # Create two projects
-    proj_a_id, _ = tracker.project("tc12-a")
-    proj_b_id, _ = tracker.project("tc12-b")
+    proj_a_id, _ = create_project(admin_api, "tc12-a")
+    proj_b_id, _ = create_project(admin_api, "tc12-b")
 
     # Seed workflows in both projects
-    tracker.workflow(proj_a_id, "tc12a")
-    tracker.workflow(proj_b_id, "tc12b")
+    create_workflow(admin_api, proj_a_id, "tc12a")
+    create_workflow(admin_api, proj_b_id, "tc12b")
 
     # Seed credentials in both projects
-    tracker.credential(proj_a_id, "tc12a")
-    tracker.credential(proj_b_id, "tc12b")
+    create_credential(admin_api, proj_a_id, "tc12a")
+    create_credential(admin_api, proj_b_id, "tc12b")
 
     # Create system role
-    role_name = create_system_role(admin_api, "global-reader", GLOBAL_READ_POLICIES)
+    role_name = create_role(admin_api, "global-reader", GLOBAL_READ_POLICIES)
 
     # Create user and assign system role
-    user_id, name, password = tracker.user("tc12-global")
+    user_id, name, password = create_user(admin_api, "tc12-global")
     assign_system_role(admin_api, user_id, role_name)
 
     user_api = api_for(nexus_base_url, name, password)
-    yield {
+    return {
         "proj_a_id": proj_a_id,
         "proj_b_id": proj_b_id,
         "role_name": role_name,
         "user_api": user_api,
         "admin_api": admin_api,
     }
-    tracker.cleanup()
 
 
 class TestGlobalRoles:

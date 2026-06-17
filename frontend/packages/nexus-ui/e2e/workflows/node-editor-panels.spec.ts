@@ -1,11 +1,13 @@
-import { test, expect, toAppUrl } from './fixtures'
-import { addManualTrigger, addScriptNode } from './helpers/v2-nodes'
+import { test, expect, toAppUrl } from '../fixtures'
+import { addAgenticNode, addManualTrigger, addScriptNode } from '../helpers/v2-nodes'
 import {
   buildUniqueName,
+  clickAddConnectedStep,
   closeNodeEditorPanel,
   createBasicWorkflow,
+  fillCodeEditor,
   selectProjectIfRequired,
-} from './helpers/workflows'
+} from '../helpers/workflows'
 
 /** Click the Layout button to reposition nodes within the viewport. */
 async function layoutCanvas(app: import('@playwright/test').Page) {
@@ -42,7 +44,7 @@ test.describe('Node editor panels', () => {
 
     // Output panel: no execution data → "No output data"
     await expect(app.getByText('No output data')).toBeVisible()
-    await expect(app.getByText('Run the workflow to see output data here.')).toBeVisible()
+    await expect(app.getByText('Run the workflow or test this step to see output data here.')).toBeVisible()
 
     // Verify the close button works
     await closeNodeEditorPanel(app)
@@ -287,9 +289,11 @@ test.describe('Node editor panels', () => {
     workflowId = app.url().split('/').pop() ?? workflowId
 
     // --- Verify each node's output data ---
-    // Scope text assertions to the Output panel's container (heading's parent)
-    // to avoid matching the same strings in the script editor (Parameters panel).
-    const outputPanel = app.getByRole('heading', { name: 'Output', exact: true }).locator('..')
+    // Scope text assertions to the Output panel's NxPanel container using the
+    // panelContainer CSS module class (Vite preserves the name in the hashed class).
+    const outputPanel = app.locator('[class*="panelContainer"]').filter({
+      has: app.getByRole('heading', { name: 'Output', exact: true }),
+    })
 
     // Node 1: Gather Info — output has server diagnostics
     await clickNode(app, 'Gather Info')
@@ -524,7 +528,7 @@ test.describe('Node editor panels', () => {
     await expect(app.getByText('Expected output fields')).toBeVisible({ timeout: 10_000 })
 
     // Collapse the upstream node section via the ExpandableSection toggle
-    const nodeToggle = app.getByRole('button', { name: /\[.*Script A.*\]/i })
+    const nodeToggle = app.getByRole('button', { name: 'Script A', exact: true })
     await nodeToggle.click()
     await expect(app.getByText('Expected output fields')).not.toBeVisible()
 
@@ -667,7 +671,7 @@ test.describe('Node editor panels', () => {
     await expect(app.getByText('T status')).toBeVisible()
   })
 
-  test('input panel node selector switches between upstream nodes', async ({ app }) => {
+  test('input panel expandable sections switch between upstream nodes', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-selector')
     await app.goto(toAppUrl('/workflow-builder/new'))
     await selectProjectIfRequired(app)
@@ -777,17 +781,15 @@ test.describe('Node editor panels', () => {
     // View toggle should be visible (execution data exists)
     await expect(app.getByRole('button', { name: 'Schema', pressed: true })).toBeVisible({ timeout: 10_000 })
 
-    // Node selector dropdown should be visible (multiple upstream nodes)
-    // Use the OUIA component type to target the dropdown toggle specifically
-    const dropdown = app.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({ hasText: 'Step B' })
-    await expect(dropdown).toBeVisible({ timeout: 10_000 })
-
-    // Default shows Step B's data (first/closest upstream)
+    // Each upstream node has its own ExpandableSection — Step B is expanded by default (closest upstream)
+    const stepBToggle = app.getByRole('button', { name: 'Step B', exact: true })
+    await expect(stepBToggle).toBeVisible({ timeout: 10_000 })
     await expect(app.getByText('beta')).toBeVisible()
 
-    // Switch to Step A
-    await dropdown.click()
-    await app.getByRole('option', { name: /Step A/i }).click()
+    // Expand Step A section to see its data
+    const stepAToggle = app.getByRole('button', { name: 'Step A', exact: true })
+    await expect(stepAToggle).toBeVisible()
+    await stepAToggle.click()
     await expect(app.getByText('alpha')).toBeVisible()
   })
 
@@ -891,5 +893,350 @@ test.describe('Node editor panels', () => {
     await outputToggle.getByRole('button', { name: 'JSON' }).click()
     await expect(outputToggle.getByRole('button', { name: 'JSON', pressed: true })).toBeVisible()
     await expect(app.getByText('"stdout_json"')).toBeVisible()
+  })
+
+  test('run step button is inline with tabs', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-run-btn')
+    await createBasicWorkflow(app, workflowName, 'Run script')
+
+    await clickNode(app, 'Run script')
+
+    const parametersTab = app.getByRole('tab', { name: 'Parameters' })
+    const runStepButton = app.getByRole('button', { name: 'Run step' })
+
+    await expect(parametersTab).toBeVisible({ timeout: 15_000 })
+    await expect(runStepButton).toBeVisible({ timeout: 15_000 })
+
+    const flexContainer = app.locator('.pf-v6-l-flex').filter({
+      has: app.getByRole('tab', { name: 'Parameters' }),
+    })
+    await expect(flexContainer.getByRole('button', { name: 'Run step' })).toBeVisible()
+  })
+
+  test('mock data pin flow in Input panel', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-mock-pin')
+    await app.goto(toAppUrl('/workflow-builder/new'))
+    await selectProjectIfRequired(app)
+
+    await app.getByRole('button', { name: 'Manual trigger' }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    let panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
+    await fillCodeEditor(app, { value: 'print("alpha")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
+    await fillCodeEditor(app, { value: 'print("beta")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+    await closeNodeEditorPanel(app)
+
+    await selectProjectIfRequired(app)
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+
+    await clickNode(app, 'Script B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 15_000 })
+
+    const inputPanel = app.locator('[class*="panelContainer"]').filter({
+      has: app.getByRole('heading', { name: 'Input', exact: true }),
+    })
+    const setMockButton = inputPanel.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({
+      hasText: 'Set mock data',
+    })
+    await expect(setMockButton).toBeVisible()
+    await setMockButton.click()
+
+    const scriptAOption = app.getByRole('menuitem', { name: 'Script A' })
+    await expect(scriptAOption).toBeVisible()
+    await scriptAOption.click()
+
+    await expect(app.getByText('Editing mock data for:')).toBeVisible()
+    await expect(app.getByRole('button', { name: 'Pin data', exact: true })).toBeVisible()
+    await expect(app.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible()
+
+    await app.getByRole('button', { name: 'Pin data', exact: true }).click()
+
+    await expect(app.getByText('Mock data pinned (1)')).toBeVisible()
+    await expect(
+      inputPanel.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({
+        hasText: 'Unpin data',
+      })
+    ).toBeVisible()
+  })
+
+  test('mock data unpin flow', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-mock-unpin')
+    await app.goto(toAppUrl('/workflow-builder/new'))
+    await selectProjectIfRequired(app)
+
+    await app.getByRole('button', { name: 'Manual trigger' }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    let panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
+    await fillCodeEditor(app, { value: 'print("alpha")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
+    await fillCodeEditor(app, { value: 'print("beta")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+    await closeNodeEditorPanel(app)
+
+    await selectProjectIfRequired(app)
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+
+    await clickNode(app, 'Script B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 15_000 })
+
+    const inputPanel = app.locator('[class*="panelContainer"]').filter({
+      has: app.getByRole('heading', { name: 'Input', exact: true }),
+    })
+    const setMockButton = inputPanel.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({
+      hasText: 'Set mock data',
+    })
+    await expect(setMockButton).toBeVisible({ timeout: 10_000 })
+    await setMockButton.click()
+    await app.getByRole('menuitem', { name: 'Script A' }).click()
+    await app.getByRole('button', { name: 'Pin data', exact: true }).click()
+    await expect(app.getByText('Mock data pinned (1)')).toBeVisible()
+
+    const unpinButton = inputPanel.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({
+      hasText: 'Unpin data',
+    })
+    await unpinButton.click()
+    const unpinOption = app.getByRole('menuitem', { name: 'Script A' })
+    await expect(unpinOption).toBeVisible()
+    await unpinOption.click()
+
+    await expect(app.getByText('Mock data pinned (1)')).not.toBeVisible()
+  })
+
+  test('mock data cancel flow', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-mock-cancel')
+    await app.goto(toAppUrl('/workflow-builder/new'))
+    await selectProjectIfRequired(app)
+
+    await app.getByRole('button', { name: 'Manual trigger' }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    let panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
+    await fillCodeEditor(app, { value: 'print("alpha")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
+    await fillCodeEditor(app, { value: 'print("beta")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+    await closeNodeEditorPanel(app)
+
+    await selectProjectIfRequired(app)
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+
+    await clickNode(app, 'Script B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
+
+    const inputPanel = app.locator('[class*="panelContainer"]').filter({
+      has: app.getByRole('heading', { name: 'Input', exact: true }),
+    })
+    const setMockButton = inputPanel.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({
+      hasText: 'Set mock data',
+    })
+    await setMockButton.click()
+    await app.getByRole('menuitem', { name: 'Script A' }).click()
+    await expect(app.getByRole('button', { name: 'Pin data', exact: true })).toBeVisible()
+
+    await app.getByRole('button', { name: 'Cancel', exact: true }).click()
+
+    await expect(app.getByRole('button', { name: 'Pin data' })).not.toBeVisible()
+    await expect(app.getByText(/Mock data pinned/)).not.toBeVisible()
+  })
+
+  test('schema preview shows expected output fields in predecessor section', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-test-alert')
+    await app.goto(toAppUrl('/workflow-builder/new'))
+    await selectProjectIfRequired(app)
+
+    await app.getByRole('button', { name: 'Manual trigger' }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    let panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
+    await fillCodeEditor(app, { value: 'print("test")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
+    await fillCodeEditor(app, { value: 'print("test2")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+    await closeNodeEditorPanel(app)
+
+    await selectProjectIfRequired(app)
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+
+    await clickNode(app, 'Script B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
+
+    await expect(app.getByText('Expected output fields')).toBeVisible({ timeout: 10_000 })
+
+    const schemaPreview = app.getByRole('tree', { name: 'Schema preview' })
+    await expect(schemaPreview).toBeVisible()
+  })
+
+  test('output panel "Set mock data" opens and closes editor', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-out-mock')
+    await createBasicWorkflow(app, workflowName, 'Run script')
+
+    await clickNode(app, 'Run script')
+    await expect(app.getByRole('heading', { name: 'Output', exact: true })).toBeVisible({ timeout: 10_000 })
+
+    const setMockButtons = app.getByRole('button', { name: 'Set mock data' })
+    const setMockButton = setMockButtons.last()
+    await expect(setMockButton).toBeVisible()
+    await setMockButton.click()
+
+    await expect(app.getByRole('button', { name: 'Pin data', exact: true })).toBeVisible()
+    await expect(app.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible()
+
+    await app.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(app.getByRole('button', { name: 'Pin data', exact: true })).not.toBeVisible()
+  })
+
+  test('pinned data persists across node editor reopens', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-mock-persist')
+    await app.goto(toAppUrl('/workflow-builder/new'))
+    await selectProjectIfRequired(app)
+
+    await app.getByRole('button', { name: 'Manual trigger' }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    let panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script A')
+    await fillCodeEditor(app, { value: 'print("alpha")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+
+    panel = await clickAddConnectedStep(app)
+    await panel.getByRole('button', { name: 'Action', exact: true }).click()
+    await panel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Script B')
+    await fillCodeEditor(app, { value: 'print("beta")' })
+    await app.getByRole('button', { name: 'Save and close' }).click()
+    await closeNodeEditorPanel(app)
+
+    await selectProjectIfRequired(app)
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+
+    await clickNode(app, 'Script B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
+
+    const inputPanel = app.locator('[class*="panelContainer"]').filter({
+      has: app.getByRole('heading', { name: 'Input', exact: true }),
+    })
+    const setMockButton = inputPanel.locator('[data-ouia-component-type="PF6/MenuToggle"]').filter({
+      hasText: 'Set mock data',
+    })
+    await setMockButton.click()
+    await app.getByRole('menuitem', { name: 'Script A' }).click()
+    await app.getByRole('button', { name: 'Pin data', exact: true }).click()
+    await expect(app.getByText('Mock data pinned (1)')).toBeVisible()
+
+    await closeNodeEditorPanel(app)
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).not.toBeVisible()
+
+    await clickNode(app, 'Script B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
+
+    await expect(app.getByText('Mock data pinned (1)')).toBeVisible()
+  })
+
+  test('clicking the copy button on an Input panel field announces the expression was copied', async ({ app }) => {
+    await app.goto(toAppUrl('/workflow-builder/new'))
+    await selectProjectIfRequired(app)
+    await addManualTrigger(app, 'Trigger')
+    await addScriptNode(app, 'Script A', 'print("hello")')
+    await addScriptNode(app, 'Script B', 'print("world")')
+
+    await clickNode(app, 'Script B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByText('Expected output fields')).toBeVisible({ timeout: 10_000 })
+
+    const stdoutLabel = app.getByText('T stdout', { exact: true })
+    await expect(stdoutLabel).toBeVisible()
+    await stdoutLabel.hover()
+
+    // Each tree leaf renders a copy button; the aria-label includes the field path,
+    // anchored to closing } to avoid matching stdout_json.
+    const copyButton = app.getByRole('button', { name: /Copy expression.*\.stdout\}/ })
+    await expect(copyButton).toBeVisible()
+    await copyButton.click()
+
+    // Each tree item has its own live region — scope to avoid strict mode violation
+    // from the 5 sibling role="status" elements.
+    await expect(app.getByRole('treeitem', { name: /T stdout/ }).getByRole('status')).toContainText(
+      'Expression copied to clipboard'
+    )
+  })
+
+  test('dragging a field from the Input panel inserts the expression into a Parameters form field', async ({ app }) => {
+    await app.goto(toAppUrl('/workflow-builder/new'))
+    await selectProjectIfRequired(app)
+    await addManualTrigger(app, 'Trigger')
+    await addScriptNode(app, 'Script A', 'print("hello")')
+    await addAgenticNode(app, 'Agent B', 'initial-prompt')
+
+    // clickNode reopens the editor after addAgenticNode closes it
+    await clickNode(app, 'Agent B')
+    await expect(app.getByRole('heading', { name: 'Input', exact: true })).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByText('Expected output fields')).toBeVisible({ timeout: 10_000 })
+
+    // Scope to the tree to avoid ambiguity with other draggable elements
+    const stdoutLeaf = app
+      .getByRole('tree', { name: 'Schema preview' })
+      .locator('[draggable="true"]')
+      .filter({ hasText: 'T stdout' })
+    await expect(stdoutLeaf).toBeVisible()
+
+    const promptField = app.getByLabel('Prompt')
+    await expect(promptField).toBeVisible()
+
+    await stdoutLeaf.dragTo(promptField)
+
+    // Drop handler appends the expression: "initial-prompt${<nodeId>.stdout}"
+    await expect(promptField).toHaveValue(/initial-prompt\$\{[^}]+\.stdout\}/)
   })
 })

@@ -15,7 +15,7 @@ describe('useNavigate', () => {
       result.current.navigate('/workflows')
     })
 
-    expect(result.current.location[0]).toBe('/workflows')
+    expect(result.current.location).toBe('/workflows')
   })
 
   it('navigates with replace option without error and changes the current path', () => {
@@ -26,6 +26,6 @@ describe('useNavigate', () => {
       result.current.navigate('/executions', { replace: true })
     })
 
-    expect(result.current.location[0]).toBe('/executions')
+    expect(result.current.location).toBe('/executions')
   })
 })

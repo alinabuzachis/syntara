@@ -25,6 +25,7 @@ type UseNodeMenuActionsOptions = {
   nodeId: string
   nodeType: MenuNodeTypeUnion
   triggerIndex?: number
+  disabled?: boolean
   additionalActions?: NodeMenuAction[]
 }
 
@@ -76,7 +77,7 @@ type UseNodeMenuActionsOptions = {
  * })
  */
 export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenuAction[] {
-  const { nodeId, nodeType, triggerIndex, additionalActions = [] } = options
+  const { nodeId, nodeType, triggerIndex, disabled = false, additionalActions = [] } = options
   const { deleteElements } = useReactFlow()
   const { showError } = useAlerts()
   const nodeActions = useNodeActions()
@@ -106,6 +107,10 @@ export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenu
     nodeActions?.onReplace(nodeId)
   }, [nodeActions, nodeId])
 
+  const handleToggleDisabled = useCallback(() => {
+    nodeActions?.onToggleDisabled(nodeId)
+  }, [nodeActions, nodeId])
+
   // Build the menu actions array
   const deleteAction: NodeMenuAction = {
     id: 'delete',
@@ -116,34 +121,27 @@ export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenu
 
   // Builder-specific actions — only present when NodeActionsContext is provided.
   // Omitted automatically in execution view and any other non-builder context.
-  const builderActions: NodeMenuAction[] = nodeActions
-    ? [
-        {
-          id: 'view-details',
-          label: 'View step details',
-          onClick: handleViewDetails,
-        },
-        ...(nodeType === MenuNodeType.ACTIVITY
-          ? [
-              {
-                id: 'run-step',
-                label: 'Run step',
-                onClick: handleRunStep,
-              },
-              {
-                id: 'duplicate',
-                label: 'Duplicate',
-                onClick: handleDuplicate,
-              },
-              {
-                id: 'replace',
-                label: 'Replace',
-                onClick: handleReplace,
-              },
-            ]
-          : []),
-      ]
-    : []
+  function getBuilderActions(): NodeMenuAction[] {
+    if (!nodeActions) return []
+
+    if (nodeType === MenuNodeType.CONTROL_FLOW) {
+      return [{ id: 'replace', label: 'Replace', onClick: handleReplace }]
+    }
+
+    const activityActions: NodeMenuAction[] =
+      nodeType === MenuNodeType.ACTIVITY
+        ? [
+            { id: 'run-step', label: 'Run step', onClick: handleRunStep },
+            { id: 'toggle-disabled', label: disabled ? 'Enable' : 'Disable', onClick: handleToggleDisabled },
+            { id: 'duplicate', label: 'Duplicate', onClick: handleDuplicate },
+            { id: 'replace', label: 'Replace', onClick: handleReplace },
+          ]
+        : []
+
+    return [{ id: 'view-details', label: 'View step details', onClick: handleViewDetails }, ...activityActions]
+  }
+
+  const builderActions = getBuilderActions()
 
   const allAdditionalActions = [...builderActions, ...additionalActions]
 

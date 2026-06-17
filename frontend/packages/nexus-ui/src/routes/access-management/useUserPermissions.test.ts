@@ -92,7 +92,7 @@ describe('useUserPermissions', () => {
       body: { action: 'delete', resource_type: 'user' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'revoke', resource_type: 'admin:revocation' },
+      body: { action: 'execute', resource_type: 'admin:revocation' },
     })
   })
 
@@ -104,7 +104,7 @@ describe('useUserPermissions', () => {
     expect(result.current.tooltips.create).toContain('user:create')
     expect(result.current.tooltips.update).toContain('user:update')
     expect(result.current.tooltips.delete).toContain('user:delete')
-    expect(result.current.tooltips.revoke).toContain('admin:revocation:revoke')
+    expect(result.current.tooltips.revoke).toContain('admin:revocation:execute')
   })
 
   it('returns safe defaults when requests fail', async () => {

@@ -22,8 +22,6 @@ import { RhUiArrowLeftIcon, RhUiEditIcon, RhUiSearchIcon, RhUiSyncIcon, RhUiTras
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useState, type ReactNode } from 'react'
-import { useParams } from 'wouter'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import {
@@ -39,6 +37,8 @@ import { NxPanel } from '../../../../components/layout/NxPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../../components/tabs/NxUrlTabs'
+import { navigate } from '../../../../hooks/routing/navigate'
+import { useParams } from '../../../../hooks/routing/useParams'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
 import { useUrlTab } from '../../../../hooks/useUrlTab'
 import { getErrorStatus } from '../../../../utils/apiErrors'

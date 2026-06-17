@@ -22,6 +22,20 @@ vi.mock('../../client', () => ({
       error: null,
     })),
   },
+  usersClient: {
+    useQuery: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+    })),
+  },
+}))
+
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn((selector: (state: { username: string; userId: string }) => unknown) => {
+    const state = { username: 'testuser', userId: 'test-user-id' }
+
+    return selector(state)
+  }),
 }))
 
 // Mock the accessClient used for project-scoped approvals
@@ -62,8 +76,15 @@ vi.mock('../../hooks/useFilterState', async (importOriginal) => {
 const mockSearchParams = new URLSearchParams()
 const mockSetSearchParams = vi.fn()
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/approvals', vi.fn()],
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/approvals',
+}))
+const mockNavigate = vi.fn()
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 

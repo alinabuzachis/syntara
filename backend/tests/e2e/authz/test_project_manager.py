@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import os
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
-
     from nexus_api_client.api import NexusApiRegistry
+
+    from tests.fixtures.factories import RoleFactory, UserFactory, UserRoleAssignmentFactory
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
@@ -22,11 +22,6 @@ from nexus_api_client.models.role_create import RoleCreate
 from nexus_api_client.models.user_create import UserCreate
 
 from tests.e2e.conftest import api_for, generate_test_password, unique_name
-from tests.e2e.fixtures.factories import (
-    ResourceTracker,
-    assign_system_role,
-    create_system_role,
-)
 
 pytestmark = [pytest.mark.e2e]
 
@@ -37,17 +32,20 @@ _POLICIES = [
 
 
 @pytest.fixture(scope="module")
-def project_manager_env(admin_api: NexusApiRegistry, nexus_base_url: str) -> Generator[Any, None, None]:
+def project_manager_env(
+    admin_api: NexusApiRegistry,
+    create_role: RoleFactory,
+    create_user: UserFactory,
+    assign_system_role: UserRoleAssignmentFactory,
+    nexus_base_url: str,
+) -> tuple[NexusApiRegistry, UUID]:
     """Create user with system-level project manager role."""
-    tracker = ResourceTracker(admin_api)
+    user_id, name, password = create_user(admin_api, "projmgr")
 
-    user_id, name, password = tracker.user("projmgr")
-
-    role_name = create_system_role(admin_api, "projmgr", _POLICIES)
+    role_name = create_role(admin_api, "projmgr", _POLICIES)
     assign_system_role(admin_api, user_id, role_name)
     user_api = api_for(nexus_base_url, name, password)
-    yield user_api, user_id
-    tracker.cleanup()
+    return user_api, user_id
 
 
 class TestProjectManagerAllowed:

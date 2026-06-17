@@ -1,4 +1,4 @@
-import { useLocation } from 'wouter'
+import { useLocation as useWouterLocation } from 'wouter'
 
 /**
  * Routing bridge: returns an imperative `navigate(path, options?)` function.
@@ -7,6 +7,6 @@ import { useLocation } from 'wouter'
  * during migration without requiring changes to consumers.
  */
 export function useNavigate() {
-  const [, navigate] = useLocation()
+  const [, navigate] = useWouterLocation()
   return navigate
 }

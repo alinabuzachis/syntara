@@ -44,14 +44,14 @@ export function BulkApproveDialog({
       key={isOpen ? 'open' : 'closed'}
     >
       <ModalHeader
-        title={`Approve ${approvalCount} step${approvalCount === 1 ? '' : 's'}`}
+        title={`Approve ${approvalCount} approval step${approvalCount === 1 ? '' : 's'}`}
         labelId="bulk-approve-title"
       />
       <ModalBody>
         <Stack hasGutter>
           <StackItem>
             <Content component={ContentVariants.p}>
-              You are about to approve {approvalCount} step{approvalCount === 1 ? '' : 's'}.
+              You are about to approve {approvalCount} approval step{approvalCount === 1 ? '' : 's'}.
             </Content>
           </StackItem>
 

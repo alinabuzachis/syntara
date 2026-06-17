@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react'
-import { useSearchParams } from 'wouter'
 
 import type { FilterConfig } from '../types/filters'
 import { buildFilterParams, parseFiltersFromUrl } from '../utils/filterUtils'
+
+import { useSearchParams } from './routing/useSearchParams'
 
 /**
  * Result from useFilterState hook

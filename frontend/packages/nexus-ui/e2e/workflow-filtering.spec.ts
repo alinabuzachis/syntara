@@ -53,7 +53,7 @@ test.describe('Workflow Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Assert - Active filter chip displayed
-    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+    const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
     await expect(nameChipGroup).toBeVisible()
     await expect(nameChipGroup.getByText('workflow')).toBeVisible()
 
@@ -61,10 +61,10 @@ test.describe('Workflow Filtering', () => {
     await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
 
     // Act - Clear all filters (use first button in toolbar, not in empty state)
-    await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
+    await app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' }).click()
 
     // Assert - All filter chips removed
-    await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
+    await expect(app.getByRole('search', { name: 'Filters' }).getByRole('list')).toHaveCount(0)
 
     // Verify URL no longer contains filters
     await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
@@ -79,7 +79,7 @@ test.describe('Workflow Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Verify filter applied
-    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+    const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('test')).toBeVisible()
 
     // Capture URL with filter
@@ -94,7 +94,7 @@ test.describe('Workflow Filtering', () => {
 
     // Assert - Filter state restored from URL
     await expect(app.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
-    const restoredNameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+    const restoredNameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
     await expect(restoredNameChipGroup.getByText('test')).toBeVisible()
 
     // Verify URL still contains filter
@@ -119,7 +119,7 @@ test.describe('Workflow Filtering', () => {
 
     // Assert - Filter restored in new tab
     await expect(newPage.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
-    const newPageNameChipGroup = newPage.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+    const newPageNameChipGroup = newPage.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
     await expect(newPageNameChipGroup.getByText('workflow')).toBeVisible()
 
     // Cleanup
@@ -137,7 +137,7 @@ test.describe('Workflow Filtering', () => {
     await expect(app).toHaveURL(/name%5Bcontains%5D/)
 
     // Act - Clear filters (use toolbar button, not the one in empty state)
-    await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
+    await app.getByRole('search', { name: 'Filters' }).getByRole('button', { name: 'Clear all filters' }).click()
 
     // Assert - URL no longer contains filter params
     await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
@@ -149,7 +149,7 @@ test.describe('Workflow Filtering', () => {
 
     // Assert - No filters in new tab
     await expect(newPage.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
-    await expect(newPage.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
+    await expect(newPage.getByRole('search', { name: 'Filters' }).getByRole('list')).toHaveCount(0)
 
     // Cleanup
     await newPage.close()
@@ -180,7 +180,7 @@ test.describe('Workflow Filtering', () => {
       // Apply a filter scoped to test workflows (22 items → 2 pages at default limit 20)
       await app.getByPlaceholder('Filter by name').fill(prefix)
       await app.getByRole('button', { name: 'Apply filter' }).click()
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup.getByText(prefix)).toBeVisible()
 
       const table = app.getByRole('grid', { name: 'Workflows table' })
@@ -224,7 +224,7 @@ test.describe('Workflow Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Verify filter active
-    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+    const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('test')).toBeVisible()
 
     // Act - Remove name filter chip
@@ -247,7 +247,7 @@ test.describe('Workflow Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Wait for the filter to be applied (chip appears)
-    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+    const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
     await expect(nameChipGroup).toBeVisible()
 
     // Check if table disappeared (empty state shown) or still has rows (mock data matches)

@@ -38,11 +38,13 @@ const mockOnViewDetails = vi.fn()
 const mockOnReplace = vi.fn()
 const mockOnDuplicate = vi.fn()
 const mockOnRunStep = vi.fn()
+const mockOnToggleDisabled = vi.fn()
 const defaultNodeActions: NodeActionsContextValue = {
   onViewDetails: mockOnViewDetails,
   onReplace: mockOnReplace,
   onDuplicate: mockOnDuplicate,
   onRunStep: mockOnRunStep,
+  onToggleDisabled: mockOnToggleDisabled,
 }
 
 describe('useNodeMenuActions', () => {
@@ -119,13 +121,13 @@ describe('useNodeMenuActions', () => {
   })
 
   describe('with NodeActionsContext (inside builder) — activity nodes', () => {
-    it('returns view details, run step, duplicate, replace, separator, delete for activity nodes', () => {
+    it('returns view details, run step, disable, duplicate, replace, delete for activity nodes', () => {
       const { result } = renderHook(() => useNodeMenuActions({ nodeId: 'task-1', nodeType: MenuNodeType.ACTIVITY }), {
         wrapper: withNodeActions(defaultNodeActions),
       })
 
       const labels = result.current.map((a) => a.label)
-      expect(labels).toEqual(['View step details', 'Run step', 'Duplicate', 'Replace', 'Delete'])
+      expect(labels).toEqual(['View step details', 'Run step', 'Disable', 'Duplicate', 'Replace', 'Delete'])
     })
 
     it('calls onViewDetails with the node id', () => {
@@ -214,6 +216,66 @@ describe('useNodeMenuActions', () => {
       expect(ids).not.toContain('run-step')
       expect(ids).not.toContain('duplicate')
       expect(ids).toContain('delete')
+    })
+  })
+
+  describe('with NodeActionsContext — control flow nodes', () => {
+    it('returns only replace and delete for control flow nodes', () => {
+      const { result } = renderHook(
+        () => useNodeMenuActions({ nodeId: 'condition-1', nodeType: MenuNodeType.CONTROL_FLOW }),
+        { wrapper: withNodeActions(defaultNodeActions) }
+      )
+
+      const labels = result.current.map((a) => a.label)
+      expect(labels).toEqual(['Replace', 'Delete'])
+    })
+
+    it('does not include view details, run step, duplicate, or disable for control flow nodes', () => {
+      const { result } = renderHook(
+        () => useNodeMenuActions({ nodeId: 'loop-1', nodeType: MenuNodeType.CONTROL_FLOW }),
+        { wrapper: withNodeActions(defaultNodeActions) }
+      )
+
+      const ids = result.current.map((a) => a.id)
+      expect(ids).not.toContain('view-details')
+      expect(ids).not.toContain('run-step')
+      expect(ids).not.toContain('duplicate')
+      expect(ids).not.toContain('toggle-disabled')
+    })
+  })
+
+  describe('disable toggle', () => {
+    it('shows "Disable" label when node is not disabled', () => {
+      const { result } = renderHook(
+        () => useNodeMenuActions({ nodeId: 'task-1', nodeType: MenuNodeType.ACTIVITY, disabled: false }),
+        { wrapper: withNodeActions(defaultNodeActions) }
+      )
+
+      const toggle = result.current.find((a) => a.id === 'toggle-disabled')
+      expect(toggle?.label).toBe('Disable')
+    })
+
+    it('shows "Enable" label when node is disabled', () => {
+      const { result } = renderHook(
+        () => useNodeMenuActions({ nodeId: 'task-1', nodeType: MenuNodeType.ACTIVITY, disabled: true }),
+        { wrapper: withNodeActions(defaultNodeActions) }
+      )
+
+      const toggle = result.current.find((a) => a.id === 'toggle-disabled')
+      expect(toggle?.label).toBe('Enable')
+    })
+
+    it('calls onToggleDisabled with node id when clicked', () => {
+      const { result } = renderHook(() => useNodeMenuActions({ nodeId: 'task-1', nodeType: MenuNodeType.ACTIVITY }), {
+        wrapper: withNodeActions(defaultNodeActions),
+      })
+
+      const toggle = result.current.find((a) => a.id === 'toggle-disabled')
+      act(() => {
+        toggle?.onClick()
+      })
+
+      expect(mockOnToggleDisabled).toHaveBeenCalledWith('task-1')
     })
   })
 

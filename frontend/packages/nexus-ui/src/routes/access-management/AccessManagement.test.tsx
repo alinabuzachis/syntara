@@ -25,13 +25,23 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 const mockNavigate = vi.fn()
 const wouterLocation = { path: AppRoute.AccessManagement.Users }
 
-vi.mock('wouter', () => ({
-  useLocation: () => [wouterLocation.path, mockNavigate],
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => wouterLocation.path,
+}))
+
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../hooks/routing/useSearch', () => ({
   useSearch: () => '',
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../hooks/routing/useSearchParams', () => ({
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+}))
+
+vi.mock('../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

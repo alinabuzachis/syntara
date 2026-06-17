@@ -63,6 +63,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
     // eslint-disable-next-line max-lines-per-function
     (set, get) => ({
       currentWorkflow: null,
+      projectId: null,
       workflowVersion: 0,
       edges: [],
       nodePositions: {},
@@ -72,9 +73,10 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
       _positionsUserModified: false,
       isDirty: false,
 
-      setWorkflow: (workflow) => {
+      setWorkflow: (workflow, projectId) => {
         set((state) => ({
           currentWorkflow: workflow,
+          projectId: projectId ?? null,
           workflowVersion: state.workflowVersion + 1,
           nodePositions: {},
           _positionsUserModified: false,
@@ -85,10 +87,11 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
 
       // Atomic operation to set both workflow and edges in a single update
       // This prevents race conditions where BuilderFlow renders with workflow but no edges
-      loadWorkflowWithEdges: (workflow, edges, nodePositions) => {
+      loadWorkflowWithEdges: (workflow, edges, nodePositions, projectId) => {
         const hasPositions = nodePositions != null && Object.keys(nodePositions).length > 0
         set((state) => ({
           currentWorkflow: workflow,
+          projectId: projectId ?? null,
           workflowVersion: state.workflowVersion + 1,
           edges,
           nodePositions: nodePositions ?? {},

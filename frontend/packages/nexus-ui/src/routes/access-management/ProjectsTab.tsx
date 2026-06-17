@@ -14,7 +14,6 @@ import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useCallback, useMemo, useState } from 'react'
-import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
@@ -27,6 +26,7 @@ import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
+import { navigate } from '../../hooks/routing/navigate'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
@@ -344,7 +344,7 @@ export function ProjectsTab() {
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer
-            aria-label="Projects"
+            caption="Projects"
             footer={{
               page,
               perPage,

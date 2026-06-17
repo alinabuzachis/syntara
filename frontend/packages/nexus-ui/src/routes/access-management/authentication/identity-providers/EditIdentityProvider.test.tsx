@@ -17,13 +17,19 @@ vi.mock('../../../../client', () => ({
   OIDC_REDIRECT_URI: 'http://localhost/api/v1/auth/oidc/callback',
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/system-administration/authentication/identity-providers/provider-1', vi.fn()],
+vi.mock('../../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/authentication/identity-providers/provider-1',
+}))
+
+vi.mock('../../../../hooks/routing/useParams', () => ({
   useParams: () => ({ providerId: 'provider-1' }),
+}))
+
+vi.mock('../../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

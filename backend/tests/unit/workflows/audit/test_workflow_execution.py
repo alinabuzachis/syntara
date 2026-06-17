@@ -132,3 +132,56 @@ class TestWorkflowExecutionErrorHandler:
 
         assert audit_event is not None
         assert audit_event.workflow_id is None
+
+    def test_resource_fields_with_workflow_id_and_name(self) -> None:
+        """Resource fields use workflow_id for URN and workflow_name for resource_name."""
+        event = WorkflowExecutionErrorEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            timed_out_component=TimedOutComponent.WORKFLOW,
+            configured_timeout_seconds=60.0,
+            elapsed_time_ms=60000,
+            error_type="WorkflowTimedOut",
+            workflow_name="Deploy to Production",
+        )
+
+        handler = WorkflowExecutionErrorHandler()
+        audit_event = handler.handle(event)
+
+        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_name == "Deploy to Production"
+
+    def test_resource_fields_with_workflow_id_without_name(self) -> None:
+        """Resource URN is set even when workflow_name is None."""
+        event = WorkflowExecutionErrorEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            timed_out_component=TimedOutComponent.WORKFLOW,
+            configured_timeout_seconds=60.0,
+            elapsed_time_ms=60000,
+            error_type="WorkflowTimedOut",
+            workflow_name=None,
+        )
+
+        handler = WorkflowExecutionErrorHandler()
+        audit_event = handler.handle(event)
+
+        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_name is None
+
+    def ***REMOVED***(self) -> None:
+        """Resource URN is None when workflow_id is None."""
+        event = WorkflowExecutionErrorEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=None,
+            timed_out_component=TimedOutComponent.WORKFLOW,
+            configured_timeout_seconds=60.0,
+            elapsed_time_ms=60000,
+            workflow_name="Some Workflow",
+        )
+
+        handler = WorkflowExecutionErrorHandler()
+        audit_event = handler.handle(event)
+
+        assert audit_event.resource_urn is None
+        assert audit_event.resource_name == "Some Workflow"

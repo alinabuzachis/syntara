@@ -1,8 +1,6 @@
 import { ActivityTypeEnum, type NodeSettings } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
-import type { ComparisonOperator } from '../../../utils/expressions/types'
-
 import { ConditionNodeForm, type ConditionFormData } from './ConditionNodeForm'
 import { ConvergeNodeForm, type ConvergeFormData } from './ConvergeNodeForm'
 import { LoopNodeForm, type LoopFormData } from './LoopNodeForm'
@@ -29,12 +27,9 @@ export type LogicFormData = {
   itemVariable?: string
   // Switch fields
   cases?: Array<{
-    id: string
+    caseId: string
     label?: string
-    variable: string
-    operator: ComparisonOperator
-    value: string
-    negate?: boolean
+    condition: string
   }>
   // Converge fields
   strategy?: 'all' | 'any'

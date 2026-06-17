@@ -42,8 +42,10 @@ export type FlowNodeTypeUnion = ValueOf<typeof FlowNodeType>
  * }
  */
 export const MenuNodeType = {
-  /** Activity steps: Task, Condition, Converge, Loop */
+  /** Activity steps: Task, Approval, and other executor nodes */
   ACTIVITY: 'activity',
+  /** Control flow nodes: Condition, Loop, Converge, Switch, Wait */
+  CONTROL_FLOW: 'control-flow',
   /** Trigger nodes: Manual, Scheduled, Webhook, etc. */
   TRIGGER: 'trigger',
 } as const

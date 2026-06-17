@@ -23,6 +23,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
+    disabled: props.data.settings?.disabled ?? false,
   })
 
   const executorMeta = executorMetadata.approval

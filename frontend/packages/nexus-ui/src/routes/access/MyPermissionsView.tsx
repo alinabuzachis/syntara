@@ -302,7 +302,7 @@ export function MyPermissionsView() {
       )}
 
       {showToolbar && pageData.length > 0 && (
-        <NxScrollableTableContainer aria-label="User permissions" footer={tableFooter}>
+        <NxScrollableTableContainer caption="User permissions" footer={tableFooter}>
           <PermissionsTableContent permissions={pageData} getSortParams={getSortParams} />
         </NxScrollableTableContainer>
       )}

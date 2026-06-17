@@ -47,14 +47,13 @@ vi.mock('../../hooks/useProjectSelector', () => ({
 
 const mockSetLocation = vi.fn()
 
-vi.mock('wouter', async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  const actual = (await importOriginal()) as Record<string, unknown>
-  return {
-    ...actual,
-    useLocation: () => ['/workflow-builder/workflow-1', mockSetLocation],
-  }
-})
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/workflow-builder/workflow-1',
+}))
+
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
+}))
 
 const mockRequestNavigation = vi.fn()
 vi.mock('../../app/useUnsavedChanges', () => ({

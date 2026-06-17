@@ -60,6 +60,7 @@ export function useBuilderLiveRunPanel({
         Promise.all([
           queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}'] }),
           queryClient.invalidateQueries({ queryKey: ['get', '/executions'] }),
+          queryClient.invalidateQueries({ queryKey: ['get', '/executions/{execution_id}/activities'] }),
         ])
       )
     },

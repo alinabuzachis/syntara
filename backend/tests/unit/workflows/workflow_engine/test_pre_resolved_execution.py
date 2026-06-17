@@ -54,6 +54,7 @@ def _make_workflow(
     wf._timeout_tasks = {}
     wf._timed_out_converge_nodes = set()
     wf._detached_nodes = set()
+    wf._converge_branch_nodes = {}
     init_workflow_runtime(wf)
     wf.pre_resolved_outputs = pre_resolved_outputs if pre_resolved_outputs is not None else {}
     wf.stop_after_nodes = stop_after_nodes if stop_after_nodes is not None else set()

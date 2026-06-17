@@ -72,6 +72,7 @@ describe('useApprovalSelection', () => {
     ['approval-3', true],
   ])
   const mockIsLoadingPermissions = false
+  const mockSelectableApprovalIds = new Set(['approval-1']) // Only pending approval is selectable
 
   it('initializes with empty selection', () => {
     const { result } = renderHook(() =>
@@ -81,6 +82,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -95,6 +97,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -110,6 +113,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -129,6 +133,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -154,6 +159,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -173,6 +179,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -194,6 +201,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -218,6 +226,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -238,6 +247,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: mockSelectableApprovalIds,
       })
     )
 
@@ -263,6 +273,7 @@ describe('useApprovalSelection', () => {
           sortDirection: mockSortDirection,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
+          selectableApprovalIds: mockSelectableApprovalIds,
         }),
       {
         initialProps: { enrichedApprovals: mockApprovals },
@@ -294,6 +305,7 @@ describe('useApprovalSelection', () => {
           sortDirection: mockSortDirection,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
+          selectableApprovalIds: mockSelectableApprovalIds,
         }),
       {
         initialProps: { enrichedApprovals: mockApprovals },
@@ -325,6 +337,7 @@ describe('useApprovalSelection', () => {
           sortDirection: mockSortDirection,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
+          selectableApprovalIds: mockSelectableApprovalIds,
         }),
       {
         initialProps: { filters: mockFilters },
@@ -353,6 +366,7 @@ describe('useApprovalSelection', () => {
           sortDirection,
           approvalPermissions: mockApprovalPermissions,
           isLoadingPermissions: mockIsLoadingPermissions,
+          selectableApprovalIds: mockSelectableApprovalIds,
         }),
       {
         initialProps: { sortIndex: 0, sortDirection: 'asc' },
@@ -379,6 +393,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: new Map(),
         isLoadingPermissions: mockIsLoadingPermissions,
+        selectableApprovalIds: new Set(),
       })
     )
 
@@ -387,15 +402,18 @@ describe('useApprovalSelection', () => {
     expect(result.current.allPendingSelected).toBe(false)
   })
 
-  it('select all only selects approvals with permissions', () => {
+  it('select all only selects approvals in selectable set', () => {
     const pendingApproval1 = { ...mockPendingApproval, id: 'approval-1' }
     const pendingApproval2 = { ...mockPendingApproval, id: 'approval-2' }
     const approvals = [pendingApproval1, pendingApproval2]
 
     const permissionMap = new Map([
-      ['approval-1', true], // Has permission
-      ['approval-2', false], // No permission
+      ['approval-1', true],
+      ['approval-2', true],
     ])
+
+    // Only approval-1 is selectable (approval-2 is disabled for some reason, e.g. not on approver list)
+    const selectableSet = new Set(['approval-1'])
 
     const { result } = renderHook(() =>
       useApprovalSelection(approvals, approvals, {
@@ -404,6 +422,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: permissionMap,
         isLoadingPermissions: false,
+        selectableApprovalIds: selectableSet,
       })
     )
 
@@ -411,7 +430,7 @@ describe('useApprovalSelection', () => {
       result.current.handleSelectAll(true)
     })
 
-    // Should only select approval-1 (pending + has permission)
+    // Should only select approval-1 (pending + in selectable set)
     expect(result.current.selectedApprovalIds.size).toBe(1)
     expect(result.current.selectedApprovalIds.has('approval-1')).toBe(true)
     expect(result.current.selectedApprovalIds.has('approval-2')).toBe(false)
@@ -425,6 +444,7 @@ describe('useApprovalSelection', () => {
         sortDirection: mockSortDirection,
         approvalPermissions: mockApprovalPermissions,
         isLoadingPermissions: true,
+        selectableApprovalIds: new Set(), // Empty when loading
       })
     )
 

@@ -274,6 +274,78 @@ export interface paths {
     patch: operations['update_project_policy']
     trace?: never
   }
+  '/projects/{project_id}/credentials': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Project Credentials
+     * @description List credentials belonging to this project. Requires: credential:read permission.
+     */
+    get: operations['list_project_credentials']
+    put?: never
+    /**
+     * Create Project Credential
+     * @description Create a new credential in this project. Requires: credential:create permission.
+     */
+    post: operations['create_project_credential']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/projects/{project_id}/credentials/{credential_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Project Credential
+     * @description Get a credential in this project. Secret fields masked as $encrypted$.
+     */
+    get: operations['get_project_credential']
+    put?: never
+    post?: never
+    /**
+     * Delete Project Credential
+     * @description Delete a credential in this project. Requires: credential:delete permission.
+     */
+    delete: operations['delete_project_credential']
+    options?: never
+    head?: never
+    /**
+     * Update Project Credential
+     * @description Update a credential in this project. Requires: credential:update permission.
+     */
+    patch: operations['update_project_credential']
+    trace?: never
+  }
+  '/projects/{project_id}/credentials/{credential_id}/workflows': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Project Credential Workflows
+     * @description Get workflows that reference this credential. Requires: credential:read permission.
+     */
+    get: operations['get_project_credential_workflows']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -688,6 +760,147 @@ export interface components {
       resources: components['schemas']['RoleAssignmentRead'][]
     }
     /**
+     * ProjectCredentialCreate
+     * @description Schema for creating a credential via a project-scoped endpoint (project_id from URL path).
+     */
+    ProjectCredentialCreate: {
+      /**
+       * Name
+       * @description Human-readable credential name
+       */
+      name: string
+      /**
+       * Description
+       * @description Optional description
+       */
+      description?: string | null
+      /**
+       * Credential Type Id
+       * Format: uuid
+       * @description ID of the credential type
+       */
+      credential_type_id: string
+      /**
+       * Inputs
+       * @description Field values validated against type schema
+       */
+      inputs?: {
+        [key: string]: unknown
+      }
+      /**
+       * Labels
+       * @description Key-value labels
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    /** @description Schema for credential API responses. Secret fields masked as $encrypted$. */
+    CredentialRead: components['schemas']['UserOwnedResource'] &
+      components['schemas']['NamedResource'] & {
+        /**
+         * Created By
+         * @description Username or UUID of the credential creator
+         */
+        created_by?: string | null
+        /**
+         * Updated By
+         * @description Username or UUID of the last modifier
+         */
+        updated_by?: string | null
+        /**
+         * Credential Type Id
+         * Format: uuid
+         */
+        credential_type_id: string
+        /**
+         * Enabled
+         * @default true
+         */
+        enabled?: boolean
+        /** Inputs */
+        inputs?: {
+          [key: string]: unknown
+        }
+        /**
+         * Project Id
+         * Format: uuid
+         */
+        project_id: string
+        /**
+         * Workflow Count
+         * @description Number of workflows referencing this credential
+         * @default 0
+         */
+        workflow_count?: number
+      }
+    /**
+     * CredentialPatch
+     * @description Schema for partially updating a credential. $encrypted$ preserves existing values.
+     */
+    CredentialPatch: {
+      /** Description */
+      description?: string | null
+      /** Enabled */
+      enabled?: boolean | null
+      /** Inputs */
+      inputs?: {
+        [key: string]: unknown
+      } | null
+      /** Labels */
+      labels?: {
+        [key: string]: string
+      } | null
+      /** Name */
+      name?: string | null
+    }
+    /**
+     * CredentialListResponse
+     * @description Paginated list response for credentials.
+     */
+    CredentialListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['CredentialRead'][]
+    }
+    /**
+     * CredentialWorkflowRef
+     * @description Reference to a workflow that uses a credential.
+     */
+    CredentialWorkflowRef: {
+      /**
+       * Created By
+       * @description Username or UUID of the workflow creator
+       */
+      created_by?: string | null
+      /** Description */
+      description?: string | null
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Last Execution At
+       * @description Timestamp of the most recent execution
+       */
+      last_execution_at?: string | null
+      /**
+       * Last Execution Status
+       * @description Status of the most recent execution
+       */
+      last_execution_status?: string | null
+      /** Name */
+      name: string
+      /**
+       * Node Names
+       * @description Names of nodes using this credential
+       */
+      node_names?: string[]
+    }
+    /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
      * @example {
@@ -869,6 +1082,8 @@ export interface components {
       created_by: string
       /** Project Id */
       project_id?: string | null
+      /** Published Version */
+      published_version?: number | null
       /**
        * Created At
        * Format: date-time
@@ -1050,6 +1265,35 @@ export interface components {
      * @enum {string}
      */
     PrincipalType: 'user' | 'group'
+    UserOwnedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Created By
+       * Format: uuid
+       * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
+       */
+      readonly created_by: string
+      /**
+       * Updated By
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updated_by?: string | null
+    }
+    NamedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Name
+       * @description Human-readable name for the resource
+       * @example Authentication Service
+       */
+      name: string
+      /**
+       * Description
+       * @description Detailed description of the resource
+       * @example Handles user authentication and authorization workflows
+       */
+      description?: string | null
+    }
   }
   responses: {
     /** @description Bad Request */
@@ -1188,6 +1432,8 @@ export interface components {
     roleIdParam: string
     /** @description Policy UUID */
     policyIdParam: string
+    /** @description Credential UUID */
+    credentialIdParam: string
     /** @description Maximum number of results per page */
     limitParam: number
     /** @description Pagination cursor from previous response */
@@ -2008,6 +2254,211 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['PolicyRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_project_credentials: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        credential_type_id?: string | null
+        enabled?: boolean | null
+      }
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of credentials in the project */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CredentialListResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  create_project_credential: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ProjectCredentialCreate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CredentialRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_project_credential: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Credential UUID */
+        credential_id: components['parameters']['credentialIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CredentialRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  delete_project_credential: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Credential UUID */
+        credential_id: components['parameters']['credentialIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  update_project_credential: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Credential UUID */
+        credential_id: components['parameters']['credentialIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CredentialPatch']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CredentialRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_project_credential_workflows: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Credential UUID */
+        credential_id: components['parameters']['credentialIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CredentialWorkflowRef'][]
         }
       }
       400: components['responses']['BadRequestError']

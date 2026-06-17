@@ -52,6 +52,7 @@ import { useNodePositioning } from './hooks/useNodePositioning'
 import { useNodeUpdates } from './hooks/useNodeUpdates'
 import { usePendingEdgeManagement } from './hooks/usePendingEdgeManagement'
 import { usePositionEventHandlers } from './hooks/usePositionEventHandlers'
+import { useValidationEnrichment } from './hooks/useValidationEnrichment'
 import { useWorkflowInitialization } from './hooks/useWorkflowInitialization'
 import type { BuilderFlowProps, PendingEdge } from './types'
 import { validateConnection } from './utils/validateConnection'
@@ -80,6 +81,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     newNodeDesiredPosition,
     onClearDesiredPosition,
     selectedActivityId,
+    validationErrors,
   } = props
 
   // Use typed selectors for optimized subscriptions
@@ -519,6 +521,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
       return anyChangedRef.current ? updatedNodes : currentNodes
     })
   }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, applyEnrichedData, preResolvedNodes])
+
+  useValidationEnrichment(validationErrors, isInitialized, setNodes)
 
   useEdgeExecutionStatus({
     effectiveExecutionStatus,

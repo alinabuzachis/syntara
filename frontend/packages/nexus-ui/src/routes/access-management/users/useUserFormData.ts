@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { useParams } from 'wouter'
 
+import { useParams } from '../../../hooks/routing/useParams'
 import { useActiveAdminCount } from '../../../hooks/useActiveAdminCount'
 import { useAuthStore } from '../../../stores/useAuthStore'
 import { isValidUUID } from '../../../utils/generateUUID'

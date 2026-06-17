@@ -32,9 +32,10 @@ import {
   RhUiQuestionMarkCircleIcon,
 } from '@patternfly/react-icons'
 import { useMemo, useRef, useState } from 'react'
-import { useLocation } from 'wouter'
 
 import { authClient } from '../client'
+import { useLocation } from '../hooks/routing/useLocation'
+import { useNavigate } from '../hooks/routing/useNavigate'
 import { useAlerts } from '../providers/alerts'
 import { useColorScheme } from '../providers/theme/useColorScheme'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -130,7 +131,7 @@ function NavDropdownItem({
 
 function UserMenuDropdown() {
   const [isOpen, setIsOpen] = useState(false)
-  const [, setLocation] = useLocation()
+  const setLocation = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const { showAlert } = useAlerts()
   const { data: currentUser } = authClient.useQuery('get', '/auth/me')
@@ -192,7 +193,7 @@ function UserMenuDropdown() {
 }
 
 export function AppDockedNav() {
-  const [location] = useLocation()
+  const location = useLocation()
   const { requestNavigation } = useUnsavedChanges()
   const { colorScheme, toggleColorScheme } = useColorScheme()
   const docsHomeUrl = useDocLink('home')

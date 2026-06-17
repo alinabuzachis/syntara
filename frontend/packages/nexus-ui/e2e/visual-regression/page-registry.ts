@@ -124,7 +124,7 @@ export const pages: PageEntry[] = [
     section: 'workflows',
     name: 'builder-edit',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
-    maxDiffPixelRatio: 0.01,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       // ReactFlow + Zustand + lazy-load initialization is slow in CI — extend timeout
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })

@@ -5,7 +5,7 @@ import { axe } from 'vitest-axe'
 
 import { ColorSchemeProvider } from '../../../providers/theme/ColorSchemeProvider'
 
-import { TestStepDialog } from './TestStepDialog'
+import { RunStepDialog } from './RunStepDialog'
 
 // Mock the workflow API client
 const { mockPost } = vi.hoisted(() => ({
@@ -58,7 +58,7 @@ vi.mock('@patternfly/react-code-editor', () => ({
   },
 }))
 
-describe('TestStepDialog', () => {
+describe('RunStepDialog', () => {
   const defaultProps = {
     isOpen: true,
     onClose: vi.fn(),
@@ -82,7 +82,7 @@ describe('TestStepDialog', () => {
   describe('Choice Dialog', () => {
     it('renders choice dialog with node name in title', () => {
       // Arrange
-      render(<TestStepDialog {...defaultProps} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} />, { wrapper })
 
       // Assert
       expect(screen.getByRole('heading', { name: 'Run Test Script?' })).toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('TestStepDialog', () => {
 
     it('shows "Run all previous steps" button as enabled', () => {
       // Arrange
-      render(<TestStepDialog {...defaultProps} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} />, { wrapper })
 
       // Assert
       const runAllButton = screen.getByRole('button', { name: 'Run all previous steps' })
@@ -102,7 +102,7 @@ describe('TestStepDialog', () => {
 
     it('disables "Set mock data" button when no predecessors', () => {
       // Arrange
-      render(<TestStepDialog {...defaultProps} predecessors={[]} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} predecessors={[]} />, { wrapper })
 
       // Assert
       expect(screen.getByRole('button', { name: 'Set mock data' })).toBeDisabled()
@@ -111,7 +111,7 @@ describe('TestStepDialog', () => {
     it('transitions to mock editor when "Set mock data" is clicked', async () => {
       // Arrange
       const user = userEvent.setup()
-      render(<TestStepDialog {...defaultProps} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} />, { wrapper })
 
       // Act
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -125,7 +125,7 @@ describe('TestStepDialog', () => {
       // Arrange
       const user = userEvent.setup()
       const onClose = vi.fn()
-      render(<TestStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
 
       // Act
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -136,7 +136,7 @@ describe('TestStepDialog', () => {
 
     it('has no accessibility violations in choice state', async () => {
       // Arrange
-      const { container } = render(<TestStepDialog {...defaultProps} />, { wrapper })
+      const { container } = render(<RunStepDialog {...defaultProps} />, { wrapper })
 
       // Act
       const results = await axe(container)
@@ -149,7 +149,7 @@ describe('TestStepDialog', () => {
   describe('Mock Editor State', () => {
     async function openMockEditor() {
       const user = userEvent.setup()
-      const view = render(<TestStepDialog {...defaultProps} />, { wrapper })
+      const view = render(<RunStepDialog {...defaultProps} />, { wrapper })
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
       return { user, ...view }
     }
@@ -197,7 +197,7 @@ describe('TestStepDialog', () => {
       // Arrange
       const user = userEvent.setup()
       const onClose = vi.fn()
-      render(<TestStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
       const textarea = screen.getByTestId('code-textarea')
 
@@ -215,7 +215,7 @@ describe('TestStepDialog', () => {
       // Arrange
       const user = userEvent.setup()
       const onClose = vi.fn()
-      render(<TestStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
       // Act
@@ -228,7 +228,7 @@ describe('TestStepDialog', () => {
     it('closes dialog when Cancel is clicked from mock editor', async () => {
       // Arrange
       const onClose = vi.fn()
-      render(<TestStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
       const user = userEvent.setup()
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
@@ -241,7 +241,7 @@ describe('TestStepDialog', () => {
 
     it('has no accessibility violations in mock editor state', async () => {
       // Arrange
-      const { container } = render(<TestStepDialog {...defaultProps} />, { wrapper })
+      const { container } = render(<RunStepDialog {...defaultProps} />, { wrapper })
       const user = userEvent.setup()
 
       // Act
@@ -258,7 +258,7 @@ describe('TestStepDialog', () => {
       // Arrange
       const user = userEvent.setup()
       const onClose = vi.fn()
-      const { rerender } = render(<TestStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
+      const { rerender } = render(<RunStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
 
       // Act 1 — Transition to mock editor
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -271,7 +271,7 @@ describe('TestStepDialog', () => {
       expect(onClose).toHaveBeenCalled()
       rerender(
         <ColorSchemeProvider>
-          <TestStepDialog {...defaultProps} onClose={onClose} isOpen />
+          <RunStepDialog {...defaultProps} onClose={onClose} isOpen />
         </ColorSchemeProvider>
       )
       expect(screen.getByRole('heading', { name: 'Run Test Script?' })).toBeInTheDocument()
@@ -281,7 +281,7 @@ describe('TestStepDialog', () => {
       // Arrange
       const user = userEvent.setup()
       const onClose = vi.fn()
-      const { rerender } = render(<TestStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
+      const { rerender } = render(<RunStepDialog {...defaultProps} onClose={onClose} />, { wrapper })
 
       // Act 1 — Enter JSON
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -294,7 +294,7 @@ describe('TestStepDialog', () => {
       expect(onClose).toHaveBeenCalled()
       rerender(
         <ColorSchemeProvider>
-          <TestStepDialog {...defaultProps} onClose={onClose} isOpen />
+          <RunStepDialog {...defaultProps} onClose={onClose} isOpen />
         </ColorSchemeProvider>
       )
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -308,7 +308,7 @@ describe('TestStepDialog', () => {
   describe('Button Placement', () => {
     it('has primary action leftmost in choice dialog', () => {
       // Arrange
-      render(<TestStepDialog {...defaultProps} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} />, { wrapper })
 
       // Act — filter to named action buttons within the dialog
       const dialog = screen.getByRole('dialog')
@@ -325,7 +325,7 @@ describe('TestStepDialog', () => {
     it('has primary action leftmost in mock editor', async () => {
       // Arrange
       const user = userEvent.setup()
-      render(<TestStepDialog {...defaultProps} />, { wrapper })
+      render(<RunStepDialog {...defaultProps} />, { wrapper })
       await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
       // Act — filter to named action buttons within the dialog
@@ -355,7 +355,7 @@ describe('TestStepDialog', () => {
 
       it('renders choice dialog with condition node name in title', () => {
         // Arrange & Act
-        render(<TestStepDialog {...conditionNodeProps} />, { wrapper })
+        render(<RunStepDialog {...conditionNodeProps} />, { wrapper })
 
         // Assert
         expect(screen.getByRole('heading', { name: 'Run Check Environment?' })).toBeInTheDocument()
@@ -364,7 +364,7 @@ describe('TestStepDialog', () => {
 
       it('enables mock data button for condition node with predecessors', () => {
         // Arrange & Act
-        render(<TestStepDialog {...conditionNodeProps} />, { wrapper })
+        render(<RunStepDialog {...conditionNodeProps} />, { wrapper })
 
         // Assert
         const mockDataButton = screen.getByRole('button', { name: 'Set mock data' })
@@ -374,7 +374,7 @@ describe('TestStepDialog', () => {
       it('shows appropriate description for condition node mock data', async () => {
         // Arrange
         const user = userEvent.setup()
-        render(<TestStepDialog {...conditionNodeProps} />, { wrapper })
+        render(<RunStepDialog {...conditionNodeProps} />, { wrapper })
 
         // Act
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -395,7 +395,7 @@ describe('TestStepDialog', () => {
           ],
         }
         const user = userEvent.setup()
-        render(<TestStepDialog {...conditionWithMultiplePredecessors} />, { wrapper })
+        render(<RunStepDialog {...conditionWithMultiplePredecessors} />, { wrapper })
 
         // Act
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -407,7 +407,7 @@ describe('TestStepDialog', () => {
 
       it('has no accessibility violations for condition node dialog', async () => {
         // Arrange
-        const { container } = render(<TestStepDialog {...conditionNodeProps} />, { wrapper })
+        const { container } = render(<RunStepDialog {...conditionNodeProps} />, { wrapper })
 
         // Act
         const results = await axe(container)
@@ -433,7 +433,7 @@ describe('TestStepDialog', () => {
 
       it('renders choice dialog with converge node name in title', () => {
         // Arrange & Act
-        render(<TestStepDialog {...convergeNodeProps} />, { wrapper })
+        render(<RunStepDialog {...convergeNodeProps} />, { wrapper })
 
         // Assert
         expect(screen.getByRole('heading', { name: 'Run Join Results?' })).toBeInTheDocument()
@@ -442,7 +442,7 @@ describe('TestStepDialog', () => {
 
       it('enables mock data for converge with multiple inputs', () => {
         // Arrange & Act
-        render(<TestStepDialog {...convergeNodeProps} />, { wrapper })
+        render(<RunStepDialog {...convergeNodeProps} />, { wrapper })
 
         // Assert
         const mockDataButton = screen.getByRole('button', { name: 'Set mock data' })
@@ -452,7 +452,7 @@ describe('TestStepDialog', () => {
       it('handles multiple predecessors in mock data description', async () => {
         // Arrange
         const user = userEvent.setup()
-        render(<TestStepDialog {...convergeNodeProps} />, { wrapper })
+        render(<RunStepDialog {...convergeNodeProps} />, { wrapper })
 
         // Act
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -466,7 +466,7 @@ describe('TestStepDialog', () => {
       it('supports mock data for converge node with multiple predecessor paths', async () => {
         // Arrange
         const user = userEvent.setup()
-        render(<TestStepDialog {...convergeNodeProps} />, { wrapper })
+        render(<RunStepDialog {...convergeNodeProps} />, { wrapper })
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
         // Act
@@ -499,7 +499,7 @@ describe('TestStepDialog', () => {
         }
 
         // Act & Assert
-        render(<TestStepDialog {...convergeWithNoPredecessors} />, { wrapper })
+        render(<RunStepDialog {...convergeWithNoPredecessors} />, { wrapper })
 
         expect(screen.getByRole('heading', { name: 'Run Join Results?' })).toBeInTheDocument()
         const mockDataButton = screen.getByRole('button', { name: 'Set mock data' })
@@ -508,7 +508,7 @@ describe('TestStepDialog', () => {
 
       it('has no accessibility violations for converge node dialog', async () => {
         // Arrange
-        const { container } = render(<TestStepDialog {...convergeNodeProps} />, { wrapper })
+        const { container } = render(<RunStepDialog {...convergeNodeProps} />, { wrapper })
 
         // Act
         const results = await axe(container)
@@ -533,7 +533,7 @@ describe('TestStepDialog', () => {
 
       it('renders dialog for loop node with correct title', () => {
         // Arrange & Act
-        render(<TestStepDialog {...loopNodeProps} />, { wrapper })
+        render(<RunStepDialog {...loopNodeProps} />, { wrapper })
 
         // Assert
         expect(screen.getByRole('heading', { name: 'Run Process Items?' })).toBeInTheDocument()
@@ -542,7 +542,7 @@ describe('TestStepDialog', () => {
 
       it('enables mock data for loop node with predecessors', () => {
         // Arrange & Act
-        render(<TestStepDialog {...loopNodeProps} />, { wrapper })
+        render(<RunStepDialog {...loopNodeProps} />, { wrapper })
 
         // Assert
         const mockDataButton = screen.getByRole('button', { name: 'Set mock data' })
@@ -552,7 +552,7 @@ describe('TestStepDialog', () => {
       it('handles loop body predecessors in mock data', async () => {
         // Arrange
         const user = userEvent.setup()
-        render(<TestStepDialog {...loopNodeProps} />, { wrapper })
+        render(<RunStepDialog {...loopNodeProps} />, { wrapper })
 
         // Act
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -566,7 +566,7 @@ describe('TestStepDialog', () => {
       it('supports loop state mock data structure', async () => {
         // Arrange
         const user = userEvent.setup()
-        render(<TestStepDialog {...loopNodeProps} />, { wrapper })
+        render(<RunStepDialog {...loopNodeProps} />, { wrapper })
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
         // Act
@@ -599,7 +599,7 @@ describe('TestStepDialog', () => {
         }
 
         // Act & Assert
-        render(<TestStepDialog {...loopWithSetupOnly} />, { wrapper })
+        render(<RunStepDialog {...loopWithSetupOnly} />, { wrapper })
 
         expect(screen.getByRole('heading', { name: 'Run Process Items?' })).toBeInTheDocument()
         const mockDataButton = screen.getByRole('button', { name: 'Set mock data' })
@@ -608,7 +608,7 @@ describe('TestStepDialog', () => {
 
       it('has no accessibility violations for loop node dialog', async () => {
         // Arrange
-        const { container } = render(<TestStepDialog {...loopNodeProps} />, { wrapper })
+        const { container } = render(<RunStepDialog {...loopNodeProps} />, { wrapper })
 
         // Act
         const results = await axe(container)
@@ -637,7 +637,7 @@ describe('TestStepDialog', () => {
         }
 
         const user = userEvent.setup()
-        render(<TestStepDialog {...complexNodeProps} />, { wrapper })
+        render(<RunStepDialog {...complexNodeProps} />, { wrapper })
 
         // Act
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
@@ -667,7 +667,7 @@ describe('TestStepDialog', () => {
         }
 
         const user = userEvent.setup()
-        render(<TestStepDialog {...complexNodeProps} />, { wrapper })
+        render(<RunStepDialog {...complexNodeProps} />, { wrapper })
         await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
         // Act
@@ -717,7 +717,7 @@ describe('TestStepDialog', () => {
         }
 
         // Act & Assert
-        render(<TestStepDialog {...emptyPredecessorsProps} />, { wrapper })
+        render(<RunStepDialog {...emptyPredecessorsProps} />, { wrapper })
 
         expect(screen.getByRole('heading', { name: 'Run Isolated Node?' })).toBeInTheDocument()
         const mockDataButton = screen.getByRole('button', { name: 'Set mock data' })
@@ -738,7 +738,7 @@ describe('TestStepDialog', () => {
         }
 
         const user = userEvent.setup()
-        render(<TestStepDialog {...conditionNodeProps} />, { wrapper })
+        render(<RunStepDialog {...conditionNodeProps} />, { wrapper })
 
         // Act
         await user.click(screen.getByRole('button', { name: 'Run all previous steps' }))
@@ -750,6 +750,7 @@ describe('TestStepDialog', () => {
             target_node_id: 'condition_1',
             pre_resolved_nodes: {},
             trigger_inputs: {},
+            execute_target: true,
           },
         })
       })
@@ -777,7 +778,7 @@ describe('TestStepDialog', () => {
           }
 
           const user = userEvent.setup()
-          render(<TestStepDialog {...conditionProps} />, { wrapper })
+          render(<RunStepDialog {...conditionProps} />, { wrapper })
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { result: true }
@@ -800,6 +801,7 @@ describe('TestStepDialog', () => {
                 },
               },
               trigger_inputs: {},
+              execute_target: true,
             },
           })
         })
@@ -823,7 +825,7 @@ describe('TestStepDialog', () => {
           }
 
           const user = userEvent.setup()
-          render(<TestStepDialog {...loopProps} />, { wrapper })
+          render(<RunStepDialog {...loopProps} />, { wrapper })
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { items: ['a', 'b'] }
@@ -846,6 +848,7 @@ describe('TestStepDialog', () => {
                 },
               },
               trigger_inputs: {},
+              execute_target: true,
             },
           })
         })
@@ -869,7 +872,7 @@ describe('TestStepDialog', () => {
           }
 
           const user = userEvent.setup()
-          render(<TestStepDialog {...approvalProps} />, { wrapper })
+          render(<RunStepDialog {...approvalProps} />, { wrapper })
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { approved: true }
@@ -892,6 +895,7 @@ describe('TestStepDialog', () => {
                 },
               },
               trigger_inputs: {},
+              execute_target: true,
             },
           })
         })
@@ -917,7 +921,7 @@ describe('TestStepDialog', () => {
           }
 
           const user = userEvent.setup()
-          render(<TestStepDialog {...taskProps} />, { wrapper })
+          render(<RunStepDialog {...taskProps} />, { wrapper })
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { hostname: 'server1' }
@@ -940,6 +944,7 @@ describe('TestStepDialog', () => {
                 },
               },
               trigger_inputs: {},
+              execute_target: true,
             },
           })
         })
@@ -977,7 +982,7 @@ describe('TestStepDialog', () => {
           }
 
           const user = userEvent.setup()
-          render(<TestStepDialog {...mixedProps} />, { wrapper })
+          render(<RunStepDialog {...mixedProps} />, { wrapper })
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { result: true, items: ['a'], hostname: 'server1' }
@@ -1008,6 +1013,7 @@ describe('TestStepDialog', () => {
                 },
               },
               trigger_inputs: {},
+              execute_target: true,
             },
           })
         })
@@ -1051,7 +1057,7 @@ describe('TestStepDialog', () => {
           }
 
           const user = userEvent.setup()
-          render(<TestStepDialog {...handleMappingProps} />, { wrapper })
+          render(<RunStepDialog {...handleMappingProps} />, { wrapper })
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { status: 'test' }
@@ -1086,6 +1092,7 @@ describe('TestStepDialog', () => {
                 },
               },
               trigger_inputs: {},
+              execute_target: true,
             },
           })
         })
@@ -1111,7 +1118,7 @@ describe('TestStepDialog', () => {
           }
 
           const user = userEvent.setup()
-          render(<TestStepDialog {...missingPortProps} />, { wrapper })
+          render(<RunStepDialog {...missingPortProps} />, { wrapper })
           await user.click(screen.getByRole('button', { name: 'Set mock data' }))
 
           const mockData = { result: true }
@@ -1134,6 +1141,7 @@ describe('TestStepDialog', () => {
                 },
               },
               trigger_inputs: {},
+              execute_target: true,
             },
           })
         })

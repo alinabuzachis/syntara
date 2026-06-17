@@ -88,9 +88,13 @@ export interface paths {
      * Batch approve/reject multiple requests
      * @description Submit decisions for multiple approval requests at once.
      *
-     *     This endpoint processes each decision independently. If some decisions fail,
-     *     the successful ones are still recorded. The response includes detailed results
-     *     for each decision.
+     *     Authorization is validated at two levels:
+     *     1. Endpoint level: User must have approval:decide permission (system or project-scoped)
+     *     2. Per-approval: Each approval is checked for project-scoped permissions and approver list membership
+     *
+     *     This endpoint processes each decision independently. If some decisions fail due to
+     *     authorization or validation errors, the successful ones are still recorded. The
+     *     response includes detailed results for each decision.
      *
      *     Use cases:
      *     - Approving multiple related requests at once
@@ -145,6 +149,16 @@ export interface components {
       next_step_rejected?: components['schemas']['ActivitySummary'] | null
       /** @description Workflow inputs and previous step output */
       workflow_context: components['schemas']['WorkflowContext']
+      /**
+       * Approver Users
+       * @description Users who can approve this request (empty = any user with permission)
+       */
+      approver_users?: components['schemas']['ApproverUserSummary'][]
+      /**
+       * Approver Groups
+       * @description Groups whose members can approve this request
+       */
+      approver_groups?: components['schemas']['ApproverGroupSummary'][]
       /** @description User who made the decision */
       decided_by?: components['schemas']['UserReference'] | null
       /**
@@ -230,6 +244,16 @@ export interface components {
       next_step_rejected?: components['schemas']['ActivitySummary'] | null
       /** @description Workflow execution context */
       workflow_context: components['schemas']['WorkflowContext']
+      /**
+       * Approver User Ids
+       * @description User IDs who can approve (null = any user with approval:decide permission)
+       */
+      approver_user_ids?: string[] | null
+      /**
+       * Approver Group Ids
+       * @description Group IDs whose members can approve
+       */
+      approver_group_ids?: string[] | null
     }
     /**
      * WorkflowContext
@@ -466,6 +490,46 @@ export interface components {
       /**
        * Name
        * @description User's display name at time of action
+       */
+      name: string
+    }
+    /**
+     * ApproverUserSummary
+     * @description Summary of a user authorized to approve a request.
+     *
+     *     Similar to UserReference but represents an approver rather than a decider.
+     *     Used in API responses to show who can approve a request.
+     */
+    ApproverUserSummary: {
+      /**
+       * Id
+       * Format: uuid
+       * @description User's unique identifier
+       */
+      id: string
+      /**
+       * Username
+       * @description User's username
+       */
+      username: string
+    }
+    /**
+     * ApproverGroupSummary
+     * @description Summary of a group whose members are authorized to approve a request.
+     *
+     *     Represents a group of users who can collectively approve a request.
+     *     Used in API responses to show which groups have approval authority.
+     */
+    ApproverGroupSummary: {
+      /**
+       * Id
+       * Format: uuid
+       * @description Group's unique identifier
+       */
+      id: string
+      /**
+       * Name
+       * @description Group's name
        */
       name: string
     }

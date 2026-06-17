@@ -32,10 +32,44 @@
 }
 
 .scrollableContent {
+  flex: 1;
   min-height: 0;
   overflow: auto;
 }
 
 .leafValue {
   color: var(--pf-t--global--color--nonstatus--gray--default);
+}
+
+/* patternfly-override: style MenuToggle as a link-colored action button */
+.linkToggle {
+  color: var(--pf-t--global--text--color--link--default);
+  padding: 0;
+  font-weight: normal;
+}
+
+.linkToggle::after {
+  border-color: var(--pf-t--global--text--color--link--default);
+}
+
+/* patternfly-override: style MenuToggle as a danger-colored action button */
+.dangerToggle {
+  color: var(--pf-t--global--color--status--danger--default);
+  padding: 0;
+  font-weight: normal;
+}
+
+.dangerToggle::after {
+  border-color: var(--pf-t--global--color--status--danger--default);
+}
+
+/* patternfly-override: PF6 ExpandableSection toggle inherits link color from parent;
+   override to regular text color for section headers in the Input panel.
+   Doubled class selector raises specificity without !important. */
+.sectionToggleText.sectionToggleText button {
+  color: var(--pf-t--global--text--color--regular);
+}
+
+.filledMinHeight {
+  min-height: 0;
 }

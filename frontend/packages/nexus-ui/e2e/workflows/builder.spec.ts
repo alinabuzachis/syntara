@@ -63,6 +63,30 @@ test('user can add an Approval node to the canvas', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-builder')
   await createWorkflowWithTrigger(app, workflowName)
 
+  // Mock the /authz/who_can API for both mock API and real backend
+  // This avoids the complexity of creating real users with approval:decide permission
+  await app.route('**/api/v1/authz/who_can', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { action?: string; resource_type?: string } | null
+      if (body?.action === 'decide' && body?.resource_type === 'approval') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            resources: [
+              { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', username: 'demo' },
+              { id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901', username: 'jdoe' },
+            ],
+            next: null,
+          }),
+        })
+        return
+      }
+    }
+    await route.continue()
+  })
+
   try {
     await closeNodeEditorPanel(app)
     await expect(app.getByText('Manual trigger')).toBeVisible()
@@ -77,8 +101,41 @@ test('user can add an Approval node to the canvas', async ({ app }) => {
     await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Approval Node')
 
-    await app.getByRole('textbox', { name: 'Add approver' }).fill('test-user')
-    await app.keyboard.press('Enter')
+    // Wait for the approver users dropdown to render (it loads users from API)
+    // The dropdown needs to load users from /authz/who_can endpoint
+    const approverUsersButton = app.getByPlaceholder(/Select users/i)
+    await expect(approverUsersButton).toBeVisible({ timeout: 15000 })
+    await expect(approverUsersButton).toBeEnabled({ timeout: 15000 })
+
+    // Route mock provides demo/jdoe users for both mock API and real backend
+    const expectedUsername = 'demo'
+
+    // Click the Approver Users dropdown and wait for it to open
+    await approverUsersButton.click()
+
+    // Wait for the PatternFly Select dropdown to open
+    const listbox = app.getByRole('listbox')
+    await expect(listbox).toBeVisible({ timeout: 5000 })
+
+    // Wait for menu items to load from the /authz/who_can API
+    // Note: PF6 Select uses role="listbox" for the container but role="menuitem" for items (not role="option")
+    await expect(async () => {
+      const menuItems = app.getByRole('menuitem')
+      const count = await menuItems.count()
+
+      if (count === 0) {
+        throw new Error('No menu items rendered yet')
+      }
+
+      const texts = await Promise.all(Array.from({ length: count }, (_, i) => menuItems.nth(i).textContent()))
+
+      if (!texts.some((t) => t?.includes(expectedUsername))) {
+        throw new Error(`${expectedUsername} not found. Available: ${texts.join(', ')}`)
+      }
+    }).toPass({ timeout: 15_000 })
+
+    // Click the user option from the PF Select menu
+    await app.getByRole('menuitem').filter({ hasText: expectedUsername }).click()
 
     // Wait for form validation to complete
     await expect(app.getByRole('button', { name: 'Save and close' })).toBeEnabled({ timeout: 15000 })
@@ -144,6 +201,29 @@ test('multiple nodes can be added sequentially', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-builder')
   await createWorkflowWithTrigger(app, workflowName)
 
+  // Mock the /authz/who_can API for both mock API and real backend
+  await app.route('**/api/v1/authz/who_can', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { action?: string; resource_type?: string } | null
+      if (body?.action === 'decide' && body?.resource_type === 'approval') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            resources: [
+              { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', username: 'demo' },
+              { id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901', username: 'jdoe' },
+            ],
+            next: null,
+          }),
+        })
+        return
+      }
+    }
+    await route.continue()
+  })
+
   try {
     await closeNodeEditorPanel(app)
     await expect(app.getByText('Manual trigger')).toBeVisible()
@@ -177,8 +257,40 @@ test('multiple nodes can be added sequentially', async ({ app }) => {
     const nameInput = app.getByRole('textbox', { name: 'Name', exact: true })
     await nameInput.fill('Approval Node 1')
 
-    await app.getByRole('textbox', { name: 'Add approver' }).fill('test-user')
-    await app.keyboard.press('Enter')
+    // Open the approver users dropdown and select a user
+    // Wait for the dropdown to be ready (loads from /authz/who_can)
+    const approverUsersButton = app.getByPlaceholder(/Select users/i)
+    await expect(approverUsersButton).toBeVisible({ timeout: 15000 })
+    await expect(approverUsersButton).toBeEnabled({ timeout: 15000 })
+
+    // Route mock provides demo/jdoe users for both mock API and real backend
+    const expectedUsername = 'demo'
+
+    await approverUsersButton.click()
+
+    // Wait for the PatternFly Select dropdown to open
+    const listbox = app.getByRole('listbox')
+    await expect(listbox).toBeVisible({ timeout: 5000 })
+
+    // Wait for menu items to load from the /authz/who_can API
+    // Note: PF6 Select uses role="listbox" for the container but role="menuitem" for items (not role="option")
+    await expect(async () => {
+      const menuItems = app.getByRole('menuitem')
+      const count = await menuItems.count()
+
+      if (count === 0) {
+        throw new Error('No menu items rendered yet')
+      }
+
+      const texts = await Promise.all(Array.from({ length: count }, (_, i) => menuItems.nth(i).textContent()))
+
+      if (!texts.some((t) => t?.includes(expectedUsername))) {
+        throw new Error(`${expectedUsername} not found. Available: ${texts.join(', ')}`)
+      }
+    }).toPass({ timeout: 15_000 })
+
+    // Click the user option from the PF Select menu
+    await app.getByRole('menuitem').filter({ hasText: expectedUsername }).click()
 
     // Wait for form validation to complete
     const saveBtn = app.getByRole('button', { name: 'Save and close' })

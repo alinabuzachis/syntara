@@ -25,17 +25,28 @@ describe('NxScrollableTableContainer', () => {
   it('renders table content when used as a direct child of Stack', () => {
     render(
       <Stack style={{ height: '240px' }}>
-        <NxScrollableTableContainer aria-label="Demo table">{minimalTable}</NxScrollableTableContainer>
+        <NxScrollableTableContainer caption="Demo table">{minimalTable}</NxScrollableTableContainer>
       </Stack>
     )
 
-    expect(screen.getByRole('grid', { name: 'Demo table' })).toBeInTheDocument()
+    expect(screen.getByRole('grid')).toBeInTheDocument()
+  })
+
+  it('scroll container is a named region landmark with tabIndex 0 for keyboard scrolling', () => {
+    render(
+      <Stack style={{ height: '240px' }}>
+        <NxScrollableTableContainer caption="Demo table">{minimalTable}</NxScrollableTableContainer>
+      </Stack>
+    )
+
+    const region = screen.getByRole('region', { name: 'Demo table' })
+    expect(region).toHaveAttribute('tabindex', '0')
   })
 
   it('has no accessibility violations in the supported Stack layout', async () => {
     const { container } = render(
       <Stack style={{ height: '240px' }}>
-        <NxScrollableTableContainer aria-label="Accessible table">{minimalTable}</NxScrollableTableContainer>
+        <NxScrollableTableContainer caption="Accessible table">{minimalTable}</NxScrollableTableContainer>
       </Stack>
     )
 
@@ -43,14 +54,14 @@ describe('NxScrollableTableContainer', () => {
   })
 
   /**
-   * The component’s root is a `StackItem` with `data-testid="scrollable-table-container-root"`. It must
+   * The component's root is a `StackItem` with `data-testid="scrollable-table-container-root"`. It must
    * be a direct child of the page `Stack` (see `NxScrollableTableContainer` JSDoc). Nesting it inside
    * another `StackItem` breaks flex height.
    */
   it('root is a direct child of the page Stack in the supported layout', () => {
     render(
       <Stack aria-label="Fixture page stack" role="region" style={{ height: '240px' }}>
-        <NxScrollableTableContainer aria-label="Layout table">{minimalTable}</NxScrollableTableContainer>
+        <NxScrollableTableContainer caption="Layout table">{minimalTable}</NxScrollableTableContainer>
       </Stack>
     )
 
@@ -59,14 +70,14 @@ describe('NxScrollableTableContainer', () => {
     /* eslint-disable testing-library/no-node-access -- parent link is the structural contract; STC root is not a role. */
     expect(stcRoot.parentElement).toBe(pageStack)
     /* eslint-enable testing-library/no-node-access */
-    expect(within(stcRoot).getByRole('grid', { name: 'Layout table' })).toBeInTheDocument()
+    expect(within(stcRoot).getByRole('grid')).toBeInTheDocument()
   })
 
   it('is not a direct child of the page Stack when wrapped in an extra StackItem (invalid nesting)', () => {
     render(
       <Stack aria-label="Fixture page stack" role="region" style={{ height: '240px' }}>
         <StackItem isFilled>
-          <NxScrollableTableContainer aria-label="Nested layout table">{minimalTable}</NxScrollableTableContainer>
+          <NxScrollableTableContainer caption="Nested layout table">{minimalTable}</NxScrollableTableContainer>
         </StackItem>
       </Stack>
     )
@@ -76,6 +87,6 @@ describe('NxScrollableTableContainer', () => {
     /* eslint-disable testing-library/no-node-access */
     expect(stcRoot.parentElement).not.toBe(pageStack)
     /* eslint-enable testing-library/no-node-access */
-    expect(within(stcRoot).getByRole('grid', { name: 'Nested layout table' })).toBeInTheDocument()
+    expect(within(stcRoot).getByRole('grid')).toBeInTheDocument()
   })
 })

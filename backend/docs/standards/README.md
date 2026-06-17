@@ -19,6 +19,7 @@ These existing documents define core standards and should be consulted first:
 
 | Document | Scope |
 |----------|-------|
+| [Access Control](access-control.md) | Authentication, RBAC (PermissionChecker/VisibilityFilter), compliance tests, exclusion lists |
 | [Testing](testing.md) | Test organization, naming, fixtures, markers, infrastructure |
 | [Imports and Modules](imports-and-modules.md) | Import ordering, `__init__.py` patterns, domain module structure |
 | [Logging](logging.md) | structlog usage, log levels, structured context, security |

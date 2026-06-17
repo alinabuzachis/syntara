@@ -29,14 +29,20 @@ vi.mock('../../../../client', () => ({
 }))
 
 const mockUseParams = vi.fn(() => ({}))
-vi.mock('wouter', () => ({
-  useLocation: () => ['/system-administration/authentication/identity-providers/add', vi.fn()],
+vi.mock('../../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/authentication/identity-providers/add',
+}))
+
+vi.mock('../../../../hooks/routing/useParams', () => ({
   useParams: () => mockUseParams(),
+}))
+
+vi.mock('../../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
 const mockNavigate = vi.fn()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../../hooks/routing/navigate', () => ({
   navigate: (...args: unknown[]): void => {
     mockNavigate(...args)
   },

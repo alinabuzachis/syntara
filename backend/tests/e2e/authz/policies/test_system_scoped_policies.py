@@ -16,16 +16,12 @@ import pytest
 if TYPE_CHECKING:
     from nexus_api_client.api import NexusApiRegistry
 
+    from tests.fixtures.factories import ProjectFactory, RoleFactory, UserFactory, UserRoleAssignmentFactory
+
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
 from tests.e2e.conftest import api_for
-from tests.e2e.fixtures.factories import (
-    assign_system_role,
-    create_project,
-    create_system_role,
-    create_user,
-)
 
 from .conftest import SELF_SCOPED_CASES, SYSTEM_SCOPED_REPRESENTATIVE
 
@@ -36,12 +32,21 @@ pytestmark = [pytest.mark.e2e]
 class TestSystemScopedPolicyAllowed:
     """Positive: user WITH the system policy can perform the action."""
 
-    def test_allowed(self, nexus_base_url: str, admin_api: NexusApiRegistry, case) -> None:
+    def test_allowed(
+        self,
+        nexus_base_url: str,
+        admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_role: RoleFactory,
+        create_user: UserFactory,
+        assign_system_role: UserRoleAssignmentFactory,
+        case,
+    ) -> None:
         user_id, username, password = create_user(admin_api, "sys-a")
         project_id, _ = create_project(admin_api, "sys-a")
 
         all_policies = [case.policy, *case.prereqs]
-        role_name = create_system_role(admin_api, "sys", all_policies)
+        role_name = create_role(admin_api, "sys", all_policies)
         assign_system_role(admin_api, user_id, role_name)
 
         ctx: dict[str, Any] = {}
@@ -57,7 +62,16 @@ class TestSystemScopedPolicyAllowed:
 class TestSystemScopedPolicyDenied:
     """Negative: user WITHOUT the system policy is denied."""
 
-    def test_denied(self, nexus_base_url: str, admin_api: NexusApiRegistry, case) -> None:
+    def test_denied(
+        self,
+        nexus_base_url: str,
+        admin_api: NexusApiRegistry,
+        create_user: UserFactory,
+        create_project: ProjectFactory,
+        create_role: RoleFactory,
+        assign_system_role: UserRoleAssignmentFactory,
+        case,
+    ) -> None:
         if case.skip_denied:
             pytest.skip("List endpoint returns built-in items to all authenticated users")
 
@@ -65,7 +79,7 @@ class TestSystemScopedPolicyDenied:
         project_id, _ = create_project(admin_api, "sys-d")
 
         if case.prereqs:
-            role_name = create_system_role(admin_api, "sysnp", case.prereqs)
+            role_name = create_role(admin_api, "sysnp", case.prereqs)
             assign_system_role(admin_api, user_id, role_name)
 
         ctx: dict[str, Any] = {}

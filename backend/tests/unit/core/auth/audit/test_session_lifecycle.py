@@ -101,3 +101,23 @@ class TestSessionLifecycleHandler:
         assert result.structured_data.data_type == "session-lifecycle-context"
         assert result.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
         assert result.structured_data.error_type == "RedisConnectionError"
+
+    def test_resource_fields_with_username(self) -> None:
+        """Resource fields use username when available."""
+        uid = uuid4()
+        event = SessionLifecycleEvent(action=SessionAction.CREATE, user_id=uid, username="testuser")
+        handler = SessionLifecycleHandler()
+        result = handler.handle(event)
+
+        assert result.resource_urn == "urn:nexus:user:testuser"
+        assert result.resource_name == "testuser"
+
+    def test_resource_fields_without_username(self) -> None:
+        """Resource fields fall back to user_id when username is None."""
+        uid = uuid4()
+        event = SessionLifecycleEvent(action=SessionAction.CREATE, user_id=uid, username=None)
+        handler = SessionLifecycleHandler()
+        result = handler.handle(event)
+
+        assert result.resource_urn == f"urn:nexus:user:{uid}"
+        assert result.resource_name == str(uid)

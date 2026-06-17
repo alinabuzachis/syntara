@@ -14,8 +14,10 @@ export type NodeActionsContextValue = {
   onReplace: (nodeId: string) => void
   /** Duplicate the activity and place the copy near the original on the canvas. */
   onDuplicate: (nodeId: string) => void
-  /** Open the test step dialog for the given React Flow node ID. */
+  /** Open the run step dialog for the given React Flow node ID. */
   onRunStep: (nodeId: string) => void
+  /** Toggle the disabled state for the given node. Disabled nodes are skipped during execution. */
+  onToggleDisabled: (nodeId: string) => void
 }
 
 /**

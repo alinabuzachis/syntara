@@ -7,7 +7,7 @@ import type {
   WaitActivity,
 } from '@ansible/nexus-contracts'
 import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
-import { Flex } from '@patternfly/react-core'
+import { Button, Flex } from '@patternfly/react-core'
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
@@ -24,7 +24,11 @@ import {
 } from '../../stores/useWorkflowStore'
 import { parseTriggerIndex } from '../../utils/triggerNodeIds'
 import { NodeMenu } from '../workflows/canvas/nodes/common/NodeMenu'
-import { MenuNodeType, useNodeMenuActions } from '../workflows/canvas/nodes/hooks/useNodeMenuActions'
+import {
+  MenuNodeType,
+  type MenuNodeTypeUnion,
+  useNodeMenuActions,
+} from '../workflows/canvas/nodes/hooks/useNodeMenuActions'
 import type { NodeType } from '../workflows/canvas/nodes/NodeType'
 import { renderNodeIcon } from '../workflows/canvas/nodes/renderNodeIcon'
 
@@ -143,6 +147,26 @@ function getEditModeFormId(node: Node<NodeType['data']> | undefined): string | u
     return getTaskFormId(node.data as TaskActivity)
   }
   return undefined
+}
+
+const CONTROL_FLOW_TYPES: ReadonlySet<string> = new Set([
+  FlowNodeType.CONDITION,
+  FlowNodeType.LOOP,
+  FlowNodeType.CONVERGE,
+  FlowNodeType.SWITCH,
+  FlowNodeType.WAIT,
+])
+
+function resolveMenuNodeType(flowNodeType: string | undefined): MenuNodeTypeUnion {
+  if (flowNodeType === FlowNodeType.TRIGGER) return MenuNodeType.TRIGGER
+  if (flowNodeType && CONTROL_FLOW_TYPES.has(flowNodeType)) return MenuNodeType.CONTROL_FLOW
+  return MenuNodeType.ACTIVITY
+}
+
+function getNodeDisabledState(node: Node<NodeType['data']> | undefined): boolean {
+  const nodeData = node?.data as Record<string, unknown> | undefined
+  const nodeSettings = nodeData?.settings as { disabled?: boolean } | undefined
+  return nodeSettings?.disabled ?? false
 }
 
 /** Top-level search is correct: the builder store always holds a flat activity list (see WorkflowTransform). */
@@ -270,6 +294,7 @@ type NodeDetailsPanelProps = {
   onNavigateToNode?: (nodeId: string) => void
   docLink?: string
   workflowMetadata?: WorkflowMetadata
+  onRunStep?: () => void
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
@@ -286,6 +311,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     onClose,
     projectId,
     onNavigateToNode,
+    onRunStep,
   } = props
   const { showError } = useAlerts()
   // Use typed selector for optimized subscription
@@ -295,10 +321,12 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const { moveActivityAfter, updateActivity, replaceActivity, removeActivity } = useWorkflowStoreActions()
   const isTriggerNode = node?.type === FlowNodeType.TRIGGER
   const triggerIndex = isTriggerNode ? parseTriggerIndex(node?.id ?? '') : undefined
+  const menuNodeType = resolveMenuNodeType(node?.type)
   const menuActions = useNodeMenuActions({
     nodeId: node?.id ?? 'unknown',
-    nodeType: isTriggerNode ? MenuNodeType.TRIGGER : MenuNodeType.ACTIVITY,
+    nodeType: menuNodeType,
     triggerIndex: isTriggerNode ? triggerIndex : undefined,
+    disabled: getNodeDisabledState(node),
   })
   const panelMenuActions = buildPanelMenuActions(mode, node, menuActions, onClose)
   const headerActions = panelMenuActions.length > 0 ? <NodeMenu menuActions={panelMenuActions} /> : null
@@ -409,6 +437,12 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
 
   const showInputPanel = mode === 'add' ? nodeTypeId !== RegistryNodeId.TRIGGER : node?.type !== FlowNodeType.TRIGGER
   const formId = mode === 'add' ? getAddModeFormId(nodeTypeId, nodeSubtypeId) : getEditModeFormId(node)
+  const tabBarAction =
+    mode === 'edit' && node?.type !== FlowNodeType.TRIGGER ? (
+      <Button variant="secondary" onClick={onRunStep} type="button">
+        Run step
+      </Button>
+    ) : undefined
 
   return (
     <NodeEditorLayout
@@ -427,6 +461,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       showNavigation={mode === 'edit'}
       onNavigateToNode={onNavigateToNode}
       workflowMetadata={props.workflowMetadata}
+      tabBarAction={tabBarAction}
     />
   )
 }

@@ -79,7 +79,7 @@ export interface paths {
     put?: never
     /**
      * Cancel Invocation
-     * @description Cancel a running or pending invocation. Only the invocation owner can cancel it.
+     * @description Cancel a running or pending invocation.
      */
     post: operations['cancel_invocation']
     delete?: never

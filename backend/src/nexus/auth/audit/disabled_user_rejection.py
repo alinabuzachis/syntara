@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import ClassVar
+from urllib.parse import quote
 from uuid import UUID
 
 import structlog
@@ -33,6 +34,7 @@ class DisabledUserRejectionEvent:
 
     user_id: str
     context: RejectionContext
+    user_name: str | None = None
 
 
 class DisabledUserRejectionHandler(AuditEventHandler[DisabledUserRejectionEvent]):
@@ -66,4 +68,6 @@ class DisabledUserRejectionHandler(AuditEventHandler[DisabledUserRejectionEvent]
             structured_data=data,
             actor_id=actor_id,
             actor_type=ActorType.USER,
+            resource_urn=f"urn:nexus:user:{quote(event.user_id, safe='')}",
+            resource_name=event.user_name or event.user_id,
         )

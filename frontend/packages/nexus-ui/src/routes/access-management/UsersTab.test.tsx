@@ -49,7 +49,7 @@ vi.mock('./useUserPermissions', () => ({
 }))
 
 const mockNavigate = vi.fn<(path: string) => void>()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../hooks/routing/navigate', () => ({
   navigate: (path: string): void => {
     mockNavigate(path)
   },
@@ -65,8 +65,11 @@ const mockSetSearchParams = vi.fn((params: URLSearchParams | ((prev: URLSearchPa
   }
 })
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/system-administration/access-management/users', vi.fn()],
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/access-management/users',
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [currentSearchParams, mockSetSearchParams],
 }))
 

@@ -14,8 +14,11 @@ vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({ showAlert: mockShowAlert, showError: mockShowError }),
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/', mockSetLocation],
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/',
+}))
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
 }))
 
 vi.mock('../../client', () => ({

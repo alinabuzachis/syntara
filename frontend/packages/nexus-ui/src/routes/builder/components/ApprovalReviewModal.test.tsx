@@ -14,6 +14,27 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  usersClient: {
+    useQuery: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+    })),
+  },
+}))
+
+vi.mock('../../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn((selector: (state: { username: string; userId: string }) => unknown) => {
+    const state = { username: 'testuser', userId: 'test-user-id' }
+
+    return selector(state)
+  }),
+}))
+
+vi.mock('../../approvals/useCanDecideApproval', () => ({
+  useCanDecideApproval: vi.fn(() => ({
+    canDecide: true,
+    isLoading: false,
+  })),
 }))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -77,8 +98,10 @@ describe('ApprovalReviewModal', () => {
 
     render(<ApprovalReviewModal approval={mockApproval} isOpen={true} onClose={onClose} />, { wrapper })
 
-    const closeButton = screen.getByRole('button', { name: 'Close' })
-    await user.click(closeButton)
+    // The modal has multiple "Close" buttons: the X button (plain) and the link button in content
+    // Click either one - use getAllByRole and click the first match (the X button)
+    const closeButtons = screen.getAllByRole('button', { name: /close/i })
+    await user.click(closeButtons[0])
     expect(onClose).toHaveBeenCalled()
   })
 })

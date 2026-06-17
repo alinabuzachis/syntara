@@ -18,7 +18,19 @@
     "additionalProperties": false
   },
   "settingSchema": {
-    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsCof"
+    "type": "object",
+    "description": "Settings with disabled and continue_on_failure (wait).",
+    "properties": {
+      "disabled": {
+        "type": "boolean",
+        "description": "When true, the node is skipped during execution. Downstream nodes still execute but receive no output from this node."
+      },
+      "continue_on_failure": {
+        "type": "boolean",
+        "description": "When true, downstream nodes continue executing even if this node fails. Inherits from global settings when absent."
+      }
+    },
+    "additionalProperties": false
   },
   "resultSchema": {
     "description": "Result structure available in result namespace",

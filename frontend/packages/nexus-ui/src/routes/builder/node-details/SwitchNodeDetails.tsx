@@ -3,9 +3,8 @@ import { type ReactNode, useMemo } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStore, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
-import { parseExpression } from '../../../utils/expressions/parser'
 import { SwitchNodeForm, type SwitchFormData } from '../node-forms/SwitchNodeForm'
-import { buildSwitchCasePort, isSwitchCasePort, serializeSwitchCases } from '../utils/switchCaseHelpers'
+import { buildSwitchCasePort, isSwitchCasePort } from '../utils/switchCaseHelpers'
 
 type SwitchNodeDetailsProps = {
   switchData: SwitchActivity
@@ -24,27 +23,11 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
     const portMap = new Map<string, string>()
     const cases =
       switchConfig.cases?.map((c, i) => {
-        const parsed = parseExpression(c.condition)
-        const caseId = parsed.root?.type === 'condition' ? parsed.root.id || c.port : c.port
-        portMap.set(caseId, c.port)
-
-        if (parsed.root?.type === 'condition') {
-          return {
-            id: caseId,
-            label: c.label || `Path ${i + 1}`,
-            variable: parsed.root.variable,
-            operator: parsed.root.operator,
-            value: parsed.root.value,
-            negate: parsed.root.negate ?? false,
-          }
-        }
+        portMap.set(c.port, c.port)
         return {
-          id: caseId,
+          caseId: c.port,
           label: c.label || `Path ${i + 1}`,
-          variable: c.condition,
-          operator: '==' as const,
-          value: '',
-          negate: false,
+          condition: c.condition,
         }
       }) ?? []
     return { initialCases: cases, oldCaseIdToPort: portMap }
@@ -57,7 +40,11 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
 
   const handleSubmit = (data: SwitchFormData) => {
     try {
-      const newCases = serializeSwitchCases(data.cases)
+      const newCases = data.cases.map((c, i) => ({
+        port: buildSwitchCasePort(i),
+        label: c.label || `Path ${i + 1}`,
+        condition: c.condition,
+      }))
 
       const updatedActivity: SwitchActivity = {
         ...switchData,
@@ -70,7 +57,7 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
 
       const portMapping = new Map<string, string>()
       data.cases.forEach((formCase, newIdx) => {
-        const oldPort = oldCaseIdToPort.get(formCase.id)
+        const oldPort = oldCaseIdToPort.get(formCase.caseId)
         if (oldPort) {
           portMapping.set(oldPort, buildSwitchCasePort(newIdx))
         }

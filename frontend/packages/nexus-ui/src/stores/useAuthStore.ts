@@ -28,6 +28,7 @@ type AuthState = {
   error: string | null
   logoutCount: number
   username: string | null
+  userId: string | null
   csrfToken: string | null
 }
 
@@ -70,6 +71,7 @@ const INITIAL_STATE: AuthState = {
   error: null,
   logoutCount: 0,
   username: null,
+  userId: null,
   csrfToken: null,
 }
 
@@ -215,17 +217,31 @@ async function postAuth(url: string, body?: object, extraHeaders?: Record<string
   return (await response.json()) as LoginResponse
 }
 
-function parseUsernameFromJwt(token: string): string | null {
+type JwtPayload = {
+  preferred_username?: string
+  sub?: string
+}
+
+function parseJwtPayload(token: string): JwtPayload | null {
   try {
     const payload = token.split('.')[1]
     if (!payload) return null
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
     const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
-    const decoded = JSON.parse(atob(padded)) as { preferred_username?: string }
-    return decoded.preferred_username ?? null
+    return JSON.parse(atob(padded)) as JwtPayload
   } catch {
     return null
   }
+}
+
+function parseUsernameFromJwt(token: string): string | null {
+  const payload = parseJwtPayload(token)
+  return payload?.preferred_username ?? null
+}
+
+function parseUserIdFromJwt(token: string): string | null {
+  const payload = parseJwtPayload(token)
+  return payload?.sub ?? null
 }
 
 function applyTokenResponse(
@@ -240,6 +256,7 @@ function applyTokenResponse(
     isRefreshing: false,
     error: null,
     username: parseUsernameFromJwt(data.access_token),
+    userId: parseUserIdFromJwt(data.access_token),
   })
   scheduleRefresh(data.expires_in, refreshFn)
 }

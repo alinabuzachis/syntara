@@ -1,6 +1,5 @@
 import { StackItem, Tab, Tabs } from '@patternfly/react-core'
 import { useLayoutEffect, useMemo } from 'react'
-import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../app/AppRoute'
 import { breadcrumbsAccessManagementHub } from '../../app/breadcrumbBuilders'
@@ -8,6 +7,8 @@ import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { useLocation } from '../../hooks/routing/useLocation'
+import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { AssignmentsTab } from '../access/AssignmentsTab'
 import { CanITab } from '../access/CanITab'
@@ -33,7 +34,8 @@ const allTabs = [
 
 export function AccessManagement() {
   const accessDocLink = useDocLink('accessControl')
-  const [location, navigate] = useLocation()
+  const location = useLocation()
+  const navigate = useNavigate()
   const {
     canReadUsers,
     canReadGroups,

@@ -185,13 +185,8 @@ export interface components {
       deleted_at?: string | null
       /** Deleted By */
       deleted_by?: string | null
-      /**
-       * Workflow Definition
-       * @description Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
-       */
-      workflow_definition?: {
-        [key: string]: unknown
-      } | null
+      /** @description Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter. */
+      workflow_definition?: components['schemas']['WorkflowDefinition'] | null
       /**
        * Activities
        * @description List of activities with their current status. Only included when requested via ?include=activities query parameter.
@@ -436,6 +431,12 @@ export interface components {
       trigger_inputs?: {
         [key: string]: unknown
       }
+      /**
+       * Execute Target
+       * @default true
+       * @description When false, run predecessors up to (but not including) the target node. Useful for populating upstream data without executing the target.
+       */
+      execute_target?: boolean
     }
     /**
      * ExecutionMode
@@ -478,6 +479,57 @@ export interface components {
       signal_data: {
         [key: string]: unknown
       }
+    }
+    /**
+     * WorkflowDefinition
+     * @description JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2.
+     *
+     *     Attributes:
+     *         schema_version: Schema version that this workflow definition conforms to
+     *         name: Workflow name
+     *         description: Human-readable description of the workflow's purpose
+     *         triggers: Trigger nodes that define how the workflow is initiated
+     *         nodes: Execution and control nodes in the workflow graph
+     *         edges: Directed edges connecting triggers and nodes in the workflow graph
+     */
+    WorkflowDefinition: {
+      /**
+       * Schema Version
+       * @description Schema version that this workflow definition conforms to
+       * @constant
+       */
+      schema_version: '2.0.0'
+      /**
+       * Name
+       * @description Workflow name
+       */
+      name: string
+      /**
+       * Description
+       * @description Human-readable description of the workflow's purpose
+       */
+      description?: string | null
+      /**
+       * Triggers
+       * @description Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation.
+       */
+      triggers: {
+        [key: string]: unknown
+      }[]
+      /**
+       * Nodes
+       * @description Execution and control nodes in the workflow graph
+       */
+      nodes: {
+        [key: string]: unknown
+      }[]
+      /**
+       * Edges
+       * @description List of directed edges connecting triggers and nodes in the workflow graph
+       */
+      edges: {
+        [key: string]: unknown
+      }[]
     }
     /**
      * ErrorData

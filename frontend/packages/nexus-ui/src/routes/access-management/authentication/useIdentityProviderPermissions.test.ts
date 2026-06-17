@@ -84,7 +84,7 @@ describe('useIdentityProviderPermissions', () => {
       body: { action: 'test', resource_type: RESOURCE_TYPE },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith(CAN_I_ENDPOINT, {
-      body: { action: 'revoke', resource_type: 'admin:revocation' },
+      body: { action: 'execute', resource_type: 'admin:revocation' },
     })
   })
 
@@ -100,7 +100,7 @@ describe('useIdentityProviderPermissions', () => {
     expect(result.current.tooltips.delete).toContain(`${RESOURCE_TYPE}:delete`)
     expect(result.current.tooltips.test).toContain(`${RESOURCE_TYPE}:test`)
     expect(result.current.tooltips.editMapping).toContain(updatePerm)
-    expect(result.current.tooltips.revoke).toContain('admin:revocation:revoke')
+    expect(result.current.tooltips.revoke).toContain('admin:revocation:execute')
   })
 
   it('returns safe defaults when requests fail', async () => {

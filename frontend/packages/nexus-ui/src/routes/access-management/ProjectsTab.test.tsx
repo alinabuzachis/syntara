@@ -37,15 +37,21 @@ vi.mock('./useProjectPermissions', () => ({
   }),
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 
-vi.mock('wouter', async () => {
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/access-management/projects',
+}))
+
+vi.mock('../../hooks/routing/useSearch', () => ({
+  useSearch: () => '',
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', async () => {
   const React = await import('react')
   return {
-    useLocation: () => ['/system-administration/access-management/projects', vi.fn()],
-    useSearch: () => '',
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })

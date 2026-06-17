@@ -51,7 +51,7 @@ function setMockUrl(url: string) {
   mockUrl.listeners.forEach((l) => l())
 }
 
-vi.mock('wouter', async () => {
+vi.mock('../../hooks/routing/useLocation', async () => {
   const React = await import('react')
   function useMockUrl() {
     const [, rerender] = React.useState(0)
@@ -67,14 +67,40 @@ vi.mock('wouter', async () => {
   return {
     useLocation: () => {
       const url = useMockUrl()
-      const path = url.split('?')[0]
-      return [path, setMockUrl] as const
+      return url.split('?')[0]
     },
+  }
+})
+
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => setMockUrl,
+}))
+
+vi.mock('../../hooks/routing/useSearch', async () => {
+  const React = await import('react')
+  function useMockUrl() {
+    const [, rerender] = React.useState(0)
+    React.useEffect(() => {
+      const listener = () => rerender((n) => n + 1)
+      mockUrl.listeners.add(listener)
+      return () => {
+        mockUrl.listeners.delete(listener)
+      }
+    }, [])
+    return mockUrl.current
+  }
+  return {
     useSearch: () => {
       const url = useMockUrl()
       const idx = url.indexOf('?')
       return idx >= 0 ? url.slice(idx) : ''
     },
+  }
+})
+
+vi.mock('../../hooks/routing/useSearchParams', async () => {
+  const React = await import('react')
+  return {
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })

@@ -10,8 +10,11 @@ import { AppDockedNav } from './AppDockedNav'
 
 // Mock wouter
 const mockNavigate = vi.fn()
-vi.mock('wouter', () => ({
-  useLocation: () => ['/workflows', mockNavigate],
+vi.mock('../hooks/routing/useLocation', () => ({
+  useLocation: () => '/workflows',
+}))
+vi.mock('../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
 }))
 
 // Mock useUnsavedChanges

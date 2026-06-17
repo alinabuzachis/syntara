@@ -9,7 +9,7 @@ import { useFilterState } from './useFilterState'
 const mockSetSearchParams = vi.fn()
 let mockSearchParams = new URLSearchParams()
 
-vi.mock('wouter', () => ({
+vi.mock('./routing/useSearchParams', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 

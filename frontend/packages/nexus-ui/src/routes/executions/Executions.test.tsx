@@ -2,9 +2,12 @@ import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { useLocation, useSearch, useSearchParams } from 'wouter'
 
 import { executionsClient, workflowClient } from '../../client'
+import { useLocation } from '../../hooks/routing/useLocation'
+import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useSearch } from '../../hooks/routing/useSearch'
+import { useSearchParams } from '../../hooks/routing/useSearchParams'
 
 import Executions from './Executions'
 
@@ -31,15 +34,21 @@ vi.mock('../../hooks/useProjectSelector', () => ({
 }))
 
 // Mock wouter
-vi.mock('wouter', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('wouter')>()
-  return {
-    ...actual,
-    useLocation: vi.fn(() => ['/executions', vi.fn()]),
-    useSearch: vi.fn(() => ''),
-    useSearchParams: vi.fn(() => [new URLSearchParams(''), vi.fn()]),
-  }
-})
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: vi.fn(() => '/executions'),
+}))
+const mockDefaultNavigate = vi.fn()
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: vi.fn(() => mockDefaultNavigate),
+}))
+
+vi.mock('../../hooks/routing/useSearch', () => ({
+  useSearch: vi.fn(() => ''),
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', () => ({
+  useSearchParams: vi.fn(() => [new URLSearchParams(''), vi.fn()]),
+}))
 
 describe('Executions Component', () => {
   const mockExecutions: ExecutionsAPI.components['schemas']['ExecutionRead'][] = [
@@ -295,7 +304,8 @@ describe('Executions Component', () => {
   it('execution ID links navigate to execution detail page', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
-    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    vi.mocked(useLocation).mockReturnValue('/' as never)
+    vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
     render(<Executions />)
@@ -310,7 +320,8 @@ describe('Executions Component', () => {
   it('workflow name links navigate to workflow builder', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
-    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    vi.mocked(useLocation).mockReturnValue('/' as never)
+    vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
     render(<Executions />)
@@ -325,7 +336,8 @@ describe('Executions Component', () => {
   it('all execution IDs navigate to their respective execution detail pages', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
-    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    vi.mocked(useLocation).mockReturnValue('/' as never)
+    vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
     render(<Executions />)
@@ -346,7 +358,8 @@ describe('Executions Component', () => {
   it('all workflow names navigate to their respective workflow builders', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
-    vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
+    vi.mocked(useLocation).mockReturnValue('/' as never)
+    vi.mocked(useNavigate).mockReturnValue(mockSetLocation)
     const user = userEvent.setup()
 
     render(<Executions />)

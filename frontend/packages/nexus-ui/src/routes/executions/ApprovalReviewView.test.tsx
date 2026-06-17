@@ -27,6 +27,12 @@ vi.mock('../../client', () => ({
       isPending: false,
     })),
   },
+  usersClient: {
+    useQuery: vi.fn(() => ({
+      data: undefined,
+      isLoading: false,
+    })),
+  },
 }))
 
 vi.mock('../../providers/alerts', () => ({
@@ -40,6 +46,22 @@ vi.mock('../../hooks/useFormMutationErrorHandler', () => ({
   useFormMutationErrorHandler: () => () => vi.fn(),
 }))
 
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn((selector: (state: { username: string; userId: string }) => unknown) => {
+    const state = { username: 'testuser', userId: 'test-user-id' }
+
+    return selector(state)
+  }),
+}))
+
+const mockCanDecide = vi.fn(() => true)
+vi.mock('../approvals/useCanDecideApproval', () => ({
+  useCanDecideApproval: vi.fn(() => ({
+    canDecide: mockCanDecide(),
+    isLoading: false,
+  })),
+}))
+
 const mockApproval: Approval = {
   id: 'approval-1',
   created_at: '2026-04-15T10:00:00Z',
@@ -50,6 +72,8 @@ const mockApproval: Approval = {
   name: 'Production Deployment Approval',
   description: 'Review before deploying',
   status: 'pending',
+  approver_users: [],
+  approver_groups: [],
   workflow_context: {
     workflow_version_id: '1',
     workflow_name: 'Hello World Workflow',
@@ -71,6 +95,7 @@ describe('ApprovalReviewView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockMutate.mockReset()
+    mockCanDecide.mockReturnValue(true) // Default: user can decide
     vi.mocked(approvalsClient.useMutation).mockReturnValue({
       mutate: mockMutate,
       isPending: false,
@@ -216,6 +241,47 @@ describe('ApprovalReviewView', () => {
 
     const submitButton = screen.getByRole('button', { name: /Submit decision/i })
     expect(submitButton).toBeDisabled()
+  })
+
+  describe('Permission-based rendering', () => {
+    it('shows read-only view when user cannot decide approval', () => {
+      mockCanDecide.mockReturnValue(false)
+
+      const approvalWithApprovers = {
+        ...mockApproval,
+        approver_users: [
+          { id: 'user-1', username: 'alice' },
+          { id: 'user-2', username: 'bob' },
+        ],
+        approver_groups: [{ id: 'group-1', name: 'admins' }],
+      } as unknown as Approval
+
+      render(<ApprovalReviewView {...defaultProps} approval={approvalWithApprovers} />, { wrapper: createWrapper() })
+
+      // Should show read-only view header
+      expect(screen.getByRole('heading', { name: 'Production Deployment Approval' })).toBeInTheDocument()
+
+      // Should NOT show the decision form controls
+      expect(screen.queryByRole('button', { name: /Submit decision/i })).not.toBeInTheDocument()
+
+      // Should show approver information in read-only alert
+      expect(screen.getByText(/This approval is restricted to:/)).toBeInTheDocument()
+      expect(screen.getByText(/Users: alice, bob/)).toBeInTheDocument()
+      expect(screen.getByText(/Groups: admins/)).toBeInTheDocument()
+    })
+
+    it('shows decision form when user can decide approval', () => {
+      mockCanDecide.mockReturnValue(true)
+
+      render(<ApprovalReviewView {...defaultProps} />, { wrapper: createWrapper() })
+
+      // Should show decision form controls
+      expect(screen.getByRole('button', { name: /Submit decision/i })).toBeInTheDocument()
+      expect(screen.getByText('Decision')).toBeInTheDocument()
+
+      // Should NOT show approver information (that's in read-only view)
+      expect(screen.queryByText('Approver users')).not.toBeInTheDocument()
+    })
   })
 
   it('has no accessibility violations', async () => {

@@ -2,7 +2,6 @@ import type { Execution } from '@ansible/nexus-contracts'
 import { StackItem } from '@patternfly/react-core'
 import { Thead, Tr, Th } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
-import { useSearch } from 'wouter'
 
 import { executionsClient } from '../../client'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -14,6 +13,7 @@ import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
+import { useSearch } from '../../hooks/routing/useSearch'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
@@ -160,7 +160,7 @@ export default function Executions() {
                   <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </NxPageBody>
               ) : (
-                <NxScrollableTableContainer aria-label="Executions table" footer={getFooterProps(executionsQuery.data)}>
+                <NxScrollableTableContainer caption="Executions table" footer={getFooterProps(executionsQuery.data)}>
                   <Thead>
                     <Tr>
                       <Th modifier="nowrap" sort={getSortParams(0)}>

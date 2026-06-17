@@ -22,6 +22,7 @@ type NodeEditorOverlayProps = {
   projectId?: string
   onNavigateToNode?: (nodeId: string) => void
   workflowMetadata?: WorkflowMetadata
+  onRunStep?: () => void
 }
 
 export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEditorOverlayProps) {
@@ -41,6 +42,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
     projectId,
     onNavigateToNode,
     workflowMetadata,
+    onRunStep,
   } = props
 
   if (!isOpen) return null
@@ -69,6 +71,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
           onNavigateToNode={onNavigateToNode}
           docLink={builderDocLink}
           workflowMetadata={workflowMetadata}
+          onRunStep={onRunStep}
         />
       </FlexItem>
     </Flex>

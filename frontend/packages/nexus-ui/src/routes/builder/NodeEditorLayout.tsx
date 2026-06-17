@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 
 import { NxPanel } from '../../components/layout/NxPanel'
 
+import { NodeFormTabBarProvider } from './node-forms/shared/NodeFormTabBarContext'
 import { useNodeExecutionData } from './panels/hooks/useNodeExecutionData'
 import { NodeEditorPanelBody } from './panels/NodeEditorPanelBody'
 import type { WorkflowMetadata } from './types/workflowMetadata'
@@ -51,6 +52,7 @@ type NodeEditorLayoutProps = {
   showNavigation?: boolean
   onNavigateToNode?: (nodeId: string) => void
   workflowMetadata?: WorkflowMetadata
+  tabBarAction?: ReactNode
 }
 
 export function NodeEditorLayout({
@@ -70,6 +72,7 @@ export function NodeEditorLayout({
   showNavigation = false,
   onNavigateToNode,
   workflowMetadata,
+  tabBarAction,
 }: NodeEditorLayoutProps) {
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
@@ -177,7 +180,9 @@ export function NodeEditorLayout({
             inputData={inputData}
             outputData={outputData}
             outputFlex={outputFlex}
-            parametersContent={parametersContent}
+            parametersContent={
+              <NodeFormTabBarProvider tabBarAction={tabBarAction}>{parametersContent}</NodeFormTabBarProvider>
+            }
             onNavigateToNode={onNavigateToNode}
             workflowMetadata={workflowMetadata}
           />

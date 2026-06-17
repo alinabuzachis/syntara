@@ -109,6 +109,7 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
         'Node IDs of completed branches. Users can reference these nodes directly for outputs (e.g., ${task_a.result}).',
     },
   ],
+  wait: [{ name: 'status', type: 'string', description: 'Wait duration elapsed successfully' }],
 }
 
 export function getNodeOutputSchema(nodeType: string): OutputFieldDef[] | null {

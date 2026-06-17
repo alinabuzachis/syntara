@@ -105,3 +105,32 @@ class TestOIDCFlowHandler:
 
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.provider_id is None  # type: ignore[attr-defined]
+
+    def test_resource_fields_with_username(self) -> None:
+        """Resource fields use username when available."""
+        uid = uuid4()
+        event = OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, user_id=uid, username="testuser")
+        handler = OIDCFlowHandler()
+        result = handler.handle(event)
+
+        assert result.resource_urn == "urn:nexus:user:testuser"
+        assert result.resource_name == "testuser"
+
+    def ***REMOVED***(self) -> None:
+        """Resource fields fall back to user_id when username is None."""
+        uid = uuid4()
+        event = OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, user_id=uid, username=None)
+        handler = OIDCFlowHandler()
+        result = handler.handle(event)
+
+        assert result.resource_urn == f"urn:nexus:user:{uid}"
+        assert result.resource_name == str(uid)
+
+    def test_resource_fields_none_when_both_missing(self) -> None:
+        """Resource fields are None when both username and user_id are None."""
+        event = OIDCFlowEvent(provider_id=None, stage=OIDCStage.AUTHORIZE, user_id=None, username=None)
+        handler = OIDCFlowHandler()
+        result = handler.handle(event)
+
+        assert result.resource_urn is None
+        assert result.resource_name is None

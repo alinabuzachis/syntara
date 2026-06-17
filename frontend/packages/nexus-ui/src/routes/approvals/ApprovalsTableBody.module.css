@@ -1,0 +1,7 @@
+/**
+ * Styling for approvals table body
+ */
+
+.disabledCheckboxCell {
+  opacity: 0.6;
+}

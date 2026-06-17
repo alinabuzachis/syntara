@@ -32,8 +32,10 @@ import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { ApprovalSummaryList } from '../approvals/ApprovalSummaryList'
+import { useCanDecideApproval } from '../approvals/useCanDecideApproval'
 
 import { approvalDecisionSchema, type ApprovalDecisionFormData } from './approvalDecisionSchema'
+import { ApprovalReadOnlyView } from './ApprovalReadOnlyView'
 
 type NextStep = { id: string; name: string; type: string; parameters?: Record<string, unknown> }
 
@@ -85,6 +87,10 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   const { showSuccess } = useAlerts()
   const queryClient = useQueryClient()
   const decisionMutation = approvalsClient.useMutation('patch', '/approvals/{approval_id}')
+
+  // SECURITY: Client-side check for UX only - disables controls for unauthorized users
+  // Backend ALWAYS validates and returns 403 via ApprovalService._is_user_authorized_approver()
+  const { canDecide: canDecideBasedOnApproverList, isLoading: isCheckingApproverList } = useCanDecideApproval(approval)
 
   const {
     handleSubmit,
@@ -141,6 +147,21 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   const resolvedNodeName = approvalNodeId ? activityNameMap?.get(approvalNodeId) : undefined
   const approvalDisplayName = resolvedNodeName ? `Approval for ${resolvedNodeName}` : approval.name
 
+  // If user is not authorized, show read-only view with approver information
+  if (!isCheckingApproverList && !canDecideBasedOnApproverList) {
+    const approverUsernames = approval.approver_users?.map((u) => u.username) ?? []
+    const approverGroupNames = approval.approver_groups?.map((g) => g.name) ?? []
+    return (
+      <ApprovalReadOnlyView
+        approval={approval}
+        activityNameMap={activityNameMap}
+        approverUsernames={approverUsernames}
+        approverGroups={approverGroupNames}
+        onClose={onClose}
+      />
+    )
+  }
+
   return (
     <NxPanel isFullHeight style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Stack hasGutter style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -157,7 +178,7 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
                 variant="primary"
                 onClick={handleSubmit(onSubmit)}
                 isLoading={decisionMutation.isPending}
-                isDisabled={decisionMutation.isPending}
+                isDisabled={decisionMutation.isPending || isCheckingApproverList || !canDecideBasedOnApproverList}
               >
                 Submit decision
               </Button>
@@ -209,12 +230,14 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
                   buttonId="approve-toggle"
                   isSelected={currentStatus === 'approved'}
                   onChange={() => setValue('status', 'approved')}
+                  isDisabled={isCheckingApproverList || !canDecideBasedOnApproverList}
                 />
                 <ToggleGroupItem
                   text="Reject"
                   buttonId="reject-toggle"
                   isSelected={currentStatus === 'rejected'}
                   onChange={() => setValue('status', 'rejected')}
+                  isDisabled={isCheckingApproverList || !canDecideBasedOnApproverList}
                 />
               </ToggleGroup>
             </FormGroup>

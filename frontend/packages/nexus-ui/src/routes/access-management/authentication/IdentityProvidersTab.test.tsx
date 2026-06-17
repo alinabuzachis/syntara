@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
-import { navigate } from 'wouter/use-browser-location'
 
 import { adminClient, identityProvidersClient } from '../../../client'
+import { navigate } from '../../../hooks/routing/navigate'
 import { AlertProvider } from '../../../providers/alerts'
 
 import { IdentityProvidersTab } from './IdentityProvidersTab'
@@ -34,12 +34,15 @@ vi.mock('../../../client', () => ({
 
 let currentSearchParams = new URLSearchParams()
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/system-administration/authentication', vi.fn()],
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/system-administration/authentication',
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [currentSearchParams, vi.fn()],
 }))
 
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: vi.fn(),
 }))
 

@@ -155,6 +155,10 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
       // Strict accessibility linting for JSX (labels, roles, alt text, etc.)
       ...jsxA11y.configs.strict.rules,
+      // Allow tabIndex={0} on role="region" elements (e.g. NxScrollableTableContainer scroll region).
+      // A named region landmark is the correct semantic wrapper when a non-interactive container needs
+      // keyboard focus for scrolling (WCAG 2.1.1 / jsx-a11y/no-noninteractive-tabindex rule docs).
+      'jsx-a11y/no-noninteractive-tabindex': ['error', { roles: ['region'] }],
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       // Disallow the `void` operator (Sonar S3735 / readability). For deliberately unawaited work from
@@ -253,7 +257,12 @@ export default tseslint.config(
     // wouter consumers. createTestRouter is the shared test utility for those bridges.
     // Re-declare with only the icon restriction so the wouter guard is lifted here without
     // also lifting the @patternfly/react-icons non-RhUi* guard.
-    files: ['**/hooks/routing/*.{ts,tsx}', '**/test/createTestRouter.tsx'],
+    files: [
+      '**/hooks/routing/*.{ts,tsx}',
+      '**/test/createTestRouter.tsx',
+      '**/app/AppRouter.tsx',
+      '**/app/AppRouter.test.tsx',
+    ],
     rules: {
       'no-restricted-imports': [
         'warn',

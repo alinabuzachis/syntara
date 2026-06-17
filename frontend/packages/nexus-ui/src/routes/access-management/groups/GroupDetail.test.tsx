@@ -45,17 +45,27 @@ let mockLocationValue = `/system-administration/access-management/groups/${VALID
 const mockSetLocation = vi.fn()
 const mockUseParams = vi.fn(() => ({ groupId: VALID_GROUP_ID }))
 
-vi.mock('wouter', async () => {
+vi.mock('../../../hooks/routing/useLocation', () => ({
+  useLocation: () => mockLocationValue,
+}))
+
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
+}))
+
+vi.mock('../../../hooks/routing/useParams', () => ({
+  useParams: () => mockUseParams(),
+}))
+
+vi.mock('../../../hooks/routing/useSearchParams', async () => {
   const React = await import('react')
   return {
-    useLocation: () => [mockLocationValue, mockSetLocation],
-    useParams: () => mockUseParams(),
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })
 
 const mockNavigate = vi.fn()
-vi.mock('wouter/use-browser-location', () => ({
+vi.mock('../../../hooks/routing/navigate', () => ({
   navigate: (...args: unknown[]): void => {
     mockNavigate(...args)
   },

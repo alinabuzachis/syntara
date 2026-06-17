@@ -103,7 +103,7 @@ test.describe('Workflows Table - Display and Navigation', () => {
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
       // Wait for filter chip to appear
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup).toBeVisible()
 
       // Wait for the workflow row
@@ -144,7 +144,7 @@ test.describe('Workflows Table - Display and Navigation', () => {
       await app.getByPlaceholder('Filter by name').fill(impossibleName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
-      const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
+      const nameChipGroup = app.getByRole('search', { name: 'Filters' }).getByRole('list', { name: 'Name' })
       await expect(nameChipGroup).toBeVisible()
 
       // Empty state should be visible

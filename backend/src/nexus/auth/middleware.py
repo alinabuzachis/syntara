@@ -62,6 +62,8 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
         current_ver: int = 0
         is_enabled: bool = True
         status_resolved: bool = False
+        payload = None
+        user_id: str = ""
 
         try:
             token_service = TokenService()
@@ -100,8 +102,11 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 RejectionContext,
             )
 
+            assert payload is not None  # noqa: S101  # status_resolved guarantees payload exists
             AuditEventDispatcher.dispatch(
-                DisabledUserRejectionEvent(user_id=user_id, context=RejectionContext.MIDDLEWARE)
+                DisabledUserRejectionEvent(
+                    user_id=user_id, context=RejectionContext.MIDDLEWARE, user_name=payload.preferred_username
+                )
             )
             logger.warning("Rejected request from disabled user", user_id=user_id)
             return JSONResponse(
@@ -115,11 +120,13 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
                 from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
                 from nexus.auth.audit.stale_token_detection import StaleTokenDetectionEvent  # noqa: PLC0415
 
+                assert payload is not None  # noqa: S101  # status_resolved guarantees payload exists
                 AuditEventDispatcher.dispatch(
                     StaleTokenDetectionEvent(
                         user_id=user_id,
                         token_version=token_ver,
                         current_version=current_ver,
+                        user_name=payload.preferred_username,
                     )
                 )
                 _stale_audit_cache[user_id] = True

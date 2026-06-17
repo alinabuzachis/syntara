@@ -68,6 +68,7 @@ class ApprovalRequestedHandler(AuditEventHandler[ApprovalRequestedEvent]):
         """Map an ApprovalRequestedEvent to a normalized AuditEvent."""
         data = AuditContextData(
             data_type="approval-requested",
+            name=event.name,
         )
 
         return AuditEvent(
@@ -80,6 +81,8 @@ class ApprovalRequestedHandler(AuditEventHandler[ApprovalRequestedEvent]):
             structured_data=data,
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
+            resource_urn=f"urn:nexus:approval:{event.approval_id}",
+            resource_name=event.approval_node_id,
         )
 
 
@@ -106,4 +109,6 @@ class ApprovalDecidedHandler(AuditEventHandler[ApprovalDecidedEvent]):
             actor_type=ActorType.USER,
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
+            resource_urn=f"urn:nexus:approval:{event.approval_id}",
+            resource_name=event.approval_node_id,
         )

@@ -409,7 +409,11 @@ async def refresh_token(
             )
 
             AuditEventDispatcher.dispatch(
-                DisabledUserRejectionEvent(user_id=str(payload.sub), context=RejectionContext.TOKEN_REFRESH)
+                DisabledUserRejectionEvent(
+                    user_id=str(payload.sub),
+                    context=RejectionContext.TOKEN_REFRESH,
+                    user_name=payload.preferred_username,
+                )
             )
             logger.warning("Inactive user attempted token refresh", user_id=payload.sub)
             raise AuthenticationRequiredError

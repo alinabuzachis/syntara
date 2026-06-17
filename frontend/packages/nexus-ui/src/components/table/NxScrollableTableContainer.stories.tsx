@@ -130,7 +130,7 @@ type Story = StoryObj<typeof meta>
 /** Basic scrollable table with 20 rows, no pagination footer. */
 export const Default: Story = {
   args: {
-    'aria-label': 'Resources table',
+    caption: 'Resources table',
     children: (
       <>
         <Thead>
@@ -162,6 +162,41 @@ export const Default: Story = {
   },
 }
 
+/** Table with only a few rows — no overflow, so no bottom fade gradient. */
+export const FewRows: Story = {
+  args: {
+    caption: 'Short resources table',
+    children: (
+      <>
+        <Thead>
+          <Tr>
+            <Th>Name</Th>
+            <Th>Status</Th>
+            <Th>Created at</Th>
+            <Th>Updated at</Th>
+            <Th screenReaderText="Actions" />
+          </Tr>
+        </Thead>
+        <Tbody>
+          {SAMPLE_ROWS.slice(0, 3).map((row) => (
+            <Tr key={row.name}>
+              <Td dataLabel="Name">{row.name}</Td>
+              <Td dataLabel="Status">
+                <StatusLabel status={row.status} />
+              </Td>
+              <Td dataLabel="Created at">{row.createdAt}</Td>
+              <Td dataLabel="Updated at">{row.updatedAt}</Td>
+              <Td isActionCell>
+                <ActionsColumn items={ROW_ACTIONS} />
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </>
+    ),
+  },
+}
+
 /** Table with interactive cursor-style pagination. */
 export const WithPagination: Story = {
   render: function WithPaginationStory() {
@@ -174,7 +209,7 @@ export const WithPagination: Story = {
 
     return (
       <NxScrollableTableContainer
-        aria-label="Paginated resources table"
+        caption="Paginated resources table"
         footer={{
           page,
           perPage,
@@ -254,7 +289,7 @@ export const Expandable: Story = {
 
     return (
       <NxScrollableTableContainer
-        aria-label="Expandable resources table"
+        caption="Expandable resources table"
         isExpandable
         footer={{
           page,

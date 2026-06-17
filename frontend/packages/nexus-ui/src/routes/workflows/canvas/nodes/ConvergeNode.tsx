@@ -33,7 +33,7 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
   )
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
-    nodeType: MenuNodeType.ACTIVITY,
+    nodeType: MenuNodeType.CONTROL_FLOW,
   })
   const config = (props.data.parameters ?? {}) as { strategy?: 'all' | 'any'; n_required?: number }
   const strategyLabel = getStrategyLabel(config.strategy, config.n_required)

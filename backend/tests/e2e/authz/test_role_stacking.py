@@ -18,16 +18,15 @@ from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.conftest import api_for, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import (
+from tests.fixtures.factories import (
+    AssignProjectRoleFactory,
+    CredentialFactory,
+    GroupFactory,
+    ProjectFactory,
+    ProjectRoleFactory,
+    UserFactory,
+    WorkflowFactory,
     add_to_group,
-    assign_role_to_group,
-    assign_role_to_user,
-    create_credential,
-    create_group,
-    create_project,
-    create_project_role,
-    create_user,
-    create_workflow,
 )
 
 pytestmark = [pytest.mark.e2e]
@@ -43,6 +42,14 @@ class TestRoleStacking:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_group: GroupFactory,
+        create_workflow: WorkflowFactory,
+        create_credential: CredentialFactory,
+        create_project_role: ProjectRoleFactory,
+        create_user: UserFactory,
+        assign_project_role_to_group: AssignProjectRoleFactory,
+        assign_project_role_to_user: AssignProjectRoleFactory,
     ) -> None:
         """User gets union of permissions from group role and direct role assignment."""
         # -- setup --
@@ -58,7 +65,7 @@ class TestRoleStacking:
             "grp-reader",
             ["workflow:read:project"],
         )
-        assign_role_to_group(admin_api, proj_id, group_id, group_role)
+        assign_project_role_to_group(admin_api, proj_id, group_id, group_role)
 
         # Direct role: credential:read + workflow:create
         direct_role = create_project_role(
@@ -67,7 +74,7 @@ class TestRoleStacking:
             "direct-mixed",
             ["credential:read:project", "workflow:create:project"],
         )
-        assign_role_to_user(admin_api, proj_id, user_id, direct_role)
+        assign_project_role_to_user(admin_api, proj_id, user_id, direct_role)
 
         # Seed resources
         create_workflow(admin_api, proj_id, "stack-seed")
@@ -94,6 +101,12 @@ class TestRoleStacking:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_group: GroupFactory,
+        create_credential: CredentialFactory,
+        create_project_role: ProjectRoleFactory,
+        create_user: UserFactory,
+        assign_project_role_to_group: AssignProjectRoleFactory,
     ) -> None:
         """A user with only the group role cannot create workflows or read credentials."""
         proj_id, _ = create_project(admin_api, "stack-grp")
@@ -107,7 +120,7 @@ class TestRoleStacking:
             "grp-only",
             ["workflow:read:project"],
         )
-        assign_role_to_group(admin_api, proj_id, group_id, group_role)
+        assign_project_role_to_group(admin_api, proj_id, group_id, group_role)
 
         user_api = api_for(nexus_base_url, name, password)
 
@@ -134,6 +147,10 @@ class TestRoleStacking:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_project_role: ProjectRoleFactory,
+        create_user: UserFactory,
+        assign_project_role_to_user: AssignProjectRoleFactory,
     ) -> None:
         """A user with only the direct role cannot read workflows (only create)."""
         proj_id, _ = create_project(admin_api, "stack-dir")
@@ -145,7 +162,7 @@ class TestRoleStacking:
             "dir-only",
             ["credential:read:project", "workflow:create:project"],
         )
-        assign_role_to_user(admin_api, proj_id, user_id, direct_role)
+        assign_project_role_to_user(admin_api, proj_id, user_id, direct_role)
 
         user_api = api_for(nexus_base_url, name, password)
 

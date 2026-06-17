@@ -1,6 +1,5 @@
 import { Button, Stack, StackItem, Tab } from '@patternfly/react-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'wouter'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsSettingsCategory, breadcrumbsSettingsPage } from '../../../app/breadcrumbBuilders'
@@ -11,6 +10,8 @@ import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../components/layout/NxPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
+import { useLocation } from '../../../hooks/routing/useLocation'
+import { useNavigate } from '../../../hooks/routing/useNavigate'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { useAlerts } from '../../../providers/alerts'
@@ -60,7 +61,8 @@ export default function Settings() {
   const validTabs = useMemo(() => categories.map((c) => c.slug), [categories])
   const defaultCategory = categories[0]?.slug ?? ''
   const [activeSlug] = useUrlTab(basePath, defaultCategory)
-  const [location, setLocation] = useLocation()
+  const location = useLocation()
+  const setLocation = useNavigate()
 
   // UrlTabs only redirects when the URL contains an *invalid* tab slug.
   // When there is *no* slug at all, useUrlTab silently falls back to defaultTab

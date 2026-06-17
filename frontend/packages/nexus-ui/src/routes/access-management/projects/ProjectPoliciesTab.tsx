@@ -180,7 +180,7 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer
-            aria-label="Project policies"
+            caption="Project policies"
             footer={{
               page,
               perPage,

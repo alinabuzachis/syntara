@@ -1,12 +1,12 @@
 import { Button, Toolbar, ToolbarContent, ToolbarGroup, ToolbarItem, ToolbarFilter } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
-import type React from 'react'
 import { useCallback } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
 import { ActiveFilterChips } from './ActiveFilterChips'
+import styles from './FilterBar.module.css'
 import {
   convertLabelParamsToFilters,
   updateOrAddFilter,
@@ -46,6 +46,8 @@ export type FilterBarProps = {
   clearAllFilters?: () => void
   /** Compact mode for narrow panels (reduces padding, hides clear-all) */
   isCompact?: boolean
+  /** Additional class name applied to the root `Toolbar` element. */
+  className?: string
   /** Page controls placed after filter inputs (e.g. refresh, timestamps). Not for keyword search until backend/strategy is defined. */
   toolbarItemsAfterFilters?: ReactNode
   /** Page controls aligned to the toolbar end (e.g. primary actions) */
@@ -82,6 +84,7 @@ export function FilterBar({
   isCompact = false,
   toolbarItemsAfterFilters,
   toolbarEnd,
+  className,
 }: FilterBarProps) {
   // Separate field definitions for TextFilter (TEXT/SELECT/DATERANGE/MULTISELECT) vs other filter types
   const attributeSearchFields = fieldDefinitions.filter(isAttributeSearchField)
@@ -160,32 +163,16 @@ export function FilterBar({
 
   const effectiveShowClearAll = isCompact ? false : showClearAll
 
-  const compactStyle = isCompact
-    ? ({
-        '--pf-v6-c-toolbar--PaddingBlockStart': 'var(--pf-t--global--spacer--xs)',
-        '--pf-v6-c-toolbar--PaddingBlockEnd': 'var(--pf-t--global--spacer--xs)',
-        '--pf-v6-c-toolbar__content--PaddingInlineEnd': 'var(--pf-t--global--spacer--md)',
-        '--pf-v6-c-toolbar__content--PaddingInlineStart': 'var(--pf-t--global--spacer--md)',
-        minWidth: 0,
-        maxWidth: '100%',
-      } as React.CSSProperties)
-    : undefined
-
-  const compactFilterGroupStyle: React.CSSProperties | undefined = isCompact
-    ? { flexWrap: 'wrap', rowGap: 'var(--pf-t--global--spacer--xs)' }
-    : undefined
-
   return (
     <Toolbar
-      id="filter-toolbar"
       role="search"
       aria-label="Filters"
       clearAllFilters={handleClearAll}
-      style={compactStyle}
+      className={[isCompact ? styles.compact : undefined, className].filter(Boolean).join(' ') || undefined}
     >
       <ToolbarContent>
         {/* Filter Controls Group */}
-        <ToolbarGroup variant="filter-group" style={compactFilterGroupStyle}>
+        <ToolbarGroup variant="filter-group" className={isCompact ? styles.compactFilterGroup : undefined}>
           {/* Text Filter - Field Selector + Value Input (TEXT/SELECT/DATERANGE) */}
           {attributeSearchFields.length > 0 && (
             <TextFilter
@@ -212,7 +199,11 @@ export function FilterBar({
           ))}
         </ToolbarGroup>
 
-        {toolbarItemsAfterFilters && <ToolbarGroup variant="action-group">{toolbarItemsAfterFilters}</ToolbarGroup>}
+        {toolbarItemsAfterFilters && (
+          <ToolbarGroup variant="action-group">
+            <ToolbarItem>{toolbarItemsAfterFilters}</ToolbarItem>
+          </ToolbarGroup>
+        )}
 
         {/* Clear All Filters Button */}
         {effectiveShowClearAll && hasActiveFilters && (
@@ -225,7 +216,7 @@ export function FilterBar({
 
         {toolbarEnd && (
           <ToolbarGroup variant="action-group" align={{ default: 'alignEnd' }}>
-            {toolbarEnd}
+            <ToolbarItem>{toolbarEnd}</ToolbarItem>
           </ToolbarGroup>
         )}
       </ToolbarContent>

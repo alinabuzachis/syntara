@@ -10,9 +10,9 @@ from uuid import UUID
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
-
     from nexus_api_client.api import NexusApiRegistry
+
+    from tests.fixtures.factories import AssignProjectRoleFactory, ProjectFactory, ProjectRoleFactory, UserFactory
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -24,11 +24,6 @@ from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.conftest import api_for
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import (
-    ResourceTracker,
-    assign_role_to_user,
-    create_project_role,
-)
 
 pytestmark = [pytest.mark.e2e]
 
@@ -40,32 +35,49 @@ _POLICIES = [
 
 
 @pytest.fixture(scope="module")
-def role_assignment_manager_env(admin_api: NexusApiRegistry, nexus_base_url: str) -> Generator[Any, None, None]:
+def role_assignment_manager_env(
+    admin_api: NexusApiRegistry,
+    create_project: ProjectFactory,
+    create_project_role: ProjectRoleFactory,
+    create_user: UserFactory,
+    assign_project_role_to_user: AssignProjectRoleFactory,
+    nexus_base_url: str,
+) -> dict[str, Any]:
     """Create project, manager user, target user, and a role to assign."""
-    tracker = ResourceTracker(admin_api)
-
-    project_id, _ = tracker.project("rolemgr")
+    project_id, _ = create_project(admin_api, "rolemgr")
 
     # Manager user — can assign/revoke roles in the project
-    mgr_id, mgr_name, mgr_pass = tracker.user("rolemgr")
+    mgr_id, mgr_name, mgr_pass = create_user(admin_api, "rolemgr")
 
     mgr_role = create_project_role(admin_api, project_id, "rolemgr", _POLICIES)
-    assign_role_to_user(admin_api, project_id, mgr_id, mgr_role)
+    assign_project_role_to_user(admin_api, project_id, mgr_id, mgr_role)
     mgr_api = api_for(nexus_base_url, mgr_name, mgr_pass)
 
     # Target user — will receive/lose the "project-user" built-in role
-    target_id, target_name, target_pass = tracker.user("roletgt")
+    target_id, target_name, target_pass = create_user(admin_api, "roletgt")
 
-    yield mgr_api, project_id, mgr_id, target_id, nexus_base_url, target_name, target_pass
-    tracker.cleanup()
+    return {
+        "mgr_api": mgr_api,
+        "project_id": project_id,
+        "mgr_id": mgr_id,
+        "target_id": target_id,
+        "base_url": nexus_base_url,
+        "target_user": target_name,
+        "target_pass": target_pass,
+    }
 
 
 class TestRoleAssignmentManagerAllowed:
     """Positive: assign, list, and revoke project roles."""
 
     def test_assign_list_revoke_cycle(self, role_assignment_manager_env):
-        """Role assignment manager can assign, list, and revoke project role assignments."""
-        mgr_api, project_id, _mgr_id, target_id, base_url, target_user, target_pass = role_assignment_manager_env
+        role_env = role_assignment_manager_env
+        mgr_api = role_env["mgr_api"]
+        project_id = role_env["project_id"]
+        target_id = role_env["target_id"]
+        base_url = role_env["base_url"]
+        target_user = role_env["target_user"]
+        target_pass = role_env["target_pass"]
 
         # 1. Assign "project-user" to target
         assign_resp = mgr_api.projects.create_role_assignment(
@@ -109,7 +121,9 @@ class TestRoleAssignmentManagerDenied:
 
     def test_cannot_assign_system_role(self, role_assignment_manager_env):
         """Role assignment manager cannot assign system roles (scope boundary enforcement)."""
-        mgr_api, _project_id, _mgr_id, target_id, _base_url, _tu, _tp = role_assignment_manager_env
+        role_env = role_assignment_manager_env
+        mgr_api = role_env["mgr_api"]
+        target_id = role_env["target_id"]
         resp = mgr_api.users.create_role_assignment(
             user_id=target_id,
             body=SubResourceRoleAssignmentCreate(role_name="admin"),
@@ -120,7 +134,9 @@ class TestRoleAssignmentManagerDenied:
         """Role assignment manager cannot create workflows (limited to role management only)."""
         from tests.e2e.conftest import unique_name
 
-        mgr_api, project_id, *_ = role_assignment_manager_env
+        role_env = role_assignment_manager_env
+        mgr_api = role_env["mgr_api"]
+        project_id = role_env["project_id"]
         resp = mgr_api.workflows.create(
             body=WorkflowCreate(
                 name=unique_name("should-fail"),

@@ -376,7 +376,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
           </NxPageBody>
         ) : (
           <NxScrollableTableContainer
-            aria-label="User groups table"
+            caption="User groups table"
             footer={{
               page,
               perPage,

@@ -10,3 +10,24 @@
 .toggleButton[aria-expanded='true'] .toggleIcon {
   transform: rotate(-180deg);
 }
+
+.dragHandle {
+  cursor: grab;
+  color: var(--pf-t--global--icon--color--regular);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragging {
+  opacity: 0.5;
+}
+
+.dragOverlay {
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  background-color: var(--pf-t--global--background--color--floating--default);
+  border-radius: var(--pf-t--global--border-radius--default);
+  box-shadow: var(--pf-t--global--box-shadow--lg);
+  opacity: 0.9;
+}

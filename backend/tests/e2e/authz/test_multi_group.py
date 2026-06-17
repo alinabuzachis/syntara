@@ -18,15 +18,15 @@ from nexus_api_client.models.workflow_create import WorkflowCreate
 
 from tests.e2e.conftest import api_for, unique_name
 from tests.e2e.fixtures.constants import MINIMAL_WORKFLOW_DEFINITION
-from tests.e2e.fixtures.factories import (
+from tests.fixtures.factories import (
+    AssignProjectRoleFactory,
+    CredentialFactory,
+    GroupFactory,
+    ProjectFactory,
+    ProjectRoleFactory,
+    UserFactory,
+    WorkflowFactory,
     add_to_group,
-    assign_role_to_group,
-    create_credential,
-    create_group,
-    create_project,
-    create_project_role,
-    create_user,
-    create_workflow,
     remove_from_group,
 )
 
@@ -44,6 +44,13 @@ class TestMultiGroupMembership:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_group: GroupFactory,
+        create_workflow: WorkflowFactory,
+        create_credential: CredentialFactory,
+        create_project_role: ProjectRoleFactory,
+        create_user: UserFactory,
+        assign_project_role_to_group: AssignProjectRoleFactory,
     ) -> None:
         """User in both group-ops and group-security gets union of permissions from both groups."""
         proj_id, _ = create_project(admin_api, "multi")
@@ -57,7 +64,7 @@ class TestMultiGroupMembership:
             "ops",
             ["workflow:read:project", "workflow:create:project"],
         )
-        assign_role_to_group(admin_api, proj_id, ops_group_id, ops_role)
+        assign_project_role_to_group(admin_api, proj_id, ops_group_id, ops_role)
 
         # group-security: credential read
         sec_group_id, _ = create_group(admin_api, "security")
@@ -67,7 +74,7 @@ class TestMultiGroupMembership:
             "security",
             ["credential:read:project"],
         )
-        assign_role_to_group(admin_api, proj_id, sec_group_id, sec_role)
+        assign_project_role_to_group(admin_api, proj_id, sec_group_id, sec_role)
 
         add_to_group(admin_api, ops_group_id, user_id)
         add_to_group(admin_api, sec_group_id, user_id)
@@ -97,6 +104,12 @@ class TestMultiGroupMembership:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_group: GroupFactory,
+        create_credential: CredentialFactory,
+        create_project_role: ProjectRoleFactory,
+        create_user: UserFactory,
+        assign_project_role_to_group: AssignProjectRoleFactory,
     ) -> None:
         """Removing user from group-ops revokes workflow:create but keeps credential:read."""
         proj_id, _ = create_project(admin_api, "multi-rev")
@@ -109,7 +122,7 @@ class TestMultiGroupMembership:
             "ops-rev",
             ["workflow:read:project", "workflow:create:project"],
         )
-        assign_role_to_group(admin_api, proj_id, ops_group_id, ops_role)
+        assign_project_role_to_group(admin_api, proj_id, ops_group_id, ops_role)
 
         sec_group_id, _ = create_group(admin_api, "sec-rev")
         sec_role = create_project_role(
@@ -118,7 +131,7 @@ class TestMultiGroupMembership:
             "sec-rev",
             ["credential:read:project"],
         )
-        assign_role_to_group(admin_api, proj_id, sec_group_id, sec_role)
+        assign_project_role_to_group(admin_api, proj_id, sec_group_id, sec_role)
 
         add_to_group(admin_api, ops_group_id, user_id)
         add_to_group(admin_api, sec_group_id, user_id)
@@ -151,6 +164,13 @@ class TestMultiGroupMembership:
         self,
         nexus_base_url: str,
         admin_api: NexusApiRegistry,
+        create_project: ProjectFactory,
+        create_group: GroupFactory,
+        create_credential: CredentialFactory,
+        create_project_role: ProjectRoleFactory,
+        create_user: UserFactory,
+        assign_project_role_to_group: AssignProjectRoleFactory,
+        create_workflow,
     ) -> None:
         """Removing user from group-security revokes credential:read but keeps workflow access."""
         proj_id, _ = create_project(admin_api, "multi-rsec")
@@ -163,7 +183,7 @@ class TestMultiGroupMembership:
             "ops-rsec",
             ["workflow:read:project", "workflow:create:project"],
         )
-        assign_role_to_group(admin_api, proj_id, ops_group_id, ops_role)
+        assign_project_role_to_group(admin_api, proj_id, ops_group_id, ops_role)
 
         sec_group_id, _ = create_group(admin_api, "sec-rsec")
         sec_role = create_project_role(
@@ -172,7 +192,7 @@ class TestMultiGroupMembership:
             "sec-rsec",
             ["credential:read:project"],
         )
-        assign_role_to_group(admin_api, proj_id, sec_group_id, sec_role)
+        assign_project_role_to_group(admin_api, proj_id, sec_group_id, sec_role)
 
         add_to_group(admin_api, ops_group_id, user_id)
         add_to_group(admin_api, sec_group_id, user_id)

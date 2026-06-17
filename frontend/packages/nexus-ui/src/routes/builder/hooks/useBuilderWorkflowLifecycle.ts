@@ -28,7 +28,8 @@ export function useBuilderWorkflowLifecycle(options: {
   loadWorkflowWithEdges: (
     def: WorkflowDefinition,
     edges: EdgeConnection[],
-    nodePositions?: Record<string, { x: number; y: number }>
+    nodePositions?: Record<string, { x: number; y: number }>,
+    projectId?: string | null
   ) => void
 }): void {
   const {
@@ -91,7 +92,7 @@ export function useBuilderWorkflowLifecycle(options: {
       const { flattenedWorkflow, generatedEdges, nodePositions, initPayload } = processExistingWorkflow(workflow)
 
       queueMicrotask(() => {
-        loadWorkflowWithEdges(flattenedWorkflow, generatedEdges, nodePositions)
+        loadWorkflowWithEdges(flattenedWorkflow, generatedEdges, nodePositions, workflow.project_id ?? null)
         dispatch({ type: 'INIT_WORKFLOW', payload: initPayload })
         hasLoadedRef.current = true
       })

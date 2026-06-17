@@ -1,6 +1,7 @@
 """AuthorizationDeniedEvent and handler for authz-domain audit."""
 
 from dataclasses import dataclass, field
+from urllib.parse import quote
 from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
@@ -20,7 +21,9 @@ class AuthorizationDeniedEvent:
 
     user_id: UUID
     username: str
+    resource_id: str
     resource_type: str
+    resource_name: str
     action: str
     denied_by: str | None = field(default=None)
 
@@ -48,4 +51,6 @@ class AuthorizationDeniedHandler(AuditEventHandler[AuthorizationDeniedEvent]):
             actor_id=event.user_id,
             actor_type=ActorType.USER,
             actor_username=event.username,
+            resource_urn=f"urn:nexus:{quote(event.resource_type, safe='')}:{quote(event.resource_id, safe='')}",
+            resource_name=event.resource_name,
         )

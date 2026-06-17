@@ -90,18 +90,6 @@ test.describe('Webhook Trigger', () => {
     await expect(urlInput).not.toHaveValue(/github-push/)
   })
 
-  test('webhook form shows HTTP method as disabled POST', async ({ app }) => {
-    await app.goto(toAppUrl('/workflow-builder/new'))
-
-    await expect(app.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10_000 })
-    await app.getByRole('button', { name: 'Webhook trigger', exact: true }).click()
-
-    const httpMethod = app.getByRole('textbox', { name: 'HTTP method' })
-    await expect(httpMethod).toBeVisible()
-    await expect(httpMethod).toHaveValue('POST')
-    await expect(httpMethod).toBeDisabled()
-  })
-
   test('webhook form validates empty path', async ({ app }) => {
     await app.goto(toAppUrl('/workflow-builder/new'))
 

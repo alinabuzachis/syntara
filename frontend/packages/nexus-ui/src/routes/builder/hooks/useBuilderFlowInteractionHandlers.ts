@@ -130,14 +130,26 @@ export function useBuilderFlowInteractionHandlers({
     [dispatch, reactFlowInstance, duplicateActivity]
   )
 
+  const handleToggleDisabled = useCallback((nodeId: string) => {
+    const store = useWorkflowStore.getState()
+    const activities = store.currentWorkflow?.workflow.activities ?? []
+    const activity = activities.find((a) => a.id === nodeId)
+    if (!activity) return
+    const currentDisabled = activity.settings?.disabled ?? false
+    store.updateActivity(nodeId, {
+      settings: { ...activity.settings, disabled: !currentDisabled },
+    })
+  }, [])
+
   const nodeActionsValue = useMemo<NodeActionsContextValue>(
     () => ({
       onViewDetails: handleViewNodeDetails,
       onReplace: handleReplaceNode,
       onDuplicate: handleDuplicateNode,
       onRunStep,
+      onToggleDisabled: handleToggleDisabled,
     }),
-    [handleViewNodeDetails, handleReplaceNode, handleDuplicateNode, onRunStep]
+    [handleViewNodeDetails, handleReplaceNode, handleDuplicateNode, onRunStep, handleToggleDisabled]
   )
 
   return {

@@ -1,34 +1,53 @@
 import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
   Alert,
   Button,
   Content,
   ExpandableSection,
   Flex,
   FlexItem,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   Stack,
   StackItem,
   TextInput,
   Tooltip,
 } from '@patternfly/react-core'
-// eslint-disable-next-line no-restricted-imports -- RhMicronsCaretDownIcon is intentionally used here to match the chevron weight of PatternFly's ExpandableSection toggle
-import { RhMicronsCaretDownIcon, RhUiAddCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import {
+  RhMicronsCaretDownIcon,
+  RhUiAddCircleIcon,
+  RhUiGripVerticalFillIcon,
+  RhUiTrashIcon,
+} from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { Controller, FormProvider, useFieldArray, useForm, useFormContext } from 'react-hook-form'
 
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
-import { ExpressionCondition } from '../../../components/expressions/ExpressionCondition'
-import type {
-  ComparisonOperator,
-  ExpressionCondition as ExpressionConditionType,
-} from '../../../utils/expressions/types'
+import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 import { generateUUID } from '../../../utils/generateUUID'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { PathExpressionHelp } from './shared/PathExpressionHelp'
 import { switchFormSchema, type SwitchFormData } from './switchFormSchema'
 import styles from './SwitchNodeForm.module.css'
 
@@ -39,12 +58,9 @@ const MAX_CASES = 100
 
 function createEmptyCase(index: number) {
   return {
-    id: generateUUID(),
+    caseId: generateUUID(),
     label: `Path ${index + 1}`,
-    variable: '',
-    operator: '==' as const,
-    value: '',
-    negate: false,
+    condition: '',
   }
 }
 
@@ -119,6 +135,7 @@ type SwitchCaseItemProps = {
   control: Control<SwitchFormData>
   canRemove: boolean
   expandedPaths: Record<string, boolean>
+  hadErrorRef: React.MutableRefObject<Record<string, boolean>>
   onToggleExpanded: () => void
   onRemove: () => void
 }
@@ -128,75 +145,126 @@ function SwitchCaseItem({
   index,
   control,
   canRemove,
+  hadErrorRef,
   expandedPaths,
   onToggleExpanded,
   onRemove,
 }: SwitchCaseItemProps) {
   const contentId = `case-content-${fieldId}`
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: fieldId })
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
 
   return (
-    <Controller
-      control={control}
-      name={`cases.${index}`}
-      render={({ field, fieldState }) => {
-        const currentCase = field.value
-        const caseErrors = fieldState.error as Record<string, { message?: string }> | undefined
-        const hasError = !!caseErrors
-        const isExpanded = (expandedPaths[fieldId] ?? true) || hasError
+    <div ref={setNodeRef} style={sortableStyle} className={isDragging ? styles.dragging : undefined}>
+      <Controller
+        control={control}
+        name={`cases.${index}`}
+        render={({ field, fieldState }) => {
+          const currentCase = field.value
+          const conditionError = (fieldState.error as Record<string, { message?: string }> | undefined)?.condition
+          const hasError = !!fieldState.error
+          if (hasError && expandedPaths[fieldId] === false) {
+            hadErrorRef.current[fieldId] = true
+          }
+          const overrideCollapse = hadErrorRef.current[fieldId] === true
+          const isExpanded = hasError || overrideCollapse || (expandedPaths[fieldId] ?? true)
 
-        const handleFieldChange = (updates: Partial<ExpressionConditionType>) => {
-          field.onChange({ ...currentCase, ...updates })
-        }
+          return (
+            <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsFlexStart' }}>
+              <FlexItem>
+                <Button
+                  variant="plain"
+                  className={styles.dragHandle}
+                  aria-label={`Reorder path ${index + 1}`}
+                  {...listeners}
+                  {...attributes}
+                >
+                  <RhUiGripVerticalFillIcon />
+                </Button>
+              </FlexItem>
+              <FlexItem grow={{ default: 'grow' }}>
+                <Stack hasGutter>
+                  <StackItem>
+                    <SwitchCaseHeader
+                      index={index}
+                      label={currentCase?.label ?? ''}
+                      isExpanded={isExpanded}
+                      hasError={hasError}
+                      canRemove={canRemove}
+                      contentId={contentId}
+                      onToggleExpanded={onToggleExpanded}
+                      onRemove={onRemove}
+                      onLabelChange={(val) => field.onChange({ ...currentCase, label: val })}
+                    />
+                  </StackItem>
 
-        return (
-          <Stack hasGutter>
-            <StackItem>
-              <SwitchCaseHeader
-                index={index}
-                label={currentCase?.label ?? ''}
-                isExpanded={isExpanded}
-                hasError={hasError}
-                canRemove={canRemove}
-                contentId={contentId}
-                onToggleExpanded={onToggleExpanded}
-                onRemove={onRemove}
-                onLabelChange={(val) => field.onChange({ ...currentCase, label: val })}
-              />
-            </StackItem>
-
-            {isExpanded && (
-              <StackItem id={contentId}>
-                <ExpressionCondition
-                  condition={{
-                    type: 'condition',
-                    id: fieldId,
-                    variable: currentCase?.variable ?? '',
-                    operator: (currentCase?.operator ?? '==') as ComparisonOperator,
-                    value: currentCase?.value ?? '',
-                    negate: currentCase?.negate ?? false,
-                  }}
-                  onChange={handleFieldChange}
-                  error={hasError}
-                  fieldErrors={{
-                    variable: caseErrors?.variable?.message,
-                    value: caseErrors?.value?.message,
-                  }}
-                />
-              </StackItem>
-            )}
-          </Stack>
-        )
-      }}
-    />
+                  {isExpanded && (
+                    <StackItem id={contentId}>
+                      <FormGroup
+                        label="Path expression"
+                        labelHelp={<PathExpressionHelp />}
+                        fieldId={`case-condition-${fieldId}`}
+                      >
+                        <ExpressionBuilder
+                          id={`case-condition-${fieldId}`}
+                          value={currentCase?.condition ?? ''}
+                          onChange={(val) => field.onChange({ ...currentCase, condition: val })}
+                          error={hasError}
+                          placeholder="Build your condition"
+                        />
+                        {conditionError?.message && (
+                          <FormHelperText>
+                            <HelperText>
+                              <HelperTextItem variant="error">{conditionError.message}</HelperTextItem>
+                            </HelperText>
+                          </FormHelperText>
+                        )}
+                      </FormGroup>
+                    </StackItem>
+                  )}
+                </Stack>
+              </FlexItem>
+            </Flex>
+          )
+        }}
+      />
+    </div>
   )
 }
 
 function SwitchFormFields({ onHeaderContentChange }: { onHeaderContentChange?: (content: ReactNode | null) => void }) {
   const { register, control } = useFormContext<SwitchFormData>()
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'cases' })
+  const { fields, append, remove, move } = useFieldArray({ control, name: 'cases' })
   const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({})
   const [fallbackExpanded, setFallbackExpanded] = useState(true)
+  const hadErrorRef = useRef<Record<string, boolean>>({})
+
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor))
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null)
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = fields.findIndex((f) => f.id === active.id)
+      const newIndex = fields.findIndex((f) => f.id === over.id)
+      if (oldIndex !== -1 && newIndex !== -1) {
+        move(oldIndex, newIndex)
+      }
+    }
+  }
+
+  const activeField = useMemo(() => (activeId ? fields.find((f) => f.id === activeId) : null), [activeId, fields])
+  const activeIndex = useMemo(() => (activeId ? fields.findIndex((f) => f.id === activeId) : -1), [activeId, fields])
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="switch-name" ariaLabel="Name" />,
@@ -236,19 +304,49 @@ function SwitchFormFields({ onHeaderContentChange }: { onHeaderContentChange?: (
         </Alert>
       </StackItem>
 
-      {fields.map((field, index) => (
-        <StackItem key={field.id}>
-          <SwitchCaseItem
-            fieldId={field.id}
-            index={index}
-            control={control}
-            canRemove={fields.length > MIN_CASES}
-            expandedPaths={expandedPaths}
-            onToggleExpanded={() => setExpandedPaths((prev) => ({ ...prev, [field.id]: !(prev[field.id] ?? true) }))}
-            onRemove={() => handleRemovePath(index)}
-          />
-        </StackItem>
-      ))}
+      <StackItem>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis]}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+            <Stack hasGutter>
+              {fields.map((field, index) => (
+                <StackItem key={field.id}>
+                  <SwitchCaseItem
+                    fieldId={field.id}
+                    index={index}
+                    control={control}
+                    canRemove={fields.length > MIN_CASES}
+                    expandedPaths={expandedPaths}
+                    hadErrorRef={hadErrorRef}
+                    onToggleExpanded={() => {
+                      hadErrorRef.current[field.id] = false
+                      setExpandedPaths((prev) => ({ ...prev, [field.id]: !(prev[field.id] ?? true) }))
+                    }}
+                    onRemove={() => handleRemovePath(index)}
+                  />
+                </StackItem>
+              ))}
+            </Stack>
+          </SortableContext>
+          <DragOverlay>
+            {activeField && (
+              <div className={styles.dragOverlay}>
+                <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                  <FlexItem>
+                    <RhUiGripVerticalFillIcon />
+                  </FlexItem>
+                  <FlexItem grow={{ default: 'grow' }}>{activeField.label || `Path ${activeIndex + 1}`}</FlexItem>
+                </Flex>
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
+      </StackItem>
 
       <StackItem>
         <Flex>

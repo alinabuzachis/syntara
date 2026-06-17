@@ -123,6 +123,11 @@ export function getActivityMetadata(activity: unknown): ActivityMetadata | undef
 export type WorkflowStore = {
   currentWorkflow: WorkflowDefinition | null
   /**
+   * Project ID that the current workflow belongs to.
+   * Stored separately from workflow definition for permission checks.
+   */
+  projectId: string | null
+  /**
    * UI-only counter to force React Flow recomputation.
    * Incremented when setWorkflow/loadWorkflowWithEdges/batchAddActivitiesAndEdges is called.
    * NOT related to backend workflow.version or workflow.current_version fields.
@@ -159,12 +164,13 @@ export type WorkflowStore = {
    */
   _positionsUserModified: boolean
   isDirty: boolean // Tracks whether changes have been made since last save/load
-  setWorkflow: (workflow: WorkflowDefinition | null) => void
+  setWorkflow: (workflow: WorkflowDefinition | null, projectId?: string | null) => void
   // Atomic operation to load workflow and edges together - prevents race conditions
   loadWorkflowWithEdges: (
     workflow: WorkflowDefinition,
     edges: EdgeConnection[],
-    nodePositions?: Record<string, { x: number; y: number }>
+    nodePositions?: Record<string, { x: number; y: number }>,
+    projectId?: string | null
   ) => void
   markClean: () => void // Called after successful save
   markDirty: () => void // Called when metadata changes

@@ -21,7 +21,12 @@ POLL_TIMEOUT = 20
 API_RETRIES = 3
 API_RETRY_DELAY = 2
 
-TERMINAL_STATUSES = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
+TERMINAL_STATUSES = {
+    ExecutionStatus.COMPLETED,
+    ExecutionStatus.COMPLETED_WITH_ERRORS,
+    ExecutionStatus.FAILED,
+    ExecutionStatus.CANCELLED,
+}
 
 
 def _retry_api_call(fn, *, retries: int = API_RETRIES, delay: float = API_RETRY_DELAY):  # noqa: ANN202

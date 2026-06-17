@@ -31,6 +31,7 @@ class WorkflowCompletedEvent:
     error_count: int
     error_type: str | None = field(default=None)
     request_id: UUID | None = field(default=None)
+    workflow_name: str | None = field(default=None)
 
 
 _STATUS_MESSAGE: dict[WorkflowTerminalStatus, str] = {
@@ -65,5 +66,6 @@ class WorkflowCompletedHandler(AuditEventHandler[WorkflowCompletedEvent]):
             source_component="nexus.workflows",
             structured_data=data,
             execution_id=event.execution_id,
-            resource_urn=f"urn:nexus:execution:{event.execution_id}",
+            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_name=event.workflow_name,
         )

@@ -45,17 +45,20 @@ Each page area has a dedicated `use*Permissions` hook that aggregates multiple `
 | `useCredentialDetailPermissions` | `routes/configuration/credentials/useCredentialDetailPermissions.ts`        | `workflow:read`                                                                            |
 | `useSettingsPermissions`         | `routes/configuration/settings/useSettingsPermissions.ts`                   | `setting:read`, `setting:write`                                                            |
 | `useAccessManagementPermissions` | `routes/access-management/useAccessManagementPermissions.ts`                | `user:read`, `group:read`, `project:read`, `role-assignment:read`, `admin:revocation:read` |
-| `useUserPermissions`             | `routes/access-management/useUserPermissions.ts`                            | `user:create`, `user:update`, `user:delete`, `admin:revocation:revoke`                     |
+| `useUserPermissions`             | `routes/access-management/useUserPermissions.ts`                            | `user:create`, `user:update`, `user:delete`, `admin:revocation:execute`                    |
 | `useGroupPermissions`            | `routes/access-management/useGroupPermissions.ts`                           | `group:create`, `group:update`, `group:delete`, `group:manage-members`                     |
 | `useProjectPermissions`          | `routes/access-management/useProjectPermissions.ts`                         | `project:create`, `project:update`, `project:delete`                                       |
 | `useRolePermissions`             | `routes/access/useRolePermissions.ts`                                       | `role:create`, `role:update`, `role:delete`                                                |
 | `useAssignmentPermissions`       | `routes/access/useAssignmentPermissions.ts`                                 | `role-assignment:assign`, `role-assignment:revoke`                                         |
-| `useIdentityProviderPermissions` | `routes/access-management/authentication/useIdentityProviderPermissions.ts` | `identity-provider:create/update/delete/test`, `admin:revocation:revoke`                   |
+| `useIdentityProviderPermissions` | `routes/access-management/authentication/useIdentityProviderPermissions.ts` | `identity-provider:create/update/delete/test`, `admin:revocation:execute`                  |
 | `useUserIdentityPermissions`     | `routes/access-management/users/useUserIdentityPermissions.ts`              | `user_identity:attach`, `user_identity:detach`                                             |
 | `useUserDetailPermissions`       | `routes/access-management/users/useUserDetailPermissions.ts`                | `user:read`, `group:read`, `user_identity:read`, `role-assignment:read`                    |
 | `useGroupDetailPermissions`      | `routes/access-management/groups/useGroupDetailPermissions.ts`              | `group:read`, `role-assignment:read`                                                       |
 | `useProjectDetailPermissions`    | `routes/access-management/projects/useProjectDetailPermissions.ts`          | `role-assignment:read`                                                                     |
 | `useApprovalDecideProjects`      | `routes/approvals/useApprovalDecideProjects.ts`                             | `approval:decide` (via `what_can_i`, project-scoped)                                       |
+| `useCanDecideApproval`           | `routes/approvals/useCanDecideApproval.ts`                                  | Checks if user can decide specific approval (approver list + group membership)             |
+| `useApprovalDecideUsers`         | `routes/builder/node-forms/useApprovalDecideUsers.ts`                       | `approval:decide` (via `who_can`, all authorized users)                                    |
+| `useApprovalDecideGroups`        | `routes/builder/node-forms/useApprovalDecideGroups.ts`                      | All groups (MVP: no filtering, see hook docs for limitations)                              |
 
 ## UI Gating Components
 
@@ -192,7 +195,7 @@ The mock API in `packages/nexus-mock-api/src/handlers.ts` defines four roles via
 | **user**            | Read-only on `workflow`, `execution`, `approval`, `credential`, `user`, `group`, `role`, `policy`, `authz`; all writes denied |
 | **auditor**         | All writes denied; `user_identity` denied entirely; otherwise read allowed                                                    |
 
-Write actions: `create`, `update`, `delete`, `write`, `assign`, `revoke`, `manage-members`, `attach`, `detach`, `test`, `run`, `decide`.
+Write actions: `create`, `update`, `delete`, `write`, `assign`, `revoke`, `execute`, `manage-members`, `attach`, `detach`, `test`, `run`, `decide`.
 
 ### Adding new permissions to the mock API
 

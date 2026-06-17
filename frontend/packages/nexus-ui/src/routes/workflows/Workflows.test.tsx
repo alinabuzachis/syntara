@@ -75,14 +75,16 @@ const mockSetSearchParams = vi.fn()
 
 let mockSearchParams = new URLSearchParams()
 
-vi.mock('wouter', async (importOriginal) => {
-  const actual: Record<string, unknown> = await importOriginal()
-  return {
-    ...actual,
-    useLocation: () => ['/workflows', mockSetLocation],
-    useSearchParams: () => [mockSearchParams, mockSetSearchParams],
-  }
-})
+vi.mock('../../hooks/routing/useLocation', () => ({
+  useLocation: () => '/workflows',
+}))
+vi.mock('../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockSetLocation,
+}))
+
+vi.mock('../../hooks/routing/useSearchParams', () => ({
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
+}))
 
 /** Sets the same return value on both workflowClient.useQuery and accessClient.useQuery */
 function mockWorkflowQuery(returnValue: ReturnType<typeof workflowClient.useQuery>) {
@@ -2026,6 +2028,95 @@ describe('Workflows Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Duplicate failed')).toBeInTheDocument()
         expect(screen.getByText('Workflow has no definition to duplicate')).toBeInTheDocument()
+      })
+    })
+
+    it('transforms approval node approvers from objects to strings when duplicating', async () => {
+      const user = userEvent.setup()
+      const mockRefetch = vi.fn().mockResolvedValue(undefined)
+      mockWorkflowQuery({
+        data: {
+          resources: mockWorkflows,
+          next: null,
+          prev: null,
+          total: mockWorkflows.length,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      // Mock GET to return workflow with approval node containing user/group objects
+      vi.mocked(workflowFetchClient.GET).mockResolvedValue({
+        data: {
+          id: '1',
+          name: 'Workflow with Approval',
+          version: {
+            workflow_definition: {
+              schema_version: '2.0.0',
+              triggers: [],
+              nodes: [
+                {
+                  id: 'approval-1',
+                  type: 'approval',
+                  name: 'Approval Node',
+                  config: {
+                    approver_users: [
+                      { id: 'user-1', username: 'alice' },
+                      { id: 'user-2', username: 'bob' },
+                    ],
+                    approver_groups: [
+                      { id: 'group-1', name: 'admins' },
+                      { id: 'group-2', name: 'reviewers' },
+                    ],
+                  },
+                },
+              ],
+              edges: [],
+            },
+          },
+        },
+        error: undefined,
+        response: new Response(),
+      })
+
+      vi.mocked(workflowFetchClient.POST).mockResolvedValue({
+        data: { id: 'new-id', name: 'Workflow with Approval - duplicate-abc', created_by: 'user-1' },
+        error: undefined,
+        response: new Response(),
+      })
+
+      await openKebabMenuForFirstRow(user)
+
+      const duplicateItem = await screen.findByText('Duplicate workflow')
+      await user.click(duplicateItem)
+
+      // Verify the POST call transformed approver objects to string arrays
+      await waitFor(() => {
+        expect(workflowFetchClient.POST).toHaveBeenCalledWith(
+          '/workflows',
+          expect.objectContaining({
+            body: expect.objectContaining({
+              workflow_definition: expect.objectContaining({
+                nodes: [
+                  expect.objectContaining({
+                    id: 'approval-1',
+                    type: 'approval',
+                    config: expect.objectContaining({
+                      approver_users: ['alice', 'bob'],
+                      approver_groups: ['admins', 'reviewers'],
+                    }) as unknown,
+                  }),
+                ],
+              }) as unknown,
+            }) as unknown,
+          }) as unknown
+        )
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow duplicated')).toBeInTheDocument()
       })
     })
   })
