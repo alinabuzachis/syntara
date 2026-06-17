@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 
-DEFAULT_SPEC_PATH = "src/nexus/schemas/openapi.yaml"
+DEFAULT_SPEC_PATH = "backend/src/nexus/schemas/openapi.yaml"
 
 
 def run_command(cmd: list[str], capture_output: bool = True) -> subprocess.CompletedProcess:
@@ -189,12 +189,12 @@ def main():
     )
     parser.add_argument(
         "--head-spec",
-        help="Path to current OpenAPI spec file (default: src/nexus/schemas/openapi.yaml)",
+        help="Path to current OpenAPI spec file",
         default=DEFAULT_SPEC_PATH,
     )
     parser.add_argument(
         "--spec-path",
-        help="Path to spec within git repo (default: src/nexus/schemas/openapi.yaml)",
+        help="Path to spec within git repo",
         default=DEFAULT_SPEC_PATH,
     )
 

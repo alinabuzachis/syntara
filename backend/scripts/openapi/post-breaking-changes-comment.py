@@ -65,7 +65,9 @@ def format_breaking_changes_comment(
             lines.append(f"```\n{escaped_justification}\n```\n")
             lines.append("**Reviewer:** Please verify:")
             lines.append("1. The justification is valid and necessary")
-            lines.append("2. A companion UI PR exists and handles the breaking changes")
+            lines.append(
+                "2. Frontend contracts are regenerated in this PR (`make gen-contracts`)"
+            )
             lines.append("3. Migration path is clear for API consumers\n")
         elif ack_insufficient:
             lines.append("### Breaking Changes Detected (Insufficient Acknowledgment)\n")
@@ -100,11 +102,10 @@ def format_breaking_changes_comment(
 
         lines.append("**Before merging, you must:**\n")
         lines.append("1. **Acknowledge the breaking change** in your PR description")
-        lines.append("2. **Create a companion UI PR** that handles the changes (see [AAP-77399](AAP-77399))")
-        lines.append("3. **Document the migration path** for API consumers")
-        lines.append("4. **Coordinate timing** - ensure UI PR merges after this one\n")
+        lines.append("2. **Regenerate frontend contracts** — run `make gen-contracts` and include the updated types in this PR")
+        lines.append("3. **Document the migration path** for API consumers\n")
 
-        lines.append(f"See [docs/openapi-breaking-changes.md](https://github.com/{repo_owner}/{repo_name}/blob/main/docs/openapi-breaking-changes.md) for details.\n")
+        lines.append(f"See [docs/openapi-breaking-changes.md](https://github.com/{repo_owner}/{repo_name}/blob/devel/docs/openapi-breaking-changes.md) for details.\n")
     else:
         lines.append("### No Breaking Changes Detected\n")
         lines.append("This PR modifies the OpenAPI spec but does **not** introduce breaking changes.\n")
@@ -113,11 +114,11 @@ def format_breaking_changes_comment(
             lines.append("**Changes detected:**")
             lines.append(f"```\n{escaped_all}\n```\n")
 
-        lines.append("**Reminder:** Even for non-breaking changes, consider whether a companion UI PR is needed ")
-        lines.append("to make new types available. See the **OpenAPI Companion PR Check** for guidance.\n")
+        lines.append("**Reminder:** Even for non-breaking changes, run `make gen-contracts` to update ")
+        lines.append("the frontend TypeScript types. See the **OpenAPI Contract Regeneration Check** for guidance.\n")
 
     lines.append("---")
-    lines.append(f"*Automated check from [`ci.yml`](https://github.com/{repo_owner}/{repo_name}/blob/main/.github/workflows/ci.yml)*")
+    lines.append(f"*Automated check from [`ci-backend.yml`](https://github.com/{repo_owner}/{repo_name}/blob/devel/.github/workflows/ci-backend.yml)*")
 
     return "\n".join(lines)
 

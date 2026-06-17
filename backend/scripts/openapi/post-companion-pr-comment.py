@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Post or update GitHub PR comment for companion PR check results.
+"""Post or update GitHub PR comment for contract regeneration check results.
 
-This script formats the companion PR check results and posts/updates
+This script formats the contract check results and posts/updates
 a PR comment using the GitHub API via gh CLI.
 
 Usage:
@@ -21,7 +21,7 @@ from typing import Dict
 
 
 def format_companion_pr_comment(results: Dict, repo_owner: str, repo_name: str) -> str:
-    """Format companion PR check results as a GitHub comment.
+    """Format contract check results as a GitHub comment.
 
     Args:
         results: Output from check-companion-pr.py
@@ -33,12 +33,15 @@ def format_companion_pr_comment(results: Dict, repo_owner: str, repo_name: str) 
     """
     message = results["message"]
 
-    lines = ["### OpenAPI Companion PR Check\n"]
+    lines = ["### OpenAPI Contract Regeneration Check\n"]
     lines.append(message)
     lines.append("\n---")
-    lines.append(f"*Automated check from [`ci.yml`](https://github.com/{repo_owner}/{repo_name}/blob/main/.github/workflows/ci.yml)*")
+    lines.append(f"*Automated check from [`ci-backend.yml`](https://github.com/{repo_owner}/{repo_name}/blob/devel/.github/workflows/ci-backend.yml)*")
 
     return "\n".join(lines)
+
+
+COMMENT_MARKER = "OpenAPI Contract Regeneration Check"
 
 
 def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None:
@@ -49,19 +52,17 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
         comment_body: Comment markdown content
         repo: Repository in owner/repo format
     """
-    # Find existing comment
     list_cmd = [
         "gh", "pr", "view", pr_number,
         "--repo", repo,
         "--json", "comments",
-        "--jq", '.comments[] | select(.body | contains("OpenAPI spec changed")) | .id'
+        "--jq", f'.comments[] | select(.body | contains("{COMMENT_MARKER}")) | .id'
     ]
 
     result = subprocess.run(list_cmd, capture_output=True, text=True)
 
     if result.returncode == 0 and result.stdout.strip():
-        # Update existing comment
-        comment_id = result.stdout.strip().split('\n')[0]  # Take first match
+        comment_id = result.stdout.strip().split('\n')[0]
         update_cmd = [
             "gh", "api",
             f"repos/{repo}/issues/comments/{comment_id}",
@@ -71,7 +72,6 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
         subprocess.run(update_cmd, check=True)
         print(f"Updated comment {comment_id} on PR #{pr_number}")
     else:
-        # Create new comment
         create_cmd = [
             "gh", "pr", "comment", pr_number,
             "--repo", repo,
@@ -83,7 +83,7 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Post companion PR check results as GitHub PR comment"
+        description="Post contract regeneration check results as GitHub PR comment"
     )
 
     parser.add_argument(
@@ -103,14 +103,11 @@ def main():
 
     args = parser.parse_args()
 
-    # Load results
     results = json.loads(Path(args.results).read_text())
 
-    # Get repo if not provided
     if args.repo:
         repo = args.repo
     else:
-        # Auto-detect from gh
         result = subprocess.run(
             ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
             capture_output=True,
@@ -121,10 +118,8 @@ def main():
 
     repo_owner, repo_name = repo.split("/")
 
-    # Format comment
     comment_body = format_companion_pr_comment(results, repo_owner, repo_name)
 
-    # Post or update comment
     post_or_update_comment(args.pr_number, comment_body, repo)
 
 

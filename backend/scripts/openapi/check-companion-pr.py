@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Check for companion UI PR when OpenAPI spec changes.
+"""Check that frontend contracts are regenerated when OpenAPI spec changes.
 
-This script parses PR descriptions to detect companion UI PR links
-or exception justifications, returning structured JSON output.
+In the monorepo, when backend/src/nexus/schemas/openapi.yaml changes,
+the generated TypeScript contracts in frontend/packages/nexus-contracts/src/
+must also be updated (via `make gen-contracts`).
 
 Usage:
-    ./check-companion-pr.py --pr-body "$(cat pr_description.txt)"
-    ./check-companion-pr.py --pr-body-file pr_description.txt
+    ./check-companion-pr.py --changed-files-from devel
+    ./check-companion-pr.py --changed-files file1.ts file2.ts ...
+    ./check-companion-pr.py --changed-files-stdin < changed_files.txt
 
 Returns:
     JSON with structure:
     {
-        "has_companion": bool,
-        "ui_pr_number": str | null,
+        "spec_changed": bool,
+        "contracts_updated": bool,
         "has_exception": bool,
         "exception_justification": str | null,
         "exception_valid": bool,
@@ -21,15 +23,20 @@ Returns:
     }
 
 Exit codes:
-    0 - Always succeeds (companion check is informational, not blocking)
+    0 - Always succeeds (contract check is informational, not blocking)
 """
 
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, Optional
+
+
+OPENAPI_SPEC = "backend/src/nexus/schemas/openapi.yaml"
+CONTRACTS_DIR = "frontend/packages/nexus-contracts/src/"
 
 
 def escape_markdown(text: str) -> str:
@@ -40,57 +47,90 @@ def escape_markdown(text: str) -> str:
         .replace(">", "&gt;")
         .replace('"', "&quot;")
         .replace("'", "&#039;")
-        .replace("`", "&#96;")  # Escape backticks to prevent code block escape
+        .replace("`", "&#96;")
     )
 
 
-def check_companion_pr(pr_body: str) -> Dict[str, any]:
-    """Check PR body for companion UI PR link or exception.
+def get_changed_files_from_ref(base_ref: str) -> list[str]:
+    """Get list of changed files compared to a base reference."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only", f"origin/{base_ref}...HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    if result.returncode != 0:
+        print(f"WARNING: Could not get changed files vs {base_ref}", file=sys.stderr)
+        return []
+    return [f for f in result.stdout.strip().split("\n") if f]
+
+
+def check_contracts_updated(
+    changed_files: list[str], pr_body: str = ""
+) -> Dict[str, any]:
+    """Check if frontend contracts were regenerated alongside spec changes.
 
     Args:
-        pr_body: PR description text
+        changed_files: List of files changed in the PR/branch
+        pr_body: PR description text (for exception justification)
 
     Returns:
         Dict with detection results and formatted message
     """
-    if not pr_body:
-        return _build_warning_result(None, None)
+    spec_changed = OPENAPI_SPEC in changed_files
+    if not spec_changed:
+        return _build_no_spec_change_result()
 
-    # Pattern to match UI PR links in various formats:
-    # - syntara-orchestration/syntara-ui#123
-    # - https://github.com/syntara-orchestration/syntara-ui/pull/123
-    # - nexus-ui#123
-    ui_pr_pattern = re.compile(
-        r"(?:syntara-orchestration\/)?nexus-ui(?:#|\/pull\/)(\d+)", re.IGNORECASE
-    )
+    contracts_updated = any(f.startswith(CONTRACTS_DIR) for f in changed_files)
 
-    # Pattern to detect exception justification
-    # Developer can write: "no-ui-pr: description-only change, no type impact"
     exception_pattern = re.compile(r"no-ui-pr\s*:\s*(.+)", re.IGNORECASE)
+    exception_match = exception_pattern.search(pr_body) if pr_body else None
 
-    ui_pr_match = ui_pr_pattern.search(pr_body)
-    exception_match = exception_pattern.search(pr_body)
-
-    if ui_pr_match:
-        ui_pr_number = ui_pr_match.group(1)
-        return _build_companion_result(ui_pr_number)
+    if contracts_updated:
+        return _build_contracts_updated_result()
     elif exception_match:
         justification = exception_match.group(1).strip()
         return _build_exception_result(justification)
     else:
-        return _build_warning_result(None, None)
+        return _build_contracts_stale_result()
 
 
-def _build_companion_result(ui_pr_number: str) -> Dict[str, any]:
-    """Build result when companion UI PR is detected."""
+def _build_no_spec_change_result() -> Dict[str, any]:
+    """Build result when the OpenAPI bundled spec was not modified."""
     message = (
-        f"**Companion UI PR detected:** syntara-orchestration/syntara-ui#{ui_pr_number}\n\n"
-        f"Please ensure the UI PR regenerates contracts from this backend change before merging."
+        "**No OpenAPI spec changes detected** — contract regeneration check skipped.\n\n"
+        f"This check applies when `{OPENAPI_SPEC}` is modified in the change set."
     )
 
     return {
-        "has_companion": True,
-        "ui_pr_number": ui_pr_number,
+        "spec_changed": False,
+        "contracts_updated": False,
+        "has_exception": False,
+        "exception_justification": None,
+        "exception_valid": False,
+        "severity": "notice",
+        "message": message,
+    }
+
+
+def _build_contracts_updated_result() -> Dict[str, any]:
+    """Build result when contracts are updated in the same PR."""
+    message = (
+        "**Frontend contracts updated** alongside OpenAPI spec changes.\n\n"
+        "The generated TypeScript types in `frontend/packages/nexus-contracts/src/` "
+        "are included in this change set."
+    )
+
+    return {
+        "spec_changed": True,
+        "contracts_updated": True,
         "has_exception": False,
         "exception_justification": None,
         "exception_valid": False,
@@ -103,19 +143,18 @@ def _build_exception_result(justification: str) -> Dict[str, any]:
     """Build result when exception is claimed."""
     escaped_justification = escape_markdown(justification)
 
-    # Check if justification is too short (likely not a real justification)
     if len(justification) < 10:
         message = (
-            f"**Exception claimed but justification is too brief**\n\n"
-            f"You've marked this as `no-ui-pr` but the justification is insufficient:\n"
+            "**Exception claimed but justification is too brief**\n\n"
+            "You've marked this as `no-ui-pr` but the justification is insufficient:\n"
             f"```\n{escaped_justification}\n```\n\n"
-            f"Please provide a detailed explanation (e.g., \"description-only change, "
-            f"no type impact — verified via contract regen\")."
+            'Please provide a detailed explanation (e.g., "description-only change, '
+            'no type impact — verified via contract regen").'
         )
 
         return {
-            "has_companion": False,
-            "ui_pr_number": None,
+            "spec_changed": True,
+            "contracts_updated": False,
             "has_exception": True,
             "exception_justification": justification,
             "exception_valid": False,
@@ -123,16 +162,15 @@ def _build_exception_result(justification: str) -> Dict[str, any]:
             "message": message,
         }
 
-    # Valid exception
     message = (
-        f"**Exception: No companion UI PR needed**\n\n"
+        "**Exception: No contract regeneration needed**\n\n"
         f"Justification provided:\n```\n{escaped_justification}\n```\n\n"
-        f"Reviewer: Please verify this justification is valid."
+        "Reviewer: Please verify this justification is valid."
     )
 
     return {
-        "has_companion": False,
-        "ui_pr_number": None,
+        "spec_changed": True,
+        "contracts_updated": False,
         "has_exception": True,
         "exception_justification": justification,
         "exception_valid": True,
@@ -141,34 +179,37 @@ def _build_exception_result(justification: str) -> Dict[str, any]:
     }
 
 
-def _build_warning_result(ui_pr_number: Optional[str], justification: Optional[str]) -> Dict[str, any]:
-    """Build result when neither companion nor exception is found."""
+def _build_contracts_stale_result() -> Dict[str, any]:
+    """Build result when contracts are not updated and no exception given."""
     message = (
-        f"**OpenAPI spec changed — companion UI PR recommended**\n\n"
-        f"This PR modifies `src/nexus/schemas/openapi.yaml`. "
-        f"When the OpenAPI spec changes, the UI's generated contracts (`nexus-ui/packages/nexus-contracts/`) "
-        f"need to be updated to stay in sync.\n\n"
-        f"### Action Required\n\n"
-        f"1. **Create a companion UI PR** that regenerates contracts from this backend change:\n"
-        f"   - Link it in this PR description: `syntara-orchestration/syntara-ui#<number>`\n"
-        f"   - The UI PR should update `nexus-backend.json` to pin this backend commit\n"
-        f"   - Run `npm run gen` to regenerate contracts\n\n"
-        f"2. **OR, if this is a spec-only change** (description, examples, metadata) with no type impact:\n"
-        f"   - Add to PR description: `no-ui-pr: <justification>`\n"
-        f"   - Example: `no-ui-pr: description-only change, no type impact — verified via contract regen`\n\n"
-        f"### Why This Matters\n\n"
-        f"- **Additive changes** (new endpoints, new fields) make types available to UI developers\n"
-        f"- **Breaking changes** (removed/changed fields) cause TypeScript errors or runtime failures\n"
-        f"- **Coordinated features** require both backend and UI changes to ship together\n\n"
-        f"See [AAP-77399](AAP-77399) and "
-        f"[AAP-77396](AAP-77396) for context.\n\n"
-        f"---\n"
-        f"This is an **informational warning**, not a blocker. The reviewer will verify the decision."
+        "**OpenAPI spec changed — frontend contracts not updated**\n\n"
+        "This PR modifies `backend/src/nexus/schemas/openapi.yaml` but the generated "
+        "TypeScript types in `frontend/packages/nexus-contracts/src/` were not updated.\n\n"
+        "### Action Required\n\n"
+        "1. **Regenerate frontend contracts** from the updated spec:\n"
+        "   ```bash\n"
+        "   make gen-contracts\n"
+        "   ```\n"
+        "   Then commit the regenerated files in this PR.\n\n"
+        "2. **OR, if this is a spec-only change** (description, examples, metadata) "
+        "with no type impact:\n"
+        "   - Add to PR description: `no-ui-pr: <justification>`\n"
+        '   - Example: `no-ui-pr: description-only change, no type impact`\n\n'
+        "### Why This Matters\n\n"
+        "- **Additive changes** (new endpoints, new fields) make types available to "
+        "UI developers\n"
+        "- **Breaking changes** (removed/changed fields) cause TypeScript errors or "
+        "runtime failures\n"
+        "- Keeping contracts in sync prevents drift between backend API and frontend "
+        "types\n\n"
+        "---\n"
+        "This is an **informational warning**, not a blocker. "
+        "The reviewer will verify the decision."
     )
 
     return {
-        "has_companion": False,
-        "ui_pr_number": None,
+        "spec_changed": True,
+        "contracts_updated": False,
         "has_exception": False,
         "exception_justification": None,
         "exception_valid": False,
@@ -179,21 +220,31 @@ def _build_warning_result(ui_pr_number: Optional[str], justification: Optional[s
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Check for companion UI PR in OpenAPI spec changes"
+        description="Check that frontend contracts are regenerated when OpenAPI spec changes"
     )
 
-    # Input options
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
-        "--pr-body",
-        help="PR description text",
+        "--changed-files",
+        nargs="*",
+        help="List of changed file paths",
     )
     input_group.add_argument(
-        "--pr-body-file",
-        help="File containing PR description",
+        "--changed-files-from",
+        help="Git ref to compare against (e.g., 'devel') — computes changed files automatically",
+    )
+    input_group.add_argument(
+        "--changed-files-stdin",
+        action="store_true",
+        help="Read changed file paths from stdin (one per line)",
     )
 
-    # Output options
+    parser.add_argument(
+        "--pr-body",
+        help="PR description text to check for exception justification",
+        default="",
+    )
+
     parser.add_argument(
         "--output",
         "-o",
@@ -208,29 +259,29 @@ def main():
 
     args = parser.parse_args()
 
-    # Get PR body
-    if args.pr_body:
-        pr_body = args.pr_body
+    if args.changed_files is not None:
+        changed_files = args.changed_files
+    elif args.changed_files_from:
+        changed_files = get_changed_files_from_ref(args.changed_files_from)
     else:
-        pr_body = Path(args.pr_body_file).read_text()
+        changed_files = [
+            line.strip()
+            for line in sys.stdin
+            if line.strip()
+        ]
 
-    # Check for companion PR
-    result = check_companion_pr(pr_body)
+    result = check_contracts_updated(changed_files, args.pr_body)
 
-    # Output
     if args.format == "json":
         output_text = json.dumps(result, indent=2)
     else:
-        # Text format
         output_text = result["message"]
 
-    # Write output
     if args.output:
         Path(args.output).write_text(output_text)
     else:
         print(output_text)
 
-    # Always exit 0 (companion check is informational)
     sys.exit(0)
 
 

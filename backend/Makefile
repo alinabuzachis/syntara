@@ -556,7 +556,7 @@ init-worktree: ## Initialize a new git worktree (usage: make init-worktree <bran
 		exit 1; \
 	fi; \
 	\
-	BASE_BRANCH="$${BASE_ARG:-main}"; \
+	BASE_BRANCH="$${BASE_ARG:-devel}"; \
 	PYTHON_VER="$${PYTHON_ARG:-python3.13}"; \
 	\
 	echo "🌿 Initializing git worktree..."; \
@@ -666,7 +666,7 @@ check-orphans: ## Check for unimported Python modules
 
 
 .PHONY: check-openapi-breaking
-check-openapi-breaking: ## Check OpenAPI spec for breaking changes against main branch
+check-openapi-breaking: ## Check OpenAPI spec for breaking changes against devel branch
 	@echo "Checking OpenAPI spec for breaking changes..."
 	@if ! command -v oasdiff &> /dev/null; then \
 		echo "Installing oasdiff..."; \
@@ -705,19 +705,14 @@ check-openapi-breaking-pre-commit: ## Pre-commit: breaking changes when openapi.
 	$(MAKE) check-openapi-breaking OPENAPI_BASE_REF="$$BASE_REF"
 
 .PHONY: check-openapi-companion
-check-openapi-companion: ## Check if companion UI PR is needed for OpenAPI changes
-	@echo "Companion PR check requires a PR description"
-	@echo "Usage: make check-openapi-companion PR_BODY='your PR description'"
-	@if [ -z "$(PR_BODY)" ]; then \
-		echo "Error: PR_BODY variable not set"; \
-		exit 1; \
-	fi
+check-openapi-companion: ## Check if frontend contracts are regenerated for OpenAPI changes
+	@echo "Checking if frontend contracts are up to date..."
 	@./scripts/openapi/check-companion-pr.py \
-		--pr-body "$(PR_BODY)" \
+		--changed-files-from $(OPENAPI_BASE_REF) \
 		--format text
 
 .PHONY: check-openapi
-check-openapi: check-openapi-breaking ## Run all OpenAPI checks (alias for check-openapi-breaking)
+check-openapi: check-openapi-breaking check-openapi-companion ## Run all OpenAPI checks
 
 
 # Pre-commit targets

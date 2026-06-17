@@ -2,12 +2,6 @@
 
 This directory contains standalone scripts for validating OpenAPI spec changes. These scripts are used by GitHub Actions workflows but can also be run locally for development and debugging.
 
-> **Monorepo note:** The companion PR check (`check-companion-pr.py`) was designed for the
-> separate-repo workflow where backend and frontend lived in different repositories. In the
-> combined monorepo, backend and frontend changes land in the same PR — run `make gen-contracts`
-> from the repo root to regenerate TypeScript types. The companion PR script is kept for
-> upstream sync compatibility but is not used in monorepo CI.
-
 ## Scripts Overview
 
 ### Core Scripts
@@ -28,20 +22,20 @@ Installs the `oasdiff` tool with checksum verification to prevent supply chain a
 - `EXPECTED_CHECKSUM` - Expected SHA256 checksum (pinned for version)
 
 #### `check-breaking-changes.py`
-Checks for breaking changes in OpenAPI spec using `oasdiff`.
+Checks for breaking changes in OpenAPI spec using `oasdiff`. Automatically resolves the spec path relative to the git root, so it works from any subdirectory (e.g., `backend/` in the monorepo).
 
 ```bash
-# Compare current branch against main
-./check-breaking-changes.py --base main --head HEAD
+# Compare current branch against devel
+./check-breaking-changes.py --base devel --head HEAD
 
 # Compare specific spec files
 ./check-breaking-changes.py --base-spec old.yaml --head-spec new.yaml
 
 # Include PR body for acknowledgment check
-./check-breaking-changes.py --base main --head HEAD --pr-body "$(cat pr_description.txt)"
+./check-breaking-changes.py --base devel --head HEAD --pr-body "$(cat pr_description.txt)"
 
 # Output as text instead of JSON
-./check-breaking-changes.py --base main --head HEAD --format text
+./check-breaking-changes.py --base devel --head HEAD --format text
 ```
 
 **Exit Codes:**
@@ -62,27 +56,30 @@ Checks for breaking changes in OpenAPI spec using `oasdiff`.
 ```
 
 #### `check-companion-pr.py`
-Checks PR description for companion UI PR link or exception justification.
+Checks that frontend contracts are regenerated when the OpenAPI spec changes. In the monorepo, when `backend/src/nexus/schemas/openapi.yaml` changes, the TypeScript types in `frontend/packages/nexus-contracts/src/` should also be updated via `make gen-contracts`. If the bundled spec is unchanged, the check is skipped.
 
 ```bash
-# Check PR description from file
-./check-companion-pr.py --pr-body-file pr_description.txt
+# Check against devel branch (auto-detects changed files)
+./check-companion-pr.py --changed-files-from devel
 
-# Check PR description from string
-./check-companion-pr.py --pr-body "syntara-orchestration/syntara-ui#123"
+# Check with explicit file list
+./check-companion-pr.py --changed-files backend/src/nexus/schemas/openapi.yaml frontend/packages/nexus-contracts/src/index.ts
+
+# Include PR body for exception justification
+./check-companion-pr.py --changed-files-from devel --pr-body "no-ui-pr: description-only change"
 
 # Output as text instead of JSON
-./check-companion-pr.py --pr-body-file pr_description.txt --format text
+./check-companion-pr.py --changed-files-from devel --format text
 ```
 
 **Exit Codes:**
-- Always exits `0` (companion check is informational, not blocking)
+- Always exits `0` (contract check is informational, not blocking)
 
 **Output (JSON):**
 ```json
 {
-  "has_companion": bool,
-  "ui_pr_number": "123" | null,
+  "spec_changed": bool,
+  "contracts_updated": bool,
   "has_exception": bool,
   "exception_justification": "text" | null,
   "exception_valid": bool,
@@ -114,7 +111,7 @@ Posts or updates GitHub PR comment with breaking changes check results.
 - Results file from `check-breaking-changes.py`
 
 #### `post-companion-pr-comment.py`
-Posts or updates GitHub PR comment with companion PR check results.
+Posts or updates GitHub PR comment with contract regeneration check results.
 
 ```bash
 # Post results to PR
@@ -153,24 +150,37 @@ make check-openapi-breaking
 
 # Or directly
 ./scripts/openapi/check-breaking-changes.py \
-  --base main \
+  --base devel \
   --head HEAD \
   --format text
 ```
 
-### 3. Check Companion PR Requirement
+### 3. Check Contract Regeneration
 
 ```bash
-# Create a test PR description
-cat > /tmp/pr_body.txt << 'EOF'
-This PR adds new endpoints to the API.
+# Using make (recommended) — skips when openapi.yaml is unchanged vs devel
+make check-openapi-companion
 
-syntara-orchestration/syntara-ui#456
-EOF
-
-# Check it
+# Or directly — auto-detects changed files vs devel
 ./scripts/openapi/check-companion-pr.py \
-  --pr-body-file /tmp/pr_body.txt \
+  --changed-files-from devel \
+  --format text
+
+# Simulate spec change without contract regen (expect warning)
+./scripts/openapi/check-companion-pr.py \
+  --changed-files backend/src/nexus/schemas/openapi.yaml \
+  --format text
+
+# Simulate spec + contract update (expect success)
+./scripts/openapi/check-companion-pr.py \
+  --changed-files backend/src/nexus/schemas/openapi.yaml \
+    frontend/packages/nexus-contracts/src/index.ts \
+  --format text
+
+# Spec change with no-ui-pr exception in PR body
+./scripts/openapi/check-companion-pr.py \
+  --changed-files backend/src/nexus/schemas/openapi.yaml \
+  --pr-body "no-ui-pr: description-only change, no type impact" \
   --format text
 ```
 
@@ -181,13 +191,14 @@ EOF
 PR_BODY="breaking-change-ack: This change is necessary for the new feature"
 
 ./scripts/openapi/check-breaking-changes.py \
-  --base main \
+  --base devel \
   --head HEAD \
   --pr-body "$PR_BODY" \
   --output /tmp/breaking-results.json
 
-# 2. Check companion PR
+# 2. Check contract regeneration
 ./scripts/openapi/check-companion-pr.py \
+  --changed-files-from devel \
   --pr-body "$PR_BODY" \
   --output /tmp/companion-results.json
 
@@ -199,26 +210,24 @@ cat /tmp/companion-results.json | jq
 ## Makefile Targets
 
 ### `make check-openapi-breaking-pre-commit`
-Pre-commit hook target: skips when `openapi.yaml` is unchanged vs `main`, otherwise runs `check-openapi-breaking`.
+Pre-commit hook target: skips when `openapi.yaml` is unchanged vs `devel`, otherwise runs `check-openapi-breaking`.
 
 ### `make check-openapi-breaking`
-Checks OpenAPI spec for breaking changes against the main branch.
+Checks OpenAPI spec for breaking changes against the devel branch. Auto-installs `oasdiff` if not present.
 
 ```bash
 make check-openapi-breaking
 ```
 
-Auto-installs `oasdiff` if not present.
-
 ### `make check-openapi-companion`
-Checks if a companion UI PR is referenced in the PR description.
+Checks if frontend contracts were regenerated when the OpenAPI spec changed.
 
 ```bash
-make check-openapi-companion PR_BODY='syntara-orchestration/syntara-ui#123'
+make check-openapi-companion
 ```
 
 ### `make check-openapi`
-Alias for `check-openapi-breaking` (the primary local check).
+Runs all OpenAPI checks (breaking changes + contract regeneration).
 
 ```bash
 make check-openapi
@@ -229,17 +238,16 @@ make check-openapi
 These scripts are used by the monorepo CI workflow (`.github/workflows/ci-backend.yml`):
 
 - **Breaking changes (blocking):** `check-openapi-breaking-pre-commit` pre-commit hook, enforced by the CI `pre-commit` job
-- **PR comments (informational):** `openapi-breaking-changes` CI job posts breaking-change results on pull requests when `backend/src/nexus/schemas/openapi.yaml` changes
+- **PR comments (informational):** `openapi-breaking-changes` CI job posts breaking-change and contract regeneration results on pull requests when `backend/src/nexus/schemas/openapi.yaml` changes
 
 The CI `pre-commit` job:
-1. Fetches `main` for OpenAPI baseline comparison
+1. Fetches `devel` for OpenAPI baseline comparison
 2. Passes `OPENAPI_PR_BODY` from the pull request for breaking-change acknowledgment
 
 The `openapi-breaking-changes` job:
 1. Detects changes to `backend/src/nexus/schemas/openapi.yaml`
 2. Runs `check-breaking-changes.py` and posts results via `post-breaking-changes-comment.py`
-
-> The companion PR check is not used in monorepo CI — see note at the top of this file.
+3. Runs `check-companion-pr.py` to verify contracts are regenerated and posts results via `post-companion-pr-comment.py`
 
 ## Security Features
 
@@ -290,7 +298,7 @@ To add a new OpenAPI validation:
    - Include `--format text` option for human-readable output
    - Exit with appropriate codes
 3. Add a posting script if it needs PR comments
-4. Wire into pre-commit and/or the CI `openapi-pr-feedback` job as appropriate
+4. Wire into pre-commit and/or the CI `openapi-breaking-changes` job as appropriate
 5. Add a Makefile target for local execution
 6. Document in this README
 
@@ -298,4 +306,3 @@ To add a new OpenAPI validation:
 
 - [oasdiff documentation](https://github.com/oasdiff/oasdiff)
 - [Breaking Changes Detection](../../docs/openapi-breaking-changes.md)
-- [Companion PR Process](AAP-77399)
