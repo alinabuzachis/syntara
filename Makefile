@@ -1,7 +1,5 @@
-COMPOSE_CMD ?= uv run podman-compose
-
 .PHONY: help install format lint test test-all typecheck dev gen-contracts \
-       services-up services-down services-logs secrets db-migrate db-seed setup sync \
+       services-up services-down services-logs secrets db-migrate db-seed admin-password setup sync \
        pre-commit-install
 
 help: ## Show available targets
@@ -12,7 +10,6 @@ help: ## Show available targets
 install: ## Install backend and frontend dependencies
 	$(MAKE) -C backend install
 	cd frontend && npm ci
-	$(MAKE) pre-commit-install
 
 pre-commit-install: ## Install pre-commit hooks
 	uv run pre-commit install
@@ -22,7 +19,7 @@ dev: ## Start backend API and frontend dev servers
 	$(MAKE) -C backend dev &
 	cd frontend && npm run start
 
-setup: install secrets services-up db-migrate db-seed ## One-shot bootstrap: install, secrets, services, migrations, seed
+setup: install secrets services-up db-migrate db-seed admin-password ## One-shot bootstrap: install, secrets, services, migrations, seed
 	@echo ""
 	@echo "Setup complete. Run 'make dev' to start the development servers."
 
@@ -48,30 +45,30 @@ typecheck: ## Type-check both codebases
 	$(MAKE) -C backend typecheck
 	cd frontend && npx tsc --noEmit
 
-# --- Infrastructure services (via root podman-compose.yml) ---
+# --- Infrastructure services (delegated to backend which has the correct venv context) ---
 
 services-up: ## Start all infrastructure services in background
-	$(COMPOSE_CMD) up -d database redis temporal temporal-ui temporal-worker opa mcp-server
-	@echo "Waiting for services to be healthy..."
-	@sleep 5
+	$(MAKE) -C backend services-run
 
 services-down: ## Stop all services
-	$(COMPOSE_CMD) down
+	$(MAKE) -C backend services-stop
 
 services-logs: ## Tail logs from all services
-	$(COMPOSE_CMD) logs -f
+	$(MAKE) -C backend services-logs
 
 # --- Database & secrets ---
 
 secrets: ## Generate JWT keys, admin password, encryption key
 	$(MAKE) -C backend secrets-generate
 
-db-migrate: ## Run main and audit database migrations
+db-migrate: ## Run database migrations
 	cd backend && APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
-	cd backend && uv run alembic -c alembic_audit.ini upgrade head
 
 db-seed: ## Seed the database with required data
 	$(MAKE) -C backend db-seed
+
+admin-password: ## Sync bootstrap admin password from .secrets/admin-password into the database
+	$(MAKE) -C backend admin-password
 
 # --- Contract generation ---
 
