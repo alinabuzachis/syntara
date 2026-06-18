@@ -426,3 +426,48 @@ export async function deleteRoleAssignmentViaApi(app: Page, assignmentId: string
     // Best-effort cleanup
   }
 }
+
+type WorkflowStepDef = { id: string; type: string; name?: string; parameters: Record<string, unknown> }
+type WorkflowEdgeDef = { from: string; to: string; from_port?: string }
+
+/** Create a workflow via the API. Returns the new workflow ID. */
+export async function createWorkflowViaApi(
+  app: Page,
+  name: string,
+  triggers: WorkflowStepDef[],
+  nodes: WorkflowStepDef[] = [],
+  edges: WorkflowEdgeDef[] = []
+): Promise<string> {
+  const token = await getAuthToken(app)
+  if (!token) throw new Error('createWorkflowViaApi: could not obtain auth token')
+  const resp = await apiRequest(app, 'post', '/workflows', {
+    token,
+    data: {
+      name,
+      workflow_definition: {
+        schema_version: '2.0.0',
+        name,
+        triggers,
+        nodes,
+        edges,
+      },
+    },
+  })
+  if (!resp.ok()) {
+    const body = await resp.text().catch(() => '(unreadable)')
+    throw new Error(`POST /workflows returned ${resp.status()}: ${body}`)
+  }
+  const body = (await resp.json()) as { id: string }
+  return body.id
+}
+
+/** Delete a workflow by ID via the API (best-effort cleanup). */
+export async function deleteWorkflowViaApi(app: Page, workflowId: string): Promise<void> {
+  if (app.isClosed()) return
+  try {
+    const token = await getAuthToken(app)
+    if (token) await apiRequest(app, 'delete', `/workflows/${workflowId}`, { token })
+  } catch {
+    // Best-effort cleanup
+  }
+}

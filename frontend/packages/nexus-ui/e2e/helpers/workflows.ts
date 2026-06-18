@@ -311,6 +311,15 @@ export async function openWorkflowInBuilder(page: Page, workflowName: string) {
   await expect(page.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
 }
 
+/** Navigate directly to the builder for a known workflow ID and wait for the canvas to be ready. */
+export async function openBuilderById(page: Page, workflowId: string): Promise<void> {
+  await page.goto(toAppUrl(`/workflow-builder/${workflowId}`))
+  await selectProjectIfRequired(page)
+  await waitForUIReady(page)
+  // Confirm the builder actually loaded this workflow (not a 404 or error state)
+  await expect(page).toHaveURL(new RegExp(`/workflow-builder/${workflowId}`))
+}
+
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {
   // Ensure a project exists before entering the builder (CI starts with empty DB)
   await ensureProject(page)
