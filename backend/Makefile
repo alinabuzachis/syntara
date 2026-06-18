@@ -556,7 +556,7 @@ init-worktree: ## Initialize a new git worktree (usage: make init-worktree <bran
 		echo "Examples:"; \
 		echo "  make init-worktree feature-auth"; \
 		echo "  make init-worktree feature-auth develop"; \
-		echo "  make init-worktree feature-auth main python3.12"; \
+		echo "  make init-worktree feature-auth devel python3.12"; \
 		echo ""; \
 		echo "Alternative syntax (still supported):"; \
 		echo "  make init-worktree BRANCH=feature-auth BASE=develop PYTHON=python3.12"; \

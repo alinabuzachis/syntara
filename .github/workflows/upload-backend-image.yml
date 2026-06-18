@@ -4,7 +4,7 @@
 # Actor membership check prevents external fork PRs from accessing registry
 # credentials.
 # For PR comment builds: pushes only the pr-[number] tag (overwritten on each run).
-# For pushes to main/tags: pushes all tags from the build artifact.
+# For pushes to devel/tags: pushes all tags from the build artifact.
 name: Upload Backend Container Image
 
 on:
@@ -50,16 +50,16 @@ jobs:
             for tag in "${ALL_TAGS[@]}"; do
               if [[ "$tag" == *:pr-* ]]; then
                 # buildkit stores only the tag portion in the OCI archive index
-                # e.g. quay.io/ansible/nexus:main -> main
+                # e.g. quay.io/ansible/nexus:devel -> devel
                 local_ref="${tag##*:}"
                 skopeo copy --all "oci-archive:nexus-image.tar:${local_ref}" docker://"$tag"
               fi
             done
           else
-            # For main branch pushes and tags: push all tags
+            # For devel branch pushes and tags: push all tags
             for tag in "${ALL_TAGS[@]}"; do
               # buildkit stores only the tag portion in the OCI archive index
-              # e.g. quay.io/ansible/nexus:main -> main
+              # e.g. quay.io/ansible/nexus:devel -> devel
               local_ref="${tag##*:}"
               skopeo copy --all "oci-archive:nexus-image.tar:${local_ref}" docker://"$tag"
             done

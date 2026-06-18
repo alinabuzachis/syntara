@@ -124,7 +124,7 @@ repos:
         files: ^backend/.*\.py$
 
       - id: backend-check-openapi-breaking
-        name: 'backend: check openapi breaking changes against main'
+        name: 'backend: check openapi breaking changes against devel'
         entry: make -C backend check-openapi-breaking-pre-commit
         language: system
         pass_filenames: false

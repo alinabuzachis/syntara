@@ -5,7 +5,7 @@ This script compares two OpenAPI specs and detects breaking changes,
 returning structured JSON output for consumption by CI or local tooling.
 
 Usage:
-    ./check-breaking-changes.py --base main --head HEAD
+    ./check-breaking-changes.py --base devel --head HEAD
     ./check-breaking-changes.py --base-spec baseline.yaml --head-spec current.yaml
     ./check-breaking-changes.py --pr-body "$(cat pr_description.txt)"
 
@@ -176,7 +176,7 @@ def main():
     spec_group = parser.add_mutually_exclusive_group()
     spec_group.add_argument(
         "--base",
-        help="Git reference for baseline spec (e.g., 'main', 'HEAD~1')",
+        help="Git reference for baseline spec (e.g., 'devel', 'HEAD~1')",
     )
     spec_group.add_argument(
         "--base-spec",
