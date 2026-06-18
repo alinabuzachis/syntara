@@ -1,6 +1,8 @@
-import { Panel, PanelMain, PanelMainBody, type PanelProps } from '@patternfly/react-core'
+import { Panel, PanelFooter, PanelMain, PanelMainBody, type PanelProps } from '@patternfly/react-core'
 import type { ComponentProps, CSSProperties, ReactNode } from 'react'
 import { forwardRef } from 'react'
+
+import styles from './NxPanel.module.css'
 
 /** Solid panel fill under glass theme without `variant="raised"` chrome (shadow / smaller radius). */
 const OPAQUE_FLOATING_PANEL_FILL_STYLE = {
@@ -22,6 +24,12 @@ type PanelMainBodyProps = Omit<ComponentProps<typeof PanelMainBody>, 'children'>
 export type NxPanelProps = Omit<PanelProps, 'children'> & {
   /** Rendered inside `PanelMainBody`. */
   children?: ReactNode
+  /**
+   * Content rendered inside a `PanelFooter` sibling to `PanelMain`.
+   * When the panel is `isScrollable`, PanelMain scrolls while the footer stays pinned
+   * with PatternFly's built-in border, shadow, and padding.
+   */
+  footer?: ReactNode
   /** Removes padding from `PanelMainBody`. */
   hasNoPadding?: boolean
   /**
@@ -49,6 +57,7 @@ export const NxPanel = forwardRef<HTMLDivElement, NxPanelProps>(function NxPanel
   {
     hasNoPadding,
     children,
+    footer,
     panelMainProps,
     panelMainBodyProps,
     isScrollable,
@@ -72,12 +81,24 @@ export const NxPanel = forwardRef<HTMLDivElement, NxPanelProps>(function NxPanel
     mergedBodyStyle = { ...mergedBodyStyle, padding: 0 }
   }
   if (isFullHeight === true) {
-    mergedBodyStyle = {
-      flex: 1,
-      minHeight: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      ...mergedBodyStyle,
+    if (footer != null) {
+      // flex-shrink:0 + flex-basis:auto sizes PanelMainBody to its content so bottom
+      // padding is preserved when PanelMain (overflow:auto) scrolls. flex-grow:1 still
+      // fills available space when content is shorter than the panel.
+      mergedBodyStyle = {
+        flex: '1 0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        ...mergedBodyStyle,
+      }
+    } else {
+      mergedBodyStyle = {
+        flex: 1,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        ...mergedBodyStyle,
+      }
     }
   }
   const bodyStyleProp = Object.keys(mergedBodyStyle).length > 0 ? mergedBodyStyle : undefined
@@ -116,6 +137,7 @@ export const NxPanel = forwardRef<HTMLDivElement, NxPanelProps>(function NxPanel
           {children}
         </PanelMainBody>
       </PanelMain>
+      {footer != null && <PanelFooter className={styles.footer}>{footer}</PanelFooter>}
     </Panel>
   )
 })

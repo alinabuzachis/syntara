@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Button, Form, Stack, StackItem } from '@patternfly/react-core'
+import { ActionGroup, Alert, Button, Form, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
 import type { BaseSyntheticEvent, ReactNode } from 'react'
 import type { Control } from 'react-hook-form'
@@ -88,30 +88,6 @@ function userFormBreadcrumbTrail(
   return breadcrumbsUserFormLoading(pageTitle)
 }
 
-function UserFormHeaderActions({
-  isEdit,
-  isSaving,
-  submitLabel,
-  onCancel,
-}: Readonly<{ isEdit: boolean; isSaving: boolean; submitLabel: string; onCancel: () => void }>) {
-  return (
-    <>
-      <Button variant="link" onClick={onCancel}>
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        form="user-form"
-        isLoading={isSaving}
-        isDisabled={isSaving}
-        icon={isEdit ? undefined : <RhUiAddIcon />}
-      >
-        {submitLabel}
-      </Button>
-    </>
-  )
-}
-
 type UserFormMainPanelProps = {
   control: Control<UserFormData>
   isEdit: boolean
@@ -122,6 +98,7 @@ type UserFormMainPanelProps = {
   showDisableWarning: boolean
   showPasswordWarning: boolean
   onFormSubmit: (event?: BaseSyntheticEvent) => Promise<void>
+  footer: ReactNode
 }
 
 function UserFormMainPanel({
@@ -134,9 +111,15 @@ function UserFormMainPanel({
   showDisableWarning,
   showPasswordWarning,
   onFormSubmit,
+  footer,
 }: Readonly<UserFormMainPanelProps>) {
   return (
-    <NxPanel isFullHeight isScrollable panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+    <NxPanel
+      isFullHeight
+      isScrollable
+      footer={footer}
+      panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}
+    >
       <Stack hasGutter style={{ maxWidth: '600px' }}>
         <UserFormWarningAlerts
           showDisableWarning={showDisableWarning}
@@ -251,19 +234,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
 
   return (
     <NxPage>
-      <NxPageHeader
-        title={pageTitle}
-        docLink={usersDocLink}
-        breadcrumbs={formBreadcrumbs}
-        toolbar={
-          <UserFormHeaderActions
-            isEdit={isEdit}
-            isSaving={isSaving}
-            submitLabel={submitLabel}
-            onCancel={navigateBack}
-          />
-        }
-      />
+      <NxPageHeader title={pageTitle} docLink={usersDocLink} breadcrumbs={formBreadcrumbs} />
       <NxPageBody>
         <UserFormMainPanel
           control={control}
@@ -275,6 +246,22 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
           showDisableWarning={showDisableWarning}
           showPasswordWarning={showPasswordWarning}
           onFormSubmit={handleSubmit(onSubmit)}
+          footer={
+            <ActionGroup>
+              <Button
+                type="submit"
+                form="user-form"
+                isLoading={isSaving}
+                isDisabled={isSaving}
+                icon={isEdit ? undefined : <RhUiAddIcon />}
+              >
+                {submitLabel}
+              </Button>
+              <Button variant="link" onClick={navigateBack}>
+                Cancel
+              </Button>
+            </ActionGroup>
+          }
         />
       </NxPageBody>
     </NxPage>

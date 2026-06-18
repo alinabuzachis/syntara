@@ -1,6 +1,7 @@
 import type { ToolProviderCreate } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  ActionGroup,
   Button,
   Content,
   ContentVariants,
@@ -105,19 +106,23 @@ export function IntegrationForm() {
         title="Configure integration"
         docLink={integrationsDocLink}
         breadcrumbs={breadcrumbsIntegrationConfigure()}
-        toolbar={
-          <>
-            <Button type="submit" form="integration-form">
-              Configure integration
-            </Button>
-            <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
-              Cancel
-            </Button>
-          </>
-        }
       />
       <NxPageBody>
-        <NxPanel isFullHeight panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}>
+        <NxPanel
+          isFullHeight
+          isScrollable
+          panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}
+          footer={
+            <ActionGroup>
+              <Button type="submit" form="integration-form">
+                Configure integration
+              </Button>
+              <Button variant="link" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
+                Cancel
+              </Button>
+            </ActionGroup>
+          }
+        >
           <div style={{ maxWidth: '600px' }}>
             <Form id="integration-form" aria-label="Configure integration" onSubmit={handleSubmit(onSubmit)}>
               <FormGroup label="Integration type" fieldId="provider-type" isRequired>

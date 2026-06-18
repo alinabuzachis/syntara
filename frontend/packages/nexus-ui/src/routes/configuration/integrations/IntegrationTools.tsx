@@ -1,5 +1,6 @@
 import type { Tool } from '@ansible/nexus-contracts'
 import {
+  ActionGroup,
   Button,
   DescriptionList,
   DescriptionListDescription,
@@ -108,6 +109,25 @@ function IntegrationToolsLoadedView({
   refreshDialogOpen,
   docLink,
 }: IntegrationToolsLoadedViewProps) {
+  const toolsFooter = (
+    <ActionGroup>
+      <Button
+        onClick={async () => {
+          try {
+            await handleSubmit()
+          } catch (error: unknown) {
+            handleMutationError({ title: 'Failed to save tools' })(error)
+          }
+        }}
+      >
+        Save
+      </Button>
+      <Button variant="link" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
+        Cancel
+      </Button>
+    </ActionGroup>
+  )
+
   return (
     <NxPage>
       <NxPageHeader
@@ -115,30 +135,14 @@ function IntegrationToolsLoadedView({
         docLink={docLink}
         breadcrumbs={breadcrumbsIntegrationTools(providerName)}
         toolbar={
-          <>
-            <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
-              Refresh tools
-            </Button>
-            <Button
-              onClick={async () => {
-                try {
-                  await handleSubmit()
-                } catch (error: unknown) {
-                  handleMutationError({ title: 'Failed to save tools' })(error)
-                }
-              }}
-            >
-              Save
-            </Button>
-            <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
-              Cancel
-            </Button>
-          </>
+          <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
+            Refresh tools
+          </Button>
         }
       />
       {results.length === 0 && !hasActiveFilters ? (
         <NxPageBody>
-          <NxPanel isFullHeight>
+          <NxPanel isFullHeight footer={toolsFooter}>
             <NxEmptyStateNoData
               title="No tools available"
               description={`No tools found for "${providerName}". Click the button below to refresh and fetch the latest tools from this integration.`}
@@ -151,7 +155,7 @@ function IntegrationToolsLoadedView({
         </NxPageBody>
       ) : (
         <NxPageBody>
-          <NxPanel isFullHeight>
+          <NxPanel isFullHeight footer={toolsFooter}>
             <NxPanelContentStack variant="inset">
               <StackItem>
                 <FilterBar

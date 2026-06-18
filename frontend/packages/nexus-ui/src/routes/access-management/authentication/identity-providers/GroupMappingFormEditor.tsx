@@ -1,4 +1,4 @@
-import { Button } from '@patternfly/react-core'
+import { ActionGroup, Button } from '@patternfly/react-core'
 import type { MutableRefObject } from 'react'
 import { useLayoutEffect } from 'react'
 import { FormProvider } from 'react-hook-form'
@@ -40,30 +40,27 @@ function GroupMappingFormEditorContent({
   return (
     <FormProvider {...editForm.form}>
       <NxPage>
-        <NxPageHeader
-          title={pageTitle}
-          breadcrumbs={breadcrumbs}
-          toolbar={
-            <>
-              <Button
-                variant="primary"
-                onClick={editForm.onSave}
-                isLoading={editForm.isSaving}
-                isDisabled={editForm.isSaving}
-              >
-                Save mapping
-              </Button>
-              <Button variant="link" onClick={editForm.onCancel}>
-                Cancel
-              </Button>
-            </>
-          }
-        />
+        <NxPageHeader title={pageTitle} breadcrumbs={breadcrumbs} />
         <NxPageBody>
           <NxPanel
             isFullHeight
             isScrollable
             panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--lg)' } }}
+            footer={
+              <ActionGroup>
+                <Button
+                  variant="primary"
+                  onClick={editForm.onSave}
+                  isLoading={editForm.isSaving}
+                  isDisabled={editForm.isSaving}
+                >
+                  Save mapping
+                </Button>
+                <Button variant="link" onClick={editForm.onCancel}>
+                  Cancel
+                </Button>
+              </ActionGroup>
+            }
           >
             <GroupMappingEditPanel {...editForm.panel} />
           </NxPanel>

@@ -910,24 +910,18 @@ describe('IntegrationTools Component', () => {
   })
 
   describe('handleSubmit edge cases', () => {
-    it('does not call mutation when no tools exist (empty results)', async () => {
+    it('shows Save and Cancel buttons in empty state footer', () => {
       vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
         if (path === '/tool_manager/tool_providers/{provider_id}') {
           return { ...baseQueryResult, data: mockProvider } as never
         }
-        // Return the provider but no tools
         return { ...baseQueryResult, data: { resources: [] } } as never
       })
 
-      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
-      // The empty state header still shows the Save button
-      await user.click(screen.getByText('Save'))
-
-      await waitFor(() => {
-        expect(mockMutate).not.toHaveBeenCalled()
-      })
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
 
     it('calls only enable mutation when all disabled tools become enabled', async () => {

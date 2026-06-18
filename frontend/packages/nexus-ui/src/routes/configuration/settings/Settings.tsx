@@ -1,4 +1,4 @@
-import { Button, Stack, StackItem, Tab } from '@patternfly/react-core'
+import { ActionGroup, Button, Stack, StackItem, Tab } from '@patternfly/react-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
@@ -188,25 +188,26 @@ export default function Settings() {
 
   return (
     <NxPage>
-      <NxPageHeader
-        title="Settings"
-        docLink={settingsDocLink}
-        breadcrumbs={settingsBreadcrumbs}
-        toolbar={
-          canWrite ? (
-            <Button
-              variant="primary"
-              onClick={handleSave}
-              isDisabled={!hasChanges || isSaving || hasValidationErrors}
-              isLoading={isSaving}
-            >
-              Save changes
-            </Button>
-          ) : undefined
-        }
-      />
+      <NxPageHeader title="Settings" docLink={settingsDocLink} breadcrumbs={settingsBreadcrumbs} />
       <NxPageBody>
-        <NxPanel isFullHeight>
+        <NxPanel
+          isFullHeight
+          panelMainBodyProps={{ style: { flex: 1, minHeight: 0 } }}
+          footer={
+            canWrite ? (
+              <ActionGroup>
+                <Button
+                  variant="primary"
+                  onClick={handleSave}
+                  isDisabled={!hasChanges || isSaving || hasValidationErrors}
+                  isLoading={isSaving}
+                >
+                  Save changes
+                </Button>
+              </ActionGroup>
+            ) : undefined
+          }
+        >
           <Stack hasGutter style={{ flex: 1, minHeight: 0, height: '100%' }}>
             <StackItem>
               <NxUrlTabs

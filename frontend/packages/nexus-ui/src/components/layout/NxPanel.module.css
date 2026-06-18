@@ -1,0 +1,12 @@
+/*
+ * Widen PF ActionGroup button gap from --spacer--sm (8px) to --spacer--md (16px),
+ * normalize block padding to --spacer--md regardless of isScrollable (PF defaults
+ * to --spacer--sm for non-scrollable panels), and use a more visible divider border.
+ */
+.footer {
+  --pf-v6-c-panel__footer--PaddingBlockStart: var(--pf-t--global--spacer--md);
+  --pf-v6-c-panel__footer--PaddingBlockEnd: var(--pf-t--global--spacer--md);
+  --pf-v6-c-form__actions--child--MarginInlineEnd: var(--pf-t--global--spacer--md);
+  border-block-start: var(--pf-t--global--border--width--divider--default) solid
+    var(--pf-t--global--border--color--default);
+}
