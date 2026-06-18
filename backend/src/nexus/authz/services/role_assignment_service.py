@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.audit.role_assignment import RoleAssignmentEvent
 from nexus.authz.exceptions import BuiltinProtectionError
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.models.project import Project
 from nexus.authz.role_conventions import (
     builtin_role_policy_names,
@@ -45,7 +45,7 @@ class RoleAssignmentService:
     async def assign(
         self,
         *,
-        principal_type: PrincipalType,
+        principal_type: RolePrincipalType,
         principal_id: UUID,
         role_name: str,
         project_id: UUID | None = None,
@@ -160,7 +160,7 @@ class RoleAssignmentService:
         allowed_project_ids.  When all are None the caller sees everything.
         """
         principal_name_col = case(
-            (RoleAssignment.principal_type == PrincipalType.USER, User.username),  # type: ignore[arg-type]
+            (RoleAssignment.principal_type == RolePrincipalType.USER, User.username),  # type: ignore[arg-type]
             else_=Group.name,
         ).label("principal_name")
 
@@ -172,13 +172,13 @@ class RoleAssignmentService:
             )
             .outerjoin(
                 User,
-                (RoleAssignment.principal_type == PrincipalType.USER)
+                (RoleAssignment.principal_type == RolePrincipalType.USER)
                 & (RoleAssignment.principal_id == User.id)
                 & (User.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
             .outerjoin(
                 Group,
-                (RoleAssignment.principal_type == PrincipalType.GROUP)
+                (RoleAssignment.principal_type == RolePrincipalType.GROUP)
                 & (RoleAssignment.principal_id == Group.id)
                 & (Group.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
@@ -190,12 +190,12 @@ class RoleAssignmentService:
             visibility_clauses: builtins.list[Any] = []
             if restrict_user_id is not None:
                 visibility_clauses.append(
-                    (RoleAssignment.principal_type == PrincipalType.USER)
+                    (RoleAssignment.principal_type == RolePrincipalType.USER)
                     & (RoleAssignment.principal_id == restrict_user_id)
                 )
             if restrict_group_ids:
                 visibility_clauses.append(
-                    (RoleAssignment.principal_type == PrincipalType.GROUP)
+                    (RoleAssignment.principal_type == RolePrincipalType.GROUP)
                     & (RoleAssignment.principal_id.in_(restrict_group_ids))  # type: ignore[attr-defined]
                 )
             if allowed_project_ids:
@@ -291,7 +291,7 @@ class RoleAssignmentService:
         # Capture fields before delete for audit dispatch
         _principal_type = (
             assignment.principal_type.value
-            if isinstance(assignment.principal_type, PrincipalType)
+            if isinstance(assignment.principal_type, RolePrincipalType)
             else str(assignment.principal_type)
         )
         _principal_id = assignment.principal_id
@@ -333,9 +333,9 @@ class RoleAssignmentService:
         a_principal_type = assignment["principal_type"]
         a_principal_id = assignment["principal_id"]
         a_project_id = assignment.get("project_id")
-        if a_principal_type == PrincipalType.USER.value and a_principal_id == user_id:
+        if a_principal_type == RolePrincipalType.USER.value and a_principal_id == user_id:
             return True
-        if a_principal_type == PrincipalType.GROUP.value and a_principal_id in group_ids:
+        if a_principal_type == RolePrincipalType.GROUP.value and a_principal_id in group_ids:
             return True
         return bool(a_project_id and a_project_id in allowed_project_ids)
 
@@ -346,7 +346,7 @@ class RoleAssignmentService:
     async def _query_one(self, assignment_id: UUID) -> dict[str, Any] | None:
         """Fetch a single assignment with resolved names."""
         principal_name_col = case(
-            (RoleAssignment.principal_type == PrincipalType.USER, User.username),  # type: ignore[arg-type]
+            (RoleAssignment.principal_type == RolePrincipalType.USER, User.username),  # type: ignore[arg-type]
             else_=Group.name,
         ).label("principal_name")
 
@@ -358,13 +358,13 @@ class RoleAssignmentService:
             )
             .outerjoin(
                 User,
-                (RoleAssignment.principal_type == PrincipalType.USER)
+                (RoleAssignment.principal_type == RolePrincipalType.USER)
                 & (RoleAssignment.principal_id == User.id)
                 & (User.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
             .outerjoin(
                 Group,
-                (RoleAssignment.principal_type == PrincipalType.GROUP)
+                (RoleAssignment.principal_type == RolePrincipalType.GROUP)
                 & (RoleAssignment.principal_id == Group.id)
                 & (Group.deleted_at.is_(None)),  # type: ignore[union-attr]
             )
@@ -378,9 +378,9 @@ class RoleAssignmentService:
         assignment, pn, prn = row
         return self._to_dict(assignment, pn, prn)
 
-    async def _validate_principal(self, principal_type: PrincipalType, principal_id: UUID) -> str:
+    async def _validate_principal(self, principal_type: RolePrincipalType, principal_id: UUID) -> str:
         """Validate the principal exists and return its name."""
-        if principal_type == PrincipalType.USER:
+        if principal_type == RolePrincipalType.USER:
             user = await self.session.get(User, principal_id)
             if not user:
                 msg = f"User {principal_id} not found"
@@ -460,7 +460,7 @@ class RoleAssignmentService:
         return {
             "id": assignment.id,
             "principal_type": assignment.principal_type.value
-            if isinstance(assignment.principal_type, PrincipalType)
+            if isinstance(assignment.principal_type, RolePrincipalType)
             else str(assignment.principal_type),
             "principal_id": assignment.principal_id,
             "principal_name": principal_name or "",

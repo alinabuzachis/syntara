@@ -15,7 +15,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models import PrincipalType, Project, RoleAssignment
+from nexus.authz.models import Project, RoleAssignment, RolePrincipalType
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from tests.integration.api.conftest import (
@@ -428,7 +428,9 @@ class TestGroupMembershipEdgeCases:
         group = Group(name=f"revoke-sec31-{uuid4()}", description="", labels={})
         test_db_session.add(group)
         await test_db_session.flush()
-        role_assignment = RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="auditor")
+        role_assignment = RoleAssignment(
+            principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name="auditor"
+        )
         test_db_session.add(role_assignment)
         await test_db_session.exec(insert(user_groups).values(user_id=user.id, group_id=group.id))
         await test_db_session.commit()

@@ -13,7 +13,7 @@ from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter, get_opa_client
 from nexus.authz.engine import VisibilityResult, resolve_visibility
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.database.session import get_db
 from nexus.core.exceptions import SafeValueError
@@ -30,7 +30,7 @@ from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 class RoleAssignmentCreate(SQLModel):
     """Request body for creating a role assignment."""
 
-    principal_type: PrincipalType
+    principal_type: RolePrincipalType
     principal_id: UUID
     role_name: str
     project_id: UUID | None = None
@@ -156,7 +156,7 @@ async def _resolve_role_assignment_visibility(
 
 async def list_principal_assignments(
     *,
-    principal_type: PrincipalType,
+    principal_type: RolePrincipalType,
     principal_id: UUID,
     request: Request,
     params: "PrincipalRoleAssignmentListParams",
@@ -196,7 +196,7 @@ async def list_principal_assignments(
 
 async def delete_principal_assignment(
     *,
-    principal_type: PrincipalType,
+    principal_type: RolePrincipalType,
     principal_id: UUID,
     assignment_id: UUID,
     service: RoleAssignmentService,

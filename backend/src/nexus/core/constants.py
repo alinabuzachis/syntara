@@ -16,6 +16,7 @@ class FieldLimits:
     """Field length and validation limits."""
 
     # String field limits
+    PRINCIPAL_TYPE_MAX_LENGTH = 20
     NAME_MAX_LENGTH = 255
     DESCRIPTION_MAX_LENGTH = 2000
     ERROR_CODE_MAX_LENGTH = 100

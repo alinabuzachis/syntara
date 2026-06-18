@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models.assignments import PrincipalType
+from nexus.authz.models.assignments import RolePrincipalType
 from nexus.authz.models.project import Project
 from nexus.authz.models.role import Role
 from nexus.authz.seed import seed_authz_data
@@ -56,7 +56,7 @@ async def test_assign_user_role_global(seeded_db: AsyncSession, test_user: User)
     """Assign a system role to a user without project scope."""
     svc = RoleAssignmentService(seeded_db, test_user)
     result = await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -75,7 +75,7 @@ async def test_assign_group_role_global(seeded_db: AsyncSession, test_user: User
     group = await _create_group(seeded_db)
     svc = RoleAssignmentService(seeded_db, test_user)
     result = await svc.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         role_name="user",
     )
@@ -92,7 +92,7 @@ async def test_assign_user_role_project_scoped(seeded_db: AsyncSession, test_use
     project = await _create_project(seeded_db)
     svc = RoleAssignmentService(seeded_db, test_user)
     result = await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="project-user",
         project_id=project.id,
@@ -110,7 +110,7 @@ async def test_assign_group_role_project_scoped(seeded_db: AsyncSession, test_us
     group = await _create_group(seeded_db)
     svc = RoleAssignmentService(seeded_db, test_user)
     result = await svc.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         role_name="project-user",
         project_id=project.id,
@@ -126,13 +126,13 @@ async def test_assign_duplicate_rejected(seeded_db: AsyncSession, test_user: Use
     """Duplicate assignment raises SafeValueError."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="auditor",
     )
     with pytest.raises(SafeValueError, match="already assigned"):
         await svc.assign(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=test_user.id,
             role_name="auditor",
         )
@@ -144,7 +144,7 @@ async def test_assign_nonexistent_user(seeded_db: AsyncSession, test_user: User)
     svc = RoleAssignmentService(seeded_db, test_user)
     with pytest.raises(SafeValueError, match=r"User .* not found"):
         await svc.assign(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=uuid4(),
             role_name="admin",
         )
@@ -156,7 +156,7 @@ async def test_assign_nonexistent_role(seeded_db: AsyncSession, test_user: User)
     svc = RoleAssignmentService(seeded_db, test_user)
     with pytest.raises(SafeValueError, match="not found"):
         await svc.assign(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=test_user.id,
             role_name="nonexistent-role",
         )
@@ -169,7 +169,7 @@ async def test_assign_system_role_with_project_rejected(seeded_db: AsyncSession,
     svc = RoleAssignmentService(seeded_db, test_user)
     with pytest.raises(SafeValueError, match="system role"):
         await svc.assign(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=test_user.id,
             role_name="admin",
             project_id=project.id,
@@ -182,7 +182,7 @@ async def test_assign_project_role_without_project_rejected(seeded_db: AsyncSess
     svc = RoleAssignmentService(seeded_db, test_user)
     with pytest.raises(SafeValueError, match="requires a project_id"):
         await svc.assign(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=test_user.id,
             role_name="project-user",
         )
@@ -198,7 +198,7 @@ async def test_get_existing_assignment(seeded_db: AsyncSession, test_user: User)
     """Get an existing assignment with resolved names and role info."""
     svc = RoleAssignmentService(seeded_db, test_user)
     created = await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -231,12 +231,12 @@ async def test_list_all_no_filters(seeded_db: AsyncSession, test_user: User) -> 
     group = await _create_group(seeded_db, name="list-group")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
     await svc.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         role_name="user",
     )
@@ -254,7 +254,7 @@ async def test_list_filter_by_principal_type(seeded_db: AsyncSession, test_user:
     """Filter by principal_type returns only matching assignments."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -268,7 +268,7 @@ async def test_list_filter_by_role_name(seeded_db: AsyncSession, test_user: User
     """Filter by role_name returns only matching assignments."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="auditor",
     )
@@ -284,7 +284,7 @@ async def test_list_filter_by_project_id(seeded_db: AsyncSession, test_user: Use
     project = await _create_project(seeded_db, name="filter-project")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="project-admin",
         project_id=project.id,
@@ -300,7 +300,7 @@ async def test_list_restrict_user_id_sees_own(seeded_db: AsyncSession, test_user
     """Restricting by user_id returns only that user's assignments."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -316,7 +316,7 @@ async def test_list_restrict_group_ids_sees_own(seeded_db: AsyncSession, test_us
     group = await _create_group(seeded_db, name="restrict-group")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         role_name="user",
     )
@@ -333,7 +333,7 @@ async def test_list_include_total(seeded_db: AsyncSession, test_user: User) -> N
     """Setting include_total returns a count of matching assignments."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -349,12 +349,12 @@ async def test_list_default_sort_created_at_desc(seeded_db: AsyncSession, test_u
     group = await _create_group(seeded_db, name="sort-group")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
     await svc.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         role_name="user",
     )
@@ -375,7 +375,7 @@ async def test_revoke_existing_assignment(seeded_db: AsyncSession, test_user: Us
     """Revoking an existing assignment removes it from the database."""
     svc = RoleAssignmentService(seeded_db, test_user)
     created = await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -499,7 +499,7 @@ async def test_list_filter_by_principal_id(seeded_db: AsyncSession, test_user: U
     """Filter by principal_id returns only that principal's assignments."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -514,7 +514,7 @@ async def test_list_filter_by_principal_name(seeded_db: AsyncSession, test_user:
     """Filter by principal_name returns only matching assignments."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -529,7 +529,7 @@ async def test_list_filter_by_principal_name_contains(seeded_db: AsyncSession, t
     """Filter by principal_name_contains returns partial matches."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -545,7 +545,7 @@ async def test_list_filter_by_role_name_contains(seeded_db: AsyncSession, test_u
     """Filter by role_name_contains returns partial matches."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="auditor",
     )
@@ -566,12 +566,12 @@ async def test_list_sort_by_role_name_ascending(seeded_db: AsyncSession, test_us
     group = await _create_group(seeded_db, name="sort-asc-group")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
     await svc.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         role_name="user",
     )
@@ -587,12 +587,12 @@ async def test_list_sort_by_principal_name(seeded_db: AsyncSession, test_user: U
     group = await _create_group(seeded_db, name="aaa-group")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
     await svc.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         role_name="user",
     )
@@ -609,13 +609,13 @@ async def test_list_sort_by_project_name(seeded_db: AsyncSession, test_user: Use
     project_z = await _create_project(seeded_db, name="zeta-project")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="project-admin",
         project_id=project_z.id,
     )
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="project-admin",
         project_id=project_a.id,
@@ -631,7 +631,7 @@ async def test_list_invalid_sort_field_defaults(seeded_db: AsyncSession, test_us
     """Invalid sort field falls back to created_at descending."""
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -651,12 +651,12 @@ async def test_list_pagination_forward_and_backward(seeded_db: AsyncSession, tes
     for i in range(3):
         group = await _create_group(seeded_db, name=f"page-group-{i}")
         await svc.assign(
-            principal_type=PrincipalType.GROUP,
+            principal_type=RolePrincipalType.GROUP,
             principal_id=group.id,
             role_name="user",
         )
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="admin",
     )
@@ -684,7 +684,7 @@ async def test_list_restrict_allowed_project_ids(seeded_db: AsyncSession, test_u
     project = await _create_project(seeded_db, name="allowed-project")
     svc = RoleAssignmentService(seeded_db, test_user)
     await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="project-admin",
         project_id=project.id,
@@ -708,7 +708,7 @@ async def test_revoke_with_project_id_validation(seeded_db: AsyncSession, test_u
     project = await _create_project(seeded_db, name="revoke-project")
     svc = RoleAssignmentService(seeded_db, test_user)
     created = await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name="project-admin",
         project_id=project.id,
@@ -731,7 +731,7 @@ async def test_assign_nonexistent_group(seeded_db: AsyncSession, test_user: User
     svc = RoleAssignmentService(seeded_db, test_user)
     with pytest.raises(SafeValueError, match=r"Group .* not found"):
         await svc.assign(
-            principal_type=PrincipalType.GROUP,
+            principal_type=RolePrincipalType.GROUP,
             principal_id=uuid4(),
             role_name="user",
         )
@@ -769,7 +769,7 @@ async def test_assign_custom_system_role(seeded_db: AsyncSession, test_user: Use
     role = await _create_custom_role(seeded_db, name="custom-sys")
     svc = RoleAssignmentService(seeded_db, test_user)
     result = await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name=role.name,
     )
@@ -785,7 +785,7 @@ async def test_assign_custom_project_role(seeded_db: AsyncSession, test_user: Us
     role = await _create_custom_role(seeded_db, name="custom-proj", scope="project", project_id=project.id)
     svc = RoleAssignmentService(seeded_db, test_user)
     result = await svc.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=test_user.id,
         role_name=role.name,
         project_id=project.id,
@@ -802,7 +802,7 @@ async def test_assign_custom_system_role_with_project_rejected(seeded_db: AsyncS
     svc = RoleAssignmentService(seeded_db, test_user)
     with pytest.raises(SafeValueError, match="system role"):
         await svc.assign(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=test_user.id,
             role_name="custom-sys-only",
             project_id=project.id,

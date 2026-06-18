@@ -12,7 +12,7 @@ from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
 from nexus.authz.engine import VisibilityResult
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.role_assignment_router import (
     PrincipalRoleAssignmentListParams,
     RoleAssignmentListResponse,
@@ -324,7 +324,7 @@ async def create_user_role_assignment(
 ) -> RoleAssignmentRead:
     """Assign a role to this user."""
     result = await service.assign(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=user_id,
         role_name=body.role_name,
         project_id=body.project_id,
@@ -348,7 +348,7 @@ async def list_user_role_assignments(
 ) -> RoleAssignmentListResponse:
     """List role assignments for a specific user."""
     return await list_principal_assignments(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=user_id,
         request=request,
         params=params,
@@ -382,7 +382,7 @@ async def delete_user_role_assignment(
 ) -> None:
     """Remove a role assignment from this user."""
     await delete_principal_assignment(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=user_id,
         assignment_id=assignment_id,
         service=service,

@@ -24,11 +24,18 @@ from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
 
 
-class PrincipalType(StrEnum):
-    """Type of principal receiving a role assignment."""
+class RolePrincipalType(StrEnum):
+    """Discriminator for role assignment targets."""
 
     USER = "user"
+    # GROUP is included for backwards compatibility with existing role
+    # assignments but is not a true principal (no row in the principals
+    # table). This may be refactored to avoid calling groups principals.
     GROUP = "group"
+    SERVICE_ACCOUNT = "service_account"
+
+
+__all__ = ["RoleAssignment", "RolePrincipalType"]
 
 
 class RoleAssignment(BaseResource, table=True):
@@ -36,14 +43,14 @@ class RoleAssignment(BaseResource, table=True):
 
     __tablename__ = "role_assignments"
 
-    principal_type: PrincipalType = Field(
-        sa_type=String(10),  # type: ignore[call-overload]
-        description="Type of principal: 'user' or 'group'",
+    principal_type: RolePrincipalType = Field(
+        sa_type=String(FieldLimits.PRINCIPAL_TYPE_MAX_LENGTH),  # type: ignore[call-overload]
+        description="Whether this assignment targets a 'user', 'group', or 'service_account'",
         index=True,
     )
 
     principal_id: UUID = Field(
-        description="UUID of the user or group receiving the role",
+        description="UUID of the user, group, or service account receiving the role",
         index=True,
     )
 

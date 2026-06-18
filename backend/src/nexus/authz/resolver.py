@@ -11,7 +11,7 @@ import structlog
 from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.models.policy import Policy
 from nexus.authz.models.project import Project
 from nexus.authz.models.role import Role
@@ -199,7 +199,7 @@ async def resolve_effective_policies(
     if group_ids:
         group_assignments = await db.exec(
             select(RoleAssignment).where(
-                RoleAssignment.principal_type == PrincipalType.GROUP,
+                RoleAssignment.principal_type == RolePrincipalType.GROUP,
                 RoleAssignment.principal_id.in_(group_ids),  # type: ignore[attr-defined]
             )
         )
@@ -213,7 +213,7 @@ async def resolve_effective_policies(
 
     user_assignments = await db.exec(
         select(RoleAssignment).where(
-            RoleAssignment.principal_type == PrincipalType.USER,
+            RoleAssignment.principal_type == RolePrincipalType.USER,
             RoleAssignment.principal_id == user_id,
         )
     )

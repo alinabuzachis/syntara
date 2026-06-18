@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.principal_type import PrincipalType
 from nexus_api_client.models.project_create import ProjectCreate
 from nexus_api_client.models.project_role_create import ProjectRoleCreate
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
+from nexus_api_client.models.role_principal_type import RolePrincipalType
 
 from tests.e2e.conftest import unique_name
 
@@ -121,7 +121,7 @@ def assign_project_role_to_user() -> Generator[AssignProjectRoleFactory, None, N
         resp = api.projects.create_role_assignment(
             project_id=project_id,
             body=RoleAssignmentCreate(
-                principal_type=PrincipalType.USER,
+                principal_type=RolePrincipalType.USER,
                 principal_id=user_or_group_id,
                 role_name=role_name,
             ),
@@ -160,7 +160,7 @@ def assign_project_role_to_group() -> Generator[AssignProjectRoleFactory, None, 
         resp = api.projects.create_role_assignment(
             project_id=project_id,
             body=RoleAssignmentCreate(
-                principal_type=PrincipalType.GROUP,
+                principal_type=RolePrincipalType.GROUP,
                 principal_id=user_or_group_id,
                 role_name=role_name,
             ),

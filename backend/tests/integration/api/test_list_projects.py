@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.models import PrincipalType, Project, RoleAssignment
+from nexus.authz.models import Project, RoleAssignment, RolePrincipalType
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 
@@ -127,7 +127,7 @@ async def test_lp4_system_auditor_sees_all_projects(
     await test_db_session.flush()
     test_db_session.add(
         RoleAssignment(
-            id=uuid4(), principal_type=PrincipalType.GROUP, principal_id=auditor_group.id, role_name="auditor"
+            id=uuid4(), principal_type=RolePrincipalType.GROUP, principal_id=auditor_group.id, role_name="auditor"
         )
     )
     await test_db_session.exec(insert(user_groups).values(user_id=auditor.id, group_id=auditor_group.id))
@@ -163,7 +163,9 @@ async def test_lp5_system_admin_sees_all_projects(
     test_db_session.add(admin_group)
     await test_db_session.flush()
     test_db_session.add(
-        RoleAssignment(id=uuid4(), principal_type=PrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
+        RoleAssignment(
+            id=uuid4(), principal_type=RolePrincipalType.GROUP, principal_id=admin_group.id, role_name="admin"
+        )
     )
     await test_db_session.exec(insert(user_groups).values(user_id=admin.id, group_id=admin_group.id))
     await test_db_session.commit()

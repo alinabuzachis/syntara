@@ -38,7 +38,7 @@ class ToolExecution:
         labels: Optional key-value metadata
 
         Attributes:
-            created_by (UUID): User who created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
+            created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
             tool_id (UUID): Foreign key to Tool
             provider_id (UUID): Foreign key to Tool Provider
             user_id (UUID): Identifier of executing user/agent
@@ -50,7 +50,7 @@ class ToolExecution:
             updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
             labels (ToolExecutionLabels | Unset): Key-value pairs for resource labeling and filtering Example:
                 {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
-            updated_by (None | Unset | UUID): User who last updated the resource Example:
+            updated_by (None | Unset | UUID): User (or automation) that last updated the resource Example:
                 880e8400-e29b-41d4-a716-446655440000.
             execution_end (datetime.datetime | None | Unset): Execution completion timestamp
             duration_ms (int | None | Unset): Execution duration in milliseconds

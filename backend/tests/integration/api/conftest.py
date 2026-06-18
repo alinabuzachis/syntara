@@ -24,7 +24,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.authz.dependencies import get_opa_client
-from nexus.authz.models import PrincipalType, Project, RoleAssignment
+from nexus.authz.models import Project, RoleAssignment, RolePrincipalType
 from nexus.authz.seed import seed_authz_data
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
@@ -90,7 +90,7 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
     test_db_session.add(
         RoleAssignment(
             id=uuid4(),
-            principal_type=PrincipalType.GROUP,
+            principal_type=RolePrincipalType.GROUP,
             principal_id=test_group.id,
             role_name="admin",
         )
@@ -182,7 +182,7 @@ async def _make_role_assignment(
     await session.flush()
     session.add(
         RoleAssignment(
-            principal_type=PrincipalType.GROUP,
+            principal_type=RolePrincipalType.GROUP,
             principal_id=group.id,
             role_name=role_name,
         )
@@ -213,7 +213,7 @@ async def make_project_user(
 ) -> RoleAssignment:
     """Assign project-user role to a user for a specific project."""
     assignment = RoleAssignment(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=user.id,
         project_id=project.id,
         role_name="project-user",
@@ -230,7 +230,7 @@ async def make_project_admin(
 ) -> RoleAssignment:
     """Assign project-admin role to a user for a specific project."""
     assignment = RoleAssignment(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=user.id,
         project_id=project.id,
         role_name="project-admin",

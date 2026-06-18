@@ -8,7 +8,7 @@ Groups are included in JWT tokens as the ``groups`` claim.
 
 from enum import StrEnum
 from typing import ClassVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import Column, ForeignKey, String, Table
 from sqlmodel import Field, Index, SQLModel, text
@@ -65,6 +65,13 @@ class Group(SoftDeletableResource, table=True):
     """
 
     __tablename__ = "groups"
+
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True,
+        description="Unique identifier for the resource",
+        index=True,
+    )
 
     # Filterable fields for API list endpoints
     __filterable_fields__: ClassVar[list[str]] = [

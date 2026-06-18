@@ -7,7 +7,7 @@ from uuid import UUID
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.principal_type import PrincipalType
+from ..models.role_principal_type import RolePrincipalType
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="RoleAssignmentCreate")
@@ -18,13 +18,13 @@ class RoleAssignmentCreate:
     """Request body for creating a role assignment.
 
     Attributes:
-        principal_type (PrincipalType): Type of principal receiving a role assignment.
+        principal_type (RolePrincipalType): Discriminator for role assignment targets.
         principal_id (UUID):
         role_name (str):
         project_id (None | Unset | UUID):
     """
 
-    principal_type: PrincipalType
+    principal_type: RolePrincipalType
     principal_id: UUID
     role_name: str
     project_id: None | Unset | UUID = UNSET
@@ -62,7 +62,7 @@ class RoleAssignmentCreate:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        principal_type = PrincipalType(d.pop("principal_type"))
+        principal_type = RolePrincipalType(d.pop("principal_type"))
 
         principal_id = UUID(d.pop("principal_id"))
 

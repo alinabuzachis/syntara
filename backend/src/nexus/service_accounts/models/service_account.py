@@ -8,7 +8,7 @@ with support for secret rotation through a grace-period window.
 from datetime import datetime
 from enum import StrEnum
 from typing import ClassVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import Index, String, Text
 from sqlmodel import CheckConstraint, DateTime, Field
@@ -30,6 +30,14 @@ class ServiceAccount(NamedResource, SoftDeletableResource, UserOwnedResource, ta
     """OAuth 2.0 service account for programmatic API access."""
 
     __tablename__ = "service_accounts"
+
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True,
+        foreign_key="principals.id",
+        description="Unique identifier for the resource",
+        index=True,
+    )
 
     client_id: str = Field(
         sa_type=String(64),  # type: ignore[call-overload]

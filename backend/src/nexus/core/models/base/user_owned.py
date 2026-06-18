@@ -36,15 +36,15 @@ class UserOwnedResource(BaseResource, ABC):
 
     # User ownership tracking
     created_by: UUID = Field(
-        foreign_key="users.id",
-        description="User who created the resource",
+        foreign_key="principals.id",
+        description="User (or automation) that created the resource",
         index=True,
     )
 
     updated_by: UUID | None = Field(
         default=None,
-        foreign_key="users.id",
-        description="User who last updated the resource",
+        foreign_key="principals.id",
+        description="User (or automation) that last updated the resource",
         index=True,
     )
 

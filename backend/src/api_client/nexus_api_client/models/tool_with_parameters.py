@@ -24,7 +24,7 @@ class ToolWithParameters:
     """Schema for Tool response with ToolParameter details.
 
     Attributes:
-        created_by (UUID): User who created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
+        created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
         name (str): Human-readable name for the resource Example: Authentication Service.
         provider_id (UUID): UUID of the associated tool provider
         namespaced_name (str): Unique namespaced name for the tool
@@ -34,7 +34,7 @@ class ToolWithParameters:
         updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
         labels (ToolWithParametersLabels | Unset): Key-value pairs for resource labeling and filtering Example:
             {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
-        updated_by (None | Unset | UUID): User who last updated the resource Example:
+        updated_by (None | Unset | UUID): User (or automation) that last updated the resource Example:
             880e8400-e29b-41d4-a716-446655440000.
         deleted_at (datetime.datetime | None | Unset): Timestamp when resource was soft deleted Example:
             2025-10-09T14:00:00Z.

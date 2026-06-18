@@ -701,7 +701,7 @@ export interface components {
      * @description Request body for creating a role assignment.
      */
     RoleAssignmentCreate: {
-      principal_type: components['schemas']['PrincipalType']
+      principal_type: components['schemas']['RolePrincipalType']
       /**
        * Principal Id
        * Format: uuid
@@ -1260,11 +1260,11 @@ export interface components {
       decision_notes?: string | null
     }
     /**
-     * PrincipalType
+     * RolePrincipalType
      * @description Type of principal receiving a role assignment.
      * @enum {string}
      */
-    PrincipalType: 'user' | 'group'
+    RolePrincipalType: 'user' | 'group' | 'service_account'
     UserOwnedResource: components['schemas']['BaseResource'] & {
       /**
        * Created By

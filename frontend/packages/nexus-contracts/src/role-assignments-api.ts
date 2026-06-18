@@ -67,17 +67,17 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * PrincipalType
+     * RolePrincipalType
      * @description Type of principal receiving a role assignment.
      * @enum {string}
      */
-    PrincipalType: 'user' | 'group'
+    RolePrincipalType: 'user' | 'group' | 'service_account'
     /**
      * RoleAssignmentCreate
      * @description Request body for creating a role assignment.
      */
     RoleAssignmentCreate: {
-      principal_type: components['schemas']['PrincipalType']
+      principal_type: components['schemas']['RolePrincipalType']
       /**
        * Principal Id
        * Format: uuid

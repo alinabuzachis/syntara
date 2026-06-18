@@ -25066,13 +25066,14 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-    PrincipalType:
+    RolePrincipalType:
       type: string
       enum:
         - user
         - group
-      title: PrincipalType
-      description: Type of principal receiving a role assignment.
+        - service_account
+      title: RolePrincipalType
+      description: Discriminator for role assignment targets.
     RoleAssignmentCreate:
       type: object
       title: RoleAssignmentCreate
@@ -25083,7 +25084,7 @@ components:
         - role_name
       properties:
         principal_type:
-          $ref: '#/components/schemas/PrincipalType'
+          $ref: '#/components/schemas/RolePrincipalType'
         principal_id:
           type: string
           format: uuid
@@ -26396,7 +26397,7 @@ components:
           format: uuid
           readOnly: true
           title: Created By
-          description: User who created the resource
+          description: User (or automation) that created the resource
           example: 770e8400-e29b-41d4-a716-446655440000
         updated_by:
           anyOf:
@@ -26405,7 +26406,7 @@ components:
             - type: 'null'
           readOnly: true
           title: Updated By
-          description: User who last updated the resource
+          description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
         deleted_at:
           anyOf:
@@ -26865,7 +26866,7 @@ components:
           format: uuid
           readOnly: true
           title: Created By
-          description: User who created the resource
+          description: User (or automation) that created the resource
           example: 770e8400-e29b-41d4-a716-446655440000
         updated_by:
           anyOf:
@@ -26874,7 +26875,7 @@ components:
             - type: 'null'
           readOnly: true
           title: Updated By
-          description: User who last updated the resource
+          description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
         deleted_at:
           anyOf:
@@ -27460,7 +27461,7 @@ components:
           format: uuid
           readOnly: true
           title: Created By
-          description: User who created the resource
+          description: User (or automation) that created the resource
           example: 770e8400-e29b-41d4-a716-446655440000
         updated_by:
           anyOf:
@@ -27469,7 +27470,7 @@ components:
             - type: 'null'
           readOnly: true
           title: Updated By
-          description: User who last updated the resource
+          description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
         prompt:
           type: string
@@ -28374,7 +28375,7 @@ components:
           format: uuid
           readOnly: true
           title: Created By
-          description: User who created the resource
+          description: User (or automation) that created the resource
           example: 770e8400-e29b-41d4-a716-446655440000
         updated_by:
           anyOf:
@@ -28383,7 +28384,7 @@ components:
             - type: 'null'
           readOnly: true
           title: Updated By
-          description: User who last updated the resource
+          description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
         tool_id:
           type: string
@@ -28597,7 +28598,7 @@ components:
           format: uuid
           readOnly: true
           title: Created By
-          description: User who created the resource
+          description: User (or automation) that created the resource
           example: 770e8400-e29b-41d4-a716-446655440000
         updated_by:
           anyOf:
@@ -28606,7 +28607,7 @@ components:
             - type: 'null'
           readOnly: true
           title: Updated By
-          description: User who last updated the resource
+          description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
         deleted_at:
           anyOf:
@@ -28874,7 +28875,7 @@ components:
           format: uuid
           readOnly: true
           title: Created By
-          description: User who created the resource
+          description: User (or automation) that created the resource
           example: 770e8400-e29b-41d4-a716-446655440000
         updated_by:
           anyOf:
@@ -28883,7 +28884,7 @@ components:
             - type: 'null'
           readOnly: true
           title: Updated By
-          description: User who last updated the resource
+          description: User (or automation) that last updated the resource
           example: 880e8400-e29b-41d4-a716-446655440000
         deleted_at:
           anyOf:

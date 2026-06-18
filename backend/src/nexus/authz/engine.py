@@ -11,7 +11,7 @@ from cachetools import TTLCache
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.models.project import Project
 from nexus.authz.opa_client import OPAClient
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME, resolve_effective_policies, resolve_user_groups
@@ -460,7 +460,7 @@ async def assign_project_admin(
 
     """
     assignment = RoleAssignment(
-        principal_type=PrincipalType.USER,
+        principal_type=RolePrincipalType.USER,
         principal_id=user_id,
         project_id=project_id,
         role_name=PROJECT_ADMIN_ROLE_NAME,
@@ -506,7 +506,7 @@ async def assign_authenticated_group_project_user(
         return None
 
     assignment = RoleAssignment(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group.id,
         project_id=project_id,
         role_name=PROJECT_USER_ROLE_NAME,

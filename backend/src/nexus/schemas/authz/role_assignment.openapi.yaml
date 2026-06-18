@@ -235,11 +235,11 @@ paths:
 
 components:
   schemas:
-    PrincipalType:
+    RolePrincipalType:
       type: string
-      enum: [user, group]
-      title: PrincipalType
-      description: Type of principal receiving a role assignment.
+      enum: [user, group, service_account]
+      title: RolePrincipalType
+      description: Discriminator for role assignment targets.
 
     RoleAssignmentCreate:
       type: object
@@ -251,7 +251,7 @@ components:
         - role_name
       properties:
         principal_type:
-          $ref: "#/components/schemas/PrincipalType"
+          $ref: "#/components/schemas/RolePrincipalType"
         principal_id:
           type: string
           format: uuid

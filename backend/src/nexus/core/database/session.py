@@ -47,17 +47,24 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 def register_sqlalchemy_events() -> None:
-    """Register SQLAlchemy event listeners for audit context propagation.
+    """Register SQLAlchemy event listeners.
 
-    Attaches the before_flush listener to automatically set audit context
-    (actor, workflow IDs) as Postgres session variables before database
-    operations are flushed to the database.
+    Attaches before_flush listeners for:
+    - Audit context propagation (Postgres session variables)
+    - Auto-creation of Principal rows for principal subtypes
     """
+    from nexus.core.models.principal import PrincipalType, _before_flush, _register_principal_subtype  # noqa: PLC0415
+
     target = AsyncSession.sync_session_class
 
     # Register each handler only if not already registered (idempotency)
     if not event.contains(target, "before_flush", set_audit_context):
         event.listen(target, "before_flush", set_audit_context)
+    if not event.contains(target, "before_flush", _before_flush):
+        event.listen(target, "before_flush", _before_flush)
+
+    _register_principal_subtype("users", PrincipalType.USER)
+    _register_principal_subtype("service_accounts", PrincipalType.SERVICE_ACCOUNT)
 
 
 def set_audit_context(session: Session, _flush_context: object, _instances: object) -> None:

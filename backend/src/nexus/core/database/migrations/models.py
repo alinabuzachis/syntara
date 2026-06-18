@@ -17,6 +17,7 @@ from nexus.authz.models import (
 from nexus.core.models import User
 from nexus.core.models.group import Group
 from nexus.core.models.installation import Installation
+from nexus.core.models.principal import Principal
 from nexus.core.models.secret import EncryptedSecret, Secret
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
@@ -39,6 +40,7 @@ from nexus.workflows.models.execution import Execution
 # Ensure models are registered with SQLModel metadata
 
 ALL_MODELS = [
+    Principal,
     GlobalRevocationTimestamp,
     Installation,
     Invocation,

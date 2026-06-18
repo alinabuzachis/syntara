@@ -19,7 +19,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.models.project import Project
 from nexus.core.models import User
 from nexus.core.models.group import Group
@@ -50,7 +50,7 @@ async def test_create_user_role_assignment(
     assert response.status_code == 201
     data = response.json()
     assert data["principal_id"] == str(target_user.id)
-    assert data["principal_type"] == PrincipalType.USER.value
+    assert data["principal_type"] == RolePrincipalType.USER.value
     assert data["role_name"] == "auditor"
     assert data["principal_name"] == "assign-target"
     assert "id" in data
@@ -93,7 +93,7 @@ async def test_list_user_role_assignments(
     # All assignments should be for the target user
     for r in resources:
         assert r["principal_id"] == str(target_user.id)
-        assert r["principal_type"] == PrincipalType.USER.value
+        assert r["principal_type"] == RolePrincipalType.USER.value
 
 
 @pytest.mark.asyncio
@@ -218,7 +218,7 @@ async def test_create_group_role_assignment(
     assert response.status_code == 201
     data = response.json()
     assert data["principal_id"] == str(group.id)
-    assert data["principal_type"] == PrincipalType.GROUP.value
+    assert data["principal_type"] == RolePrincipalType.GROUP.value
     assert data["role_name"] == "user"
     assert data["principal_name"] == "role-assign-group"
     assert "id" in data
@@ -264,7 +264,7 @@ async def test_list_group_role_assignments(
     # All assignments should be for the group
     for r in resources:
         assert r["principal_id"] == str(group.id)
-        assert r["principal_type"] == PrincipalType.GROUP.value
+        assert r["principal_type"] == RolePrincipalType.GROUP.value
 
 
 @pytest.mark.asyncio
@@ -361,7 +361,7 @@ async def test_readable_project_names_shown_in_role_assignments(
 
     test_db_session.add(
         RoleAssignment(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=user.id,
             project_id=project.id,
             role_name="project-user",
@@ -398,7 +398,7 @@ async def test_admin_sees_all_project_names(
 
     test_db_session.add(
         RoleAssignment(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=user.id,
             project_id=project.id,
             role_name="project-user",
@@ -430,7 +430,7 @@ async def test_what_can_i_shows_readable_project_names(
 
     test_db_session.add(
         RoleAssignment(
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=user.id,
             project_id=project.id,
             role_name="project-user",

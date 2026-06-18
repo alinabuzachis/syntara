@@ -7,6 +7,7 @@ for managing platform users with authentication and authorization.
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any, ClassVar
+from uuid import UUID, uuid4
 
 from pydantic import StringConstraints
 from sqlalchemy import String, text
@@ -49,6 +50,14 @@ class User(SoftDeletableResource, table=True):
     """
 
     __tablename__ = "users"
+
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True,
+        foreign_key="principals.id",
+        description="Unique identifier for the resource",
+        index=True,
+    )
 
     # Filterable fields for API list endpoints
     __filterable_fields__: ClassVar[list[str]] = [

@@ -1454,9 +1454,9 @@ class TestResolveOidcUser:
         not_taken = MagicMock()
         not_taken.one_or_none.return_value = None
         db.exec.return_value = not_taken
-        # Attempt 1: flush fails with IntegrityError (wrapped to OIDCError by _auto_create_user)
-        # Attempt 2: flush succeeds
-        db.flush.side_effect = [IntegrityError("race condition", params=None, orig=Exception()), None]
+        # Attempt 1: first flush (Principal) succeeds, second flush (User) fails with IntegrityError
+        # Attempt 2: both flushes succeed
+        db.flush.side_effect = [None, IntegrityError("race condition", params=None, orig=Exception()), None, None]
 
         user, identity = await _resolve_oidc_user(db, user_claims, provider)
 
@@ -1538,8 +1538,8 @@ class TestAutoCreateUser:
         assert result.last_name is None
         assert result.is_enabled is True
         assert result.password_hash is None
-        db.add.assert_called_once()
-        db.flush.assert_called_once()
+        assert db.add.call_count == 1
+        assert db.flush.call_count == 1
 
     @pytest.mark.asyncio
     async def test_creates_user_with_given_and_family_name(self) -> None:
@@ -2259,8 +2259,8 @@ class TestAutoCreateUserFromResolveFlow:
         result = await _auto_create_user(db, user_claims, "test-provider", email="user@example.com")
 
         assert result.username == "newuser"
-        db.add.assert_called_once()
-        db.flush.assert_called_once()
+        assert db.add.call_count == 1
+        assert db.flush.call_count == 1
 
 
 # =============================================================================

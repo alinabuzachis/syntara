@@ -96,6 +96,7 @@ The authorization system uses these tables:
 | `policies` | `Policy` | `src/nexus/authz/models/policy.py` | Custom IAM-style policies with JSONB statements; optional `project_id` for project scoping |
 | `roles` | `Role` | `src/nexus/authz/models/role.py` | Custom named roles; optional `project_id` for project scoping |
 | `role_policies` | `RolePolicyLink` | `src/nexus/authz/models/role.py` | Many-to-many join table linking custom roles to custom policies |
+| `principals` | `Principal` | `src/nexus/core/models/principal.py` | Supertype table for identity types that can own resources (users, future service accounts) |
 | `groups` | `Group` | `src/nexus/core/models/group.py` | User groups with labels |
 | `user_groups` | *(association table)* | `src/nexus/core/models/group.py` | User-to-group membership (SQLAlchemy Table) |
 | `role_assignments` | `RoleAssignment` | `src/nexus/authz/models/assignments.py` | Principal-to-role with `principal_type` (user/group), `principal_id`, optional `project_id`; references roles by `role_name` (string) |
@@ -106,6 +107,25 @@ Built-in roles and policies are **not** stored in these tables. They live in `ro
 Role assignments reference roles by **name** (string), which allows a single assignment to refer to either a built-in role or a custom database role.
 
 The `role_assignments` table uses a `principal_type` discriminator ('user' or 'group') and a **nullable `project_id`** column with conditional unique indexes to handle global and project-scoped assignments in a single table.
+
+### Principals (Class-Table Inheritance)
+
+The `principals` table is a supertype that provides unified identity attribution for entities that can own resources. Users (and future service accounts) have a row in `principals` whose `id` is shared with the entity's own primary key.
+
+```
+principals (id, principal_type)
+    └── users.id        FK → principals.id   (principal_type = 'user')
+```
+
+Groups are **not** part of the class-table inheritance hierarchy. They use `RoleAssignment.principal_type` as a denormalized discriminator without FK integrity to the principals table.
+
+This gives the database real referential integrity for resource ownership:
+
+- **Resource ownership**: `UserOwnedResource.created_by` and `updated_by` FK to `principals.id` (previously `users.id`), so future service accounts can also own resources.
+
+**Creating users and service accounts** works via normal `session.add()` — a `before_flush` event listener automatically inserts the corresponding `Principal` row before SQLAlchemy flushes the entity. No special helper is needed.
+
+**Deletion**: if hard-delete is ever implemented, the `Principal` row must be handled first — `created_by`/`updated_by` FKs will block deletion of any principal still referenced by resources.
 
 ## How Roles Are Assigned
 

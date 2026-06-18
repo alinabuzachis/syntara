@@ -268,7 +268,7 @@ async def test_admin_can_delete_default_project(
 
     from sqlmodel import select
 
-    from nexus.authz.models import PrincipalType, RoleAssignment
+    from nexus.authz.models import RoleAssignment, RolePrincipalType
     from nexus.authz.models.project import Project
 
     # Create an admin user
@@ -278,7 +278,9 @@ async def test_admin_can_delete_default_project(
     test_db_session.add(admin_group)
     await test_db_session.flush()
     test_db_session.add(
-        RoleAssignment(id=uuid4(), principal_type=PrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
+        RoleAssignment(
+            id=uuid4(), principal_type=RolePrincipalType.GROUP, principal_id=admin_group.id, role_name="admin"
+        )
     )
     await test_db_session.exec(insert(user_groups).values(user_id=admin_user.id, group_id=admin_group.id))
     await test_db_session.commit()

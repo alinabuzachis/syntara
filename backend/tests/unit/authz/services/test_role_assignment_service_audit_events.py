@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.authz.audit.role_assignment import RoleAssignmentEvent, RoleAssignmentHandler
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.services.role_assignment_service import RoleAssignmentService
 from nexus.core.models import User
 
@@ -64,7 +64,7 @@ class TestRoleAssignmentServiceAssignAuditEvents:
             patch.object(service, "_enrich_with_role_info", new_callable=AsyncMock),
         ):
             await service.assign(
-                principal_type=PrincipalType.USER,
+                principal_type=RolePrincipalType.USER,
                 principal_id=principal_id,
                 role_name="editor",
             )
@@ -118,7 +118,7 @@ class TestRoleAssignmentServiceAssignAuditEvents:
             patch.object(service, "_enrich_with_role_info", new_callable=AsyncMock),
         ):
             await service.assign(
-                principal_type=PrincipalType.GROUP,
+                principal_type=RolePrincipalType.GROUP,
                 principal_id=group_id,
                 role_name="viewer",
             )
@@ -165,7 +165,7 @@ class TestRoleAssignmentServiceAssignAuditEvents:
             patch("nexus.core.queries.project_queries.assert_project_alive", new_callable=AsyncMock),
         ):
             await service.assign(
-                principal_type=PrincipalType.USER,
+                principal_type=RolePrincipalType.USER,
                 principal_id=principal_id,
                 role_name="editor",
                 project_id=project_id,
@@ -195,7 +195,7 @@ class TestRoleAssignmentServiceRevokeAuditEvents:
 
         assignment = RoleAssignment(
             id=assignment_id,
-            principal_type=PrincipalType.USER,
+            principal_type=RolePrincipalType.USER,
             principal_id=principal_id,
             role_name="editor",
             project_id=None,

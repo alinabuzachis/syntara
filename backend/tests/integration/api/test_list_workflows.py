@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
-from nexus.authz.models import PrincipalType, RoleAssignment
+from nexus.authz.models import RoleAssignment, RolePrincipalType
 from nexus.core.models import User
 from nexus.core.models.group import Group, user_groups
 from nexus.workflows.models.workflow import Workflow
@@ -186,7 +186,9 @@ async def test_lw3_global_admin_sees_all_including_unscoped(
     test_db_session.add(admin_group)
     await test_db_session.flush()
     test_db_session.add(
-        RoleAssignment(id=uuid4(), principal_type=PrincipalType.GROUP, principal_id=admin_group.id, role_name="admin")
+        RoleAssignment(
+            id=uuid4(), principal_type=RolePrincipalType.GROUP, principal_id=admin_group.id, role_name="admin"
+        )
     )
     await test_db_session.exec(insert(user_groups).values(user_id=admin.id, group_id=admin_group.id))
     await test_db_session.commit()

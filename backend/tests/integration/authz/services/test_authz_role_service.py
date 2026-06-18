@@ -15,7 +15,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.exceptions import BuiltinProtectionError, RoleNameConflictError, RoleNotFoundError
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.models.role import Role
 from nexus.authz.services.role_service import RoleService
 from nexus.core.exceptions import SafeValueError
@@ -151,14 +151,16 @@ async def test_rename_role_updates_assignments(test_db_session: AsyncSession, te
     role = await svc.create_role(name="old-role-name", policies=[_P_READ])
 
     user_id = test_user.id
-    user_assign = RoleAssignment(principal_type=PrincipalType.USER, principal_id=user_id, role_name="old-role-name")
+    user_assign = RoleAssignment(principal_type=RolePrincipalType.USER, principal_id=user_id, role_name="old-role-name")
     test_db_session.add(user_assign)
 
     group = Group(name="rename-test-grp", description="", labels={})
     test_db_session.add(group)
     await test_db_session.flush()
 
-    group_assign = RoleAssignment(principal_type=PrincipalType.GROUP, principal_id=group.id, role_name="old-role-name")
+    group_assign = RoleAssignment(
+        principal_type=RolePrincipalType.GROUP, principal_id=group.id, role_name="old-role-name"
+    )
     test_db_session.add(group_assign)
     await test_db_session.commit()
     ua_id = user_assign.id

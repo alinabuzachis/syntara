@@ -23,7 +23,7 @@ class IdentityProviderResponse:
     """Schema for IdentityProvider response with configuration details (excludes secrets).
 
     Attributes:
-        created_by (UUID): User who created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
+        created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
         name (str): Human-readable provider name Example: Authentication Service.
         configuration (OIDCConfigurationResponse): Response schema for OIDC configuration (excludes client_secret).
         id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
@@ -31,7 +31,7 @@ class IdentityProviderResponse:
         updated_at (datetime.datetime | Unset): Timestamp when resource was last updated Example: 2025-10-09T12:30:00Z.
         labels (IdentityProviderResponseLabels | Unset): Key-value pairs for resource labeling and filtering Example:
             {'environment': 'production', 'region': 'us-east-1', 'team': 'platform'}.
-        updated_by (None | Unset | UUID): User who last updated the resource Example:
+        updated_by (None | Unset | UUID): User (or automation) that last updated the resource Example:
             880e8400-e29b-41d4-a716-446655440000.
         deleted_at (datetime.datetime | None | Unset): Timestamp when resource was soft deleted Example:
             2025-10-09T14:00:00Z.

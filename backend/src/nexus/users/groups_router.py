@@ -12,7 +12,7 @@ from nexus.auth import get_current_user
 from nexus.auth.session import create_session_store
 from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
 from nexus.authz.engine import VisibilityResult
-from nexus.authz.models.assignments import PrincipalType, RoleAssignment
+from nexus.authz.models.assignments import RoleAssignment, RolePrincipalType
 from nexus.authz.role_assignment_router import (
     PrincipalRoleAssignmentListParams,
     RoleAssignmentListResponse,
@@ -260,7 +260,7 @@ async def create_group_role_assignment(
 ) -> RoleAssignmentRead:
     """Assign a role to this group."""
     result = await service.assign(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group_id,
         role_name=body.role_name,
         project_id=body.project_id,
@@ -284,7 +284,7 @@ async def list_group_role_assignments(
 ) -> RoleAssignmentListResponse:
     """List role assignments for a specific group."""
     return await list_principal_assignments(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group_id,
         request=request,
         params=params,
@@ -318,7 +318,7 @@ async def delete_group_role_assignment(
 ) -> None:
     """Remove a role assignment from this group."""
     await delete_principal_assignment(
-        principal_type=PrincipalType.GROUP,
+        principal_type=RolePrincipalType.GROUP,
         principal_id=group_id,
         assignment_id=assignment_id,
         service=service,
