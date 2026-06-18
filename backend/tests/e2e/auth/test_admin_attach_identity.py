@@ -30,7 +30,7 @@ from nexus_api_client.models.user_identity_attach import UserIdentityAttach
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client import Client
+    from nexus_api_client import AuthenticatedClient
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
     from nexus_api_client.models.user_read import UserRead
@@ -98,7 +98,7 @@ class TestAdminAttachIdentity:
         keycloak_user_factory: Callable[[], tuple[str, str]],
         oidc_provider_factory: Callable[[], IdentityProviderResponse],
         oidc_user_factory: Callable[[UUID, str, str], NexusApiRegistry],
-        unauthenticated_client: Client,
+        unauthenticated_client: AuthenticatedClient,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
         """Test admin can move identity to local user, converting them to federated."""

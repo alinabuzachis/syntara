@@ -1,14 +1,4 @@
-import {
-  Button,
-  Content,
-  ContentVariants,
-  Label,
-  LabelGroup,
-  Flex,
-  FlexItem,
-  StackItem,
-  Truncate,
-} from '@patternfly/react-core'
+import { Button, Content, Label, LabelGroup } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, ExpandableRowContent, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -16,14 +6,9 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
-import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { NxPageBody } from '../../components/layout/NxPage'
-import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { useQueryState } from '../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useAlerts } from '../../providers/alerts'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -76,7 +61,6 @@ const BASE_FILTER_FIELD_DEFS = [
   },
 ]
 
-// Column index → API sort field (offset by 1 for the expand chevron column)
 const sortFieldByColumn: Record<number, string> = {
   1: 'name',
   3: 'scope',
@@ -170,12 +154,8 @@ function RolesTable({
                   onToggle: () => onToggleRow(role.id),
                 }}
               />
-              <Td dataLabel="Name">
-                <Truncate content={role.name} />
-              </Td>
-              <Td dataLabel="Description">
-                <Truncate content={role.description ?? '-'} />
-              </Td>
+              <Td dataLabel="Name">{role.name}</Td>
+              <Td dataLabel="Description">{role.description ?? '-'}</Td>
               <Td dataLabel="Scope">
                 <ScopeLabel scope={role.scope} />
               </Td>
@@ -238,7 +218,6 @@ export function RolesTab() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const { showSuccess, showError } = useAlerts()
 
-  // Fetch projects to resolve project names in the scope column/filter.
   const { projectNameMap } = useProjectNameMap()
 
   const filterFieldDefinitions = useMemo(
@@ -299,99 +278,78 @@ export function RolesTab() {
     )
   }
 
-  // Loading/error states
-  const queryState = useQueryState(rolesQuery, {
-    title: 'Error loading roles',
-    onRetry: () => detachPromise(rolesQuery.refetch()),
-  })
-
-  if (queryState) {
-    return (
-      <>
-        {queryState}
-        {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={handleRolesChanged} />}
-      </>
-    )
-  }
-
-  if (roles.length === 0 && !hasActiveFilters) {
-    return (
-      <>
-        <NxEmptyStateNoData title="No roles found" description="No roles are available." />
-        {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={handleRolesChanged} />}
-      </>
-    )
-  }
+  const tableFooter = useMemo(
+    () => ({
+      page,
+      perPage,
+      total: rolesQuery.data?.total ?? null,
+      hasNext: !!rolesQuery.data?.next,
+      onPrev: goToPrevPage,
+      onNext: () => goToNextPage(rolesQuery.data?.next ?? null),
+      onPerPageChange: handlePerPageChange,
+    }),
+    [page, perPage, rolesQuery.data, goToPrevPage, goToNextPage, handlePerPageChange]
+  )
 
   return (
     <>
-      <NxPanelContentStack>
-        <StackItem>
-          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
-            Roles bundle one or more policies together so they can be assigned to users and groups as a unit at the
-            system or project level. Assign roles system-wide for broad access, or scope them to specific projects for
-            tighter control.
-          </Content>
-        </StackItem>
-        <StackItem>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-            <FlexItem grow={{ default: 'grow' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-                clearAllFilters={clearAllFilters}
-              />
-            </FlexItem>
-            <FlexItem>
-              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
-                <Button
-                  variant="primary"
-                  icon={<RhUiAddIcon />}
-                  isAriaDisabled={!permissions.canCreate}
-                  onClick={permissions.canCreate ? () => setIsAddDialogOpen(true) : undefined}
-                >
-                  Create role
-                </Button>
-              </DisabledWithTooltip>
-            </FlexItem>
-          </Flex>
-        </StackItem>
-
-        {roles.length === 0 ? (
-          <NxPageBody isCentered>
-            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
-          </NxPageBody>
-        ) : (
-          <NxScrollableTableContainer
-            caption="Roles"
-            isExpandable
-            footer={{
-              page,
-              perPage,
-              total: rolesQuery.data?.total ?? null,
-              hasNext: !!rolesQuery.data?.next,
-              onPrev: goToPrevPage,
-              onNext: () => goToNextPage(rolesQuery.data?.next ?? null),
-              onPerPageChange: handlePerPageChange,
-            }}
-          >
-            <RolesTable
-              roles={roles}
-              projectNameMap={projectNameMap}
-              expandedRows={expandedRows}
-              allRowsExpanded={allRowsExpanded}
-              onToggleRow={handleToggleRow}
-              onCollapseAll={handleCollapseAll}
-              getSortParams={getSortParams}
-              onEdit={setRoleToEdit}
-              onDelete={setRoleToDelete}
-              permissions={permissions}
+      <NxListPanelView
+        tabKey="roles"
+        tabLabel="Roles"
+        isPending={rolesQuery.isPending}
+        isFetching={rolesQuery.isFetching}
+        error={rolesQuery.error}
+        onRetry={() => detachPromise(rolesQuery.refetch())}
+        isEmpty={roles.length === 0}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={clearAllFilters}
+        noDataState={<NxEmptyStateNoData title="No roles found" description="No roles are available." />}
+        toolbar={
+          roles.length > 0 || hasActiveFilters ? (
+            <NxListPanelToolbar
+              filters={filters}
+              filterDefinitions={filterFieldDefinitions}
+              onFilterChange={handleFilterChange}
+              clearAllFilters={clearAllFilters}
+              actions={
+                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                  <Button
+                    variant="primary"
+                    icon={<RhUiAddIcon />}
+                    isAriaDisabled={!permissions.canCreate}
+                    onClick={permissions.canCreate ? () => setIsAddDialogOpen(true) : undefined}
+                  >
+                    Create role
+                  </Button>
+                </DisabledWithTooltip>
+              }
             />
-          </NxScrollableTableContainer>
-        )}
-      </NxPanelContentStack>
+          ) : undefined
+        }
+        body={
+          <>
+            <Content>
+              Roles bundle one or more policies together so they can be assigned to users and groups as a unit at the
+              system or project level. Assign roles system-wide for broad access, or scope them to specific projects for
+              tighter control.
+            </Content>
+            <NxListPanelTable caption="Roles" isExpandable footer={tableFooter}>
+              <RolesTable
+                roles={roles}
+                projectNameMap={projectNameMap}
+                expandedRows={expandedRows}
+                allRowsExpanded={allRowsExpanded}
+                onToggleRow={handleToggleRow}
+                onCollapseAll={handleCollapseAll}
+                getSortParams={getSortParams}
+                onEdit={setRoleToEdit}
+                onDelete={setRoleToDelete}
+                permissions={permissions}
+              />
+            </NxListPanelTable>
+          </>
+        }
+      />
 
       {isAddDialogOpen && <AddRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={handleRolesChanged} />}
 

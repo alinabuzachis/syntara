@@ -90,6 +90,15 @@ describe('registerLogicNode', () => {
     registerLogicNode()
   })
 
+  it('every logic subtype has initialData with logicType', () => {
+    const definition = mockRegister.mock.calls[0][0] as unknown as {
+      subtypes: Array<{ id: string; initialData?: { logicType?: string } }>
+    }
+    for (const subtype of definition.subtypes) {
+      expect(subtype.initialData?.logicType, `${subtype.id} missing initialData.logicType`).toBeDefined()
+    }
+  })
+
   describe('Converge', () => {
     it('calls onError when strategy is missing', () => {
       const onSuccess = vi.fn()

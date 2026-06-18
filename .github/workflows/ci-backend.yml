@@ -28,6 +28,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch devel branch for OpenAPI comparison
+        run: git fetch origin devel:devel
+
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -324,17 +327,27 @@ jobs:
 
       - name: Check for breaking changes
         if: steps.detect.outputs.changed == 'true'
+        id: breaking
+        continue-on-error: true
         run: |
           PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body)
           ./scripts/openapi/check-breaking-changes.py \
             --base devel \
             --head HEAD \
             --output breaking-results.json \
-            --pr-body "$PR_BODY" \
-            || true
-          ./scripts/openapi/post-breaking-changes-comment.py \
-            --results breaking-results.json \
-            --pr-number ${{ github.event.pull_request.number }}
+            --pr-body "$PR_BODY"
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Post breaking changes comment
+        if: steps.detect.outputs.changed == 'true' && steps.breaking.outcome != 'skipped'
+        run: |
+          if [ -f breaking-results.json ]; then
+            ./scripts/openapi/post-breaking-changes-comment.py \
+              --results breaking-results.json \
+              --pr-number ${{ github.event.pull_request.number }}
+          fi
         working-directory: backend
         env:
           GH_TOKEN: ${{ github.token }}

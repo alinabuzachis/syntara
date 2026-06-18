@@ -215,14 +215,18 @@ vi.mock('../workflows/hooks/useExecutionWebSocket', () => ({
   useExecutionWebSocket: vi.fn(),
 }))
 
-// Mock ApprovalReviewView component
-vi.mock('./ApprovalReviewView', () => ({
-  ApprovalReviewView: ({ approval, onClose }: { approval: { id: string; name: string }; onClose: () => void }) => (
-    <div data-testid="approval-review-view">
+// Mock ApprovalSidePanel component
+vi.mock('./ApprovalSidePanel', () => ({
+  ApprovalSidePanel: ({ approval, onClose }: { approval: { id: string; name: string }; onClose: () => void }) => (
+    <div data-testid="approval-side-panel">
       <div>Approval: {approval.name}</div>
-      <button onClick={onClose}>Close review</button>
+      <button onClick={onClose}>Close approval panel</button>
     </div>
   ),
+}))
+
+vi.mock('./hooks/useAutoApprovalDetection', () => ({
+  useAutoApprovalDetection: vi.fn(),
 }))
 
 // Mock useExecutionNodeClick hook
@@ -239,12 +243,16 @@ const mockPendingApproval = {
 }
 
 const mockClearPendingApproval = vi.fn()
+const mockSetPendingApproval = vi.fn()
+const mockFetchForNode = vi.fn()
 
 vi.mock('./hooks/useExecutionNodeClick', () => ({
   useExecutionNodeClick: vi.fn(() => ({
     pendingApproval: null,
     isApprovalLoading: false,
     clearPendingApproval: mockClearPendingApproval,
+    setPendingApproval: mockSetPendingApproval,
+    fetchForNode: mockFetchForNode,
     selectedNodeId: null,
     selectedNodeName: null,
     selectNode: mockSelectNode,
@@ -595,12 +603,14 @@ describe('ExecutionDetail', () => {
     })
   })
 
-  describe('Approval Review View', () => {
-    it('opens approval review view when Review approval is clicked', async () => {
+  describe('Approval Review Side Panel', () => {
+    it('opens approval side panel when Review approval is clicked', async () => {
       vi.mocked(useExecutionNodeClick).mockReturnValue({
         pendingApproval: mockPendingApproval as never,
         isApprovalLoading: false,
         clearPendingApproval: mockClearPendingApproval,
+        setPendingApproval: mockSetPendingApproval,
+        fetchForNode: mockFetchForNode,
         selectedNodeId: null,
         selectedNodeName: null,
         selectNode: mockSelectNode,
@@ -618,14 +628,17 @@ describe('ExecutionDetail', () => {
 
       await user.click(screen.getByRole('button', { name: 'Review approval' }))
 
-      expect(screen.getByTestId('approval-review-view')).toBeInTheDocument()
+      expect(screen.getByTestId('approval-side-panel')).toBeInTheDocument()
+      expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
     })
 
-    it('closes approval review view and shows canvas when Close is clicked', async () => {
+    it('closes approval side panel when Close is clicked', async () => {
       vi.mocked(useExecutionNodeClick).mockReturnValue({
         pendingApproval: mockPendingApproval as never,
         isApprovalLoading: false,
         clearPendingApproval: mockClearPendingApproval,
+        setPendingApproval: mockSetPendingApproval,
+        fetchForNode: mockFetchForNode,
         selectedNodeId: null,
         selectedNodeName: null,
         selectNode: mockSelectNode,
@@ -641,15 +654,14 @@ describe('ExecutionDetail', () => {
         </QueryClientProvider>
       )
 
-      // Open the review view
       await user.click(screen.getByRole('button', { name: 'Review approval' }))
-      expect(screen.getByTestId('approval-review-view')).toBeInTheDocument()
+      expect(screen.getByTestId('approval-side-panel')).toBeInTheDocument()
 
-      // Close it
-      await user.click(screen.getByRole('button', { name: 'Close review' }))
-      expect(screen.queryByTestId('approval-review-view')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Close approval panel' }))
+      expect(screen.queryByTestId('approval-side-panel')).not.toBeInTheDocument()
       expect(screen.getByTestId('execution-view-content')).toBeInTheDocument()
-      expect(mockClearPendingApproval).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole('button', { name: 'Review approval' })).toBeInTheDocument()
+      expect(mockClearPendingApproval).not.toHaveBeenCalled()
     })
   })
 

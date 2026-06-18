@@ -727,7 +727,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).not.toHaveBeenCalled()
+        expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=closed')
       })
     })
 
@@ -2467,7 +2467,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(mockExecuteMutate).toHaveBeenCalled()
-        expect(mockSetLocation).not.toHaveBeenCalled()
+        expect(mockSetLocation).toHaveBeenCalledWith('/executions/execution-123?history=closed')
       })
     })
   })

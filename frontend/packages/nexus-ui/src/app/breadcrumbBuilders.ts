@@ -168,10 +168,6 @@ export function breadcrumbsSettingsPage(): AppBreadcrumbItem[] {
   return [{ label: 'Settings' }]
 }
 
-export function breadcrumbsApprovalDetail(approvalLabel: string): AppBreadcrumbItem[] {
-  return [crumbApprovals(), { label: approvalLabel }]
-}
-
 export function breadcrumbsIntegrationConfigure(): AppBreadcrumbItem[] {
   return [crumbConfiguration(), crumbIntegrations(), { label: 'Configure integration' }]
 }

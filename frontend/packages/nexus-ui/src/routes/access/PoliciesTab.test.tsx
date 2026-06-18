@@ -5,8 +5,6 @@ import type React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { useQueryState } from '../../components/states/useQueryState'
-
 import { accessClient } from './accessClient'
 import { PoliciesTab } from './PoliciesTab'
 import type { PolicyRead } from './types'
@@ -26,10 +24,6 @@ vi.mock('./useProjectNameMap', () => ({
     projectNameMap: new Map<string, string>([['proj-1', 'Project One']]),
     isLoading: false,
   }),
-}))
-
-vi.mock('../../components/states/useQueryState', () => ({
-  useQueryState: vi.fn(),
 }))
 
 vi.mock('../../components/details/NxCodeBlock', () => ({
@@ -109,7 +103,6 @@ describe('PoliciesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
-    vi.mocked(useQueryState).mockReturnValue(null)
   })
 
   it('renders empty state when no policies exist', () => {
@@ -121,22 +114,30 @@ describe('PoliciesTab', () => {
     expect(screen.getByText('No policies are available.')).toBeInTheDocument()
   })
 
-  it('renders loading state via useQueryState', () => {
-    vi.mocked(useQueryState).mockReturnValue(<div>Loading...</div>)
-    setupPoliciesQuery([])
+  it('renders loading state when query is pending', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue({
+      data: undefined,
+      isPending: true,
+      error: null,
+      refetch: vi.fn(),
+    } as ReturnType<typeof accessClient.useQuery>)
 
     render(<PoliciesTab />, { wrapper })
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    expect(screen.getByTestId('loading-state')).toBeInTheDocument()
   })
 
-  it('renders error state via useQueryState', () => {
-    vi.mocked(useQueryState).mockReturnValue(<div>Error loading policies</div>)
-    setupPoliciesQuery([])
+  it('renders error state when query fails', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue({
+      data: undefined,
+      isPending: false,
+      error: new Error('Network error'),
+      refetch: vi.fn(),
+    } as ReturnType<typeof accessClient.useQuery>)
 
     render(<PoliciesTab />, { wrapper })
 
-    expect(screen.getByText('Error loading policies')).toBeInTheDocument()
+    expect(screen.getByTestId('error-state')).toBeInTheDocument()
   })
 
   it('renders policies table with data', () => {

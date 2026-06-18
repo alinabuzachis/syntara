@@ -1,15 +1,12 @@
-import { Content, ContentVariants, Stack, StackItem, Truncate } from '@patternfly/react-core'
+import { Content, Truncate } from '@patternfly/react-core'
 import { RhUiCodeIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useMemo } from 'react'
 
-import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { useQueryState } from '../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../hooks/useDialogState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
@@ -66,8 +63,6 @@ const BASE_FILTER_FIELD_DEFS = [
   },
 ]
 
-// Column index → API sort field (actions column is last and not sortable)
-// 0: Name, 1: Description, 2: Scope, 3: Statements (not sortable), 4: Project, 5: Type
 const sortFieldByColumn: Record<number, string> = {
   0: 'name',
   2: 'scope',
@@ -174,64 +169,61 @@ export function PoliciesTab() {
     () => (policiesQuery.data?.resources ?? []).map(toPolicyRead),
     [policiesQuery.data?.resources]
   )
-  const queryState = useQueryState(policiesQuery, {
-    title: 'Error loading policies',
-    onRetry: () => detachPromise(policiesQuery.refetch()),
-  })
 
-  if (queryState) {
-    return queryState
-  }
-
-  const tableFooter = {
-    page,
-    perPage,
-    total: policiesQuery.data?.total ?? null,
-    hasNext: !!policiesQuery.data?.next,
-    onPrev: goToPrevPage,
-    onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
-    onPerPageChange: handlePerPageChange,
-  }
-
-  if (policies.length === 0 && !hasActiveFilters) {
-    return <NxEmptyStateNoData title="No policies found" description="No policies are available." />
-  }
+  const tableFooter = useMemo(
+    () => ({
+      page,
+      perPage,
+      total: policiesQuery.data?.total ?? null,
+      hasNext: !!policiesQuery.data?.next,
+      onPrev: goToPrevPage,
+      onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
+      onPerPageChange: handlePerPageChange,
+    }),
+    [page, perPage, policiesQuery.data, goToPrevPage, goToNextPage, handlePerPageChange]
+  )
 
   return (
     <>
-      <Stack style={{ height: '100%' }}>
-        <StackItem>
-          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
-            Policies define what actions are allowed or denied on resources at the system or project level. Browse the
-            built-in policies to understand available permissions, then group them into roles for project scoped or
-            system level assignments to users and groups.
-          </Content>
-        </StackItem>
-        <StackItem>
-          <FilterBar
-            fieldDefinitions={filterFieldDefinitions}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            showClearAll={true}
-            clearAllFilters={clearAllFilters}
-          />
-        </StackItem>
-
-        {policies.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
-          </StackItem>
-        ) : (
-          <NxScrollableTableContainer caption="Policies" footer={tableFooter}>
-            <PoliciesTableBody
-              policies={policies}
-              projectNameMap={projectNameMap}
-              getSortParams={getSortParams}
-              onViewPolicyJson={policyJsonDialog.open}
+      <NxListPanelView
+        tabKey="policies"
+        tabLabel="Policies"
+        isPending={policiesQuery.isPending}
+        isFetching={policiesQuery.isFetching}
+        error={policiesQuery.error}
+        onRetry={() => detachPromise(policiesQuery.refetch())}
+        isEmpty={policies.length === 0}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={clearAllFilters}
+        noDataState={<NxEmptyStateNoData title="No policies found" description="No policies are available." />}
+        toolbar={
+          policies.length > 0 || hasActiveFilters ? (
+            <NxListPanelToolbar
+              filters={filters}
+              filterDefinitions={filterFieldDefinitions}
+              onFilterChange={handleFilterChange}
+              clearAllFilters={clearAllFilters}
             />
-          </NxScrollableTableContainer>
-        )}
-      </Stack>
+          ) : undefined
+        }
+        body={
+          <>
+            <Content>
+              Policies define what actions are allowed or denied on resources at the system or project level. Browse the
+              built-in policies to understand available permissions, then group them into roles for project scoped or
+              system level assignments to users and groups.
+            </Content>
+            <NxListPanelTable caption="Policies" footer={tableFooter}>
+              <PoliciesTableBody
+                policies={policies}
+                projectNameMap={projectNameMap}
+                getSortParams={getSortParams}
+                onViewPolicyJson={policyJsonDialog.open}
+              />
+            </NxListPanelTable>
+          </>
+        }
+      />
 
       {policyJsonDialog.item != null && (
         <PolicyJsonModal

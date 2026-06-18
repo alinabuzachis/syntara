@@ -112,6 +112,7 @@ export default function registerLogicNode() {
             icon: RhUiLoopNodeIcon,
             description: 'Batch workflow to repeat specific actions.',
             formTitle: 'Configure Loop Logic',
+            initialData: { logicType: ActivityTypeEnum.LOOP },
           },
           {
             id: RegistryNodeId.LOGIC_SWITCH,

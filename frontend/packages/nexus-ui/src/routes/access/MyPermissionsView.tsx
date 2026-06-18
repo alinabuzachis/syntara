@@ -1,14 +1,12 @@
-import { Button, Flex, FlexItem, Label, Spinner, Stack, StackItem, Tooltip } from '@patternfly/react-core'
+import { Button, Flex, Label, Tooltip } from '@patternfly/react-core'
 import { CheckCircleIcon, SyncAltIcon, TimesCircleIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { ThProps } from '@patternfly/react-table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { FilterBar } from '../../components/filters'
-import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { NxErrorState } from '../../components/states/NxErrorState'
-import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
@@ -234,78 +232,42 @@ export function MyPermissionsView() {
     [page, perPage, totalFiltered, hasNextPage, handlePerPageChange]
   )
 
-  const showToolbar = !isLoading && !error && permissions && (permissions.length > 0 || hasActiveFilters)
-
   return (
-    <Stack style={{ height: '100%' }}>
-      {showToolbar && (
-        <StackItem>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-            <FlexItem grow={{ default: 'grow' }}>
-              <FilterBar
-                fieldDefinitions={FILTER_FIELD_DEFS}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-                clearAllFilters={clearAllFilters}
-              />
-            </FlexItem>
-            <FlexItem>
+    <NxPanelContentStack hasGutter>
+      <NxListPanelView
+        isPending={isLoading}
+        error={error}
+        onRetry={() => detachPromise(handleFetch())}
+        isEmpty={sorted.length === 0}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={clearAllFilters}
+        noDataState={
+          <NxEmptyStateNoData title="No permissions" description="The current user has no permissions assigned." />
+        }
+        toolbar={
+          <NxListPanelToolbar
+            filters={filters}
+            filterDefinitions={FILTER_FIELD_DEFS}
+            onFilterChange={handleFilterChange}
+            clearAllFilters={clearAllFilters}
+            toolbarItemsAfterFilters={
               <Tooltip content="Refresh permissions">
                 <Button
                   variant="plain"
                   aria-label="Refresh permissions"
                   onClick={() => detachPromise(handleFetch())}
-                  isLoading={isLoading}
                   icon={<SyncAltIcon />}
                 />
               </Tooltip>
-            </FlexItem>
-          </Flex>
-        </StackItem>
-      )}
-
-      {isLoading && (
-        <StackItem isFilled>
-          <Flex
-            justifyContent={{ default: 'justifyContentCenter' }}
-            alignItems={{ default: 'alignItemsCenter' }}
-            style={{ height: '100%' }}
-          >
-            <Spinner size="lg" aria-label="Loading permissions" />
-          </Flex>
-        </StackItem>
-      )}
-
-      {!isLoading && error != null && (
-        <StackItem isFilled>
-          <NxErrorState
-            title="Failed to load permissions"
-            message={error}
-            onRetry={() => detachPromise(handleFetch())}
+            }
           />
-        </StackItem>
-      )}
-
-      {!isLoading && !error && permissions?.length === 0 && !hasActiveFilters && (
-        <StackItem isFilled>
-          <NxEmptyStateNoData title="No permissions" description="The current user has no permissions assigned." />
-        </StackItem>
-      )}
-
-      {showToolbar && pageData.length === 0 && (
-        <StackItem isFilled>
-          <Flex justifyContent={{ default: 'justifyContentCenter' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
-          </Flex>
-        </StackItem>
-      )}
-
-      {showToolbar && pageData.length > 0 && (
-        <NxScrollableTableContainer caption="User permissions" footer={tableFooter}>
-          <PermissionsTableContent permissions={pageData} getSortParams={getSortParams} />
-        </NxScrollableTableContainer>
-      )}
-    </Stack>
+        }
+        body={
+          <NxListPanelTable caption="User permissions" footer={tableFooter}>
+            <PermissionsTableContent permissions={pageData} getSortParams={getSortParams} />
+          </NxListPanelTable>
+        }
+      />
+    </NxPanelContentStack>
   )
 }

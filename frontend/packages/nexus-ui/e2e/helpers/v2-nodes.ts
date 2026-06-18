@@ -32,7 +32,9 @@ async function selectCategoryAndType(page: Page, category: string, subtype: stri
 /** Select a direct (non-category) button in the add-node panel. */
 async function selectDirectNodeType(page: Page, label: string | RegExp) {
   const panel = addNodePanel(page)
-  await panel.getByRole('button', { name: label }).click()
+  const btn = panel.getByRole('button', { name: label })
+  await expect(btn).toBeVisible({ timeout: 5_000 })
+  await btn.click()
 }
 
 // ---------------------------------------------------------------------------
@@ -140,12 +142,12 @@ export async function addAapNode(page: Page, name: string, jobTemplateId = '123'
 }
 
 /** Add an approval node (v2 type: "approval") without completing branches. */
-export async function addApprovalNode(page: Page, name: string, approver = 'admin') {
+export async function addApprovalNode(page: Page, name: string) {
   await openAddNodePanel(page)
   await selectDirectNodeType(page, 'Approval')
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
-  await page.getByLabel('Add approver').fill(approver)
-  await page.keyboard.press('Enter')
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(nameInput).toBeVisible({ timeout: 10_000 })
+  await nameInput.fill(name)
   await page.getByRole('button', { name: 'Save and close' }).click()
   await closeNodeEditorPanel(page)
 }
@@ -155,8 +157,8 @@ export async function addApprovalNode(page: Page, name: string, approver = 'admi
  * This creates a valid workflow that can be saved.
  * The "rejected" branch is optional per validation rules.
  */
-export async function addApprovalNodeWithBranch(page: Page, name: string, approver = 'admin') {
-  await addApprovalNode(page, name, approver)
+export async function addApprovalNodeWithBranch(page: Page, name: string) {
+  await addApprovalNode(page, name)
 
   // Add a node on the "approved" branch to satisfy validation
   // The "rejected" branch is optional

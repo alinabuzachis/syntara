@@ -99,13 +99,15 @@ vi.mock('./AssignProjectRoleModal', () => ({
     ) : null,
 }))
 
-vi.mock('../../../components/filters', () => ({
+vi.mock('../../../components/filters/FilterBar', () => ({
   FilterBar: ({
     onFilterChange,
     clearAllFilters,
+    toolbarEnd,
   }: {
     onFilterChange: (filters: Array<{ key: string; value: string }>) => void
     clearAllFilters: () => void
+    toolbarEnd?: ReactNode
   }) => (
     <div data-testid="filter-bar">
       <button
@@ -146,6 +148,7 @@ vi.mock('../../../components/filters', () => ({
       <button type="button" onClick={clearAllFilters} aria-label="Clear all filters">
         Clear filters
       </button>
+      {toolbarEnd}
     </div>
   ),
 }))
@@ -355,7 +358,7 @@ describe('ProjectRoleAssignmentsTab', () => {
 
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
-    expect(screen.getByRole('heading', { name: 'Error loading role assignments' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
   })
 
   it('renders loading state while fetching', () => {

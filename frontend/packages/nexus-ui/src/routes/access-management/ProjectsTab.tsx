@@ -1,15 +1,4 @@
-import {
-  Button,
-  Content,
-  ContentVariants,
-  Flex,
-  FlexItem,
-  List,
-  ListItem,
-  Stack,
-  StackItem,
-  Truncate,
-} from '@patternfly/react-core'
+import { Button, Content, List, ListItem, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -18,14 +7,9 @@ import { useCallback, useMemo, useState } from 'react'
 import { AppRoute } from '../../app/AppRoute'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
-import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
-import { NxPageBody } from '../../components/layout/NxPage'
-import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { useQueryState } from '../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { navigate } from '../../hooks/routing/navigate'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useFilterState } from '../../hooks/useFilterState'
@@ -204,6 +188,11 @@ export function ProjectsTab() {
     setPage(1)
   }
 
+  const handleClearAllFilters = useCallback(() => {
+    clearAllFilters()
+    setPage(1)
+  }, [clearAllFilters])
+
   const { projects: allProjects, isLoading, error, refetch } = useAllProjects()
 
   const { sortedProjects, paginatedProjects, hasNext } = useMemo(() => {
@@ -265,110 +254,77 @@ export function ProjectsTab() {
     )
   }
 
-  const queryState = useQueryState(
-    { error, isPending: isLoading, refetch },
-    {
-      title: 'Error loading projects',
-      onRetry: () => detachPromise(refetch()),
-    }
-  )
-  if (queryState) return queryState
-
-  if (allProjects.length === 0 && !hasActiveFilters) {
-    return (
-      <>
-        <NxEmptyStateNoData
-          title="No projects yet"
-          description="Create a project to organize workflows and manage access."
-          buttonText="Create project"
-          addData={permissions.canCreate ? () => formDialog.open(null) : undefined}
-        />
-        <ProjectFormModal
-          project={null}
-          isOpen={formDialog.isOpen}
-          onClose={formDialog.close}
-          onSuccess={() => {
-            detachPromise(refetch())
-          }}
-        />
-      </>
-    )
-  }
-
   return (
     <>
-      <NxPanelContentStack>
-        <StackItem>
-          <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
-            Projects organize workflows and their resources, such as credentials, into separate workspaces. Each
-            workflow and credential belongs to exactly one project. Use projects to keep related automation work
-            together and to control access through role assignments.
-          </Content>
-        </StackItem>
-        <StackItem>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-            <FlexItem grow={{ default: 'grow' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-                clearAllFilters={() => {
-                  clearAllFilters()
-                  setPage(1)
-                }}
+      <NxListPanelView
+        tabKey="projects"
+        tabLabel="Projects"
+        isPending={isLoading}
+        error={error}
+        onRetry={() => detachPromise(refetch())}
+        isEmpty={sortedProjects.length === 0}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={handleClearAllFilters}
+        noDataState={
+          <NxEmptyStateNoData
+            title="No projects yet"
+            description="Create a project to organize workflows and manage access."
+            buttonText="Create project"
+            addData={permissions.canCreate ? () => formDialog.open(null) : undefined}
+          />
+        }
+        toolbar={
+          sortedProjects.length > 0 || hasActiveFilters ? (
+            <NxListPanelToolbar
+              filters={filters}
+              filterDefinitions={filterFieldDefinitions}
+              onFilterChange={handleFilterChange}
+              clearAllFilters={handleClearAllFilters}
+              actions={
+                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                  <Button
+                    variant="primary"
+                    icon={<RhUiAddIcon />}
+                    isAriaDisabled={!permissions.canCreate}
+                    onClick={permissions.canCreate ? () => formDialog.open(null) : undefined}
+                  >
+                    Create project
+                  </Button>
+                </DisabledWithTooltip>
+              }
+            />
+          ) : undefined
+        }
+        body={
+          <>
+            <Content>
+              Projects organize workflows and their resources, such as credentials, into separate workspaces. Each
+              workflow and credential belongs to exactly one project. Use projects to keep related automation work
+              together and to control access through role assignments.
+            </Content>
+            <NxListPanelTable
+              caption="Projects"
+              footer={{
+                page,
+                perPage,
+                total: sortedProjects.length,
+                hasNext,
+                onPrev: () => setPage(Math.max(1, page - 1)),
+                onNext: () => setPage(page + 1),
+                onPerPageChange: handlePerPageChange,
+              }}
+            >
+              <ProjectsTable
+                projects={paginatedProjects}
+                getSortParams={getSortParams}
+                permissions={permissions}
+                onEdit={(p) => formDialog.open(p)}
+                onDelete={(p) => deleteDialog.open(p)}
               />
-            </FlexItem>
-            <FlexItem>
-              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
-                <Button
-                  variant="primary"
-                  icon={<RhUiAddIcon />}
-                  isAriaDisabled={!permissions.canCreate}
-                  onClick={permissions.canCreate ? () => formDialog.open(null) : undefined}
-                >
-                  Create project
-                </Button>
-              </DisabledWithTooltip>
-            </FlexItem>
-          </Flex>
-        </StackItem>
-        {paginatedProjects.length === 0 ? (
-          <NxPageBody isCentered>
-            <NxEmptyStateFilter
-              clearAllFilters={() => {
-                clearAllFilters()
-                setPage(1)
-              }}
-            />
-          </NxPageBody>
-        ) : (
-          <NxScrollableTableContainer
-            caption="Projects"
-            footer={{
-              page,
-              perPage,
-              total: sortedProjects.length,
-              hasNext,
-              onPrev: () => setPage(Math.max(1, page - 1)),
-              onNext: () => setPage(page + 1),
-              onPerPageChange: handlePerPageChange,
-            }}
-          >
-            <ProjectsTable
-              projects={paginatedProjects}
-              getSortParams={getSortParams}
-              permissions={permissions}
-              onEdit={(p) => {
-                formDialog.open(p)
-              }}
-              onDelete={(p) => {
-                deleteDialog.open(p)
-              }}
-            />
-          </NxScrollableTableContainer>
-        )}
-      </NxPanelContentStack>
+            </NxListPanelTable>
+          </>
+        }
+      />
 
       <ProjectFormModal
         project={formDialog.item}

@@ -1,5 +1,5 @@
 import type { Group } from '@ansible/nexus-contracts'
-import { Badge, Button, Content, ContentVariants, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import { Badge, Button, Content, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import { useMemo } from 'react'
@@ -8,14 +8,9 @@ import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
-import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
-import { NxPageBody } from '../../components/layout/NxPage'
-import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { useQueryState } from '../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { navigate } from '../../hooks/routing/navigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
@@ -94,43 +89,34 @@ export function GroupsTab() {
     onSettled: deleteDialog.close,
   })
 
-  const queryState = useQueryState(query, {
-    title: 'Error loading groups',
-    onRetry: () => detachPromise(query.refetch()),
-  })
-  if (queryState) {
-    return queryState
-  }
-
   return (
     <>
-      {results.length === 0 && !hasActiveFilters ? (
-        <NxEmptyStateNoData
-          title="No groups"
-          description="Create a group to organize users and manage access."
-          buttonText="Create group"
-          addData={permissions.canCreate ? () => formDialog.open(null) : undefined}
-        />
-      ) : (
-        <NxPanelContentStack>
-          <StackItem>
-            <Content component={ContentVariants.p} style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
-              Groups organize users into logical collections, making it easy to assign roles to many users at once. When
-              a role is assigned to a group, every user in that group inherits its permissions.
-            </Content>
-          </StackItem>
-          <StackItem>
-            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-              <FlexItem grow={{ default: 'grow' }}>
-                <FilterBar
-                  fieldDefinitions={filterFieldDefinitions}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  showClearAll={true}
-                  clearAllFilters={handleClearAllFilters}
-                />
-              </FlexItem>
-              <FlexItem>
+      <NxListPanelView
+        tabKey="groups"
+        tabLabel="Groups"
+        isPending={query.isPending}
+        isFetching={query.isFetching}
+        error={query.error}
+        onRetry={() => detachPromise(query.refetch())}
+        isEmpty={results.length === 0}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={handleClearAllFilters}
+        noDataState={
+          <NxEmptyStateNoData
+            title="No groups"
+            description="Create a group to organize users and manage access."
+            buttonText="Create group"
+            addData={permissions.canCreate ? () => formDialog.open(null) : undefined}
+          />
+        }
+        toolbar={
+          results.length > 0 || hasActiveFilters ? (
+            <NxListPanelToolbar
+              filters={filters}
+              filterDefinitions={filterFieldDefinitions}
+              onFilterChange={handleFilterChange}
+              clearAllFilters={handleClearAllFilters}
+              actions={
                 <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
                   <Button
                     variant="primary"
@@ -141,16 +127,17 @@ export function GroupsTab() {
                     Create group
                   </Button>
                 </DisabledWithTooltip>
-              </FlexItem>
-            </Flex>
-          </StackItem>
-
-          {results.length === 0 ? (
-            <NxPageBody isCentered>
-              <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
-            </NxPageBody>
-          ) : (
-            <NxScrollableTableContainer caption="Groups table" footer={getFooterProps(data)}>
+              }
+            />
+          ) : undefined
+        }
+        body={
+          <>
+            <Content>
+              Groups organize users into logical collections, making it easy to assign roles to many users at once. When
+              a role is assigned to a group, every user in that group inherits its permissions.
+            </Content>
+            <NxListPanelTable caption="Groups table" footer={getFooterProps(data)}>
               <Thead>
                 <Tr>
                   <Th sort={getSortParams(0)}>Name</Th>
@@ -211,10 +198,10 @@ export function GroupsTab() {
                   </Tr>
                 ))}
               </Tbody>
-            </NxScrollableTableContainer>
-          )}
-        </NxPanelContentStack>
-      )}
+            </NxListPanelTable>
+          </>
+        }
+      />
 
       <GroupFormModal
         group={formDialog.item}

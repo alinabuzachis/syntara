@@ -608,6 +608,14 @@ class ServerSettings(BaseSettings):
         "When disabled, OIDC issuer URLs that resolve to private, loopback, or link-local IPs are rejected.",
     )
 
+    # Credential security
+    credential_allow_http_host: bool = Field(
+        default=False,
+        description="Allow HTTP scheme for credential host URLs. "
+        "Enable for development environments connecting to local services (e.g., http://localhost:44927). "
+        "When disabled, credential host URLs must use HTTPS.",
+    )
+
     # OIDC logout configuration
     oidc_post_logout_redirect_uri: str | None = Field(
         default=None,

@@ -21,8 +21,13 @@ from nexus.workflows.error_handlers import build_validation_problem_response
 from nexus.workflows.exceptions import WorkflowDefinitionInvalidError
 from nexus.workflows.executions_router import get_temporal_execution_service
 from nexus.workflows.models import (
+    DetailedValidationProblemDetail,
     PublishVersionRequest,
+    ValidationCategory,
+    ValidationFinding,
     ValidationIssue,
+    ValidationResult,
+    ValidationSeverity,
     Workflow,
     WorkflowCreate,
     WorkflowListParams,
@@ -49,18 +54,35 @@ class _ValidationRoute(APIRoute):
 
     def get_route_handler(self) -> Callable[..., Coroutine[Any, Any, Response]]:
         original = super().get_route_handler()
+        uses_detailed = "/detailed" in self.path
 
         async def handler(request: Request) -> Response:
             try:
                 return await original(request)
             except RequestValidationError as exc:
-                errors = []
+                issues: list[str] = []
                 for e in exc.errors():
                     path_parts = [str(p) for p in e["loc"]]
                     if path_parts and path_parts[0] == "body":
                         path_parts = path_parts[1:]
-                    errors.append(ValidationIssue(message=f"{' -> '.join(path_parts)}: {e['msg']}"))
-                result = WorkflowValidationResult(valid=False, errors=errors)
+                    issues.append(f"{' -> '.join(path_parts)}: {e['msg']}")
+
+                result: ValidationResult | WorkflowValidationResult
+                if uses_detailed:
+                    findings = [
+                        ValidationFinding(
+                            severity=ValidationSeverity.error,
+                            category=ValidationCategory.schema_violation,
+                            message=msg,
+                        )
+                        for msg in issues
+                    ]
+                    result = ValidationResult.from_findings(findings)
+                else:
+                    result = WorkflowValidationResult(
+                        valid=False,
+                        errors=[ValidationIssue(message=msg) for msg in issues],
+                    )
                 return build_validation_problem_response(request, result)
 
         return handler
@@ -156,6 +178,24 @@ async def validate_workflow_definition(
     result = workflow_validator.collect_validation_issues(request.workflow_definition.model_dump())
     if not result.valid:
         raise WorkflowDefinitionInvalidError(result)
+    return result
+
+
+@_validate_router.post(
+    "/validate/detailed",
+    response_model=ValidationResult,
+    dependencies=[Depends(_wf_perm_create)],
+    operation_id="validate_workflow_definition_detailed",
+    response_description="Detailed validation result",
+    responses={422: {"model": DetailedValidationProblemDetail, "description": "Unprocessable Content"}},
+)
+async def validate_workflow_definition_detailed(
+    request: WorkflowValidateRequest,
+) -> ValidationResult:
+    """Validate a workflow definition and return detailed per-finding results."""
+    result = workflow_validator.collect_findings(request.workflow_definition.model_dump())
+    if not result.is_valid:
+        raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
     return result
 
 

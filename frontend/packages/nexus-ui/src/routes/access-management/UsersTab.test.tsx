@@ -471,7 +471,7 @@ describe('UsersTab Component', () => {
 
       render(<UsersTab />, { wrapper })
 
-      expect(screen.getByRole('heading', { name: 'Error loading users' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
     })
   })
 

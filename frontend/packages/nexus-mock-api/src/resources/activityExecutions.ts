@@ -17,6 +17,7 @@ type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution'
  * - exec-8 maps to workflow '3' (loop-demo): node task_iteration (cancelled)
  * - exec-9 maps to workflow '4' (parallel-demo): nodes task1, task2, task3, summary
  * - exec-10 maps to workflow '4' (parallel-demo): pending (no activities started yet)
+ * - exec-approval maps to workflow '52' (deployment-approval): staging_tests (completed), approval_gate (waiting)
  */
 export const activityExecutions: Record<string, ActivityExecution[]> = {
   'exec-1': [
@@ -318,6 +319,42 @@ export const activityExecutions: Record<string, ActivityExecution[]> = {
       error_details: null,
       retry_count: 0,
       iteration: 1,
+    },
+  ],
+  'exec-approval': [
+    {
+      id: 'act-appr-1',
+      created_at: mockDate.minutesAgo10,
+      updated_at: mockDate.minutesAgo10,
+      execution_id: 'exec-approval',
+      activity_name: 'staging_tests',
+      status: 'completed',
+      started_at: mockDate.minutesAgo10,
+      completed_at: mockDate.minutesAgo10,
+      input_data: { version: '3.2.0' } as Record<string, unknown>,
+      output_data: {
+        tests_passed: 42,
+        tests_failed: 0,
+        coverage: 94.5,
+      } as Record<string, unknown>,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
+    },
+    {
+      id: 'act-appr-2',
+      created_at: mockDate.minutesAgo10,
+      updated_at: mockDate.minutesAgo10,
+      execution_id: 'exec-approval',
+      activity_name: 'approval_gate',
+      status: 'waiting',
+      started_at: mockDate.minutesAgo10,
+      completed_at: null,
+      input_data: {} as Record<string, unknown>,
+      output_data: null,
+      error_details: null,
+      retry_count: 0,
+      iteration: null,
     },
   ],
 }

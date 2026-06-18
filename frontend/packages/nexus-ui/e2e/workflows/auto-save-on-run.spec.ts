@@ -60,11 +60,11 @@ test('workflow auto-saves when clicking Run with unsaved changes', async ({ app 
     // Wait for dialog to close (execution starting)
     await expect(dialog).not.toBeVisible({ timeout: 10000 })
 
-    // Navigate away from builder
-    await app.getByRole('link', { name: 'Workflows' }).click()
+    // After running, the builder navigates to the execution detail page
+    await expect(app).toHaveURL(/\/executions\//, { timeout: 15000 })
 
-    // Verify auto-save worked — no unsaved-changes dialog should appear
-    await expect(app.getByRole('dialog')).not.toBeVisible({ timeout: 3000 })
+    // Navigate to the workflows list
+    await app.getByRole('link', { name: 'Workflows' }).click()
     await expect(app).toHaveURL(toAppUrl('/workflows'), { timeout: 10000 })
 
     // Re-open the workflow to verify changes WERE saved

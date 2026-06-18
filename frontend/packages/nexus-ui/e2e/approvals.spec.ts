@@ -22,7 +22,7 @@ test('user filters approvals by name and status', async ({ app }) => {
   await expect(app).toHaveURL(/name%5Bcontains%5D=Policy/)
 
   // Step 2: Add status filter
-  const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name' })
+  const fieldSelector = app.locator('#filter-toolbar').getByRole('button', { name: 'Name', exact: true })
   await fieldSelector.click()
   await app.getByRole('option', { name: 'Status' }).click()
   await app.getByRole('button', { name: 'Filter by status' }).click()
@@ -71,26 +71,35 @@ test('user filters approvals by name and status', async ({ app }) => {
   }
 })
 
-test('user approves an approval request and sees status update', async ({ app }) => {
-  // Arrange - Open approvals list
+test('user approves an approval via the side panel', async ({ app }) => {
   await app.goto(toAppUrl('/approvals'))
   await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
 
-  // Act - Wait for table and open a pending approval (skip if no data)
   const approvalsTable = app.getByRole('grid', { name: 'Approvals table' })
   const hasApprovalsTable = await approvalsTable
     .waitFor({ state: 'visible', timeout: 5000 })
     .then(() => true)
     .catch(() => false)
   test.skip(!hasApprovalsTable, 'No approval data available; seed data required')
-  await app.getByRole('grid', { name: 'Approvals table' }).getByRole('button', { name: 'AI Agent Decision' }).click()
 
-  // Act - Approve with notes
+  // Click a pending approval name — navigates to execution detail with side panel
+  const approvalBtn = approvalsTable.getByRole('button', { name: 'AI Agent Decision' })
+  const hasBtn = await approvalBtn
+    .waitFor({ state: 'visible', timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false)
+  test.skip(!hasBtn, 'AI Agent Decision approval not available')
+
+  await approvalBtn.click()
+
+  // Verify navigation to execution detail with side panel open
+  await expect(app).toHaveURL(/\/executions\/[^?]+\?approval=/)
+  await expect(app.getByRole('heading', { name: 'Review Approval' })).toBeVisible({ timeout: 15_000 })
+
+  // Approve with notes
   await app.getByRole('button', { name: 'Approve' }).click()
   await app.getByPlaceholder(/Explain the reason for approving/i).fill('Looks good')
-  await app.getByRole('button', { name: 'Submit' }).click()
+  await app.getByRole('button', { name: 'Submit decision' }).click()
 
-  // Assert - Submit alert appears
   await expect(app.getByText('Approval submitted')).toBeVisible()
-  await expect(app.getByText("Unfortunately, this isn't yet implemented.")).toBeVisible()
 })

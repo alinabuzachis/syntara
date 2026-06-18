@@ -7,6 +7,13 @@ import re
 _CONTROL_CHAR_TABLE = str.maketrans("", "", "".join(chr(c) for c in (*range(0x20), 0x7F)))
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f]")
 
+# Patterns that allow specific whitespace characters through.
+# Used by credential field validation where tabs and newlines are acceptable.
+# Single-line: allow horizontal tab (0x09) only.
+CONTROL_CHAR_SINGLELINE_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
+# Multiline: allow horizontal tab (0x09), line feed (0x0a), carriage return (0x0d).
+CONTROL_CHAR_MULTILINE_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
 
 def strip_control_chars(value: str) -> str:
     """Remove ASCII control characters (0x00-0x1F, 0x7F) from a string."""

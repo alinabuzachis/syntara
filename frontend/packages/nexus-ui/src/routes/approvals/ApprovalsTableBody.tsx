@@ -166,7 +166,9 @@ function ApprovalRow({
           }}
         />
         <Td dataLabel="Approval name">
-          <LinkCell href={`/approvals/${approval.id}`}>{approval.approvalName || approval.id}</LinkCell>
+          <LinkCell href={`/executions/${approval.execution_id}?approval=${approval.id}&history=closed`}>
+            {approval.approvalName || approval.id}
+          </LinkCell>
         </Td>
         <Td dataLabel="Workflow">
           {approval.workflowId ? (

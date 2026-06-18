@@ -1,18 +1,18 @@
-import { Label, StackItem, Truncate } from '@patternfly/react-core'
+import { Label, Truncate } from '@patternfly/react-core'
 import { RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
 import { useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
-import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
-import { NxPageBody } from '../../../components/layout/NxPage'
-import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import {
+  NxListPanel,
+  NxListPanelTable,
+  NxListPanelToolbar,
+  NxListPanelView,
+} from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
-import { useQueryState } from '../../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useDialogState } from '../../../hooks/useDialogState'
 import { useAlerts } from '../../../providers/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -148,58 +148,51 @@ export function ProjectPoliciesTab({ projectId }: Readonly<{ projectId: string }
     )
   }
 
-  const queryState = useQueryState(policiesQuery, {
-    title: 'Error loading policies',
-    onRetry: () => detachPromise(policiesQuery.refetch()),
-  })
-
-  if (queryState) {
-    return queryState
-  }
-
-  if (policies.length === 0 && !hasActiveFilters) {
-    return <NxEmptyStateNoData title="No policies found" description="No policies are available for this project." />
-  }
-
   return (
     <>
-      <NxPanelContentStack>
-        <StackItem>
-          <FilterBar
-            fieldDefinitions={builtinFilterDefinitions}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            showClearAll={true}
-            clearAllFilters={clearAllFilters}
-          />
-        </StackItem>
-
-        {policies.length === 0 ? (
-          <NxPageBody isCentered>
-            <NxEmptyStateFilter clearAllFilters={clearAllFilters} />
-          </NxPageBody>
-        ) : (
-          <NxScrollableTableContainer
-            caption="Project policies"
-            footer={{
-              page,
-              perPage,
-              total: policiesQuery.data?.total ?? null,
-              hasNext: !!policiesQuery.data?.next,
-              onPrev: goToPrevPage,
-              onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
-              onPerPageChange: handlePerPageChange,
-            }}
-          >
-            <ProjectPoliciesTable
-              policies={policies}
-              getSortParams={getSortParams}
-              onEdit={setPolicyToEdit}
-              onDelete={deleteDialog.open}
+      <NxListPanel>
+        <NxListPanelView
+          isPending={policiesQuery.isPending}
+          isFetching={policiesQuery.isFetching}
+          error={policiesQuery.error}
+          onRetry={() => detachPromise(policiesQuery.refetch())}
+          isEmpty={policies.length === 0}
+          hasActiveFilters={hasActiveFilters}
+          onClearAllFilters={clearAllFilters}
+          noDataState={
+            <NxEmptyStateNoData title="No policies found" description="No policies are available for this project." />
+          }
+          toolbar={
+            <NxListPanelToolbar
+              filters={filters}
+              filterDefinitions={builtinFilterDefinitions}
+              onFilterChange={handleFilterChange}
+              clearAllFilters={clearAllFilters}
             />
-          </NxScrollableTableContainer>
-        )}
-      </NxPanelContentStack>
+          }
+          body={
+            <NxListPanelTable
+              caption="Project policies"
+              footer={{
+                page,
+                perPage,
+                total: policiesQuery.data?.total ?? null,
+                hasNext: !!policiesQuery.data?.next,
+                onPrev: goToPrevPage,
+                onNext: () => goToNextPage(policiesQuery.data?.next ?? null),
+                onPerPageChange: handlePerPageChange,
+              }}
+            >
+              <ProjectPoliciesTable
+                policies={policies}
+                getSortParams={getSortParams}
+                onEdit={setPolicyToEdit}
+                onDelete={deleteDialog.open}
+              />
+            </NxListPanelTable>
+          }
+        />
+      </NxListPanel>
 
       {policyToEdit && (
         <EditProjectPolicyDialog

@@ -114,7 +114,8 @@ test.describe('Execution URL unification', () => {
         .catch(() => false)
       test.skip(!didNavigateSecond, 'Second workflow execution failed')
 
-      // History card should be visible by default on execution page
+      // History card is closed by default when navigating from builder; open it
+      await app.getByRole('button', { name: 'Run history' }).click()
       await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
 
       // Click a different execution in the history card

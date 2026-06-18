@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Label, LabelGroup, StackItem, Truncate } from '@patternfly/react-core'
+import { Button, Label, LabelGroup, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
@@ -7,14 +7,9 @@ import { useMemo, useState } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
-import { FilterBar } from '../../../components/filters'
 import { IconLabel } from '../../../components/IconLabel'
-import { NxPageBody } from '../../../components/layout/NxPage'
-import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
-import { useQueryState } from '../../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { useSortState } from '../../../hooks/useSortState'
 import { useAlerts } from '../../../providers/alerts'
@@ -136,40 +131,17 @@ function getAssignmentActions(
 
 function RoleAssignmentsTable({
   rows,
-  sortedRows,
-  page,
-  perPage,
   getSortParams,
   onUnassign,
-  onPrev,
-  onNext,
-  onPerPageChange,
   permissions,
 }: Readonly<{
   rows: RoleAssignmentRow[]
-  sortedRows: RoleAssignmentRow[]
-  page: number
-  perPage: number
   getSortParams: (columnIndex: number) => ThProps['sort']
   onUnassign: (row: RoleAssignmentRow) => void
-  onPrev: () => void
-  onNext: () => void
-  onPerPageChange: (perPage: number) => void
   permissions: ReturnType<typeof useAssignmentPermissions>
 }>) {
   return (
-    <NxScrollableTableContainer
-      caption="Project role assignments"
-      footer={{
-        page,
-        perPage,
-        total: sortedRows.length,
-        hasNext: page * perPage < sortedRows.length,
-        onPrev,
-        onNext,
-        onPerPageChange,
-      }}
-    >
+    <>
       <Thead>
         <Tr>
           <Th sort={getSortParams(0)}>Principal Name</Th>
@@ -212,7 +184,7 @@ function RoleAssignmentsTable({
           </Tr>
         ))}
       </Tbody>
-    </NxScrollableTableContainer>
+    </>
   )
 }
 
@@ -287,66 +259,6 @@ function useProjectAssignmentData(projectId: string) {
   return { query, rows, assignedRolesByPrincipal, refetch, handleRoleCreated, unassign }
 }
 
-function ProjectAssignmentToolbar({
-  rolePermissions,
-  assignmentPermissions,
-  onCreateRole,
-  onAssignRole,
-  filters,
-  onFilterChange,
-  onClearFilters,
-}: Readonly<{
-  rolePermissions: ReturnType<typeof useRolePermissions>
-  assignmentPermissions: ReturnType<typeof useAssignmentPermissions>
-  onCreateRole: () => void
-  onAssignRole: () => void
-  filters: FilterConfig[]
-  onFilterChange: (f: FilterConfig[]) => void
-  onClearFilters: () => void
-}>) {
-  return (
-    <StackItem>
-      <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-        <FlexItem grow={{ default: 'grow' }}>
-          <FilterBar
-            fieldDefinitions={filterFieldDefinitions}
-            filters={filters}
-            onFilterChange={onFilterChange}
-            showClearAll={true}
-            clearAllFilters={onClearFilters}
-          />
-        </FlexItem>
-        <FlexItem>
-          <DisabledWithTooltip isDisabled={!rolePermissions.canCreate} content={rolePermissions.tooltips.create}>
-            <Button
-              variant="secondary"
-              isAriaDisabled={!rolePermissions.canCreate}
-              onClick={rolePermissions.canCreate ? onCreateRole : undefined}
-            >
-              Create role
-            </Button>
-          </DisabledWithTooltip>
-        </FlexItem>
-        <FlexItem>
-          <DisabledWithTooltip
-            isDisabled={!assignmentPermissions.canAssign}
-            content={assignmentPermissions.tooltips.assign}
-          >
-            <Button
-              variant="primary"
-              icon={<RhUiAddIcon />}
-              isAriaDisabled={!assignmentPermissions.canAssign}
-              onClick={assignmentPermissions.canAssign ? onAssignRole : undefined}
-            >
-              Assign role
-            </Button>
-          </DisabledWithTooltip>
-        </FlexItem>
-      </Flex>
-    </StackItem>
-  )
-}
-
 export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAssignmentsTabProps>) {
   const assignmentPermissions = useAssignmentPermissions()
   const rolePermissions = useRolePermissions()
@@ -359,6 +271,8 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
   const [perPage, setPerPage] = useState(20)
   const { query, rows, assignedRolesByPrincipal, refetch, handleRoleCreated, unassign } =
     useProjectAssignmentData(projectId)
+
+  const hasActiveFilters = filters.length > 0
 
   const filteredRows = useMemo(() => applyFilters(rows, filters), [rows, filters])
   const sortedRows = useMemo(
@@ -375,82 +289,112 @@ export function ProjectRoleAssignmentsTab({ projectId }: Readonly<ProjectRoleAss
     unassign(rowToUnassign, () => setRowToUnassign(null))
   }
 
-  const queryState = useQueryState(query, {
-    title: 'Error loading role assignments',
-    onRetry: refetch,
-  })
-
-  if (queryState) return queryState
-
-  const hasActiveFilters = filters.length > 0
   const resetPage = () => setPage(1)
 
   return (
     <>
-      {rows.length === 0 && !hasActiveFilters ? (
-        <NxEmptyStateNoData
-          title="No role assignments"
-          description="No roles have been assigned in this project."
-          buttonText="Assign role"
-          addData={assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined}
-          secondaryActions={
-            <DisabledWithTooltip isDisabled={!rolePermissions.canCreate} content={rolePermissions.tooltips.create}>
-              <Button
-                variant="link"
-                isAriaDisabled={!rolePermissions.canCreate}
-                onClick={rolePermissions.canCreate ? () => setCreateRoleOpen(true) : undefined}
-              >
-                Create role
-              </Button>
-            </DisabledWithTooltip>
-          }
-        />
-      ) : (
-        <NxPanelContentStack>
-          <ProjectAssignmentToolbar
-            rolePermissions={rolePermissions}
-            assignmentPermissions={assignmentPermissions}
-            onCreateRole={() => setCreateRoleOpen(true)}
-            onAssignRole={() => setAssignModalOpen(true)}
-            filters={filters}
-            onFilterChange={(f) => {
-              setAllFilters(f)
-              resetPage()
-            }}
-            onClearFilters={() => {
-              clearAllFilters()
-              resetPage()
-            }}
+      <NxListPanelView
+        tabKey="role-assignments"
+        tabLabel="Assignments"
+        isPending={query.isPending}
+        isFetching={query.isFetching}
+        error={query.error}
+        onRetry={refetch}
+        isEmpty={sortedRows.length === 0}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={() => {
+          clearAllFilters()
+          resetPage()
+        }}
+        noDataState={
+          <NxEmptyStateNoData
+            title="No role assignments"
+            description="No roles have been assigned in this project."
+            buttonText="Assign role"
+            addData={assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined}
+            secondaryActions={
+              <DisabledWithTooltip isDisabled={!rolePermissions.canCreate} content={rolePermissions.tooltips.create}>
+                <Button
+                  variant="link"
+                  isAriaDisabled={!rolePermissions.canCreate}
+                  onClick={rolePermissions.canCreate ? () => setCreateRoleOpen(true) : undefined}
+                >
+                  Create role
+                </Button>
+              </DisabledWithTooltip>
+            }
           />
-
-          {sortedRows.length === 0 ? (
-            <NxPageBody isCentered>
-              <NxEmptyStateFilter
-                clearAllFilters={() => {
-                  clearAllFilters()
-                  resetPage()
-                }}
-              />
-            </NxPageBody>
-          ) : (
-            <RoleAssignmentsTable
-              rows={paginatedRows}
-              sortedRows={sortedRows}
-              page={page}
-              perPage={perPage}
-              getSortParams={getSortParams}
-              onUnassign={setRowToUnassign}
-              onPrev={() => setPage((p) => Math.max(1, p - 1))}
-              onNext={() => setPage((p) => p + 1)}
-              onPerPageChange={(n: number) => {
-                setPerPage(n)
+        }
+        toolbar={
+          sortedRows.length > 0 || hasActiveFilters ? (
+            <NxListPanelToolbar
+              filters={filters}
+              filterDefinitions={filterFieldDefinitions}
+              onFilterChange={(f) => {
+                setAllFilters(f)
                 resetPage()
               }}
+              clearAllFilters={() => {
+                clearAllFilters()
+                resetPage()
+              }}
+              actions={
+                <>
+                  <DisabledWithTooltip
+                    isDisabled={!assignmentPermissions.canAssign}
+                    content={assignmentPermissions.tooltips.assign}
+                  >
+                    <Button
+                      variant="primary"
+                      icon={<RhUiAddIcon />}
+                      isAriaDisabled={!assignmentPermissions.canAssign}
+                      onClick={assignmentPermissions.canAssign ? () => setAssignModalOpen(true) : undefined}
+                    >
+                      Assign role
+                    </Button>
+                  </DisabledWithTooltip>
+                  <DisabledWithTooltip
+                    isDisabled={!rolePermissions.canCreate}
+                    content={rolePermissions.tooltips.create}
+                  >
+                    <Button
+                      variant="secondary"
+                      isAriaDisabled={!rolePermissions.canCreate}
+                      onClick={rolePermissions.canCreate ? () => setCreateRoleOpen(true) : undefined}
+                    >
+                      Create role
+                    </Button>
+                  </DisabledWithTooltip>
+                </>
+              }
+            />
+          ) : undefined
+        }
+        body={
+          <NxListPanelTable
+            caption="Project role assignments"
+            footer={{
+              page,
+              perPage,
+              total: sortedRows.length,
+              hasNext: page * perPage < sortedRows.length,
+              onPrev: () => setPage((p) => Math.max(1, p - 1)),
+              onNext: () => setPage((p) => p + 1),
+              onPerPageChange: (n: number) => {
+                setPerPage(n)
+                resetPage()
+              },
+            }}
+          >
+            <RoleAssignmentsTable
+              rows={paginatedRows}
+              getSortParams={getSortParams}
+              onUnassign={setRowToUnassign}
               permissions={assignmentPermissions}
             />
-          )}
-        </NxPanelContentStack>
-      )}
+          </NxListPanelTable>
+        }
+      />
 
       <AssignProjectRoleModal
         projectId={projectId}

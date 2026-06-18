@@ -93,7 +93,7 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
       // Screenshot with section-based directory organization
       const snapshotName = [entry.section, `${entry.name}.png`]
       if (entry.perceptual) {
-        await assertPerceptualScreenshot(page, test.info(), snapshotName)
+        await assertPerceptualScreenshot(page, test.info(), snapshotName, entry.maxDiffPixelRatio)
       } else {
         const options = entry.maxDiffPixelRatio
           ? { ...SCREENSHOT_OPTIONS, maxDiffPixelRatio: entry.maxDiffPixelRatio }

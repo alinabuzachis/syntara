@@ -151,14 +151,13 @@ export function NxListPanelView({
     <>
       {!isPending && toolbar && (
         <StackItem>
-          {isFetching ? (
-            <fieldset disabled className={styles.toolbarDisabled}>
-              <legend className="pf-v6-u-screen-reader">Filters — loading</legend>
-              {toolbar}
-            </fieldset>
-          ) : (
-            toolbar
-          )}
+          <fieldset
+            disabled={isFetching}
+            className={isFetching ? `${styles.toolbarFieldset} ${styles.toolbarDisabled}` : styles.toolbarFieldset}
+          >
+            {isFetching && <legend className="pf-v6-u-screen-reader">Filters — loading</legend>}
+            {toolbar}
+          </fieldset>
         </StackItem>
       )}
       {showBody ? (

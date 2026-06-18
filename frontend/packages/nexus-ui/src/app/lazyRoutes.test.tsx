@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   AccessManagement,
   AddIdentityProvider,
-  ApprovalDetail,
   Approvals,
   Authentication,
   Workflows,
@@ -38,7 +37,6 @@ vi.mock('../routes/configuration/integrations/IntegrationTools', () => ({
 }))
 vi.mock('../routes/documentation/glossary/Glossary', () => ({ default: () => <div>Glossary</div> }))
 vi.mock('../routes/approvals/Approvals', () => ({ default: () => <div>Approvals</div> }))
-vi.mock('../routes/approvals/ApprovalDetail', () => ({ default: () => <div>ApprovalDetail</div> }))
 vi.mock('../routes/access-management/AccessManagement', () => ({
   AccessManagement: () => <div>AccessManagement</div>,
 }))
@@ -65,7 +63,6 @@ describe('lazyRoutes', () => {
       IntegrationTools,
       Glossary,
       Approvals,
-      ApprovalDetail,
       AccessManagement,
       Authentication,
       AddIdentityProvider,
@@ -88,7 +85,6 @@ describe('lazyRoutes', () => {
       ['IntegrationTools', IntegrationTools, 'IntegrationTools'],
       ['Glossary', Glossary, 'Glossary'],
       ['Approvals', Approvals, 'Approvals'],
-      ['ApprovalDetail', ApprovalDetail, 'ApprovalDetail'],
       ['AccessManagement', AccessManagement, 'AccessManagement'],
       ['Authentication', Authentication, 'Authentication'],
       ['AddIdentityProvider', AddIdentityProvider, 'AddIdentityProvider'],

@@ -33,7 +33,7 @@ from tests.e2e.conftest import generate_test_password
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client import Client
+    from nexus_api_client import AuthenticatedClient
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.identity_provider_response import IdentityProviderResponse
     from nexus_api_client.models.user_read import UserRead
@@ -47,7 +47,7 @@ class TestLocalUserConversion:
     def test_non_builtin_local_user_converts_to_federated(
         self,
         nexus_api: NexusApiRegistry,
-        unauthenticated_client: Client,
+        unauthenticated_client: AuthenticatedClient,
         keycloak_user_factory: Callable[[], tuple[str, str]],
         oidc_provider_factory: Callable[[], IdentityProviderResponse],
         oidc_user_factory: Callable[[UUID, str, str], NexusApiRegistry],

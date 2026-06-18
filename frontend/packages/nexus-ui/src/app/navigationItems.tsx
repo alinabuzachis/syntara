@@ -19,7 +19,6 @@ import {
   AccessManagement,
   AddIdentityProvider,
   ProjectDetail,
-  ApprovalDetail,
   Approvals,
   Authentication,
   Workflows,
@@ -94,14 +93,6 @@ export const NAV_ITEMS: TNavigationItem[] = [
     element: <Approvals />,
     icon: <RhUiLikeIcon />,
   },
-  // Hidden route for approval detail page
-  {
-    label: 'Approval Detail',
-    path: AppRoute.Approvals.Approval,
-    element: <ApprovalDetail />,
-    hidden: true,
-  },
-
   {
     label: 'Configuration',
     path: AppRoute.Configuration.Integrations.Root,

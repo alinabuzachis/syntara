@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import (
+    definition_invalid_handler,
     execution_not_found_handler,
     workflow_name_conflict_handler,
     workflow_not_found_handler,
@@ -17,10 +18,21 @@ from nexus.workflows.error_handlers import (
 )
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
+    WorkflowDefinitionInvalidError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
     WorkflowVersionNotFoundError,
+)
+from nexus.workflows.models.validation_finding import (
+    ValidationCategory,
+    ValidationFinding,
+    ValidationResult,
+    ValidationSeverity,
+)
+from nexus.workflows.models.workflow_validation_result import (
+    ValidationIssue,
+    WorkflowValidationResult,
 )
 
 
@@ -217,3 +229,57 @@ class TestWorkflowNotPublishedHandler:
 
         data = json.loads(bytes(response.body).decode())
         assert data["retryable"] is False
+
+
+class TestDefinitionInvalidHandler:
+    """Test suite for definition_invalid_handler branching."""
+
+    def test_legacy_response_when_no_validation_result(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows/validate"
+
+        legacy_result = WorkflowValidationResult(
+            valid=False,
+            errors=[ValidationIssue(message="bad node")],
+        )
+        exc = WorkflowDefinitionInvalidError(legacy_result)
+        response = definition_invalid_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 422
+
+        data = json.loads(bytes(response.body).decode())
+        vr = data["validation_result"]
+        assert vr["valid"] is False
+        assert len(vr["errors"]) == 1
+        assert "findings" not in vr
+
+    def test_detailed_response_when_validation_result_present(self) -> None:
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows/validate/detailed"
+
+        legacy_result = WorkflowValidationResult(
+            valid=False,
+            errors=[ValidationIssue(message="bad node")],
+        )
+        findings = [
+            ValidationFinding(
+                severity=ValidationSeverity.error,
+                category=ValidationCategory.schema_violation,
+                message="bad node",
+                node_id="n1",
+            ),
+        ]
+        detailed_result = ValidationResult.from_findings(findings)
+        exc = WorkflowDefinitionInvalidError(legacy_result, validation_result=detailed_result)
+        response = definition_invalid_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 422
+
+        data = json.loads(bytes(response.body).decode())
+        vr = data["validation_result"]
+        assert vr["is_valid"] is False
+        assert vr["error_count"] == 1
+        assert len(vr["findings"]) == 1
+        assert vr["findings"][0]["node_id"] == "n1"

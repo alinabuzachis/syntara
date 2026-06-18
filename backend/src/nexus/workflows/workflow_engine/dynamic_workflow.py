@@ -148,9 +148,13 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self.request_id = request_id
         self.resolver = NamespaceResolver()
 
+        self._project_id: str | None = None
         if workflow_metadata:
             for ns_key, ns_data in workflow_metadata.items():
                 self.resolver.set_namespace(ns_key, ns_data)
+            wf_ctx = workflow_metadata.get("workflow_context", {}).get("workflow", {})
+            self._project_id = wf_ctx.get("project_id")
+
         self.node_inputs: dict[str, dict[str, Any]] = {}
         self.node_control_data: dict[str, dict[str, Any]] = {}
         self.skipped_nodes: set[str] = set()
@@ -1357,7 +1361,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         credential_map = {node.id: credential_id}
         resolved_creds = await workflow.execute_activity(
             resolve_workflow_credentials,
-            args=[credential_map],
+            args=[credential_map, self._project_id],
             activity_id="__internal__resolve_credentials",
             start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         )

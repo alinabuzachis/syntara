@@ -25,6 +25,27 @@ describe('ApprovalActionButtons', () => {
     expect(onReviewClick).toHaveBeenCalledOnce()
   })
 
+  it('does not call onReviewClick when isDisabled is true', async () => {
+    const user = userEvent.setup()
+    const onReviewClick = vi.fn()
+
+    render(<ApprovalActionButtons onReviewClick={onReviewClick} isDisabled />)
+
+    await user.click(screen.getByRole('button', { name: 'Review approval' }))
+    expect(onReviewClick).not.toHaveBeenCalled()
+  })
+
+  it('does not call onReviewClick when isLoading is true', async () => {
+    const user = userEvent.setup()
+    const onReviewClick = vi.fn()
+
+    render(<ApprovalActionButtons onReviewClick={onReviewClick} isLoading />)
+
+    const button = screen.getByRole('button', { name: /Review approval/i })
+    await user.click(button)
+    expect(onReviewClick).not.toHaveBeenCalled()
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(<ApprovalActionButtons {...defaultProps} />)
 

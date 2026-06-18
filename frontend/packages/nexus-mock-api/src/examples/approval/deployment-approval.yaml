@@ -1,0 +1,76 @@
+---
+schema_version: "2.0.0"
+name: deployment-approval
+description: Demonstrates an approval gate before deploying to production
+
+triggers:
+  - id: trigger_manual
+    type: manual_trigger
+
+inputs:
+  environment:
+    type: string
+    description: Target deployment environment
+    default: production
+  version:
+    type: string
+    description: Application version to deploy
+    default: "3.2.0"
+
+nodes:
+  - id: staging_tests
+    name: Staging Tests
+    type: script
+    parameters:
+      language: bash
+      code: |
+        echo "Running staging tests for v${INPUT_VERSION}"
+        echo "Tests passed: 42"
+        echo "Tests failed: 0"
+        echo "Coverage: 94.5%"
+    inputs:
+      version: ${inputs.version}
+    outputs:
+      tests_passed: 42
+      tests_failed: 0
+      coverage: 94.5
+
+  - id: approval_gate
+    name: Production Deployment Approval
+    type: approval
+    parameters:
+      approvers:
+        - ops-team@example.com
+      prompt: "Review the staging test results and approve deployment of v${inputs.version} to ${inputs.environment}."
+      fallback_decision: reject
+      decision_window: 86400
+
+  - id: deploy_to_prod
+    name: Deploy to Production
+    type: script
+    parameters:
+      language: bash
+      code: |
+        echo "Deploying v${INPUT_VERSION} to ${INPUT_ENV}"
+        echo "Deployment successful!"
+    inputs:
+      version: ${inputs.version}
+      env: ${inputs.environment}
+
+  - id: rollback_staging
+    name: Rollback Staging
+    type: script
+    parameters:
+      language: bash
+      code: |
+        echo "Approval rejected — rolling back staging environment"
+
+edges:
+  - source: staging_tests
+    target: approval_gate
+  - source: approval_gate
+    target: deploy_to_prod
+    port: approved
+  - source: approval_gate
+    target: rollback_staging
+    port: rejected

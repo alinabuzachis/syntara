@@ -239,13 +239,6 @@ Backend does not yet define a `tool-provider` or `integration` resource type. Wh
 | Enable/disable tools          | write permission            | `DisabledWithTooltip`                |
 | Nav item                      | read permission             | `requiredPermissions`                |
 
-### Approvals — detail page ungated
-
-| Gap                                      | Permission        | Pattern to follow                 |
-| ---------------------------------------- | ----------------- | --------------------------------- |
-| ApprovalDetail Approve/Reject/Submit     | `approval:decide` | `useCanI` + `DisabledWithTooltip` |
-| ApprovalReviewView (in execution detail) | `approval:decide` | Same                              |
-
 ### Settings — minor UX gap
 
 Settings gating is functionally complete. Minor gap: no loading spinner during initial `useCanI` resolution — authorized users may briefly flash the access-denied state. Consider using `isChecking` to show a spinner.

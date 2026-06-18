@@ -42,6 +42,8 @@ const defaultHookReturn: ReturnType<typeof useAssignmentsData> = {
   hasActiveFilters: false,
   refetchAll: mockRefetchAll,
   handleDelete: mockHandleDelete,
+  isPending: false,
+  error: null,
 }
 
 vi.mock('./useAssignmentsData', () => ({

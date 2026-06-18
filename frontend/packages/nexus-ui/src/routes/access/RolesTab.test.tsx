@@ -5,7 +5,6 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { useQueryState } from '../../components/states/useQueryState'
 import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
@@ -27,10 +26,6 @@ vi.mock('./useProjectNameMap', () => ({
     projectNameMap: new Map<string, string>(),
     isLoading: false,
   }),
-}))
-
-vi.mock('../../components/states/useQueryState', () => ({
-  useQueryState: vi.fn(),
 }))
 
 vi.mock('./useRolePermissions', () => ({
@@ -161,9 +156,6 @@ describe('RolesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUrl.current = '/system-administration/access-management/roles'
-
-    // Default: useQueryState returns null (success state)
-    vi.mocked(useQueryState).mockReturnValue(null)
 
     vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
       if (path === '/projects') {
@@ -305,19 +297,57 @@ describe('RolesTab', () => {
 
   describe('Loading and error states', () => {
     it('displays loading state when query is pending', () => {
-      vi.mocked(useQueryState).mockReturnValue(<div data-testid="loading">Loading...</div>)
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/projects') {
+          return {
+            data: [],
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: true,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: mockRefetch,
+        } as never
+      })
 
       render(<RolesTab />, { wrapper })
 
-      expect(screen.getByText('Loading...')).toBeInTheDocument()
+      expect(screen.getByTestId('loading-state')).toBeInTheDocument()
     })
 
     it('displays error state when query fails', () => {
-      vi.mocked(useQueryState).mockReturnValue(<div>Error loading roles</div>)
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/projects') {
+          return {
+            data: [],
+            isPending: false,
+            isError: false,
+            error: null,
+            isFetching: false,
+            refetch: mockRefetch,
+          } as never
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isError: true,
+          error: new Error('Failed to load roles'),
+          isFetching: false,
+          refetch: mockRefetch,
+        } as never
+      })
 
       render(<RolesTab />, { wrapper })
 
-      expect(screen.getByText('Error loading roles')).toBeInTheDocument()
+      expect(screen.getByTestId('error-state')).toBeInTheDocument()
     })
   })
 

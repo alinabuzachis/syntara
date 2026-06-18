@@ -1,0 +1,22 @@
+.outerStack {
+  height: 100%;
+  min-height: 0;
+}
+
+.scrollableBody {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--pf-t--global--spacer--sm);
+}
+
+.codeBlockContainer {
+  height: 30rem;
+}
+
+.buttonGap {
+  gap: var(--pf-t--global--spacer--md);
+}
+
+.workflowLink {
+  padding-left: 0;
+}

@@ -24,7 +24,7 @@ export function NodeFormTabsLayout({ parametersContent, settingsContent, hideSet
           <FlexItem>
             <Tabs activeKey={activeTabKey} onSelect={(_event, key) => setActiveTabKey(Number(key))}>
               <Tab eventKey={0} title="Parameters" />
-              {!hideSettingsTab && <Tab eventKey={1} title="Settings" />}
+              {!hideSettingsTab && settingsContent !== undefined && <Tab eventKey={1} title="Settings" />}
             </Tabs>
           </FlexItem>
           {tabBarAction && <FlexItem>{tabBarAction}</FlexItem>}

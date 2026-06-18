@@ -13,7 +13,6 @@ export const AppRoute = {
   },
   Approvals: {
     Root: '/approvals',
-    Approval: '/approvals/:approvalId',
   },
   Configuration: {
     Overview: '/configuration',

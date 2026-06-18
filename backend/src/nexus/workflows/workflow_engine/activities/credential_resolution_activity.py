@@ -29,7 +29,7 @@ _session_factory = AsyncSessionLocal
 
 
 @activity.defn(name=ActivityName.CREDENTIAL_RESOLUTION)
-async def resolve_workflow_credentials(credential_map: dict[str, str]) -> dict[str, Any]:
+async def resolve_workflow_credentials(credential_map: dict[str, str], project_id: str | None = None) -> dict[str, Any]:
     """Resolve credentials for workflow activities.
 
     For each {activity_id: credential_id} entry, fetches the credential,
@@ -37,6 +37,8 @@ async def resolve_workflow_credentials(credential_map: dict[str, str]) -> dict[s
 
     Args:
         credential_map: Mapping of activity_id -> credential_id (UUID strings).
+        project_id: Workflow's project UUID string. When provided, credential
+            resolution enforces that each credential belongs to the same project.
 
     Returns:
         Dict mapping activity_id -> resolved credential data containing
@@ -44,7 +46,7 @@ async def resolve_workflow_credentials(credential_map: dict[str, str]) -> dict[s
 
     Raises:
         ApplicationError: Non-retryable error if credential is missing, disabled,
-            or decryption fails.
+            belongs to a different project, or decryption fails.
 
     """
     results: dict[str, Any] = {}
@@ -54,7 +56,9 @@ async def resolve_workflow_credentials(credential_map: dict[str, str]) -> dict[s
             secret_service = create_secret_service(session)
 
             for activity_id, credential_id in credential_map.items():
-                resolved = await _resolve_single_credential(session, secret_service, activity_id, credential_id)
+                resolved = await _resolve_single_credential(
+                    session, secret_service, activity_id, credential_id, project_id
+                )
                 results[activity_id] = resolved
     except ApplicationError:
         raise
@@ -70,6 +74,7 @@ async def _resolve_single_credential(
     secret_service: SecretService,
     activity_id: str,
     credential_id: str,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
     """Resolve a single credential for an activity.
 
@@ -78,6 +83,7 @@ async def _resolve_single_credential(
         secret_service: SecretService for decryption.
         activity_id: The activity requesting the credential.
         credential_id: UUID string of the credential to resolve.
+        project_id: When provided, verifies the credential belongs to this project.
 
     Returns:
         Dict with credential_id, credential_type_name, extra_vars, env, file.
@@ -94,6 +100,10 @@ async def _resolve_single_credential(
 
     if not credential:
         msg = f"Credential '{credential_id}' not found"
+        raise ApplicationError(msg, non_retryable=True)
+
+    if project_id and str(credential.project_id) != project_id:
+        msg = f"Credential '{credential_id}' does not belong to workflow project"
         raise ApplicationError(msg, non_retryable=True)
 
     if not credential.enabled:

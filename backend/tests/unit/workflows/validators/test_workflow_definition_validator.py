@@ -5,6 +5,10 @@ from typing import Any
 import pytest
 
 from nexus.core.exceptions import SafeValueError
+from nexus.workflows.models.validation_finding import (
+    ValidationCategory,
+    ValidationSeverity,
+)
 from nexus.workflows.validators.workflow_definition import WorkflowValidator
 
 
@@ -421,3 +425,161 @@ class TestCollectValidationIssues:
         result = validator.collect_validation_issues(definition)
         assert result.valid is False
         assert len(result.errors) == 1
+
+    def test_schema_errors_grouped_by_node(self, validator: WorkflowValidator) -> None:
+        """Multiple JSON Schema errors on the same node are grouped into one ValidationIssue."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "123_bad_id", "type": "script", "name": "Bad ID", "config": {}}],
+            "edges": [{"from": "t1", "to": "123_bad_id"}],
+        }
+        result = validator.collect_validation_issues(definition)
+        assert result.valid is False
+        node_errors = [e for e in result.errors if "nodes.0:" in e.message]
+        assert len(node_errors) == 1
+        msg = node_errors[0].message
+        assert "errors:[" in msg
+        assert "Unevaluated properties are not allowed" in msg
+        assert "'parameters' is a required property" in msg
+        assert "does not match" in msg
+
+    def test_edge_errors_not_grouped_with_node(self, validator: WorkflowValidator) -> None:
+        """Edge-level errors remain separate from node-level grouped errors."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "123_bad_id", "type": "script", "name": "Bad ID", "config": {}}],
+            "edges": [{"from": "t1", "to": "123_bad_id"}],
+        }
+        result = validator.collect_validation_issues(definition)
+        edge_errors = [e for e in result.errors if "edges." in e.message]
+        assert len(edge_errors) == 1
+        assert "does not match" in edge_errors[0].message
+
+
+class TestCollectFindings:
+    """collect_findings() returns structured ValidationResult with individual findings."""
+
+    def test_valid_definition_returns_empty_findings(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(_valid_definition())
+        assert result.is_valid is True
+        assert result.error_count == 0
+        assert result.warning_count == 0
+        assert result.findings == []
+
+    def test_orphaned_node_finding(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "orphan",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {"id": "n1", "type": "script", "parameters": {"language": "python", "code": "1"}},
+                {"id": "orphan", "type": "script", "parameters": {"language": "python", "code": "2"}},
+            ],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+        result = validator.collect_findings(definition)
+        assert result.is_valid is True
+        assert result.warning_count == 1
+        finding = result.findings[0]
+        assert finding.severity == ValidationSeverity.warning
+        assert finding.category == ValidationCategory.orphaned_node
+        assert finding.node_id == "orphan"
+
+    def test_multiple_schema_findings_per_node(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "123_bad_id", "type": "script", "name": "Bad ID", "config": {}}],
+            "edges": [{"from": "t1", "to": "123_bad_id"}],
+        }
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        node_findings = [f for f in result.findings if f.node_id == "123_bad_id"]
+        assert len(node_findings) >= 3
+        assert all(f.category == ValidationCategory.schema_violation for f in node_findings)
+
+    def test_missing_parameters_includes_nested_required_fields(self, validator: WorkflowValidator) -> None:
+        """When parameters is missing, supplementary errors show what it should contain."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "n1", "type": "script", "config": {}}],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+        result = validator.collect_findings(definition)
+        messages = [f.message for f in result.findings if f.node_id == "n1"]
+        assert "'parameters' is a required property" in messages
+        assert "'language' is a required property" in messages
+        assert "'code' is a required property" in messages
+
+    def test_schema_version_finding(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": "1.0.0", "triggers": [], "nodes": [], "edges": []}
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        assert result.error_count == 1
+        assert result.findings[0].category == ValidationCategory.schema_version
+
+    def test_missing_field_findings(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": "2.0.0"}
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        categories = [f.category for f in result.findings]
+        assert all(c == ValidationCategory.missing_field for c in categories)
+        assert result.error_count == 3
+
+    def test_edge_reference_finding(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "n1", "type": "script", "parameters": {"language": "python", "code": "1"}}],
+            "edges": [{"from": "t1", "to": "ghost"}],
+        }
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        ref_findings = [f for f in result.findings if f.category == ValidationCategory.invalid_reference]
+        assert len(ref_findings) == 1
+        assert ref_findings[0].node_id == "ghost"
+
+    def test_cycle_finding(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "cycle",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {"id": "a", "type": "script", "parameters": {"language": "python", "code": "1"}},
+                {"id": "b", "type": "script", "parameters": {"language": "python", "code": "2"}},
+            ],
+            "edges": [
+                {"from": "t1", "to": "a"},
+                {"from": "a", "to": "b"},
+                {"from": "b", "to": "a"},
+            ],
+        }
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        cycle_findings = [f for f in result.findings if f.category == ValidationCategory.cycle_detected]
+        assert len(cycle_findings) == 1
+
+    def test_json_serialization_shape(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "n1", "type": "script", "parameters": {"language": "python", "code": "1"}}],
+            "edges": [{"from": "t1", "to": "ghost"}],
+        }
+        result = validator.collect_findings(definition)
+        data = result.model_dump(mode="json")
+        assert "is_valid" in data
+        assert "error_count" in data
+        assert "warning_count" in data
+        assert "findings" in data
+        finding = data["findings"][0]
+        assert set(finding.keys()) == {"severity", "category", "message", "node_id", "field_path"}

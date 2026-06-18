@@ -17,9 +17,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.credentials.models.credential import Credential
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.audit.workflow_version import WorkflowVersionCreatedEvent
@@ -144,6 +146,37 @@ class WorkflowService(BaseService):
         self.session.add(new_version)
         return new_version
 
+    async def _validate_credential_project_scope(self, workflow_definition: dict[str, Any], project_id: UUID) -> None:
+        """Reject credential references that belong to a different project.
+
+        Raises:
+            SafeValueError: If any credential_id in the workflow definition does
+                not belong to the specified project.
+
+        """
+        credential_ids: set[str] = set()
+        for node in workflow_definition.get("nodes", []):
+            cred_id = node.get("parameters", {}).get("credential_id")
+            if cred_id:
+                credential_ids.add(cred_id)
+
+        if not credential_ids:
+            return
+
+        stmt = select(Credential.id, Credential.project_id).where(
+            Credential.id.in_(credential_ids),  # type: ignore[attr-defined]
+        )
+        result = await self.session.exec(stmt)
+        rows = result.all()
+
+        found_ids = {str(row[0]) for row in rows}
+        missing = credential_ids - found_ids
+        wrong_project = any(row[1] != project_id for row in rows)
+
+        if missing or wrong_project:
+            msg = "One or more credential references are invalid or belong to a different project."
+            raise SafeValueError(msg)
+
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.
 
@@ -221,6 +254,7 @@ class WorkflowService(BaseService):
             from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
 
             await assert_project_alive(self.session, project_id)
+            await self._validate_credential_project_scope(workflow_definition, project_id)
 
         schema_version = workflow_definition.get("schema_version")
         workflow_dict = workflow_definition
@@ -522,6 +556,9 @@ class WorkflowService(BaseService):
             labels={"component": ComponentLabel.WORKFLOW_ENGINE.value, "operation": "version_update"},
         ):
             workflow_validator.validate_workflow_definition(workflow_definition)
+
+        if workflow.project_id is not None:
+            await self._validate_credential_project_scope(workflow_definition, workflow.project_id)
 
         return await self._create_version_record(workflow, workflow_definition, change_description)
 

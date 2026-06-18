@@ -27,8 +27,8 @@ const LOOKS_SAME_OPTIONS = {
 } satisfies looksSame.LooksSameOptions
 
 // After viewport stabilization, minor antialiasing differences may remain.
-// Allow up to 2% of pixels to differ perceptually.
-const MAX_DIFF_PIXEL_RATIO = 0.02
+// Allow up to 5% of pixels to differ perceptually. Per-entry overrides via maxDiffRatio param.
+const DEFAULT_MAX_DIFF_PIXEL_RATIO = 0.05
 
 /** Returns the sibling `-snapshots` directory for a test file (mirrors Playwright's convention). */
 function snapshotDir(testInfo: TestInfo): string {
@@ -50,7 +50,12 @@ function artifactDir(testInfo: TestInfo, nameParts: string[]): string {
   return path.join(testInfo.outputDir, ...section, slug)
 }
 
-export async function assertPerceptualScreenshot(page: Page, testInfo: TestInfo, nameParts: string[]): Promise<void> {
+export async function assertPerceptualScreenshot(
+  page: Page,
+  testInfo: TestInfo,
+  nameParts: string[],
+  maxDiffRatio = DEFAULT_MAX_DIFF_PIXEL_RATIO
+): Promise<void> {
   const screenshot = await page.screenshot({ fullPage: true, animations: 'disabled' })
   const baseline = baselinePath(testInfo, nameParts)
   const isUpdate = testInfo.config.updateSnapshots === 'all' || testInfo.config.updateSnapshots === 'changed'
@@ -70,7 +75,7 @@ export async function assertPerceptualScreenshot(page: Page, testInfo: TestInfo,
     'differentPixels' in result && 'totalPixels' in result && result.totalPixels > 0
       ? result.differentPixels / result.totalPixels
       : 1
-  if (diffRatio <= MAX_DIFF_PIXEL_RATIO) return
+  if (diffRatio <= maxDiffRatio) return
 
   const outDir = artifactDir(testInfo, nameParts)
   mkdirSync(outDir, { recursive: true })

@@ -8,7 +8,6 @@ import {
   FlexItem,
   TitleSizes,
 } from '@patternfly/react-core'
-import { useQueryClient } from '@tanstack/react-query'
 import type React from 'react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -31,16 +30,18 @@ import { buildFilterParams } from '../../utils/filterUtils'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
 import { WorkflowHistoryCard } from '../builder/WorkflowHistoryCard'
-import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../workflows/stores/useExecutionStore'
 
-import { ApprovalReviewView } from './ApprovalReviewView'
+import { ApprovalSidePanel } from './ApprovalSidePanel'
 import { ConnectionBanner } from './ConnectionBanner'
 import { CopyToEditorDialog } from './CopyToEditorDialog'
 import { isExecutionCancellable } from './executionCancellable'
+import styles from './ExecutionDetail.module.css'
 import { ExecutionDetailHeaderToolbar, ExecutionDetailTitleRowAddons } from './ExecutionDetailPageHeaderParts'
 import { executionDetailHasTitleRowExtras, executionDetailPageHeading } from './executionDetailPageHeaderTitle'
+import { useExecutionApprovalPanel } from './hooks/useExecutionApprovalPanel'
 import { useExecutionNodeClick } from './hooks/useExecutionNodeClick'
+import { useExecutionStreaming, useSyncActivityStore } from './hooks/useExecutionStreaming'
 import { useExecutionWorkflow } from './hooks/useExecutionWorkflow'
 import { useForkWorkflow } from './hooks/useForkWorkflow'
 
@@ -50,11 +51,6 @@ const INLINE_ALERT_WIDTH = 'clamp(15rem, 20vw, 22rem)'
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
-
-type WorkflowDefinitionLike = {
-  nodes?: Array<{ id: string; name?: string }>
-  workflow?: { activities?: Array<{ id: string; name?: string }> }
-}
 
 type ExecutionWorkflow = {
   id: string
@@ -66,6 +62,7 @@ type ExecutionWorkflow = {
 // Inner component that has access to React Flow context
 function ExecutionDetailContent({
   historyCardOpen,
+  approvalPanel,
   workflow,
   execution,
   activities,
@@ -82,6 +79,7 @@ function ExecutionDetailContent({
   onDeselectNode,
 }: {
   historyCardOpen: boolean
+  approvalPanel?: React.ReactNode
   workflow?: ExecutionWorkflow
   execution: Execution | undefined
   activities: (ActivityData | ActivityExecution)[]
@@ -217,9 +215,10 @@ function ExecutionDetailContent({
         </div>
       </FlexItem>
 
-      {/* History Card Panel */}
+      {approvalPanel && <FlexItem className={styles.approvalPanelSlot}>{approvalPanel}</FlexItem>}
+
       {historyCardOpen && (
-        <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+        <FlexItem className={styles.approvalPanelSlot}>
           <WorkflowHistoryCard
             executions={executionsQuery.data?.resources ?? []}
             selectedExecutionId={executionId}
@@ -229,7 +228,6 @@ function ExecutionDetailContent({
               setLocation(`/executions/${executionId}?${params.toString()}`)
             }}
             onExecutionSelect={(selectedId) => {
-              // Preserve history panel state when navigating to different execution
               const params = new URLSearchParams(searchParams)
               const newSearch = params.toString()
               const searchSuffix = newSearch ? `?${newSearch}` : ''
@@ -242,56 +240,6 @@ function ExecutionDetailContent({
       )}
     </Flex>
   )
-}
-
-function useExecutionStreaming(executionId: string | undefined, execution: Execution | undefined) {
-  const queryClient = useQueryClient()
-  const shouldStream =
-    execution?.status === 'running' || execution?.status === 'pending' || execution?.status === 'paused'
-  useExecutionWebSocket(executionId ?? '', {
-    enabled: shouldStream && !!executionId,
-    onExecutionComplete: () => {
-      detachPromise(
-        Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: ['get', '/executions/{execution_id}'],
-          }),
-          queryClient.invalidateQueries({
-            queryKey: ['get', '/executions'],
-          }),
-        ])
-      )
-    },
-  })
-}
-
-function useSyncActivityStore(execution: Execution | undefined, activities: (ActivityData | ActivityExecution)[]) {
-  const { setActivityExecutions } = useExecutionStore.getState()
-  useEffect(() => {
-    if (activities.length > 0) {
-      setActivityExecutions(activities)
-    } else if (execution?.status === 'pending' || execution?.status === 'running') {
-      const wfDef = execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined
-      const workflowActivities = wfDef?.nodes ?? wfDef?.workflow?.activities
-      if (workflowActivities) {
-        const pendingActivities = workflowActivities.map((activity) => ({
-          id: activity.id,
-          created_at: '',
-          updated_at: '',
-          execution_id: execution.id,
-          activity_name: activity.name ?? activity.id,
-          temporal_activity_id: '',
-          status: 'pending' as const,
-          error_details: null,
-          started_at: null,
-          completed_at: null,
-        })) as ActivityExecution[]
-        setActivityExecutions(pendingActivities)
-      }
-    } else {
-      setActivityExecutions([])
-    }
-  }, [activities, execution?.id, execution?.status, execution?.workflow_definition, setActivityExecutions])
 }
 
 export default function ExecutionDetail() {
@@ -347,20 +295,19 @@ export default function ExecutionDetail() {
     }
   )
 
-  const { workflow, activities, activityNameMap } = useExecutionWorkflow(execution)
+  const { workflow, activities } = useExecutionWorkflow(execution)
 
   useSyncActivityStore(execution, activities)
-  const {
-    pendingApproval,
-    isApprovalLoading,
-    clearPendingApproval,
-    selectedNodeId,
-    selectedNodeName,
-    selectNode,
-    deselectNode,
-    handleNodeClick,
-  } = useExecutionNodeClick(executionId)
-  const [approvalViewOpen, setApprovalViewOpen] = useState(false)
+
+  const nodeClick = useExecutionNodeClick(executionId)
+  const { pendingApproval, isApprovalLoading, handleNodeClick } = nodeClick
+  const { selectedNodeId, selectedNodeName, selectNode, deselectNode } = nodeClick
+  const approval = useExecutionApprovalPanel(
+    executionId,
+    searchParams,
+    nodeClick,
+    execution?.workflow_definition ?? undefined
+  )
   const copyToEditorDialog = useDialogState<void>()
   const isCancellable = isExecutionCancellable(execution?.status)
 
@@ -415,8 +362,12 @@ export default function ExecutionDetail() {
   }
 
   const toggleHistoryCard = () => {
+    const willOpen = !historyCardOpen
+    if (willOpen) {
+      approval.close()
+    }
     const params = new URLSearchParams(searchParams)
-    params.set('history', historyCardOpen ? 'closed' : 'open')
+    params.set('history', willOpen ? 'open' : 'closed')
     setLocation(`/executions/${executionId}?${params.toString()}`)
   }
 
@@ -435,8 +386,9 @@ export default function ExecutionDetail() {
           <ExecutionDetailHeaderToolbar
             showApprovalActionStrip={Boolean(pendingApproval ?? isApprovalLoading)}
             isApprovalLoading={isApprovalLoading}
+            isApprovalPanelOpen={approval.panelOpen}
             onReviewClick={() => {
-              setApprovalViewOpen(true)
+              approval.open()
             }}
             historyCardOpen={historyCardOpen}
             onToggleHistory={toggleHistoryCard}
@@ -452,35 +404,34 @@ export default function ExecutionDetail() {
         }
       />
       <NxPageBody>
-        {approvalViewOpen && pendingApproval ? (
-          <ApprovalReviewView
-            approval={pendingApproval}
-            activityNameMap={activityNameMap}
-            onClose={() => {
-              setApprovalViewOpen(false)
-              clearPendingApproval()
-            }}
-          />
-        ) : (
-          <ExecutionDetailContent
-            key={executionId}
-            historyCardOpen={historyCardOpen}
-            workflow={workflow}
-            execution={execution}
-            activities={activities}
-            executionId={executionId}
-            executionsQuery={executionsQuery}
-            searchParams={searchParams}
-            setLocation={setLocation}
-            filters={executionFilters}
-            onFilterChange={setExecutionFilters}
-            onNodeClick={handleNodeClick}
-            selectedNodeId={selectedNodeId}
-            selectedNodeName={selectedNodeName}
-            onNodeSelect={selectNode}
-            onDeselectNode={deselectNode}
-          />
-        )}
+        <ExecutionDetailContent
+          key={executionId}
+          historyCardOpen={historyCardOpen && !approval.panelOpen}
+          approvalPanel={
+            approval.panelOpen && pendingApproval ? (
+              <ApprovalSidePanel
+                approval={pendingApproval}
+                message={approval.approvalMessage}
+                onClose={approval.close}
+                onDecisionSubmitted={approval.dismiss}
+              />
+            ) : undefined
+          }
+          workflow={workflow}
+          execution={execution}
+          activities={activities}
+          executionId={executionId}
+          executionsQuery={executionsQuery}
+          searchParams={searchParams}
+          setLocation={setLocation}
+          filters={executionFilters}
+          onFilterChange={setExecutionFilters}
+          onNodeClick={handleNodeClick}
+          selectedNodeId={selectedNodeId}
+          selectedNodeName={selectedNodeName}
+          onNodeSelect={selectNode}
+          onDeselectNode={deselectNode}
+        />
       </NxPageBody>
 
       <CopyToEditorDialog

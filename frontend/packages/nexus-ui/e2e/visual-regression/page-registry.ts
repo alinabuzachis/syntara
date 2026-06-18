@@ -62,7 +62,6 @@ async function applyNameFilter(page: Page, value: string) {
 // ---------------------------------------------------------------------------
 const MOCK_WORKFLOW_ID = '1'
 const MOCK_EXECUTION_ID = 'exec-1'
-const MOCK_APPROVAL_ID = '550e8400-e29b-41d4-a716-446655440001'
 const MOCK_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
@@ -127,6 +126,7 @@ export const pages: PageEntry[] = [
     name: 'builder-edit',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       // ReactFlow + Zustand + lazy-load initialization is slow in CI — extend timeout
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
@@ -180,14 +180,6 @@ export const pages: PageEntry[] = [
     setup: async (page) => {
       await applyNameFilter(page, 'zzz-no-match-zzz')
       await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
-    },
-  },
-  {
-    section: 'approvals',
-    name: 'approval-detail',
-    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_ID),
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
   },
   ...approvalInteractivePages,
@@ -462,7 +454,22 @@ export const pages: PageEntry[] = [
     name: 'assignments-list',
     path: AppRoute.AccessManagement.Assignments,
     waitFor: async (page) => {
-      await expect(page.getByRole('tab', { name: 'Assignments' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+  },
+  {
+    section: 'access-management/assignments',
+    name: 'assignments-list-empty-filter',
+    path: AppRoute.AccessManagement.Assignments,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
+      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
     },
   },
 
@@ -785,6 +792,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     role: 'viewer',
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
+    from contextlib import AbstractContextManager
 from uuid import uuid4
 
 import pytest
@@ -23,6 +24,7 @@ from nexus.credentials.services.credential_service import (
     CredentialService,
     _get_secret_field_ids,
     _mask_all_secrets,
+    _validate_field_value,
     _validate_inputs,
     _validate_ssh_private_key,
 )
@@ -609,6 +611,25 @@ class TestValidateInputs:
         with pytest.raises(CredentialValidationError, match=expected_match):
             _validate_inputs({"host": invalid_host}, HOST_TYPE_INPUTS)
 
+    def test_host_http_accepted_when_setting_enabled(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Accept HTTP host URLs when credential_allow_http_host is enabled."""
+        with override_settings(credential_allow_http_host=True):
+            _validate_inputs({"host": "http://localhost:44927"}, HOST_TYPE_INPUTS)
+
+    def test_host_http_rejected_when_setting_disabled(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        """Reject HTTP host URLs when credential_allow_http_host is disabled (default)."""
+        with (
+            override_settings(credential_allow_http_host=False),
+            pytest.raises(CredentialValidationError, match="scheme must be https"),
+        ):
+            _validate_inputs({"host": "http://controller.example.com"}, HOST_TYPE_INPUTS)
+
     def test_host_sentinel_skipped(self) -> None:
         """Skip validation for $encrypted$ sentinel on PATCH."""
         _validate_inputs({"host": ENCRYPTED_SENTINEL}, HOST_TYPE_INPUTS, allow_sentinel=True)
@@ -621,6 +642,65 @@ class TestValidateInputs:
         """Reject non-string host value."""
         with pytest.raises(CredentialValidationError, match="must be a string"):
             _validate_inputs({"host": 123}, HOST_TYPE_INPUTS)
+
+    # --- Control character validation (AAP-79160) ---
+
+    @pytest.mark.parametrize(
+        ("payload", "description"),
+        [
+            ("valid\r\nX-Injected: evil", "CRLF header injection"),
+            ("token\rX-Injected: evil", "CR-only header injection"),
+            ("token\nX-Injected: evil", "LF-only header injection"),
+            ("token\x00tail", "null byte injection"),
+            ("abc\x01def", "SOH control character"),
+            ("abc\x08def", "backspace control character"),
+            ("abc\x1bdef", "escape control character"),
+            ("abc\x7fdef", "DEL control character"),
+        ],
+    )
+    def test_control_char_rejected(self, payload: str, description: str) -> None:
+        """Reject control characters in single-line credential fields."""
+        field_def: dict[str, Any] = {"id": "token", "label": "Token", "type": "string", "secret": True}
+        with pytest.raises(CredentialValidationError, match="control character"):
+            _validate_field_value("token", payload, field_def)
+
+    def test_control_char_allows_normal_values(self) -> None:
+        _validate_inputs({"token": "sk-abc123XYZ_-."}, BEARER_TYPE_INPUTS)
+
+    def test_control_char_allows_tab(self) -> None:
+        _validate_inputs({"token": "value\twith\ttabs"}, BEARER_TYPE_INPUTS)
+
+    def test_control_char_allows_unicode(self) -> None:
+        _validate_inputs({"token": "token-with-unicode-éèê"}, BEARER_TYPE_INPUTS)
+
+    def test_crlf_rejected_via_validate_inputs(self) -> None:
+        with pytest.raises(CredentialValidationError, match="control character"):
+            _validate_inputs({"token": "abc\r\ndef"}, BEARER_TYPE_INPUTS)
+
+    def test_null_byte_rejected_on_patch(self) -> None:
+        with pytest.raises(CredentialValidationError, match="control character"):
+            _validate_inputs({"token": "abc\x00def"}, BEARER_TYPE_INPUTS, allow_sentinel=True)
+
+    def test_multiline_allows_newlines(self) -> None:
+        """Multiline fields (e.g. SSH keys) allow CR/LF."""
+        multiline_def = {"id": "cert", "label": "Certificate", "type": "string", "multiline": True}
+        pem = "-----BEGIN CERTIFICATE-----\r\nbase64data\r\n-----END CERTIFICATE-----\r\n"
+        _validate_field_value("cert", pem, multiline_def)
+
+    def test_multiline_rejects_null_byte(self) -> None:
+        """Multiline fields still reject null bytes and other dangerous control chars."""
+        multiline_def = {"id": "cert", "label": "Certificate", "type": "string", "multiline": True}
+        with pytest.raises(CredentialValidationError, match="control character"):
+            _validate_field_value("cert", "BEGIN\x00END", multiline_def)
+
+    def test_multiline_rejects_escape(self) -> None:
+        multiline_def = {"id": "cert", "label": "Certificate", "type": "string", "multiline": True}
+        with pytest.raises(CredentialValidationError, match="control character"):
+            _validate_field_value("cert", "BEGIN\x1bEND", multiline_def)
+
+    def test_crlf_header_injection_rejected_at_creation(self) -> None:
+        with pytest.raises(CredentialValidationError):
+            _validate_inputs({"token": "valid\r\nSet-Cookie: evil=1"}, BEARER_TYPE_INPUTS)
 
 
 class TestValidateSSHPrivateKey:

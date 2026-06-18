@@ -161,7 +161,7 @@ describe('ProjectRolesTab', () => {
 
     render(<ProjectRolesTab projectId="proj-1" />, { wrapper })
 
-    expect(screen.getByRole('heading', { name: 'Error loading roles' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
   })
 
   it('renders loading state while fetching', () => {

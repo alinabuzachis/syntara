@@ -33,6 +33,7 @@ export function ExecutionDetailTitleRowAddons({ execution }: Readonly<{ executio
 export type ExecutionDetailHeaderToolbarProps = Readonly<{
   showApprovalActionStrip: boolean
   isApprovalLoading: boolean
+  isApprovalPanelOpen?: boolean
   onReviewClick: () => void
   historyCardOpen: boolean
   onToggleHistory: () => void
@@ -45,6 +46,7 @@ export type ExecutionDetailHeaderToolbarProps = Readonly<{
 export function ExecutionDetailHeaderToolbar({
   showApprovalActionStrip,
   isApprovalLoading,
+  isApprovalPanelOpen,
   onReviewClick,
   historyCardOpen,
   onToggleHistory,
@@ -55,15 +57,21 @@ export function ExecutionDetailHeaderToolbar({
 }: ExecutionDetailHeaderToolbarProps) {
   return (
     <>
-      {showApprovalActionStrip && <ApprovalActionButtons isLoading={isApprovalLoading} onReviewClick={onReviewClick} />}
+      {showApprovalActionStrip && (
+        <ApprovalActionButtons
+          isLoading={isApprovalLoading}
+          isDisabled={isApprovalPanelOpen}
+          onReviewClick={onReviewClick}
+        />
+      )}
       {isCancellable && <CancelExecutionButton executionId={executionId} />}
       <Button variant="secondary" onClick={onCopyToEditor}>
         Copy to editor
       </Button>
-      <RunHistoryToggleButton onClick={onToggleHistory} isActive={historyCardOpen} />
       <Button variant="secondary" onClick={onBackToEditor}>
         Back to editor
       </Button>
+      <RunHistoryToggleButton onClick={onToggleHistory} isActive={historyCardOpen} />
     </>
   )
 }

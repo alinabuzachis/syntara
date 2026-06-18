@@ -33,13 +33,25 @@ describe('NodeFormTabsLayout', () => {
       expect(screen.queryByText('Parameter content')).not.toBeInTheDocument()
     })
 
-    it('renders nothing in the Settings tab when settingsContent is not provided', async () => {
-      const user = userEvent.setup()
+    it('does not render the Settings tab when settingsContent is not provided', () => {
       render(<NodeFormTabsLayout parametersContent={<div>Parameter content</div>} />)
 
-      await user.click(screen.getByRole('tab', { name: 'Settings' }))
+      expect(screen.queryByRole('tab', { name: 'Settings' })).not.toBeInTheDocument()
+      expect(screen.getByText('Parameter content')).toBeInTheDocument()
+    })
+  })
 
-      expect(screen.queryByText('Parameter content')).not.toBeInTheDocument()
+  describe('settings tab visibility', () => {
+    it('renders the Settings tab when settingsContent is provided', () => {
+      render(
+        <NodeFormTabsLayout
+          parametersContent={<div>Parameter content</div>}
+          settingsContent={<div>Settings content</div>}
+        />
+      )
+
+      expect(screen.getByRole('tab', { name: 'Settings' })).toBeInTheDocument()
+      expect(screen.getByText('Parameter content')).toBeInTheDocument()
     })
   })
 

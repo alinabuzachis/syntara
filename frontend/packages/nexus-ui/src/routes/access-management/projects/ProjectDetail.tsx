@@ -7,7 +7,6 @@ import {
   FlexItem,
   Label,
   LabelGroup,
-  StackItem,
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
@@ -17,9 +16,8 @@ import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
-import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { navigate } from '../../../hooks/routing/navigate'
 import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -32,6 +30,8 @@ import { DetailPageShell } from '../DetailPageShell'
 import { ProjectNotFoundState } from './ProjectNotFoundState'
 import { ProjectRoleAssignmentsTab } from './ProjectRoleAssignmentsTab'
 import { useProjectDetailPermissions } from './useProjectDetailPermissions'
+
+const noop = () => {}
 
 function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   const labelEntries = Object.entries(project.labels ?? {})
@@ -144,21 +144,32 @@ export function ProjectDetail() {
   return (
     <NxPage>
       <NxPageHeader title={projectData.name} docLink={projectsDocLink} breadcrumbs={projectCrumbs} />
-      <StackItem style={{ flexShrink: 0 }}>
-        <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Project details">
-          <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-          {validTabs.includes('role-assignments') && (
-            <Tab eventKey="role-assignments" title={<TabTitleText>Assignments</TabTitleText>} />
-          )}
-        </NxUrlTabs>
-      </StackItem>
       <NxPageBody>
-        <NxPanel isFullHeight>
-          {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
+        <NxListPanel>
+          <NxListPanelTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Project details">
+            <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
+            {validTabs.includes('role-assignments') && (
+              <Tab eventKey="role-assignments" title={<TabTitleText>Assignments</TabTitleText>} />
+            )}
+          </NxListPanelTabs>
+
+          {activeTab === 'details' && (
+            <NxListPanelView
+              tabKey="details"
+              tabLabel="Details"
+              isPending={false}
+              error={null}
+              isEmpty={false}
+              hasActiveFilters={false}
+              onRetry={noop}
+              onClearAllFilters={noop}
+              body={<ProjectDetailsTab project={projectData} />}
+            />
+          )}
           {activeTab === 'role-assignments' && validTabs.includes('role-assignments') && (
             <ProjectRoleAssignmentsTab projectId={projectId ?? ''} />
           )}
-        </NxPanel>
+        </NxListPanel>
       </NxPageBody>
     </NxPage>
   )

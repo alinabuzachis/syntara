@@ -48,6 +48,13 @@ describe('executionDetailPageHeaderTitle', () => {
     expect(executionDetailPageHeading(execution, 'exec-id')).toBe('My workflow')
   })
 
+  it('falls back to top-level name when metadata.name is missing', () => {
+    const execution = {
+      workflow_definition: { name: 'Top-level name' },
+    } as unknown as Parameters<typeof executionDetailPageHeading>[0]
+    expect(executionDetailPageHeading(execution, 'exec-id')).toBe('Top-level name')
+  })
+
   it('falls back to execution id prefix when metadata missing', () => {
     expect(executionDetailPageHeading(undefined, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')).toBe('Execution aaaaaaaa...')
   })

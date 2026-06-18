@@ -3,14 +3,14 @@ import type { Approval } from '@ansible/nexus-contracts'
 import { mockDate } from './mockDates'
 
 export const approvals: Approval[] = [
-  // Approval linked to exec-4 (the running execution for workflow 1) — used for execution view approval demo
+  // Approval linked to exec-approval (deployment-approval workflow '52') — used for execution view approval demo
   {
     id: '550e8400-e29b-41d4-a716-446655440050',
     created_at: mockDate.minutesAgo10, // 10 minutes ago
     updated_at: mockDate.minutesAgo10,
     labels: {},
-    execution_id: 'exec-4',
-    approval_node_id: 'hello-world-task',
+    execution_id: 'exec-approval',
+    approval_node_id: 'approval_gate',
     name: 'Production Deployment Approval',
     description: 'Review the deployment plan before proceeding to production.',
     status: 'pending',
@@ -26,8 +26,8 @@ export const approvals: Approval[] = [
       type: 'task',
     },
     workflow_context: {
-      workflow_version_id: '1',
-      workflow_name: 'Hello World Workflow',
+      workflow_version_id: '54',
+      workflow_name: 'deployment-approval',
       inputs: {
         environment: 'production',
         version: '3.2.0',

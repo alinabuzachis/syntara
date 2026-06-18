@@ -1,4 +1,4 @@
-import { StackItem, Tab, Tabs } from '@patternfly/react-core'
+import { Tab } from '@patternfly/react-core'
 import { useLayoutEffect, useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -7,8 +7,10 @@ import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPanel } from '../../components/layout/NxPanel'
+import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { useLocation } from '../../hooks/routing/useLocation'
 import { useNavigate } from '../../hooks/routing/useNavigate'
+import { useUrlTab } from '../../hooks/useUrlTab'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { AssignmentsTab } from '../access/AssignmentsTab'
 import { CanITab } from '../access/CanITab'
@@ -21,16 +23,24 @@ import { TokenRevocationTab } from './token-revocation/TokenRevocation'
 import { useAccessManagementPermissions } from './useAccessManagementPermissions'
 import { UsersTab } from './UsersTab'
 
-const allTabs = [
-  { path: AppRoute.AccessManagement.Users, label: 'Users', component: UsersTab },
-  { path: AppRoute.AccessManagement.Groups, label: 'Groups', component: GroupsTab },
-  { path: AppRoute.AccessManagement.Projects, label: 'Projects', component: ProjectsTab },
-  { path: AppRoute.AccessManagement.Policies, label: 'Policies', component: PoliciesTab },
-  { path: AppRoute.AccessManagement.Roles, label: 'Roles', component: RolesTab },
-  { path: AppRoute.AccessManagement.Assignments, label: 'Assignments', component: AssignmentsTab },
-  { path: AppRoute.AccessManagement.CanI, label: 'Can I?', component: CanITab },
-  { path: AppRoute.AccessManagement.TokenRevocation, label: 'Token Revocation', component: TokenRevocationTab },
+type AccessTab = 'users' | 'groups' | 'projects' | 'policies' | 'roles' | 'assignments' | 'can-i' | 'token-revocation'
+
+type TabDef = { key: AccessTab; label: string }
+
+const allTabDefs: TabDef[] = [
+  { key: 'users', label: 'Users' },
+  { key: 'groups', label: 'Groups' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'policies', label: 'Policies' },
+  { key: 'roles', label: 'Roles' },
+  { key: 'assignments', label: 'Assignments' },
+  { key: 'can-i', label: 'Can I?' },
+  { key: 'token-revocation', label: 'Token Revocation' },
 ]
+
+const basePath = AppRoute.AccessManagement.Root
+
+const noop = () => {}
 
 export function AccessManagement() {
   const accessDocLink = useDocLink('accessControl')
@@ -46,28 +56,31 @@ export function AccessManagement() {
     isLoading,
   } = useAccessManagementPermissions()
 
-  const tabs = useMemo(() => {
-    if (isLoading) return allTabs
-    const hiddenPaths = new Set<string>()
-    if (!canReadUsers) hiddenPaths.add(AppRoute.AccessManagement.Users)
-    if (!canReadGroups) hiddenPaths.add(AppRoute.AccessManagement.Groups)
-    if (!canReadProjects) hiddenPaths.add(AppRoute.AccessManagement.Projects)
-    if (!canReadAssignments) hiddenPaths.add(AppRoute.AccessManagement.Assignments)
-    if (!canReadTokenRevocation) hiddenPaths.add(AppRoute.AccessManagement.TokenRevocation)
-    if (hiddenPaths.size === 0) return allTabs
-    return allTabs.filter((tab) => !hiddenPaths.has(tab.path))
+  const [activeTab] = useUrlTab<AccessTab>(basePath, 'users')
+
+  const validTabDefs = useMemo<TabDef[]>(() => {
+    if (isLoading) return allTabDefs
+    const hiddenKeys = new Set<AccessTab>()
+    if (!canReadUsers) hiddenKeys.add('users')
+    if (!canReadGroups) hiddenKeys.add('groups')
+    if (!canReadProjects) hiddenKeys.add('projects')
+    if (!canReadAssignments) hiddenKeys.add('assignments')
+    if (!canReadTokenRevocation) hiddenKeys.add('token-revocation')
+    if (hiddenKeys.size === 0) return allTabDefs
+    return allTabDefs.filter((tab) => !hiddenKeys.has(tab.key))
   }, [canReadUsers, canReadGroups, canReadProjects, canReadAssignments, canReadTokenRevocation, isLoading])
 
-  const defaultTab = tabs[0]
+  const validTabKeys = useMemo(() => validTabDefs.map((t) => t.key), [validTabDefs])
+  const defaultTab = validTabDefs[0]?.key ?? 'users'
 
-  const activeTabIndex = tabs.findIndex((tab) => location.startsWith(tab.path))
-  const isRestrictedPath = !isLoading && activeTabIndex === -1 && location !== AppRoute.AccessManagement.Root
-
+  // Redirect from the bare base path to the first allowed tab so the URL always has a tab segment.
+  // NxUrlTabs handles restricted-path redirects via its own useEffect.
   useLayoutEffect(() => {
-    if (canAccessPage && (location === AppRoute.AccessManagement.Root || isRestrictedPath) && defaultTab) {
-      navigate(defaultTab.path, { replace: true })
+    if (isLoading || !canAccessPage) return
+    if (location === basePath) {
+      navigate(`${basePath}/${defaultTab}`, { replace: true })
     }
-  }, [location, navigate, defaultTab, isRestrictedPath, canAccessPage])
+  }, [location, navigate, canAccessPage, isLoading, defaultTab])
 
   if (!isLoading && !canAccessPage) {
     return (
@@ -82,32 +95,53 @@ export function AccessManagement() {
     )
   }
 
-  const resolvedIndex = activeTabIndex === -1 ? 0 : activeTabIndex
-  const ActiveTabComponent = tabs[resolvedIndex].component
-  const activeTab = tabs[resolvedIndex]
-  const hubBreadcrumbs = breadcrumbsAccessManagementHub(activeTab.label)
-
-  const handleTabSelect = (_event: React.MouseEvent, tabIndex: string | number) => {
-    const tab = tabs[Number(tabIndex)]
-    if (tab) {
-      navigate(tab.path)
-    }
-  }
+  const activeTabDef = validTabDefs.find((t) => t.key === activeTab) ?? validTabDefs[0]
+  const hubBreadcrumbs = breadcrumbsAccessManagementHub(activeTabDef?.label ?? 'Access Management')
 
   return (
     <NxPage>
       <NxPageHeader title="Access Management" docLink={accessDocLink} breadcrumbs={hubBreadcrumbs} />
-      <StackItem style={{ flexShrink: 0 }}>
-        <Tabs activeKey={resolvedIndex} onSelect={handleTabSelect}>
-          {tabs.map((tab, index) => (
-            <Tab key={tab.path} eventKey={index} title={tab.label} />
-          ))}
-        </Tabs>
-      </StackItem>
       <NxPageBody>
-        <NxPanel isFullHeight>
-          <ActiveTabComponent />
-        </NxPanel>
+        <NxListPanel>
+          <NxListPanelTabs basePath={basePath} defaultTab={defaultTab} validTabs={validTabKeys}>
+            {validTabDefs.map((tab) => (
+              <Tab key={tab.key} eventKey={tab.key} title={tab.label} />
+            ))}
+          </NxListPanelTabs>
+
+          {activeTab === 'users' && <UsersTab />}
+          {activeTab === 'groups' && <GroupsTab />}
+          {activeTab === 'projects' && <ProjectsTab />}
+          {activeTab === 'policies' && <PoliciesTab />}
+          {activeTab === 'roles' && <RolesTab />}
+          {activeTab === 'assignments' && <AssignmentsTab />}
+          {activeTab === 'can-i' && (
+            <NxListPanelView
+              tabKey="can-i"
+              tabLabel="Can I?"
+              isPending={false}
+              error={null}
+              isEmpty={false}
+              hasActiveFilters={false}
+              onRetry={noop}
+              onClearAllFilters={noop}
+              body={<CanITab />}
+            />
+          )}
+          {activeTab === 'token-revocation' && (
+            <NxListPanelView
+              tabKey="token-revocation"
+              tabLabel="Token Revocation"
+              isPending={false}
+              error={null}
+              isEmpty={false}
+              hasActiveFilters={false}
+              onRetry={noop}
+              onClearAllFilters={noop}
+              body={<TokenRevocationTab />}
+            />
+          )}
+        </NxListPanel>
       </NxPageBody>
     </NxPage>
   )

@@ -1,8 +1,9 @@
-import type { Approval } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Approval } from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
 import { useCallback, useMemo, useState } from 'react'
 
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
+import { useAutoApprovalDetection } from '../../executions/hooks/useAutoApprovalDetection'
 import {
   type ExecutionNode,
   isWaitingApprovalNode,
@@ -24,8 +25,11 @@ type UseBuilderApprovalResult = {
   isApprovalLoading: boolean
   approvalViewOpen: boolean
   activityNameMap: Map<string, string>
+  /** The prompt/message from the approval node's activity config, if available. */
+  approvalMessage: string | undefined
   wrappedHandleNodeClick: (event: React.MouseEvent, node: Node<NodeType['data']>) => void
   handleApprovalClose: () => void
+  handleApprovalDismiss: () => void
   openApprovalView: () => void
 }
 
@@ -41,11 +45,17 @@ export function useBuilderApproval({
     isLoading: isApprovalLoading,
     handleNodeClick: handleApprovalNodeClick,
     clearPendingApproval,
+    setPendingApproval,
+    fetchForNode,
   } = useExecutionApproval(mostRecentExecutionId ?? undefined)
 
   const [approvalViewOpen, setApprovalViewOpen] = useState(false)
 
   const handleApprovalClose = useCallback(() => {
+    setApprovalViewOpen(false)
+  }, [])
+
+  const handleApprovalDismiss = useCallback(() => {
     setApprovalViewOpen(false)
     clearPendingApproval()
   }, [clearPendingApproval])
@@ -53,6 +63,20 @@ export function useBuilderApproval({
   const openApprovalView = useCallback(() => {
     setApprovalViewOpen(true)
   }, [])
+
+  const handleApprovalDetected = useCallback(
+    (approval: Approval) => {
+      setPendingApproval(approval)
+      setApprovalViewOpen(true)
+    },
+    [setPendingApproval]
+  )
+
+  useAutoApprovalDetection({
+    executionId: isLiveRunActive ? (mostRecentExecutionId ?? undefined) : undefined,
+    fetchForNode,
+    onApprovalDetected: handleApprovalDetected,
+  })
 
   const activityNameMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -64,6 +88,15 @@ export function useBuilderApproval({
     return map
   }, [currentWorkflow])
 
+  const approvalMessage = useMemo(() => {
+    if (!pendingApproval || !currentWorkflow) return undefined
+    const activity = currentWorkflow.workflow?.activities?.find((a) => a.id === pendingApproval.approval_node_id)
+    if (activity?.type !== ActivityTypeEnum.APPROVAL) return undefined
+    const config = activity.config as Record<string, unknown> | undefined
+    const prompt = config?.prompt
+    return typeof prompt === 'string' && prompt ? prompt : undefined
+  }, [pendingApproval, currentWorkflow])
+
   const wrappedHandleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node<NodeType['data']>) => {
       if (showMostRecentRunPanelInEditor) {
@@ -72,11 +105,10 @@ export function useBuilderApproval({
         const execNode: ExecutionNode = { id: node.id, type: node.type, data: node.data as Record<string, unknown> }
         if (clickedBadge && isWaitingApprovalNode(execNode)) {
           handleApprovalNodeClick(event, execNode)
+          setApprovalViewOpen(true)
           return
         }
       }
-      // During live run, only approval clicks are allowed (handled above)
-      // Other clicks are blocked to prevent opening node editor
       if (!isLiveRunActive) {
         handleNodeClick(event, node)
       }
@@ -89,8 +121,10 @@ export function useBuilderApproval({
     isApprovalLoading,
     approvalViewOpen,
     activityNameMap,
+    approvalMessage,
     wrappedHandleNodeClick,
     handleApprovalClose,
+    handleApprovalDismiss,
     openApprovalView,
   }
 }

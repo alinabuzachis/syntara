@@ -202,7 +202,7 @@ describe('GroupsTab Component', () => {
 
       render(<GroupsTab />, { wrapper })
 
-      expect(screen.getByRole('heading', { name: 'Error loading groups' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
     })
   })
 

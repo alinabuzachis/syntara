@@ -40,6 +40,13 @@ from .query_params import (
     WorkflowListParams,
 )
 from .signal import ActivitySignalPayload, SignalResponse
+from .validation_finding import (
+    DetailedValidationProblemDetail,
+    ValidationCategory,
+    ValidationFinding,
+    ValidationResult,
+    ValidationSeverity,
+)
 from .visualization import (
     ActivityPatchMessage,
     ExecutionSnapshotMessage,
@@ -78,6 +85,7 @@ __all__ = [
     "ActivityPatchMessage",
     "ActivitySignalPayload",
     "ActivityStatus",
+    "DetailedValidationProblemDetail",
     "Execution",
     "ExecutionInclude",
     "ExecutionIncludeParams",
@@ -89,7 +97,11 @@ __all__ = [
     "JsonPatchOperation",
     "PublishVersionRequest",
     "SignalResponse",
+    "ValidationCategory",
+    "ValidationFinding",
     "ValidationIssue",
+    "ValidationResult",
+    "ValidationSeverity",
     "WebhookTrigger",
     "WebhookTriggerRead",
     "Workflow",

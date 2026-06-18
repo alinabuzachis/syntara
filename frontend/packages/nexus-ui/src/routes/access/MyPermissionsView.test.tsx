@@ -101,7 +101,7 @@ describe('MyPermissionsView', () => {
   it('shows spinner immediately on mount', () => {
     vi.mocked(accessFetchClient.POST).mockReturnValueOnce(new Promise(() => {}))
     render(<MyPermissionsView />, { wrapper })
-    expect(screen.getByRole('progressbar', { name: 'Loading permissions' })).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
   })
 
   it('displays permissions table with data', async () => {
@@ -132,7 +132,7 @@ describe('MyPermissionsView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('error-state')).toBeInTheDocument()
     })
-    expect(screen.getByText('Failed to load permissions')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
   })
 
   it('retries loading when error retry button is clicked', async () => {

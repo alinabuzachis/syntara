@@ -8,6 +8,8 @@ from temporalio.exceptions import ApplicationError
 
 ACTIVITY_ID = "api-node-1"
 CREDENTIAL_ID = str(uuid4())
+PROJECT_A_ID = str(uuid4())
+PROJECT_B_ID = str(uuid4())
 
 
 @pytest.fixture
@@ -19,6 +21,7 @@ def mock_credential() -> MagicMock:
     cred.enabled = True
     cred.secret_id = uuid4()
     cred.credential_type_id = uuid4()
+    cred.project_id = PROJECT_A_ID
     return cred
 
 
@@ -184,3 +187,101 @@ class TestResolveWorkflowCredentials:
 
         with pytest.raises(ApplicationError, match="Failed to decrypt"):
             await resolve_workflow_credentials({ACTIVITY_ID: CREDENTIAL_ID})
+
+
+class TestCrossProjectCredentialResolution:
+    """AAP-79159: credential resolution rejects cross-project references."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity._session_factory")
+    @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity.create_secret_service")
+    async def test_cross_project_credential_rejected_at_runtime(
+        self,
+        mock_create_ss: MagicMock,
+        mock_session_local: MagicMock,
+        mock_credential: MagicMock,
+    ) -> None:
+        """Credential from project A must be rejected when workflow belongs to project B."""
+        from nexus.workflows.workflow_engine.activities.credential_resolution_activity import (
+            resolve_workflow_credentials,
+        )
+
+        mock_session = AsyncMock()
+        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_local.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = mock_credential
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        with pytest.raises(ApplicationError, match="does not belong to workflow project"):
+            await resolve_workflow_credentials(
+                {ACTIVITY_ID: CREDENTIAL_ID},
+                project_id=PROJECT_B_ID,
+            )
+
+    @pytest.mark.asyncio
+    @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity._session_factory")
+    @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity.create_secret_service")
+    async def test_same_project_credential_allowed(
+        self,
+        mock_create_ss: MagicMock,
+        mock_session_local: MagicMock,
+        mock_credential: MagicMock,
+        mock_credential_type: MagicMock,
+    ) -> None:
+        """Credential from the same project must resolve successfully."""
+        from nexus.workflows.workflow_engine.activities.credential_resolution_activity import (
+            resolve_workflow_credentials,
+        )
+
+        mock_session = AsyncMock()
+        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_local.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = mock_credential
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.get = AsyncMock(return_value=mock_credential_type)
+
+        mock_ss = MagicMock()
+        mock_ss.retrieve_secret = AsyncMock(return_value={"token": "secret"})
+        mock_create_ss.return_value = mock_ss
+
+        result = await resolve_workflow_credentials(
+            {ACTIVITY_ID: CREDENTIAL_ID},
+            project_id=PROJECT_A_ID,
+        )
+        assert ACTIVITY_ID in result
+        assert result[ACTIVITY_ID]["credential_id"] == CREDENTIAL_ID
+
+    @pytest.mark.asyncio
+    @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity._session_factory")
+    @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity.create_secret_service")
+    async def test_no_project_id_allows_resolution_for_backward_compat(
+        self,
+        mock_create_ss: MagicMock,
+        mock_session_local: MagicMock,
+        mock_credential: MagicMock,
+        mock_credential_type: MagicMock,
+    ) -> None:
+        """When project_id is None (legacy/in-flight), credential resolves without project check."""
+        from nexus.workflows.workflow_engine.activities.credential_resolution_activity import (
+            resolve_workflow_credentials,
+        )
+
+        mock_session = AsyncMock()
+        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_local.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = mock_credential
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.get = AsyncMock(return_value=mock_credential_type)
+
+        mock_ss = MagicMock()
+        mock_ss.retrieve_secret = AsyncMock(return_value={"token": "secret"})
+        mock_create_ss.return_value = mock_ss
+
+        result = await resolve_workflow_credentials({ACTIVITY_ID: CREDENTIAL_ID})
+        assert ACTIVITY_ID in result

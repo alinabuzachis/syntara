@@ -21,6 +21,7 @@ type BuilderToolbarContentProps = Readonly<{
   executionStatus?: ExecutionStatus | null
   hasApprovalPending?: boolean
   isApprovalLoading?: boolean
+  isApprovalPanelOpen?: boolean
   onBackToEditor?: () => void
   onReviewApproval?: () => void
   dispatch: Dispatch<BuilderAction>
@@ -54,6 +55,7 @@ function BuilderToolbarContent({
   executionStatus,
   hasApprovalPending,
   isApprovalLoading,
+  isApprovalPanelOpen,
   onBackToEditor,
   onReviewApproval,
   dispatch,
@@ -80,7 +82,12 @@ function BuilderToolbarContent({
     return (
       <>
         {hasApprovalPending && onReviewApproval && (
-          <Button variant="warning" onClick={onReviewApproval} isLoading={isApprovalLoading}>
+          <Button
+            variant="primary"
+            isLoading={isApprovalLoading}
+            isAriaDisabled={isApprovalPanelOpen}
+            onClick={isApprovalPanelOpen ? undefined : onReviewApproval}
+          >
             Review approval
           </Button>
         )}
@@ -140,6 +147,7 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   onBackToEditor?: () => void
   hasApprovalPending?: boolean
   isApprovalLoading?: boolean
+  isApprovalPanelOpen?: boolean
   onReviewApproval?: () => void
   triggers?: { id: string; name?: string }[]
   isAddNodePanelOpen: boolean
@@ -177,6 +185,7 @@ export function BuilderWorkflowPageHeader({
   onBackToEditor,
   hasApprovalPending,
   isApprovalLoading,
+  isApprovalPanelOpen,
   onReviewApproval,
   triggers,
   isAddNodePanelOpen,
@@ -258,6 +267,7 @@ export function BuilderWorkflowPageHeader({
             executionStatus={executionStatus}
             hasApprovalPending={hasApprovalPending}
             isApprovalLoading={isApprovalLoading}
+            isApprovalPanelOpen={isApprovalPanelOpen}
             onBackToEditor={onBackToEditor}
             onReviewApproval={onReviewApproval}
             dispatch={dispatch}

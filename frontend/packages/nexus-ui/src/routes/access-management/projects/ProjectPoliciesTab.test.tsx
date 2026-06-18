@@ -29,7 +29,7 @@ vi.mock('./EditProjectPolicyDialog', () => ({
   EditProjectPolicyDialog: () => null,
 }))
 
-vi.mock('../../../components/filters', () => ({
+vi.mock('../../../components/filters/FilterBar', () => ({
   FilterBar: () => <div data-testid="filter-bar" />,
 }))
 
@@ -142,7 +142,7 @@ describe('ProjectPoliciesTab', () => {
 
     render(<ProjectPoliciesTab projectId="proj-1" />, { wrapper })
 
-    expect(screen.getByRole('heading', { name: 'Error loading policies' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
   })
 
   it('renders loading state while fetching', () => {

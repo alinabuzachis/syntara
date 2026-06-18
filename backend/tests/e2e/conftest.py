@@ -426,14 +426,27 @@ def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
 
 
 @pytest.fixture(scope="session")
-def unauthenticated_client(nexus_base_url: str) -> Client:
+def unauthenticated_client(nexus_base_url: str) -> AuthenticatedClient:
     """Return an unauthenticated Nexus API client for login flows and public endpoints.
 
+    Uses an invalid token so requests are rejected with 401 by protected endpoints.
     SSL verification is disabled for E2E tests (localhost/test environment with
     self-signed certs). This is acceptable for test code but should NEVER be
     used in production.
     """
-    return Client(base_url=f"{nexus_base_url}/api/v1", verify_ssl=False)
+    return AuthenticatedClient(base_url=f"{nexus_base_url}/api/v1", token="unauthenticated", verify_ssl=False)  # noqa: S106
+
+
+@pytest.fixture
+def unauth_api(nexus_base_url: str, unauthenticated_client: AuthenticatedClient) -> NexusApiRegistry:
+    """NexusApiRegistry backed by a client with no valid auth token.
+
+    Used to verify that unauthenticated requests are rejected with 401.
+    SSL verification is disabled for E2E tests (localhost/test environment with
+    self-signed certs). This is acceptable for test code but should NEVER be
+    used in production.
+    """
+    return NexusApiRegistry(unauthenticated_client)
 
 
 @pytest.fixture(autouse=True)

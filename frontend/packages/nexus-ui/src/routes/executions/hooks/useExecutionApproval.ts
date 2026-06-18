@@ -25,6 +25,10 @@ type UseExecutionApprovalResult = {
   handleNodeClick: (event: React.MouseEvent, node: ExecutionNode) => void
   /** Clear the pending approval (e.g., after a decision is submitted). */
   clearPendingApproval: () => void
+  /** Set the pending approval directly (used by auto-detection). */
+  setPendingApproval: (approval: Approval | null) => void
+  /** Fetch the approval for a specific node ID. */
+  fetchForNode: (approvalNodeId: string) => Promise<Approval | null>
 }
 
 /**
@@ -75,5 +79,5 @@ export function useExecutionApproval(executionId: string | undefined): UseExecut
     clear()
   }, [clear])
 
-  return { pendingApproval, isLoading, handleNodeClick, clearPendingApproval }
+  return { pendingApproval, isLoading, handleNodeClick, clearPendingApproval, setPendingApproval, fetchForNode }
 }

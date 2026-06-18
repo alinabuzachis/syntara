@@ -3,7 +3,7 @@
 # For local development, use packages/nexus-ui/Containerfile
 
 # Build stage
-FROM registry.access.redhat.com/ubi9/nodejs-24:latest@sha256:3ffbe2cf5ff14d8fdca014a125753ca59a077215383e7319edcab61e889366dc AS builder
+FROM registry.access.redhat.com/ubi9/nodejs-24:latest@sha256:09ec365eac116f996dd07507784d06f648401c949eb48c40fe2d961341edd3fb AS builder
 
 USER root
 
@@ -28,7 +28,7 @@ COPY . .
 RUN npm run build
 
 # Production stage - use ubi9 nginx image
-FROM registry.redhat.io/ubi9/nginx-124:latest@sha256:a2a3c55c74ac243b8c19171bbfc0390983c8e11e7eb9989fa07d5947154e60d3
+FROM registry.redhat.io/ubi9/nginx-124:latest@sha256:fc282f9fc249d9b9606d1d93769e1b6e1c042221fdae285b53032b59ba9690d0
 
 USER 0
 

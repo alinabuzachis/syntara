@@ -227,7 +227,7 @@ describe('ProjectsTab', () => {
 
       render(<ProjectsTab />, { wrapper })
 
-      expect(screen.getByRole('heading', { name: 'Error loading projects' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Error' })).toBeInTheDocument()
     })
   })
 

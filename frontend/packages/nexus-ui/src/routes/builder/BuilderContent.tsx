@@ -15,8 +15,10 @@ import { useAlerts } from '../../providers/alerts'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
+import { ApprovalSidePanel } from '../executions/ApprovalSidePanel'
 import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExpandedAllContext'
 
+import styles from './BuilderContent.module.css'
 import { BuilderFlow } from './BuilderFlow'
 import { builderReducer, getInitialBuilderState } from './builderReducer'
 import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
@@ -282,9 +284,10 @@ export function BuilderContent(props: BuilderContentProps) {
     pendingApproval,
     isApprovalLoading,
     approvalViewOpen,
-    activityNameMap,
+    approvalMessage,
     wrappedHandleNodeClick,
     handleApprovalClose,
+    handleApprovalDismiss,
     openApprovalView,
   } = useBuilderApproval({
     mostRecentExecutionId,
@@ -337,6 +340,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 onBackToEditor={isLiveRunActive ? handleCloseMostRecentRunPanel : undefined}
                 hasApprovalPending={!!pendingApproval}
                 isApprovalLoading={isApprovalLoading}
+                isApprovalPanelOpen={approvalViewOpen}
                 onReviewApproval={openApprovalView}
                 triggers={triggers}
                 isAddNodePanelOpen={isAddNodePanelOpen}
@@ -467,6 +471,17 @@ export function BuilderContent(props: BuilderContentProps) {
                   markDirty={markDirty}
                 />
 
+                {!isNodeEditorOpen && approvalViewOpen && pendingApproval && (
+                  <FlexItem className={styles.approvalPanelSlot}>
+                    <ApprovalSidePanel
+                      approval={pendingApproval}
+                      message={approvalMessage}
+                      onClose={handleApprovalClose}
+                      onDecisionSubmitted={handleApprovalDismiss}
+                    />
+                  </FlexItem>
+                )}
+
                 <NodeEditorOverlay
                   isOpen={isNodeEditorOpen}
                   mode={nodeEditorMode}
@@ -499,10 +514,6 @@ export function BuilderContent(props: BuilderContentProps) {
             dispatch={dispatch}
             handleRunWorkflow={handleRunWorkflow}
             handleDeleteWorkflow={handleDeleteWorkflow}
-            pendingApproval={pendingApproval}
-            approvalViewOpen={approvalViewOpen}
-            activityNameMap={activityNameMap}
-            handleApprovalClose={handleApprovalClose}
             triggerName={selectedTrigger?.name ?? 'Trigger'}
             triggerNodeId={selectedTrigger?.id}
             triggerInputSchema={

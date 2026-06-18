@@ -161,5 +161,7 @@ export function useAssignmentsData() {
     hasActiveFilters,
     refetchAll,
     handleDelete,
+    isPending: allAssignmentsQuery.isPending,
+    error: allAssignmentsQuery.error,
   }
 }

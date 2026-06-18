@@ -1,22 +1,17 @@
 import type { User } from '@ansible/nexus-contracts'
-import { Button, Content, ContentVariants, Flex, FlexItem, Stack, StackItem, Truncate } from '@patternfly/react-core'
+import { Button, Content, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiBanIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useCallback, useMemo } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
-import { flexCenteredBothAxes } from '../../app/flexCenteredBothAxes'
 import { NxConfirmationDialog } from '../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
-import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { NxLabel } from '../../components/labels/NxLabel'
-import { NxPanelContentStack } from '../../components/layout/NxPanelContentStack'
-import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
+import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
-import { useQueryState } from '../../components/states/useQueryState'
-import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { navigate } from '../../hooks/routing/navigate'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../hooks/useDeleteAction'
@@ -157,36 +152,55 @@ export function UsersTab() {
     onSettled: deleteDialog.close,
   })
 
-  const queryState = useQueryState(query, {
-    title: 'Error loading users',
-    onRetry: () => detachPromise(query.refetch()),
-  })
-  if (queryState) return queryState
-
-  if (users.length === 0 && !hasActiveFilters) {
-    return (
-      <NxEmptyStateNoData
-        title="No users"
-        description="Create a user to manage access to the platform."
-        buttonText="Create user"
-        addData={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
-      />
-    )
-  }
-
   return (
     <>
-      <NxPanelContentStack>
-        <StackItem>
-          <Stack hasGutter>
-            <StackItem>
-              <Content component={ContentVariants.p}>
-                Users represent individual people who interact with the system. Users are assigned roles directly or
-                through the groups they belong to. A user can belong to multiple groups.
-              </Content>
-            </StackItem>
-
-            {builtinUser ? (
+      <NxListPanelView
+        tabKey="users"
+        tabLabel="Users"
+        isPending={query.isPending}
+        isFetching={query.isFetching}
+        error={query.error}
+        onRetry={refetch}
+        isEmpty={users.length === 0}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={handleClearAllFilters}
+        noDataState={
+          <NxEmptyStateNoData
+            title="No users"
+            description="Create a user to manage access to the platform."
+            buttonText="Create user"
+            addData={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
+          />
+        }
+        toolbar={
+          users.length > 0 || hasActiveFilters ? (
+            <NxListPanelToolbar
+              filters={filters}
+              filterDefinitions={filterFieldDefinitions}
+              onFilterChange={handleFilterChange}
+              clearAllFilters={handleClearAllFilters}
+              actions={
+                <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
+                  <Button
+                    variant="primary"
+                    icon={<RhUiAddIcon />}
+                    isAriaDisabled={!permissions.canCreate}
+                    onClick={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
+                  >
+                    Create user
+                  </Button>
+                </DisabledWithTooltip>
+              }
+            />
+          ) : undefined
+        }
+        body={
+          <>
+            <Content>
+              Users represent individual people who interact with the system. Users are assigned roles directly or
+              through the groups they belong to. A user can belong to multiple groups.
+            </Content>
+            {builtinUser && (
               <StackItem>
                 <BuiltInAdminCard
                   userId={builtinUser.id}
@@ -195,85 +209,56 @@ export function UsersTab() {
                   onToggle={adminToggle.handleToggle}
                 />
               </StackItem>
-            ) : null}
-
-            {/* Spacer used to add additional gap that would otherwise be missing between admin card section and table filters */}
-            <StackItem />
-          </Stack>
-        </StackItem>
-        <StackItem>
-          <FilterBar
-            fieldDefinitions={filterFieldDefinitions}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            showClearAll={true}
-            clearAllFilters={handleClearAllFilters}
-            toolbarEnd={
-              <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
-                <Button
-                  variant="primary"
-                  icon={<RhUiAddIcon />}
-                  isAriaDisabled={!permissions.canCreate}
-                  onClick={permissions.canCreate ? () => navigate(AppRoute.AccessManagement.CreateUser) : undefined}
-                >
-                  Create user
-                </Button>
-              </DisabledWithTooltip>
-            }
-          />
-        </StackItem>
-        {users.length === 0 ? (
-          <StackItem isFilled style={flexCenteredBothAxes}>
-            <NxEmptyStateFilter clearAllFilters={handleClearAllFilters} />
-          </StackItem>
-        ) : (
-          <NxScrollableTableContainer caption="Users" footer={getFooterProps(data)}>
-            <Thead>
-              <Tr>
-                <Th sort={getSortParams(0)}>Username</Th>
-                <Th sort={getSortParams(1)}>Name</Th>
-                <Th sort={getSortParams(3)}>Email</Th>
-                <Th>Authentication</Th>
-                <Th sort={getSortParams(4)}>Last Login</Th>
-                <Th screenReaderText="Actions" />
-              </Tr>
-            </Thead>
-            <Tbody>
-              {users.map((user) => (
-                <Tr key={user.id}>
-                  <Td dataLabel="Username">
-                    <Button variant="link" isInline onClick={() => navigate(getUserDetailPath(user.id))}>
-                      <Truncate content={user.username} />
-                    </Button>
-                    {!user.is_enabled && <DisabledBadge />}
-                  </Td>
-                  <Td dataLabel="Name">
-                    <Truncate content={userDisplayName(user)} />
-                  </Td>
-                  <Td dataLabel="Email">
-                    <Truncate content={user.email ?? ''} />
-                  </Td>
-                  <Td dataLabel="Authentication">
-                    <Flex gap={{ default: 'gapXs' }} flexWrap={{ default: 'wrap' }}>
-                      {(user.auth_sources ?? [AUTH_SOURCE_LOCAL]).map((source) => (
-                        <FlexItem key={source}>
-                          <NxLabel color={source === AUTH_SOURCE_LOCAL ? 'grey' : 'blue'}>{source}</NxLabel>
-                        </FlexItem>
-                      ))}
-                    </Flex>
-                  </Td>
-                  <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
-                  <Td isActionCell>
-                    {!user.is_builtin && (
-                      <ActionsColumn items={getRowActions(user, deleteDialog.open, revokeDialog.open, permissions)} />
-                    )}
-                  </Td>
+            )}
+            <NxListPanelTable caption="Users" footer={getFooterProps(data)}>
+              <Thead>
+                <Tr>
+                  <Th sort={getSortParams(0)}>Username</Th>
+                  <Th sort={getSortParams(1)}>Name</Th>
+                  <Th sort={getSortParams(3)}>Email</Th>
+                  <Th>Authentication</Th>
+                  <Th sort={getSortParams(4)}>Last Login</Th>
+                  <Th screenReaderText="Actions" />
                 </Tr>
-              ))}
-            </Tbody>
-          </NxScrollableTableContainer>
-        )}
-      </NxPanelContentStack>
+              </Thead>
+              <Tbody>
+                {users.map((user) => (
+                  <Tr key={user.id}>
+                    <Td dataLabel="Username">
+                      <Button variant="link" isInline onClick={() => navigate(getUserDetailPath(user.id))}>
+                        <Truncate content={user.username} />
+                      </Button>
+                      {!user.is_enabled && <DisabledBadge />}
+                    </Td>
+                    <Td dataLabel="Name">
+                      <Truncate content={userDisplayName(user)} />
+                    </Td>
+                    <Td dataLabel="Email">
+                      <Truncate content={user.email ?? ''} />
+                    </Td>
+                    <Td dataLabel="Authentication">
+                      <Flex gap={{ default: 'gapXs' }} flexWrap={{ default: 'wrap' }}>
+                        {(user.auth_sources ?? [AUTH_SOURCE_LOCAL]).map((source) => (
+                          <FlexItem key={source}>
+                            <NxLabel color={source === AUTH_SOURCE_LOCAL ? 'grey' : 'blue'}>{source}</NxLabel>
+                          </FlexItem>
+                        ))}
+                      </Flex>
+                    </Td>
+                    <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
+                    <Td isActionCell>
+                      {!user.is_builtin && (
+                        <ActionsColumn items={getRowActions(user, deleteDialog.open, revokeDialog.open, permissions)} />
+                      )}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </NxListPanelTable>
+          </>
+        }
+      />
+
       <NxConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}

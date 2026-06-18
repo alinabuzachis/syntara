@@ -1,0 +1,13 @@
+from enum import Enum
+
+
+class ValidationCategory(str, Enum):
+    CYCLE_DETECTED = "cycle_detected"
+    INVALID_REFERENCE = "invalid_reference"
+    MISSING_FIELD = "missing_field"
+    ORPHANED_NODE = "orphaned_node"
+    SCHEMA_VERSION = "schema_version"
+    SCHEMA_VIOLATION = "schema_violation"
+
+    def __str__(self) -> str:
+        return str(self.value)

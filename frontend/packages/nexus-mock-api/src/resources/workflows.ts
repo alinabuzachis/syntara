@@ -63,6 +63,7 @@ const yamlFiles = [
   'mixed/sequential-mixed-types.yaml',
   'converge/converge-all-strategy.yaml',
   'approval/approval-gate-basic.yaml',
+  'approval/deployment-approval.yaml',
 ]
 
 // Project IDs to distribute workflows across

@@ -176,6 +176,50 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
+  /workflows/validate/detailed:
+    post:
+      summary: Validate Workflow Definition Detailed
+      description: Validate a workflow definition and return detailed per-finding results.
+      operationId: validate_workflow_definition_detailed
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowValidateRequest'
+      responses:
+        '200':
+          description: Detailed validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/DetailedValidationProblemDetail'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
   /workflows/{workflow_id}:
     get:
       summary: Get Workflow
@@ -988,6 +1032,140 @@ components:
           items:
             $ref: '#/components/schemas/ValidationIssue'
           title: Warnings
+
+    ValidationSeverity:
+      type: string
+      title: ValidationSeverity
+      description: Severity level for a validation finding.
+      enum:
+        - error
+        - warning
+
+    ValidationCategory:
+      type: string
+      title: ValidationCategory
+      description: Machine-readable classification for a validation finding.
+      enum:
+        - schema_version
+        - missing_field
+        - schema_violation
+        - invalid_reference
+        - cycle_detected
+        - orphaned_node
+
+    ValidationFinding:
+      type: object
+      title: ValidationFinding
+      description: |-
+        A single structured validation finding.
+
+        Attributes:
+            severity: error or warning
+            category: Machine-readable classification
+            message: Human-readable description
+            node_id: Related node ID, null for workflow-level issues
+            field_path: Path within node config (e.g., ``config.url``)
+      required:
+        - severity
+        - category
+        - message
+      additionalProperties: false
+      properties:
+        severity:
+          $ref: '#/components/schemas/ValidationSeverity'
+        category:
+          $ref: '#/components/schemas/ValidationCategory'
+        message:
+          type: string
+          title: Message
+        node_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Node Id
+        field_path:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Field Path
+
+    ValidationResult:
+      type: object
+      title: ValidationResult
+      description: |-
+        Structured validation result with flat findings list and computed counts.
+
+        Attributes:
+            is_valid: True when error_count == 0
+            error_count: Count of error-severity findings
+            warning_count: Count of warning-severity findings
+            findings: All findings, errors first
+      required:
+        - is_valid
+        - error_count
+        - warning_count
+      additionalProperties: false
+      properties:
+        is_valid:
+          type: boolean
+          title: Is Valid
+        error_count:
+          type: integer
+          title: Error Count
+        warning_count:
+          type: integer
+          title: Warning Count
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationFinding'
+          title: Findings
+
+    DetailedValidationProblemDetail:
+      type: object
+      title: DetailedValidationProblemDetail
+      description: |-
+        RFC 9457 Problem Details with a ``ValidationResult`` extension.
+
+        Attributes:
+            type: URI reference identifying the problem type
+            title: Short, human-readable summary
+            detail: Human-readable explanation specific to this occurrence
+            code: Machine-readable error code
+            retryable: Whether this error can be retried
+            instance: Optional URI reference identifying the specific occurrence
+            validation_result: Structured validation findings
+      required:
+        - type
+        - title
+        - detail
+        - code
+        - retryable
+        - validation_result
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          title: Type
+        title:
+          type: string
+          title: Title
+        detail:
+          type: string
+          title: Detail
+        code:
+          type: string
+          title: Code
+        retryable:
+          type: boolean
+          title: Retryable
+        instance:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Instance
+        validation_result:
+          $ref: '#/components/schemas/ValidationResult'
 
     WorkflowValidationProblemDetail:
       type: object

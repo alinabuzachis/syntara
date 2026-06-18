@@ -131,4 +131,23 @@ export const executions: Execution[] = [
     started_by: 'user-2',
     input_data: {},
   },
+  // Execution for workflow '54' (deployment-approval) — waiting at approval gate
+  {
+    id: 'exec-approval',
+    created_at: mockDate.minutesAgo10,
+    updated_at: mockDate.minutesAgo10,
+    workflow_id: '54',
+    status: 'running',
+    started_at: mockDate.minutesAgo10,
+    completed_at: null,
+    started_by: 'user-1',
+    input_data: { environment: 'production', version: '3.2.0' },
+    current_activities: [
+      {
+        activity_name: 'approval_gate',
+        temporal_activity_id: 'activity-approval-gate',
+        iteration: null,
+      },
+    ],
+  },
 ]

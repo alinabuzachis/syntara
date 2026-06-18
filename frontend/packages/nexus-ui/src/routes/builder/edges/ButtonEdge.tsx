@@ -183,6 +183,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
         onBlur={() => setIsFocused(false)}
         role="button"
         aria-label="Add connected step"
+        data-testid={sourceHandleId ? `add-node-button-${sourceHandleId}` : undefined}
         tabIndex={0}
         stroke={isFocused ? 'var(--pf-t--global--color--brand--default)' : 'none'}
         strokeWidth={isFocused ? 2 : 0}

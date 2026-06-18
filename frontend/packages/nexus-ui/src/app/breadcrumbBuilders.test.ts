@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { AppRoute } from './AppRoute'
 import {
   breadcrumbsAccessManagementHub,
-  breadcrumbsApprovalDetail,
   breadcrumbsApprovalsPage,
   breadcrumbsCreateUser,
   breadcrumbsCredentialEarlyShell,
@@ -102,10 +101,6 @@ describe('breadcrumbBuilders', () => {
     expect(breadcrumbsSettingsPage()).toEqual([{ label: 'Settings' }])
     expect(breadcrumbsSettingsCategory('AI / LLM')).toHaveLength(2)
 
-    expect(breadcrumbsApprovalDetail('REQ-1')).toEqual([
-      { label: 'Approvals', href: AppRoute.Approvals.Root },
-      { label: 'REQ-1' },
-    ])
     expect(breadcrumbsApprovalsPage('Loading')).toHaveLength(2)
 
     expect(breadcrumbsIntegrationConfigure()).toHaveLength(3)

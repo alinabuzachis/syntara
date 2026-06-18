@@ -13,7 +13,6 @@ export const IntegrationTools = lazy(() => import('../routes/configuration/integ
 export const Settings = lazy(() => import('../routes/configuration/settings/Settings'))
 export const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
 export const Approvals = lazy(() => import('../routes/approvals/Approvals'))
-export const ApprovalDetail = lazy(() => import('../routes/approvals/ApprovalDetail'))
 export const AccessManagement = lazy(() =>
   import('../routes/access-management/AccessManagement').then((m) => ({ default: m.AccessManagement }))
 )

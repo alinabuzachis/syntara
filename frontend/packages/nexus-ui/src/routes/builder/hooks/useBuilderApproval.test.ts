@@ -98,7 +98,7 @@ describe('useBuilderApproval', () => {
     expect(result.current.approvalViewOpen).toBe(true)
   })
 
-  it('closes approval view and clears pending approval on handleApprovalClose', () => {
+  it('closes approval panel without clearing pending approval on handleApprovalClose', () => {
     const { result } = renderHook(() => useBuilderApproval(defaultParams()), {
       wrapper: makeWrapper(queryClient),
     })
@@ -107,6 +107,19 @@ describe('useBuilderApproval', () => {
     expect(result.current.approvalViewOpen).toBe(true)
 
     act(() => result.current.handleApprovalClose())
+    expect(result.current.approvalViewOpen).toBe(false)
+    expect(mockClear).not.toHaveBeenCalled()
+  })
+
+  it('dismisses approval view and clears pending approval on handleApprovalDismiss', () => {
+    const { result } = renderHook(() => useBuilderApproval(defaultParams()), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => result.current.openApprovalView())
+    expect(result.current.approvalViewOpen).toBe(true)
+
+    act(() => result.current.handleApprovalDismiss())
     expect(result.current.approvalViewOpen).toBe(false)
     expect(mockClear).toHaveBeenCalled()
   })

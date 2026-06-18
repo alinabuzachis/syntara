@@ -24,7 +24,9 @@ from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.core.config.base import get_settings
 from nexus.core.lib.encryption import ENCRYPTED_SENTINEL, EncryptionError
+from nexus.core.lib.sanitization import CONTROL_CHAR_MULTILINE_RE, CONTROL_CHAR_SINGLELINE_RE
 from nexus.core.lib.url_validation import validate_host_url
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -106,10 +108,16 @@ def _validate_field_value(field_id: str, value: Any, field_def: dict[str, Any]) 
             msg = f"Field 'host' must be a string, got {type(value).__name__}"
             raise CredentialValidationError(msg)
         try:
-            validate_host_url(value)
+            validate_host_url(value, allow_http=get_settings().credential_allow_http_host)
         except ValueError as e:
             msg = f"Invalid host URL: {e} Provide only scheme and hostname, e.g., https://controller.example.com"
             raise CredentialValidationError(msg) from None
+
+    if isinstance(value, str):
+        pattern = CONTROL_CHAR_MULTILINE_RE if field_def.get("multiline") else CONTROL_CHAR_SINGLELINE_RE
+        if pattern.search(value):
+            msg = f"Field '{field_id}' contains a control character. Remove control characters and try again."
+            raise CredentialValidationError(msg)
 
 
 def _validate_inputs(

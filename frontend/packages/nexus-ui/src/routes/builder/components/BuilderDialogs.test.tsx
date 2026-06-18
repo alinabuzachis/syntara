@@ -41,10 +41,6 @@ function renderDialogs(overrides: Partial<React.ComponentProps<typeof BuilderDia
     dispatch: vi.fn(),
     handleRunWorkflow: vi.fn(),
     handleDeleteWorkflow: vi.fn(),
-    pendingApproval: null,
-    approvalViewOpen: false,
-    activityNameMap: new Map(),
-    handleApprovalClose: vi.fn(),
     triggerName: 'Manual Trigger',
     runStepDialog: {
       isOpen: false,
@@ -156,10 +152,6 @@ describe('BuilderDialogs', () => {
       dispatch: vi.fn(),
       handleRunWorkflow: vi.fn(),
       handleDeleteWorkflow: vi.fn(),
-      pendingApproval: null,
-      approvalViewOpen: false,
-      activityNameMap: new Map(),
-      handleApprovalClose: vi.fn(),
       triggerName: 'Manual Trigger',
       triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
       runStepDialog: {

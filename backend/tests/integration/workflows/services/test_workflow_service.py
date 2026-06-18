@@ -16,8 +16,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.models.project import Project
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
+from nexus.credentials.models.credential import Credential
+from nexus.credentials.models.credential_type import CredentialType
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -1496,3 +1499,232 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
 
         with pytest.raises(WorkflowNotFoundError):
             await service.restore_workflow_version(workflow_id=fake_id, version=1)
+
+
+# ============================================================================
+# AAP-79159: Cross-project credential validation
+# ============================================================================
+
+_PATCH_VALIDATOR = "nexus.workflows.services.workflow_service.workflow_validator"
+_PATCH_PROJECT_ALIVE = "nexus.core.queries.project_queries.assert_project_alive"
+
+
+def _mock_webhook_service() -> MagicMock:
+    """Create a mock WebhookTriggerService with async methods."""
+    svc = MagicMock()
+    svc.return_value.sync_webhook_triggers = AsyncMock()
+    return svc
+
+
+def _workflow_definition_with_credential(credential_id: str | None = None) -> dict[str, Any]:
+    """Build a minimal valid V2 workflow definition with an optional credential_id."""
+    node: dict[str, Any] = {
+        "id": "http-1",
+        "name": "Make Request",
+        "type": "action",
+        "executor": "http_request",
+        "parameters": {
+            "method": "GET",
+            "url": "https://example.com",
+        },
+    }
+    if credential_id:
+        node["parameters"]["credential_id"] = credential_id
+
+    return {
+        "schema_version": "2.0.0",
+        "description": "test workflow",
+        "triggers": [{"id": "trigger-1", "name": "Manual", "type": "manual", "config": {}}],
+        "nodes": [node],
+        "edges": [{"source": "trigger-1", "target": "http-1", "source_port": "default", "target_port": "default"}],
+    }
+
+
+class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
+    """AAP-79159: Workflow creation must reject cross-project credential references."""
+
+    @pytest.fixture
+    async def project_a_id(self, test_db_session: AsyncSession) -> UUID:
+        """Create project A and return its ID."""
+        project = Project(name=f"project-a-{uuid4().hex[:6]}")
+        test_db_session.add(project)
+        await test_db_session.flush()
+        return project.id
+
+    @pytest.fixture
+    async def project_b_id(self, test_db_session: AsyncSession) -> UUID:
+        """Create project B and return its ID."""
+        project = Project(name=f"project-b-{uuid4().hex[:6]}")
+        test_db_session.add(project)
+        await test_db_session.flush()
+        return project.id
+
+    @pytest.fixture
+    async def cred_type(self, test_db_session: AsyncSession) -> CredentialType:
+        """Create a test credential type."""
+        ct = CredentialType(
+            name=f"test-type-{uuid4().hex[:6]}",
+            description="test",
+            inputs={"fields": [], "required": []},
+            injectors={"extra_vars": {}, "env": {}, "file": {}},
+            managed=False,
+        )
+        test_db_session.add(ct)
+        await test_db_session.flush()
+        return ct
+
+    @pytest.fixture
+    async def credential_in_a(
+        self, test_db_session: AsyncSession, project_a_id: UUID, cred_type: CredentialType, test_user: User
+    ) -> Credential:
+        """Create a credential in project A."""
+        cred = Credential(
+            name=f"cred-a-{uuid4().hex[:6]}",
+            credential_type_id=cred_type.id,
+            project_id=project_a_id,
+            created_by=test_user.id,
+            labels={},
+        )
+        test_db_session.add(cred)
+        await test_db_session.flush()
+        return cred
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_rejects_cross_project_credential(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_b_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """Workflow in project B cannot reference a credential from project A."""
+        service = WorkflowService(test_db_session, test_user)
+        wf_def = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
+
+        with (
+            patch(_PATCH_VALIDATOR),
+            patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
+            pytest.raises(SafeValueError, match="invalid or belong to a different project"),
+        ):
+            await service.create_workflow(
+                name="cross-project-test",
+                description=None,
+                labels={},
+                workflow_definition=wf_def,
+                project_id=project_b_id,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_allows_same_project_credential(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_a_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """Workflow in project A can reference a credential from project A."""
+        service = WorkflowService(test_db_session, test_user)
+        wf_def = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
+
+        with (
+            patch(_PATCH_VALIDATOR),
+            patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService", _mock_webhook_service()),
+        ):
+            workflow, version = await service.create_workflow(
+                name=f"same-project-{uuid4().hex[:6]}",
+                description=None,
+                labels={},
+                workflow_definition=wf_def,
+                project_id=project_a_id,
+            )
+            assert workflow is not None
+            assert version is not None
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_rejects_nonexistent_credential(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_a_id: UUID,
+    ) -> None:
+        """Workflow referencing a credential that doesn't exist is rejected."""
+        service = WorkflowService(test_db_session, test_user)
+        wf_def = _workflow_definition_with_credential(credential_id=str(uuid4()))
+
+        with (
+            patch(_PATCH_VALIDATOR),
+            patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
+            pytest.raises(SafeValueError, match="invalid or belong to a different project"),
+        ):
+            await service.create_workflow(
+                name="missing-cred-test",
+                description=None,
+                labels={},
+                workflow_definition=wf_def,
+                project_id=project_a_id,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_no_credential_skips_validation(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_a_id: UUID,
+    ) -> None:
+        """Workflow without credential references skips credential validation."""
+        service = WorkflowService(test_db_session, test_user)
+        wf_def = _workflow_definition_with_credential(credential_id=None)
+
+        with (
+            patch(_PATCH_VALIDATOR),
+            patch(_PATCH_PROJECT_ALIVE, new_callable=AsyncMock),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService", _mock_webhook_service()),
+        ):
+            workflow, _version = await service.create_workflow(
+                name=f"no-cred-{uuid4().hex[:6]}",
+                description=None,
+                labels={},
+                workflow_definition=wf_def,
+                project_id=project_a_id,
+            )
+            assert workflow is not None
+
+    @pytest.mark.asyncio
+    async def test_update_workflow_version_rejects_cross_project_credential(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        project_b_id: UUID,
+        credential_in_a: Credential,
+    ) -> None:
+        """Updating a workflow version in project B must reject credential from project A."""
+        service = WorkflowService(test_db_session, test_user)
+
+        workflow = Workflow(
+            id=uuid4(),
+            name=f"update-test-{uuid4().hex[:6]}",
+            description=None,
+            labels={},
+            current_version=1,
+            created_by=test_user.id,
+            is_enabled=False,
+            project_id=project_b_id,
+        )
+        v1 = WorkflowVersion(
+            id=uuid4(),
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition=_workflow_definition_with_credential(),
+            created_by=test_user.id,
+            change_description="Initial",
+        )
+        test_db_session.add(workflow)
+        test_db_session.add(v1)
+        await test_db_session.flush()
+
+        wf_def_v2 = _workflow_definition_with_credential(credential_id=str(credential_in_a.id))
+
+        with patch(_PATCH_VALIDATOR), pytest.raises(SafeValueError, match="invalid or belong to a different project"):
+            await service.create_workflow_version(workflow, wf_def_v2, "add credential")

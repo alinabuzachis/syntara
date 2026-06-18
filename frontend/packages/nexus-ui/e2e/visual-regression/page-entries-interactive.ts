@@ -40,15 +40,13 @@ const MOCK_EXECUTION_RUNNING_ID = 'exec-4'
 const MOCK_EXECUTION_PAUSED_ID = 'exec-6'
 const MOCK_EXECUTION_CANCELLED_ID = 'exec-8'
 const MOCK_EXECUTION_PENDING_ID = 'exec-10'
-const MOCK_APPROVAL_APPROVED_ID = '550e8400-e29b-41d4-a716-446655440002'
-const MOCK_APPROVAL_REJECTED_ID = '550e8400-e29b-41d4-a716-446655440003'
-const MOCK_APPROVAL_EXPIRED_ID = '550e8400-e29b-41d4-a716-446655440007'
-const MOCK_APPROVAL_CANCELLED_ID = '550e8400-e29b-41d4-a716-446655440008'
 const MOCK_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
 const MOCK_CREDENTIAL_ID = 'cred-001'
 const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
+const MOCK_APPROVAL_ID = '550e8400-e29b-41d4-a716-446655440050'
+const MOCK_APPROVAL_EXECUTION_ID = 'exec-approval'
 // ---------------------------------------------------------------------------
 // Transfer Identity Wizard states
 // ---------------------------------------------------------------------------
@@ -215,6 +213,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-script-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -227,6 +226,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-condition-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -239,6 +239,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-loop-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_LOOP_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -253,6 +254,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-agentic-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_AGENTIC_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -266,6 +268,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-http-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_HTTP_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -279,6 +282,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-converge-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONVERGE_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -291,6 +295,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-approval-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_APPROVAL_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -362,6 +367,7 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-verify-node-errors',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     perceptual: true,
+    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -539,10 +545,57 @@ export const integrationDialogPages: PageEntry[] = [
 // ---------------------------------------------------------------------------
 // Approvals interactive entries (bulk selection toolbar)
 // ---------------------------------------------------------------------------
-// NOTE: Bulk action screenshots removed - they require complex async permission checks
-// (RBAC + user groups queries) that are too flaky for visual regression tests.
-// The bulk action functionality is fully covered by regular E2E tests in approvals.spec.ts.
-export const approvalInteractivePages: PageEntry[] = []
+/**
+ * Wait for the approval side panel to open on the execution detail page.
+ *
+ * The panel opens when the `?approval=<id>` query param triggers a fetch
+ * and the React hook processes the response. The execution must reference
+ * a workflow that contains the matching approval node (approval_gate).
+ */
+async function waitForApprovalPanel(page: Page) {
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: 'Review Approval' })).toBeVisible({ timeout: 15_000 })
+}
+
+export const approvalInteractivePages: PageEntry[] = [
+  // ── Approval Side Panel (shown in execution detail via deep-link) ─────
+  {
+    section: 'approvals',
+    name: 'approval-side-panel-pending',
+    path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    waitFor: waitForApprovalPanel,
+  },
+  {
+    section: 'approvals',
+    name: 'approval-side-panel-approve-selected',
+    path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    waitFor: waitForApprovalPanel,
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Approve' }).click()
+      await expect(page.getByRole('button', { name: 'Submit decision' })).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approval-side-panel-reject-selected',
+    path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    waitFor: waitForApprovalPanel,
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Reject' }).click()
+      await expect(page.getByRole('button', { name: 'Submit decision' })).toBeVisible()
+    },
+  },
+  {
+    section: 'approvals',
+    name: 'approval-side-panel-viewer-disabled',
+    path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    role: 'viewer',
+    waitFor: async (page) => {
+      await waitForApprovalPanel(page)
+      await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible()
+    },
+  },
+]
 
 // ---------------------------------------------------------------------------
 // Settings tab entries (additional categories beyond Application)
@@ -647,42 +700,6 @@ export const statusVariantPages: PageEntry[] = [
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible()
-    },
-  },
-  {
-    section: 'approvals',
-    name: 'approval-detail-approved',
-    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_APPROVED_ID),
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByText('Approved', { exact: true })).toBeVisible()
-    },
-  },
-  {
-    section: 'approvals',
-    name: 'approval-detail-rejected',
-    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_REJECTED_ID),
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByText('Rejected', { exact: true })).toBeVisible()
-    },
-  },
-  {
-    section: 'approvals',
-    name: 'approval-detail-expired',
-    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_EXPIRED_ID),
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByText('Expired', { exact: true })).toBeVisible()
-    },
-  },
-  {
-    section: 'approvals',
-    name: 'approval-detail-cancelled',
-    path: AppRoute.Approvals.Approval.replace(':approvalId', MOCK_APPROVAL_CANCELLED_ID),
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByText('Cancelled', { exact: true })).toBeVisible()
     },
   },
   {

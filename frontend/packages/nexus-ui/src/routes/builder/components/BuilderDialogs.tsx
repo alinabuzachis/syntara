@@ -1,4 +1,3 @@
-import type { Approval } from '@ansible/nexus-contracts'
 import { Checkbox, Content, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import { useEffect, useRef, useState, type Dispatch } from 'react'
 
@@ -7,7 +6,6 @@ import type { DialogState } from '../../../hooks/useDialogState'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
 
-import { ApprovalReviewModal } from './ApprovalReviewModal'
 import type { RunStepDialogData, RunStepExecutionCreatedOptions } from './RunStepDialog'
 import { RunStepDialog } from './RunStepDialog'
 import { RunWorkflowModal } from './RunWorkflowModal'
@@ -38,10 +36,6 @@ type BuilderDialogsProps = Readonly<{
   dispatch: Dispatch<BuilderAction>
   handleRunWorkflow: (inputData?: Record<string, unknown>, triggerNodeId?: string) => void
   handleDeleteWorkflow: () => void
-  pendingApproval: Approval | null
-  approvalViewOpen: boolean
-  activityNameMap: Map<string, string>
-  handleApprovalClose: () => void
   triggerName: string
   triggerNodeId?: string
   triggerInputSchema?: Record<string, unknown>
@@ -129,10 +123,6 @@ export function BuilderDialogs({
   dispatch,
   handleRunWorkflow,
   handleDeleteWorkflow,
-  pendingApproval,
-  approvalViewOpen,
-  activityNameMap,
-  handleApprovalClose,
   triggerName,
   triggerNodeId,
   triggerInputSchema,
@@ -218,12 +208,6 @@ export function BuilderDialogs({
           </StackItem>
         </Stack>
       </NxConfirmationDialog>
-      <ApprovalReviewModal
-        approval={pendingApproval}
-        isOpen={approvalViewOpen}
-        activityNameMap={activityNameMap}
-        onClose={handleApprovalClose}
-      />
       <RunStepDialog
         isOpen={runStepDialog.isOpen}
         onClose={runStepDialog.close}

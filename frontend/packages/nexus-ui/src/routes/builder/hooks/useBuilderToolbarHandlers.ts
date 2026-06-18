@@ -135,7 +135,7 @@ export function useBuilderToolbarHandlers({
           onSuccess: (data) => {
             dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
             if (data.id) {
-              dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: data.id })
+              setLocation(`/executions/${data.id}?history=closed`)
             }
           },
           onError: (error) => {
@@ -148,7 +148,7 @@ export function useBuilderToolbarHandlers({
         }
       )
     },
-    [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showError, dispatch, currentWorkflow]
+    [workflow, workflowName, executeWorkflow, handleSaveWorkflow, showError, dispatch, currentWorkflow, setLocation]
   )
 
   const handleDeleteWorkflow = useCallback(() => {

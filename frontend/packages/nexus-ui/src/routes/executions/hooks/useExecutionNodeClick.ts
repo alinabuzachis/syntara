@@ -36,6 +36,8 @@ export function useExecutionNodeClick(executionId: string | undefined) {
     isLoading: isApprovalLoading,
     handleNodeClick: handleApprovalNodeClick,
     clearPendingApproval,
+    setPendingApproval,
+    fetchForNode,
   } = useExecutionApproval(executionId)
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
@@ -77,6 +79,8 @@ export function useExecutionNodeClick(executionId: string | undefined) {
     pendingApproval,
     isApprovalLoading,
     clearPendingApproval,
+    setPendingApproval,
+    fetchForNode,
     selectedNodeId,
     selectedNodeName,
     selectNode,
