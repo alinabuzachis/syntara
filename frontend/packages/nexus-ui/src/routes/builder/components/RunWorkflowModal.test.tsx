@@ -37,6 +37,13 @@ vi.mock('../../../providers/alerts', () => ({
   useAlerts: () => ({ showError: mockShowError, showSuccess: vi.fn() }),
 }))
 
+const mockUseQuery = vi.fn<(...args: unknown[]) => { data: unknown; isLoading: boolean }>()
+vi.mock('../../../client', () => ({
+  executionsClient: {
+    useQuery: (...args: unknown[]) => mockUseQuery(...args) as { data: unknown; isLoading: boolean },
+  },
+}))
+
 function renderModal(overrides: Partial<React.ComponentProps<typeof RunWorkflowModal>> = {}) {
   const props: React.ComponentProps<typeof RunWorkflowModal> = {
     isOpen: true,
@@ -59,6 +66,7 @@ function renderModal(overrides: Partial<React.ComponentProps<typeof RunWorkflowM
 describe('RunWorkflowModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseQuery.mockReturnValue({ data: undefined, isLoading: false })
   })
 
   it('does not render modal content when isOpen is false', () => {
@@ -395,9 +403,98 @@ describe('RunWorkflowModal', () => {
     })
   })
 
+  function mockPreviousRunData(triggerNodeId: string, outputData: Record<string, unknown>) {
+    mockUseQuery.mockImplementation((_method: unknown, path: unknown) => {
+      if (path === '/executions') {
+        return {
+          data: { resources: [{ id: 'exec-123', status: 'completed' }] },
+          isLoading: false,
+        }
+      }
+      if (path === '/executions/{execution_id}/activities') {
+        return {
+          data: {
+            resources: [{ activity_name: triggerNodeId, output_data: outputData }],
+          },
+          isLoading: false,
+        }
+      }
+      return { data: undefined, isLoading: false }
+    })
+  }
+
+  describe('pre-population from previous run', () => {
+    it('pre-populates editor with data from the latest successful run', () => {
+      const previousData = { host: 'server1', port: 8080 }
+      mockPreviousRunData('trigger-1', previousData)
+
+      renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1' })
+
+      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      expect(JSON.parse(editor.value)).toEqual(previousData)
+    })
+
+    it('shows helper text when pre-populated', () => {
+      mockPreviousRunData('trigger-1', { host: 'server1' })
+
+      renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1' })
+
+      expect(screen.getByText('Pre-populated from the last successful run')).toBeInTheDocument()
+    })
+
+    it('falls back to schema template when no previous run exists', () => {
+      const inputSchema = {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+      }
+      renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1', inputSchema })
+
+      const editor: HTMLTextAreaElement = screen.getByTestId('mock-code-editor')
+      expect(JSON.parse(editor.value)).toEqual({ name: '' })
+      expect(screen.queryByText('Pre-populated from the last successful run')).not.toBeInTheDocument()
+    })
+
+    it('does not show helper text after user edits the code', () => {
+      mockPreviousRunData('trigger-1', { host: 'server1' })
+
+      renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1' })
+
+      act(() => mockSetCode?.('{"host": "custom-host"}'))
+
+      expect(screen.queryByText('Pre-populated from the last successful run')).not.toBeInTheDocument()
+    })
+
+    it('submits user-edited data, not original pre-populated data', async () => {
+      const user = userEvent.setup()
+      mockPreviousRunData('trigger-1', { host: 'server1' })
+
+      const { props } = renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1' })
+
+      act(() => mockSetCode?.('{"host": "custom-host"}'))
+      await user.click(screen.getByRole('button', { name: 'Run' }))
+
+      expect(props.onConfirm).toHaveBeenCalledWith({ host: 'custom-host' }, 'trigger-1')
+    })
+
+    it('does not fetch when workflowId is not provided', () => {
+      renderModal({ triggerNodeId: 'trigger-1' })
+
+      const execCall = mockUseQuery.mock.calls.find((call) => call[1] === '/executions')
+      if (execCall) {
+        expect(execCall[3]).toEqual(expect.objectContaining({ enabled: false }))
+      }
+    })
+  })
+
   describe('accessibility', () => {
     it('has no violations when open', async () => {
       const { container } = renderModal()
+      expect(await axe(container)).toHaveNoViolations()
+    })
+
+    it('has no violations when pre-populated', async () => {
+      mockPreviousRunData('trigger-1', { host: 'server1' })
+      const { container } = renderModal({ workflowId: 'wf-abc', triggerNodeId: 'trigger-1' })
       expect(await axe(container)).toHaveNoViolations()
     })
   })

@@ -1,6 +1,7 @@
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
+import { Button, HelperText, HelperTextItem, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { useCallback, useMemo, useState } from 'react'
 
+import { executionsClient } from '../../../client'
 import { useAlerts } from '../../../providers/alerts'
 
 import { ExpandableCodeEditor } from './ExpandableCodeEditor'
@@ -14,6 +15,7 @@ type RunWorkflowModalProps = Readonly<{
   triggerName: string
   triggerNodeId?: string
   inputSchema?: Record<string, unknown>
+  workflowId?: string | null
 }>
 
 type SchemaProperty = { type?: string; default?: unknown }
@@ -171,10 +173,65 @@ export function RunWorkflowModal({
   triggerName,
   triggerNodeId,
   inputSchema,
+  workflowId,
 }: RunWorkflowModalProps) {
   const { showError } = useAlerts()
-  const initialCode = useMemo(() => (inputSchema ? generateTemplateFromSchema(inputSchema) : '{}'), [inputSchema])
-  const [code, setCode] = useState(initialCode)
+
+  const latestExecQuery = executionsClient.useQuery(
+    'get',
+    '/executions',
+    {
+      params: {
+        query: {
+          workflow_id: workflowId ?? '',
+          status: 'completed',
+          sort: '-created_at',
+          limit: 1,
+        },
+      },
+    },
+    { enabled: isOpen && !!workflowId }
+  )
+
+  const latestExecutionId = useMemo(() => {
+    const resources = latestExecQuery.data?.resources
+    if (resources && resources.length > 0) {
+      return resources[0].id
+    }
+    return null
+  }, [latestExecQuery.data])
+
+  const activitiesQuery = executionsClient.useQuery(
+    'get',
+    '/executions/{execution_id}/activities',
+    {
+      params: { path: { execution_id: latestExecutionId ?? '' } },
+    },
+    { enabled: !!latestExecutionId }
+  )
+
+  const previousTriggerData = useMemo(() => {
+    if (!activitiesQuery.data || !triggerNodeId) return null
+    const activities = activitiesQuery.data.resources ?? []
+    const triggerActivity = activities.find((a) => a.activity_name === triggerNodeId)
+    if (triggerActivity?.output_data && typeof triggerActivity.output_data === 'object') {
+      return triggerActivity.output_data as Record<string, unknown>
+    }
+    return null
+  }, [activitiesQuery.data, triggerNodeId])
+
+  const schemaTemplate = useMemo(() => (inputSchema ? generateTemplateFromSchema(inputSchema) : '{}'), [inputSchema])
+
+  const defaultCode = useMemo(
+    () => (previousTriggerData ? JSON.stringify(previousTriggerData, null, 2) : schemaTemplate),
+    [previousTriggerData, schemaTemplate]
+  )
+
+  const [userCode, setUserCode] = useState<string | null>(null)
+  const code = userCode ?? defaultCode
+  const setCode = useCallback((value: string) => setUserCode(value), [])
+
+  const isPrePopulated = previousTriggerData !== null && userCode === null
 
   const handleConfirm = useCallback(() => {
     let parsed: Record<string, unknown>
@@ -228,11 +285,16 @@ export function RunWorkflowModal({
             <JsonEditorControls
               code={code}
               onCodeChange={setCode}
-              defaultCode={initialCode}
+              defaultCode={defaultCode}
               downloadFilename={`${workflowName}-data.json`}
             />
           }
         />
+        {isPrePopulated && (
+          <HelperText>
+            <HelperTextItem variant="indeterminate">Pre-populated from the last successful run</HelperTextItem>
+          </HelperText>
+        )}
       </ModalBody>
       <ModalFooter>
         <Button variant="primary" onClick={handleConfirm}>

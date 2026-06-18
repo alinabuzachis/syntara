@@ -20,6 +20,9 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  executionsClient: {
+    useQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
+  },
 }))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

@@ -176,6 +176,7 @@ export function BuilderDialogs({
         triggerName={triggerName}
         triggerNodeId={triggerNodeId}
         inputSchema={triggerInputSchema}
+        workflowId={workflowId}
       />
       <NxConfirmationDialog
         isOpen={deleteDialogOpen}
