@@ -104,7 +104,7 @@ export default {
     type: 'problem',
     docs: {
       description:
-        'Disallow raw HTTP calls (fetch, XMLHttpRequest) in UI code. Use typed API clients (workflowClient, credentialsClient, etc.) instead to maintain UI-API parity.',
+        'Disallow raw HTTP calls (fetch, XMLHttpRequest, axios) in UI code. Use typed API clients (workflowClient, credentialsClient, etc.) instead to maintain UI-API parity.',
       recommended: true,
     },
     messages: {
@@ -112,6 +112,8 @@ export default {
         'Use a typed API client (workflowClient, credentialsClient, etc.) instead of raw fetch(). Raw calls bypass type safety and can hit undocumented endpoints, breaking UI-API parity. For pre-auth or external calls, add an eslint-disable-next-line with a justification.',
       noRawXMLHttpRequest:
         'Use a typed API client (workflowClient, credentialsClient, etc.) instead of XMLHttpRequest. Raw calls bypass type safety and can hit undocumented endpoints, breaking UI-API parity. For legacy integrations, add an eslint-disable-next-line with a justification.',
+      noAxiosImport:
+        'Use a typed API client (workflowClient, credentialsClient, etc.) instead of importing axios directly. Direct axios calls bypass type safety and centralized request configuration.',
       missingDisableJustification:
         'eslint-disable comments for nexus/no-raw-http-calls must include a justification after "--" (e.g. eslint-disable-next-line nexus/no-raw-http-calls -- pre-auth call before token middleware).',
     },
@@ -151,6 +153,16 @@ export default {
           context.report({
             loc: comment.loc,
             messageId: 'missingDisableJustification',
+          })
+        }
+      },
+
+      // Detect axios imports
+      ImportDeclaration(node) {
+        if (node.source.value === 'axios') {
+          context.report({
+            node,
+            messageId: 'noAxiosImport',
           })
         }
       },

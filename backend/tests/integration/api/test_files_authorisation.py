@@ -48,7 +48,7 @@ async def authenticated_only_client(base_client: AsyncClient, authenticated_only
 
 
 @pytest.mark.asyncio
-async def test_upload_authorised(auth_client: AsyncClient, sample_pdf_path: Path) -> None:
+async def test_upload_authorised(auth_client: AsyncClient, sample_pdf_path: Path, test_project_id: str) -> None:
     """Test that users with 'user' role can successfully upload files."""
     async with aiofiles.open(sample_pdf_path, "rb") as f:
         file_content = await f.read()
@@ -58,6 +58,7 @@ async def test_upload_authorised(auth_client: AsyncClient, sample_pdf_path: Path
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
     # Assert

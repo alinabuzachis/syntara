@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from io import BytesIO
 from typing import Any, TypeVar
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -19,9 +20,11 @@ class UploadFilesBody:
 
     Attributes:
         files (list[File]): Files to upload (1-10 files, max 10MB each)
+        project_id (UUID): Project to associate files with
     """
 
     files: list[File]
+    project_id: UUID
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -31,11 +34,14 @@ class UploadFilesBody:
 
             files.append(files_item)
 
+        project_id = str(self.project_id)
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "files": files,
+                "project_id": project_id,
             }
         )
 
@@ -46,6 +52,8 @@ class UploadFilesBody:
 
         for files_item_element in self.files:
             files.append(("files", files_item_element.to_tuple()))
+
+        files.append(("project_id", (None, str(self.project_id).encode(), "text/plain")))
 
         for prop_name, prop in self.additional_properties.items():
             files.append((prop_name, (None, str(prop).encode(), "text/plain")))
@@ -62,8 +70,11 @@ class UploadFilesBody:
 
             files.append(files_item)
 
+        project_id = UUID(d.pop("project_id"))
+
         upload_files_body = cls(
             files=files,
+            project_id=project_id,
         )
 
         upload_files_body.additional_properties = d

@@ -26,6 +26,7 @@ from .internal import register_activity_monitoring
 from .loop import loop
 from .manual_trigger import manual_trigger
 from .runtime_settings_activity import fetch_workflow_runtime_settings
+from .scheduled_trigger import scheduled_trigger
 from .script_activity import execute_script_activity
 from .switch import switch
 from .wait_activity import complete_wait, wait
@@ -47,6 +48,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     execute_http_request_activity,
     loop,
     manual_trigger,
+    scheduled_trigger,
     execute_script_activity,
     wait,
     complete_wait,

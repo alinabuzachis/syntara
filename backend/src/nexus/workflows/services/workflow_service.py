@@ -14,6 +14,7 @@ import structlog
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from temporalio.service import RPCError
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
@@ -33,6 +34,7 @@ from nexus.workflows.exceptions import (
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
 from nexus.workflows.models.workflow_version import WorkflowVersionStatus
+from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 from nexus.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES, WebhookTriggerService
 from nexus.workflows.validators import workflow_validator
 
@@ -145,6 +147,22 @@ class WorkflowService(BaseService):
         workflow.current_version = next_version
         self.session.add(new_version)
         return new_version
+
+    @staticmethod
+    async def _sync_scheduled_triggers(
+        workflow_id: UUID,
+        workflow_definition: dict[str, Any],
+    ) -> None:
+        """Create/update Temporal Schedules for scheduled trigger nodes.
+
+        Only called on publish.  Unpublish and delete use
+        ``ScheduledTriggerService.delete_triggers_for_workflow`` instead.
+        """
+        scheduled_service = ScheduledTriggerService()
+        await scheduled_service.sync_scheduled_triggers(
+            workflow_id=str(workflow_id),
+            workflow_definition=workflow_definition,
+        )
 
     async def _validate_credential_project_scope(self, workflow_definition: dict[str, Any], project_id: UUID) -> None:
         """Reject credential references that belong to a different project.
@@ -627,6 +645,7 @@ class WorkflowService(BaseService):
         sync_definition = await self._get_webhook_sync_definition(
             workflow_id, workflow, current_version.workflow_definition
         )
+
         webhook_service = WebhookTriggerService(self.session, self.user)
         await self._sync_all_trigger_types(
             webhook_service,
@@ -662,32 +681,40 @@ class WorkflowService(BaseService):
             workflow.updated_at = datetime.now(UTC)
             workflow.updated_by = self.user.id
             await self.session.commit()
-            return workflow, target_version
+        else:
+            if workflow.published_version is not None:
+                await self._demote_published_version(workflow_id, workflow.published_version, "publish")
+                await self.session.flush()
 
-        if workflow.published_version is not None:
-            await self._demote_published_version(workflow_id, workflow.published_version, "publish")
-            await self.session.flush()
+            target_version.status = WorkflowVersionStatus.PUBLISHED
+            if publish_name is not None:
+                target_version.publish_name = publish_name
+            if change_description is not None:
+                target_version.change_description = change_description
 
-        target_version.status = WorkflowVersionStatus.PUBLISHED
-        if publish_name is not None:
-            target_version.publish_name = publish_name
-        if change_description is not None:
-            target_version.change_description = change_description
+            workflow.published_version = version
+            workflow.is_enabled = True
+            workflow.updated_at = datetime.now(UTC)
+            workflow.updated_by = self.user.id
 
-        workflow.published_version = version
-        workflow.is_enabled = True
-        workflow.updated_at = datetime.now(UTC)
-        workflow.updated_by = self.user.id
+            webhook_service = WebhookTriggerService(self.session, self.user)
+            await self._sync_all_trigger_types(
+                webhook_service,
+                workflow.id,
+                target_version.workflow_definition,
+                is_enabled=True,
+            )
 
-        webhook_service = WebhookTriggerService(self.session, self.user)
-        await self._sync_all_trigger_types(
-            webhook_service,
+            await self.session.commit()
+
+        # Sync scheduled triggers (Temporal Schedules, outside DB transaction).
+        # Publish propagates errors — the user must know if schedules failed
+        # to activate, unlike unpublish/delete which are best-effort.
+        await self._sync_scheduled_triggers(
             workflow.id,
             target_version.workflow_definition,
-            is_enabled=True,
         )
 
-        await self.session.commit()
         return workflow, target_version
 
     async def unpublish_workflow(self, workflow_id: UUID) -> Workflow:
@@ -714,6 +741,17 @@ class WorkflowService(BaseService):
             )
 
         await self.session.commit()
+
+        # Delete scheduled triggers (best-effort — launcher will fail with
+        # WorkflowNotPublishedError if schedules keep firing)
+        try:
+            scheduled_service = ScheduledTriggerService()
+            await scheduled_service.delete_triggers_for_workflow(
+                workflow_id=str(workflow.id),
+            )
+        except (OSError, RuntimeError, RPCError):
+            logger.warning("Failed to delete scheduled triggers", workflow_id=str(workflow.id), exc_info=True)
+
         return workflow
 
     async def restore_workflow_version(
@@ -797,3 +835,19 @@ class WorkflowService(BaseService):
         # Soft delete
         workflow.soft_delete(self.user.id)
         await self.session.commit()
+
+        # Delete scheduled triggers (Temporal Schedules, outside DB transaction).
+        # If this fails, schedules are orphaned — the launcher will fail with
+        # WorkflowNotPublishedError on each fire but the schedule won't stop.
+        try:
+            scheduled_service = ScheduledTriggerService()
+            await scheduled_service.delete_triggers_for_workflow(
+                workflow_id=str(workflow_id),
+            )
+        except (OSError, RuntimeError, RPCError):
+            logger.warning(
+                "Failed to delete scheduled triggers for deleted workflow — "
+                "orphaned Temporal Schedules may continue firing",
+                workflow_id=str(workflow_id),
+                exc_info=True,
+            )

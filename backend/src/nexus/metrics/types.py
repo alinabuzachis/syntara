@@ -78,6 +78,10 @@ class MetricType(StrEnum):
     WORKFLOW_COMPLETION_RATE = "workflow_completion_rate"
     TEMPORAL_EXECUTION_SERVICE_DURATION = "temporal_execution_service_duration_ms"
 
+    # Scheduled Trigger Metrics
+    SCHEDULED_TRIGGER_FIRES = "scheduled_trigger_fires_total"
+    SCHEDULED_TRIGGER_LATENCY = "scheduled_trigger_latency_ms"
+
     # Tool Metrics
     TOOL_EXECUTION_DURATION = "tool_execution_duration_ms"
     TOOL_EXECUTION_STATUS = "tool_execution_status"
@@ -164,6 +168,8 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
         MetricType.WORKFLOW_START_LATENCY,
         MetricType.WORKFLOW_COMPLETION_RATE,
         MetricType.TEMPORAL_EXECUTION_SERVICE_DURATION,
+        MetricType.SCHEDULED_TRIGGER_FIRES,
+        MetricType.SCHEDULED_TRIGGER_LATENCY,
     ],
     MetricsCategoryType.TOOL: [
         MetricType.TOOL_EXECUTION_DURATION,

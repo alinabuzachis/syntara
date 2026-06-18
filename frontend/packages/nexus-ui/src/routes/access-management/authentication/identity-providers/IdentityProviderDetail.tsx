@@ -241,7 +241,7 @@ export function IdentityProviderDetail() {
   const idpDetailBasePath = AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
     ':providerId',
     providerId ?? ''
-  ).replace('/:tab?', '')
+  )
 
   const [activeTab] = useUrlTab<TabKey>(idpDetailBasePath)
 

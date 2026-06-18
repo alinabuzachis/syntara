@@ -1,4 +1,4 @@
-"""Unit tests for FileMetadata SQLModel.
+"""Integration tests for FileMetadata SQLModel.
 
 This file contains comprehensive tests for the FileMetadata model, covering both
 ORM (database) usage and Pydantic (schema validation) usage.

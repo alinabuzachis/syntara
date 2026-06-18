@@ -202,9 +202,9 @@ export type WorkflowStore = {
    * @returns The new activity's ID, or null when the source activity is not found.
    */
   duplicateActivity: (activityId: string) => string | null
-  syncConvergeNodeBranches: () => void
   moveActivityBefore: (activityId: string, beforeActivityId: string) => void
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
+  syncConvergeNodeBranches: () => void
   reorderActivitiesFromEdges: () => void
   // Atomic batch update to prevent race conditions
   batchRemoveNodesAndEdges: (params: { nodeIds: string[]; edges: EdgeConnection[]; triggerIndices?: number[] }) => void

@@ -378,6 +378,7 @@ Before writing any new UI code, follow this checklist:
    - **Use PF6 design tokens instead of hardcoded pixel values** for spacing, sizing, colors, and icons. Use `var(--pf-t--global--spacer--*)` for margins/padding, `var(--pf-t--global--icon--size--*)` for icon dimensions, `var(--pf-t--global--color--*)` for colors, and content-aware units (`ch`, `rem`) for input widths. Hardcoded `px` values are acceptable only for layout constraints (table column widths, fixed panel heights) where no semantic token applies. **CSS modules must also use PF tokens** -- ESLint only catches hardcoded values in JSX, so CSS modules need manual review. Use semantic tokens like `var(--pf-t--global--text--color--subtle)` rather than lower-level tokens like `var(--pf-t--global--color--200)`.
    - **Use `RhUi*` icons** (e.g., `RhUiAddIcon`, `RhUiTrashIcon`, `RhUiEditIcon`) for all action buttons, not legacy PatternFly icons like `PlusCircleIcon`, `CopyIcon`, or `TrashIcon`. The `RhUi*` icon set is the project standard. **Enforced by ESLint:** `no-restricted-imports` (warn) flags any non-`RhUi` import from `@patternfly/react-icons`. Existing legacy icons are being phased out.
    - **Add `shouldFocusToggleOnSelect` to PF Select components** for accessibility. The select should receive focus when a selection is made. This is not a PF default but is needed for proper keyboard navigation.
+   - **JSDoc on shared/global component props** -- every exported component in `src/components/` (especially `Nx*` components) must have JSDoc descriptions on its props interface. TypeScript types convey shape; JSDoc conveys intent. Describe what each prop controls, when to use optional props, and any non-obvious default behavior. This helps both human contributors and AI agents use components correctly without reading the implementation.
 
 4. **Custom Hooks**
    - Extract reusable logic into custom hooks
@@ -913,6 +914,52 @@ function MyForm() {
 }
 ```
 
+### Row Action Builders
+
+Table row actions that depend on permissions and callbacks are a common case. Extract them into a standalone module-scoped function instead of building the array inline (which triggers eslint-disable temptation and Sonar S6478 findings).
+
+```typescript
+// ❌ BAD — complex action array inline, triggers eslint-disable
+function CredentialsTable() {
+  // eslint-disable-next-line sonarjs/cognitive-complexity
+  const getRowActions = (credential: Credential) => [
+    { title: 'Edit', onClick: () => setEdit(credential), isAriaDisabled: !canUpdate },
+    // ... 20 more lines
+  ]
+}
+
+// ✅ GOOD — module-scoped builder, no suppression needed
+function buildCredentialRowActions(
+  credential: Credential,
+  permissions: CredentialPermissions,
+  callbacks: { onEdit: (c: Credential) => void; onDelete: (c: Credential) => void }
+): RowAction[] {
+  return [
+    {
+      key: 'edit',
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit credential</IconLabel>,
+      isAriaDisabled: !permissions.canUpdate,
+      tooltipProps: permissions.canUpdate ? undefined : { content: permissions.tooltips.update },
+      onClick: () => callbacks.onEdit(credential),
+    },
+    { key: 'sep', isSeparator: true },
+    {
+      key: 'delete',
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete credential</IconLabel>,
+      isDanger: true,
+      isAriaDisabled: !permissions.canDelete,
+      tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+      onClick: () => callbacks.onDelete(credential),
+    },
+  ]
+}
+
+function CredentialsTable() {
+  const getRowActions = (credential: Credential) =>
+    buildCredentialRowActions(credential, permissions, { onEdit: setEdit, onDelete: openDeleteDialog })
+}
+```
+
 ---
 
 ## 17. Prefer `Set` for membership-only checks (Sonar **typescript:S7776**)
@@ -1189,7 +1236,7 @@ return groups.map(([id, { credentials }]) => {
   })
 })
 
-// ✅ GOOD — pre-compute a flat list, derive index immutably
+// ⚠️ ACCEPTABLE but O(n²) — indexOf scans from the start for every row
 const allCredentials = [...groupedCredentials.values()].flatMap(({ credentials }) => credentials)
 return groups.map(([id, { credentials }]) => {
   return credentials.map((cred) => {
@@ -1197,7 +1244,24 @@ return groups.map(([id, { credentials }]) => {
     return <Row key={cred.id} rowIndex={rowIndex} />
   })
 })
+
+// ✅ BEST — pre-build an index Map for O(1) lookups per row
+const indexMap = new Map<string, number>()
+let globalIndex = 0
+for (const { credentials } of groupedCredentials.values()) {
+  for (const cred of credentials) {
+    indexMap.set(cred.id, globalIndex++)
+  }
+}
+
+return groups.map(([id, { credentials }]) => {
+  return credentials.map((cred) => (
+    <Row key={cred.id} rowIndex={indexMap.get(cred.id) ?? 0} />
+  ))
+})
 ```
+
+**When `indexOf` is fine:** Small lists (under ~50 items) where the O(n) scan is negligible. For table rows with grouped/nested data or any list that may grow, prefer the Map approach.
 
 ---
 
@@ -1641,3 +1705,140 @@ When the backend eventually exposes a config endpoint with license/deployment in
 2. **Every page with `NxPageHeader` should have a `docLink`** -- pass the hook result to the `docLink` prop
 3. **`DocKey` is enforced by TypeScript** -- passing a string not in `docsUrls.json` is a compile error
 4. **Keep paths as placeholders until real URLs exist** -- use `TODO_UPSTREAM_PATH/...` and `TODO_PRODUCT_PATH/...` patterns
+
+---
+
+## 34. Use `<Link>` for Navigation, `<Button>` for Actions
+
+**For in-app route changes, always use `<Link>` from the router.** Never use `<Button onClick={() => navigate(...)}>` or `<a href="...">`. A raw `<a>` with `href` bypasses the router and causes a full page reload.
+
+```typescript
+// ❌ BAD — button with programmatic navigation
+<Button variant="link" onClick={() => navigate(`/users/${user.id}`)}>
+  {user.name}
+</Button>
+
+// ❌ BAD — raw anchor bypasses the router, causes full page reload
+<a href={`/users/${user.id}`}>{user.name}</a>
+
+// ✅ GOOD — router Link, supports middle-click and client-side navigation
+<Link to={`/users/${user.id}`}>{user.name}</Link>
+
+// ✅ GOOD — button is correct when the action is NOT navigation
+<Button onClick={() => openDeleteDialog(user)}>Delete user</Button>
+```
+
+### Decision Rule
+
+| What happens when clicked?                        | Use                             |
+| ------------------------------------------------- | ------------------------------- |
+| In-app route change                               | `<Link>` (router component)     |
+| In-page state change (modal, toggle, form submit) | `<Button>`                      |
+| Downloads a file                                  | `<a>` with `download` attribute |
+
+### Common Violations
+
+- **Table name columns** that navigate to detail pages -- use `LinkCell` or `<Link>`
+- **Empty-state CTAs** like "Go to settings" -- use `<Link>` if it navigates
+- **Breadcrumb-like buttons** that go "back" to a list -- use `<Link>`
+- **Card titles** that open a detail view -- use `<Link>`
+
+---
+
+## 35. Unique `aria-label` on Repeated Interactive Elements
+
+When interactive elements (checkboxes, buttons, toggles) repeat inside a list or table, each instance **must** have a unique accessible name. Without this, screen reader users cannot distinguish between rows -- "Select row" repeated 20 times is unusable.
+
+**Reference:** [WCAG 2.1 SC 4.1.2 Name, Role, Value](https://www.w3.org/WAI/WCAG21/Understanding/name-role-value.html), [PatternFly selectable table](https://www.patternfly.org/components/table/#selectable-radio-input)
+
+```typescript
+// ❌ BAD — every row has the same label
+<Checkbox aria-label="Select row" />
+
+// ❌ BAD — hardcoded index breaks a11y tree
+<Td select={{ rowIndex: 0, onSelect, isSelected }} />
+
+// ✅ GOOD — unique label per row
+<Checkbox aria-label={`Select row ${rowIndex}`} />
+
+// ✅ GOOD — descriptive label with resource name
+<Checkbox aria-label={`Select ${credential.name}`} />
+
+// ✅ GOOD — PF table with correct rowIndex
+<Td select={{ rowIndex, onSelect, isSelected }} />
+```
+
+### Where This Applies
+
+| Element                    | Pattern                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| Table row checkboxes       | `aria-label={`Select row ${rowIndex}`}` or `aria-label={`Select ${item.name}`}` |
+| Table row radio buttons    | `aria-label={`Choose ${item.name}`}`                                            |
+| Kebab/action menus per row | `aria-label={`Actions for ${item.name}`}`                                       |
+| Toggle switches per row    | `aria-label={`Enable ${item.name}`}`                                            |
+| Expand/collapse per row    | Handled by PF `<Td expand>` automatically                                       |
+
+**Note:** This complements §27 (which says don't put `aria-label` on non-interactive elements like `<span>`). This section says: when you DO use `aria-label` on interactive elements in a list, make each one unique.
+
+---
+
+## 36. Invalid and Not-Found States Must Use `NxEmptyState*` Components
+
+When a detail page receives an invalid ID or the resource is not found (404), render a structured `NxEmptyState*` component (`NxEmptyStateNoData`, `NxEmptyStateFilter`, `NxEmptyStateServiceUnavailable`, or `NxEmptyState` for generic cases) -- never raw text or a bare paragraph. This ensures visual consistency, accessible heading hierarchy, and a clear recovery path.
+
+**Reference:** [PatternFly Empty State](https://www.patternfly.org/components/empty-state), [Nielsen Norman: Error Messages](https://www.nngroup.com/articles/error-message-guidelines/)
+
+```typescript
+// ❌ BAD — raw text, no structure, no recovery path
+if (!isValidId) {
+  return <PageShell title="Error">Invalid identity provider ID.</PageShell>
+}
+
+// ❌ BAD — custom paragraph, inconsistent with sibling pages
+if (isNotFound) {
+  return (
+    <PageShell title="Not found">
+      <p>The provider was not found. Go back to the list.</p>
+    </PageShell>
+  )
+}
+
+// ✅ GOOD — structured empty state with icon, heading, and recovery
+if (!isValidId) {
+  return (
+    <PageShell title={pageTitle} breadcrumbs={breadcrumbs}>
+      <NxEmptyState headingLevel="h2" titleText="Invalid identity provider" icon={RhUiSearchIcon} isFullHeight>
+        The identity provider ID in the URL is not valid.
+      </NxEmptyState>
+    </PageShell>
+  )
+}
+
+// ✅ GOOD — not found with navigation back to list
+if (isNotFound) {
+  return (
+    <PageShell title={pageTitle} breadcrumbs={breadcrumbs}>
+      <NxEmptyStateNoData
+        headingLevel="h2"
+        titleText="Identity provider not found"
+        isFullHeight
+      >
+        The identity provider may have been deleted.{' '}
+        <Link to="/system-administration/authentication">Return to Authentication</Link>.
+      </NxEmptyStateNoData>
+    </PageShell>
+  )
+}
+```
+
+### When to Use Which Component
+
+| Scenario                          | Component                              | Icon             |
+| --------------------------------- | -------------------------------------- | ---------------- |
+| Invalid ID format (bad URL param) | `NxEmptyState`                         | `RhUiSearchIcon` |
+| Resource not found (404 from API) | `NxEmptyStateNoData` or `NxEmptyState` | `SearchIcon`     |
+| No permission to view             | `NxEmptyState` with `status="danger"`  | `LockIcon`       |
+
+### Consistency Rule
+
+Look at sibling pages in the same route directory. If `IdentityProviderDetail.tsx` uses `<NxEmptyState>` for its not-found state, the new `EditGroupMapping.tsx` in the same directory must match that pattern -- not introduce raw text.

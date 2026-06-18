@@ -189,6 +189,23 @@
               }
             }
           ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/node_base"
+            },
+            {
+              "properties": {
+                "type": {
+                  "const": "scheduled_trigger"
+                },
+                "parameters": {
+                  "$ref": "triggers/scheduled.schema.json#/parameterSchema"
+                }
+              }
+            }
+          ]
         }
       ]
     },

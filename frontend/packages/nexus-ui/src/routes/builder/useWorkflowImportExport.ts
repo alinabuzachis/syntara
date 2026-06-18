@@ -2,20 +2,63 @@ import { useCallback, useRef } from 'react'
 
 import { useAlerts } from '../../providers/alerts'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import type { WorkflowDefinition } from '../../stores/workflowStoreTypes'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { downloadWorkflowDefinition, parseWorkflowFile, validateFileSize } from '../../utils/downloadWorkflowExport'
 
 import type { BuilderAction } from './builderReducer'
+import type { EdgeConnection } from './types/edge'
 import { useWorkflowVerification } from './useWorkflowVerification'
 import { parseImportedDefinition } from './utils/parseImportedDefinition'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
+export type PendingImportData = Readonly<{
+  workflowDef: WorkflowDefinition
+  edges: EdgeConnection[]
+  nodePositions: Record<string, { x: number; y: number }>
+  name: string
+  description: string
+}>
+
 type UseWorkflowImportExportOptions = Readonly<{
   dispatch: (action: BuilderAction) => void
   markDirty: () => void
+  isNew: boolean
+  onPendingImport: (data: PendingImportData) => void
 }>
 
-export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImportExportOptions) {
+export function applyImportToCanvas(
+  data: PendingImportData,
+  dispatch: (action: BuilderAction) => void,
+  markDirty: () => void,
+  showInfo: (options: { title: string; description: string }) => void
+): void {
+  useWorkflowStore.getState().replaceWorkflowContent(data.workflowDef, data.edges, data.nodePositions)
+
+  if (data.name) {
+    const name = data.name.slice(0, 255)
+    dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
+    if (data.name.length > 255) {
+      showInfo({ title: 'Import note', description: 'Workflow name was truncated to 255 characters' })
+    }
+  }
+  if (data.description) {
+    const description = data.description.slice(0, 1024)
+    dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
+    if (data.description.length > 1024) {
+      showInfo({ title: 'Import note', description: 'Workflow description was truncated to 1024 characters' })
+    }
+  }
+
+  markDirty()
+}
+
+export function useWorkflowImportExport({
+  dispatch,
+  markDirty,
+  isNew,
+  onPendingImport,
+}: UseWorkflowImportExportOptions) {
   const importFileRef = useRef<HTMLInputElement>(null)
   const { showError } = useAlerts()
   const verification = useWorkflowVerification({ dispatch })
@@ -32,27 +75,20 @@ export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImpo
           const definition = parseWorkflowFile(content, file.name)
           const { workflowDef, edges, nodePositions } = parseImportedDefinition(definition)
 
-          useWorkflowStore.getState().replaceWorkflowContent(workflowDef, edges, nodePositions)
+          const name =
+            definition.name && typeof definition.name === 'string'
+              ? definition.name
+              : file.name.replace(/\.json$/i, '').replace(/[^a-zA-Z0-9-_]/g, '_')
+          const description =
+            definition.description && typeof definition.description === 'string' ? definition.description : ''
 
-          if (definition.name && typeof definition.name === 'string') {
-            const name = definition.name.slice(0, 255)
-            dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
-            if (definition.name.length > 255) {
-              showError({ title: 'Import note', description: 'Workflow name was truncated to 255 characters' })
-            }
-          }
-          if (definition.description && typeof definition.description === 'string') {
-            const description = definition.description.slice(0, 1024)
-            dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
-            if (definition.description.length > 1024) {
-              showError({
-                title: 'Import note',
-                description: 'Workflow description was truncated to 1024 characters',
-              })
-            }
-          }
+          const pendingData: PendingImportData = { workflowDef, edges, nodePositions, name, description }
 
-          markDirty()
+          if (isNew) {
+            applyImportToCanvas(pendingData, dispatch, markDirty, showError)
+          } else {
+            onPendingImport(pendingData)
+          }
         })
         .catch((err: unknown) => {
           showError({ title: 'Import failed', description: getErrorMessage(err) })
@@ -60,7 +96,7 @@ export function useWorkflowImportExport({ dispatch, markDirty }: UseWorkflowImpo
 
       event.target.value = ''
     },
-    [dispatch, markDirty, showError]
+    [dispatch, markDirty, showError, isNew, onPendingImport]
   )
 
   const handleExport = useCallback(() => {

@@ -110,10 +110,12 @@ paths:
         action: download
       responses:
         '200':
-          description: Successful Response
+          description: File content as binary stream
           content:
-            application/json:
-              schema: {}
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -139,6 +141,7 @@ components:
       description: Request body for POST /files endpoint.
       required:
         - files
+        - project_id
       properties:
         files:
           type: array
@@ -147,6 +150,11 @@ components:
             format: binary
           title: Files
           description: Files to upload (1-10 files, max 10MB each)
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project to associate files with
 
     FileUploadResponse:
       type: object

@@ -23,6 +23,7 @@ from nexus.workflows.workflow_engine.activities import ACTIVITY_REGISTRY
 from nexus.workflows.workflow_engine.codecs.credential_codec import CredentialPayloadCodec
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import MonitoringWorkflowInterceptor
+from nexus.workflows.workflow_engine.scheduled_launcher import ScheduledExecutionLauncher, ScheduledWorkflowLauncher
 from nexus.workflows.workflow_engine.services.activity_sync_registry import set_activity_sync_service
 from nexus.workflows.workflow_engine.services.activity_sync_service import ActivitySyncService
 
@@ -109,12 +110,18 @@ class TemporalWorkerService:
             # events (e.g. NodeExecutedEvent) reach their handlers.
             discover_and_register_all_handlers()
 
+            # Create scheduled execution launcher (class-based activity with dependencies)
+            scheduled_launcher = ScheduledExecutionLauncher(
+                session_factory=AsyncSessionLocal,
+                task_queue=self.task_queue,
+            )
+
             # Create worker with workflows, activities, and interceptors
             self.worker = Worker(
                 self.client,
                 task_queue=self.task_queue,
-                workflows=[NexusWorkflow],
-                activities=[*list(ACTIVITY_REGISTRY.values())],
+                workflows=[NexusWorkflow, ScheduledWorkflowLauncher],
+                activities=[*list(ACTIVITY_REGISTRY.values()), scheduled_launcher.run],
                 interceptors=[MonitoringWorkflowInterceptor()],
             )
 

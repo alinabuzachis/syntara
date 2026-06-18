@@ -45,6 +45,17 @@
       "since": "2.0.0"
     },
     {
+      "type": "scheduled_trigger",
+      "name": "Scheduled Trigger",
+      "description": "Workflow entry point triggered on a time-based schedule using cron expressions or simple intervals",
+      "labels": {
+        "category": "trigger"
+      },
+      "schema_ref": "../triggers/scheduled.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
       "type": "script",
       "name": "Script",
       "description": "Execute Python or Bash scripts with structured output",

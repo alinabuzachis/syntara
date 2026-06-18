@@ -12,7 +12,11 @@ import { BuilderDialogs } from './BuilderDialogs'
 
 vi.mock('../../../stores/useWorkflowStore', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  useWorkflowStore: vi.fn((selector: (s: any) => unknown) => selector({ isDirty: false })),
+  useWorkflowStore: vi.fn((selector: (s: any) => unknown) => selector({ isDirty: false, markDirty: vi.fn() })),
+}))
+
+vi.mock('../../../providers/alerts', () => ({
+  useAlerts: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
 }))
 
 vi.mock('../../../client', () => ({
@@ -50,6 +54,13 @@ function renderDialogs(overrides: Partial<React.ComponentProps<typeof BuilderDia
       item: null,
       open: vi.fn(),
       close: vi.fn(),
+    },
+    pendingImport: null,
+    setPendingImport: vi.fn(),
+    importDeps: {
+      selectedProject: null,
+      createWorkflow: vi.fn(),
+      setLocation: vi.fn(),
     },
     ...overrides,
   }
@@ -162,6 +173,13 @@ describe('BuilderDialogs', () => {
         item: null,
         open: vi.fn(),
         close: vi.fn(),
+      },
+      pendingImport: null,
+      setPendingImport: vi.fn(),
+      importDeps: {
+        selectedProject: null,
+        createWorkflow: vi.fn(),
+        setLocation: vi.fn(),
       },
     }
     const { rerender } = render(

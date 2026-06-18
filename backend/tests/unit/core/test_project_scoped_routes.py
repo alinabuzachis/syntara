@@ -29,6 +29,7 @@ _MODEL_TO_ROUTE_SEGMENT: dict[str, str] = {
     "Execution": "/executions",
     "ApprovalRequest": "/approvals",
     "Credential": "/credentials",
+    "FileMetadata": "/files",
     "Role": "/roles",
     "Policy": "/policies",
     "RoleAssignment": "/role_assignments",
@@ -45,6 +46,7 @@ _JUNCTION_TABLES: set[str] = {
 # Add the route, then move the model out of this set.
 _MODELS_WITHOUT_LIST_ROUTE: set[str] = {
     "Execution",
+    "FileMetadata",
     "ServiceAccount",
 }
 

@@ -114,6 +114,10 @@ Check whether the changes follow:
 | `NxPageHeader` without `docLink` prop                       | #30 -- every page header should pass `docLink={useDocLink('key')}`              |
 | Hardcoded colors in CSS modules                             | ESLint can't catch these; review CSS module files manually                      |
 | `new Date()` in `nexus-mock-api/src/resources/` or `utils/` | #31 -- use `mockDate.*` from `mockDates.ts` for deterministic visual regression |
+| `Button` with `onClick={() => navigate(...)}`               | §34 -- use `<Link>` for navigation, `<Button>` for actions                      |
+| Same `aria-label` on repeated checkboxes/buttons            | §35 -- each instance needs a unique label (e.g., row index or resource name)    |
+| Raw text for invalid ID or not-found states                 | §36 -- use `NxEmptyState` or `Nx*` empty state components                       |
+| Empty-state CTA without permission check                    | UX §15 -- gate `addData` with permission flag (pass `undefined` if denied)      |
 
 ### 3b. Rule Bypass Checks (BLOCKING -- do not approve if any are found)
 
@@ -155,6 +159,10 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 | **New resources have mock `can_i` handlers**    | `packages/nexus-mock-api/src/handlers.ts` must include role-aware responses for all 4 roles (admin, viewer, auditor, user)                                         |
 | **Permission hooks include `isError`**          | Any `useCanI` mock must include `isError: false`; real hook returns `{ allowed, isChecking, isError }`                                                             |
 | **Permission cache invalidation**               | After role/assignment mutations, verify `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })` is called                                                |
+| **New shared components have stories**          | Components in `src/components/` (especially `Nx*`) should have Storybook stories for documentation                                                                 |
+| **Unrelated snapshot changes explained**        | If visual regression screenshots changed for pages not related to the PR, ask why                                                                                  |
+| **Visual regression uses stable data**          | Screenshot baselines must use deterministic mock data -- no timestamps, random IDs, or flaky API state                                                             |
+| **Gated content hidden during loading**         | Permission-dependent UI (tabs, buttons) should hide until permission check resolves, not flash then disappear                                                      |
 
 ### HTML -> PF6 Component Mapping
 

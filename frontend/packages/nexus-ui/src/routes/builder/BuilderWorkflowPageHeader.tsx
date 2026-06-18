@@ -14,6 +14,7 @@ import type { BuilderAction } from './builderReducer'
 import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
 import { PublishWorkflowDialog } from './PublishWorkflowDialog'
 import type { BuilderPermissions } from './useBuilderPermissions'
+import type { PendingImportData } from './useWorkflowImportExport'
 
 type BuilderToolbarContentProps = Readonly<{
   isLiveRunActive?: boolean
@@ -38,6 +39,7 @@ type BuilderToolbarContentProps = Readonly<{
   handleSaveWorkflow: () => Promise<boolean>
   onPublishClick: () => void
   onUnpublish: () => void
+  onPendingImport: (data: PendingImportData) => void
   triggers?: { id: string; name?: string }[]
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
@@ -72,6 +74,7 @@ function BuilderToolbarContent({
   handleSaveWorkflow,
   onPublishClick,
   onUnpublish,
+  onPendingImport,
   triggers,
   isAddNodePanelOpen,
   hasNoWorkflowNodes,
@@ -115,6 +118,7 @@ function BuilderToolbarContent({
       handleSaveWorkflow={handleSaveWorkflow}
       onPublishClick={onPublishClick}
       onUnpublish={onUnpublish}
+      onPendingImport={onPendingImport}
       triggers={triggers}
       isAddNodePanelOpen={isAddNodePanelOpen}
       hasNoWorkflowNodes={hasNoWorkflowNodes}
@@ -161,6 +165,7 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   handleSaveWorkflow: () => Promise<boolean>
   onPublish: (publishName?: string, description?: string, onSettled?: () => void) => void
   onUnpublish: () => void
+  onPendingImport: (data: PendingImportData) => void
 }>
 
 /**
@@ -199,6 +204,7 @@ export function BuilderWorkflowPageHeader({
   handleSaveWorkflow,
   onPublish,
   onUnpublish,
+  onPendingImport,
 }: BuilderWorkflowPageHeaderProps) {
   const builderDocLink = useDocLink('builder')
   const publishDialog = useDialogState<true>()
@@ -284,6 +290,7 @@ export function BuilderWorkflowPageHeader({
             handleSaveWorkflow={handleSaveWorkflow}
             onPublishClick={() => publishDialog.open(true)}
             onUnpublish={onUnpublish}
+            onPendingImport={onPendingImport}
             triggers={triggers}
             isAddNodePanelOpen={isAddNodePanelOpen}
             hasNoWorkflowNodes={hasNoWorkflowNodes}

@@ -437,7 +437,7 @@ class TestGetRefreshTokenDependency:
         request = _make_request(cookie_value=None)
 
         with patch("nexus.auth.csrf.validate_csrf"), pytest.raises(AuthenticationRequiredError):
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())
 
     @pytest.mark.asyncio
     async def test_returns_payload_when_cookie_present(self) -> None:
@@ -453,7 +453,7 @@ class TestGetRefreshTokenDependency:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.services.global_revocation.is_token_globally_revoked", return_value=None),
         ):
-            result = await get_refresh_token(request)
+            result = await get_refresh_token(request, db=AsyncMock())
 
         assert result is payload
         mock_token_service.decode_token.assert_called_once_with("the-refresh-jwt", token_type="refresh")  # noqa: S106
@@ -471,7 +471,7 @@ class TestGetRefreshTokenDependency:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             pytest.raises(InvalidTokenError),
         ):
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())
 
     @pytest.mark.asyncio
     async def test_raises_auth_required_on_unexpected_decode_error(self) -> None:
@@ -486,7 +486,7 @@ class TestGetRefreshTokenDependency:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             pytest.raises(AuthenticationRequiredError),
         ):
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())
 
     @pytest.mark.asyncio
     async def test_raises_on_globally_revoked_token(self) -> None:
@@ -508,7 +508,7 @@ class TestGetRefreshTokenDependency:
             ),
             pytest.raises(TokenGloballyRevokedError),
         ):
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())
 
 
 # =============================================================================

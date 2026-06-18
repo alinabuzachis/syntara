@@ -6,10 +6,12 @@ import { useWorkflowImportExport } from './useWorkflowImportExport'
 const mockShowError = vi.fn()
 const mockDispatch = vi.fn()
 const mockMarkDirty = vi.fn()
+const mockOnPendingImport = vi.fn()
 const mockDownload = vi.fn()
 const mockParseWorkflowFile = vi.fn<(...args: unknown[]) => Record<string, unknown>>()
 const mockValidateFileSize = vi.fn()
-const mockLoadDefinition = vi.fn<() => { workflowDef: Record<string, unknown>; edges: unknown[] }>()
+const mockLoadDefinition =
+  vi.fn<() => { workflowDef: Record<string, unknown>; edges: unknown[]; nodePositions: Record<string, unknown> }>()
 const mockBuildDefinition = vi.fn<(...args: unknown[]) => Record<string, unknown>>()
 const mockReplaceWorkflowContent = vi.fn()
 const mockGetState = vi.fn<() => Record<string, unknown>>()
@@ -58,8 +60,15 @@ beforeEach(() => {
 })
 
 describe('useWorkflowImportExport', () => {
-  function renderImportExportHook() {
-    return renderHook(() => useWorkflowImportExport({ dispatch: mockDispatch, markDirty: mockMarkDirty }))
+  function renderImportExportHook(isNew = true) {
+    return renderHook(() =>
+      useWorkflowImportExport({
+        dispatch: mockDispatch,
+        markDirty: mockMarkDirty,
+        isNew,
+        onPendingImport: mockOnPendingImport,
+      })
+    )
   }
 
   describe('handleExport', () => {
@@ -146,7 +155,7 @@ describe('useWorkflowImportExport', () => {
       }
       mockValidateFileSize.mockReturnValue(undefined)
       mockParseWorkflowFile.mockReturnValue(definition)
-      mockLoadDefinition.mockReturnValue({ workflowDef: {}, edges: [] })
+      mockLoadDefinition.mockReturnValue({ workflowDef: {}, edges: [], nodePositions: {} })
       mockGetState.mockReturnValue({ replaceWorkflowContent: mockReplaceWorkflowContent })
 
       const file = new File([JSON.stringify(definition)], 'test.json', { type: 'application/json' })
@@ -166,7 +175,7 @@ describe('useWorkflowImportExport', () => {
       const definition = { name: longName, triggers: [], nodes: [], edges: [] }
       mockValidateFileSize.mockReturnValue(undefined)
       mockParseWorkflowFile.mockReturnValue(definition)
-      mockLoadDefinition.mockReturnValue({ workflowDef: {}, edges: [] })
+      mockLoadDefinition.mockReturnValue({ workflowDef: {}, edges: [], nodePositions: {} })
       mockGetState.mockReturnValue({ replaceWorkflowContent: mockReplaceWorkflowContent })
 
       const file = new File(['{}'], 'test.json')
@@ -202,6 +211,61 @@ describe('useWorkflowImportExport', () => {
           description: 'File is too large',
         })
       })
+    })
+
+    it('calls onPendingImport instead of applying directly when isNew is false', async () => {
+      const definition = {
+        name: 'Imported',
+        description: 'A workflow',
+        triggers: [],
+        nodes: [],
+        edges: [],
+      }
+      mockValidateFileSize.mockReturnValue(undefined)
+      mockParseWorkflowFile.mockReturnValue(definition)
+      mockLoadDefinition.mockReturnValue({ workflowDef: {}, edges: [], nodePositions: {} })
+      mockGetState.mockReturnValue({ replaceWorkflowContent: mockReplaceWorkflowContent })
+
+      const file = new File([JSON.stringify(definition)], 'test.json', { type: 'application/json' })
+      const { result } = renderImportExportHook(false)
+
+      act(() => result.current.handleImportFile(createFileChangeEvent(file)))
+
+      await waitFor(() => {
+        expect(mockOnPendingImport).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Imported',
+            description: 'A workflow',
+          })
+        )
+      })
+      expect(mockReplaceWorkflowContent).not.toHaveBeenCalled()
+      expect(mockMarkDirty).not.toHaveBeenCalled()
+    })
+
+    it('applies directly when isNew is true', async () => {
+      const definition = {
+        name: 'Imported',
+        description: 'A workflow',
+        triggers: [],
+        nodes: [],
+        edges: [],
+      }
+      mockValidateFileSize.mockReturnValue(undefined)
+      mockParseWorkflowFile.mockReturnValue(definition)
+      mockLoadDefinition.mockReturnValue({ workflowDef: {}, edges: [], nodePositions: {} })
+      mockGetState.mockReturnValue({ replaceWorkflowContent: mockReplaceWorkflowContent })
+
+      const file = new File([JSON.stringify(definition)], 'test.json', { type: 'application/json' })
+      const { result } = renderImportExportHook(true)
+
+      act(() => result.current.handleImportFile(createFileChangeEvent(file)))
+
+      await waitFor(() => {
+        expect(mockReplaceWorkflowContent).toHaveBeenCalled()
+      })
+      expect(mockMarkDirty).toHaveBeenCalled()
+      expect(mockOnPendingImport).not.toHaveBeenCalled()
     })
   })
 

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         ExecutionInTerminalStateError,
         ExecutionNotFoundError,
         PayloadTooLargeError,
+        ScheduledTriggerNotFoundError,
         TemporalUnavailableError,
         TriggerValidationError,
         WebhookTriggerNotFoundError,
@@ -212,6 +213,20 @@ def webhook_trigger_path_conflict_handler(request: Request, exc: "WebhookTrigger
         title="Webhook Path Conflict",
         detail="The requested webhook path is already in use by another trigger",
         code="WEBHOOK_TRIGGER_PATH_CONFLICT",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def scheduled_trigger_not_found_handler(request: Request, exc: "ScheduledTriggerNotFoundError") -> JSONResponse:
+    """Handle ScheduledTriggerNotFoundError with RFC 9457 format."""
+    logger.warning("Scheduled trigger not found", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_404_NOT_FOUND,
+        problem_type=PROBLEM_TYPES["resource_not_found"],
+        title="Scheduled Trigger Not Found",
+        detail="No scheduled trigger is configured for the requested schedule ID",
+        code="SCHEDULED_TRIGGER_NOT_FOUND",
         retryable=False,
         instance=str(request.url),
     )

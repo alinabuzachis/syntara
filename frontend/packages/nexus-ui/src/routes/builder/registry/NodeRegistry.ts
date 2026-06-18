@@ -90,7 +90,7 @@ export type NodeTypeDefinition<TFormData = unknown> = {
  * Global node registry - stores all registered node types
  */
 class NodeRegistryClass {
-  private nodes = new Map<string, NodeTypeDefinition>()
+  private readonly nodes = new Map<string, NodeTypeDefinition>()
 
   /**
    * Register a new node type

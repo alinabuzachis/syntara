@@ -1,4 +1,4 @@
-import { useReactFlow } from '@xyflow/react'
+import { useReactFlow, type OnNodeDrag } from '@xyflow/react'
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 
 import {
@@ -40,7 +40,7 @@ export function usePositionEventHandlers(
   }, [positionUndoVersion, currentWorkflow?.triggers, setNodes])
 
   const onNodeDragStop = useCallback(
-    (_event: React.MouseEvent, _node: NodeType, draggedNodes: NodeType[]) => {
+    (_event: Parameters<OnNodeDrag<NodeType>>[0], _node: NodeType, draggedNodes: NodeType[]) => {
       if (draggedNodes.length === 0) return
       const trigs = currentWorkflow?.triggers ?? []
       updateNodePositions(Object.fromEntries(draggedNodes.map((n) => [toPositionKey(n.id, trigs), n.position])))

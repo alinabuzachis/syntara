@@ -1,4 +1,4 @@
-import { ExecutionStatusEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Alert, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
@@ -132,12 +132,6 @@ export function BuilderContent(props: BuilderContentProps) {
     mostRecentRunPanelOpen,
   })
 
-  const mostRecentExecutionStatus = mostRecentExecutionQuery.data?.status
-  const isTerminalStatus =
-    mostRecentExecutionStatus === ExecutionStatusEnum.COMPLETED ||
-    mostRecentExecutionStatus === ExecutionStatusEnum.FAILED ||
-    mostRecentExecutionStatus === ExecutionStatusEnum.CANCELLED
-
   useBuilderWorkflowLifecycle({
     workflowId,
     isNew,
@@ -163,6 +157,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
 
+  const typedCreateWorkflow = createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow']
   const wfName = workflow?.name ?? ''
   const wfId = workflow?.id ?? ''
   const wfCurrentVersion = workflow?.current_version
@@ -197,12 +192,32 @@ export function BuilderContent(props: BuilderContentProps) {
     setLocation,
     showSuccess,
     showError,
-    onMissingProjectForCreate: () => {
-      setSaveAttemptedWithoutProject(true)
-    },
+    onMissingProjectForCreate: () => setSaveAttemptedWithoutProject(true),
     markClean,
-    createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
+    createWorkflow: typedCreateWorkflow,
     updateWorkflow,
+  })
+
+  const mostRecentExecution = mostRecentExecutionQuery.data
+
+  const {
+    showMostRecentRunPanelInEditor,
+    isTerminalStatus,
+    isLiveRunActive,
+    canvasExecutionStatus,
+    mostRecentSelectedNodeId,
+    mostRecentSelectedNodeName,
+    mostRecentPanelHeight,
+    handleMostRecentResize,
+    handleMostRecentNodeSelect,
+    handleMostRecentDeselectNode,
+    handleCloseMostRecentRunPanel,
+  } = useBuilderLiveRunPanel({
+    mostRecentExecutionId,
+    mostRecentRunPanelOpen,
+    executionStatus: mostRecentExecution?.status,
+    isViewingExecution: false,
+    onClosePanel: () => dispatch({ type: 'CLOSE_MOST_RECENT_RUN_PANEL' }),
   })
 
   const { runStepDialog, lastRunStepNodeIdRef, pinnedMockDataForDialog, handleRunStep } = useRunStepDialog(
@@ -214,6 +229,8 @@ export function BuilderContent(props: BuilderContentProps) {
     registerSaveHandler(handleSaveWorkflow)
     return () => unregisterSaveHandler()
   }, [handleSaveWorkflow, registerSaveHandler, unregisterSaveHandler])
+
+  const [pendingImport, setPendingImport] = useState<import('./useWorkflowImportExport').PendingImportData | null>(null)
 
   const { handleRunWorkflow, handleDeleteWorkflow, handleToggleDetails, handleToggleHistory } =
     useBuilderToolbarHandlers({
@@ -255,30 +272,6 @@ export function BuilderContent(props: BuilderContentProps) {
 
   /* Re-renders when React Flow node count changes (execution-view sequencing); see useBuilderWindowEffects */
   useBuilderWindowEffects(nodesInitialized, reactFlowInstance)
-
-  const mostRecentExecution = mostRecentExecutionQuery.data
-
-  const {
-    showMostRecentRunPanelInEditor,
-    canvasExecutionStatus,
-    mostRecentSelectedNodeId,
-    mostRecentSelectedNodeName,
-    mostRecentPanelHeight,
-    handleMostRecentResize,
-    handleMostRecentNodeSelect,
-    handleMostRecentDeselectNode,
-  } = useBuilderLiveRunPanel({
-    mostRecentExecutionId,
-    mostRecentRunPanelOpen,
-    executionStatus: mostRecentExecution?.status,
-    isViewingExecution: false,
-  })
-
-  const isLiveRunActive = showMostRecentRunPanelInEditor && !isTerminalStatus
-
-  const handleCloseMostRecentRunPanel = useCallback(() => {
-    dispatch({ type: 'CLOSE_MOST_RECENT_RUN_PANEL' })
-  }, [dispatch])
 
   const {
     pendingApproval,
@@ -334,6 +327,7 @@ export function BuilderContent(props: BuilderContentProps) {
                 handleSaveWorkflow={handleSaveWorkflow}
                 onPublish={onPublish}
                 onUnpublish={onUnpublish}
+                onPendingImport={setPendingImport}
                 isLiveRunActive={isLiveRunActive}
                 executionId={mostRecentExecutionId}
                 executionStatus={mostRecentExecution?.status}
@@ -525,6 +519,13 @@ export function BuilderContent(props: BuilderContentProps) {
             onRunStepExecutionCreated={(executionId, { clearMocksOnComplete }) => {
               lastRunStepNodeIdRef.current = clearMocksOnComplete ? (runStepDialog.item?.nodeId ?? null) : null
               dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
+            }}
+            pendingImport={pendingImport}
+            setPendingImport={setPendingImport}
+            importDeps={{
+              selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
+              createWorkflow: typedCreateWorkflow,
+              setLocation,
             }}
             pinnedMockData={pinnedMockDataForDialog}
           />

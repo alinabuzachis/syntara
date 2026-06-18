@@ -78,18 +78,8 @@ export default tseslint.config(
             'Do not use aria-label on <span> — assistive technologies ignore it on non-interactive elements. The inner text content is sufficient. Use aria-label only on interactive elements, widgets, landmarks, images, or iframes.',
         },
       ],
-      // Block axios imports at error level (typed API clients from client.tsx)
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            {
-              name: 'axios',
-              message: 'Use typed API clients from client.tsx instead of axios.',
-            },
-          ],
-        },
-      ],
+      // axios restriction merged into the icon/wouter no-restricted-imports block below
+      // to avoid flat-config rule shadowing (the last matching block wins for a given rule).
       // Raw HTTP calls are handled by nexus/no-raw-http-calls (fetch, XMLHttpRequest) below
       'no-restricted-properties': [
         'error',
@@ -260,6 +250,7 @@ export default tseslint.config(
     files: [
       '**/hooks/routing/*.{ts,tsx}',
       '**/test/createTestRouter.tsx',
+      '**/test/createTanStackTestRouter.tsx',
       '**/app/AppRouter.tsx',
       '**/app/AppRouter.test.tsx',
     ],
@@ -277,6 +268,13 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  {
+    // Test utility files that export factory functions alongside components
+    files: ['**/test/createTanStackTestRouter.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
   {

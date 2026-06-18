@@ -120,10 +120,7 @@ function AddProviderButton({
 }
 
 function providerDetailPath(providerId: string): string {
-  return AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
-    '/:tab?',
-    ''
-  )
+  return AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId)
 }
 
 function NoProvidersEmptyState({

@@ -29,25 +29,16 @@ class TestDownloadEndpoint:
         file_path: Path,
         filename: str,
         mime_type: str,
+        project_id: str,
     ) -> dict[str, Any]:
-        """Upload a file via POST /api/v1/files and return the response JSON.
-
-        Args:
-            client: Authenticated HTTP client.
-            file_path: Path to the file on disk.
-            filename: Name to use in the upload.
-            mime_type: MIME type for the upload.
-
-        Returns:
-            Parsed JSON response from the upload endpoint.
-
-        """
+        """Upload a file via POST /api/v1/files and return the response JSON."""
         async with aiofiles.open(file_path, "rb") as f:
             content = await f.read()
 
         response = await client.post(
             "/api/v1/files",
             files=[("files", (filename, content, mime_type))],
+            data={"project_id": project_id},
         )
         assert response.status_code == 201, f"Upload failed: {response.text}"
         return response.json()  # type: ignore[no-any-return]
@@ -57,14 +48,15 @@ class TestDownloadEndpoint:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: object,
         sample_pdf_path: Path,
+        test_project_id: str,
     ) -> None:
         """Upload a PDF, download it, and verify status, headers, and content."""
-        # Upload
         upload_data = await self._upload_file(
             auth_client_with_mocked_llm,
             sample_pdf_path,
             "sample.pdf",
             "application/pdf",
+            test_project_id,
         )
         file_id = upload_data["file_ids"][0]
 
@@ -93,14 +85,15 @@ class TestDownloadEndpoint:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: object,
         sample_txt_path: Path,
+        test_project_id: str,
     ) -> None:
         """Upload a text file, download it, and verify status, headers, and content."""
-        # Upload
         upload_data = await self._upload_file(
             auth_client_with_mocked_llm,
             sample_txt_path,
             "sample.txt",
             "text/plain",
+            test_project_id,
         )
         file_id = upload_data["file_ids"][0]
 
@@ -156,14 +149,15 @@ class TestDownloadEndpoint:
         auth_client_with_mocked_llm: AsyncClient,
         test_user: object,
         sample_pdf_path: Path,
+        test_project_id: str,
     ) -> None:
         """Verify SHA-256 of downloaded content matches the original file."""
-        # Upload
         upload_data = await self._upload_file(
             auth_client_with_mocked_llm,
             sample_pdf_path,
             "integrity-check.pdf",
             "application/pdf",
+            test_project_id,
         )
         file_id = upload_data["file_ids"][0]
 

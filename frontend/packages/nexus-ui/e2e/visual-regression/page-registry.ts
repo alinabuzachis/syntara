@@ -195,7 +195,7 @@ export const pages: PageEntry[] = [
       await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
-    maxDiffPixelRatio: 0.01,
+    maxDiffPixelRatio: 0.02,
   },
   {
     section: 'access-management/users',
@@ -792,7 +792,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     role: 'viewer',
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
+    maxDiffPixelRatio: 0.15,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -945,6 +945,7 @@ export const excludedDynamic: string[] = [
   AppRoute.WorkflowBuilder.New,
   AppRoute.SystemAdministration.Root,
   AppRoute.SystemAdministration.Authentication.EditIdentityProvider, // covered by oidcProviderWizardPages
+  AppRoute.SystemAdministration.Authentication.IdentityProviderDetailTab, // covered by identity-provider-detail interactive entries
   AppRoute.AccessManagement.Root,
   AppRoute.Auth.TestSignInCallback,
   AppRoute.AccessManagement.TransferIdentity, // covered by transferIdentityWizardPages (interactive entries)

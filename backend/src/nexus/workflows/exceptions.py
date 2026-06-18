@@ -165,3 +165,22 @@ class WebhookTriggerPathConflictError(WebhookTriggerError):
         """Initialize exception with webhook path."""
         self.webhook_path = webhook_path
         super().__init__(f"Webhook path '{webhook_path}' is already in use")
+
+
+# ============================================================================
+# Scheduled Trigger Exceptions
+# ============================================================================
+
+
+class ScheduledTriggerError(WorkflowError):
+    """Base exception for all scheduled trigger errors."""
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.scheduled_trigger_not_found_handler")
+class ScheduledTriggerNotFoundError(ScheduledTriggerError):
+    """Raised when a scheduled trigger is not found."""
+
+    def __init__(self, schedule_id: str) -> None:
+        """Initialize exception with schedule ID."""
+        self.schedule_id = schedule_id
+        super().__init__(f"Scheduled trigger '{schedule_id}' not found")

@@ -6,7 +6,6 @@ import {
   HelperTextItem,
   InputGroup,
   InputGroupItem,
-  Label,
   LabelGroup,
   MenuToggle,
   Select,
@@ -24,6 +23,7 @@ import { type Ref, useMemo, useRef, useState } from 'react'
 import type { Control, ControllerFieldState, ControllerRenderProps } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { useAllGroups } from '../../access/useAllGroups'
 import { PASSWORD_CHARACTER_CLASSES_MESSAGE, PASSWORD_MIN_LENGTH_MESSAGE } from '../passwordComplexity'
 import type { UserFormData } from '../userFormSchema'
@@ -119,10 +119,25 @@ function GroupMultiSelect({
     inputRef.current?.focus()
   }
 
-  const handleClear = () => {
+  const handleRemoveGroup = (e: React.MouseEvent, name: string) => {
+    e.stopPropagation()
+    onChange(selected.filter((n) => n !== name))
+  }
+
+  const handleClear = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     onChange([])
     setFilterValue('')
     inputRef.current?.focus()
+  }
+
+  const handleFilterChange = (_e: React.SyntheticEvent, val: string) => {
+    setFilterValue(val)
+    if (!isOpen) setIsOpen(true)
+  }
+
+  const handleInputClick = () => {
+    if (!isOpen) setIsOpen(true)
   }
 
   const toggle = (toggleRef: Ref<HTMLButtonElement>) => (
@@ -130,44 +145,26 @@ function GroupMultiSelect({
       <TextInputGroup isPlain>
         <TextInputGroupMain
           value={filterValue}
-          onChange={(_e, val) => {
-            setFilterValue(val)
-            if (!isOpen) setIsOpen(true)
-          }}
-          onClick={() => {
-            if (!isOpen) setIsOpen(true)
-          }}
+          onChange={handleFilterChange}
+          onClick={handleInputClick}
           placeholder={selected.length === 0 ? 'Select groups...' : ''}
           autoComplete="off"
           innerRef={inputRef}
+          aria-label="Filter groups"
         >
           {selected.length > 0 && (
             <LabelGroup>
               {selected.map((name) => (
-                <Label
-                  key={name}
-                  color="blue"
-                  onClose={(e) => {
-                    e.stopPropagation()
-                    onChange(selected.filter((n) => n !== name))
-                  }}
-                >
+                <NxLabel key={name} color="blue" onClose={(e) => handleRemoveGroup(e, name)}>
                   {name}
-                </Label>
+                </NxLabel>
               ))}
             </LabelGroup>
           )}
         </TextInputGroupMain>
         {selected.length > 0 && (
           <TextInputGroupUtilities>
-            <Button
-              variant="plain"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleClear()
-              }}
-              aria-label="Clear all groups"
-            >
+            <Button variant="plain" onClick={handleClear} aria-label="Clear all groups">
               <RhUiCloseIcon />
             </Button>
           </TextInputGroupUtilities>

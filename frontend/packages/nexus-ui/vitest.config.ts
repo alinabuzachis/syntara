@@ -34,6 +34,7 @@ export default defineConfig({
         '**/*.test.{ts,tsx}',
         '**/*.spec.{ts,tsx}',
         '**/*.stories.*',
+        '**/tanstackRouteTree.tsx',
       ],
     },
   },

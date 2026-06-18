@@ -128,7 +128,7 @@ class TestGetCurrentUser:
         request.headers = {}
 
         with pytest.raises(AuthenticationRequiredError):
-            await get_current_user(request, credentials=None)
+            await get_current_user(request, db=AsyncMock(), credentials=None)
 
     @pytest.mark.asyncio
     async def test_returns_user_for_valid_token(self) -> None:
@@ -147,7 +147,7 @@ class TestGetCurrentUser:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.services.global_revocation.is_token_globally_revoked", return_value=None),
         ):
-            user = await get_current_user(request, credentials=credentials)
+            user = await get_current_user(request, db=AsyncMock(), credentials=credentials)
 
         assert user.id == user_id
         assert user.username == "bob"
@@ -167,7 +167,7 @@ class TestGetCurrentUser:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             pytest.raises(InvalidTokenError),
         ):
-            await get_current_user(request, credentials=credentials)
+            await get_current_user(request, db=AsyncMock(), credentials=credentials)
 
 
 class TestGetTokenPayload:
@@ -179,7 +179,7 @@ class TestGetTokenPayload:
         request = MagicMock()
 
         with pytest.raises(AuthenticationRequiredError):
-            await get_token_payload(request, credentials=None)
+            await get_token_payload(request, db=AsyncMock(), credentials=None)
 
     @pytest.mark.asyncio
     async def test_returns_payload_for_valid_token(self) -> None:
@@ -196,7 +196,7 @@ class TestGetTokenPayload:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.dependencies._check_global_revocation", new_callable=AsyncMock),
         ):
-            result = await get_token_payload(request, credentials=credentials)
+            result = await get_token_payload(request, db=AsyncMock(), credentials=credentials)
 
         assert result is payload
 
@@ -225,7 +225,7 @@ class TestGetRefreshTokenCSRF:
         request.headers.get = MagicMock(return_value=None)
 
         with pytest.raises(CSRFValidationError, match="CSRF cookie missing") as exc_info:
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())
         assert exc_info.value.error_code == CSRFErrorCode.COOKIE_MISSING
 
     @pytest.mark.asyncio
@@ -243,7 +243,7 @@ class TestGetRefreshTokenCSRF:
             patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_csrf_encryption_key()),
             pytest.raises(CSRFValidationError, match="CSRF token header missing") as exc_info,
         ):
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())
         assert exc_info.value.error_code == CSRFErrorCode.HEADER_MISSING
 
     @pytest.mark.asyncio
@@ -261,7 +261,7 @@ class TestGetRefreshTokenCSRF:
             patch("nexus.auth.csrf.get_encryption_key", return_value=_mock_csrf_encryption_key()),
             pytest.raises(CSRFValidationError, match="CSRF token mismatch") as exc_info,
         ):
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())
         assert exc_info.value.error_code == CSRFErrorCode.TOKEN_MISMATCH
 
     @pytest.mark.asyncio
@@ -291,7 +291,7 @@ class TestGetRefreshTokenCSRF:
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
             patch("nexus.auth.services.global_revocation.is_token_globally_revoked", return_value=None),
         ):
-            result = await get_refresh_token(request)
+            result = await get_refresh_token(request, db=AsyncMock())
 
         assert result is payload
 
@@ -307,4 +307,4 @@ class TestGetRefreshTokenCSRF:
             patch("nexus.auth.csrf.validate_csrf"),
             pytest.raises(AuthenticationRequiredError),
         ):
-            await get_refresh_token(request)
+            await get_refresh_token(request, db=AsyncMock())

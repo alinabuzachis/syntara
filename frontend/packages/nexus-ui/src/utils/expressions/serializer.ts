@@ -275,6 +275,7 @@ function serializeGroup(group: ExpressionGroup, forBackend: boolean): string {
   }
 
   // Multiple children need grouping with parentheses
-  const result = `(${childExpressions.join(` ${operatorSymbol} `)})`
+  const separator = ` ${operatorSymbol} `
+  const result = `(${childExpressions.join(separator)})`
   return group.negate ? `${negatePrefix}(${result})` : result
 }

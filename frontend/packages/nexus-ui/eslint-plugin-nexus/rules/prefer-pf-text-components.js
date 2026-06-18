@@ -21,6 +21,30 @@ export default {
       'MemberExpression',
       'ConditionalExpression',
       'LogicalExpression',
+      'BinaryExpression',
+      'ChainExpression',
+    ])
+
+    const TEXT_STYLING_PROPERTIES = new Set([
+      'color',
+      'fontSize',
+      'fontWeight',
+      'fontStyle',
+      'fontFamily',
+      'fontVariant',
+      'textDecoration',
+      'textTransform',
+      'textAlign',
+      'textIndent',
+      'textShadow',
+      'textOverflow',
+      'whiteSpace',
+      'wordBreak',
+      'wordSpacing',
+      'wordWrap',
+      'lineHeight',
+      'letterSpacing',
+      'verticalAlign',
     ])
 
     /**
@@ -42,6 +66,24 @@ export default {
     }
 
     /**
+     * Check whether an expression is `children` or `props.children` --
+     * React composition patterns that carry JSX elements, not text.
+     */
+    function isReactChildrenExpression(expression) {
+      if (expression.type === 'Identifier' && expression.name === 'children') return true
+      if (
+        expression.type === 'MemberExpression' &&
+        expression.object.type === 'Identifier' &&
+        expression.object.name === 'props' &&
+        expression.property.type === 'Identifier' &&
+        expression.property.name === 'children'
+      ) {
+        return true
+      }
+      return false
+    }
+
+    /**
      * Check whether a JSX child carries any dynamic content that likely
      * resolves to text (variables, function calls, member access, ternaries).
      */
@@ -50,6 +92,16 @@ export default {
         return EXPRESSION_TYPES_THAT_MAY_CARRY_TEXT.has(child.expression.type)
       }
       return false
+    }
+
+    /**
+     * Check whether ALL dynamic children are React children patterns
+     * (`children` or `props.children`).
+     */
+    function allDynamicChildrenAreReactChildren(children) {
+      return children
+        .filter((child) => child.type === 'JSXExpressionContainer' && hasDynamicContent(child))
+        .every((child) => isReactChildrenExpression(child.expression))
     }
 
     /**
@@ -92,6 +144,31 @@ export default {
       return openingElement.attributes.some((attr) => attr.type === 'JSXAttribute' && attr.name.name === 'style')
     }
 
+    /**
+     * Check whether a style attribute's value is an inspectable inline
+     * ObjectExpression that contains text-styling properties (color,
+     * fontSize, fontWeight, etc.). Returns true when text-styling is
+     * detected or when the style value cannot be inspected (variable
+     * reference, spread elements). Returns false when the style is an
+     * inline object with only layout/positioning properties.
+     */
+    function styleHasTextProperties(openingElement) {
+      const styleAttr = openingElement.attributes.find(
+        (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'style'
+      )
+      if (!styleAttr || !styleAttr.value) return true
+
+      const valueExpr = styleAttr.value.type === 'JSXExpressionContainer' ? styleAttr.value.expression : styleAttr.value
+
+      if (valueExpr.type !== 'ObjectExpression') return true
+
+      if (valueExpr.properties.some((p) => p.type === 'SpreadElement')) return true
+
+      return valueExpr.properties.some(
+        (p) => p.type === 'Property' && p.key.type === 'Identifier' && TEXT_STYLING_PROPERTIES.has(p.key.name)
+      )
+    }
+
     return {
       JSXOpeningElement(node) {
         if (node.name.type !== 'JSXIdentifier') return
@@ -125,7 +202,13 @@ export default {
         // expressions. PF6 has no ContentVariants.span, so we only flag
         // dynamic children when a style prop is present (styled text
         // wrapper pattern like <span style={...}>{variable}</span>).
-        const flaggable = hasLiteralTextChild || (hasDynamicChild && styled)
+        //
+        // Skip when:
+        // - All dynamic children are React children patterns (children / props.children)
+        // - Style is an inline object with only layout/positioning properties
+        const dynamicFlaggable =
+          hasDynamicChild && styled && !allDynamicChildrenAreReactChildren(children) && styleHasTextProperties(node)
+        const flaggable = hasLiteralTextChild || dynamicFlaggable
         if (!flaggable) return
 
         // For <div>: only flag when it has a style prop

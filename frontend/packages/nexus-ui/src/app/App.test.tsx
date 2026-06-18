@@ -1,7 +1,23 @@
+import { RouterProvider } from '@tanstack/react-router'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import App from './App'
+import { isTanStackRouter } from './routerFlag'
+
+// Mock the router flag so we can control which router path is taken per test.
+// Default: vi.fn() returns undefined (falsy) → wouter path; set .mockReturnValue(true)
+// inside a test/beforeEach to exercise the TanStack branch.
+vi.mock('./routerFlag', () => ({ isTanStackRouter: vi.fn() }))
+
+// Stub out the real TanStack router instance (avoids building the full route tree).
+vi.mock('./tanstackRouter', () => ({ tanstackRouter: {} }))
+
+// Override RouterProvider so we can check it was called without needing a real router.
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  return { ...actual, RouterProvider: vi.fn() }
+})
 
 // Mock auth store so AppLogin immediately renders its children
 vi.mock('../stores/useAuthStore', () => ({
@@ -54,5 +70,23 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByRole('main')).toBeInTheDocument()
     })
+  })
+})
+
+describe('App (TanStack router path)', () => {
+  beforeEach(() => {
+    vi.mocked(isTanStackRouter).mockReturnValue(true)
+    // RouterProvider is typed to return JSX.Element, but null is valid in tests
+    // where we only care that it was called, not what it renders.
+    vi.mocked(RouterProvider).mockReturnValue(null as never)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('renders RouterProvider when TanStack router is active', () => {
+    render(<App />)
+    expect(vi.mocked(RouterProvider)).toHaveBeenCalled()
   })
 })

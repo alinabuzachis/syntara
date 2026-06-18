@@ -10,7 +10,6 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStore: {
     getState: vi.fn(() => ({
       currentWorkflow: { triggers: [] },
-      syncConvergeNodeBranches: vi.fn(),
       reorderActivitiesFromEdges: vi.fn(),
     })),
   },
@@ -163,7 +162,6 @@ describe('useEdgeSynchronization', () => {
     const mockTrigger = { id: 'real-trigger-id-123', type: 'manual_trigger' }
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
       currentWorkflow: { triggers: [mockTrigger] },
-      syncConvergeNodeBranches: vi.fn(),
       reorderActivitiesFromEdges: vi.fn(),
     } as never)
 
@@ -195,7 +193,6 @@ describe('useEdgeSynchronization', () => {
     const mockTrigger = { id: 'real-trigger-id-456', type: 'manual_trigger' }
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
       currentWorkflow: { triggers: [mockTrigger] },
-      syncConvergeNodeBranches: vi.fn(),
       reorderActivitiesFromEdges: vi.fn(),
     } as never)
 
@@ -222,13 +219,11 @@ describe('useEdgeSynchronization', () => {
     expect(calledWith[0].target).toBe('real-trigger-id-456')
   })
 
-  it('calls syncConvergeNodeBranches and reorderActivitiesFromEdges when edges change', () => {
-    const mockSyncConverge = vi.fn()
+  it('calls reorderActivitiesFromEdges when edges change', () => {
     const mockReorderActivities = vi.fn()
 
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
       currentWorkflow: { triggers: [] },
-      syncConvergeNodeBranches: mockSyncConverge,
       reorderActivitiesFromEdges: mockReorderActivities,
     } as never)
 
@@ -249,17 +244,14 @@ describe('useEdgeSynchronization', () => {
     const newEdges = [{ id: 'edge-2', source: 'node-3', target: 'node-4', type: 'default' }]
     rerender({ edges: newEdges })
 
-    expect(mockSyncConverge).toHaveBeenCalled()
     expect(mockReorderActivities).toHaveBeenCalled()
   })
 
   it('prevents re-entrant syncing with isSyncingRef guard', async () => {
-    const mockSyncConverge = vi.fn()
     const mockReorderActivities = vi.fn()
 
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
       currentWorkflow: { triggers: [] },
-      syncConvergeNodeBranches: mockSyncConverge,
       reorderActivitiesFromEdges: mockReorderActivities,
     } as never)
 
@@ -286,8 +278,8 @@ describe('useEdgeSynchronization', () => {
     const anotherEdges = [{ id: 'edge-3', source: 'node-5', target: 'node-6', type: 'default' }]
     rerender({ edges: anotherEdges })
 
-    // syncConverge should only be called once (second call prevented by guard)
-    expect(mockSyncConverge).toHaveBeenCalledTimes(1)
+    // reorderActivities should only be called once (second call prevented by guard)
+    expect(mockReorderActivities).toHaveBeenCalledTimes(1)
 
     // Wait for microtask to clear syncing flag
     await new Promise((resolve) => setTimeout(resolve, 0))

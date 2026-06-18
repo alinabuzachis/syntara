@@ -24,6 +24,7 @@ from nexus.workflows.models.validation_finding import (
     ValidationSeverity,
 )
 from nexus.workflows.models.workflow_validation_result import ValidationIssue, WorkflowValidationResult
+from nexus.workflows.validators.template_expressions import check_template_expressions
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
 
 _SCHEMA_DIR = SCHEMA_DIR / "workflows" / "v2"
@@ -336,7 +337,9 @@ class WorkflowValidator:
         self._validate_schema_version(workflow_definition)
         self._validate_required_fields(workflow_definition)
         self._validate_against_schema(workflow_definition)
-        self._validate_graph_structure(workflow_definition)
+        node_ids = _extract_node_ids(workflow_definition)
+        self._validate_graph_structure(workflow_definition, node_ids)
+        self._validate_template_expressions(workflow_definition, node_ids)
 
     def validate_workflow_name(self, name: str) -> None:
         """Validate workflow name is not empty.
@@ -543,11 +546,12 @@ class WorkflowValidator:
             msg = f"{element_key}: {summary}, errors:[{error_list}]"
             errors.append(ValidationIssue(message=msg))
 
+        node_ids = _extract_node_ids(workflow_definition)
+        errors.extend(check_template_expressions(workflow_definition, node_ids))
+
         return WorkflowValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
-    def _validate_graph_structure(self, workflow_definition: dict[str, Any]) -> None:
-        node_ids = _extract_node_ids(workflow_definition)
-
+    def _validate_graph_structure(self, workflow_definition: dict[str, Any], node_ids: set[str]) -> None:
         edge_issues = _check_edge_references(workflow_definition, node_ids)
         if edge_issues:
             raise SafeValueError(edge_issues[0].message)
@@ -555,3 +559,8 @@ class WorkflowValidator:
         cycle_issues = _check_cycles(workflow_definition, node_ids)
         if cycle_issues:
             raise SafeValueError(cycle_issues[0].message)
+
+    def _validate_template_expressions(self, workflow_definition: dict[str, Any], node_ids: set[str]) -> None:
+        errors = check_template_expressions(workflow_definition, node_ids)
+        if errors:
+            raise SafeValueError(errors[0].message)

@@ -44,13 +44,15 @@ describe('registerAllNodes (index)', () => {
     NodeRegistry.clear()
   })
 
+  // 15s: the dynamic import of ./index pulls in every node module; under full-suite
+  // parallelism the worker startup + import resolution can exceed the default 5s.
   it('registers all workflow step types when called', async () => {
     const { registerAllNodes } = await import('./index')
     registerAllNodes()
 
     const allNodes = NodeRegistry.getAll()
     expect(allNodes.length).toBeGreaterThan(0)
-  })
+  }, 15000)
 
   it('registers expected node type ids', async () => {
     const { registerAllNodes } = await import('./index')

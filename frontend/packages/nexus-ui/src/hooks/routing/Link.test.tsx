@@ -1,11 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { useRouterState } from '@tanstack/react-router'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { createTanStackTestRouter } from '../../test/createTanStackTestRouter'
 import { createTestRouter } from '../../test/createTestRouter'
 
-import { Link } from './Link'
 import { useLocation } from './useLocation'
 
 function LocationDisplay() {
@@ -13,16 +14,18 @@ function LocationDisplay() {
   return <span data-testid="path">{path}</span>
 }
 
-describe('Link', () => {
-  it('renders an anchor element', () => {
+// ── Wouter (existing contract) ────────────────────────────────────────────────
+describe('Link (wouter)', () => {
+  it('renders an anchor element', async () => {
+    const { Link } = await import('./Link')
     const wrapper = createTestRouter('/')
     render(<Link href="/workflows">Go to workflows</Link>, { wrapper })
-
     expect(screen.getByRole('link', { name: 'Go to workflows' })).toBeInTheDocument()
   })
 
   it('navigates to href on click', async () => {
     const user = userEvent.setup()
+    const { Link } = await import('./Link')
     const wrapper = createTestRouter('/')
     render(
       <>
@@ -37,7 +40,8 @@ describe('Link', () => {
     expect(screen.getByTestId('path')).toHaveTextContent('/workflows')
   })
 
-  it('forwards additional anchor attributes', () => {
+  it('forwards additional anchor attributes', async () => {
+    const { Link } = await import('./Link')
     const wrapper = createTestRouter('/')
     render(
       <Link href="/workflows" className="my-class" aria-label="Workflows page">
@@ -51,9 +55,74 @@ describe('Link', () => {
   })
 
   it('has no accessibility violations', async () => {
+    const { Link } = await import('./Link')
     const wrapper = createTestRouter('/')
     const { container } = render(<Link href="/workflows">Go to workflows</Link>, { wrapper })
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
 
+// ── TanStack (same contract, different router) ────────────────────────────────
+describe('Link (tanstack)', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.doMock('../../app/routerFlag', () => ({ isTanStackRouter: () => true }))
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('renders an anchor element', async () => {
+    const { Link } = await import('./Link')
+    const wrapper = await createTanStackTestRouter('/')
+    render(<Link href="/workflows">Go to workflows</Link>, { wrapper })
+    expect(await screen.findByRole('link', { name: 'Go to workflows' })).toBeInTheDocument()
+  })
+
+  it('navigates to href on click', async () => {
+    const user = userEvent.setup()
+    const { Link } = await import('./Link')
+    const wrapper = await createTanStackTestRouter('/')
+
+    // Use useRouterState to track the in-memory TanStack location.
+    // LocationDisplay (module scope) reads window.location via wouter and won't
+    // see TanStack memory-router navigation.
+    function TanStackLocationDisplay() {
+      const pathname = useRouterState({ select: (s) => s.location.pathname })
+      return <span data-testid="path">{pathname}</span>
+    }
+
+    render(
+      <>
+        <TanStackLocationDisplay />
+        <Link href="/workflows">Go to workflows</Link>
+      </>,
+      { wrapper }
+    )
+
+    await user.click(await screen.findByRole('link', { name: 'Go to workflows' }))
+    await waitFor(() => expect(screen.getByTestId('path')).toHaveTextContent('/workflows'))
+  })
+
+  it('forwards additional anchor attributes', async () => {
+    const { Link } = await import('./Link')
+    const wrapper = await createTanStackTestRouter('/')
+    render(
+      <Link href="/workflows" className="my-class" aria-label="Workflows page">
+        Workflows
+      </Link>,
+      { wrapper }
+    )
+
+    const link = await screen.findByRole('link', { name: 'Workflows page' })
+    expect(link).toHaveClass('my-class')
+  })
+
+  it('has no accessibility violations', async () => {
+    const { Link } = await import('./Link')
+    const wrapper = await createTanStackTestRouter('/')
+    const { container } = render(<Link href="/workflows">Go to workflows</Link>, { wrapper })
+    await screen.findByRole('link', { name: 'Go to workflows' })
     expect(await axe(container)).toHaveNoViolations()
   })
 })

@@ -50,6 +50,7 @@ function defaultParams(overrides: Partial<HookParams> = {}): HookParams {
     mostRecentRunPanelOpen: false,
     executionStatus: null,
     isViewingExecution: false,
+    onClosePanel: vi.fn(),
     ...overrides,
   }
 }

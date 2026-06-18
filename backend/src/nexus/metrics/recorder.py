@@ -315,7 +315,7 @@ class MetricsRecorder:
         except Exception:  # noqa: BLE001
             logger.debug("Failed to update Prometheus metric", metric_type=metric_type, exc_info=True)
 
-    def _dispatch_prometheus(
+    def _dispatch_prometheus(  # noqa: C901
         self,
         metric_type: MetricType,
         value: float,
@@ -379,6 +379,12 @@ class MetricsRecorder:
 
         elif metric_type == MetricType.CONTEXT_DURATION:
             p.context_duration_seconds.observe(value / 1000)
+
+        elif metric_type in {
+            MetricType.SCHEDULED_TRIGGER_FIRES,
+            MetricType.SCHEDULED_TRIGGER_LATENCY,
+        }:
+            MetricsRecorder._dispatch_scheduled_trigger(metric_type, value, labels, p)
 
         else:
             MetricsRecorder._dispatch_component(metric_type, value, labels, p)
@@ -493,6 +499,21 @@ class MetricsRecorder:
 
         elif metric_type == MetricType.DATABASE_TRANSACTION_RATE:
             p.database_transaction_rate_tps.labels(component=component).inc()
+
+    @staticmethod
+    def _dispatch_scheduled_trigger(
+        metric_type: MetricType,
+        value: float,
+        labels: dict[str, str],
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle scheduled trigger metrics (fire count, latency)."""
+        if metric_type == MetricType.SCHEDULED_TRIGGER_FIRES:
+            p.scheduled_trigger_fires_total.labels(
+                status=labels.get("status", "success"),
+            ).inc()
+        elif metric_type == MetricType.SCHEDULED_TRIGGER_LATENCY:
+            p.scheduled_trigger_latency_seconds.observe(value / 1000)
 
     @staticmethod
     def _dispatch_component(

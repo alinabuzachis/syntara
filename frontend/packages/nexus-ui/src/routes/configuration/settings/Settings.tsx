@@ -68,7 +68,7 @@ export default function Settings() {
   // When there is *no* slug at all, useUrlTab silently falls back to defaultTab
   // without updating the URL — so we redirect here to keep the URL bookmarkable.
   useEffect(() => {
-    if (defaultCategory && !location.startsWith(`${basePath}/`)) {
+    if (defaultCategory && location.startsWith(basePath) && !location.startsWith(`${basePath}/`)) {
       setLocation(`${basePath}/${defaultCategory}`, { replace: true })
     }
   }, [defaultCategory, location, setLocation])

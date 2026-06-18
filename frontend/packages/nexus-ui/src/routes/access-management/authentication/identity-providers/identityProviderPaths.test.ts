@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import { AppRoute } from '../../../../app/AppRoute'
-
 import {
   identityProviderDetailBasePath,
   identityProviderGroupMappingEditPath,
@@ -11,12 +9,9 @@ import {
 const PROVIDER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
 describe('identityProviderPaths', () => {
-  it('builds detail base path without tab segment', () => {
+  it('builds detail base path', () => {
     expect(identityProviderDetailBasePath(PROVIDER_ID)).toBe(
-      AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', PROVIDER_ID).replace(
-        '/:tab?',
-        ''
-      )
+      `/system-administration/authentication/identity-providers/${PROVIDER_ID}`
     )
   })
 

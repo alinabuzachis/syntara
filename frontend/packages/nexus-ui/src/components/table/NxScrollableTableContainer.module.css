@@ -90,8 +90,12 @@
 }
 
 /*
- * Not applied to expandable tables — PatternFly's expandable row layout relies on the
- * browser's automatic table layout to correctly size columns and expansion control cells.
+ * Overrides PatternFly's default (automatic) table layout with fixed layout for better
+ * column sizing in non-expandable tables. Not applied to expandable tables because
+ * PatternFly's expandable row layout relies on the browser's automatic table layout
+ * to correctly size columns and expansion control cells.
+ *
+ * Applied conditionally in NxScrollableTableContainer.tsx via the useFixedLayout prop.
  */
 .tableFixedLayout {
   table-layout: fixed;

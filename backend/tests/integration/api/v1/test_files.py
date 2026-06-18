@@ -30,18 +30,17 @@ class TestFilesAPIUpload:
     async def test_upload_single_file_returns_file_id(
         self,
         auth_client: AsyncClient,
+        test_project_id: str,
     ) -> None:
         """Test uploading a single file returns file_id in response."""
-        # Arrange - Use plain text file since MIME type is detected from content
         files = [("files", ("document.txt", b"Sample text content here", "text/plain"))]
 
-        # Act
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
-        # Assert
         assert response.status_code == 201
         response_data = response.json()
         assert "file_ids" in response_data
@@ -54,29 +53,27 @@ class TestFilesAPIUpload:
         assert file_info["filename"] == "document.txt"
         assert file_info["mime_type"] == "text/plain"
         assert file_info["status"] == "pending_conversion"
-        # SECURITY: file_path should not be exposed
         assert "file_path" not in file_info
 
     @pytest.mark.asyncio
     async def test_upload_multiple_files_returns_file_ids(
         self,
         auth_client: AsyncClient,
+        test_project_id: str,
     ) -> None:
         """Test uploading multiple files returns all file_ids."""
-        # Arrange
         files = [
             ("files", ("doc1.pdf", b"First PDF content", "application/pdf")),
             ("files", ("doc2.txt", b"Text content", "text/plain")),
             ("files", ("doc3.md", b"# Markdown", "text/markdown")),
         ]
 
-        # Act
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
-        # Assert
         assert response.status_code == 201
         response_data = response.json()
         assert len(response_data["file_ids"]) == 3
@@ -89,19 +86,18 @@ class TestFilesAPIUpload:
     async def test_upload_rejects_file_too_large(
         self,
         auth_client: AsyncClient,
+        test_project_id: str,
     ) -> None:
         """Test that files exceeding size limit are rejected."""
-        # Arrange - Create file larger than 10MB limit
         large_content = b"x" * (11 * 1024 * 1024)  # 11 MB
         files = [("files", ("large.pdf", large_content, "application/pdf"))]
 
-        # Act
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
-        # Assert
         assert response.status_code == 400
         error_data = response.json()
         assert "detail" in error_data
@@ -110,19 +106,18 @@ class TestFilesAPIUpload:
     async def test_upload_rejects_invalid_mime_type(
         self,
         auth_client: AsyncClient,
+        test_project_id: str,
     ) -> None:
         """Test that files with unsupported MIME types are rejected."""
-        # Arrange - PNG magic bytes (0x89 PNG signature) that will be detected as image/png
         png_signature = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
         files = [("files", ("image.png", png_signature, "image/png"))]
 
-        # Act
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
-        # Assert
         assert response.status_code == 400
         error_data = response.json()
         assert "detail" in error_data
@@ -131,18 +126,17 @@ class TestFilesAPIUpload:
     async def test_upload_rejects_too_many_files(
         self,
         auth_client: AsyncClient,
+        test_project_id: str,
     ) -> None:
         """Test that exceeding file count limit is rejected."""
-        # Arrange - Create 11 files (limit is 10)
         files = [("files", (f"file{i}.pdf", b"PDF content", "application/pdf")) for i in range(11)]
 
-        # Act
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
-        # Assert
         assert response.status_code == 400
         error_data = response.json()
         assert "detail" in error_data
@@ -152,23 +146,21 @@ class TestFilesAPIUpload:
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,
+        test_project_id: str,
     ) -> None:
         """Test that uploading a file creates FileMetadata record in database."""
-        # Arrange
         files = [("files", ("database_test.txt", b"Test content", "text/plain"))]
 
-        # Act
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
-        # Assert - Response is successful
         assert response.status_code == 201
         response_data = response.json()
         file_id = response_data["file_ids"][0]
 
-        # Assert - FileMetadata record exists in database
         from sqlmodel import select
 
         result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
@@ -183,35 +175,31 @@ class TestFilesAPIUpload:
     async def test_upload_returns_correct_response_schema(
         self,
         auth_client: AsyncClient,
+        test_project_id: str,
     ) -> None:
         """Test that response matches the expected FileUploadResponse schema."""
-        # Arrange
         files = [("files", ("schema_test.pdf", b"PDF content", "application/pdf"))]
 
-        # Act
         response = await auth_client.post(
             "/api/v1/files",
             files=files,
+            data={"project_id": test_project_id},
         )
 
-        # Assert
         assert response.status_code == 201
         response_data = response.json()
 
-        # Required top-level fields
         assert "file_ids" in response_data
         assert "files" in response_data
         assert isinstance(response_data["file_ids"], list)
         assert isinstance(response_data["files"], list)
 
-        # Each file metadata has required fields
         for file_info in response_data["files"]:
             assert "file_id" in file_info
             assert "filename" in file_info
             assert "size_bytes" in file_info
             assert "mime_type" in file_info
             assert "status" in file_info
-            # SECURITY: file_path must not be exposed
             assert "file_path" not in file_info
 
     @pytest.mark.asyncio
@@ -220,13 +208,11 @@ class TestFilesAPIUpload:
         auth_client: AsyncClient,
     ) -> None:
         """Test that request with no files is rejected."""
-        # Act - No files provided
         response = await auth_client.post(
             "/api/v1/files",
             files=[],
         )
 
-        # Assert - FastAPI returns 422 for missing required file parameter
         assert response.status_code == 422
 
 
@@ -238,28 +224,23 @@ class TestFilesAPIConversion:
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,
+        test_project_id: str,
     ) -> None:
-        """Test that an uploaded file can be successfully converted.
-
-        This test:
-        1. Uploads a text file via the API
-        2. Manually triggers the conversion task (simulating background task)
-        3. Verifies the file status changes to CONVERTED
-        """
-        # Arrange - Upload a simple text file
+        """Test that an uploaded file can be successfully converted."""
         text_content = b"This is a sample document for conversion testing."
         files = [("files", ("conversion_test.txt", text_content, "text/plain"))]
 
-        # Act - Upload file
-        response = await auth_client.post("/api/v1/files", files=files)
+        response = await auth_client.post(
+            "/api/v1/files",
+            files=files,
+            data={"project_id": test_project_id},
+        )
 
-        # Assert - Upload successful
         assert response.status_code == 201
         response_data = response.json()
         file_id_str = response_data["file_ids"][0]
         file_id = UUID(file_id_str)
 
-        # Verify initial status is CONVERTED (by background task)
         result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
         file_record = result.one()
         assert file_record.status == FileStatus.CONVERTED
@@ -270,14 +251,9 @@ class TestFilesAPIConversion:
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,
+        test_project_id: str,
     ) -> None:
-        """Test that an uploaded PDF file can be successfully converted.
-
-        This test verifies that PDF files (a common document type) are
-        properly converted to text/markdown format.
-        """
-        # Arrange - Create a minimal valid PDF
-        # This is a minimal PDF that can be parsed
+        """Test that an uploaded PDF file can be successfully converted."""
         pdf_content = b"""%PDF-1.4
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
@@ -308,16 +284,17 @@ startxref
 %%EOF"""
         files = [("files", ("test_document.pdf", pdf_content, "application/pdf"))]
 
-        # Act - Upload file
-        response = await auth_client.post("/api/v1/files", files=files)
+        response = await auth_client.post(
+            "/api/v1/files",
+            files=files,
+            data={"project_id": test_project_id},
+        )
 
-        # Assert - Upload successful
         assert response.status_code == 201
         response_data = response.json()
         file_id_str = response_data["file_ids"][0]
         file_id = UUID(file_id_str)
 
-        # Verify initial status is CONVERTED (by background task)
         result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
         file_record = result.one()
         assert file_record.status == FileStatus.CONVERTED
@@ -328,37 +305,35 @@ startxref
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,
+        test_project_id: str,
     ) -> None:
         """Test that multiple uploaded files can all be converted."""
-        # Arrange - Upload multiple text files
         files = [
             ("files", ("doc1.txt", b"First document content", "text/plain")),
             ("files", ("doc2.txt", b"Second document content", "text/plain")),
             ("files", ("doc3.txt", b"Third document content", "text/plain")),
         ]
 
-        # Act - Upload files
-        response = await auth_client.post("/api/v1/files", files=files)
+        response = await auth_client.post(
+            "/api/v1/files",
+            files=files,
+            data={"project_id": test_project_id},
+        )
 
-        # Assert - Upload successful
         assert response.status_code == 201
         response_data = response.json()
         assert len(response_data["file_ids"]) == 3
 
-        # Create a session factory that uses the test session
         async def test_session_factory() -> AsyncGenerator[AsyncSession, None]:
             yield test_db_session
 
         conversion_task = get_document_conversion_task(session_factory=test_session_factory)
 
-        # Convert each file and verify
         for file_id_str in response_data["file_ids"]:
             file_id = UUID(file_id_str)
 
-            # Run conversion
             await conversion_task.convert(file_id)
 
-            # Re-query to get updated status
             result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
             updated_record = result.one()
             assert updated_record.status == FileStatus.CONVERTED

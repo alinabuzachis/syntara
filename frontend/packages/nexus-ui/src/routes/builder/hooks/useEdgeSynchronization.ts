@@ -19,16 +19,9 @@ type UseEdgeSynchronizationOptions = {
 /**
  * Custom hook that synchronizes edges with the workflow store.
  *
- * This hook prevents infinite loops when syncConvergeNodeBranches() modifies the workflow,
- * which triggers initialEdges recomputation, which would trigger this effect again.
- *
- * The re-entrance guard (isSyncingRef) is critical to prevent this cycle:
- * 1. User deletes node → edges change
- * 2. Effect runs → calls syncConvergeNodeBranches()
- * 3. This function modifies workflow activities
- * 4. Workflow change → initialEdges recomputes in useMemo
- * 5. New initialEdges → edges state updates
- * 6. Effect would run again → PREVENTED by guard
+ * The re-entrance guard (isSyncingRef) prevents infinite loops when store
+ * mutations (e.g. reorderActivitiesFromEdges) modify the workflow, which
+ * triggers initialEdges recomputation, which would trigger this effect again.
  *
  * Note: Condition nodes remain flat during editing. Their then/else branches
  * are built only during save/serialization based on edges with sourceHandle='true'/'false'.
@@ -57,7 +50,7 @@ export function useEdgeSynchronization({
     // Skip during active execution — edge execution-status colors are transient and must not mark the workflow dirty.
     if (isActiveExecution) return
 
-    // Prevent re-entrant syncing (when syncConvergeBranches modifies workflow → edges recompute → effect runs again)
+    // Prevent re-entrant syncing (when store mutations modify workflow → edges recompute → effect runs again)
     if (isSyncingRef.current) return
 
     // Filter out button edges and placeholder/pending edges
@@ -132,8 +125,6 @@ export function useEdgeSynchronization({
     // Set syncing flag to prevent re-entrance
     isSyncingRef.current = true
 
-    // Sync converge node branches after edges are updated
-    useWorkflowStore.getState().syncConvergeNodeBranches()
     // Reorder activities to match edge topology
     useWorkflowStore.getState().reorderActivitiesFromEdges()
 

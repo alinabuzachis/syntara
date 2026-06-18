@@ -25,6 +25,8 @@ class MetricType(str, Enum):
     LLM_TOKENS_OUTPUT = "llm_tokens_output"
     LLM_TTFT_MS = "llm_ttft_ms"
     REQUEST_DURATION_MS = "request_duration_ms"
+    SCHEDULED_TRIGGER_FIRES_TOTAL = "scheduled_trigger_fires_total"
+    SCHEDULED_TRIGGER_LATENCY_MS = "scheduled_trigger_latency_ms"
     SYSTEM_E2E_LATENCY_MS = "system_e2e_latency_ms"
     SYSTEM_ERROR_RATE = "system_error_rate"
     SYSTEM_UPTIME_SECONDS = "system_uptime_seconds"

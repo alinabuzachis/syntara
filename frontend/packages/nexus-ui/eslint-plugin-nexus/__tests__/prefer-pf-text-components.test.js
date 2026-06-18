@@ -87,6 +87,38 @@ ruleTester.run('prefer-pf-text-components', rule, {
     {
       code: `const App = ({ a }) => <span>{a && label}</span>;`,
     },
+    // div with style + children (React composition, not text)
+    {
+      code: `const App = ({ children }) => <div style={{ width: '100%' }}>{children}</div>;`,
+    },
+    // div with style + props.children (React composition)
+    {
+      code: `const App = (props) => <div style={{ position: 'absolute' }}>{props.children}</div>;`,
+    },
+    // div with layout-only style + dynamic expression (container, not text)
+    {
+      code: `const App = ({ content }) => <div style={{ overflow: 'auto', maxHeight: '200px' }}>{content}</div>;`,
+    },
+    // span with layout-only style + dynamic expression (container)
+    {
+      code: `const App = () => <span style={{ paddingRight: 'var(--pf-t--global--spacer--md)' }}>{props.children}</span>;`,
+    },
+    // div with positioning style + conditional (canvas container)
+    {
+      code: `const App = ({ mode }) => <div style={{ position: 'absolute', transform: 'translate(-50%, -50%)' }}>{mode === 'a' ? <A /> : <B />}</div>;`,
+    },
+    // div with backgroundColor (layout, not text styling)
+    {
+      code: `const App = ({ items }) => <div style={{ backgroundColor: 'var(--color)', borderRadius: '8px' }}>{items}</div>;`,
+    },
+    // binary expression without style (e.g. count + 1)
+    {
+      code: `const App = () => <span>{count + 1}</span>;`,
+    },
+    // chain expression without style (e.g. user?.name)
+    {
+      code: `const App = () => <span>{user?.name}</span>;`,
+    },
   ],
   invalid: [
     // <p> with text content should always be flagged
@@ -168,6 +200,31 @@ ruleTester.run('prefer-pf-text-components', rule, {
     {
       code: `const App = () => <div style={{ fontStyle: 'italic' }}>{formatName(user)}</div>;`,
       errors: [{ messageId: 'preferPfTextComponent', data: { element: 'div' } }],
+    },
+    // <p> with binary expression — always flagged
+    {
+      code: `const App = () => <p>{count + 1}</p>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'p' } }],
+    },
+    // <h2> with chain expression — always flagged
+    {
+      code: `const App = () => <h2>{user?.name}</h2>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'h2' } }],
+    },
+    // <span> with text-styling color + variable — styled text
+    {
+      code: `const App = ({ label }) => <span style={{ color: 'red' }}>{label}</span>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'span' } }],
+    },
+    // <div> with spread in style — cannot inspect, so flag
+    {
+      code: `const App = ({ text }) => <div style={{ ...baseStyle, padding: '8px' }}>{text}</div>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'div' } }],
+    },
+    // <span> with style variable reference + dynamic — flag (cannot inspect)
+    {
+      code: `const App = ({ text }) => <span style={textStyle}>{text}</span>;`,
+      errors: [{ messageId: 'preferPfTextComponent', data: { element: 'span' } }],
     },
   ],
 })

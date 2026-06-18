@@ -240,6 +240,16 @@ async def make_project_admin(
     return assignment
 
 
+@pytest_asyncio.fixture
+async def test_project_id(test_db_session: AsyncSession) -> str:
+    """Create a test project and return its ID as a string."""
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project for API tests")
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+    return str(project.id)
+
+
 @pytest.fixture(autouse=True)
 def _mock_opa(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace OPA client with one that uses the OPA CLI.

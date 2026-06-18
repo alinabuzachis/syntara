@@ -197,4 +197,91 @@ describe('UserFormFields', () => {
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
+
+  describe('GroupMultiSelect', () => {
+    it('renders group select with pre-selected group in create mode', () => {
+      render(<TestWrapper isEdit={false} />)
+
+      expect(screen.getByText('Groups')).toBeInTheDocument()
+      expect(screen.getByText('users')).toBeInTheDocument()
+    })
+
+    it('hides group select in edit mode', () => {
+      render(<TestWrapper isEdit />)
+
+      expect(screen.queryByText('Groups')).not.toBeInTheDocument()
+    })
+
+    it('shows clear button when groups are selected', () => {
+      render(<TestWrapper isEdit={false} />)
+
+      expect(screen.getByRole('button', { name: 'Clear all groups' })).toBeInTheDocument()
+    })
+
+    it('clears all selected groups when clear button is clicked', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.click(screen.getByRole('button', { name: 'Clear all groups' }))
+
+      expect(screen.queryByText('users')).not.toBeInTheDocument()
+    })
+
+    it('removes a group by clicking its close button on the label', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.click(screen.getByRole('button', { name: 'Close users' }))
+
+      expect(screen.queryByRole('button', { name: 'Close users' })).not.toBeInTheDocument()
+    })
+
+    it('selects a group from the dropdown', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.click(screen.getByRole('textbox', { name: 'Filter groups' }))
+      await user.click(screen.getByRole('checkbox', { name: /admins/i }))
+
+      expect(screen.getByRole('button', { name: 'Close admins' })).toBeInTheDocument()
+    })
+
+    it('deselects a group from the dropdown', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.click(screen.getByRole('textbox', { name: 'Filter groups' }))
+      await user.click(screen.getByRole('checkbox', { name: /^users/i }))
+
+      expect(screen.queryByRole('button', { name: 'Close users' })).not.toBeInTheDocument()
+    })
+
+    it('filters groups by typing in the input', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.type(screen.getByRole('textbox', { name: 'Filter groups' }), 'admin')
+
+      expect(screen.getByRole('checkbox', { name: /admins/i })).toBeInTheDocument()
+      expect(screen.queryByRole('checkbox', { name: /auditors/i })).not.toBeInTheDocument()
+    })
+
+    it('shows no results message when filter matches nothing', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.type(screen.getByRole('textbox', { name: 'Filter groups' }), 'nonexistent')
+
+      expect(screen.getByText('No results match "nonexistent"')).toBeInTheDocument()
+    })
+
+    it('opens dropdown when clicking the input', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.click(screen.getByRole('textbox', { name: 'Filter groups' }))
+
+      expect(screen.getByRole('checkbox', { name: /admins/i })).toBeInTheDocument()
+    })
+  })
 })

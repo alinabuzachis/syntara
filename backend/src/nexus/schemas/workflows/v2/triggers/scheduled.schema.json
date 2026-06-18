@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/triggers/scheduled",
+  "title": "Scheduled Trigger Node",
+  "description": "Workflow entry point triggered on a time-based schedule using cron expressions or simple intervals.",
+  "parameterSchema": {
+    "type": "object",
+    "required": ["schedule_type"],
+    "properties": {
+      "schedule_type": {
+        "type": "string",
+        "description": "Type of schedule: 'interval' for ISO 8601 repeating intervals or 'cron' for cron expressions.",
+        "enum": ["interval", "cron"]
+      },
+      "interval": {
+        "type": "string",
+        "description": "ISO 8601 repeating interval string (e.g., 'R/2024-01-01T10:00:00Z/P1D'). Required when schedule_type is 'interval'.",
+        "minLength": 1
+      },
+      "cron": {
+        "type": "string",
+        "description": "Standard 5-field cron expression (e.g., '0 9 * * *' for daily at 9am). Required when schedule_type is 'cron'.",
+        "minLength": 1
+      },
+      "timezone": {
+        "type": "string",
+        "description": "IANA timezone name (e.g., 'America/New_York'). Defaults to UTC if not specified.",
+        "minLength": 1
+      },
+      "missed_schedule_policy": {
+        "type": "string",
+        "description": "How to handle missed schedule invocations: 'skip' (ignore missed), 'run_once' (run the most recent missed), or 'run_all' (run all missed). Defaults to 'skip'.",
+        "enum": ["skip", "run_once", "run_all"],
+        "default": "skip"
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": { "schedule_type": { "const": "interval" } },
+          "required": ["schedule_type"]
+        },
+        "then": {
+          "required": ["interval"]
+        }
+      },
+      {
+        "if": {
+          "properties": { "schedule_type": { "const": "cron" } },
+          "required": ["schedule_type"]
+        },
+        "then": {
+          "required": ["cron"]
+        }
+      }
+    ],
+    "additionalProperties": false
+  },
+  "resultSchema": {
+    "description": "Trigger result contains the schedule metadata passed through as output.",
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "description": "Trigger completion status",
+        "const": "completed"
+      },
+      "schedule_type": {
+        "type": "string",
+        "description": "The schedule type that triggered this execution"
+      }
+    },
+    "additionalProperties": true
+  }
+}

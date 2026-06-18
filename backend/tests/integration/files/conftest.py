@@ -1,10 +1,24 @@
 """Shared fixtures for file upload integration tests."""
 
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
+import pytest_asyncio
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.models import Project
 from tests.fixtures import get_fixtures_dir
+
+
+@pytest_asyncio.fixture
+async def test_project_id(test_db_session: AsyncSession) -> str:
+    """Create a test project and return its ID as a string."""
+    project = Project(name=f"test-project-{uuid4().hex[:8]}", description="Test project for files")
+    test_db_session.add(project)
+    await test_db_session.commit()
+    await test_db_session.refresh(project)
+    return str(project.id)
 
 
 @pytest.fixture

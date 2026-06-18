@@ -10,6 +10,7 @@ from enum import Enum, IntEnum, StrEnum
 from http import HTTPMethod
 from typing import Any
 from urllib.parse import urlparse
+from zoneinfo import available_timezones
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import ModelWrapValidatorHandler
@@ -760,3 +761,154 @@ NODE_OUTPUT_MODELS: dict[str, type[NodeOutput]] = {
     NodeType.LOOP: LoopOutput,
     NodeType.WAIT: WaitOutput,
 }
+
+
+class ScheduleType(StrEnum):
+    """Schedule type for scheduled trigger nodes."""
+
+    INTERVAL = "interval"
+    CRON = "cron"
+
+
+class MissedSchedulePolicy(StrEnum):
+    """Policy for handling missed schedule executions.
+
+    Determines what happens when the scheduler detects that one or more
+    scheduled invocations were missed (e.g., due to downtime).
+    """
+
+    SKIP = "skip"
+    RUN_ONCE = "run_once"
+    RUN_ALL = "run_all"
+
+
+# Standard 5-field cron: minute hour day-of-month month day-of-week
+# Each field allows digits, ranges (1-5), lists (1,3,5), steps (*/5), and wildcards (*)
+_CRON_FIELD = r"(\*|[0-9]+(?:-[0-9]+)?(?:,[0-9]+(?:-[0-9]+)?)*)(?:/[0-9]+)?"
+_CRON_PATTERN = re.compile(rf"^\s*{_CRON_FIELD}\s+{_CRON_FIELD}\s+{_CRON_FIELD}\s+{_CRON_FIELD}\s+{_CRON_FIELD}\s*$")
+
+_CRON_RANGES: list[tuple[str, int, int]] = [
+    ("minute", 0, 59),
+    ("hour", 0, 23),
+    ("day-of-month", 1, 31),
+    ("month", 1, 12),
+    ("day-of-week", 0, 7),
+]
+
+_CRON_NUMERIC = re.compile(r"[0-9]+")
+
+
+def _validate_cron_ranges(expr: str) -> None:
+    """Validate that numeric values in each cron field are within allowed ranges."""
+    fields = expr.split()
+    for field, (name, lo, hi) in zip(fields, _CRON_RANGES, strict=False):
+        for m in _CRON_NUMERIC.finditer(field):
+            val = int(m.group())
+            if val < lo or val > hi:
+                msg = f"Invalid cron expression: {name} must be {lo}-{hi}, got {val}"
+                raise SafeValueError(msg)
+
+
+# Lazy-initialised cache of valid IANA timezone names (frozenset for O(1) lookups).
+_VALID_TIMEZONES: frozenset[str] | None = None
+
+
+def _get_valid_timezones() -> frozenset[str]:
+    """Return the set of valid IANA timezone names, cached after first call."""
+    global _VALID_TIMEZONES  # noqa: PLW0603
+    if _VALID_TIMEZONES is None:
+        _VALID_TIMEZONES = frozenset(available_timezones())
+    return _VALID_TIMEZONES
+
+
+class ScheduledTriggerConfig(TemplateAwareBaseModel):
+    """Configuration for scheduled trigger nodes.
+
+    Defines the schedule configuration for a scheduled trigger, including
+    the schedule type, cron expression or interval, and timezone.
+
+    Attributes:
+        schedule_type: Type of schedule (interval or cron).
+        interval: ISO 8601 repeating interval string (required when
+            schedule_type is "interval"). Format: ``R/<start>/<duration>``
+            or ``R/<start>/<duration>/<end>``.
+        cron: Standard 5-field cron expression (required when
+            schedule_type is "cron"). Example: ``0 9 * * *`` for daily at 9am.
+        timezone: IANA timezone name (e.g., "America/New_York").
+            Defaults to UTC if not specified.
+        missed_schedule_policy: How to handle missed schedule invocations.
+            Defaults to "skip".
+
+    """
+
+    schedule_type: ScheduleType = Field(
+        description="Type of schedule: interval or cron",
+    )
+    interval: str | None = Field(
+        default=None,
+        description=(
+            "ISO 8601 repeating interval (e.g., 'R/2024-01-01T10:00:00Z/P1D'). "
+            "Required when schedule_type is 'interval'."
+        ),
+    )
+    cron: str | None = Field(
+        default=None,
+        description=("Standard 5-field cron expression (e.g., '0 9 * * *'). Required when schedule_type is 'cron'."),
+    )
+    timezone: str | None = Field(
+        default=None,
+        description="IANA timezone name (e.g., 'America/New_York'). Defaults to UTC.",
+    )
+    missed_schedule_policy: MissedSchedulePolicy = Field(
+        default=MissedSchedulePolicy.SKIP,
+        description="How to handle missed schedule invocations: skip, run_once, or run_all",
+    )
+
+    @field_validator("cron")
+    @classmethod
+    def validate_cron_expression(cls, v: str | None) -> str | None:
+        """Validate that cron is a standard 5-field expression."""
+        if v is None:
+            return v
+        # Template expressions bypass validation
+        if isinstance(v, str) and TEMPLATE_PATTERN.search(v):
+            return v
+        if not _CRON_PATTERN.match(v):
+            msg = (
+                f"Invalid cron expression: '{v}'. "
+                "Must be a standard 5-field format: minute hour day-of-month month day-of-week"
+            )
+            raise SafeValueError(msg)
+        _validate_cron_ranges(v)
+        return v
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: str | None) -> str | None:
+        """Validate that timezone is a valid IANA timezone name."""
+        if v is None:
+            return v
+        # Template expressions bypass validation
+        if isinstance(v, str) and TEMPLATE_PATTERN.search(v):
+            return v
+        if v not in _get_valid_timezones():
+            msg = f"Invalid timezone: '{v}'. Must be a valid IANA timezone name (e.g., 'America/New_York')."
+            raise SafeValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def validate_schedule_fields(self) -> "ScheduledTriggerConfig":
+        """Validate that required fields are present based on schedule_type."""
+        # Skip validation if schedule_type is a template expression
+        if isinstance(self.schedule_type, str) and TEMPLATE_PATTERN.search(self.schedule_type):
+            return self
+
+        if self.schedule_type == ScheduleType.INTERVAL and not self.interval:
+            msg = "Field 'interval' is required when schedule_type is 'interval'"
+            raise SafeValueError(msg)
+
+        if self.schedule_type == ScheduleType.CRON and not self.cron:
+            msg = "Field 'cron' is required when schedule_type is 'cron'"
+            raise SafeValueError(msg)
+
+        return self

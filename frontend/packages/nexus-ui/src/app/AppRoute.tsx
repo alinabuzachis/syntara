@@ -34,7 +34,8 @@ export const AppRoute = {
     Authentication: {
       Root: '/system-administration/authentication',
       AddIdentityProvider: '/system-administration/authentication/identity-providers/add',
-      IdentityProviderDetail: '/system-administration/authentication/identity-providers/:providerId/:tab?',
+      IdentityProviderDetail: '/system-administration/authentication/identity-providers/:providerId',
+      IdentityProviderDetailTab: '/system-administration/authentication/identity-providers/:providerId/:tab',
       EditIdentityProvider: '/system-administration/authentication/identity-providers/:providerId/edit',
       EditGroupMapping: '/system-administration/authentication/identity-providers/:providerId/group-mapping/edit',
     },

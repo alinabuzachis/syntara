@@ -42,6 +42,7 @@ export function NxScrollableTableContainer({
   const scrollRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   useScrollOverflow(scrollRef, wrapperRef)
+  const tableClassName = useFixed ? `${styles.table} ${styles.tableFixedLayout}` : styles.table
   return (
     <StackItem isFilled data-testid="scrollable-table-container-root" className={styles.root}>
       <NxPanel hasNoPadding isFullHeight isScrollable className={styles.panel}>
@@ -58,12 +59,7 @@ export function NxScrollableTableContainer({
               aria-label={caption}
               data-testid="scroll-container"
             >
-              <Table
-                isPlain
-                isStickyHeader
-                isExpandable={isExpandable}
-                className={`${styles.table}${useFixed ? ` ${styles.tableFixedLayout}` : ''}`}
-              >
+              <Table isPlain isStickyHeader isExpandable={isExpandable} className={tableClassName}>
                 <Caption className="pf-v6-u-screen-reader">{caption}</Caption>
                 {children}
               </Table>

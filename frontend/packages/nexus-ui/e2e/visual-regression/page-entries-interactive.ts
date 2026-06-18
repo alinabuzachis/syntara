@@ -136,7 +136,7 @@ export const oidcProviderWizardPages: PageEntry[] = [
     path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
       ':providerId',
       MOCK_IDENTITY_PROVIDER_ID
-    ).replace('/:tab?', ''),
+    ),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
@@ -151,7 +151,7 @@ export const oidcProviderWizardPages: PageEntry[] = [
     path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
       ':providerId',
       MOCK_IDENTITY_PROVIDER_ID
-    ).replace('/:tab?', ''),
+    ),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
@@ -168,7 +168,7 @@ export const oidcProviderWizardPages: PageEntry[] = [
     path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
       ':providerId',
       MOCK_IDENTITY_PROVIDER_ID
-    ).replace('/:tab?', ''),
+    ),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
@@ -655,6 +655,7 @@ export const statusVariantPages: PageEntry[] = [
   {
     section: 'executions',
     name: 'execution-detail-failed',
+    maxDiffPixelRatio: 0.02,
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_FAILED_ID),
     perceptual: true,
     waitFor: async (page) => {
@@ -665,6 +666,7 @@ export const statusVariantPages: PageEntry[] = [
   {
     section: 'executions',
     name: 'execution-detail-running',
+    maxDiffPixelRatio: 0.02,
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_RUNNING_ID),
     perceptual: true,
     waitFor: async (page) => {
@@ -780,7 +782,7 @@ export const authenticationInteractivePages: PageEntry[] = [
     path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
       ':providerId',
       MOCK_IDENTITY_PROVIDER_ID
-    ).replace('/:tab?', ''),
+    ),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },

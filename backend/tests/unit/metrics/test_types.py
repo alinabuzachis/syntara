@@ -67,6 +67,9 @@ class TestMetricType:
             "WORKFLOW_START_LATENCY",
             "WORKFLOW_COMPLETION_RATE",
             "TEMPORAL_EXECUTION_SERVICE_DURATION",
+            # Scheduled Trigger
+            "SCHEDULED_TRIGGER_FIRES",
+            "SCHEDULED_TRIGGER_LATENCY",
             # Tool Metrics
             "TOOL_EXECUTION_DURATION",
             "TOOL_EXECUTION_STATUS",

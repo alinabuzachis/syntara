@@ -113,6 +113,12 @@ ruleTester.run('nexus/no-raw-http-calls', rule, {
         const fn = window.fetch;
       `,
     },
+    // Non-axios imports are allowed
+    {
+      code: `
+        import createClient from 'openapi-fetch';
+      `,
+    },
     // allowedFiles exempts matching paths from all rule checks
     {
       code: `
@@ -211,6 +217,20 @@ ruleTester.run('nexus/no-raw-http-calls', rule, {
       `,
       errors: [{ messageId: 'noRawFetch' }],
     },
+    // axios default import
+    {
+      code: `
+        import axios from 'axios';
+      `,
+      errors: [{ messageId: 'noAxiosImport' }],
+    },
+    // axios named import
+    {
+      code: `
+        import { get } from 'axios';
+      `,
+      errors: [{ messageId: 'noAxiosImport' }],
+    },
   ],
 })
 
@@ -270,37 +290,14 @@ describe('nexus/no-raw-http-calls eslint integration', () => {
     expect(result.messages).toEqual([])
   })
 
-  it('blocks axios imports via no-restricted-imports', async () => {
-    const eslint = new ESLint({
-      overrideConfigFile: true,
-      overrideConfig: [
-        {
-          files: ['**/*.{js,ts}'],
-          languageOptions: {
-            ecmaVersion: 2022,
-            sourceType: 'module',
-          },
-          rules: {
-            'no-restricted-imports': [
-              'error',
-              {
-                paths: [
-                  {
-                    name: 'axios',
-                    message: 'Use typed API clients from client.tsx instead of axios.',
-                  },
-                ],
-              },
-            ],
-          },
-        },
-      ],
-    })
+  it('blocks axios imports via nexus/no-raw-http-calls', async () => {
+    const eslint = createEslint()
     const code = `import axios from 'axios'`
 
     const [result] = await eslint.lintText(code, { filePath: 'src/example.ts' })
 
     expect(result.messages).toHaveLength(1)
-    expect(result.messages[0].ruleId).toBe('no-restricted-imports')
+    expect(result.messages[0].ruleId).toBe('nexus/no-raw-http-calls')
+    expect(result.messages[0].messageId).toBe('noAxiosImport')
   })
 })

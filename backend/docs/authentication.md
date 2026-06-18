@@ -202,16 +202,22 @@ Returns `200` with `revoked_before` and `updated_at` (both `null` if no revocati
 
 Once the timestamp is set, every authenticated request is checked:
 
-- **Access tokens** (`get_current_user` dependency) — if the token's `iat` precedes the revocation timestamp, the request is rejected with `401 TOKEN_GLOBALLY_REVOKED`. The user must re-authenticate.
-- **Refresh tokens** (`POST /auth/refresh`) — if the refresh token's `iat` precedes the revocation timestamp, the refresh cookie is cleared and the request is rejected with `401 TOKEN_GLOBALLY_REVOKED`. The user must log in again.
+- **Access tokens** (`get_current_user` dependency) — if the token's `iat` is before `revocation_ts + cache_TTL`, the request is rejected with `401 TOKEN_GLOBALLY_REVOKED`. The user must re-authenticate.
+- **Refresh tokens** (`POST /auth/refresh`) — same check. The refresh cookie is cleared and the request is rejected with `401 TOKEN_GLOBALLY_REVOKED`. The user must log in again.
 
-Tokens issued **after** the revocation timestamp are unaffected.
+The comparison uses `iat < revocation_ts + cache_TTL` rather than `iat < revocation_ts`. This **TTL-adjusted boundary** compensates for cache staleness across API nodes: even if another node is still serving a stale cached value, tokens issued during that staleness window are rejected once the cache refreshes. The trade-off is that tokens issued in the few seconds *after* a revocation event may also require re-authentication — an acceptable cost for closing the multi-node bypass window.
+
+Tokens issued **after** `revocation_ts + cache_TTL` are unaffected.
 
 #### Performance and caching
 
-The global revocation timestamp is cached in each API worker process for **5 seconds** (in-process `TTLCache`). This avoids a database round-trip on every authenticated request but introduces a brief **post-revocation vulnerability window**: after an admin sets the revocation timestamp, tokens issued before that time may still be accepted for up to 5 seconds while the cached value remains fresh.
+The global revocation timestamp is cached in each API worker process for **10 seconds** (in-process `cachetools.TTLCache`). This avoids a database round-trip on every authenticated request while keeping the propagation delay short.
 
-In practice this means that in an emergency scenario (e.g., suspected key compromise, bulk account takeover) there is a short window during which an attacker with valid stolen tokens can still make authenticated requests. Once the cache expires, the next request fetches the updated timestamp and enforcement takes effect.
+**Eventual consistency model:** After an admin sets the revocation timestamp, enforcement propagates across all API nodes within the cache TTL. During this window, a node with a stale cache may still accept pre-revocation tokens. Once the cache expires, the next request fetches the updated timestamp and enforcement takes effect. The TTL-adjusted comparison ensures that tokens issued during the staleness window are also rejected, closing the multi-node bypass.
+
+**Thundering-herd protection:** On cache miss, an `asyncio.Lock` ensures only one coroutine queries the database; concurrent callers wait for the result. This prevents connection pool flooding under high concurrency.
+
+**Session reuse:** The revocation check piggybacks on the database session the request already holds (via FastAPI's `Depends(get_db)` deduplication). No additional database connections are checked out from the pool.
 
 #### Audit trail
 
@@ -402,7 +408,7 @@ Authentication uses **PostgreSQL only** for session storage. Redis is not requir
 | **Logout** | PostgreSQL | Soft-revoke via `UPDATE SET revoked_at` |
 | **OIDC authorize** | None (encrypted state) | State encrypted and encoded in the OAuth2 `state` parameter |
 | **OIDC callback** | None (encrypted state) | State decrypted from the `state` parameter |
-| **Access token validation** | None | Stateless JWT verified locally |
+| **Access token validation** | In-process cache + PostgreSQL | Stateless JWT verified locally; global revocation check via `TTLCache` (10s) reusing the request's DB session |
 | **Stale token check** | In-process cache + PostgreSQL | `cachetools.TTLCache` (5s) for `token_version` lookups |
 
 ### Token Version (Stale Token Detection) & Disabled User Enforcement

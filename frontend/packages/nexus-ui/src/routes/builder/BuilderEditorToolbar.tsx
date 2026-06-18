@@ -31,7 +31,7 @@ import { formatDateTime } from '../../utils/dateUtils'
 
 import type { BuilderAction } from './builderReducer'
 import type { BuilderPermissions } from './useBuilderPermissions'
-import { useWorkflowImportExport } from './useWorkflowImportExport'
+import { useWorkflowImportExport, type PendingImportData } from './useWorkflowImportExport'
 
 type WorkflowKebabToggleProps = Readonly<{
   toggleRef: Ref<MenuToggleElement>
@@ -371,6 +371,7 @@ type BuilderEditorToolbarProps = Readonly<{
   handleSaveWorkflow: () => Promise<boolean>
   onPublishClick: () => void
   onUnpublish: () => void
+  onPendingImport: (data: PendingImportData) => void
   triggers?: { id: string; name?: string }[]
   builderPermissions: BuilderPermissions
 }>
@@ -392,12 +393,15 @@ export function BuilderEditorToolbar({
   handleSaveWorkflow,
   onPublishClick,
   onUnpublish,
+  onPendingImport,
   triggers,
   builderPermissions,
 }: BuilderEditorToolbarProps) {
   const { importFileRef, handleImportFile, handleExport, handleVerify, isVerifying } = useWorkflowImportExport({
     dispatch,
     markDirty,
+    isNew,
+    onPendingImport,
   })
 
   if (!builderPermissions.canEdit && hasNoWorkflowNodes && isNew) {

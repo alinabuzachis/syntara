@@ -322,12 +322,13 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
   - Selecting/filling the required field clears the danger styling immediately
   - **Human-readable validation copy:** Never expose raw regex patterns or API validation strings to users. Use plain-language error messages (e.g., "Project name can only contain letters, numbers, hyphens, underscores, or colons. It must start and end with a letter or number."). Provide proactive field guidance via inline hint text (using `HintOrError` or `HelperText`) that displays before the user triggers an error; the hint is replaced by the error message on validation failure. Use example-style placeholders (e.g., `'my-project-name'`) instead of generic `"Enter project name"`.
-- **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler — not in a `useEffect` watching the field value. See [coding_standards.md §23](../../.claude/skills/coding_standards.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
+- **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler -- not in a `useEffect` watching the field value. See [coding_standards.md §23](../../.claude/skills/coding_standards.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
 - **FormSection for complex forms:** When a single form step has 10+ fields spanning logical domains, group them with PatternFly `FormSection`:
   - `title="Section Name"` + `titleElement="h3"` for each group
-  - **Grouping logic:** General (identity/metadata) → Connection (endpoints/secrets) → Options (toggles/advanced)
+  - **Grouping logic:** General (identity/metadata) -> Connection (endpoints/secrets) -> Options (toggles/advanced)
   - Section-scoped actions belong inside their section (e.g., "Test connection" inside the Connection section, not the global footer)
 - **Scrollable form panels:** Full-page forms that may exceed viewport height need `NxPanel isFullHeight isScrollable`. Without `isScrollable`, bottom fields overflow outside the panel boundary. Constrain form width with `maxWidth: '600px'` inside a `Stack hasGutter`.
+- **Validation errors must be visible in collapsible forms:** When a form uses collapsible sections (accordion, expandable panels), validation errors inside collapsed sections must either (a) auto-expand the section containing the error, or (b) show a summary indicator on the collapsed header (e.g., error count badge, danger styling). Users must never submit a form and see no feedback because errors are hidden inside a collapsed panel. Every invalid field must show an inline error message below it -- `validated="error"` styling alone (red border with no message) is insufficient.
 
 ### Typeahead Selector Patterns
 
@@ -398,11 +399,13 @@ Use PatternFly's [Basic Empty State component](https://www.patternfly.org/compon
 
 Empty states replace the main content area when there is no data to display.
 
-| Scenario          | Title                          | CTA: Primary button                  | Filter?                          |
-| ----------------- | ------------------------------ | ------------------------------------ | -------------------------------- |
-| No data exists    | `"No [resources] yet"`         | If applicable: `"Create [resource]"` | No                               |
-| No filter results | `"No results found"`           | `"Clear all filters"`                | Yes, with active filters showing |
-| Service error     | `"Unable to load [resources]"` | `"Retry"`                            | No                               |
+| Scenario             | Title                          | CTA: Primary button                  | Filter?                          |
+| -------------------- | ------------------------------ | ------------------------------------ | -------------------------------- |
+| No data exists       | `"No [resources] yet"`         | If applicable: `"Create [resource]"` | No                               |
+| No filter results    | `"No results found"`           | `"Clear all filters"`                | Yes, with active filters showing |
+| Service error        | `"Unable to load [resources]"` | `"Retry"`                            | No                               |
+| Invalid ID (bad URL) | `"Invalid [resource type]"`    | Link back to list page               | No                               |
+| Not found (404)      | `"[Resource type] not found"`  | Link back to list page               | No                               |
 
 ### Empty State Icons, Statuses, and Variants
 
@@ -415,6 +418,7 @@ Each empty state scenario maps to a specific icon, optional `status` prop, and s
 | Service error          | `ExclamationCircleIcon` | `danger`      | `lg`            | Data cannot be loaded; red icon via danger status                    |
 | No access / forbidden  | `LockIcon`              | —             | `lg`            | User role doesn't have permission to view the page                   |
 | Configuration required | `WrenchIcon`            | —             | `lg`            | User must configure or connect something before using a feature      |
+| Invalid ID / not found | `SearchIcon`            | —             | `lg`            | Detail page with bad URL param or 404; include a link back to list   |
 | Success / completion   | `CheckCircleIcon`       | `success`     | default or `xl` | Task or process completed; green icon via success status             |
 | Getting started        | `RocketIcon`            | —             | `xl`            | First-time onboarding; can use a custom app-specific graphic instead |
 
@@ -1071,7 +1075,7 @@ Can user read this section?
 
 - Hub pages (Access Management): filter tab array by permission; redirect to first visible tab
 - Detail pages: use `NxUrlTabs validTabs={visibleTabs}` to hide unauthorized tabs
-- **Loading stability:** Show all tabs while permissions load to avoid layout shift; filter after resolution
+- **Loading stability:** Hide permission-gated tabs until permissions resolve (see "Hide-Until-Confirmed" below). Never show gated tabs during loading -- a brief absence is less disruptive than a flash of unauthorized content.
 - **Self-permission override:** Users viewing their own profile always see their Groups/Identities/Assignments tabs
 
 ### Action Gating
@@ -1132,9 +1136,52 @@ For create/edit forms accessible via direct URL:
 3. `!allowed` → `EmptyStateAccessDenied`
 4. `allowed` → render children
 
-**Note:** List/detail pages use in-page empty states or tab filtering — not route guards. Route guards target mutation form routes only.
+**Note:** List/detail pages use in-page empty states or tab filtering -- not route guards. Route guards target mutation form routes only.
 
 See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for the full permission gating architecture.
+
+### Empty-State Actions Must Be Permission-Gated
+
+When a list page shows an empty state with a CTA (e.g., "Create credential"), that button must respect the same permission check as the toolbar button it replaces. Otherwise, unauthorized users see and can click the empty-state CTA, only to hit an auth error in the modal or form.
+
+```typescript
+// ❌ BAD -- toolbar is gated but empty-state bypasses permissions
+<NxEmptyStateNoData addData={() => setAddModalOpen(true)} />
+
+// ✅ GOOD -- pass undefined to hide the CTA when unauthorized
+<NxEmptyStateNoData addData={permissions.canCreate ? () => setAddModalOpen(true) : undefined} />
+```
+
+Apply this pattern to every component that accepts an `addData` or action callback prop for empty states: `NxEmptyStateNoData`, custom empty states, and `EmptyState` with action buttons.
+
+### Hide-Until-Confirmed for Gated UI During Loading
+
+When permissions are loading asynchronously, **hide** permission-gated UI elements (tabs, action buttons, toggle switches) until the permission check resolves. Showing them during the loading window and then removing them causes a flash of unauthorized content that confuses users and can trigger unintended interactions.
+
+```typescript
+// ❌ BAD -- tab visible during loading, removed after permission check
+const tabs = [
+  { title: 'Details', content: <Details /> },
+  { title: 'Workflows', content: <Workflows /> },  // always shown, then yanked
+]
+
+// ✅ GOOD -- tab only appears after permissions confirm access
+const tabs = [
+  { title: 'Details', content: <Details /> },
+  ...(permissionsLoading ? [] : permissions.canViewWorkflows
+    ? [{ title: 'Workflows', content: <Workflows /> }]
+    : []),
+]
+```
+
+**General rule:** When in doubt, prefer "hide until confirmed" over "show until denied." A brief absence during loading is far less disruptive than a visible element that disappears after a permission check.
+
+### Breadcrumbs Must Not Link to Inaccessible Routes
+
+When a user reaches a detail page through a permitted route (e.g., `/users/:userId` via self-read), breadcrumb segments must not link to parent routes the user cannot access (e.g., the "Users" list under Access Management). A breadcrumb that navigates to a forbidden page is worse than no breadcrumb.
+
+- If the user lacks permission for a parent route, either hide the breadcrumb entirely or render it as non-link text
+- Consider whether the page needs a dedicated route outside the restricted section (e.g., `/my-profile` instead of nesting under `/access-management/users/:userId`)
 
 ---
 

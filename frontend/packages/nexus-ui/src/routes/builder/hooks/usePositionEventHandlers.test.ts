@@ -65,7 +65,7 @@ describe('usePositionEventHandlers', () => {
       const { result } = renderSyncHook()
       const draggedNode = makeNode('trigger-0', { x: 50, y: 60 })
 
-      result.current.onNodeDragStop({} as React.MouseEvent, draggedNode, [draggedNode])
+      result.current.onNodeDragStop({} as never, draggedNode, [draggedNode])
 
       expect(mockUpdateNodePositions).toHaveBeenCalledWith({ trigger_manual: { x: 50, y: 60 } })
     })
@@ -74,7 +74,7 @@ describe('usePositionEventHandlers', () => {
       const { result } = renderSyncHook()
       const draggedNode = makeNode('task-1', { x: 100, y: 200 })
 
-      result.current.onNodeDragStop({} as React.MouseEvent, draggedNode, [draggedNode])
+      result.current.onNodeDragStop({} as never, draggedNode, [draggedNode])
 
       expect(mockUpdateNodePositions).toHaveBeenCalledWith({ 'task-1': { x: 100, y: 200 } })
     })
@@ -82,7 +82,7 @@ describe('usePositionEventHandlers', () => {
     it('does not call updateNodePositions for empty drag array', () => {
       const { result } = renderSyncHook()
 
-      result.current.onNodeDragStop({} as React.MouseEvent, makeNode('n'), [])
+      result.current.onNodeDragStop({} as never, makeNode('n'), [])
 
       expect(mockUpdateNodePositions).not.toHaveBeenCalled()
     })

@@ -127,16 +127,20 @@ describe('ConvergeNodeForm', () => {
   })
 
   describe('Validation', () => {
-    it.skip('validates required strategy field', async () => {
+    it('rejects submission when strategy is reset to placeholder', async () => {
       const user = userEvent.setup()
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Strategy')
-      await user.selectOptions(screen.getByRole('combobox', { name: /Continue when criteria/i }), '')
-      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
-      expect(screen.getByText(/Continue when criteria is required/i)).toBeInTheDocument()
-      expect(mockOnSubmit).not.toHaveBeenCalled()
+      const strategySelect = screen.getByRole('combobox', { name: /Continue when criteria/i })
+      await user.selectOptions(strategySelect, '')
+
+      fireEvent.submit(screen.getByTestId('converge-node-form'))
+
+      await waitFor(() => {
+        expect(mockOnSubmit).not.toHaveBeenCalled()
+      })
     })
   })
 

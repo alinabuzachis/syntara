@@ -221,10 +221,7 @@ function identityProviderFormBreadcrumbTrail(
     return breadcrumbsIdentityProviderAdd()
   }
   const idpDetailPath = providerId
-    ? AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
-        '/:tab?',
-        ''
-      )
+    ? AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId)
     : ''
   if (providerName && idpDetailPath) {
     return breadcrumbsIdentityProviderEdit(providerName, idpDetailPath)

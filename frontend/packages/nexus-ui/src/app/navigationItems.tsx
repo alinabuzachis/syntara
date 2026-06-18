@@ -277,6 +277,12 @@ export const NAV_ITEMS: TNavigationItem[] = [
             path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetail,
             element: <IdentityProviderDetail />,
           },
+          {
+            label: 'Identity Provider Details Tab',
+            path: AppRoute.SystemAdministration.Authentication.IdentityProviderDetailTab,
+            element: <IdentityProviderDetail />,
+            hidden: true,
+          },
         ],
       },
       {

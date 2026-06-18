@@ -115,7 +115,6 @@ export const useWorkflowStoreActions = () => {
     updateActivity: state.updateActivity,
     replaceActivity: state.replaceActivity,
     duplicateActivity: state.duplicateActivity,
-    syncConvergeNodeBranches: state.syncConvergeNodeBranches,
     moveActivityBefore: state.moveActivityBefore,
     moveActivityAfter: state.moveActivityAfter,
     reorderActivitiesFromEdges: state.reorderActivitiesFromEdges,

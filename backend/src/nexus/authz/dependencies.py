@@ -65,6 +65,7 @@ class PermissionChecker:
         resource_model: type[SQLModel] | None = None,
         resource_id_param: str | None = None,
         body_project_field: str | None = None,
+        form_project_field: str | None = None,
     ) -> None:
         """Initialize permission checker.
 
@@ -82,6 +83,9 @@ class PermissionChecker:
             body_project_field: JSON body field name containing a project UUID (e.g.,
                 "project_id"). Used for create endpoints where the project context
                 comes from the request body rather than the URL path.
+            form_project_field: Multipart form field name containing a project UUID.
+                Used for multipart/form-data endpoints where ``body_project_field``
+                cannot be used (``request.json()`` fails on multipart forms).
 
         """
         self.resource_type = resource_type
@@ -90,6 +94,7 @@ class PermissionChecker:
         self.resource_model = resource_model
         self.resource_id_param = resource_id_param
         self.body_project_field = body_project_field
+        self.form_project_field = form_project_field
         self.resource_id: str = ""
 
     async def _resolve_project_name(self, db: AsyncSession, project_id: str | UUID) -> str:
@@ -229,6 +234,9 @@ class PermissionChecker:
         if not resource_project and self.body_project_field:
             resource_project = await self._resolve_project_from_body(request, db)
 
+        if not resource_project and self.form_project_field:
+            resource_project = await self._resolve_project_from_form(request, db)
+
         return resource_name, resource_project, resource_labels
 
     async def _resolve_project_from_body(self, request: Request, db: AsyncSession) -> str:
@@ -257,6 +265,27 @@ class PermissionChecker:
                 from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
 
                 msg = f"Project {body_project_id} not found"
+                raise ProjectNotFoundError(msg)
+            return project_name
+        return ""
+
+    async def _resolve_project_from_form(self, request: Request, db: AsyncSession) -> str:
+        """Extract and resolve project from a multipart form field.
+
+        Returns:
+            The project name, or empty string if not found.
+
+        """
+        if not self.form_project_field:
+            return ""
+        form = await request.form()
+        form_project_id = form.get(self.form_project_field)
+        if form_project_id and isinstance(form_project_id, str):
+            project_name = await self._resolve_project_name(db, form_project_id)
+            if not project_name:
+                from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
+
+                msg = f"Project {form_project_id} not found"
                 raise ProjectNotFoundError(msg)
             return project_name
         return ""

@@ -3,9 +3,13 @@ import { useEffect, useRef, useState, type Dispatch } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import type { DialogState } from '../../../hooks/useDialogState'
+import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { BuilderAction } from '../builderReducer'
+import { useBuilderImportHandlers, type UseBuilderImportHandlersParams } from '../hooks/useBuilderImportHandlers'
+import type { PendingImportData } from '../useWorkflowImportExport'
 
+import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import type { RunStepDialogData, RunStepExecutionCreatedOptions } from './RunStepDialog'
 import { RunStepDialog } from './RunStepDialog'
 import { RunWorkflowModal } from './RunWorkflowModal'
@@ -39,6 +43,9 @@ type BuilderDialogsProps = Readonly<{
   triggerName: string
   triggerNodeId?: string
   triggerInputSchema?: Record<string, unknown>
+  pendingImport: PendingImportData | null
+  setPendingImport: (data: PendingImportData | null) => void
+  importDeps: Omit<UseBuilderImportHandlersParams, 'dispatch' | 'markDirty' | 'showSuccess' | 'showError' | 'showInfo'>
   runStepDialog: DialogState<RunStepDialogData>
   onRunStepExecutionCreated?: (executionId: string, options: RunStepExecutionCreatedOptions) => void
   pinnedMockData?: Record<string, Record<string, unknown>>
@@ -126,11 +133,21 @@ export function BuilderDialogs({
   triggerName,
   triggerNodeId,
   triggerInputSchema,
+  pendingImport,
+  setPendingImport,
+  importDeps,
   runStepDialog,
   onRunStepExecutionCreated,
   pinnedMockData,
 }: BuilderDialogsProps) {
   const isDirty = useWorkflowStore((state) => state.isDirty)
+  const markDirty = useWorkflowStore((state) => state.markDirty)
+  const { showSuccess, showError: showImportError, showInfo } = useAlerts()
+  const { handleImportCurrent, handleImportNew, clearPendingImport } = useBuilderImportHandlers(
+    { ...importDeps, dispatch, markDirty, showSuccess, showError: showImportError, showInfo },
+    pendingImport,
+    setPendingImport
+  )
   // Only show input step if trigger has a non-empty input schema with properties or type defined
   const hasInputSchema = Boolean(
     triggerInputSchema &&
@@ -218,6 +235,15 @@ export function BuilderDialogs({
         workflowId={workflowId ?? ''}
         predecessors={runStepDialog.item?.predecessors}
         pinnedMockData={pinnedMockData}
+      />
+      <ImportConfirmationDialog
+        isOpen={pendingImport != null}
+        onClose={clearPendingImport}
+        onImportCurrent={handleImportCurrent}
+        onImportNew={handleImportNew}
+        workflowName={pendingImport?.name ?? ''}
+        isDirty={isDirty}
+        isPending={false}
       />
     </>
   )

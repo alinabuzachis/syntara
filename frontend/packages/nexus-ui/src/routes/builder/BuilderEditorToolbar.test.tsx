@@ -23,6 +23,7 @@ describe('BuilderEditorToolbar', () => {
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
     onPublishClick: vi.fn(),
     onUnpublish: vi.fn(),
+    onPendingImport: vi.fn(),
     builderPermissions: {
       canEdit: true,
       canRun: true,

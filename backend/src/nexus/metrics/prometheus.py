@@ -255,6 +255,22 @@ class NexusPrometheusMetrics:
             registry=self.registry,
         )
 
+        # ---- Scheduled Trigger ----
+        self.scheduled_trigger_fires_total = Counter(
+            "nexus_scheduled_trigger_fires_total",
+            "Total scheduled trigger executions",
+            ["status"],
+            registry=self.registry,
+        )
+
+        self.scheduled_trigger_latency_seconds = Histogram(
+            "nexus_scheduled_trigger_latency_seconds",
+            "Latency between scheduled fire time and actual execution start",
+            [],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
         # ---- Component Counters ----
         self.tool_executions_total = Counter(
             "nexus_tool_executions_total",

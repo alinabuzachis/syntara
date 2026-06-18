@@ -1,6 +1,8 @@
 import { EdgeLabelRenderer } from '@xyflow/react'
 import React from 'react'
 
+import styles from './EdgeLabel.module.css'
+
 type EdgeLabelProps = {
   /** X coordinate for positioning the label */
   labelX: number
@@ -29,10 +31,8 @@ export function EdgeLabel(props: EdgeLabelProps) {
         style={{
           position: 'absolute',
           transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-          fontSize: 12,
-          pointerEvents: 'all',
         }}
-        className="nodrag nopan"
+        className={`nodrag nopan ${styles.edgeLabel}`}
       >
         {label}
       </div>

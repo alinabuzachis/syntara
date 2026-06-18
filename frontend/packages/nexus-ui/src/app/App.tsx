@@ -1,18 +1,17 @@
-import { Compass, CompassContent } from '@patternfly/react-core'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { RouterProvider } from '@tanstack/react-router'
 
-import { SessionTimeoutWarning } from '../components/session/SessionTimeoutWarning'
 import { AlertProvider } from '../providers/alerts'
 import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
-import { UnsavedChangesProvider } from '../providers/unsaved-changes/UnsavedChangesProvider'
 import { queryClient } from '../queryClient'
 import { TestSignInCallback } from '../routes/access-management/authentication/identity-providers/TestSignInCallback'
 import { DocLinkProvider } from '../utils/docs/DocLinkProvider'
 
-import { AppDockedNav } from './AppDockedNav'
-import { AppLogin } from './AppLogin'
 import { AppRoute } from './AppRoute'
 import { AppRouter } from './AppRouter'
+import { AppShell } from './AppShell'
+import { isTanStackRouter } from './routerFlag'
+import { tanstackRouter } from './tanstackRouter'
 
 export default function App() {
   // Handle test-signin callback before auth — the popup doesn't need a full session.
@@ -27,20 +26,18 @@ export default function App() {
       <DocLinkProvider>
         <ColorSchemeProvider>
           <AlertProvider>
-            <UnsavedChangesProvider>
-              <AppLogin>
-                <SessionTimeoutWarning />
-                <Compass
-                  className="pf-m-no-screen-warning bg-deep-space"
-                  dock={<AppDockedNav />}
-                  main={
-                    <CompassContent role="main">
-                      <AppRouter />
-                    </CompassContent>
-                  }
-                />
-              </AppLogin>
-            </UnsavedChangesProvider>
+            {isTanStackRouter() ? (
+              // TanStack: RouterProvider renders the root layout route (RootLayout →
+              // AppShell + Outlet) which includes UnsavedChangesProvider inside the
+              // router context where useLocation/useNavigate hooks are available.
+              <RouterProvider router={tanstackRouter} />
+            ) : (
+              // Wouter: AppShell renders UnsavedChangesProvider + AppRouter directly.
+              // Wouter reads browser location without a Router wrapper.
+              <AppShell>
+                <AppRouter />
+              </AppShell>
+            )}
           </AlertProvider>
         </ColorSchemeProvider>
       </DocLinkProvider>

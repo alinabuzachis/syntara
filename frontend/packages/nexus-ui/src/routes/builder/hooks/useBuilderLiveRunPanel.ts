@@ -11,10 +11,13 @@ type UseBuilderLiveRunPanelParams = {
   mostRecentRunPanelOpen: boolean
   executionStatus: ExecutionStatus | null | undefined
   isViewingExecution: boolean
+  onClosePanel: () => void
 }
 
 type UseBuilderLiveRunPanelResult = {
   showMostRecentRunPanelInEditor: boolean
+  isTerminalStatus: boolean
+  isLiveRunActive: boolean
   canvasExecutionStatus: ExecutionStatus | null
   mostRecentSelectedNodeId: string | null
   mostRecentSelectedNodeName: string | null
@@ -22,6 +25,7 @@ type UseBuilderLiveRunPanelResult = {
   handleMostRecentResize: (deltaY: number) => void
   handleMostRecentNodeSelect: (nodeId: string, nodeName: string) => void
   handleMostRecentDeselectNode: () => void
+  handleCloseMostRecentRunPanel: () => void
 }
 
 const MIN_PANEL_HEIGHT = 100
@@ -32,6 +36,7 @@ export function useBuilderLiveRunPanel({
   mostRecentRunPanelOpen,
   executionStatus,
   isViewingExecution,
+  onClosePanel,
 }: UseBuilderLiveRunPanelParams): UseBuilderLiveRunPanelResult {
   const queryClient = useQueryClient()
 
@@ -50,8 +55,13 @@ export function useBuilderLiveRunPanel({
     executionStatus === ExecutionStatusEnum.RUNNING ||
     executionStatus === ExecutionStatusEnum.PENDING ||
     executionStatus === ExecutionStatusEnum.PAUSED
+  const isTerminalStatus =
+    executionStatus === ExecutionStatusEnum.COMPLETED ||
+    executionStatus === ExecutionStatusEnum.FAILED ||
+    executionStatus === ExecutionStatusEnum.CANCELLED
   const canvasExecutionStatus = isActive ? (executionStatus ?? null) : null
   const showMostRecentRunPanelInEditor = isActive && !isViewingExecution
+  const isLiveRunActive = showMostRecentRunPanelInEditor && !isTerminalStatus
 
   useExecutionWebSocket(mostRecentExecutionId ?? '', {
     enabled: isActive && isRunningOrPending,
@@ -82,6 +92,8 @@ export function useBuilderLiveRunPanel({
 
   return {
     showMostRecentRunPanelInEditor,
+    isTerminalStatus,
+    isLiveRunActive,
     canvasExecutionStatus,
     mostRecentSelectedNodeId,
     mostRecentSelectedNodeName,
@@ -89,5 +101,6 @@ export function useBuilderLiveRunPanel({
     handleMostRecentResize,
     handleMostRecentNodeSelect,
     handleMostRecentDeselectNode,
+    handleCloseMostRecentRunPanel: onClosePanel,
   }
 }

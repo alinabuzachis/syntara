@@ -56,7 +56,6 @@ export function useBuilderFlowGraph({
 
     const nodes: NodeType[] = []
     const edges: EdgeType[] = []
-    const previousIds: string[] = []
 
     // Build mapping from real trigger IDs to display IDs (trigger-0, trigger-1, ...)
     // Edges from backend use real IDs; React Flow needs display IDs
@@ -84,8 +83,6 @@ export function useBuilderFlowGraph({
         position: { x: 0, y: 0 },
         data: enrichedTriggerData,
       })
-      previousIds.push(triggerId)
-
       // Map real trigger ID to display ID for edge transformation
       if (trigger.id) {
         triggerRealIdToDisplayId.set(trigger.id, triggerId)

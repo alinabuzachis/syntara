@@ -13,12 +13,16 @@ import { assertUrlParam } from '../../../test/filter-test-helpers'
 import Integrations from './Integrations'
 
 // Mock dependencies
-vi.mock('../../../client', () => ({
-  toolManagerClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
-  },
-}))
+vi.mock('../../../client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../client')>()
+  return {
+    ...actual,
+    toolManagerClient: {
+      useQuery: vi.fn(),
+      useMutation: vi.fn(),
+    },
+  }
+})
 
 // Mock useFilterState - will be configured per-test
 vi.mock('../../../hooks/useFilterState', async (importOriginal) => {

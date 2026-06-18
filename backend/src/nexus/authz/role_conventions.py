@@ -198,6 +198,8 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     # -- files --
     PolicyInfo("files", "upload", roles=("admin", "user")),
     PolicyInfo("files", "download", roles=("admin", "user")),
+    PolicyInfo("files", "upload", scope="project", roles=("project-admin", "project-user")),
+    PolicyInfo("files", "download", scope="project", roles=("project-admin", "project-user", "project-auditor")),
 ]
 
 BUILTIN_ROLES: list[RoleInfo] = [

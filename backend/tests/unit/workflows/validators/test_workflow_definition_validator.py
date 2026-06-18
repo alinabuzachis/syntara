@@ -460,6 +460,77 @@ class TestCollectValidationIssues:
         assert "does not match" in edge_errors[0].message
 
 
+class TestTemplateExpressionValidation:
+    """Template expression validation is wired into both validator paths."""
+
+    def test_collect_issues_includes_unresolved_reference_error(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "n1",
+                    "type": "script",
+                    "parameters": {
+                        "language": "python",
+                        "code": "print(1)",
+                        "environment": {"X": "${ghost.output}"},
+                    },
+                },
+            ],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+        result = validator.collect_validation_issues(definition)
+        assert result.valid is False
+        assert any("ghost" in e.message for e in result.errors)
+        ghost_errors = [e for e in result.errors if "ghost" in e.message]
+        assert ghost_errors[0].node_id == "n1"
+
+    def test_validate_raises_on_loop_variable_outside_loop(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "n1",
+                    "type": "script",
+                    "parameters": {
+                        "language": "python",
+                        "code": "print(1)",
+                        "environment": {"X": "${loop.item}"},
+                    },
+                },
+            ],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+        with pytest.raises(SafeValueError, match="loop"):
+            validator.validate_workflow_definition(definition)
+
+    def test_collect_issues_includes_loop_scope_error(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "n1",
+                    "type": "script",
+                    "parameters": {
+                        "language": "python",
+                        "code": "print(1)",
+                        "environment": {"X": "${loop.item}"},
+                    },
+                },
+            ],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+        result = validator.collect_validation_issues(definition)
+        assert result.valid is False
+        assert any("loop" in e.message for e in result.errors)
+
+
 class TestCollectFindings:
     """collect_findings() returns structured ValidationResult with individual findings."""
 

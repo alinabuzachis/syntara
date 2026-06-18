@@ -1,10 +1,7 @@
 import { AppRoute } from '../../../../app/AppRoute'
 
 export function identityProviderDetailBasePath(providerId: string): string {
-  return AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId).replace(
-    '/:tab?',
-    ''
-  )
+  return AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(':providerId', providerId)
 }
 
 export function identityProviderGroupMappingTabPath(providerId: string): string {

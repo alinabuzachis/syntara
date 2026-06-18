@@ -33,7 +33,7 @@ from nexus.core.utils.session_factory import create_session_factory_from_request
 from nexus.files.audit.file_downloaded import FileDownloadedEvent
 from nexus.files.document_conversion.tasks import DocumentConversionTask
 from nexus.files.file_manager import FileManager, get_file_manager
-from nexus.files.models.file_metadata import FileStatus
+from nexus.files.models.file_metadata import FileMetadata, FileStatus
 from nexus.files.storage import sanitize_filename
 
 router = NexusRouter(prefix="/files", tags=["Files"])
@@ -42,6 +42,7 @@ logger = structlog.stdlib.get_logger(__name__)
 _files_perm_upload = PermissionChecker(
     "files",
     "upload",
+    form_project_field="project_id",
 )
 
 # ============================================================================
@@ -71,6 +72,7 @@ class UploadFilesBody(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     files: list[UploadFile] = Field(description="Files to upload (1-10 files, max 10MB each)")
+    project_id: UUID = Field(description="Project to associate files with")
 
 
 class FileUploadInfo(BaseModel):
@@ -162,7 +164,6 @@ async def upload_files(
 
     Args:
         db: Database session (dependency injected)
-        current_user: Current authenticated user
         file_manager: FileManager instance (dependency injected)
         background_tasks: FastAPI background tasks for scheduling conversion
         document_conversion_task: DocumentConversionTask with session factory
@@ -185,8 +186,9 @@ async def upload_files(
     # Validate and save files (returns in-memory FileMetadata objects)
     file_metadata_list = await file_manager.validate_and_save_files(body.files)
 
-    # Persist FileMetadata records to database
+    # Set project association before persisting
     for metadata in file_metadata_list:
+        metadata.project_id = body.project_id
         db.add(metadata)
 
     await db.commit()
@@ -225,6 +227,8 @@ async def upload_files(
 _files_perm_download = PermissionChecker(
     "files",
     "download",
+    resource_model=FileMetadata,
+    resource_id_param="file_id",
 )
 
 
@@ -234,6 +238,13 @@ _files_perm_download = PermissionChecker(
     description="Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.",
     dependencies=[Depends(_files_perm_download)],
     operation_id="download_file",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "description": "File content as binary stream",
+            "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
+        },
+    },
 )
 async def download_file(
     file_id: UUID,
@@ -244,6 +255,9 @@ async def download_file(
 
     Uses the file's stored storage_backend to select the correct retriever,
     enabling dual-read during local-to-S3 migration.
+
+    Authorization is handled entirely by PermissionChecker (dependency),
+    which verifies files:download permission via project-scoped OPA policies.
 
     Args:
         file_id: UUID of the file to download

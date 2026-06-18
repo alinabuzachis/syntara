@@ -21,6 +21,7 @@ from uuid import UUID
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.cookies import get_refresh_token_from_cookie
 from nexus.auth.exceptions import (
@@ -30,6 +31,7 @@ from nexus.auth.exceptions import (
 )
 from nexus.auth.services.token_service import TokenPayload, TokenService
 from nexus.core.auth.jwt_utils import extract_actor_claims
+from nexus.core.database.session import get_db
 from nexus.core.lib.sanitization import strip_control_chars
 from nexus.core.models import User
 
@@ -81,7 +83,7 @@ def _safe_parse_uuid(value: str) -> UUID | None:
         return None
 
 
-async def _check_global_revocation(payload: TokenPayload, *, token_type: str) -> None:
+async def _check_global_revocation(payload: TokenPayload, *, token_type: str, db: AsyncSession) -> None:
     """Reject the token if it was issued before the global revocation timestamp.
 
     Dispatches an audit event and raises ``TokenGloballyRevokedError``
@@ -92,6 +94,7 @@ async def _check_global_revocation(payload: TokenPayload, *, token_type: str) ->
         payload: Decoded token payload (must have ``iat`` and ``sub``).
         token_type: ``"access"`` or ``"refresh"`` — included in the
             audit event for observability.
+        db: Active database session (reused from the request).
 
     Raises:
         InvalidTokenError: If the token has no ``iat`` claim.
@@ -104,7 +107,7 @@ async def _check_global_revocation(payload: TokenPayload, *, token_type: str) ->
 
     from nexus.auth.services.global_revocation import is_token_globally_revoked  # noqa: PLC0415
 
-    revocation_ts = await is_token_globally_revoked(payload.iat)
+    revocation_ts = await is_token_globally_revoked(payload.iat, db)
     if revocation_ts is not None:
         from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
         from nexus.auth.audit.global_revocation import GlobalRevocationRejectEvent  # noqa: PLC0415
@@ -174,6 +177,7 @@ def _user_from_payload(payload: TokenPayload) -> User:
 
 async def get_current_user(
     request: Request,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
 ) -> User:
     """Get the current authenticated user from JWT token claims.
@@ -188,6 +192,7 @@ async def get_current_user(
 
     Args:
         request: FastAPI request object
+        db: Database session (reused from the request for revocation check).
         credentials: HTTP Bearer credentials
 
     Returns:
@@ -210,19 +215,21 @@ async def get_current_user(
         token_type="access",  # noqa: S106
     )
 
-    await _check_global_revocation(payload, token_type="access")  # noqa: S106
+    await _check_global_revocation(payload, token_type="access", db=db)  # noqa: S106
 
     return _user_from_payload(payload)
 
 
 async def get_token_payload(
     request: Request,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
 ) -> TokenPayload:
     """Get the validated access token payload.
 
     Args:
         request: FastAPI request object
+        db: Database session (reused from the request for revocation check).
         credentials: HTTP Bearer credentials
 
     Returns:
@@ -244,12 +251,15 @@ async def get_token_payload(
         token_type="access",  # noqa: S106
     )
 
-    await _check_global_revocation(payload, token_type="access")  # noqa: S106
+    await _check_global_revocation(payload, token_type="access", db=db)  # noqa: S106
 
     return payload
 
 
-async def get_refresh_token(request: Request) -> TokenPayload:
+async def get_refresh_token(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TokenPayload:
     """Extract, decode, and validate the refresh token from the request cookie.
 
     Extracts the JWT from the ``ao_refresh_token`` HttpOnly cookie, decodes
@@ -262,6 +272,7 @@ async def get_refresh_token(request: Request) -> TokenPayload:
 
     Args:
         request: FastAPI request object
+        db: Database session (reused from the request for revocation check).
 
     Returns:
         Decoded and validated refresh-token payload.
@@ -295,6 +306,6 @@ async def get_refresh_token(request: Request) -> TokenPayload:
     except Exception as e:
         raise AuthenticationRequiredError from e
 
-    await _check_global_revocation(payload, token_type="refresh")  # noqa: S106
+    await _check_global_revocation(payload, token_type="refresh", db=db)  # noqa: S106
 
     return payload

@@ -11,6 +11,7 @@ only paths stored in the database (protects against DB bloat).
 from datetime import datetime
 from enum import Enum, StrEnum
 from typing import ClassVar
+from uuid import UUID
 
 from pydantic import ConfigDict
 from sqlmodel import AutoString, DateTime, Field
@@ -75,6 +76,14 @@ class FileMetadata(BaseResource, table=True):
 
     __tablename__ = "file_metadata"
 
+    # Project isolation
+    project_id: UUID | None = Field(
+        default=None,
+        foreign_key="projects.id",
+        description="Project namespace for resource isolation",
+        index=True,
+    )
+
     # File identification
     filename: str = Field(
         max_length=255,
@@ -138,6 +147,7 @@ class FileMetadata(BaseResource, table=True):
         "mime_type",
         "status",
         "storage_backend",
+        "project_id",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = [
@@ -145,6 +155,7 @@ class FileMetadata(BaseResource, table=True):
         "filename",
         "size_bytes",
         "retention_expires_at",
+        "project_id",
     ]
 
     model_config: ClassVar[ConfigDict] = ConfigDict(

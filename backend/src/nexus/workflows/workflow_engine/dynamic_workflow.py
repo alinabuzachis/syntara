@@ -49,6 +49,7 @@ from nexus.workflows.workflow_engine.unified_eval import safe_eval_with_namespac
 ALLOWED_TRIGGER_TYPES: set[str] = {
     ActivityName.EDA_TRIGGER,
     ActivityName.MANUAL_TRIGGER,
+    ActivityName.SCHEDULED_TRIGGER,
     ActivityName.WEBHOOK_TRIGGER,
 }
 

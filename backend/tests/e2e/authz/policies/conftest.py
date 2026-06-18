@@ -26,6 +26,7 @@ from nexus_api_client.models.project_role_create import ProjectRoleCreate
 from nexus_api_client.models.project_update import ProjectUpdate
 from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
 from nexus_api_client.models.role_principal_type import RolePrincipalType
+from nexus_api_client.models.upload_files_body import UploadFilesBody
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
@@ -231,8 +232,39 @@ def _setup_target_user(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, An
     ctx["target_user_id"] = user.id
 
 
+def _file_upload(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+    from io import BytesIO
+
+    from nexus_api_client.types import File
+
+    body = UploadFilesBody(
+        files=[File(payload=BytesIO(b"test content"), file_name="policy-test.txt", mime_type="text/plain")],
+        project_id=pid,
+    )
+    return api.files.upload(body=body)
+
+
+def _file_download(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+    file_id = ctx["file_id"]
+    return api.files.download(file_id=file_id)
+
+
+def _setup_file(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
+    from io import BytesIO
+
+    from nexus_api_client.types import File
+
+    body = UploadFilesBody(
+        files=[File(payload=BytesIO(b"setup content"), file_name="setup-test.txt", mime_type="text/plain")],
+        project_id=pid,
+    )
+    resp = admin_api.files.upload(body=body)
+    data = resp.assert_and_get()
+    ctx["file_id"] = data.file_ids[0]
+
+
 # ---------------------------------------------------------------------------
-# Project-scoped policy test cases (26 policies)
+# Project-scoped policy test cases
 # ---------------------------------------------------------------------------
 
 PROJECT_SCOPED_CASES: list[PolicyTestCase] = [
@@ -303,6 +335,9 @@ PROJECT_SCOPED_CASES: list[PolicyTestCase] = [
     PolicyTestCase(
         "policy:delete:project", ["project:read:project", "policy:read:project"], _policy_list_proj, skip_denied=True
     ),
+    # -- files --
+    PolicyTestCase("files:upload:project", ["project:read:project"], _file_upload),
+    PolicyTestCase("files:download:project", ["project:read:project"], _file_download, _setup_file),
 ]
 
 # ---------------------------------------------------------------------------

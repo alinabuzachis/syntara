@@ -599,7 +599,6 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
       expect(typeof actions.addActivity).toBe('function')
       expect(typeof actions.removeActivity).toBe('function')
       expect(typeof actions.updateActivity).toBe('function')
-      expect(typeof actions.syncConvergeNodeBranches).toBe('function')
       expect(typeof actions.moveActivityBefore).toBe('function')
       expect(typeof actions.moveActivityAfter).toBe('function')
       expect(typeof actions.reorderActivitiesFromEdges).toBe('function')

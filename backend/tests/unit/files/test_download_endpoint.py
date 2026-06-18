@@ -11,6 +11,19 @@ from nexus.files.models import FileMetadata, FileStatus
 from nexus.files.router import download_file
 
 
+def _make_metadata() -> FileMetadata:
+    """Create a FileMetadata for testing."""
+    return FileMetadata(
+        id=uuid4(),
+        filename="test.pdf",
+        mime_type="application/pdf",
+        size_bytes=100,
+        file_path="nexus-abc-test.pdf",
+        storage_backend="local",
+        status=FileStatus.CONVERTED,
+    )
+
+
 class TestDownloadEndpoint:
     """Test file download endpoint business logic."""
 
@@ -69,16 +82,7 @@ class TestDownloadEndpoint:
     @pytest.mark.asyncio
     async def test_download_file_not_found_in_storage(self) -> None:
         """Test FileNotFoundError propagates when file exists in DB but not in storage."""
-        file_id = uuid4()
-        metadata = FileMetadata(
-            id=file_id,
-            filename="missing.pdf",
-            mime_type="application/pdf",
-            size_bytes=100,
-            file_path="nexus-abc-missing.pdf",
-            storage_backend="local",
-            status=FileStatus.CONVERTED,
-        )
+        metadata = _make_metadata()
 
         mock_file_manager = Mock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=metadata)
@@ -89,21 +93,12 @@ class TestDownloadEndpoint:
         mock_db = AsyncMock()
 
         with pytest.raises(FileContentNotFoundError):
-            await download_file(file_id=file_id, db=mock_db, file_manager=mock_file_manager)
+            await download_file(file_id=metadata.id, db=mock_db, file_manager=mock_file_manager)
 
     @pytest.mark.asyncio
     async def test_download_file_integrity_failure(self) -> None:
         """Test FileIntegrityError propagates when integrity check fails."""
-        file_id = uuid4()
-        metadata = FileMetadata(
-            id=file_id,
-            filename="tampered.pdf",
-            mime_type="application/pdf",
-            size_bytes=100,
-            file_path="nexus-abc-tampered.pdf",
-            storage_backend="local",
-            status=FileStatus.CONVERTED,
-        )
+        metadata = _make_metadata()
 
         mock_file_manager = Mock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=metadata)
@@ -114,21 +109,12 @@ class TestDownloadEndpoint:
         mock_db = AsyncMock()
 
         with pytest.raises(FileIntegrityError):
-            await download_file(file_id=file_id, db=mock_db, file_manager=mock_file_manager)
+            await download_file(file_id=metadata.id, db=mock_db, file_manager=mock_file_manager)
 
     @pytest.mark.asyncio
     async def test_download_calls_integrity_check(self) -> None:
         """Test that download uses load_file_with_integrity_check."""
-        file_id = uuid4()
-        metadata = FileMetadata(
-            id=file_id,
-            filename="checked.txt",
-            mime_type="text/plain",
-            size_bytes=5,
-            file_path="nexus-abc-checked.txt",
-            storage_backend="local",
-            status=FileStatus.CONVERTED,
-        )
+        metadata = _make_metadata()
 
         mock_file_manager = Mock()
         mock_file_manager.get_file_metadata = AsyncMock(return_value=metadata)
@@ -136,6 +122,6 @@ class TestDownloadEndpoint:
 
         mock_db = AsyncMock()
 
-        await download_file(file_id=file_id, db=mock_db, file_manager=mock_file_manager)
+        await download_file(file_id=metadata.id, db=mock_db, file_manager=mock_file_manager)
 
         mock_file_manager.load_file_with_integrity_check.assert_called_once_with(metadata)

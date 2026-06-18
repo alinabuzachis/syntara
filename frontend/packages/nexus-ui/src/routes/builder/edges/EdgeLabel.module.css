@@ -1,0 +1,4 @@
+.edgeLabel {
+  font-size: var(--pf-t--global--font--size--xs);
+  pointer-events: all;
+}

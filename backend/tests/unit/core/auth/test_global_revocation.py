@@ -1,5 +1,6 @@
 """Unit tests for global token revocation utilities and enforcement."""
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -11,13 +12,12 @@ from nexus.auth.dependencies import get_current_user
 from nexus.auth.exceptions import TokenGloballyRevokedError
 from nexus.auth.models.global_revocation_timestamp import GlobalRevocationTimestamp
 from nexus.auth.services.global_revocation import (
+    _CACHE_TTL,
     clear_global_revocation_cache,
     get_global_revocation_timestamp,
     is_token_globally_revoked,
 )
 from nexus.auth.services.token_service import TokenPayload
-
-_SESSION_LOCAL_PATCH = "nexus.core.database.session.AsyncSessionLocal"
 
 
 def _make_payload(
@@ -40,18 +40,14 @@ def _make_payload(
     )
 
 
-def _mock_db_session_with_row(row: GlobalRevocationTimestamp | None) -> AsyncMock:
-    """Build a mock AsyncSessionLocal that returns the given row from exec()."""
+def _mock_session(row: GlobalRevocationTimestamp | None) -> AsyncMock:
+    """Build a mock AsyncSession that returns the given row from exec()."""
     mock_exec_result = MagicMock()
     mock_exec_result.one_or_none.return_value = row
 
     mock_session = AsyncMock()
     mock_session.exec = AsyncMock(return_value=mock_exec_result)
-
-    return AsyncMock(
-        __aenter__=AsyncMock(return_value=mock_session),
-        __aexit__=AsyncMock(return_value=False),
-    )
+    return mock_session
 
 
 # ---------------------------------------------------------------------------
@@ -68,12 +64,7 @@ class TestGetGlobalRevocationTimestamp:
     @pytest.mark.asyncio
     async def test_returns_none_when_no_row(self) -> None:
         """Should return None when no row exists in the table."""
-        with patch(
-            _SESSION_LOCAL_PATCH,
-            return_value=_mock_db_session_with_row(None),
-        ):
-            result = await get_global_revocation_timestamp()
-
+        result = await get_global_revocation_timestamp(_mock_session(None))
         assert result is None
 
     @pytest.mark.asyncio
@@ -82,12 +73,7 @@ class TestGetGlobalRevocationTimestamp:
         row = MagicMock(spec=GlobalRevocationTimestamp)
         row.revoked_before = None
 
-        with patch(
-            _SESSION_LOCAL_PATCH,
-            return_value=_mock_db_session_with_row(row),
-        ):
-            result = await get_global_revocation_timestamp()
-
+        result = await get_global_revocation_timestamp(_mock_session(row))
         assert result is None
 
     @pytest.mark.asyncio
@@ -97,11 +83,7 @@ class TestGetGlobalRevocationTimestamp:
         row = MagicMock(spec=GlobalRevocationTimestamp)
         row.revoked_before = ts
 
-        with patch(
-            _SESSION_LOCAL_PATCH,
-            return_value=_mock_db_session_with_row(row),
-        ):
-            result = await get_global_revocation_timestamp()
+        result = await get_global_revocation_timestamp(_mock_session(row))
 
         assert result is not None
         assert result.year == 2025
@@ -123,18 +105,13 @@ class TestIsTokenGloballyRevoked:
     @pytest.mark.asyncio
     async def test_returns_none_when_iat_is_none(self) -> None:
         """Should return None when iat is None."""
-        result = await is_token_globally_revoked(None)
+        result = await is_token_globally_revoked(None, _mock_session(None))
         assert result is None
 
     @pytest.mark.asyncio
     async def test_returns_none_when_no_revocation_timestamp(self) -> None:
         """Should return None when no revocation timestamp is configured."""
-        with patch(
-            _SESSION_LOCAL_PATCH,
-            return_value=_mock_db_session_with_row(None),
-        ):
-            result = await is_token_globally_revoked(datetime.now(UTC))
-
+        result = await is_token_globally_revoked(datetime.now(UTC), _mock_session(None))
         assert result is None
 
     @pytest.mark.asyncio
@@ -146,11 +123,7 @@ class TestIsTokenGloballyRevoked:
         row = MagicMock(spec=GlobalRevocationTimestamp)
         row.revoked_before = revocation_time
 
-        with patch(
-            _SESSION_LOCAL_PATCH,
-            return_value=_mock_db_session_with_row(row),
-        ):
-            result = await is_token_globally_revoked(token_iat)
+        result = await is_token_globally_revoked(token_iat, _mock_session(row))
 
         assert result is not None
         assert result == revocation_time
@@ -164,29 +137,76 @@ class TestIsTokenGloballyRevoked:
         row = MagicMock(spec=GlobalRevocationTimestamp)
         row.revoked_before = revocation_time
 
-        with patch(
-            _SESSION_LOCAL_PATCH,
-            return_value=_mock_db_session_with_row(row),
-        ):
-            result = await is_token_globally_revoked(token_iat)
-
+        result = await is_token_globally_revoked(token_iat, _mock_session(row))
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_iat_equals_revocation(self) -> None:
-        """Should return None when token was issued at exactly the revocation timestamp."""
+    async def test_rejects_token_issued_at_revocation_time(self) -> None:
+        """Should reject token issued at exactly the revocation timestamp.
+
+        The TTL-adjusted comparison (iat < revocation_ts + TTL) means tokens
+        issued at revocation time fall within the staleness window.
+        """
         revocation_time = datetime.now(UTC)
 
         row = MagicMock(spec=GlobalRevocationTimestamp)
         row.revoked_before = revocation_time
 
-        with patch(
-            _SESSION_LOCAL_PATCH,
-            return_value=_mock_db_session_with_row(row),
-        ):
-            result = await is_token_globally_revoked(revocation_time)
+        result = await is_token_globally_revoked(revocation_time, _mock_session(row))
+        assert result == revocation_time
 
+    @pytest.mark.asyncio
+    async def test_rejects_token_issued_within_ttl_window(self) -> None:
+        """Should reject token issued within TTL seconds after revocation.
+
+        Compensates for cache staleness: another node might still be serving
+        the pre-revocation cached value.
+        """
+        revocation_time = datetime.now(UTC)
+        token_iat = revocation_time + timedelta(seconds=_CACHE_TTL - 1)
+
+        row = MagicMock(spec=GlobalRevocationTimestamp)
+        row.revoked_before = revocation_time
+
+        result = await is_token_globally_revoked(token_iat, _mock_session(row))
+        assert result == revocation_time
+
+    @pytest.mark.asyncio
+    async def test_allows_token_issued_after_ttl_window(self) -> None:
+        """Should allow token issued after revocation_ts + TTL."""
+        revocation_time = datetime.now(UTC)
+        token_iat = revocation_time + timedelta(seconds=_CACHE_TTL + 1)
+
+        row = MagicMock(spec=GlobalRevocationTimestamp)
+        row.revoked_before = revocation_time
+
+        result = await is_token_globally_revoked(token_iat, _mock_session(row))
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Thundering-herd protection
+# ---------------------------------------------------------------------------
+
+
+class TestThunderingHerdProtection:
+    """Tests for asyncio.Lock-based thundering-herd prevention."""
+
+    def setup_method(self) -> None:
+        clear_global_revocation_cache()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_misses_produce_single_db_query(self) -> None:
+        """Multiple concurrent cache misses should result in only one DB query."""
+        ts = datetime(2025, 6, 1, 12, 0, 0, tzinfo=UTC)
+        session = _mock_session(
+            MagicMock(spec=GlobalRevocationTimestamp, revoked_before=ts),
+        )
+
+        results = await asyncio.gather(*[get_global_revocation_timestamp(session) for _ in range(10)])
+
+        assert all(r == ts for r in results)
+        assert session.exec.await_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -214,17 +234,14 @@ class TestGetCurrentUserGlobalRevocation:
 
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="old-jwt")
         request = MagicMock()
+        db = _mock_session(row)
 
         with (
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
-            patch(
-                _SESSION_LOCAL_PATCH,
-                return_value=_mock_db_session_with_row(row),
-            ),
             patch("nexus.audit.dispatcher.AuditEventDispatcher.dispatch"),
             pytest.raises(TokenGloballyRevokedError),
         ):
-            await get_current_user(request, credentials=credentials)
+            await get_current_user(request, db=db, credentials=credentials)
 
     @pytest.mark.asyncio
     async def test_allows_token_after_revocation(self) -> None:
@@ -240,14 +257,9 @@ class TestGetCurrentUserGlobalRevocation:
 
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="new-jwt")
         request = MagicMock()
+        db = _mock_session(row)
 
-        with (
-            patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),
-            patch(
-                _SESSION_LOCAL_PATCH,
-                return_value=_mock_db_session_with_row(row),
-            ),
-        ):
-            user = await get_current_user(request, credentials=credentials)
+        with patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service):
+            user = await get_current_user(request, db=db, credentials=credentials)
 
         assert user is not None

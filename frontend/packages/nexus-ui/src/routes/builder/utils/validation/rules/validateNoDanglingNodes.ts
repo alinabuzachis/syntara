@@ -32,9 +32,6 @@ export function validateNoDanglingNodes(activities: Activity[], edges: EdgeConne
     reverseAdjacencyMap.get(edge.target)!.add(edge.source)
   })
 
-  // Find all reachable nodes by traversing from any node with no incoming edges
-  // (these are the entry points - could be triggers or other starting nodes)
-  const reachable = new Set<string>()
   const entryNodes = activities
     .map((a) => a.id)
     .filter((id) => !reverseAdjacencyMap.has(id) || reverseAdjacencyMap.get(id)!.size === 0)
@@ -47,7 +44,6 @@ export function validateNoDanglingNodes(activities: Activity[], edges: EdgeConne
     const nodeId = queue.shift()!
     if (visited.has(nodeId)) continue
     visited.add(nodeId)
-    reachable.add(nodeId)
 
     const neighbors = adjacencyMap.get(nodeId) ?? new Set()
     neighbors.forEach((neighbor) => {
