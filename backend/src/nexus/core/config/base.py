@@ -15,6 +15,7 @@ Usage:
 """
 
 import os
+import re
 import tempfile
 import warnings
 from enum import StrEnum
@@ -1006,6 +1007,12 @@ class LoggingSettings(BaseSettings):
     )
 
 
+# Matches Kubernetes cluster-internal service DNS: <service>.<namespace>.svc[.cluster.local]
+# Requires exactly two DNS labels before the .svc suffix to prevent single-label matches.
+# Labels must start and end with alphanumeric characters (RFC 1123 — no trailing hyphens).
+_SVC_DNS_RE = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?[.][a-z0-9]([a-z0-9-]*[a-z0-9])?\.svc(\.cluster\.local)?$")
+
+
 class OpenTelemetrySettings(BaseSettings):
     """OpenTelemetry configuration settings.
 
@@ -1026,7 +1033,10 @@ class OpenTelemetrySettings(BaseSettings):
 
     otel_endpoint: str = Field(
         default="http://localhost:4318/v1/logs",
-        description="OTLP HTTP endpoint for logs (use http:// for insecure, https:// for TLS)",
+        description=(
+            "OTLP HTTP endpoint for logs. Use http://<service>.<namespace>.svc.cluster.local:4318/v1/logs "
+            "for cluster-internal collectors, or https://collector.example.com:4318/v1/logs for TLS."
+        ),
     )
 
     otel_api_key: SecretStr | None = Field(
@@ -1059,10 +1069,15 @@ class OpenTelemetrySettings(BaseSettings):
     def validate_otel_endpoint_security(cls, v: str) -> str:
         """Validate that remote OTLP endpoints use HTTPS to prevent plaintext transmission of audit logs.
 
-        Allows HTTP only for localhost endpoints (development/testing).
-        Remote endpoints must use HTTPS to ensure audit data confidentiality.
+        HTTP is allowed for:
+        - Loopback addresses (localhost, 127.0.0.1, ::1) — local development
+        - Kubernetes cluster-internal service DNS (<service>.<namespace>.svc[.cluster.local]) — in-cluster collectors
 
-        Security: Uses URL parsing to prevent bypass attacks like http://localhost.evil.com
+        All other HTTP endpoints are rejected. Remote endpoints must use HTTPS.
+
+        Security: Uses URL parsing to prevent bypass attacks. The K8s service DNS check requires
+        exactly two labels before .svc (e.g. service.namespace.svc) to prevent single-label
+        matches or loopback-lookalike patterns like "127.0.0.1.ns.svc".
         """
         parsed = urlparse(v)
 
@@ -1070,26 +1085,32 @@ class OpenTelemetrySettings(BaseSettings):
         if parsed.scheme == "https":
             return v
 
-        # HTTP is only allowed for localhost/loopback addresses
+        # HTTP is allowed for loopback and cluster-internal addresses
         if parsed.scheme == "http":
-            # Allowed local hostnames and IPs
-            allowed_local = ("localhost", "127.0.0.1", "::1", "[::1]")
+            hostname = parsed.hostname or ""
 
-            if parsed.hostname in allowed_local:
+            # Loopback addresses (local development)
+            # Note: parsed.hostname strips brackets from IPv6 literals; "::1" is the actual returned form
+            if hostname in ("localhost", "127.0.0.1", "::1"):
                 return v
 
-            # Reject remote HTTP endpoints
+            # cluster-internal service DNS names (<service>.<namespace>.svc[.cluster.local])
+            if _SVC_DNS_RE.match(hostname):
+                return v
+
+            # Reject all other HTTP endpoints
             msg = (
                 "Remote OTLP endpoints must use HTTPS to prevent plaintext transmission of audit logs. "
-                f"Invalid endpoint: {v}. Use https:// for remote endpoints, or http://localhost / "
-                "http://127.0.0.1 / http://[::1] for local development."
+                f"Invalid endpoint: {v}. Use https:// for remote endpoints, "
+                "http://localhost / http://127.0.0.1 / http://[::1] for local development, or "
+                "http://<service>.<namespace>.svc.cluster.local for cluster-internal collectors."
             )
             raise ValueError(msg)
 
         # Reject unsupported schemes
         msg = (
             f"Unsupported URL scheme '{parsed.scheme}' in OTLP endpoint: {v}. "
-            "Use https:// for remote endpoints or http://localhost for local development."
+            "Use https:// for remote endpoints or http:// for local/cluster-internal endpoints."
         )
         raise ValueError(msg)
 

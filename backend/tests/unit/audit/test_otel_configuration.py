@@ -323,7 +323,6 @@ class TestOtelEndpointValidation:
         """HTTP endpoints are allowed for localhost."""
         from nexus.core.config.base import Settings
 
-        # Should not raise - localhost with http:// is allowed for development
         monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://localhost:4318/v1/logs")
         settings = Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
         assert settings.otel_endpoint == "http://localhost:4318/v1/logs"
@@ -332,16 +331,44 @@ class TestOtelEndpointValidation:
         """HTTP endpoints are allowed for 127.0.0.1."""
         from nexus.core.config.base import Settings
 
-        # Should not raise - 127.0.0.1 with http:// is allowed for development
         monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://127.0.0.1:4318/v1/logs")
         settings = Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
         assert settings.otel_endpoint == "http://127.0.0.1:4318/v1/logs"
+
+    def test_ipv6_localhost_http_endpoint_allowed(self, monkeypatch) -> None:
+        """HTTP endpoints are allowed for IPv6 localhost (::1)."""
+        from nexus.core.config.base import Settings
+
+        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://[::1]:4318/v1/logs")
+        settings = Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
+        assert settings.otel_endpoint == "http://[::1]:4318/v1/logs"
+
+    def test_cluster_internal_svc_http_endpoint_allowed(self, monkeypatch) -> None:
+        """HTTP endpoints are allowed for Kubernetes *.svc.cluster.local service DNS names."""
+        from nexus.core.config.base import Settings
+
+        monkeypatch.setenv(
+            "APP_OTEL_ENDPOINT",
+            "http://ao-otel-collector.automation-orchestrator.svc.cluster.local:4318/v1/logs",
+        )
+        settings = Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
+        assert "ao-otel-collector" in settings.otel_endpoint
+
+    def test_cluster_internal_short_svc_http_endpoint_allowed(self, monkeypatch) -> None:
+        """HTTP endpoints are allowed for short Kubernetes *.svc service DNS names."""
+        from nexus.core.config.base import Settings
+
+        monkeypatch.setenv(
+            "APP_OTEL_ENDPOINT",
+            "http://ao-otel-collector.automation-orchestrator.svc:4318/v1/logs",
+        )
+        settings = Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
+        assert "ao-otel-collector" in settings.otel_endpoint
 
     def test_remote_https_endpoint_allowed(self, monkeypatch) -> None:
         """HTTPS endpoints are allowed for remote endpoints."""
         from nexus.core.config.base import Settings
 
-        # Should not raise - remote endpoint with https:// is valid
         monkeypatch.setenv("APP_OTEL_ENDPOINT", "https://otlp.example.com:4318/v1/logs")
         settings = Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
         assert settings.otel_endpoint == "https://otlp.example.com:4318/v1/logs"
@@ -353,19 +380,28 @@ class TestOtelEndpointValidation:
 
         from nexus.core.config.base import Settings
 
-        # Should raise ValidationError - remote endpoint requires https://
         monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://otlp.example.com:4318/v1/logs")
         with pytest.raises(ValidationError, match="Remote OTLP endpoints must use HTTPS"):
             Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
 
     def test_remote_http_ip_endpoint_rejected(self, monkeypatch) -> None:
-        """HTTP endpoints are rejected for remote IP addresses."""
+        """HTTP endpoints are rejected for all non-loopback IP addresses, including public IPs."""
         import pytest
         from pydantic import ValidationError
 
         from nexus.core.config.base import Settings
 
-        # Should raise ValidationError - remote IP requires https://
+        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://203.0.113.10:4318/v1/logs")
+        with pytest.raises(ValidationError, match="Remote OTLP endpoints must use HTTPS"):
+            Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
+
+    def test_private_ip_http_endpoint_rejected(self, monkeypatch) -> None:
+        """HTTP endpoints are rejected for RFC 1918 private IP addresses (not cluster-internal DNS)."""
+        import pytest
+        from pydantic import ValidationError
+
+        from nexus.core.config.base import Settings
+
         monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://192.168.1.100:4318/v1/logs")
         with pytest.raises(ValidationError, match="Remote OTLP endpoints must use HTTPS"):
             Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
@@ -377,43 +413,42 @@ class TestOtelEndpointValidation:
 
         from nexus.core.config.base import Settings
 
-        # Should raise ValidationError - http://localhost.evil.com is NOT localhost
         monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://localhost.evil.com:4318/v1/logs")
         with pytest.raises(ValidationError, match="Remote OTLP endpoints must use HTTPS"):
             Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
 
-    def test_localhost_bypass_with_ip_subdomain_rejected(self, monkeypatch) -> None:
-        """HTTP endpoint with 127.0.0.1 as subdomain is rejected (prevents bypass)."""
+    def test_single_label_svc_rejected(self, monkeypatch) -> None:
+        """HTTP endpoint with single-label .svc hostname is rejected (not valid K8s service DNS)."""
         import pytest
         from pydantic import ValidationError
 
         from nexus.core.config.base import Settings
 
-        # Should raise ValidationError - http://127.0.0.1.evil.com is NOT localhost
-        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://127.0.0.1.evil.com:4318/v1/logs")
+        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://evil.svc:4318/v1/logs")
         with pytest.raises(ValidationError, match="Remote OTLP endpoints must use HTTPS"):
             Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
 
-    def test_localhost_bypass_with_userinfo_rejected(self, monkeypatch) -> None:
-        """HTTP endpoint with localhost in userinfo is rejected (prevents bypass)."""
+    def test_loopback_lookalike_svc_rejected(self, monkeypatch) -> None:
+        """HTTP endpoint with loopback-lookalike .svc hostname is rejected."""
         import pytest
         from pydantic import ValidationError
 
         from nexus.core.config.base import Settings
 
-        # Should raise ValidationError - http://localhost@evil.com uses localhost in userinfo
-        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://localhost@evil.com:4318/v1/logs")
+        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://127.0.0.1.namespace.svc:4318/v1/logs")
         with pytest.raises(ValidationError, match="Remote OTLP endpoints must use HTTPS"):
             Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
 
-    def test_ipv6_localhost_http_endpoint_allowed(self, monkeypatch) -> None:
-        """HTTP endpoints are allowed for IPv6 localhost (::1)."""
+    def test_trailing_hyphen_svc_rejected(self, monkeypatch) -> None:
+        """HTTP endpoint with trailing-hyphen label is rejected (violates RFC 1123)."""
+        import pytest
+        from pydantic import ValidationError
+
         from nexus.core.config.base import Settings
 
-        # Should not raise - ::1 with http:// is allowed for development
-        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://[::1]:4318/v1/logs")
-        settings = Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
-        assert settings.otel_endpoint == "http://[::1]:4318/v1/logs"
+        monkeypatch.setenv("APP_OTEL_ENDPOINT", "http://service-.namespace.svc:4318/v1/logs")
+        with pytest.raises(ValidationError, match="Remote OTLP endpoints must use HTTPS"):
+            Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
 
     def test_unsupported_scheme_rejected(self, monkeypatch) -> None:
         """Endpoints with unsupported schemes are rejected."""
@@ -422,7 +457,6 @@ class TestOtelEndpointValidation:
 
         from nexus.core.config.base import Settings
 
-        # Should raise ValidationError - ftp:// is not supported
         monkeypatch.setenv("APP_OTEL_ENDPOINT", "ftp://localhost:4318/v1/logs")
         with pytest.raises(ValidationError, match="Unsupported URL scheme"):
             Settings(secret_encryption_key=MOCK_SECRET_ENCRYPTION_KEY)
