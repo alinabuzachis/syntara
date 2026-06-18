@@ -53,10 +53,10 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
         repo: Repository in owner/repo format
     """
     list_cmd = [
-        "gh", "pr", "view", pr_number,
-        "--repo", repo,
-        "--json", "comments",
-        "--jq", f'.comments[] | select(.body | contains("{COMMENT_MARKER}")) | .databaseId'
+        "gh", "api",
+        f"repos/{repo}/issues/{pr_number}/comments",
+        "--paginate",
+        "--jq", f'.[] | select(.body | contains("{COMMENT_MARKER}")) | .id',
     ]
 
     result = subprocess.run(list_cmd, capture_output=True, text=True)

@@ -133,10 +133,10 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
     """
     # Find existing comment
     list_cmd = [
-        "gh", "pr", "view", pr_number,
-        "--repo", repo,
-        "--json", "comments",
-        "--jq", '.comments[] | select(.body | contains("Breaking Changes Detected")) | .databaseId'
+        "gh", "api",
+        f"repos/{repo}/issues/{pr_number}/comments",
+        "--paginate",
+        "--jq", '.[] | select(.body | contains("Breaking Changes Detected")) | .id',
     ]
 
     result = subprocess.run(list_cmd, capture_output=True, text=True)
