@@ -3482,6 +3482,94 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // ── Access Management: Role Assignments (policy-driven) ────────────────
+
+  http.get('/api/v1/role_assignments', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const principalType = url.searchParams.get('principal_type')
+    const principalName = url.searchParams.get('principal_name')
+    const roleName = url.searchParams.get('role_name')
+    const projectId = url.searchParams.get('project_id')
+
+    // Build unified list from all sources
+    const userEntries = mockUserRoleAssignments.map((a) => {
+      const role = mockRoles.find((r) => r.name === a.role_name)
+      return {
+        id: a.id,
+        principal_id: a.user_id,
+        principal_name: a.username,
+        principal_type: 'user' as const,
+        role_name: a.role_name,
+        role_description: role?.description ?? null,
+        role_policies: role?.policies ?? [],
+        project_id: null,
+        project_name: null,
+        created_at: a.created_at,
+      }
+    })
+
+    const groupEntries = mockGroupRoleAssignments.map((a) => {
+      const role = mockRoles.find((r) => r.name === a.role_name)
+      return {
+        id: a.id,
+        principal_id: a.group_id,
+        principal_name: a.group_name,
+        principal_type: 'group' as const,
+        role_name: a.role_name,
+        role_description: role?.description ?? null,
+        role_policies: role?.policies ?? [],
+        project_id: null,
+        project_name: null,
+        created_at: a.created_at,
+      }
+    })
+
+    const projectUserEntries = mockProjectRoleAssignments.map((a) => {
+      const role = mockRoles.find((r) => r.name === a.role_name)
+      return {
+        id: a.id,
+        principal_id: a.user_id,
+        principal_name: a.username,
+        principal_type: 'user' as const,
+        role_name: a.role_name,
+        role_description: role?.description ?? null,
+        role_policies: role?.policies ?? [],
+        project_id: a.project_id,
+        project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+        created_at: a.created_at,
+      }
+    })
+
+    const projectGroupEntries = mockProjectGroupRoleAssignments.map((a) => {
+      const role = mockRoles.find((r) => r.name === a.role_name)
+      return {
+        id: a.id,
+        principal_id: a.group_id,
+        principal_name: a.group_name,
+        principal_type: 'group' as const,
+        role_name: a.role_name,
+        role_description: role?.description ?? null,
+        role_policies: role?.policies ?? [],
+        project_id: a.project_id,
+        project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+        created_at: a.created_at,
+      }
+    })
+
+    let all = [...userEntries, ...groupEntries, ...projectUserEntries, ...projectGroupEntries]
+
+    // Apply filters
+    if (principalType) all = all.filter((a) => a.principal_type === principalType)
+    if (principalName) all = all.filter((a) => a.principal_name.includes(principalName))
+    if (roleName) all = all.filter((a) => a.role_name.includes(roleName))
+    if (projectId) all = all.filter((a) => a.project_id === projectId)
+
+    return HttpResponse.json(paginate(all, cursor, limit, includeTotal))
+  }),
+
   // ── Access Management: All Role Assignments (unified view) ─────────────
 
   http.get('/api/v1/all_role_assignments', ({ request }) => {
