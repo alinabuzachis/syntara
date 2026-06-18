@@ -1406,3 +1406,93 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         # All calls should pass is_enabled=False
         for call in mock_sync.call_args_list:
             assert call.kwargs["is_enabled"] is False
+
+
+class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
+    """Test restore_workflow_version method."""
+
+    @pytest.mark.asyncio
+    async def test_restore_creates_new_draft(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test restoring a version creates a new draft with the original definition."""
+        service = WorkflowService(test_db_session, test_user)
+        defn_v1 = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="restore-unit-test",
+                description=None,
+                labels={},
+                workflow_definition=defn_v1,
+            )
+
+        defn_v2 = self._create_workflow_definition(description="Updated workflow")  # type: ignore[arg-type]
+        mock_wh_svc = MagicMock()
+        mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
+        with (
+            patch("nexus.workflows.services.workflow_service.workflow_validator"),
+            patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc),
+        ):
+            await service.update_workflow(
+                workflow_id=workflow.id,
+                workflow_definition=defn_v2,
+            )
+
+        result_workflow, result_version = await service.restore_workflow_version(
+            workflow_id=workflow.id,
+            version=1,
+        )
+
+        assert result_workflow.current_version == 3
+        assert result_workflow.updated_by == test_user.id
+        assert result_workflow.updated_at is not None
+        assert result_version.version == 3
+        assert result_version.status == WorkflowVersionStatus.DRAFT
+        assert result_version.change_description == "Restored from version 1"
+        assert result_version.workflow_definition == defn_v1
+
+    @pytest.mark.asyncio
+    async def test_restore_current_version_is_noop(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test restoring the current version returns it without creating a new one."""
+        service = WorkflowService(test_db_session, test_user)
+        defn = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="restore-noop-unit",
+                description=None,
+                labels={},
+                workflow_definition=defn,
+            )
+
+        result_workflow, _ = await service.restore_workflow_version(
+            workflow_id=workflow.id,
+            version=1,
+        )
+
+        assert result_workflow.current_version == 1
+
+    @pytest.mark.asyncio
+    async def test_restore_nonexistent_version_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test restoring a nonexistent version raises error."""
+        service = WorkflowService(test_db_session, test_user)
+        defn = self._create_workflow_definition()
+
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
+            workflow, _ = await service.create_workflow(
+                name="restore-404-unit",
+                description=None,
+                labels={},
+                workflow_definition=defn,
+            )
+
+        with pytest.raises(WorkflowVersionNotFoundError):
+            await service.restore_workflow_version(workflow_id=workflow.id, version=99)
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self, test_db_session: AsyncSession, test_user: User) -> None:
+        """Test restoring from a nonexistent workflow raises error."""
+        service = WorkflowService(test_db_session, test_user)
+        fake_id = uuid4()
+
+        with pytest.raises(WorkflowNotFoundError):
+            await service.restore_workflow_version(workflow_id=fake_id, version=1)

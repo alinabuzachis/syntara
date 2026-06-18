@@ -56,7 +56,7 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
         "gh", "pr", "view", pr_number,
         "--repo", repo,
         "--json", "comments",
-        "--jq", f'.comments[] | select(.body | contains("{COMMENT_MARKER}")) | .id'
+        "--jq", f'.comments[] | select(.body | contains("{COMMENT_MARKER}")) | .databaseId'
     ]
 
     result = subprocess.run(list_cmd, capture_output=True, text=True)

@@ -425,3 +425,22 @@ async def unpublish_workflow(
     """Unpublish the currently published workflow version."""
     workflow = await service.unpublish_workflow(workflow_id=workflow_id)
     return WorkflowRead.model_validate(workflow)
+
+
+@router.post(
+    "/{workflow_id}/versions/{version}/restore",
+    dependencies=[Depends(_wf_perm_update)],
+    operation_id="restore_workflow_version",
+    response_description="Restored workflow version",
+)
+async def restore_workflow_version(
+    workflow_id: UUID,
+    version: int,
+    service: Annotated[WorkflowService, Depends(get_workflow_service)],
+) -> WorkflowReadWithVersion:
+    """Restore a previous workflow version as a new draft."""
+    workflow, restored_version = await service.restore_workflow_version(
+        workflow_id=workflow_id,
+        version=version,
+    )
+    return _build_workflow_with_version_response(workflow, restored_version)

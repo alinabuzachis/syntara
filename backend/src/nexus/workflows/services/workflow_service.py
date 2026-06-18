@@ -93,6 +93,57 @@ class WorkflowService(BaseService):
                 trigger_type=trigger_type,
             )
 
+    async def _get_version_or_none(self, workflow_id: UUID, version: int) -> WorkflowVersion | None:
+        """Fetch a single workflow version by workflow ID and version number."""
+        result = await self.session.exec(
+            select(WorkflowVersion).filter(
+                WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
+                WorkflowVersion.version == version,  # type: ignore[arg-type]
+                WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+        return result.one_or_none()
+
+    async def _create_version_record(
+        self,
+        workflow: Workflow,
+        workflow_definition: dict[str, Any],
+        change_description: str | None,
+    ) -> WorkflowVersion | None:
+        """Create a new version record without validation.
+
+        Includes change detection — skips creation if the definition
+        matches the current version. Callers are responsible for
+        validation.
+        """
+        current_version = await self._get_version_or_none(workflow.id, workflow.current_version)
+
+        if current_version and current_version.workflow_definition == workflow_definition:
+            return None
+
+        count_result = await self.session.exec(
+            select(func.max(WorkflowVersion.version)).filter(
+                WorkflowVersion.workflow_id == workflow.id  # type: ignore[arg-type]
+            )
+        )
+        max_version = count_result.one()
+        next_version = (max_version or 0) + 1
+
+        schema_version = workflow_definition.get("schema_version")
+        new_version = WorkflowVersion(
+            id=uuid4(),
+            workflow_id=workflow.id,
+            version=next_version,
+            schema_version=schema_version,
+            workflow_definition=workflow_definition,
+            change_description=change_description or f"Version {next_version}",
+            created_by=self.user.id,
+        )
+
+        workflow.current_version = next_version
+        self.session.add(new_version)
+        return new_version
+
     def _is_duplicate_name_error(self, e: IntegrityError) -> bool:
         """Check if IntegrityError is due to duplicate workflow name.
 
@@ -321,6 +372,28 @@ class WorkflowService(BaseService):
             )
         return prev_version
 
+    async def _get_webhook_sync_definition(
+        self, workflow_id: UUID, workflow: Workflow, fallback_definition: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Determine the workflow definition to sync to webhook triggers."""
+        if workflow.published_version is not None:
+            pub_result = await self.session.exec(
+                select(WorkflowVersion).filter(
+                    WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
+                    WorkflowVersion.version == workflow.published_version,  # type: ignore[arg-type]
+                    WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
+                )
+            )
+            published_ver = pub_result.one_or_none()
+            if published_ver:
+                return published_ver.workflow_definition
+            logger.warning(
+                "Published version record not found",
+                workflow_id=workflow_id,
+                version=workflow.published_version,
+            )
+        return fallback_definition
+
     async def get_workflow_by_id(self, workflow_id: UUID) -> Workflow:
         """Get a workflow by ID.
 
@@ -423,6 +496,9 @@ class WorkflowService(BaseService):
     ) -> WorkflowVersion | None:
         """Create new V2 workflow version from workflow_definition.
 
+        Validates the definition before creating the version. For restoring
+        previously-validated definitions, use ``_create_version_record`` directly.
+
         Args:
             workflow: Workflow to create version for
             workflow_definition: New V2 workflow definition as dict
@@ -447,49 +523,7 @@ class WorkflowService(BaseService):
         ):
             workflow_validator.validate_workflow_definition(workflow_definition)
 
-        schema_version = workflow_definition.get("schema_version")
-        workflow_dict = workflow_definition
-
-        # Fetch current version to compare definitions
-        current_version_result = await self.session.exec(
-            select(WorkflowVersion).filter(
-                WorkflowVersion.workflow_id == workflow.id,  # type: ignore[arg-type]
-                WorkflowVersion.version == workflow.current_version,  # type: ignore[arg-type]
-                WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-        )
-        current_version = current_version_result.one_or_none()
-
-        # Compare workflow definitions (change detection - dict comparison)
-        if current_version and current_version.workflow_definition == workflow_dict:
-            # No change detected - skip version creation
-            return None
-
-        # Get next version number
-        count_result = await self.session.exec(
-            select(func.max(WorkflowVersion.version)).filter(
-                WorkflowVersion.workflow_id == workflow.id  # type: ignore[arg-type]
-            )
-        )
-        max_version = count_result.one()
-        next_version = (max_version or 0) + 1
-
-        # Create new version
-        new_version = WorkflowVersion(
-            id=uuid4(),
-            workflow_id=workflow.id,
-            version=next_version,
-            schema_version=schema_version,
-            workflow_definition=workflow_dict,
-            change_description=change_description or f"Update to version {next_version}",
-            created_by=self.user.id,
-        )
-
-        # Update workflow's current version
-        workflow.current_version = next_version
-        self.session.add(new_version)
-
-        return new_version
+        return await self._create_version_record(workflow, workflow_definition, change_description)
 
     async def update_workflow(
         self,
@@ -553,29 +587,9 @@ class WorkflowService(BaseService):
         # Get current version for return
         _, current_version = await self.get_workflow_with_version(workflow_id)
 
-        # Sync webhook triggers using the published version's definition (if published),
-        # since webhook_router executes the published version, not the current draft.
-        if workflow.published_version is not None:
-            pub_result = await self.session.exec(
-                select(WorkflowVersion).filter(
-                    WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
-                    WorkflowVersion.version == workflow.published_version,  # type: ignore[arg-type]
-                    WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
-                )
-            )
-            published_ver = pub_result.one_or_none()
-            if published_ver:
-                sync_definition = published_ver.workflow_definition
-            else:
-                logger.warning(
-                    "Published version record not found during update",
-                    workflow_id=workflow_id,
-                    version=workflow.published_version,
-                )
-                sync_definition = current_version.workflow_definition
-        else:
-            sync_definition = current_version.workflow_definition
-
+        sync_definition = await self._get_webhook_sync_definition(
+            workflow_id, workflow, current_version.workflow_definition
+        )
         webhook_service = WebhookTriggerService(self.session, self.user)
         await self._sync_all_trigger_types(
             webhook_service,
@@ -599,14 +613,7 @@ class WorkflowService(BaseService):
         """Publish a specific workflow version."""
         workflow = await self._get_workflow_for_update(workflow_id)
 
-        version_result = await self.session.exec(
-            select(WorkflowVersion).filter(
-                WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
-                WorkflowVersion.version == version,  # type: ignore[arg-type]
-                WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
-            )
-        )
-        target_version = version_result.one_or_none()
+        target_version = await self._get_version_or_none(workflow_id, version)
         if not target_version:
             raise WorkflowVersionNotFoundError(workflow_id, version)
 
@@ -671,6 +678,68 @@ class WorkflowService(BaseService):
 
         await self.session.commit()
         return workflow
+
+    async def restore_workflow_version(
+        self,
+        workflow_id: UUID,
+        version: int,
+    ) -> tuple[Workflow, WorkflowVersion]:
+        """Restore a previous workflow version as a new draft.
+
+        Copies the target version's workflow_definition into a new draft version,
+        which becomes the latest version.
+
+        Design decisions (see hakbailey review on PR #1063):
+
+        - **No trigger sync**: Restore only creates a draft — it does not change
+          the published version. Trigger sync resolves to the published version's
+          definition (unaffected by restore) or disables triggers when unpublished.
+          Syncing here would be a no-op that adds data-loss risk, since
+          ``WebhookTriggerService.sync_webhook_triggers`` calls ``session.rollback()``
+          on ``IntegrityError``, which could discard the uncommitted restore.
+
+        - **No re-validation**: The restored definition was validated when originally
+          saved. Skipping validation ensures old versions remain restorable even if
+          validation rules tighten — restore is a data-recovery operation that should
+          not be gated on current-time constraints.
+
+        Args:
+            workflow_id: UUID of the workflow
+            version: Version number to restore
+
+        Returns:
+            Tuple of (workflow, restored version)
+
+        Raises:
+            WorkflowNotFoundError: If workflow not found
+            WorkflowVersionNotFoundError: If target version not found
+
+        """
+        workflow = await self._get_workflow_for_update(workflow_id)
+
+        target_version = await self._get_version_or_none(workflow_id, version)
+        if not target_version:
+            raise WorkflowVersionNotFoundError(workflow_id, version)
+
+        new_version = await self._create_version_record(
+            workflow,
+            workflow_definition=target_version.workflow_definition,
+            change_description=f"Restored from version {version}",
+        )
+
+        if not new_version:
+            _, current_version = await self.get_workflow_with_version(workflow_id)
+            return workflow, current_version
+
+        workflow.updated_at = datetime.now(UTC)
+        workflow.updated_by = self.user.id
+
+        await self.session.commit()
+        await self.session.refresh(workflow)
+        await self.session.refresh(new_version)
+
+        self._emit_version_telemetry(workflow, new_version)
+        return workflow, new_version
 
     async def delete_workflow(self, workflow_id: UUID) -> None:
         """Soft delete a workflow.

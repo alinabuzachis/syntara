@@ -536,6 +536,55 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
+  /workflows/{workflow_id}/versions/{version}/restore:
+    post:
+      summary: Restore Workflow Version
+      description: Restore a previous workflow version as a new draft.
+      operationId: restore_workflow_version
+      tags:
+        - workflows
+      security:
+        - bearerAuth: []
+      x-app-permission:
+        resource: workflow
+        action: update
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Workflow Id
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Version
+          description: Version number to restore
+      responses:
+        '200':
+          description: Restored workflow version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowReadWithVersion'
+        '400':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
+
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/openapi.yaml
 
@@ -763,11 +812,37 @@ components:
       required:
         - resources
       properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
         resources:
           type: array
           items:
             $ref: '#/components/schemas/WorkflowVersionRead'
+          maxItems: 100
           title: Resources
+          description: Array of resources in current page
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
 
     WorkflowListResponse:
       type: object

@@ -136,7 +136,7 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
         "gh", "pr", "view", pr_number,
         "--repo", repo,
         "--json", "comments",
-        "--jq", '.comments[] | select(.body | contains("Breaking Changes Detected")) | .id'
+        "--jq", '.comments[] | select(.body | contains("Breaking Changes Detected")) | .databaseId'
     ]
 
     result = subprocess.run(list_cmd, capture_output=True, text=True)
