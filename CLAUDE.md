@@ -38,13 +38,13 @@ Read the component docs when working in that area — they contain detailed stan
 
 ```bash
 make setup    # Installs deps, generates secrets, starts services, runs migrations, seeds DB
-make dev      # Starts backend API (port 8000) + frontend dev server (port 5173)
+make dev      # Starts backend API (port 8000) + Temporal worker + frontend dev server (port 5173)
 ```
 
 ### Day-to-Day
 
 ```bash
-make dev            # Start both dev servers
+make dev            # Start backend API + Temporal worker + frontend dev server
 make test           # Run backend + frontend tests
 make lint           # Lint both codebases
 make format         # Format both codebases

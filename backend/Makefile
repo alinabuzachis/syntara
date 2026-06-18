@@ -261,6 +261,15 @@ dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	uv run python -m nexus.api.main
 
 
+.PHONY: worker-run
+worker-run: check-deps _ensure-secrets ## Run Temporal workflow worker
+	@echo "🔄 Starting Temporal workflow worker..."
+	@echo "📍 Temporal UI: http://localhost:8081"
+	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
+	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
+	uv run python -m nexus.workflows.worker
+
+
 # Database
 # ========================================================
 .PHONY: db-run

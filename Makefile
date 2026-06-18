@@ -15,13 +15,20 @@ pre-commit-install: ## Install pre-commit hooks
 	uv run pre-commit install
 	uv run pre-commit install --hook-type commit-msg
 
-dev: ## Start backend API and frontend dev servers
+dev: ## Start backend API, Temporal worker, and frontend dev servers
 	$(MAKE) -C backend dev &
+	$(MAKE) -C backend worker-run &
 	cd frontend && npm run start
 
-setup: install secrets services-up db-migrate db-seed admin-password ## One-shot bootstrap: install, secrets, services, migrations, seed
+setup: _ensure-env install secrets services-up db-migrate db-seed admin-password ## One-shot bootstrap: install, secrets, services, migrations, seed
 	@echo ""
 	@echo "Setup complete. Run 'make dev' to start the development servers."
+
+_ensure-env:
+	@if [ ! -f backend/.env ]; then \
+		cp backend/.env.example backend/.env; \
+		echo "Created backend/.env from .env.example"; \
+	fi
 
 # --- Code quality ---
 

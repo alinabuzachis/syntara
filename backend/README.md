@@ -253,9 +253,8 @@ The UI is for **local development and debugging only**. The local UI allows you 
 **View individual service logs**:
 ```bash
 make db-logs          # Database logs
-make temporal-logs    # Temporal server logs
+make temporal-logs    # Temporal server and worker logs (containerized)
 make temporal-ui-logs # Temporal UI logs
-make worker-logs      # Temporal worker logs
 ```
 
 **Clean up Temporal data**:
