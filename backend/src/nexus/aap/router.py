@@ -21,6 +21,11 @@ import structlog
 from fastapi import APIRouter, Depends, Path
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.aap.audit.aap_resource_access import (
+    AAPAccessAction,
+    AAPResourceAccessEvent,
+    AAPResourceType,
+)
 from nexus.aap.models.queries import AAPBaseQuery, AAPResourceQuery
 from nexus.aap.models.responses import (
     AAPCredential,
@@ -36,6 +41,7 @@ from nexus.aap.models.responses import (
     AAPWorkflowJobTemplateDetail,
 )
 from nexus.aap.services.aap_proxy_service import AAPProxyService
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.auth import get_current_user
 from nexus.core.config.base import Settings, get_settings
 from nexus.core.database.session import get_db
@@ -75,7 +81,28 @@ async def list_organizations(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPOrganization]:
     """List AAP organizations."""
-    return await service.list_organizations(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_organizations(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.ORGANIZATIONS,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/job_templates", operation_id="list_aap_job_templates")
@@ -85,7 +112,29 @@ async def list_job_templates(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPJobTemplate]:
     """List AAP job templates, optionally filtered by organization."""
-    return await service.list_job_templates(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_job_templates(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.JOB_TEMPLATES,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                organization_filter=query.organization,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/job_templates/{job_template_id}", operation_id="get_aap_job_template")
@@ -96,9 +145,31 @@ async def get_job_template(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPJobTemplateDetail:
     """Get AAP job template details including prompt-on-launch capabilities."""
-    # Convert UUID to string for service layer (accepts UUID | str, returns str | None)
     credential_id_str = str(query.credential_id) if query.credential_id else None
-    return await service.get_job_template(job_template_id, credential_id=credential_id_str, user_id=current_user.id)
+    error_type = None
+    resource_name = None
+    try:
+        result = await service.get_job_template(
+            job_template_id, credential_id=credential_id_str, user_id=current_user.id
+        )
+        resource_name = result.name
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.JOB_TEMPLATES,
+                action=AAPAccessAction.GET,
+                user_id=current_user.id,
+                username=current_user.username,
+                resource_id=job_template_id,
+                resource_name=resource_name,
+                credential_used=query.credential_id is not None,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/workflow_job_templates", operation_id="list_aap_workflow_job_templates")
@@ -108,7 +179,29 @@ async def list_workflow_job_templates(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPWorkflowJobTemplate]:
     """List AAP workflow job templates, optionally filtered by organization."""
-    return await service.list_workflow_job_templates(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_workflow_job_templates(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.WORKFLOW_JOB_TEMPLATES,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                organization_filter=query.organization,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/workflow_job_templates/{workflow_job_template_id}", operation_id="get_aap_workflow_job_template")
@@ -119,11 +212,31 @@ async def get_workflow_job_template(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPWorkflowJobTemplateDetail:
     """Get AAP workflow job template details including prompt-on-launch capabilities."""
-    # Convert UUID to string for service layer (accepts UUID | str, returns str | None)
     credential_id_str = str(query.credential_id) if query.credential_id else None
-    return await service.get_workflow_job_template(
-        workflow_job_template_id, credential_id=credential_id_str, user_id=current_user.id
-    )
+    error_type = None
+    resource_name = None
+    try:
+        result = await service.get_workflow_job_template(
+            workflow_job_template_id, credential_id=credential_id_str, user_id=current_user.id
+        )
+        resource_name = result.name
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.WORKFLOW_JOB_TEMPLATES,
+                action=AAPAccessAction.GET,
+                user_id=current_user.id,
+                username=current_user.username,
+                resource_id=workflow_job_template_id,
+                resource_name=resource_name,
+                credential_used=query.credential_id is not None,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/inventories", operation_id="list_aap_inventories")
@@ -133,7 +246,29 @@ async def list_inventories(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPInventory]:
     """List AAP inventories, optionally filtered by organization."""
-    return await service.list_inventories(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_inventories(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.INVENTORIES,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                organization_filter=query.organization,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/execution_environments", operation_id="list_aap_execution_environments")
@@ -143,7 +278,29 @@ async def list_execution_environments(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPExecutionEnvironment]:
     """List AAP execution environments, optionally filtered by organization."""
-    return await service.list_execution_environments(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_execution_environments(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.EXECUTION_ENVIRONMENTS,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                organization_filter=query.organization,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/credentials", operation_id="list_aap_credentials")
@@ -153,7 +310,28 @@ async def list_credentials(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPCredential]:
     """List AAP credentials (not organization-scoped)."""
-    return await service.list_credentials(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_credentials(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.CREDENTIALS,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/instance_groups", operation_id="list_aap_instance_groups")
@@ -163,7 +341,28 @@ async def list_instance_groups(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPInstanceGroup]:
     """List AAP instance groups (not organization-scoped)."""
-    return await service.list_instance_groups(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_instance_groups(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.INSTANCE_GROUPS,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                error_type=error_type,
+            )
+        )
+    return result
 
 
 @router.get("/labels", operation_id="list_aap_labels")
@@ -173,4 +372,25 @@ async def list_labels(
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPLabel]:
     """List AAP labels."""
-    return await service.list_labels(query, user_id=current_user.id)
+    error_type = None
+    result_count = None
+    try:
+        result = await service.list_labels(query, user_id=current_user.id)
+        result_count = result.count
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        AuditEventDispatcher.dispatch(
+            AAPResourceAccessEvent(
+                resource_type=AAPResourceType.LABELS,
+                action=AAPAccessAction.LIST,
+                user_id=current_user.id,
+                username=current_user.username,
+                result_count=result_count,
+                credential_used=query.credential_id is not None,
+                search_filter=query.search,
+                error_type=error_type,
+            )
+        )
+    return result

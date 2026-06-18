@@ -22,6 +22,7 @@ logger = structlog.stdlib.get_logger(__name__)
 
 def _handler_packages() -> list[ModuleType]:
     """Return the ordered list of packages that contain audit/telemetry handlers."""
+    import nexus.aap.audit  # noqa: PLC0415
     import nexus.agent_orchestrator.audit  # noqa: PLC0415
     import nexus.approvals.audit  # noqa: PLC0415
     import nexus.audit.events  # noqa: PLC0415
@@ -35,6 +36,7 @@ def _handler_packages() -> list[ModuleType]:
     import nexus.workflows.audit  # noqa: PLC0415
 
     return [
+        nexus.aap.audit,
         nexus.agent_orchestrator.audit,
         nexus.approvals.audit,
         nexus.audit.events,
