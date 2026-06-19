@@ -2,13 +2,16 @@
 
 import sys
 from collections.abc import Generator
+from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from temporalio.exceptions import ApplicationError
 
 from nexus.workflows.workflow_engine.activities.script_activity import (
+    SAFE_ENV_ALLOWLIST,
     ScriptExecutionError,
+    _prepare_script_env,
     _process_script_result,
     _sanitize_env_value,
     execute_script_activity,
@@ -923,3 +926,137 @@ class TestScriptActivityTimeoutAndInputs:
         # V2 resolves templates before calling the activity; inputs dict is empty
         result = await execute_script_activity(input_config, None)
         assert result["output"]["return_code"] == 0
+
+
+class TestScriptEnvironmentSanitization:
+    """Test that script subprocesses do NOT inherit sensitive worker environment variables.
+
+    The worker process runs with secrets (encryption keys, DB credentials, JWT keys).
+    Scripts must only receive an explicit allowlist of safe system variables plus
+    user-defined config.environment and INPUT_ vars.
+    """
+
+    SENSITIVE_VARS: ClassVar[dict[str, str]] = {
+        "APP_SECRET_ENCRYPTION_KEY": "0123456789abcdef" * 4,
+        "APP_DATABASE_URL": "postgresql://admin:secret@db:5432/nexus",
+        "APP_DB_PASSWORD": "super_secret_db_pass",
+        "APP_CACHE_PASSWORD": "redis_secret",
+        "APP_JWT_PRIVATE_KEY_PATH": "/secrets/jwt.pem",
+        "APP_S3_SECRET_ACCESS_KEY": "s3secretkey123",
+        "APP_ADMIN_PASSWORD_PATH": "/secrets/admin-password",
+        "APP_OTEL_API_KEY": "otel-api-key-secret",
+        "APP_SEGMENT_WRITE_KEY": "segment-write-key",
+    }
+
+    def test_sensitive_vars_excluded_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sensitive APP_* variables must not appear in the prepared environment."""
+        for key, value in self.SENSITIVE_VARS.items():
+            monkeypatch.setenv(key, value)
+
+        env = _prepare_script_env({})
+
+        for key in self.SENSITIVE_VARS:
+            assert key not in env, f"{key} leaked into script environment"
+
+    def test_safe_vars_included_in_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Safe system variables (PATH, HOME, LANG, TZ) must be present."""
+        monkeypatch.setenv("PATH", "/usr/bin:/bin")
+        monkeypatch.setenv("HOME", "/home/testuser")
+        monkeypatch.setenv("LANG", "en_US.UTF-8")
+        monkeypatch.setenv("TZ", "UTC")
+
+        env = _prepare_script_env({})
+
+        assert env["PATH"] == "/usr/bin:/bin"
+        assert env["HOME"] == "/home/testuser"
+        assert env["LANG"] == "en_US.UTF-8"
+        assert env["TZ"] == "UTC"
+
+    def test_custom_environment_vars_still_work(self) -> None:
+        """User-defined config.environment variables must pass through."""
+        env = _prepare_script_env({}, {"MY_CUSTOM_VAR": "hello", "ANOTHER_VAR": "world"})
+
+        assert env["MY_CUSTOM_VAR"] == "hello"
+        assert env["ANOTHER_VAR"] == "world"
+
+    def test_input_vars_still_work(self) -> None:
+        """INPUT_ prefixed variables from workflow inputs must pass through."""
+        env = _prepare_script_env({"hostname": "web01", "port": 8080})
+
+        assert env["INPUT_HOSTNAME"] == "web01"
+        assert env["INPUT_PORT"] == "8080"
+
+    def test_arbitrary_unknown_vars_excluded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Variables not on the allowlist must not appear — allowlist, not blocklist."""
+        monkeypatch.setenv("SOME_INTERNAL_SERVICE_TOKEN", "tok_12345")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "or-key-secret")
+
+        env = _prepare_script_env({})
+
+        assert "SOME_INTERNAL_SERVICE_TOKEN" not in env
+        assert "OPENROUTER_API_KEY" not in env
+
+    def test_only_allowlisted_system_vars_inherited(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Every key inherited from os.environ must be in SAFE_ENV_ALLOWLIST."""
+        monkeypatch.setenv("PATH", "/usr/bin")
+        monkeypatch.setenv("HOME", "/home/user")
+        monkeypatch.setenv("NOT_ON_ALLOWLIST", "should_not_appear")
+        for key, value in self.SENSITIVE_VARS.items():
+            monkeypatch.setenv(key, value)
+
+        env = _prepare_script_env({})
+
+        inherited_keys = set(env.keys())
+        assert inherited_keys.issubset(SAFE_ENV_ALLOWLIST), (
+            f"Non-allowlisted keys inherited: {inherited_keys - SAFE_ENV_ALLOWLIST}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_script_cannot_read_secrets(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A bash script must not be able to read sensitive env vars."""
+        monkeypatch.setenv("APP_SECRET_ENCRYPTION_KEY", "leaked_master_key")
+
+        input_config = {
+            "language": "bash",
+            "code": 'echo "KEY=${APP_SECRET_ENCRYPTION_KEY:-empty}"',
+        }
+        result = await execute_script_activity(input_config, None)
+
+        output = result["output"]
+        assert output["return_code"] == 0
+        assert "leaked_master_key" not in output["stdout"]
+        assert "KEY=empty" in output["stdout"]
+
+    @pytest.mark.asyncio
+    async def test_script_can_read_path(self) -> None:
+        """A bash script must still be able to read PATH."""
+        input_config = {
+            "language": "bash",
+            "code": 'echo "PATH=$PATH"',
+        }
+        result = await execute_script_activity(input_config, None)
+
+        output = result["output"]
+        assert output["return_code"] == 0
+        assert "PATH=/" in output["stdout"]
+
+    @pytest.mark.asyncio
+    async def test_python_env_dump_has_no_app_secrets(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A Python script dumping os.environ must not see any APP_* secrets."""
+        for key, value in self.SENSITIVE_VARS.items():
+            monkeypatch.setenv(key, value)
+
+        script = """
+import os
+import json
+env_keys = list(os.environ.keys())
+print(json.dumps(env_keys))
+"""
+        input_config = {"language": "python", "code": script}
+        result = await execute_script_activity(input_config, None)
+
+        output = result["output"]
+        assert output["return_code"] == 0
+        env_keys = output["stdout_json"]
+        app_keys = [k for k in env_keys if k.startswith("APP_")]
+        assert app_keys == [], f"APP_* vars leaked into script: {app_keys}"

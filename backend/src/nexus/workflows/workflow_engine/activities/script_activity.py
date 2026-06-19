@@ -21,6 +21,24 @@ from nexus.workflows.workflow_engine.models.workflow_definition import ActivityN
 
 from .common import ActivityExecutionError
 
+SAFE_ENV_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "LOGNAME",
+        "PATH",
+        "SHELL",
+        "TEMP",
+        "TERM",
+        "TMP",
+        "TMPDIR",
+        "TZ",
+        "USER",
+    }
+)
+
 
 class ScriptExecutionError(ActivityExecutionError):
     """Raised when script execution fails."""
@@ -156,7 +174,7 @@ def _prepare_script_env(inputs: dict[str, Any], environment: dict[str, str] | No
         Environment dict with custom variables and INPUT_<key> variables
 
     """
-    env = os.environ.copy()
+    env = {k: v for k, v in os.environ.items() if k in SAFE_ENV_ALLOWLIST}
 
     # Add custom environment variables from config.environment
     if environment:
