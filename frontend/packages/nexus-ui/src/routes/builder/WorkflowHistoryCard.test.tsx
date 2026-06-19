@@ -12,9 +12,13 @@ vi.mock('./ExecutionStatus', () => ({
   StatusLabel: ({ status }: { status: string }) => <span data-testid="status-label">{status}</span>,
 }))
 
-vi.mock('../../utils/dateUtils', () => ({
-  formatElapsedTime: (ms: number) => `${ms}ms`,
-}))
+vi.mock('../../utils/dateUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/dateUtils')>()
+  return {
+    ...actual,
+    formatElapsedTime: (ms: number) => `${ms}ms`,
+  }
+})
 
 vi.mock('date-fns', async (importOriginal) => {
   const actual = await importOriginal<typeof import('date-fns')>()

@@ -231,6 +231,7 @@ export default tseslint.config(
       'nexus/prefer-pf-text-components': 'error',
       'nexus/use-design-tokens-not-hardcoded': 'error',
       'nexus/prefer-confirmation-dialog': 'error',
+      'nexus/no-locale-date-format': 'error',
       // Catch unnecessary useEffect patterns. Aligns with https://react.dev/learn/you-might-not-need-an-effect
       'reactYouMightNotNeedAnEffect/no-derived-state': 'warn',
       'reactYouMightNotNeedAnEffect/no-chain-state-updates': 'warn',
@@ -306,6 +307,7 @@ export default tseslint.config(
       'nexus/prefer-pf-text-components': 'off',
       'nexus/use-design-tokens-not-hardcoded': 'off',
       'nexus/prefer-confirmation-dialog': 'off',
+      'nexus/no-locale-date-format': 'off',
       'reactYouMightNotNeedAnEffect/no-derived-state': 'off',
       'reactYouMightNotNeedAnEffect/no-chain-state-updates': 'off',
       'reactYouMightNotNeedAnEffect/no-event-handler': 'off',

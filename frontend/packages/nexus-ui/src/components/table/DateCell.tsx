@@ -1,23 +1,11 @@
-import { Content, ContentVariants, Timestamp } from '@patternfly/react-core'
+import { Content, ContentVariants } from '@patternfly/react-core'
+
+import { formatDateTime } from '../../utils/dateUtils'
 
 /**
- * Displays a formatted date/time using PatternFly's Timestamp component,
+ * Displays a formatted date/time (e.g. "Jan 15, 2026, 2:30 PM"),
  * or "-" if the date is invalid.
- *
- * Handles:
- * - null/undefined values
- * - Invalid date strings that result in "Invalid Date"
- * - Empty strings
  */
-export function DateCell(props: { dateString?: string | null }) {
-  if (!props.dateString) {
-    return <Content component={ContentVariants.p}>-</Content>
-  }
-
-  const date = new Date(props.dateString)
-  if (Number.isNaN(date.getTime())) {
-    return <Content component={ContentVariants.p}>-</Content>
-  }
-
-  return <Timestamp date={date} />
+export function DateCell(props: Readonly<{ dateString?: string | null }>) {
+  return <Content component={ContentVariants.p}>{formatDateTime(props.dateString)}</Content>
 }

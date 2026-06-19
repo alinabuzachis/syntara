@@ -36,7 +36,8 @@ export function formatTime(isoString: string): string {
 }
 
 /**
- * Format an ISO date string as medium date + short time (locale-aware).
+ * Format an ISO date string as medium date + time with seconds (locale-aware).
+ * e.g. "May 27, 2026, 9:55:01 AM" (MMM DD, YYYY, H:MM:SS AM/PM per UX skill §3).
  * Returns '-' for invalid or empty input (suitable for table/description list cells).
  */
 export function formatDateTime(isoString?: string | null): string {
@@ -44,7 +45,7 @@ export function formatDateTime(isoString?: string | null): string {
   try {
     const date = parseISO(isoString)
     if (Number.isNaN(date.getTime())) return '-'
-    return format(date, 'PPp')
+    return format(date, 'PPpp')
   } catch {
     return '-'
   }

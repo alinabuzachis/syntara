@@ -23,6 +23,7 @@ import { AppRoute } from '../../app/AppRoute'
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'
 import { navigate } from '../../hooks/routing/navigate'
+import { formatDateTime } from '../../utils/dateUtils'
 
 import { buildPolicyDefinitionJson } from './policyUtils'
 import { PolicyTypeLabel } from './ScopeLabel'
@@ -33,15 +34,6 @@ type PolicyDetailSidebarProps = {
   onClose: () => void
   /** Resolved project name for the policy scope. Falls back to UUID if not provided. */
   projectName?: string | null
-}
-
-function formatTimestamp(value: string | null): string {
-  if (!value) return 'N/A'
-  try {
-    return new Date(value).toLocaleString()
-  } catch {
-    return value
-  }
 }
 
 function ProjectScopeLink({
@@ -147,11 +139,11 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
             )}
             <DescriptionListGroup>
               <DescriptionListTerm>Created</DescriptionListTerm>
-              <DescriptionListDescription>{formatTimestamp(policy.created_at ?? null)}</DescriptionListDescription>
+              <DescriptionListDescription>{formatDateTime(policy.created_at)}</DescriptionListDescription>
             </DescriptionListGroup>
             <DescriptionListGroup>
               <DescriptionListTerm>Updated</DescriptionListTerm>
-              <DescriptionListDescription>{formatTimestamp(policy.updated_at ?? null)}</DescriptionListDescription>
+              <DescriptionListDescription>{formatDateTime(policy.updated_at)}</DescriptionListDescription>
             </DescriptionListGroup>
             {hasLabels && (
               <DescriptionListGroup>

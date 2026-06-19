@@ -1,5 +1,7 @@
 import { format, isToday, isYesterday, parseISO } from 'date-fns'
 
+import { formatDateTime } from '../../utils/dateUtils'
+
 function safeParseDate(isoString: string): Date | null {
   if (!isoString) return null
   try {
@@ -11,16 +13,7 @@ function safeParseDate(isoString: string): Date | null {
 }
 
 export function formatHistoryDateTime(isoString: string): string {
-  const date = safeParseDate(isoString)
-  if (!date) return '-'
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
+  return formatDateTime(isoString)
 }
 
 export function getDateGroupLabel(isoString: string): string {

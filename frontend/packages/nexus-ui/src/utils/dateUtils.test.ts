@@ -63,6 +63,17 @@ describe('formatDateTime', () => {
   it('returns "-" for invalid date', () => {
     expect(formatDateTime('not-a-date')).toBe('-')
   })
+
+  it('uses abbreviated month name, not numeric format (AAP-76836)', () => {
+    const result = formatDateTime('2026-05-27T09:55:01Z')
+    expect(result).toMatch(/May/)
+    expect(result).not.toMatch(/^5\//)
+  })
+
+  it('includes comma between date and time', () => {
+    const result = formatDateTime('2026-01-15T14:30:00Z')
+    expect(result).toContain(',')
+  })
 })
 
 describe('formatExecutionDateTime', () => {

@@ -109,6 +109,10 @@ Enforces use of PatternFly text components (`<Text>`, `<Title>`, etc.) over plai
 
 Disallows hardcoded color/spacing values. Use PatternFly design tokens instead.
 
+### `no-locale-date-format`
+
+Disallows browser-locale date formatting methods (`toLocaleDateString`, `toLocaleString`, `toLocaleTimeString`, and `Intl.DateTimeFormat`) that produce inconsistent output across environments (e.g. `5/27/2026` vs `27/5/2026`). Use `formatDateTime`, `formatDate`, or `formatTime` from `src/utils/dateUtils.ts`, or the `DateCell` component for table cells.
+
 ## Testing
 
 Run the test suite:
