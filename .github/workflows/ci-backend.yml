@@ -267,7 +267,7 @@ jobs:
           # admins group (seeded during API startup) already exists.
           podman exec nexus-ci_nexus_1 uv run python tools/create_system_user.py
 
-      - name: Run E2E tests
+      - name: Run E2E tests (excluding global revocation)
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
         with:
           timeout_minutes: 20
@@ -277,6 +277,17 @@ jobs:
         env:
           APP_BASE_URL: http://localhost:8000
           APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SEGMENT_SERVER_URL: http://localhost:9999
+
+      - name: Run global revocation E2E tests (isolated session)
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cd backend && make test-e2e-global-revocation
+        env:
+          APP_BASE_URL: http://localhost:8000
           SEGMENT_SERVER_URL: http://localhost:9999
 
       - name: Show service logs on failure

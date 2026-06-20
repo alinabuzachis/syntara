@@ -203,13 +203,23 @@ endef
 E2E_TARGET ?=
 
 .PHONY: test-e2e
-test-e2e: check-deps ## Run all E2E tests (starts full stack)
+test-e2e: check-deps ## Run all E2E tests except global revocation (starts full stack)
 ifndef APP_BASE_URL
-	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v)
+	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v -m "not global_revocation")
 else
-	@echo "🧪 Running end to end tests..."
+	@echo "🧪 Running end to end tests (excluding global revocation)..."
 	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
-	uv run pytest tests/e2e/$(E2E_TARGET) -v
+	uv run pytest tests/e2e/$(E2E_TARGET) -v -m "not global_revocation"
+endif
+
+.PHONY: test-e2e-global-revocation
+test-e2e-global-revocation: check-deps ## Run global revocation E2E tests in an isolated session
+ifndef APP_BASE_URL
+	$(call _e2e-run,tests/e2e/ -v -m global_revocation)
+else
+	@echo "🧪 Running global revocation E2E tests..."
+	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
+	uv run pytest tests/e2e/ -v -m global_revocation
 endif
 
 .PHONY: test-e2e-telemetry
