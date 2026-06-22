@@ -831,6 +831,7 @@ class WorkflowService(BaseService):
         await self.session.refresh(workflow)
         await self.session.refresh(new_version)
 
+        # Intentional dual emission: "created" tracks total versions, "restored" tracks rollbacks
         self._emit_version_telemetry(workflow, new_version)
         AuditEventDispatcher.dispatch(
             WorkflowVersionRestoredEvent(
