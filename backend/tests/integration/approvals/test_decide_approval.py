@@ -84,9 +84,9 @@ class TestDecideApprovalContract:
             approval_node_id=approvals[0].approval_node_id,
             decision="approved",
             approval_id=approvals[0].id,
-            approver=ANY,
-            timestamp=ANY,
-            comments="This change looks good to deploy to production.",
+            decided_by=ANY,
+            decided_at=ANY,
+            decision_notes="This change looks good to deploy to production.",
         )
 
     @pytest.mark.asyncio
@@ -132,9 +132,9 @@ class TestDecideApprovalContract:
             approval_node_id=approvals[0].approval_node_id,
             decision="rejected",
             approval_id=approvals[0].id,
-            approver=ANY,
-            timestamp=ANY,
-            comments="This change needs more testing before deployment.",
+            decided_by=ANY,
+            decided_at=ANY,
+            decision_notes="This change needs more testing before deployment.",
         )
 
     @pytest.mark.asyncio
@@ -171,9 +171,9 @@ class TestDecideApprovalContract:
                 approval_node_id=approvals[0].approval_node_id,
                 decision="approved",
                 approval_id=approvals[0].id,
-                approver=ANY,
-                timestamp=ANY,
-                comments=None,
+                decided_by=ANY,
+                decided_at=ANY,
+                decision_notes=None,
             )
 
         assert response.status_code == 200
@@ -197,9 +197,9 @@ class TestDecideApprovalContract:
                 approval_node_id=approvals[1].approval_node_id,
                 decision="rejected",
                 approval_id=approvals[1].id,
-                approver=ANY,
-                timestamp=ANY,
-                comments=None,
+                decided_by=ANY,
+                decided_at=ANY,
+                decision_notes=None,
             )
 
         assert response.status_code == 200
@@ -434,9 +434,9 @@ class TestDecideApprovalContract:
                 approval_node_id=approvals[0].approval_node_id,
                 decision="approved",
                 approval_id=approvals[0].id,
-                approver=ANY,
-                timestamp=ANY,
-                comments=normal_notes,
+                decided_by=ANY,
+                decided_at=ANY,
+                decision_notes=normal_notes,
             )
 
         assert response.status_code == 200
@@ -463,9 +463,9 @@ class TestDecideApprovalContract:
                 approval_node_id=long_approvals[0].approval_node_id,
                 decision="approved",
                 approval_id=long_approvals[0].id,
-                approver=ANY,
-                timestamp=ANY,
-                comments=acceptable_long_notes,
+                decided_by=ANY,
+                decided_at=ANY,
+                decision_notes=acceptable_long_notes,
             )
 
         assert response.status_code == 200

@@ -14,6 +14,7 @@ import {
   applyJsonPatch,
   buildActivityStateMap,
   extractActivityMaps,
+  extractApprovalAudit,
 } from './activityState'
 
 // ============================================================================
@@ -525,5 +526,60 @@ describe('extractActivityMaps', () => {
 
     expect(statusMap.size).toBe(0)
     expect(errorMap.size).toBe(0)
+  })
+})
+
+describe('extractApprovalAudit', () => {
+  it('returns null for null/undefined output', () => {
+    expect(extractApprovalAudit(null)).toBeNull()
+    expect(extractApprovalAudit(undefined)).toBeNull()
+  })
+
+  it('returns null when required fields are missing', () => {
+    expect(extractApprovalAudit({ status: 'completed' })).toBeNull()
+    expect(extractApprovalAudit({ decision: 'approved' })).toBeNull()
+    expect(extractApprovalAudit({ decision: 'approved', decided_by: 'jsmith' })).toBeNull()
+  })
+
+  it('extracts approval audit from valid output data', () => {
+    const result = extractApprovalAudit({
+      status: 'completed',
+      decision: 'approved',
+      decided_by: 'jsmith',
+      decided_at: '2026-06-15T08:00:01.000Z',
+      decision_notes: 'LGTM',
+    })
+
+    expect(result).toEqual({
+      decision: 'approved',
+      decidedBy: 'jsmith',
+      decidedAt: '2026-06-15T08:00:01.000Z',
+      decisionNotes: 'LGTM',
+    })
+  })
+
+  it('returns null for decision_notes when not present', () => {
+    const result = extractApprovalAudit({
+      decision: 'rejected',
+      decided_by: 'admin',
+      decided_at: '2026-06-15T09:00:00.000Z',
+    })
+
+    expect(result).toEqual({
+      decision: 'rejected',
+      decidedBy: 'admin',
+      decidedAt: '2026-06-15T09:00:00.000Z',
+      decisionNotes: null,
+    })
+  })
+
+  it('returns null when decided_by is not a string', () => {
+    expect(
+      extractApprovalAudit({
+        decision: 'approved',
+        decided_by: 123,
+        decided_at: '2026-06-15T08:00:01.000Z',
+      })
+    ).toBeNull()
   })
 })

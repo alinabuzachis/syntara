@@ -506,9 +506,9 @@ class TestDispatchApprovalNode:
             return_value={
                 "output": {
                     "decision": "approved",
-                    "approver": "jsmith",
-                    "timestamp": "2026-05-20T10:00:00+00:00",
-                    "comments": "LGTM",
+                    "decided_by": "jsmith",
+                    "decided_at": "2026-05-20T10:00:00+00:00",
+                    "decision_notes": "LGTM",
                 }
             }
         )
@@ -519,13 +519,13 @@ class TestDispatchApprovalNode:
         output = result["output"]
         assert output["status"] == "completed"
         assert output["decision"] == "approved"
-        assert output["approver"] == "jsmith"
-        assert output["timestamp"] == "2026-05-20T10:00:00+00:00"
-        assert output["comments"] == "LGTM"
+        assert output["decided_by"] == "jsmith"
+        assert output["decided_at"] == "2026-05-20T10:00:00+00:00"
+        assert output["decision_notes"] == "LGTM"
 
     @pytest.mark.asyncio
     async def test_dispatch_transforms_output_without_notes(self) -> None:
-        """Verify comments key is absent (not None) when notes not provided."""
+        """Verify decision_notes key is absent (not None) when notes not provided."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = graph.get_node("approval")
@@ -534,8 +534,8 @@ class TestDispatchApprovalNode:
             return_value={
                 "output": {
                     "decision": "rejected",
-                    "approver": "jsmith",
-                    "timestamp": "2026-05-20T10:00:00+00:00",
+                    "decided_by": "jsmith",
+                    "decided_at": "2026-05-20T10:00:00+00:00",
                 }
             }
         )
@@ -546,13 +546,13 @@ class TestDispatchApprovalNode:
         output = result["output"]
         assert output["status"] == "completed"
         assert output["decision"] == "rejected"
-        assert output["approver"] == "jsmith"
-        assert output["timestamp"] == "2026-05-20T10:00:00+00:00"
-        assert "comments" not in output
+        assert output["decided_by"] == "jsmith"
+        assert output["decided_at"] == "2026-05-20T10:00:00+00:00"
+        assert "decision_notes" not in output
 
     @pytest.mark.asyncio
-    async def test_dispatch_truncates_oversized_comments(self) -> None:
-        """Verify comments longer than 2000 chars are truncated at the boundary."""
+    async def test_dispatch_truncates_oversized_decision_notes(self) -> None:
+        """Verify decision_notes longer than 2000 chars are truncated at the boundary."""
         wf = _make_workflow()
         graph = _build_approval_graph()
         node = graph.get_node("approval")
@@ -562,9 +562,9 @@ class TestDispatchApprovalNode:
             return_value={
                 "output": {
                     "decision": "approved",
-                    "approver": "jsmith",
-                    "timestamp": "2026-05-20T10:00:00+00:00",
-                    "comments": oversized_notes,
+                    "decided_by": "jsmith",
+                    "decided_at": "2026-05-20T10:00:00+00:00",
+                    "decision_notes": oversized_notes,
                 }
             }
         )
@@ -572,7 +572,7 @@ class TestDispatchApprovalNode:
         with patch("nexus.workflows.workflow_engine.dynamic_workflow.workflow.execute_activity", mock_activity):
             result = await wf._dispatch_node_to_executor(node, {"name": "Review"}, graph, timeout_seconds=300)
 
-        assert len(result["output"]["comments"]) == 2000
+        assert len(result["output"]["decision_notes"]) == 2000
 
     @pytest.mark.asyncio
     async def test_dispatch_logs_approval_decision(self) -> None:
@@ -583,7 +583,7 @@ class TestDispatchApprovalNode:
 
         mock_activity = AsyncMock(
             return_value={
-                "output": {"decision": "approved", "approver": "jsmith", "timestamp": "2026-05-20T10:00:00+00:00"}
+                "output": {"decision": "approved", "decided_by": "jsmith", "decided_at": "2026-05-20T10:00:00+00:00"}
             }
         )
 

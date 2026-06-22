@@ -420,9 +420,9 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
                 approval_node_id=approval.approval_node_id,
                 decision="approved",
                 approval_id=approval.id,
-                approver=test_user.username,
-                timestamp=ANY,
-                comments="Looks good to proceed!",
+                decided_by=test_user.username,
+                decided_at=ANY,
+                decision_notes="Looks good to proceed!",
             )
 
     @pytest.mark.asyncio
@@ -466,9 +466,9 @@ class TestApprovalServiceDecide(TestApprovalServiceBase):
                 approval_node_id=approval.approval_node_id,
                 decision="rejected",
                 approval_id=approval.id,
-                approver=test_user.username,
-                timestamp=ANY,
-                comments="Insufficient justification",
+                decided_by=test_user.username,
+                decided_at=ANY,
+                decision_notes="Insufficient justification",
             )
 
     @pytest.mark.asyncio
@@ -637,12 +637,12 @@ class TestApprovalServiceBatchDecide(TestApprovalServiceBase):
             # First call should be for the approved decision
             assert calls[0][1]["decision"] == BatchApprovalDecisionStatus.APPROVED
             assert calls[0][1]["approval_id"] == approvals[0].id
-            assert calls[0][1]["comments"] == "Looks good"
+            assert calls[0][1]["decision_notes"] == "Looks good"
 
             # Second call should be for the rejected decision
             assert calls[1][1]["decision"] == BatchApprovalDecisionStatus.REJECTED
             assert calls[1][1]["approval_id"] == approvals[1].id
-            assert calls[1][1]["comments"] == "Needs changes"
+            assert calls[1][1]["decision_notes"] == "Needs changes"
 
     @pytest.mark.asyncio
     async def test_batch_decide_mixed_success_and_failure(

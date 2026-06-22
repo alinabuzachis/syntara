@@ -226,6 +226,40 @@ export function applyJsonPatch(
   }
 }
 
+/** Approval audit data extracted from activity output_data. Fields match the approval resultSchema in the backend. */
+export type ApprovalAudit = {
+  decision: string
+  decidedBy: string
+  decidedAt: string
+  decisionNotes: string | null
+}
+
+/**
+ * Extract approval audit info from activity output data.
+ *
+ * This uses a heuristic: if output_data contains `decision` and `decided_by`,
+ * we treat it as approval audit data. This avoids requiring the node type
+ * to be passed through the WebSocket patch path.
+ */
+export function extractApprovalAudit(outputData: Record<string, unknown> | null | undefined): ApprovalAudit | null {
+  if (!outputData) return null
+
+  const decision = outputData.decision
+  const decidedBy = outputData.decided_by
+  const decidedAt = outputData.decided_at
+
+  if (typeof decision !== 'string' || typeof decidedBy !== 'string' || typeof decidedAt !== 'string') {
+    return null
+  }
+
+  return {
+    decision,
+    decidedBy,
+    decidedAt,
+    decisionNotes: typeof outputData.decision_notes === 'string' ? outputData.decision_notes : null,
+  }
+}
+
 // ============================================================================
 // Activity State Helpers
 // ============================================================================

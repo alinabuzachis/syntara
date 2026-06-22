@@ -127,7 +127,7 @@ class TestBatchApprovalContract:
             assert call_kwargs["approval_node_id"] == approvals[i].approval_node_id
             assert call_kwargs["decision"] == batch_payload["decisions"][i]["status"]
             assert call_kwargs["approval_id"] == approvals[i].id
-            assert call_kwargs["comments"] == batch_payload["decisions"][i]["notes"]
+            assert call_kwargs["decision_notes"] == batch_payload["decisions"][i]["notes"]
 
     @pytest.mark.asyncio
     async def test_batch_approval_mixed_success_failure_response_schema(
@@ -227,14 +227,14 @@ class TestBatchApprovalContract:
         assert successful_calls[0][1]["approval_node_id"] == pending_approvals[0].approval_node_id
         assert successful_calls[0][1]["decision"] == "approved"
         assert successful_calls[0][1]["approval_id"] == pending_approvals[0].id
-        assert successful_calls[0][1]["comments"] == "This should succeed"
+        assert successful_calls[0][1]["decision_notes"] == "This should succeed"
 
         # Second successful call (index 2 from batch, index 1 in successful_calls)
         assert successful_calls[1][1]["execution_id"] == pending_approvals[1].execution_id
         assert successful_calls[1][1]["approval_node_id"] == pending_approvals[1].approval_node_id
         assert successful_calls[1][1]["decision"] == "approved"
         assert successful_calls[1][1]["approval_id"] == pending_approvals[1].id
-        assert successful_calls[1][1]["comments"] == "This should also succeed"
+        assert successful_calls[1][1]["decision_notes"] == "This should also succeed"
 
     @pytest.mark.asyncio
     async def test_batch_approval_decisions_array_validation(
@@ -296,9 +296,9 @@ class TestBatchApprovalContract:
                 approval_node_id=approvals[0].approval_node_id,
                 decision="approved",
                 approval_id=approvals[0].id,
-                approver=ANY,
-                timestamp=ANY,
-                comments="Single decision test",
+                decided_by=ANY,
+                decided_at=ANY,
+                decision_notes="Single decision test",
             )
 
         assert response.status_code == 200
@@ -343,7 +343,7 @@ class TestBatchApprovalContract:
             assert call_kwargs["approval_node_id"] == max_approvals[i].approval_node_id
             assert call_kwargs["decision"] == max_payload["decisions"][i]["status"]
             assert call_kwargs["approval_id"] == max_approvals[i].id
-            assert call_kwargs["comments"] == max_payload["decisions"][i]["notes"]
+            assert call_kwargs["decision_notes"] == max_payload["decisions"][i]["notes"]
 
     @pytest.mark.asyncio
     async def test_batch_approval_decision_field_validation(
@@ -442,9 +442,9 @@ class TestBatchApprovalContract:
             approval_node_id=approvals[0].approval_node_id,
             decision="approved",
             approval_id=approvals[0].id,
-            approver=ANY,
-            timestamp=ANY,
-            comments=None,
+            decided_by=ANY,
+            decided_at=ANY,
+            decision_notes=None,
         )
 
     @pytest.mark.asyncio
@@ -497,7 +497,7 @@ class TestBatchApprovalContract:
             assert call_kwargs["approval_node_id"] == approvals[i].approval_node_id
             assert call_kwargs["decision"] == valid_payload["decisions"][i]["status"]
             assert call_kwargs["approval_id"] == approvals[i].id
-            assert call_kwargs["comments"] == valid_payload["decisions"][i]["notes"]
+            assert call_kwargs["decision_notes"] == valid_payload["decisions"][i]["notes"]
 
         # Test invalid status in batch
         more_executions = await executions_factory.create_executions(count=1)

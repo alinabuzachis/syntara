@@ -601,9 +601,9 @@ class ApprovalService(BaseService):
                     approval_node_id=approval.approval_node_id,
                     decision=request.status,
                     approval_id=approval_id,
-                    approver=self.user.username,
-                    timestamp=(approval.decided_at or datetime.now(UTC)).isoformat(),
-                    comments=request.notes,
+                    decided_by=self.user.username,
+                    decided_at=(approval.decided_at or datetime.now(UTC)).isoformat(),
+                    decision_notes=request.notes,
                 )
         except Exception as e:
             logger.exception(
@@ -739,9 +739,9 @@ class ApprovalService(BaseService):
                     approval_node_id=approval.approval_node_id,
                     decision=decision.status,
                     approval_id=approval_id,
-                    approver=self.user.username,
-                    timestamp=(approval.decided_at or datetime.now(UTC)).isoformat(),
-                    comments=decision.notes,
+                    decided_by=self.user.username,
+                    decided_at=(approval.decided_at or datetime.now(UTC)).isoformat(),
+                    decision_notes=decision.notes,
                 )
             except Exception as e:
                 logger.exception(

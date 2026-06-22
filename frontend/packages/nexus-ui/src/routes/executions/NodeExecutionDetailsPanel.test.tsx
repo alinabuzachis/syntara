@@ -337,4 +337,77 @@ describe('NodeExecutionDetailsPanel', () => {
     // InputSchemaView has aria-label="Input schema", verify output schema is rendered
     expect(screen.getByLabelText('Input schema')).toBeInTheDocument()
   })
+
+  describe('ApprovalAuditSection', () => {
+    const approvalOutputData = {
+      resources: [
+        {
+          activity_name: 'review_deployment',
+          input_data: { prompt: 'Approve deployment' },
+          output_data: {
+            status: 'completed',
+            decision: 'approved',
+            decided_by: 'jsmith',
+            decided_at: '2026-06-15T08:00:01.000Z',
+            decision_notes: 'Verified staging tests pass.',
+          },
+          status: 'completed',
+        },
+      ],
+    }
+
+    it('renders approval audit strip when output contains approval data', () => {
+      mockUseQuery.mockReturnValue({ data: approvalOutputData, isLoading: false, error: null, refetch: vi.fn() })
+      render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
+
+      expect(screen.getByText('Decision')).toBeInTheDocument()
+      expect(screen.getByText('Approved')).toBeInTheDocument()
+      expect(screen.getByText('Decided by')).toBeInTheDocument()
+      expect(screen.getByText('jsmith')).toBeInTheDocument()
+      expect(screen.getByText('Decided at')).toBeInTheDocument()
+      expect(screen.getByText('Notes')).toBeInTheDocument()
+      expect(screen.getByText('Verified staging tests pass.')).toBeInTheDocument()
+    })
+
+    it('does not render approval audit strip for non-approval output', () => {
+      render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
+
+      expect(screen.queryByText('Decision')).not.toBeInTheDocument()
+      expect(screen.queryByText('Decided by')).not.toBeInTheDocument()
+    })
+
+    it('does not render notes section when decision_notes is absent', () => {
+      const dataWithoutNotes = {
+        resources: [
+          {
+            activity_name: 'review_deployment',
+            input_data: {},
+            output_data: {
+              status: 'completed',
+              decision: 'rejected',
+              decided_by: 'admin',
+              decided_at: '2026-06-15T09:00:00.000Z',
+            },
+            status: 'completed',
+          },
+        ],
+      }
+      mockUseQuery.mockReturnValue({ data: dataWithoutNotes, isLoading: false, error: null, refetch: vi.fn() })
+      render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
+
+      expect(screen.getByText('Rejected')).toBeInTheDocument()
+      expect(screen.queryByText('Notes')).not.toBeInTheDocument()
+    })
+
+    it('has no accessibility violations with approval audit displayed', async () => {
+      mockUseQuery.mockReturnValue({ data: approvalOutputData, isLoading: false, error: null, refetch: vi.fn() })
+      const { container } = render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
+
+      let results: Awaited<ReturnType<typeof axe>>
+      await act(async () => {
+        results = await axe(container)
+      })
+      expect(results!).toHaveNoViolations()
+    })
+  })
 })

@@ -4,6 +4,22 @@
   min-width: 5.5rem;
 }
 
+.auditStrip {
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  background: var(--pf-t--global--background--color--secondary--default);
+  border-radius: var(--pf-t--global--border--radius--small);
+  margin-bottom: var(--pf-t--global--spacer--md);
+}
+
+.auditLabel {
+  font-size: var(--pf-t--global--font--size--xs);
+  color: var(--pf-t--global--text--color--subtle);
+}
+
+.auditValue {
+  font-size: var(--pf-t--global--font--size--sm);
+}
+
 .dataPaneControlsWrap {
   /* Must be >= toggle width + search min-width + gap so inner items never wrap while next to the title */
   flex: 1 0 30rem;

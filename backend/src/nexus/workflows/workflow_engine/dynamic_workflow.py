@@ -1443,18 +1443,18 @@ class NexusWorkflow(WorkflowConvergeMixin):
         output: dict[str, Any] = {
             "status": "completed",
             "decision": decision,
-            "approver": raw.get("approver") if isinstance(raw, dict) else None,
-            "timestamp": raw.get("timestamp") if isinstance(raw, dict) else None,
+            "decided_by": raw.get("decided_by") if isinstance(raw, dict) else None,
+            "decided_at": raw.get("decided_at") if isinstance(raw, dict) else None,
         }
-        if isinstance(raw, dict) and raw.get("comments") is not None:
-            output["comments"] = raw["comments"][:_APPROVAL_COMMENTS_MAX_LENGTH]
+        if isinstance(raw, dict) and raw.get("decision_notes") is not None:
+            output["decision_notes"] = raw["decision_notes"][:_APPROVAL_COMMENTS_MAX_LENGTH]
         result["output"] = output
         if decision in ("approved", "rejected"):
             workflow.logger.info(
                 "Approval node %s decision: %s by %s",
                 node_id,
                 decision,
-                output.get("approver"),
+                output.get("decided_by"),
             )
             result["control"] = {"next_port": decision}
         else:

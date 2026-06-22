@@ -150,4 +150,16 @@ export const executions: Execution[] = [
       },
     ],
   },
+  // Execution for workflow '54' (deployment-approval) — completed with approval audit
+  {
+    id: 'exec-42',
+    created_at: mockDate.hoursAgo3,
+    updated_at: mockDate.hoursAgo3,
+    workflow_id: '54',
+    status: 'completed',
+    started_at: mockDate.hoursAgo3,
+    completed_at: mockDate.hoursAgo2Plus1s,
+    started_by: 'user-1',
+    input_data: { environment: 'production', version: '3.2.0' },
+  },
 ]

@@ -129,9 +129,9 @@ export type ApprovalFormSubmitData = {
   }
   outputs?: {
     approved?: boolean
-    approver?: string
-    timestamp?: string
-    comments?: string
+    decided_by?: string
+    decided_at?: string
+    decision_notes?: string
   }
 }
 

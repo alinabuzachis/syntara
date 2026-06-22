@@ -57,9 +57,9 @@
         "type": "object",
         "required": [
           "status",
-          "approver",
+          "decided_by",
           "decision",
-          "timestamp"
+          "decided_at"
         ],
         "properties": {
           "status": {
@@ -67,9 +67,9 @@
             "const": "completed",
             "description": "Approval decision was made"
           },
-          "approver": {
+          "decided_by": {
             "type": "string",
-            "description": "User ID or identifier who made the decision (or 'system' for timeout/cancellation)"
+            "description": "Username of the user who made the decision (or 'system' for timeout/cancellation)"
           },
           "decision": {
             "type": "string",
@@ -81,12 +81,12 @@
             ],
             "description": "Detailed decision outcome"
           },
-          "timestamp": {
+          "decided_at": {
             "type": "string",
             "format": "date-time",
             "description": "When the decision occurred (ISO 8601)"
           },
-          "comments": {
+          "decision_notes": {
             "type": "string",
             "description": "Optional notes provided by approver or system (e.g., 'Auto-rejected due to timeout')"
           }
@@ -108,7 +108,7 @@
           "error": {
             "type": "string"
           },
-          "approver": {
+          "decided_by": {
             "type": [
               "string",
               "null"
@@ -120,13 +120,13 @@
               "null"
             ]
           },
-          "timestamp": {
+          "decided_at": {
             "type": [
               "string",
               "null"
             ]
           },
-          "comments": {
+          "decision_notes": {
             "type": [
               "string",
               "null"

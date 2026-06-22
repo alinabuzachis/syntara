@@ -23,8 +23,8 @@ class TestWorkflowApiClient:
         approval_node_id = "approval-node-1"
         decision = "approved"
         approval_id = uuid4()
-        approver = "jsmith"
-        timestamp = "2026-05-20T10:00:00+00:00"
+        decided_by = "jsmith"
+        decided_at = "2026-05-20T10:00:00+00:00"
         notes = "Approved by test"
 
         with (
@@ -43,9 +43,9 @@ class TestWorkflowApiClient:
                         approval_node_id=approval_node_id,
                         decision=decision,
                         approval_id=approval_id,
-                        approver=approver,
-                        timestamp=timestamp,
-                        comments=notes,
+                        decided_by=decided_by,
+                        decided_at=decided_at,
+                        decision_notes=notes,
                     )
 
                 # Verify the signal URL was generated correctly
@@ -64,9 +64,9 @@ class TestWorkflowApiClient:
                 expected_payload = {
                     "signal_data": {
                         "decision": decision,
-                        "approver": approver,
-                        "timestamp": timestamp,
-                        "comments": notes,
+                        "decided_by": decided_by,
+                        "decided_at": decided_at,
+                        "decision_notes": notes,
                     }
                 }
                 assert request_json == expected_payload
@@ -101,8 +101,8 @@ class TestWorkflowApiClient:
                             approval_node_id=approval_node_id,
                             decision=decision,
                             approval_id=approval_id,
-                            approver="jsmith",
-                            timestamp="2026-05-20T10:00:00+00:00",
+                            decided_by="jsmith",
+                            decided_at="2026-05-20T10:00:00+00:00",
                         )
 
                 # Should have made 2 requests (1 failure + 1 success)
@@ -138,8 +138,8 @@ class TestWorkflowApiClient:
                                 approval_node_id=approval_node_id,
                                 decision=decision,
                                 approval_id=approval_id,
-                                approver="jsmith",
-                                timestamp="2026-05-20T10:00:00+00:00",
+                                decided_by="jsmith",
+                                decided_at="2026-05-20T10:00:00+00:00",
                             )
 
                 # Should have made max_retries + 1 requests (3 in fast settings)
@@ -177,8 +177,8 @@ class TestWorkflowApiClient:
                                 approval_node_id=approval_node_id,
                                 decision=decision,
                                 approval_id=approval_id,
-                                approver="jsmith",
-                                timestamp="2026-05-20T10:00:00+00:00",
+                                decided_by="jsmith",
+                                decided_at="2026-05-20T10:00:00+00:00",
                             )
 
                     # Should have made only 1 request (no retries)
@@ -215,8 +215,8 @@ class TestWorkflowApiClient:
                                 approval_node_id=approval_node_id,
                                 decision=decision,
                                 approval_id=approval_id,
-                                approver="jsmith",
-                                timestamp="2026-05-20T10:00:00+00:00",
+                                decided_by="jsmith",
+                                decided_at="2026-05-20T10:00:00+00:00",
                             )
 
                 # Should have made only 1 request (no retries for client errors)

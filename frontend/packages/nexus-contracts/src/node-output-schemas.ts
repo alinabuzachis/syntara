@@ -67,14 +67,14 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
   approval: [
     { name: 'status', type: 'string', description: 'Approval decision was made' },
     {
-      name: 'approver',
+      name: 'decided_by',
       type: 'string',
-      description: "User ID or identifier who made the decision (or 'system' for timeout/cancellation)",
+      description: "Username of the user who made the decision (or 'system' for timeout/cancellation)",
     },
     { name: 'decision', type: 'string', description: 'Detailed decision outcome' },
-    { name: 'timestamp', type: 'string', description: 'When the decision occurred (ISO 8601)' },
+    { name: 'decided_at', type: 'string', description: 'When the decision occurred (ISO 8601)' },
     {
-      name: 'comments',
+      name: 'decision_notes',
       type: 'string',
       description: "Optional notes provided by approver or system (e.g., 'Auto-rejected due to timeout')",
     },

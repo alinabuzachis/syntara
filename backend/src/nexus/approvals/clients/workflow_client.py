@@ -92,9 +92,9 @@ class WorkflowApiClient:
         approval_node_id: str,
         decision: str,
         approval_id: UUID,
-        approver: str,
-        timestamp: str,
-        comments: str | None = None,
+        decided_by: str,
+        decided_at: str,
+        decision_notes: str | None = None,
     ) -> None:
         """Send approval decision signal to workflow engine.
 
@@ -110,9 +110,9 @@ class WorkflowApiClient:
             approval_node_id: ID of the approval activity in workflow
             decision: Decision outcome ('approved' or 'rejected')
             approval_id: ID of the approval request
-            approver: Username of the user who made the decision
-            timestamp: ISO 8601 timestamp of when the decision was made
-            comments: Optional notes provided by the approver
+            decided_by: Username of the user who made the decision
+            decided_at: ISO 8601 timestamp of when the decision was made
+            decision_notes: Optional notes provided by the approver
 
         Raises:
             httpx.RequestError: If signal delivery fails after all retries
@@ -131,9 +131,9 @@ class WorkflowApiClient:
         signal_payload = {
             "signal_data": {
                 "decision": decision,
-                "approver": approver,
-                "timestamp": timestamp,
-                "comments": comments,
+                "decided_by": decided_by,
+                "decided_at": decided_at,
+                "decision_notes": decision_notes,
             }
         }
 

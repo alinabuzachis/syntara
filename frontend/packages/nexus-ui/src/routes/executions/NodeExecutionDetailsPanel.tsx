@@ -13,10 +13,11 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { RhUiCloseIcon } from '@patternfly/react-icons'
+import { RhUiCloseIcon, RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
+import { NxLabel } from '../../components/labels/NxLabel'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
@@ -27,6 +28,7 @@ import { InputSchemaView } from '../builder/panels/views/InputSchemaView'
 import { InputTableView } from '../builder/panels/views/InputTableView'
 import { ViewToggle, type PanelView } from '../builder/panels/ViewToggle'
 import type { ActivityState } from '../workflows/execution/types'
+import { extractApprovalAudit, type ApprovalAudit } from '../workflows/execution/utils/activityState'
 
 import { useNodeExecutionDetails } from './hooks/useNodeExecutionDetails'
 import styles from './NodeExecutionDetailsPanel.module.css'
@@ -135,6 +137,58 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
   )
 }
 
+const decisionStatusMap: Record<string, 'success' | 'danger' | 'warning' | 'info'> = {
+  approved: 'success',
+  rejected: 'danger',
+  expired: 'warning',
+}
+
+const decisionIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  approved: RhUiLikeFillIcon,
+  rejected: RhUiDislikeFillIcon,
+  expired: RhUiWarningFillIcon,
+}
+
+function ApprovalAuditSection({ audit }: Readonly<{ audit: ApprovalAudit }>) {
+  const status = decisionStatusMap[audit.decision] ?? 'info'
+  const IconComponent = decisionIconMap[audit.decision]
+
+  return (
+    <Flex className={styles.auditStrip} gap={{ default: 'gapLg' }} alignItems={{ default: 'alignItemsCenter' }}>
+      <FlexItem>
+        <Stack>
+          <StackItem className={styles.auditLabel}>Decision</StackItem>
+          <StackItem>
+            <NxLabel variant="outline" status={status} icon={IconComponent ? <IconComponent /> : undefined}>
+              {audit.decision.charAt(0).toUpperCase() + audit.decision.slice(1)}
+            </NxLabel>
+          </StackItem>
+        </Stack>
+      </FlexItem>
+      <FlexItem>
+        <Stack>
+          <StackItem className={styles.auditLabel}>Decided by</StackItem>
+          <StackItem className={styles.auditValue}>{audit.decidedBy}</StackItem>
+        </Stack>
+      </FlexItem>
+      <FlexItem>
+        <Stack>
+          <StackItem className={styles.auditLabel}>Decided at</StackItem>
+          <StackItem className={styles.auditValue}>{formatExecutionDateTime(audit.decidedAt)}</StackItem>
+        </Stack>
+      </FlexItem>
+      {audit.decisionNotes && (
+        <FlexItem>
+          <Stack>
+            <StackItem className={styles.auditLabel}>Notes</StackItem>
+            <StackItem className={styles.auditValue}>{audit.decisionNotes}</StackItem>
+          </Stack>
+        </FlexItem>
+      )}
+    </Flex>
+  )
+}
+
 /**
  * Renders a node details section with its own header (name, status, elapsed, close)
  * and side-by-side Input / Output data panes beneath it.
@@ -154,6 +208,8 @@ export function NodeExecutionDetailsPanel({
     nodeState?.status
   )
 
+  const approvalAudit = useMemo(() => extractApprovalAudit(outputData), [outputData])
+
   const nodeStarted = nodeState?.startedAt ?? null
   const nodeCompleted = nodeState?.completedAt ?? null
   const nodeIsRunning = nodeState?.status === 'running'
@@ -164,7 +220,7 @@ export function NodeExecutionDetailsPanel({
   return (
     <Stack style={{ height: '100%', overflow: 'hidden' }}>
       {/* Node-specific header */}
-      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--md)' }}>
+      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--xxs)' }}>
         <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
           <FlexItem>
             <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
@@ -204,6 +260,13 @@ export function NodeExecutionDetailsPanel({
           </FlexItem>
         </Flex>
       </StackItem>
+
+      {/* Approval audit strip (shown only for decided approval nodes) */}
+      {approvalAudit && (
+        <StackItem style={{ flexShrink: 0 }}>
+          <ApprovalAuditSection audit={approvalAudit} />
+        </StackItem>
+      )}
 
       {/* Side-by-side Input / Output panes */}
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
