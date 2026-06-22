@@ -51,8 +51,8 @@ class TestRevokeAllTokens:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -81,8 +81,8 @@ class TestRevokeAllTokens:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -110,8 +110,8 @@ class TestRevokeAllTokens:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -154,8 +154,8 @@ class TestRevokeUserSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -189,8 +189,8 @@ class TestRevokeUserSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -218,8 +218,8 @@ class TestRevokeUserSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -259,8 +259,8 @@ class TestRevokeIdpSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -293,8 +293,8 @@ class TestRevokeIdpSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(
@@ -321,8 +321,8 @@ class TestRevokeIdpSessions:
 
         with (
             patch("nexus.admin.__main__._register_audit_handlers"),
-            patch("nexus.admin.__main__.start_audit_components"),
-            patch("nexus.admin.__main__.stop_audit_components", new_callable=AsyncMock),
+            patch("nexus.admin.__main__.start_audit_subsystems"),
+            patch("nexus.admin.__main__.stop_audit_subsystems", new_callable=AsyncMock),
             patch(
                 "nexus.core.database.session.AsyncSessionLocal",
                 return_value=AsyncMock(

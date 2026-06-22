@@ -17,7 +17,7 @@ from sqlmodel import SQLModel
 from nexus.core.config.base import get_settings
 from nexus.core.database.migrations.models import ALL_MODELS  # noqa: F401
 from nexus.core.database.ssl import build_ssl_connect_args
-from nexus.core.logging.logging import configure_structlog
+from nexus.core.logging.logging import configure_app_logging
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -57,7 +57,7 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """Run migrations with the given connection."""
-    configure_structlog()
+    configure_app_logging()
     context.configure(
         connection=connection,
         target_metadata=target_metadata,

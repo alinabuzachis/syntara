@@ -16,6 +16,8 @@ import sys
 
 import structlog
 
+from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
+
 logger = structlog.stdlib.get_logger(__name__)
 
 
@@ -47,6 +49,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 async def _main(args: argparse.Namespace) -> None:
+    start_audit_subsystems()
+
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
     from nexus.core.seed import get_seeders, run_seeders  # noqa: PLC0415
 
@@ -63,6 +67,8 @@ async def _main(args: argparse.Namespace) -> None:
         include_optional=args.all,
         only=args.only,
     )
+
+    await stop_audit_subsystems()
 
 
 def main() -> None:

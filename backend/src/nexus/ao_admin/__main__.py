@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import typer
 
-from nexus.audit.lifecycle import start_audit_components, stop_audit_components
+from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
 
 if TYPE_CHECKING:
     from nexus.auth.audit.account_management import AccountEnableEvent, PasswordResetEvent
@@ -190,13 +190,13 @@ async def _revoke_sessions_and_dispatch(
     except Exception:  # noqa: BLE001
         typer.echo("WARNING: Audit event could not be recorded.", err=True)
 
-    await stop_audit_components()
+    await stop_audit_subsystems()
 
 
 async def _enable_user_async(username: str, actor: str) -> None:
     """Re-enable a disabled user account."""
     _quiet_logging()
-    start_audit_components()
+    start_audit_subsystems()
 
     from nexus.auth.audit.account_management import AccountEnableEvent  # noqa: PLC0415
     from nexus.core.models.user import AuthType  # noqa: PLC0415
@@ -231,7 +231,7 @@ async def _enable_user_async(username: str, actor: str) -> None:
 async def _reset_password_async(username: str, new_password: str, actor: str) -> None:
     """Reset the password for a local user account."""
     _quiet_logging()
-    start_audit_components()
+    start_audit_subsystems()
 
     from nexus.auth.audit.account_management import PasswordResetEvent  # noqa: PLC0415
     from nexus.auth.passwords import hash_password  # noqa: PLC0415

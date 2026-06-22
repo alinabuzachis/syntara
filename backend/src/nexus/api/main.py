@@ -21,7 +21,7 @@ from temporalio.service import RPCError
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
 import nexus.identity_providers.exceptions
 from nexus.api.constants import API_V1_PATH_PREFIX
-from nexus.audit.lifecycle import start_audit_components, stop_audit_components
+from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.auth.middleware import StaleTokenMiddleware
@@ -104,9 +104,11 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     """
     validate_encryption_key_at_startup()
 
-    # Initialise Audit framework first to ensure all Audit Events are captured
+    # Initialize logging and audit subsystems
+    start_audit_subsystems()
+
+    # Register audit/telemetry handlers so domain events are captured
     discover_and_register_all_handlers()
-    start_audit_components()
 
     # Initialise Settings
     settings = get_settings()
@@ -236,9 +238,6 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
 
     await resources["opa_client"].stop()
 
-    # Flush audit components last to ensure all events are captured
-    await stop_audit_components()
-
     await engine.dispose()
     logger.info("Database engine disposed")
 
@@ -248,6 +247,9 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
         logger.debug("Cleaned up lock file", lock_file=lock_file)
     except OSError as e:
         logger.warning("Failed to clean up lock file", lock_file=lock_file, error=str(e))
+
+    # Flush and stop audit and logging subsystems (last to capture all events)
+    await stop_audit_subsystems()
 
 
 @asynccontextmanager

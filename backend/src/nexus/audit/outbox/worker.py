@@ -23,8 +23,8 @@ from sqlalchemy import func
 from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlmodel import select
 
+from nexus.audit.logging import OTEL_AUDIT_LOGGER_NAME
 from nexus.audit.models.audit_event import AuditEvent
-from nexus.audit.otel_logging import OTEL_AUDIT_LOGGER_NAME
 from nexus.audit.outbox.models import AuditEventSource, AuditOutboxRecord
 from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit

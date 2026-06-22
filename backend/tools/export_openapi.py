@@ -21,6 +21,7 @@ from fastapi import FastAPI
 
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.core.error_handlers import apply_rfc9457_media_types, problem_details_response_map
+from nexus.core.logging.logging import configure_app_logging
 from nexus.core.router_discovery import discover_and_register_routers
 from nexus.metrics.internal_api import (
     metrics_store_component_kpis,
@@ -76,6 +77,9 @@ def _inject_permission_metadata(app: FastAPI, spec: dict[str, Any]) -> None:
 def build_spec_app() -> FastAPI:
     """Build a minimal FastAPI app with all routers for spec generation."""
     from nexus.authz.resource_actions import build_resource_actions
+
+    # Configure logging to stderr before router discovery (prevents log output from contaminating stdout YAML)
+    configure_app_logging()
 
     app = FastAPI(
         title="Nexus API",

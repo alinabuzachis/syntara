@@ -20,7 +20,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from nexus.audit.lifecycle import start_audit_components, stop_audit_components
+from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -53,7 +53,7 @@ def _register_audit_handlers() -> None:
 async def _revoke_all_tokens(actor: str) -> None:
     """Set the global revocation timestamp and emit an audit event."""
     _register_audit_handlers()
-    start_audit_components()
+    start_audit_subsystems()
 
     from nexus.admin.services import set_global_revocation_timestamp  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
@@ -66,14 +66,15 @@ async def _revoke_all_tokens(actor: str) -> None:
         )
         await session.commit()
 
-    await stop_audit_components()
-
     timestamp_str = now.isoformat()
     logger.info(
         "Global revocation timestamp set",
         timestamp=timestamp_str,
         actor=actor,
     )
+
+    await stop_audit_subsystems()
+
     print(  # noqa: T201
         f"Global revocation timestamp set to {timestamp_str}\n"
         f"All tokens issued before this time are now invalid.\n"
@@ -84,7 +85,7 @@ async def _revoke_all_tokens(actor: str) -> None:
 async def _revoke_user_sessions(username: str, actor: str) -> None:
     """Revoke all sessions for a specific user."""
     _register_audit_handlers()
-    start_audit_components()
+    start_audit_subsystems()
 
     from nexus.admin.services import find_user_by_username, revoke_user_sessions  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
@@ -104,8 +105,6 @@ async def _revoke_user_sessions(username: str, actor: str) -> None:
         )
         await session.commit()
 
-    await stop_audit_components()
-
     logger.info(
         "Revoked all sessions for user",
         username=user.username,
@@ -113,6 +112,9 @@ async def _revoke_user_sessions(username: str, actor: str) -> None:
         sessions_revoked=revoked_count,
         actor=actor,
     )
+
+    await stop_audit_subsystems()
+
     print(  # noqa: T201
         f"Revoked {revoked_count} session(s) for user '{user.username}'.\n"
         f"The user will need to re-authenticate.\n"
@@ -123,7 +125,7 @@ async def _revoke_user_sessions(username: str, actor: str) -> None:
 async def _revoke_idp_sessions(idp_name: str, actor: str) -> None:
     """Revoke all sessions authenticated via a specific identity provider."""
     _register_audit_handlers()
-    start_audit_components()
+    start_audit_subsystems()
 
     from nexus.admin.services import find_idp_by_name, revoke_idp_sessions  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
@@ -144,8 +146,6 @@ async def _revoke_idp_sessions(idp_name: str, actor: str) -> None:
         )
         await session.commit()
 
-    await stop_audit_components()
-
     logger.info(
         "Revoked all sessions for identity provider",
         idp_name=provider.name,
@@ -153,6 +153,9 @@ async def _revoke_idp_sessions(idp_name: str, actor: str) -> None:
         sessions_revoked=revoked_count,
         actor=actor,
     )
+
+    await stop_audit_subsystems()
+
     print(  # noqa: T201
         f"Revoked {revoked_count} session(s) for identity provider '{provider.name}'.\n"
         f"Users who authenticated via this provider will need to re-authenticate.\n"

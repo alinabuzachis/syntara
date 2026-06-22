@@ -13,6 +13,7 @@ from structlog.typing import (
 )
 
 from nexus.core.config.base import LogLevel, get_settings
+from nexus.core.logging.otel_handlers import create_otel_handler
 from nexus.settings.watch import watch_setting
 
 settings = get_settings()
@@ -195,8 +196,9 @@ def _on_log_level_changed(_key: str, new_value: Any) -> None:  # noqa: ANN401
     _set_log_level(level)
 
 
-def configure_structlog() -> None:
+def configure_app_logging() -> None:
     """Configure structlog and stdlib logging for structured logs."""
+    # Always attach stdout handler
     handler = logging.StreamHandler()
     handler.setFormatter(build_nexus_formatter())
 
@@ -204,6 +206,18 @@ def configure_structlog() -> None:
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
     root_logger.setLevel(settings.fallback_log_level)
+
+    # Create and attach OTLP handler if enabled
+    otel_handler = create_otel_handler()
+    if otel_handler is not None:
+        root_logger.addHandler(otel_handler)
+        logging.getLogger(__name__).info(
+            "logging.root_otel_configured",
+            extra={
+                "endpoint": settings.otel_endpoint,
+                "service_name": settings.otel_service_name,
+            },
+        )
 
     structlog.configure(
         processors=[

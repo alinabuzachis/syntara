@@ -16,35 +16,21 @@ Environment Variables:
 """
 
 import asyncio
-import logging
 import signal
 import sys
 
 import structlog
 
 from nexus.audit.registration import discover_and_register_all_handlers
-from nexus.core.config.base import get_settings, validate_encryption_key_at_startup
+from nexus.core.config.base import validate_encryption_key_at_startup
 from nexus.core.database.session import AsyncSessionLocal
+from nexus.core.logging.lifecycle import start_loggers, stop_loggers
 from nexus.core.logging.logging import apply_runtime_log_level
 from nexus.settings.cache.settings_cache import SettingsCache, get_runtime_settings, set_runtime_settings
 from nexus.workflows.workflow_engine.services.temporal_worker import start_worker, stop_worker
 
-# Configure logging using centralized settings
-_settings = get_settings()
-logging.basicConfig(
-    level=_settings.fallback_log_level,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stdout,
-)
-structlog.configure(
-    processors=[
-        structlog.stdlib.filter_by_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
-    ],
-    context_class=dict,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-)
+# Initialize logging subsystems (stdout + OTLP handlers)
+start_loggers()
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -100,6 +86,9 @@ async def main() -> None:
             logger.info("Stopping Temporal worker...")
             await stop_worker()
             logger.info("Temporal worker stopped")
+
+        # Flush and stop logging subsystems
+        stop_loggers()
 
 
 if __name__ == "__main__":

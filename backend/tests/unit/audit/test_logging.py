@@ -1,8 +1,11 @@
-"""Tests for OTEL audit event emission.
+"""Unit tests for audit logging configuration.
 
-Verifies that emit_audit_event_otel sends events through the full OTEL logging
-stack and produces ReadableLogRecords with the expected audit event data,
-actor context, and sanitization.
+Tests cover:
+- OTEL audit logger configuration with various authentication methods
+- Handler setup (OTEL + stdout)
+- Logger settings (level, propagation)
+- Stateless behavior (idempotency handled by lifecycle module)
+- OTLP endpoint security validation
 """
 
 import logging
@@ -12,7 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import SecretStr
 
-from nexus.audit.otel_logging import OTEL_AUDIT_LOGGER_NAME, OtelLoggingState, configure_otel_logging
+from nexus.audit.logging import OTEL_AUDIT_LOGGER_NAME, configure_audit_logging
+from nexus.core.logging.lifecycle import OtelLoggingState
 
 MOCK_SECRET_ENCRYPTION_KEY = SecretStr("1" * 64)
 
@@ -20,11 +24,11 @@ MOCK_SECRET_ENCRYPTION_KEY = SecretStr("1" * 64)
 @pytest.fixture(autouse=True)
 def _reset_otel_state() -> Generator[None, None, None]:
     """Reset OTEL state between tests to ensure isolation."""
-    import nexus.audit.otel_logging as otel_module
+    import nexus.core.logging.lifecycle as lifecycle_module
 
     # Reset state before test
-    with otel_module._otel_state_lock:
-        otel_module._otel_state = OtelLoggingState.UNCONFIGURED
+    with lifecycle_module._logging_state_lock:
+        lifecycle_module._logging_state = OtelLoggingState.UNCONFIGURED
         # Clean up any handlers from previous tests
         audit_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
         for handler in audit_logger.handlers[:]:
@@ -33,17 +37,17 @@ def _reset_otel_state() -> Generator[None, None, None]:
     yield
 
     # Clean up after test
-    with otel_module._otel_state_lock:
-        otel_module._otel_state = OtelLoggingState.UNCONFIGURED
+    with lifecycle_module._logging_state_lock:
+        lifecycle_module._logging_state = OtelLoggingState.UNCONFIGURED
         audit_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
         for handler in audit_logger.handlers[:]:
             audit_logger.removeHandler(handler)
 
 
-class TestOtelAuditPipeline:
-    """Tests for OTEL audit event emission through the full logging stack."""
+class TestConfigureAuditLogging:
+    """Tests for configure_audit_logging function."""
 
-    @patch("opentelemetry.exporter.otlp.proto.http._log_exporter.OTLPLogExporter")
+    @patch("nexus.core.logging.otel_handlers.OTLPLogExporter")
     def test_configure_otel_logging_with_api_key_authentication(
         self,
         mock_exporter_class: MagicMock,
@@ -62,7 +66,7 @@ class TestOtelAuditPipeline:
             otel_api_key=SecretStr(api_key),
             otel_auth_header_name="X-API-Key",
         ):
-            configure_otel_logging()
+            configure_audit_logging()
 
             # Verify OTLPLogExporter was called with authentication headers
             mock_exporter_class.assert_called_once()
@@ -79,7 +83,7 @@ class TestOtelAuditPipeline:
             for handler in otel_logger.handlers[:]:
                 otel_logger.removeHandler(handler)
 
-    @patch("opentelemetry.exporter.otlp.proto.http._log_exporter.OTLPLogExporter")
+    @patch("nexus.core.logging.otel_handlers.OTLPLogExporter")
     def test_configure_otel_logging_with_mtls_authentication(
         self,
         mock_exporter_class: MagicMock,
@@ -97,7 +101,7 @@ class TestOtelAuditPipeline:
             otel_client_cert_file="/etc/ssl/client.crt",
             otel_client_key_file="/etc/ssl/client.key",
         ):
-            configure_otel_logging()
+            configure_audit_logging()
 
             # Verify OTLPLogExporter was called with certificate files
             mock_exporter_class.assert_called_once()
@@ -114,8 +118,8 @@ class TestOtelAuditPipeline:
             for handler in otel_logger.handlers[:]:
                 otel_logger.removeHandler(handler)
 
-    @patch("nexus.audit.otel_logging.logger")
-    @patch("opentelemetry.exporter.otlp.proto.http._log_exporter.OTLPLogExporter")
+    @patch("nexus.core.logging.otel_handlers.logger")
+    @patch("nexus.core.logging.otel_handlers.OTLPLogExporter")
     def test_configure_otel_logging_warns_without_authentication(
         self,
         mock_exporter_class: MagicMock,
@@ -131,12 +135,12 @@ class TestOtelAuditPipeline:
             otel_endpoint="http://localhost:4318/v1/logs",
             otel_service_name="nexus-test",
         ):
-            configure_otel_logging()
+            configure_audit_logging()
 
             # Verify warning was logged about missing authentication
             mock_logger.warning.assert_called_once()
             warning_call = mock_logger.warning.call_args
-            assert warning_call[0][0] == "otel.logging.no_authentication"
+            assert warning_call[0][0] == "otel.handler.no_authentication"
             assert "endpoint" in warning_call[1]
             assert warning_call[1]["endpoint"] == "http://localhost:4318/v1/logs"
 
@@ -145,7 +149,7 @@ class TestOtelAuditPipeline:
             for handler in otel_logger.handlers[:]:
                 otel_logger.removeHandler(handler)
 
-    @patch("opentelemetry.exporter.otlp.proto.http._log_exporter.OTLPLogExporter")
+    @patch("nexus.core.logging.otel_handlers.OTLPLogExporter")
     def test_configure_otel_logging_adds_both_otel_and_stdout_handlers(
         self,
         mock_exporter_class: MagicMock,
@@ -160,7 +164,7 @@ class TestOtelAuditPipeline:
             otel_endpoint="https://otlp.example.com/v1/logs",
             otel_service_name="nexus-test",
         ):
-            configure_otel_logging()
+            configure_audit_logging()
 
             otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
 
@@ -179,46 +183,6 @@ class TestOtelAuditPipeline:
             for handler in otel_logger.handlers[:]:
                 otel_logger.removeHandler(handler)
 
-    @patch("opentelemetry.exporter.otlp.proto.http._log_exporter.OTLPLogExporter")
-    def test_configure_otel_logging_is_idempotent(
-        self,
-        mock_exporter_class: MagicMock,
-        override_settings,
-    ) -> None:
-        """configure_otel_logging is idempotent and safe to call multiple times."""
-        mock_exporter_instance = MagicMock()
-        mock_exporter_class.return_value = mock_exporter_instance
-
-        with override_settings(
-            otel_enabled=True,
-            otel_endpoint="https://otlp.example.com/v1/logs",
-            otel_service_name="nexus-test",
-        ):
-            # First call should configure
-            configure_otel_logging()
-
-            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
-            initial_handler_count = len(otel_logger.handlers)
-
-            assert initial_handler_count == 2, "First call should add exactly two handlers (OTEL + stdout)"
-            assert mock_exporter_class.call_count == 1, "Exporter should be created once"
-
-            # Second call should be idempotent (no new handlers added)
-            configure_otel_logging()
-
-            assert len(otel_logger.handlers) == initial_handler_count, "Second call should not add additional handlers"
-            assert mock_exporter_class.call_count == 1, "Exporter should still only be created once"
-
-            # Third call to verify continued idempotency
-            configure_otel_logging()
-
-            assert len(otel_logger.handlers) == initial_handler_count, "Third call should not add additional handlers"
-            assert mock_exporter_class.call_count == 1, "Exporter should still only be created once"
-
-            # Cleanup
-            for handler in otel_logger.handlers[:]:
-                otel_logger.removeHandler(handler)
-
     def test_configure_otel_logging_when_disabled_adds_only_stdout_handler(
         self,
         override_settings,
@@ -227,7 +191,7 @@ class TestOtelAuditPipeline:
         with override_settings(
             otel_enabled=False,
         ):
-            configure_otel_logging()
+            configure_audit_logging()
 
             otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
 
@@ -249,33 +213,6 @@ class TestOtelAuditPipeline:
             for handler in otel_logger.handlers[:]:
                 otel_logger.removeHandler(handler)
 
-    def test_configure_otel_logging_when_disabled_transitions_to_configured_state(
-        self,
-        override_settings,
-    ) -> None:
-        """configure_otel_logging transitions to CONFIGURED state even when OTEL is disabled."""
-        import nexus.audit.otel_logging as otel_module
-
-        with override_settings(
-            otel_enabled=False,
-        ):
-            # Initial state is UNCONFIGURED (guaranteed by fixture)
-            configure_otel_logging()
-
-            # Verify state transitioned to CONFIGURED
-            with otel_module._otel_state_lock:
-                assert otel_module._otel_state == OtelLoggingState.CONFIGURED
-
-            # Verify subsequent calls are idempotent
-            configure_otel_logging()
-
-            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
-            assert len(otel_logger.handlers) == 1, "Should still have exactly one handler"
-
-            # Cleanup
-            for handler in otel_logger.handlers[:]:
-                otel_logger.removeHandler(handler)
-
     def test_audit_events_logged_to_stdout_when_otel_disabled(
         self,
         override_settings,
@@ -289,7 +226,7 @@ class TestOtelAuditPipeline:
         ):
             # Capture stderr (StreamHandler default) to verify logs are written
             with patch("sys.stderr", new=io.StringIO()) as mock_stderr:
-                configure_otel_logging()
+                configure_audit_logging()
 
                 # Verify the stream handler was configured and can emit logs
                 otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
@@ -312,6 +249,114 @@ class TestOtelAuditPipeline:
                 assert "test audit event" in output, "Should contain the log message"
 
             # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    def test_logger_level_set_to_notset(self, override_settings) -> None:
+        """Test that logger level is set to NOTSET to allow all audit events."""
+        with override_settings(otel_enabled=False):
+            configure_audit_logging()
+
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+            assert otel_logger.level == logging.NOTSET
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    def test_logger_propagate_disabled(self, override_settings) -> None:
+        """Test that logger propagation is disabled to prevent duplicate logs."""
+        with override_settings(otel_enabled=False):
+            configure_audit_logging()
+
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+            assert otel_logger.propagate is False
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    def test_stdout_handler_level_notset(self, override_settings) -> None:
+        """Test that stdout handler level is NOTSET to emit all events."""
+        with override_settings(otel_enabled=False):
+            configure_audit_logging()
+
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+            stdout_handler = otel_logger.handlers[0]
+
+            assert stdout_handler.level == logging.NOTSET
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    def test_stdout_handler_has_formatter(self, override_settings) -> None:
+        """Test that stdout handler has a formatter configured."""
+        with override_settings(otel_enabled=False):
+            configure_audit_logging()
+
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+            stdout_handler = otel_logger.handlers[0]
+
+            assert stdout_handler.formatter is not None
+
+            # Cleanup
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    @patch("nexus.audit.logging.logger")
+    @patch("nexus.core.logging.otel_handlers.OTLPLogExporter")
+    def test_logs_configuration_success_when_otel_enabled(
+        self,
+        mock_exporter_class: MagicMock,
+        mock_logger: MagicMock,
+        override_settings,
+    ) -> None:
+        """Test that successful OTEL configuration is logged."""
+        mock_exporter_instance = MagicMock()
+        mock_exporter_class.return_value = mock_exporter_instance
+
+        with override_settings(
+            otel_enabled=True,
+            otel_endpoint="https://otlp.example.com/v1/logs",
+            otel_service_name="nexus-test",
+        ):
+            configure_audit_logging()
+
+            # Verify info log was emitted
+            mock_logger.info.assert_called_once()
+            log_call = mock_logger.info.call_args
+            assert log_call[0][0] == "otel.logging.configured"
+            assert log_call[1]["logger_name"] == OTEL_AUDIT_LOGGER_NAME
+            assert log_call[1]["otel_export_enabled"] is True
+            assert log_call[1]["endpoint"] == "https://otlp.example.com/v1/logs"
+
+            # Cleanup
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+            for handler in otel_logger.handlers[:]:
+                otel_logger.removeHandler(handler)
+
+    @patch("nexus.audit.logging.logger")
+    def test_logs_configuration_when_otel_disabled(
+        self,
+        mock_logger: MagicMock,
+        override_settings,
+    ) -> None:
+        """Test that OTEL disabled configuration is logged with reason."""
+        with override_settings(otel_enabled=False):
+            configure_audit_logging()
+
+            # Verify info log was emitted with reason
+            mock_logger.info.assert_called_once()
+            log_call = mock_logger.info.call_args
+            assert log_call[0][0] == "otel.logging.configured"
+            assert log_call[1]["logger_name"] == OTEL_AUDIT_LOGGER_NAME
+            assert log_call[1]["otel_export_enabled"] is False
+            assert "reason" in log_call[1]
+            assert "otel_enabled=False" in log_call[1]["reason"]
+
+            # Cleanup
+            otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
             for handler in otel_logger.handlers[:]:
                 otel_logger.removeHandler(handler)
 

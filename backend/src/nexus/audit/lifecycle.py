@@ -1,20 +1,26 @@
 """Audit system lifecycle management.
 
-Provides initialization and shutdown handlers for the complete audit subsystem.
-These functions coordinate startup and teardown of all audit components to ensure
-reliable event capture and persistence.
+Provides initialization and shutdown handlers for the audit outbox worker subsystem,
+plus orchestration helpers that coordinate logging and audit subsystems together.
 
-Initialization (`initialize_audit_components`):
-    - Configures OpenTelemetry logging integration for audit event export
-    - Initializes asynchronous database worker with retry and batching support
+Low-level functions (for fine-grained control):
+    - start_audit_outbox_worker() / stop_audit_outbox_worker()
 
-Shutdown (`flush_audit_components`):
+High-level orchestration (combines logging + audit):
+    - start_audit_subsystems() / stop_audit_subsystems()
+    - Use these from API server, CLI tools, or any process that emits audit events
+
+Initialization (`start_audit_subsystems`):
+    - Starts logging subsystems (stdout + OTLP handlers)
+    - Starts asynchronous outbox worker with retry and batching support
+
+Shutdown (`stop_audit_subsystems`):
     - Drains in-flight audit events from the async worker queue
-    - Flushes OTEL logging provider to export buffered records
+    - Stops the outbox worker
+    - Flushes and stops logging subsystems
 
-Call `initialize_audit_components` during application startup (lifespan context)
-and `flush_audit_components` during shutdown, after all request handlers complete
-but before database connections close.
+Call during application startup (lifespan context or CLI entry point)
+and shutdown, after all request handlers complete but before database connections close.
 """
 
 import threading
@@ -22,7 +28,6 @@ from enum import StrEnum
 
 import structlog
 
-from nexus.audit.otel_logging import configure_otel_logging, flush_otel_logging
 from nexus.audit.outbox.worker import get_outbox_worker
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -40,10 +45,9 @@ _state_lock = threading.Lock()
 _state = AuditLifecycleState.STOPPED
 
 
-def start_audit_components() -> None:
-    """Initialize and start all audit system components.
+def start_audit_outbox_worker() -> None:
+    """Initialize and start audit outbox worker.
 
-    Configures OTEL logging, and database persistence.
     Thread-safe and idempotent - safe to call multiple times.
     Can be called after stop to restart the audit system.
     """
@@ -54,12 +58,6 @@ def start_audit_components() -> None:
             logger.debug("audit.components.already_running", state=_state)
             return
 
-        # Configure OpenTelemetry logging for audit events
-        try:
-            configure_otel_logging()
-        except Exception:  # noqa: BLE001  # Broad catch to prevent startup failure if OTEL unavailable
-            logger.warning("OTEL logging initialization failed", exc_info=True)
-
         # Start audit outbox worker (publishes events from main DB to audit DB)
         outbox_worker = get_outbox_worker()
         outbox_worker.start()
@@ -68,12 +66,10 @@ def start_audit_components() -> None:
         _state = AuditLifecycleState.RUNNING
 
 
-async def stop_audit_components() -> None:
-    """Flush and stop all audit components during shutdown.
+async def stop_audit_outbox_worker() -> None:
+    """Flush and stop audit outbox worker during shutdown.
 
-    This ensures:
-    - In-flight audit outbox events are drained and the worker is stopped
-    - OTEL logger exports remaining records
+    Ensures in-flight audit outbox events are drained and the worker is stopped.
 
     Thread-safe and idempotent - safe to call multiple times.
     Must be called last during shutdown to avoid dropping events.
@@ -92,9 +88,41 @@ async def stop_audit_components() -> None:
             await outbox_worker.stop()
             logger.info("AuditOutboxWorker shutdown.")
 
-        # Flush OTEL logging to ensure pending LogRecords are exported.
-        # This transitions OTEL back to UNCONFIGURED, allowing restart
-        flush_otel_logging()
-        logger.info("AuditEvent OTEL Logging flushed.")
-
         _state = AuditLifecycleState.STOPPED
+
+
+# =============================================================================
+# High-level orchestration (combines logging + audit)
+# =============================================================================
+
+
+def start_audit_subsystems() -> None:
+    """Start all subsystems needed for audit event emission.
+
+    Combines logging and audit worker initialization in the correct order:
+    1. Logging (must start first to capture all subsequent events)
+    2. Audit outbox worker (depends on logging)
+
+    Use this from API server, CLI tools, or any process that emits audit events.
+
+    Thread-safe and idempotent - safe to call multiple times.
+    """
+    from nexus.core.logging.lifecycle import start_loggers  # noqa: PLC0415
+
+    start_loggers()
+    start_audit_outbox_worker()
+
+
+async def stop_audit_subsystems() -> None:
+    """Stop all audit subsystems in reverse order.
+
+    Order:
+    1. Audit outbox worker (flush pending events before logging stops)
+    2. Logging (stop last to capture all shutdown events)
+
+    Thread-safe and idempotent - safe to call multiple times.
+    """
+    from nexus.core.logging.lifecycle import stop_loggers  # noqa: PLC0415
+
+    await stop_audit_outbox_worker()
+    stop_loggers()

@@ -55,7 +55,7 @@ from nexus.auth.services.token_service import TokenService
 from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.config.base import Settings, get_settings
 from nexus.core.database.session import get_db
-from nexus.core.logging.logging import configure_structlog
+from nexus.core.logging.logging import configure_app_logging
 from nexus.core.models import User
 from nexus.core.models.group import Group
 from nexus.files.models import FileMetadata
@@ -116,7 +116,7 @@ _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata, Group
 # This ensures that all tests have proper structlog configuration,
 # preventing unpredictable behavior when error handlers or other components
 # use structlog.stdlib.get_logger(__name__) without configuration.
-configure_structlog()
+configure_app_logging()
 
 logger = structlog.stdlib.get_logger(__name__)
 
