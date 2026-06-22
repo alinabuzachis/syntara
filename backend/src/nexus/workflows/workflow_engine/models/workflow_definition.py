@@ -79,6 +79,7 @@ class ActivityName(StrEnum):
     # Internal
     CREDENTIAL_RESOLUTION = "resolve_workflow_credentials"
     APPROVER_RESOLUTION = "resolve_approvers"
+    EXPIRE_APPROVAL = "expire_approval_requests"
     ACTIVITY_MONITORING = "register_activity_monitoring"
     COMPLETE_WAIT = "complete_wait"
     FETCH_RUNTIME_SETTINGS = "fetch_workflow_runtime_settings"

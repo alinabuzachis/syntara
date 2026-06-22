@@ -1,15 +1,18 @@
 """Approval activity executor for workflow human approval integration.
 
-This module provides functionality to create approval requests within workflows
-via the Approvals API client.
+This module provides functionality to create and expire approval requests
+within workflows via the Approvals API client.
 """
 
 from typing import Any, NoReturn
+from uuid import UUID
 
 import structlog
 from temporalio import activity, workflow
 
 with workflow.unsafe.imports_passed_through():
+    from nexus.approvals.audit.approval import ApprovalExpiredEvent
+    from nexus.audit.dispatcher import AuditEventDispatcher
     from nexus.auth import create_service_token
     from nexus.workflows.clients.approvals_client import (
         ApprovalsApiClient,
@@ -100,3 +103,84 @@ async def create_approval_request_activity(
         raise ApprovalActivityError(msg) from e
 
     activity.raise_complete_async()
+
+
+@activity.defn(name=ActivityName.EXPIRE_APPROVAL)
+async def expire_approval_requests_activity(
+    execution_id: str,
+    node_id: str,
+) -> dict[str, Any]:
+    """Expire pending approval requests for a specific node after its decision window.
+
+    Looks up pending approvals for the given execution, filters to the node,
+    and batch-expires them.
+
+    Args:
+        execution_id: Parent workflow execution ID (UUID string).
+        node_id: The approval node whose requests should be expired.
+
+    Returns:
+        Dict with expired_count and any errors.
+
+    """
+    logger.info(
+        "Expiring approval requests for timed-out node",
+        execution_id=execution_id,
+        node_id=node_id,
+    )
+
+    try:
+        async with ApprovalsApiClient(
+            base_url=constants.APPROVALS_API_BASE_URL,
+            auth_token=create_service_token(),
+        ) as client:
+            pending = await client.list_approvals_by_execution(UUID(execution_id), status="pending")
+            node_approvals = [a for a in pending if a.get("approval_node_id") == node_id]
+
+            if not node_approvals:
+                logger.info(
+                    "No pending approvals to expire",
+                    execution_id=execution_id,
+                    node_id=node_id,
+                )
+                return {"expired_count": 0}
+
+            approval_ids = [UUID(a["id"]) for a in node_approvals]
+            result = await client.batch_expire(approval_ids)
+
+            expired_count = result.get("total_success", 0)
+            logger.info(
+                "Expired approval requests",
+                execution_id=execution_id,
+                node_id=node_id,
+                expired_count=expired_count,
+                failed_count=result.get("total_failed", 0),
+            )
+
+            for approval_id in approval_ids:
+                AuditEventDispatcher.dispatch(
+                    ApprovalExpiredEvent(
+                        approval_id=approval_id,
+                        execution_id=UUID(execution_id),
+                        approval_node_id=node_id,
+                    )
+                )
+
+            return {"expired_count": expired_count}
+
+    except ApprovalsApiClientError as e:
+        logger.warning(
+            "Failed to expire approval requests",
+            execution_id=execution_id,
+            node_id=node_id,
+            error=str(e),
+        )
+        return {"expired_count": 0, "error": str(e)}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "Unexpected error expiring approval requests",
+            execution_id=execution_id,
+            node_id=node_id,
+            error=str(e),
+        )
+        return {"expired_count": 0, "error": str(e)}

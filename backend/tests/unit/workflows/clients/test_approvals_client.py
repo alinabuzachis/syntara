@@ -301,6 +301,64 @@ async def test_batch_cancel_empty_list(client: ApprovalsApiClient) -> None:
     assert result["total_failed"] == 0
 
 
+@pytest.mark.asyncio
+async def test_batch_expire_success(client: ApprovalsApiClient) -> None:
+    """Test batch expiration."""
+    approval_ids = [uuid4(), uuid4()]
+    batch_response = {
+        "results": [
+            {"approval_id": str(aid), "success": True, "status": "expired", "error": None} for aid in approval_ids
+        ],
+        "total_success": 2,
+        "total_failed": 0,
+    }
+    mock_response = httpx.Response(200, json=batch_response)
+    client.http_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: mock_response), base_url=client.base_url
+    )
+
+    result = await client.batch_expire(approval_ids)
+    assert result["total_success"] == 2
+    assert result["total_failed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_batch_expire_empty_list(client: ApprovalsApiClient) -> None:
+    """Test batch expiration with empty list returns immediately."""
+    result = await client.batch_expire([])
+    assert result["total_success"] == 0
+    assert result["total_failed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_batch_expire_sends_expired_status(client: ApprovalsApiClient) -> None:
+    """Test that batch expire sends 'expired' status in request body."""
+    approval_ids = [uuid4()]
+    captured_request = None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_request
+        captured_request = request
+        return httpx.Response(
+            200,
+            json={
+                "results": [{"approval_id": str(approval_ids[0]), "success": True, "status": "expired", "error": None}],
+                "total_success": 1,
+                "total_failed": 0,
+            },
+        )
+
+    client.http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url=client.base_url)
+
+    await client.batch_expire(approval_ids)
+
+    assert captured_request is not None
+    import json
+
+    body = json.loads(captured_request.content)
+    assert body["decisions"][0]["status"] == "expired"
+
+
 def test_auth_token_sets_authorization_header() -> None:
     """Test that auth_token produces per-request Authorization headers."""
     auth_client = ApprovalsApiClient(

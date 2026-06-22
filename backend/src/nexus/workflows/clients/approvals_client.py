@@ -315,3 +315,43 @@ class ApprovalsApiClient:
             return data
 
         return await self._request_with_retry("batch cancel", _do_batch, approval_count=len(approval_ids))
+
+    async def batch_expire(
+        self,
+        approval_ids: list[UUID],
+        notes: str = "Approval decision window expired",
+    ) -> dict[str, Any]:
+        """Batch expire approval requests.
+
+        Used when an approval node's decision window times out.
+        Returns empty result immediately if approval_ids is empty.
+
+        Args:
+            approval_ids: List of approval request IDs to expire
+            notes: Note to attach to each expiration
+
+        Returns:
+            Batch response dict with results, total_success, and total_failed.
+
+        """
+        if not approval_ids:
+            return {"results": [], "total_success": 0, "total_failed": 0}
+
+        decisions = [{"approval_id": str(aid), "status": "expired", "notes": notes} for aid in approval_ids]
+        body = {"decisions": decisions}
+
+        async def _do_batch() -> dict[str, Any]:
+            response = await self.http_client.post(
+                "/approvals/batch", json=body, headers=self._get_auth_headers(), timeout=self.timeout
+            )
+            response.raise_for_status()
+            data: dict[str, Any] = response.json()
+            logger.info(
+                "Batch expire approvals completed",
+                approval_count=len(approval_ids),
+                total_success=data.get("total_success"),
+                total_failed=data.get("total_failed"),
+            )
+            return data
+
+        return await self._request_with_retry("batch expire", _do_batch, approval_count=len(approval_ids))

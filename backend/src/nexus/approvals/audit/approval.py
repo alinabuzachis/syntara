@@ -56,6 +56,15 @@ class ApprovalDecidedEvent:
     decision_notes: str | None = field(default=None)
 
 
+@dataclass
+class ApprovalExpiredEvent:
+    """Domain event fired when a pending approval request expires due to decision window timeout."""
+
+    approval_id: UUID
+    execution_id: UUID
+    approval_node_id: str
+
+
 # ---------------------------------------------------------------------------
 # Audit handlers (produce AuditEvent for persistence)
 # ---------------------------------------------------------------------------
@@ -79,6 +88,31 @@ class ApprovalRequestedHandler(AuditEventHandler[ApprovalRequestedEvent]):
             event_message=f"Approval requested: {event.name}",
             source_component="nexus.approvals",
             structured_data=data,
+            execution_id=event.execution_id,
+            activity_id=event.approval_node_id,
+            resource_urn=f"urn:nexus:approval:{event.approval_id}",
+            resource_name=event.approval_node_id,
+        )
+
+
+class ApprovalExpiredHandler(AuditEventHandler[ApprovalExpiredEvent]):
+    """Maps an ApprovalExpiredEvent to an AuditEvent."""
+
+    def handle(self, event: ApprovalExpiredEvent) -> AuditEvent:
+        """Map an ApprovalExpiredEvent to a normalized AuditEvent."""
+        data = AuditContextData(
+            data_type="approval-expired",
+        )
+
+        return AuditEvent(
+            event_category=EventCategory.WORKFLOW_EVENT,
+            event_severity=EventSeverity.WARNING,
+            event_status=EventStatus.SUCCESS,
+            event_action="approval_expired",
+            event_message="Approval request expired due to decision window timeout",
+            source_component="nexus.approvals",
+            structured_data=data,
+            actor_type=ActorType.SYSTEM,
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
             resource_urn=f"urn:nexus:approval:{event.approval_id}",

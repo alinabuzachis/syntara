@@ -111,13 +111,14 @@ def resolve_retry_policy(
     node: ActivityNode,
     runtime_settings: dict[str, Any],
 ) -> RetryPolicy | None:
-    """Return the Temporal RetryPolicy for a node, or None for no retries.
+    """Return the Temporal RetryPolicy for a node.
 
-    Returns None for node types that should never retry.
-    Resolution: node.settings.retry_policy fields → global catalog defaults → None.
+    Returns a single-attempt policy for node types that should never retry
+    (Temporal's default is unlimited retries when no policy is provided).
+    Resolution: node.settings.retry_policy fields → global catalog defaults → single attempt.
     """
     if not isinstance(node.settings, NodeSettingsFull):
-        return None
+        return RetryPolicy(maximum_attempts=1)
 
     cfg = node.settings.retry_policy
 
