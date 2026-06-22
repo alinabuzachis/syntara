@@ -12,19 +12,22 @@ triggers:
   - id: trigger_manual
     type: manual_trigger
     parameters:
-      inputs:
-        environment:
-          type: string
-          description: "Target environment for deployment"
-          required: true
-          enum:
-            - development
-            - staging
-            - production
-        change_description:
-          type: string
-          description: "Description of changes to be deployed"
-          required: true
+      input_schema:
+        type: object
+        properties:
+          environment:
+            type: string
+            description: "Target environment for deployment"
+            enum:
+              - development
+              - staging
+              - production
+          change_description:
+            type: string
+            description: "Description of changes to be deployed"
+        required:
+          - environment
+          - change_description
 nodes:
   - id: prepare_deployment
     type: script
@@ -47,13 +50,14 @@ nodes:
         }
 
         print(json.dumps(deployment_plan))
-      inputs:
-        environment: ${trigger.environment}
-        change_description: ${trigger.change_description}
+      environment:
+        INPUT_ENVIRONMENT: ${trigger.environment}
+        INPUT_CHANGE_DESCRIPTION: ${trigger.change_description}
 
   - id: review_deployment
     type: approval
     name: Review Deployment Plan
+    parameters: {}
     settings:
       timeout: 3600
 

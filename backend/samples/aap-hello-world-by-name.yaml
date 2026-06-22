@@ -6,17 +6,20 @@ triggers:
   - id: trigger_manual
     type: manual_trigger
     parameters:
-      inputs:
-        template_name:
-          type: string
-          description: Name of the AAP job template to launch
-          required: true
-          default: "Demo Job Template"
-        organization_name:
-          type: string
-          description: Name of the organization in AAP
-          required: true
-          default: "Default"
+      input_schema:
+        type: object
+        properties:
+          template_name:
+            type: string
+            description: Name of the AAP job template to launch
+            default: "Demo Job Template"
+          organization_name:
+            type: string
+            description: Name of the organization in AAP
+            default: "Default"
+        required:
+          - template_name
+          - organization_name
 nodes:
   - id: launch_job_by_name
     type: aap_job_template

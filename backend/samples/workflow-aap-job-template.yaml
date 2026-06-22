@@ -4,8 +4,8 @@ name: aap-job-template
 description: |
   Test workflow for AAP Job Template executor.
 
-  This workflow demonstrates all available parameters for the AAP job template
-  executor including tags, limits, verbosity, job_credentials, extra_vars, and inventory.
+  This workflow demonstrates available parameters for the AAP job template
+  executor including extra_vars, tags, limits, and verbosity.
 
   Prerequisites:
   1. Create a Job Template in AAP based on samples/playbooks/test-aap-parameters.yml
@@ -18,79 +18,53 @@ triggers:
   - id: trigger_manual
     type: manual_trigger
     parameters:
-      inputs:
-        job_template_id:
-          type: integer
-          description: "AAP Job Template ID to execute"
-          required: true
-        app_name:
-          type: string
-          description: "Application name"
-          default: "nexus-test-app"
-        app_version:
-          type: string
-          description: "Application version to deploy/manage"
-          default: "1.0.0"
-        deployment_env:
-          type: string
-          description: "Target environment (deployment_env, not 'environment' which is reserved in Ansible)"
-          default: "development"
-          enum:
-            - development
-            - staging
-            - production
-        operation:
-          type: string
-          description: "Operation to perform"
-          default: "status"
-          enum:
-            - deploy
-            - config
-            - status
-            - backup
-        inventory_id:
-          type: integer
-          description: "Override inventory by ID - optional"
-          required: false
-        inventory_name:
-          type: string
-          description: "Override inventory by name (requires organization_name) - optional"
-          required: false
-        organization_name:
-          type: string
-          description: "AAP organization name (required when using inventory_name) - optional"
-          required: false
-        limit:
-          type: string
-          description: "Limit execution to specific hosts (e.g., 'webservers' or 'host1,host2')"
-          required: false
-        tags:
-          type: string
-          description: "Comma-separated list of tags to run (e.g., 'monitoring,system')"
-          required: false
-        skip_tags:
-          type: string
-          description: "Comma-separated list of tags to skip (e.g., 'deploy,backup')"
-          required: false
-        verbosity:
-          type: integer
-          description: "Ansible verbosity level (0-5, higher = more verbose)"
-          default: 0
-          minimum: 0
-          maximum: 5
-        custom_message:
-          type: string
-          description: "Custom message to pass to playbook"
-          default: "Hello from Nexus AAP Workflow Executor!"
+      input_schema:
+        type: object
+        properties:
+          app_name:
+            type: string
+            description: "Application name"
+            default: "nexus-test-app"
+          app_version:
+            type: string
+            description: "Application version to deploy/manage"
+            default: "1.0.0"
+          deployment_env:
+            type: string
+            description: "Target environment (deployment_env, not 'environment' which is reserved in Ansible)"
+            default: "development"
+            enum:
+              - development
+              - staging
+              - production
+          operation:
+            type: string
+            description: "Operation to perform"
+            default: "status"
+            enum:
+              - deploy
+              - config
+              - status
+              - backup
+          limit:
+            type: string
+            description: "Limit execution to specific hosts (e.g., 'webservers' or 'host1,host2')"
+          tags:
+            type: string
+            description: "Comma-separated list of tags to run (e.g., 'monitoring,system')"
+          skip_tags:
+            type: string
+            description: "Comma-separated list of tags to skip (e.g., 'deploy,backup')"
+          custom_message:
+            type: string
+            description: "Custom message to pass to playbook"
+            default: "Hello from Nexus AAP Workflow Executor!"
 nodes:
   - id: execute_job_template
     type: aap_job_template
     name: Execute AAP Job Template
     parameters:
-      job_template_id: ${trigger.job_template_id}
-      inventory_id: ${trigger.inventory_id}
-      inventory_name: ${trigger.inventory_name}
-      organization_name: ${trigger.organization_name}
+      job_template_id: 7
       extra_vars:
         app_name: ${trigger.app_name}
         app_version: ${trigger.app_version}
@@ -101,7 +75,7 @@ nodes:
       limit: ${trigger.limit}
       tags: ${trigger.tags}
       skip_tags: ${trigger.skip_tags}
-      verbosity: ${trigger.verbosity}
+      verbosity: 0
     outputs:
       job_id: "${result.job_id}"
       job_status: "${result.job_status}"
@@ -165,13 +139,13 @@ nodes:
             "job_status": job_status
         }
         print(json.dumps(result))
-      inputs:
-        job_id: ${execute_job_template.job_id}
-        job_status: ${execute_job_template.job_status}
-        artifacts: ${execute_job_template.artifacts}
-        created: ${execute_job_template.created}
-        started: ${execute_job_template.started}
-        finished: ${execute_job_template.finished}
+      environment:
+        INPUT_JOB_ID: ${execute_job_template.job_id}
+        INPUT_JOB_STATUS: ${execute_job_template.job_status}
+        INPUT_ARTIFACTS: ${execute_job_template.artifacts}
+        INPUT_CREATED: ${execute_job_template.created}
+        INPUT_STARTED: ${execute_job_template.started}
+        INPUT_FINISHED: ${execute_job_template.finished}
     outputs:
       success: "${result.stdout_json.success}"
       job_id: "${result.stdout_json.job_id}"

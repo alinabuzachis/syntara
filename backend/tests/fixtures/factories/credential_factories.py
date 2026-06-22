@@ -43,9 +43,8 @@ class CredentialFactory(Protocol):
 
 @pytest.fixture(scope="module")
 def create_credential() -> Generator[CredentialFactory, None, None]:
-    """Create test credential. Returns ``(credential_id, credential_name)``."""
-    created_credential_id = None
-    test_api = None
+    """Create test credential. Returns ``(credential_id, credential_name, credential_dict)``."""
+    created: list[tuple[NexusApiRegistry, UUID]] = []
 
     def _create_credential(
         api: NexusApiRegistry,
@@ -54,7 +53,7 @@ def create_credential() -> Generator[CredentialFactory, None, None]:
         name: str | None = None,
         type_id: UUID | None = None,
     ) -> tuple[UUID, str, dict[str, Any]]:
-        """Create an HTTP Bearer Token credential. Returns ``(credential_id, name)``."""
+        """Create an HTTP Bearer Token credential. Returns ``(credential_id, name, dict)``."""
         prefx = prefix or "test"
         credential_name = name or unique_name(f"e2e-rbac-cred-{prefx}")
         cred_type_id = type_id or get_bearer_token_type_id(api)
@@ -63,20 +62,18 @@ def create_credential() -> Generator[CredentialFactory, None, None]:
                 name=credential_name,
                 credential_type_id=cred_type_id,
                 project_id=project_id,
-                inputs=CredentialCreateInputs.from_dict({"token": f"test-{name}"}),
+                inputs=CredentialCreateInputs.from_dict({"token": f"test-{credential_name}"}),
             ),
         )
         cred = resp.assert_and_get()
-        nonlocal test_api, created_credential_id
-        test_api = api
-        created_credential_id = UUID(str(cred.id))
-        return created_credential_id, str(cred.name), cred.to_dict()
+        cred_id = UUID(str(cred.id))
+        created.append((api, cred_id))
+        return cred_id, str(cred.name), cred.to_dict()
 
     yield _create_credential
 
-    # delete user
-    if created_credential_id is not None and test_api is not None:
+    for api, cred_id in created:
         try:
-            test_api.credentials.delete(credential_id=created_credential_id)
+            api.credentials.delete(credential_id=cred_id)
         except Exception:
-            pass  # Best effort cleanup
+            pass

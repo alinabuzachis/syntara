@@ -5,6 +5,7 @@ description: Simple hello world workflow with environment variables
 triggers:
   - id: trigger_manual
     type: manual_trigger
+    parameters: {}
 nodes:
   - id: say_hello
     type: script

@@ -9,28 +9,31 @@ triggers:
   - id: trigger_manual
     type: manual_trigger
     parameters:
-      inputs:
-        prompt:
-          type: string
-          description: Prompt
-          default: |
-            Find the Job Template that is installed out of the box in the majority of AAP installations.
+      input_schema:
+        type: object
+        properties:
+          prompt:
+            type: string
+            description: Prompt
+            default: |
+              Find the Job Template that is installed out of the box in the majority of AAP installations.
 
-            CRITICAL INSTRUCTIONS:
-            - Your response must contain ONLY the JSON object below
-            - Do NOT include any explanatory text, notes, or comments before or after the JSON
-            - Do NOT include markdown code blocks or backticks
-            - Return ONLY raw JSON
+              CRITICAL INSTRUCTIONS:
+              - Your response must contain ONLY the JSON object below
+              - Do NOT include any explanatory text, notes, or comments before or after the JSON
+              - Do NOT include markdown code blocks or backticks
+              - Return ONLY raw JSON
 
-            Required format:
-            {
-              "default_job_template": "template_name_here"
-            }
-        organization_name:
-          type: string
-          description: Name of the organization
-          required: true
-          default: "Default"
+              Required format:
+              {
+                "default_job_template": "template_name_here"
+              }
+          organization_name:
+            type: string
+            description: Name of the organization
+            default: "Default"
+        required:
+          - organization_name
 nodes:
   - id: name_via_ai
     type: agentic

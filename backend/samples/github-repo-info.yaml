@@ -6,17 +6,20 @@ triggers:
   - id: trigger_manual
     type: manual_trigger
     parameters:
-      inputs:
-        owner:
-          type: string
-          description: GitHub repository owner
-          required: true
-          default: "ansible"
-        repo:
-          type: string
-          description: GitHub repository name
-          required: true
-          default: "ansible"
+      input_schema:
+        type: object
+        properties:
+          owner:
+            type: string
+            description: GitHub repository owner
+            default: "ansible"
+          repo:
+            type: string
+            description: GitHub repository name
+            default: "ansible"
+        required:
+          - owner
+          - repo
 nodes:
   - id: fetch_repo
     type: http_request
@@ -111,16 +114,16 @@ nodes:
         }
 
         print(json.dumps(report, indent=2))
-      inputs:
-        name: ${fetch_repo.name}
-        description: ${fetch_repo.description}
-        stars: ${fetch_repo.stars}
-        forks: ${fetch_repo.forks}
-        language: ${fetch_repo.language}
-        open_issues: ${fetch_repo.open_issues}
-        created_at: ${fetch_repo.created_at}
-        updated_at: ${fetch_repo.updated_at}
-        languages: ${fetch_languages.languages}
+      environment:
+        INPUT_NAME: ${fetch_repo.name}
+        INPUT_DESCRIPTION: ${fetch_repo.description}
+        INPUT_STARS: ${fetch_repo.stars}
+        INPUT_FORKS: ${fetch_repo.forks}
+        INPUT_LANGUAGE: ${fetch_repo.language}
+        INPUT_OPEN_ISSUES: ${fetch_repo.open_issues}
+        INPUT_CREATED_AT: ${fetch_repo.created_at}
+        INPUT_UPDATED_AT: ${fetch_repo.updated_at}
+        INPUT_LANGUAGES: ${fetch_languages.languages}
     outputs:
       report: "${result.stdout_json}"
       summary: "${result.stdout_json.summary}"

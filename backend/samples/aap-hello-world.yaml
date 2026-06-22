@@ -5,6 +5,7 @@ description: Simple AAP job template workflow that launches job template 7
 triggers:
   - id: trigger_manual
     type: manual_trigger
+    parameters: {}
 nodes:
   - id: launch_job_template
     type: aap_job_template
