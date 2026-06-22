@@ -59,6 +59,8 @@ Every page must follow this structural hierarchy:
 | **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` Cancel/Save toolbar → `NxPanel` → form body                              |
 | **Error in panel** | Same shell → `NxPageBody isCentered` + `ErrorState` inside `NxPanel`                                          |
 
+**`NxListPanel`** — canonical list page implementation. Compound API: `NxListPanelView` (handles loading/error/empty/filter states), `NxListPanelToolbar` (wraps in `<fieldset disabled={isFetching}>` during refetch), `NxListPanelTable`. Use instead of manual `NxPanelContentStack` + `useQueryState` + three-state branching.
+
 ### Page Header Types
 
 - **Main page header** — Left-aligned title, right-aligned actions
@@ -114,7 +116,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - On the details page header, same actions appear in a kebab; frequently used actions promoted to primary button with icon (e.g., `RhUiEditIcon` + "Edit credential")
 - Columns should be sortable if applicable
 - Clicking resource name navigates to details view
-- "Created"/"Modified" columns: username (linked) + date together
+- "Created"/"Modified" columns: username (linked) + date together. Date format: `MMM DD, YYYY, H:MM:SS AM/PM` — always use `DateCell` / `formatDateTime()` from `dateUtils.ts` (never `toLocaleString` or PF `Timestamp`)
 - Text-heavy columns (names, descriptions, emails, URLs) MUST use `<Truncate>` — ellipsis with tooltip on hover; `table-layout: fixed` for equal column distribution (do not opt out with `useFixedLayout={false}`)
 - Expandable rows: pass `isExpandable` to `NxScrollableTableContainer`, add expand-all/collapse-all toggle in `<Thead>` via `expand` prop, use `ExpandableRowContent` for nested detail, compact gray `Label` for list data
 - Footer/pagination: cursor-based via `NxScrollableTableContainer`'s `footer` prop (`TableFooterProps`)
@@ -136,6 +138,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Use Zod + react-hook-form for validation (project standard)
 - **Dropdowns:** Never use native `<select>` or PF `FormSelect`. Use PF6 `Select` + `MenuToggle` + `SelectList` + `SelectOption`. In modals: `popperProps={{ appendTo: 'inline' }}`. Add `shouldFocusToggleOnSelect`.
 - **Human-readable validation:** Never expose regex to users. Use plain-language errors + inline hint text via `HintOrError`/`HelperText`. Use example-style placeholders (e.g., `'my-project-name'`).
+- **Read-only system values:** Never use disabled `TextInput` for non-editable values. Use `DescriptionList isCompact`, `ClipboardCopy`, or plain text instead.
 
 ## Typeahead Patterns
 
@@ -323,26 +326,35 @@ All icons MUST use the **`RhUi` prefix** — the new Red Hat icon standard (e.g.
 - Single click: select/expand/collapse step
 - Double click: open panel view with Input/Output info
 - Right click: same as kebab menu
-- **Toolbar hierarchy:** Primary actions visible (Add step, Run, Save, Publish); secondary in grouped kebab with `DropdownGroup` ("Views": Run history, Workflow details; "Actions": Export, Import, Delete with `isDanger`). Every kebab item has icon + label.
+- **Toolbar hierarchy:** Primary actions visible (Add step, Run, Save, Publish); secondary in grouped kebab with `DropdownGroup` ("Views": Run history, Workflow details; "Actions": Verify, Duplicate, Export, Import, Delete with `isDanger`). Every kebab item has icon + label.
 - **Publish lifecycle:** Draft → Publish → Unpublish (replaces enable/disable). Status badges (no icons, text + color only): Draft (grey), Published (green `status="success"`), Unpublished changes (yellow `status="warning"`). Publish dialog requires version name. Unpublish via kebab with danger confirmation.
 - **Save behavior:** `isAriaDisabled` when `!isDirty` for existing workflows. Tooltip shows "Last saved {datetime}". No toast on update; toast on create only.
 - Add step: opens side panel, auto-adjusts canvas. **Empty workflow onboarding:** When no triggers/steps exist, "Add step" button is **hidden** (not disabled) and the panel is forced open for trigger selection. Once first step is added, button appears. **Toggle-style button:** When panel is open (and steps exist), button uses `isClicked` + `aria-pressed` for toggle feedback.
 - **Duplicate workflow:** Row kebab action with `RhUiDuplicateIcon`; no confirmation dialog; success toast with inline deep-link to new workflow.
 - Run workflow: single trigger → plain Run button; multiple triggers → dropdown for trigger selection; confirmation dialog with "Don't show again", then `RunWorkflowModal` JSON editor for mock trigger data
 - Test step (Run step): from step kebab menu → choice dialog ("Run all previous steps" or mock data) → mock data editor (CodeEditor with JSON); upstream steps mocked as "skipped"; results in execution visualizer
-- **Cancel execution:** `variant="danger"` button, no confirmation dialog. Visible only when status is `pending`/`running`. Full label "Cancel execution".
+- **Cancel run:** secondary destructive button (`variant="secondary"` + `isDanger`), no confirmation dialog. Visible only when status is `pending`/`running`.
 - **Canvas controls:** anchored to bottom-left corner; canvas overlays (controls, step legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
 - Legend toggle: accessible labels **Show step legend** / **Hide step legend**
 - **Canvas step styling:** workflow steps use `variant="raised"` with border-radius override to match `Card` / canvas chrome; fixed 240px width — use `overflow-wrap: anywhere` on all dynamic text (`Title`, `Content`) to prevent overflow (prefer `anywhere` over `break-word`)
 - **Floating canvas panels:** prefer `NxPanel` with `variant="raised"` for compact controls or `opaqueFloatingFill` for large flat shells without raised chrome (see `NxPanel.tsx` JSDoc)
 - Execution view panels: use `NxPanel isFullHeight` for proper scroll — don't hand-roll flex column inline styles
 - View-only views: Run view, Run history, Version history
+- **Verify workflow:** Kebab action → `POST /workflows/validate` → expandable danger `Alert` (`ValidationBanner`) above canvas + per-node error badges. Node names are clickable links to the node editor; errors grouped via compact horizontal `DescriptionList`.
+- **Node settings:** `NodeFormTabsLayout` splits node forms into Parameters + Settings tabs. Settings tab: continue-on-failure (three-way select), timeout, retry via shared `NodeSettingsForm`. System defaults as live placeholders from `/settings`. Hidden for Condition/Switch/triggers.
+- **Node panel navigation:** Previous/Next arrow controls on panel edges for navigating connected steps. Single target = icon button + tooltip; multiple = dropdown menu. Uses `useAdjacentNodes`.
+- **Node disable/enable:** Activity nodes (Task, Approval) get Disable/Enable kebab action (no confirmation). Disabled = dashed gray border + 50% opacity. Control flow nodes only get Replace + Delete.
+- **Switch node expressions:** Paths share `ExpressionBuilderCore` (AND/OR groups + custom expression toggle). Drag-reorder paths via `@dnd-kit/sortable` with grip handle.
+- **Approval side panel:** Right-side panel on execution viewer for inline approval review. Mutually exclusive with history panel; auto-opens on pending approval via `useAutoApprovalDetection`.
+- **Wait node countdown:** Live `HH:MM:SS` countdown on canvas during execution via `useWaitCountdown` (1s interval). Clears on terminal status.
+- **Import confirmation:** Modal with radio choices ("Import as new" vs "Import into current") for existing saved workflows. Direct import for new/empty. Warns about unsaved changes when `isDirty`.
 
 ## Permission Gating (AAP-74439)
 
 Every domain uses a `use{Domain}Permissions()` hook returning `{ can*, isLoading, tooltips }`. Default to **deny** while loading (safe-false). Always use `isAriaDisabled` (not `isDisabled`) — keeps elements focusable for tooltips/screen readers. Set `onClick={undefined}` when denied (defense in depth).
 
 **Gating strategy:**
+
 - **Nav items:** Hide via `requiredPermissions` (OR logic — visible if any granted)
 - **Tabs:** Filter with `NxUrlTabs validTabs`; show all during load; redirect invalid URLs to first visible tab
 - **Toolbar buttons:** `DisabledWithTooltip` wrapper + `isAriaDisabled` + permission tooltip

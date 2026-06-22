@@ -183,6 +183,14 @@ The following four compositions are the canonical page structures. Storybook doc
 | **Form page**      | `NxPageBreadcrumbs` → `NxPageHeader` with Cancel/Save toolbar → `NxPanel` → form body (max-width 600px)                          |
 | **Error in panel** | Same shell as list page → `NxPageBody isCentered` + `NxErrorState` **inside** `NxPanel` (page header and shell remain visible)   |
 
+**`NxListPanel` — canonical list page implementation:**
+
+List pages should use the `NxListPanel` compound component API instead of manually assembling `NxPanelContentStack` + `useQueryState` + three-state branching:
+
+- **`NxListPanelView`** — handles loading/error/empty/filter states declaratively via props: `tabKey`, `isPending`, `isFetching`, `isEmpty`, `hasActiveFilters`, `noDataState`, `toolbar`, `children`
+- **`NxListPanelToolbar`** — wraps `FilterBar` + action buttons; automatically wraps content in `<fieldset disabled={isFetching}>` with a screen-reader legend during refetch
+- **`NxListPanelTable`** — standardized table slot inside the list panel
+
 ### Page Header Structure
 
 The page header appears at the top of every page and contains the title and primary actions.
@@ -276,7 +284,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
 - **Table columns:**
   - Columns for "created" or "modified" should have username (linked) + date together
   - This pattern should be used for any column that includes a date/time and a who
-  - Date/time format: `MMM DD, YYYY, H:MM:SS AM/PM` — e.g., "Jan 15, 2026, 2:30:45 PM". Comma between date and time. Seconds included.
+  - Date/time format: `MMM DD, YYYY, H:MM:SS AM/PM` — e.g., "Jan 15, 2026, 2:30:45 PM". Comma between date and time. Seconds included. Always use `DateCell` / `formatDateTime()` from `dateUtils.ts` — never `toLocaleString()` or PatternFly's `Timestamp` component.
 - **Row Actions:**
   - Every table row has a kebab menu (⋮) in the rightmost column containing all available actions for that resource
   - The actions column has no column header label
@@ -322,6 +330,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
   - Selecting/filling the required field clears the danger styling immediately
   - **Human-readable validation copy:** Never expose raw regex patterns or API validation strings to users. Use plain-language error messages (e.g., "Project name can only contain letters, numbers, hyphens, underscores, or colons. It must start and end with a letter or number."). Provide proactive field guidance via inline hint text (using `HintOrError` or `HelperText`) that displays before the user triggers an error; the hint is replaced by the error message on validation failure. Use example-style placeholders (e.g., `'my-project-name'`) instead of generic `"Enter project name"`.
+- **Read-only system values:** Never use a disabled `TextInput` to display system-provided, non-editable values. Disabled inputs imply the field could be editable in another context. Instead use `DescriptionList isCompact` (term + description), `ClipboardCopy` (when copying is the primary action), or plain text to make clear the value is informational.
 - **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler -- not in a `useEffect` watching the field value. See [coding_standards.md §23](../../.claude/skills/coding_standards.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
 - **FormSection for complex forms:** When a single form step has 10+ fields spanning logical domains, group them with PatternFly `FormSection`:
   - `title="Section Name"` + `titleElement="h3"` for each group
@@ -1220,10 +1229,10 @@ Primary actions are always visible in the toolbar; secondary actions and views l
 
 **Kebab menu (⋮) — grouped with `DropdownGroup`:**
 
-| Group       | Items                                                                     |
-| ----------- | ------------------------------------------------------------------------- |
-| **Views**   | Run history, Workflow details                                             |
-| **Actions** | Export workflow, Import workflow, Delete workflow (`isDanger`, last item) |
+| Group       | Items                                                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| **Views**   | Run history, Workflow details                                                                       |
+| **Actions** | Verify workflow, Duplicate workflow, Export workflow, Import workflow, Delete workflow (`isDanger`) |
 
 - Every kebab item has an icon + label (e.g., `RhUiHistoryIcon` + "Run history")
 - Delete is always the last item in the kebab and uses `isDanger`
@@ -1350,6 +1359,89 @@ These badges use `Label` with no icons — text and color only.
 
 - Step cards have a fixed width (240px) — all dynamic text elements (`Title`, `Content`) must use `overflow-wrap: anywhere` to prevent text overflow from long expressions, template names, or URLs
 - Use `anywhere` instead of `break-word` because it also influences `min-content` intrinsic sizing, preventing overflow in fixed-width flex containers
+
+### Verify Workflow
+
+Verify validates the entire workflow graph against the backend and surfaces errors inline on the canvas.
+
+- **Trigger:** Kebab action "Verify workflow" with `RhUiCheckCircleIcon`
+- **API:** `POST /workflows/validate` — returns an array of `ValidationError` objects with `nodeId` and message
+- **Loading state:** Toolbar shows a "Verifying..." button with spinner during the API call
+- **`ValidationBanner`:** Expandable inline danger `Alert` rendered above the canvas; dismissing the banner clears all node badges
+- **Per-node error badges:** Failed nodes show a circular warning badge (bottom-right, matching execution badge positioning) via `data.__validationError` on the node
+- **Clickable node links:** Node-specific errors in the banner are inline links (`Button variant="link" isInline`) that navigate to the node editor panel via `useNodePanelNavigation`. Fallback label "Go to step" when name is unparseable; global errors (`nodeId: null`) stay as plain text
+- **Grouped/humanized errors:** `parseValidationMessage()` / `humanizeValidationMessage()` extract node names and error lists; the banner uses compact horizontal `DescriptionList` (`isCompact isFluid isHorizontal`) — term = node name link, description = comma-separated messages. Display key "Workflow" for global errors
+
+### Node Settings
+
+Every activity node form uses `NodeFormTabsLayout` to split configuration into **Parameters** and **Settings** tabs.
+
+- **Parameters tab:** Node-specific configuration fields (the existing form)
+- **Settings tab:** Shared `NodeSettingsForm` component for:
+  - **Continue on failure:** Three-way select (System default / On / Off) via `COF_OPTIONS`
+  - **Timeout:** `DurationInput` component
+  - **Retry policy:** Retry count + delay configuration
+- **System defaults:** Live placeholders from `GET /settings?category=workflow_execution` via `useWorkflowEngineDefaults` — e.g., "System default — 30m"
+- **Hidden for control flow:** `hideSettingsTab` is set for Condition, Switch, and trigger nodes (they have no configurable execution settings)
+
+### Node Panel Navigation
+
+The node editor panel provides **Previous/Next arrow controls** for navigating connected steps in graph order.
+
+- **Single upstream/downstream:** Plain icon button with tooltip showing the connected step name
+- **Multiple targets:** Dropdown menu on the arrow listing all connected steps
+- **Components:** `NodePanelNavigationArrow`, `useNodePanelNavigation`, `useAdjacentNodes`, `getAdjacentNodesFromFlow`
+- **Icons:** `RhUiCaretLeftIcon` (previous) / `RhUiCaretRightIcon` (next)
+- **Positioning:** Tab-style arrows on panel edges via CSS module (`NodePanelNavigationArrow.module.css`)
+
+### Node Disable/Enable
+
+Activity nodes (Task, Approval) support toggling their enabled state directly from the canvas kebab menu.
+
+- **Kebab actions:** "Disable step" / "Enable step" — **no confirmation dialog** (immediate toggle)
+- **Visual treatment:** Disabled nodes show dashed gray border + 50% opacity (matches skipped execution state)
+- **Persistence:** State stored in `settings.disabled` on the node definition
+- **Control flow nodes** (Loop, Condition, Switch, Converge, Wait) use `MenuNodeType.CONTROL_FLOW` and show only **Replace** and **Delete** in their kebab — no disable/enable option
+- **CSS note:** Use individual border-side CSS properties (`borderTopStyle`, `borderRightStyle`, etc.) instead of shorthand `border` for dashed/solid toggling — avoids React diffing issues
+
+### Switch Node Expression Builder
+
+Switch node paths share the same `ExpressionBuilderCore` used by Condition nodes, providing visual AND/OR expression groups with a custom expression mode toggle.
+
+- **Expression groups:** Level-0 groups have no border; nested groups get a left accent border for visual hierarchy
+- **Path reordering:** Drag-reorder paths via `@dnd-kit/sortable` with inline `RhUiGripVerticalFillIcon` grip handle, `DragOverlay`, and `restrictToVerticalAxis`
+- **Path identity:** Each path uses `caseId` (not `id`) for stable edge remapping during reorder
+- **Dividers:** Visual dividers separate path sections in the form
+
+### Approval Side Panel
+
+Pending approval review happens inline in the execution viewer rather than on a dedicated full-page route.
+
+- **Layout:** Right-side `NxPanel isFullHeight` + `SidePanelHeader` + scrollable `ApprovalDetailContent`; mirrors `WorkflowHistoryCard` layout pattern
+- **Mutual exclusivity:** History panel and approval panel cannot be open simultaneously
+- **Auto-open:** `useAutoApprovalDetection` automatically opens the panel when a pending approval is detected on the current execution
+- **Components:** `ApprovalSidePanel`, `useExecutionApprovalPanel`, `ApprovalDetailContent`
+
+### Wait Node Canvas Countdown
+
+During active execution, Wait nodes display a live countdown timer on the canvas.
+
+- **Format:** `HH:MM:SS` for durations under 24h; `Xd HH:MM:SS` for longer durations
+- **Implementation:** `useWaitCountdown` hook with 1-second interval, calculating remaining time from `started_at` + configured duration
+- **Visibility:** Only shown when node execution status is `waiting` or `running`; clears on terminal status
+- **Display:** Rendered as a detail row below the static duration label on the canvas node
+
+### Import Workflow Confirmation
+
+Importing a workflow into an existing saved builder shows a choice dialog before proceeding.
+
+- **Condition:** Only shown for existing saved workflows; new/empty builders import directly without modal
+- **Component:** `ImportConfirmationDialog` — small `Modal` (not `NxConfirmationDialog`) with **radio choices**:
+  - "Import as new workflow" — creates a fresh workflow from the import
+  - "Import into current workflow" — replaces the current builder content
+- **Unsaved changes:** When `isDirty`, the dialog includes a warning about losing unsaved changes
+- **Buttons:** Primary "Import" + link "Cancel"
+- **Radio descriptions:** Each option has a `description` prop explaining the behavior
 
 ### Execution View Panels
 
