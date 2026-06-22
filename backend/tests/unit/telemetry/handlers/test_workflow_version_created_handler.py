@@ -19,7 +19,7 @@ class TestWorkflowVersionCreatedTelemetryHandler:
         mock_get_registry.return_value = registry
 
         workflow_id = uuid4()
-        domain_event = WorkflowVersionCreatedEvent(workflow_id=workflow_id, version=5)
+        domain_event = WorkflowVersionCreatedEvent(workflow_id=workflow_id, version=5, workflow_name="test-wf")
         result = WorkflowVersionCreatedTelemetryHandler().handle(domain_event)
 
         assert result is None
@@ -36,7 +36,7 @@ class TestWorkflowVersionCreatedTelemetryHandler:
         registry.is_initialized.return_value = False
         mock_get_registry.return_value = registry
 
-        domain_event = WorkflowVersionCreatedEvent(workflow_id=uuid4(), version=3)
+        domain_event = WorkflowVersionCreatedEvent(workflow_id=uuid4(), version=3, workflow_name="test-wf")
         result = WorkflowVersionCreatedTelemetryHandler().handle(domain_event)
 
         assert result is None
@@ -46,6 +46,6 @@ class TestWorkflowVersionCreatedTelemetryHandler:
     def test_does_not_raise_on_exception(self, mock_get_registry: MagicMock) -> None:
         mock_get_registry.side_effect = RuntimeError("boom")
 
-        domain_event = WorkflowVersionCreatedEvent(workflow_id=uuid4(), version=1)
+        domain_event = WorkflowVersionCreatedEvent(workflow_id=uuid4(), version=1, workflow_name="test-wf")
         result = WorkflowVersionCreatedTelemetryHandler().handle(domain_event)
         assert result is None

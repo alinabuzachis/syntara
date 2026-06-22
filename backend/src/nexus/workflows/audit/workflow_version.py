@@ -1,6 +1,6 @@
-"""WorkflowVersionCreatedEvent domain event.
+"""Workflow version lifecycle domain events.
 
-Fired when a new workflow version is saved (initial creation or definition update).
+Fired when workflow versions are created, restored, published, or unpublished.
 """
 
 from __future__ import annotations
@@ -18,3 +18,32 @@ class WorkflowVersionCreatedEvent:
 
     workflow_id: UUID
     version: int
+    workflow_name: str
+
+
+@dataclass
+class WorkflowVersionRestoredEvent:
+    """Domain event fired when a workflow version is restored from a previous version."""
+
+    workflow_id: UUID
+    restored_from_version: int
+    new_version: int
+    workflow_name: str
+
+
+@dataclass
+class WorkflowVersionPublishedEvent:
+    """Domain event fired when a workflow version is published."""
+
+    workflow_id: UUID
+    version: int
+    workflow_name: str
+
+
+@dataclass
+class WorkflowVersionUnpublishedEvent:
+    """Domain event fired when a workflow is unpublished."""
+
+    workflow_id: UUID
+    version: int
+    workflow_name: str

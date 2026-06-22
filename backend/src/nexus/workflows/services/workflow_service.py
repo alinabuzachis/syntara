@@ -25,7 +25,12 @@ from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.credentials.models.credential import Credential
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
-from nexus.workflows.audit.workflow_version import WorkflowVersionCreatedEvent
+from nexus.workflows.audit.workflow_version import (
+    WorkflowVersionCreatedEvent,
+    WorkflowVersionPublishedEvent,
+    WorkflowVersionRestoredEvent,
+    WorkflowVersionUnpublishedEvent,
+)
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
@@ -78,6 +83,7 @@ class WorkflowService(BaseService):
             WorkflowVersionCreatedEvent(
                 workflow_id=workflow.id,
                 version=version.version,
+                workflow_name=workflow.name,
             )
         )
 
@@ -715,6 +721,10 @@ class WorkflowService(BaseService):
             target_version.workflow_definition,
         )
 
+        AuditEventDispatcher.dispatch(
+            WorkflowVersionPublishedEvent(workflow_id=workflow.id, version=version, workflow_name=workflow.name)
+        )
+
         return workflow, target_version
 
     async def unpublish_workflow(self, workflow_id: UUID) -> Workflow:
@@ -724,7 +734,8 @@ class WorkflowService(BaseService):
         if workflow.published_version is None:
             raise WorkflowNotPublishedError(workflow_id)
 
-        published_version = await self._demote_published_version(workflow_id, workflow.published_version, "unpublish")
+        version_number = workflow.published_version
+        published_version = await self._demote_published_version(workflow_id, version_number, "unpublish")
 
         workflow.published_version = None
         workflow.is_enabled = False
@@ -741,6 +752,13 @@ class WorkflowService(BaseService):
             )
 
         await self.session.commit()
+        AuditEventDispatcher.dispatch(
+            WorkflowVersionUnpublishedEvent(
+                workflow_id=workflow.id,
+                version=version_number,
+                workflow_name=workflow.name,
+            )
+        )
 
         # Delete scheduled triggers (best-effort — launcher will fail with
         # WorkflowNotPublishedError if schedules keep firing)
@@ -814,6 +832,14 @@ class WorkflowService(BaseService):
         await self.session.refresh(new_version)
 
         self._emit_version_telemetry(workflow, new_version)
+        AuditEventDispatcher.dispatch(
+            WorkflowVersionRestoredEvent(
+                workflow_id=workflow.id,
+                restored_from_version=version,
+                new_version=new_version.version,
+                workflow_name=workflow.name,
+            )
+        )
         return workflow, new_version
 
     async def delete_workflow(self, workflow_id: UUID) -> None:
