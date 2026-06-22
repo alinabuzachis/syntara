@@ -32,9 +32,7 @@ def escape_markdown(text: str) -> str:
     )
 
 
-def format_breaking_changes_comment(
-    results: Dict, repo_owner: str, repo_name: str
-) -> str:
+def format_breaking_changes_comment(results: Dict, repo_owner: str, repo_name: str) -> str:
     """Format breaking changes results as a GitHub comment.
 
     Args:
@@ -65,9 +63,7 @@ def format_breaking_changes_comment(
             lines.append(f"```\n{escaped_justification}\n```\n")
             lines.append("**Reviewer:** Please verify:")
             lines.append("1. The justification is valid and necessary")
-            lines.append(
-                "2. Frontend contracts are regenerated in this PR (`make gen-contracts`)"
-            )
+            lines.append("2. Frontend contracts are regenerated in this PR (`make gen-contracts`)")
             lines.append("3. Migration path is clear for API consumers\n")
         elif ack_insufficient:
             lines.append("### Breaking Changes Detected (Insufficient Acknowledgment)\n")
@@ -79,7 +75,9 @@ def format_breaking_changes_comment(
             lines.append("This PR introduces **breaking changes** that will affect existing API consumers.\n")
             lines.append("**Action Required:** Add to your PR description:")
             lines.append("```")
-            lines.append("breaking-change-ack: <detailed justification explaining why this breaking change is necessary and how consumers should migrate>")
+            lines.append(
+                "breaking-change-ack: <detailed justification explaining why this breaking change is necessary and how consumers should migrate>"
+            )
             lines.append("```\n")
 
         lines.append("---\n")
@@ -94,7 +92,9 @@ def format_breaking_changes_comment(
 
         lines.append("---\n")
         lines.append("### What This Means\n")
-        lines.append("**Breaking changes** remove or modify existing API contracts in ways that break existing consumers:")
+        lines.append(
+            "**Breaking changes** remove or modify existing API contracts in ways that break existing consumers:"
+        )
         lines.append("- Removed endpoints or fields")
         lines.append("- Changed field types (e.g., string → number)")
         lines.append("- Changed required/optional status")
@@ -102,10 +102,14 @@ def format_breaking_changes_comment(
 
         lines.append("**Before merging, you must:**\n")
         lines.append("1. **Acknowledge the breaking change** in your PR description")
-        lines.append("2. **Regenerate frontend contracts** — run `make gen-contracts` and include the updated types in this PR")
+        lines.append(
+            "2. **Regenerate frontend contracts** — run `make gen-contracts` and include the updated types in this PR"
+        )
         lines.append("3. **Document the migration path** for API consumers\n")
 
-        lines.append(f"See [docs/openapi-breaking-changes.md](https://github.com/{repo_owner}/{repo_name}/blob/devel/docs/openapi-breaking-changes.md) for details.\n")
+        lines.append(
+            f"See [docs/openapi-breaking-changes.md](https://github.com/{repo_owner}/{repo_name}/blob/devel/docs/openapi-breaking-changes.md) for details.\n"
+        )
     else:
         lines.append("### No Breaking Changes Detected\n")
         lines.append("This PR modifies the OpenAPI spec but does **not** introduce breaking changes.\n")
@@ -118,7 +122,9 @@ def format_breaking_changes_comment(
         lines.append("the frontend TypeScript types. See the **OpenAPI Contract Regeneration Check** for guidance.\n")
 
     lines.append("---")
-    lines.append(f"*Automated check from [`ci-backend.yml`](https://github.com/{repo_owner}/{repo_name}/blob/devel/.github/workflows/ci-backend.yml)*")
+    lines.append(
+        f"*Automated check from [`ci-backend.yml`](https://github.com/{repo_owner}/{repo_name}/blob/devel/.github/workflows/ci-backend.yml)*"
+    )
 
     return "\n".join(lines)
 
@@ -133,40 +139,48 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
     """
     # Find existing comment
     list_cmd = [
-        "gh", "api",
+        "gh",
+        "api",
         f"repos/{repo}/issues/{pr_number}/comments",
         "--paginate",
-        "--jq", '.[] | select(.body | contains("Breaking Changes Detected")) | .id',
+        "--jq",
+        '.[] | select(.body | contains("Breaking Changes Detected")) | .id',
     ]
 
     result = subprocess.run(list_cmd, capture_output=True, text=True)
 
     if result.returncode == 0 and result.stdout.strip():
         # Update existing comment
-        comment_id = result.stdout.strip().split('\n')[0]  # Take first match
+        comment_id = result.stdout.strip().split("\n")[0]  # Take first match
         update_cmd = [
-            "gh", "api",
+            "gh",
+            "api",
             f"repos/{repo}/issues/comments/{comment_id}",
-            "-X", "PATCH",
-            "-f", f"body={comment_body}",
+            "-X",
+            "PATCH",
+            "-f",
+            f"body={comment_body}",
         ]
         subprocess.run(update_cmd, check=True)
         print(f"Updated comment {comment_id} on PR #{pr_number}")
     else:
         # Create new comment
         create_cmd = [
-            "gh", "pr", "comment", pr_number,
-            "--repo", repo,
-            "--body", comment_body,
+            "gh",
+            "pr",
+            "comment",
+            pr_number,
+            "--repo",
+            repo,
+            "--body",
+            comment_body,
         ]
         subprocess.run(create_cmd, check=True)
         print(f"Created new comment on PR #{pr_number}")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Post breaking changes check results as GitHub PR comment"
-    )
+    parser = argparse.ArgumentParser(description="Post breaking changes check results as GitHub PR comment")
 
     parser.add_argument(
         "--results",

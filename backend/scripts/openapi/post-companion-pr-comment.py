@@ -36,7 +36,9 @@ def format_companion_pr_comment(results: Dict, repo_owner: str, repo_name: str) 
     lines = ["### OpenAPI Contract Regeneration Check\n"]
     lines.append(message)
     lines.append("\n---")
-    lines.append(f"*Automated check from [`ci-backend.yml`](https://github.com/{repo_owner}/{repo_name}/blob/devel/.github/workflows/ci-backend.yml)*")
+    lines.append(
+        f"*Automated check from [`ci-backend.yml`](https://github.com/{repo_owner}/{repo_name}/blob/devel/.github/workflows/ci-backend.yml)*"
+    )
 
     return "\n".join(lines)
 
@@ -53,38 +55,46 @@ def post_or_update_comment(pr_number: str, comment_body: str, repo: str) -> None
         repo: Repository in owner/repo format
     """
     list_cmd = [
-        "gh", "api",
+        "gh",
+        "api",
         f"repos/{repo}/issues/{pr_number}/comments",
         "--paginate",
-        "--jq", f'.[] | select(.body | contains("{COMMENT_MARKER}")) | .id',
+        "--jq",
+        f'.[] | select(.body | contains("{COMMENT_MARKER}")) | .id',
     ]
 
     result = subprocess.run(list_cmd, capture_output=True, text=True)
 
     if result.returncode == 0 and result.stdout.strip():
-        comment_id = result.stdout.strip().split('\n')[0]
+        comment_id = result.stdout.strip().split("\n")[0]
         update_cmd = [
-            "gh", "api",
+            "gh",
+            "api",
             f"repos/{repo}/issues/comments/{comment_id}",
-            "-X", "PATCH",
-            "-f", f"body={comment_body}",
+            "-X",
+            "PATCH",
+            "-f",
+            f"body={comment_body}",
         ]
         subprocess.run(update_cmd, check=True)
         print(f"Updated comment {comment_id} on PR #{pr_number}")
     else:
         create_cmd = [
-            "gh", "pr", "comment", pr_number,
-            "--repo", repo,
-            "--body", comment_body,
+            "gh",
+            "pr",
+            "comment",
+            pr_number,
+            "--repo",
+            repo,
+            "--body",
+            comment_body,
         ]
         subprocess.run(create_cmd, check=True)
         print(f"Created new comment on PR #{pr_number}")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Post contract regeneration check results as GitHub PR comment"
-    )
+    parser = argparse.ArgumentParser(description="Post contract regeneration check results as GitHub PR comment")
 
     parser.add_argument(
         "--results",

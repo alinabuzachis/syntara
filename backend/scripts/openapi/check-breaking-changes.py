@@ -168,9 +168,7 @@ def check_acknowledgment(pr_body: str) -> Dict[str, any]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Check OpenAPI spec for breaking changes"
-    )
+    parser = argparse.ArgumentParser(description="Check OpenAPI spec for breaking changes")
 
     # Input options
     spec_group = parser.add_mutually_exclusive_group()
@@ -227,7 +225,8 @@ def main():
         # Get spec from git reference - write to temp file
         spec_content = get_spec_from_git(args.base, args.spec_path)
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(spec_content)
             base_spec_path = f.name
     else:
@@ -240,7 +239,8 @@ def main():
         # Get spec from git reference - write to temp file
         spec_content = get_spec_from_git(args.head, args.spec_path)
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(spec_content)
             head_spec_path = f.name
     else:

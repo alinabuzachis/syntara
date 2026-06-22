@@ -72,9 +72,7 @@ def get_changed_files_from_ref(base_ref: str) -> list[str]:
     return [f for f in result.stdout.strip().split("\n") if f]
 
 
-def check_contracts_updated(
-    changed_files: list[str], pr_body: str = ""
-) -> Dict[str, any]:
+def check_contracts_updated(changed_files: list[str], pr_body: str = "") -> Dict[str, any]:
     """Check if frontend contracts were regenerated alongside spec changes.
 
     Args:
@@ -194,7 +192,7 @@ def _build_contracts_stale_result() -> Dict[str, any]:
         "2. **OR, if this is a spec-only change** (description, examples, metadata) "
         "with no type impact:\n"
         "   - Add to PR description: `no-ui-pr: <justification>`\n"
-        '   - Example: `no-ui-pr: description-only change, no type impact`\n\n'
+        "   - Example: `no-ui-pr: description-only change, no type impact`\n\n"
         "### Why This Matters\n\n"
         "- **Additive changes** (new endpoints, new fields) make types available to "
         "UI developers\n"
@@ -264,11 +262,7 @@ def main():
     elif args.changed_files_from:
         changed_files = get_changed_files_from_ref(args.changed_files_from)
     else:
-        changed_files = [
-            line.strip()
-            for line in sys.stdin
-            if line.strip()
-        ]
+        changed_files = [line.strip() for line in sys.stdin if line.strip()]
 
     result = check_contracts_updated(changed_files, args.pr_body)
 
