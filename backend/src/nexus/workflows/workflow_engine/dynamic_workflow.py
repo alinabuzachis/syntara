@@ -28,7 +28,7 @@ with workflow.unsafe.imports_passed_through():
         resolve_retry_policy,
         resolve_timeout,
     )
-    from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
+    from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credential_values, scrub_credentials
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.converge_mixin import WorkflowConvergeMixin
@@ -168,6 +168,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         self._detached_nodes: set[str] = set()
         self._converge_branch_nodes: dict[str, set[str]] = {}
         self._cof_failed_nodes: set[str] = set()
+        self._secret_values: set[str] = set()
         self._has_unhandled_failure: bool = False
         self._runtime_settings = {}  # populated by run() after settings fetch
         self.pre_resolved_outputs: dict[str, dict[str, Any]] = pre_resolved_outputs or {}
@@ -419,8 +420,12 @@ class NexusWorkflow(WorkflowConvergeMixin):
         return {
             "status": workflow_status,
             "execution_id": execution_id,
-            "activity_outputs": node_outputs if include_node_results else {},
-            "activity_inputs": self.node_inputs if include_node_results else {},
+            "activity_outputs": (
+                {k: self._scrub_data(v) for k, v in node_outputs.items()} if include_node_results else {}
+            ),
+            "activity_inputs": (
+                {k: self._scrub_data(v) for k, v in self.node_inputs.items()} if include_node_results else {}
+            ),
             "completed_activities": list(node_outputs.keys()),
             "failed_activities": self.failed_nodes,
         }
@@ -1368,7 +1373,11 @@ class NexusWorkflow(WorkflowConvergeMixin):
         )
 
         if node.id in resolved_creds:
-            resolved_parameters["_resolved_credentials"] = resolved_creds[node.id]
+            cred_data = resolved_creds[node.id]
+            resolved_parameters["_resolved_credentials"] = cred_data
+            for val in cred_data.get("_secret_values", []):
+                if isinstance(val, str):
+                    self._secret_values.add(val)
 
     @staticmethod
     def _scrub_activity_credentials(resolved_parameters: dict[str, Any]) -> None:
@@ -1526,6 +1535,18 @@ class NexusWorkflow(WorkflowConvergeMixin):
 
         return cast("dict[str, Any]", output_data)
 
+    def _scrub_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Scrub credential keys and secret values from activity data.
+
+        Applies both key-name scrubbing (replaces known credential keys)
+        and value-based scrubbing (replaces decrypted secret strings).
+        """
+        scrubbed = scrub_credentials(data)
+        secret_values = getattr(self, "_secret_values", None)
+        if secret_values:
+            scrubbed = scrub_credential_values(scrubbed, secret_values)
+        return cast("dict[str, Any]", scrubbed)
+
     @workflow.query
     def get_activity_input(self, activity_id: str) -> dict[str, Any] | None:
         """Query to get input data for a specific activity.
@@ -1542,7 +1563,7 @@ class NexusWorkflow(WorkflowConvergeMixin):
         data = self.node_inputs.get(activity_id)
         if data is None:
             return None
-        return cast("dict[str, Any]", scrub_credentials(data))
+        return self._scrub_data(data)
 
     @workflow.query
     def get_activity_output(self, activity_id: str) -> dict[str, Any] | None:
@@ -1557,7 +1578,10 @@ class NexusWorkflow(WorkflowConvergeMixin):
             Activity output data or None if not found
 
         """
-        return self.resolver.get_namespace(activity_id) if self.resolver.has_namespace(activity_id) else None
+        data = self.resolver.get_namespace(activity_id) if self.resolver.has_namespace(activity_id) else None
+        if data is None:
+            return None
+        return self._scrub_data(data)
 
     @workflow.query
     def get_skipped_nodes(self) -> list[str]:

@@ -22,6 +22,7 @@ from nexus.workflows.services.activity_update_publisher import ActivityUpdatePub
 from nexus.workflows.workflow_engine.activities import ACTIVITY_REGISTRY
 from nexus.workflows.workflow_engine.codecs.credential_codec import CredentialPayloadCodec
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
+from nexus.workflows.workflow_engine.interceptors.credential_output_interceptor import CredentialOutputInterceptor
 from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import MonitoringWorkflowInterceptor
 from nexus.workflows.workflow_engine.scheduled_launcher import ScheduledExecutionLauncher, ScheduledWorkflowLauncher
 from nexus.workflows.workflow_engine.services.activity_sync_registry import set_activity_sync_service
@@ -122,7 +123,7 @@ class TemporalWorkerService:
                 task_queue=self.task_queue,
                 workflows=[NexusWorkflow, ScheduledWorkflowLauncher],
                 activities=[*list(ACTIVITY_REGISTRY.values()), scheduled_launcher.run],
-                interceptors=[MonitoringWorkflowInterceptor()],
+                interceptors=[MonitoringWorkflowInterceptor(), CredentialOutputInterceptor()],
             )
 
             # Start worker in background task

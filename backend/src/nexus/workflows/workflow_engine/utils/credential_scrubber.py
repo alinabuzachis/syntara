@@ -1,18 +1,28 @@
 """Credential scrubbing utility for workflow execution state.
 
-Strips credential-related keys from dicts to prevent secret values
-from persisting in execution records, Temporal history, or Redis streams.
-
-This is partial scrubbing (Phases 12-16). Full 7-layer scrubbing is in Epic 4.
+Two layers of scrubbing:
+  1. Key-name scrubbing: replaces values of known credential keys with [REDACTED].
+  2. Value-based scrubbing: replaces actual decrypted secret values found in
+     arbitrary string content (stdout, HTTP response bodies, etc.).
 """
 
 import json
+from collections.abc import Collection
 from typing import Any
 
 REDACTED = "[REDACTED]"
 
+MIN_SECRET_LENGTH = 4
+
 # Internal keys used to pass resolved credentials through workflow state
-_INTERNAL_CREDENTIAL_KEYS = frozenset({"_resolved_credentials", "activity_credentials"})
+_INTERNAL_CREDENTIAL_KEYS = frozenset(
+    {
+        "_resolved_credentials",
+        "activity_credentials",
+        "_secret_values",
+        "_has_credentials",
+    }
+)
 
 
 def _build_credential_keys() -> frozenset[str]:
@@ -92,5 +102,42 @@ def scrub_credentials(data: Any) -> Any:  # noqa: ANN401
 
     if isinstance(data, list):
         return [scrub_credentials(item) for item in data]
+
+    return data
+
+
+def scrub_credential_values(data: Any, secret_values: Collection[str]) -> Any:  # noqa: ANN401
+    """Replace actual credential values found in string content.
+
+    Searches all string fields recursively for occurrences of known
+    decrypted secret values and replaces them with [REDACTED].
+    Skips values shorter than MIN_SECRET_LENGTH to avoid false positives.
+
+    Args:
+        data: Dict, list, string, or other value to scrub.
+        secret_values: Collection of actual decrypted secret strings to search for.
+
+    Returns:
+        Deep copy with embedded secret values replaced.
+
+    """
+    if not secret_values:
+        return data
+
+    if data is None:
+        return None
+
+    if isinstance(data, str):
+        result = data
+        for value in sorted(secret_values, key=len, reverse=True):
+            if value and len(value) >= MIN_SECRET_LENGTH and value in result:
+                result = result.replace(value, REDACTED)
+        return result
+
+    if isinstance(data, dict):
+        return {k: scrub_credential_values(v, secret_values) for k, v in data.items()}
+
+    if isinstance(data, list):
+        return [scrub_credential_values(item, secret_values) for item in data]
 
     return data

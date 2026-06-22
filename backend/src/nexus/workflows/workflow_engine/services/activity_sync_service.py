@@ -1294,7 +1294,7 @@ class ActivitySyncService:
                         else None
                     )
                     existing.output_data = (
-                        output_data
+                        scrub_credentials(output_data)
                         if isinstance(output_data, dict)
                         else {"raw": output_data}
                         if output_data is not None

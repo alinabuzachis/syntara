@@ -20,6 +20,7 @@ from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.utils.credential_scrubber import MIN_SECRET_LENGTH
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -138,10 +139,24 @@ async def _resolve_single_credential(
         type_name=cred_type.name,
     )
 
+    secret_field_ids = _extract_secret_field_ids(cred_type)
+    secret_values = [
+        v
+        for k, v in decrypted_inputs.items()
+        if k in secret_field_ids and isinstance(v, str) and len(v) >= MIN_SECRET_LENGTH
+    ]
+
     return {
         "credential_id": credential_id,
         "credential_type_name": cred_type.name,
         "extra_vars": resolved_injectors.extra_vars,
         "env": resolved_injectors.env,
         "file": resolved_injectors.file,
+        "_secret_values": secret_values,
     }
+
+
+def _extract_secret_field_ids(cred_type: CredentialType) -> set[str]:
+    """Return field IDs marked as secret in the credential type inputs."""
+    fields = (cred_type.inputs or {}).get("fields", [])
+    return {f["id"] for f in fields if f.get("secret") and "id" in f}

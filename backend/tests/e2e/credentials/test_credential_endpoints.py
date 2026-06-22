@@ -24,7 +24,6 @@ import pytest
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client import AuthenticatedClient
     from nexus_api_client.api import NexusApiRegistry
 
     from tests.fixtures.factories.credential_factories import CredentialFactory
@@ -164,22 +163,57 @@ class TestWorkflowWithDeletedCredential:
 # ===================================================================
 
 
-@pytest.mark.skip(reason="TODO: requires workflow with credential-consuming node")
 class TestCredentialScrubbing:
-    """Verify secret values are scrubbed from execution history."""
+    """Verify secret values are scrubbed from execution history (AAP-79021)."""
 
-    def test_execution_history_does_not_contain_plaintext(
-        self, nexus_api: NexusApiRegistry, nexus_client: AuthenticatedClient
+    _SECRET = "test-e2e-scrub-stdout"  # noqa: S105
+
+    def test_script_stdout_secret_is_scrubbed(
+        self,
+        nexus_api: NexusApiRegistry,
+        first_project_id: UUID,
+        create_credential: CredentialFactory,
     ) -> None:
-        """Inspect execution detail and activity logs for leaked secrets."""
-        # ANSTRAT-1901: implement when workflow+credential wiring is available
-        # 1. Create credential with known secret value
-        # 2. Create and execute workflow using the credential
-        # 3. Poll until complete
-        # 4. GET /executions/{id}?include=activities
-        # 5. Assert secret value absent from full response body
-        # 6. Assert any credential data shows [REDACTED] or $encrypted$
-        # 7. Cleanup
+        """Script node prints credential value to stdout — must be [REDACTED] in execution history."""
+        from tests.e2e.helpers import create_and_run_workflow
+
+        cred_id, _, _ = create_credential(api=nexus_api, project_id=first_project_id, name="e2e-scrub-stdout")
+
+        definition = {
+            "schema_version": "2.0.0",
+            "name": "e2e-scrub-stdout-test",
+            "description": "AAP-79021: verify value-based credential scrubbing",
+            "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "echo_secret",
+                    "name": "Echo Secret",
+                    "type": "script",
+                    "parameters": {
+                        "language": "python",
+                        "code": f'print("{self._SECRET}")',
+                        "credential_id": str(cred_id),
+                    },
+                }
+            ],
+            "edges": [{"from": "trigger_manual", "to": "echo_secret"}],
+        }
+
+        execution = create_and_run_workflow(nexus_api, "e2e-scrub-stdout-test", definition, timeout=30)
+        status_str = str(execution.status)
+        assert status_str in {"completed", "completed_with_errors"}, f"Unexpected status: {status_str}"
+
+        full_response = str(execution.to_dict())
+        assert self._SECRET not in full_response, "Plaintext secret leaked into execution response"
+
+        activities = execution.activities or []
+        script_activities = [a for a in activities if a.activity_id == "echo_secret"]
+        assert len(script_activities) == 1, "Expected exactly one echo_secret activity"
+
+        output = script_activities[0].to_dict().get("output_data") or {}
+        output_str = str(output)
+        assert self._SECRET not in output_str, "Plaintext secret leaked into activity output_data"
+        assert "[REDACTED]" in output_str, "Expected [REDACTED] in scrubbed output_data"
 
 
 # ===================================================================
