@@ -654,3 +654,180 @@ class TestCollectFindings:
         assert "findings" in data
         finding = data["findings"][0]
         assert set(finding.keys()) == {"severity", "category", "message", "node_id", "field_path"}
+
+
+def _converge_definition(
+    converge_params: dict[str, Any] | None = None,
+    predecessor_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a workflow with a converge node and configurable predecessors."""
+    if predecessor_ids is None:
+        predecessor_ids = ["branch_a", "branch_b"]
+
+    nodes: list[dict[str, Any]] = [
+        {"id": pid, "name": f"Branch {pid}", "type": "script", "parameters": {"language": "python", "code": "pass"}}
+        for pid in predecessor_ids
+    ]
+    converge_node: dict[str, Any] = {
+        "id": "converge_1",
+        "name": "Converge",
+        "type": "converge",
+        "parameters": converge_params if converge_params is not None else {},
+    }
+    nodes.append(converge_node)
+
+    edges: list[dict[str, Any]] = [{"from": "t1", "to": predecessor_ids[0]}] if predecessor_ids else []
+    for i, pid in enumerate(predecessor_ids):
+        if i > 0:
+            edges.append({"from": "t1", "to": pid})
+        edges.append({"from": pid, "to": "converge_1"})
+
+    return {
+        "schema_version": "2.0.0",
+        "name": "converge-test",
+        "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+        "nodes": nodes,
+        "edges": edges,
+    }
+
+
+class TestConvergeNodeValidation:
+    """Converge node validation against graph structure."""
+
+    def test_converge_two_predecessors_valid(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(_converge_definition())
+        converge_findings = [f for f in result.findings if f.category == ValidationCategory.converge_configuration]
+        assert converge_findings == []
+
+    def test_converge_zero_predecessors_error(self, validator: WorkflowValidator) -> None:
+        definition = _converge_definition(predecessor_ids=[])
+        definition["edges"] = []
+        result = validator.collect_findings(definition)
+        converge_errors = [
+            f
+            for f in result.findings
+            if f.category == ValidationCategory.converge_configuration and f.severity == ValidationSeverity.error
+        ]
+        assert len(converge_errors) == 1
+        assert converge_errors[0].node_id == "converge_1"
+        assert "no incoming edges" in converge_errors[0].message
+
+    def test_converge_one_predecessor_error(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(_converge_definition(predecessor_ids=["branch_a"]))
+        converge_errors = [
+            f
+            for f in result.findings
+            if f.category == ValidationCategory.converge_configuration and f.severity == ValidationSeverity.error
+        ]
+        assert len(converge_errors) == 1
+        assert converge_errors[0].node_id == "converge_1"
+        assert "only 1 incoming branch" in converge_errors[0].message
+
+    def test_converge_any_n_required_exceeds_branches(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(
+            _converge_definition(
+                converge_params={"strategy": "any", "n_required": 5},
+                predecessor_ids=["branch_a", "branch_b"],
+            )
+        )
+        n_req_errors = [
+            f
+            for f in result.findings
+            if f.category == ValidationCategory.converge_configuration and f.field_path == "parameters.n_required"
+        ]
+        assert len(n_req_errors) == 1
+        assert "n_required (5)" in n_req_errors[0].message
+        assert "incoming branches (2)" in n_req_errors[0].message
+
+    def test_converge_any_n_required_within_limit(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(
+            _converge_definition(
+                converge_params={"strategy": "any", "n_required": 2},
+                predecessor_ids=["branch_a", "branch_b", "branch_c"],
+            )
+        )
+        converge_findings = [f for f in result.findings if f.category == ValidationCategory.converge_configuration]
+        assert converge_findings == []
+
+    def test_converge_all_strategy_ignores_n_required(self, validator: WorkflowValidator) -> None:
+        result = validator.collect_findings(
+            _converge_definition(
+                converge_params={"strategy": "all"},
+                predecessor_ids=["branch_a", "branch_b"],
+            )
+        )
+        n_req_errors = [f for f in result.findings if f.field_path == "parameters.n_required"]
+        assert n_req_errors == []
+
+    def test_converge_zero_preds_suppresses_n_required_error(self, validator: WorkflowValidator) -> None:
+        """When a converge has 0 predecessors, only the missing-predecessors error fires."""
+        definition = _converge_definition(
+            converge_params={"strategy": "any", "n_required": 3},
+            predecessor_ids=[],
+        )
+        definition["edges"] = []
+        result = validator.collect_findings(definition)
+        converge_findings = [f for f in result.findings if f.category == ValidationCategory.converge_configuration]
+        assert len(converge_findings) == 1
+        assert "no incoming edges" in converge_findings[0].message
+
+    def test_converge_duplicate_edges_deduplicated(self, validator: WorkflowValidator) -> None:
+        """Two edges from the same source (different ports) count as 1 unique predecessor."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "duplicate-edge-test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {"id": "cond", "type": "condition", "parameters": {"condition": "true"}},
+                {"id": "converge_1", "type": "converge", "parameters": {}},
+            ],
+            "edges": [
+                {"from": "t1", "to": "cond"},
+                {"from": "cond", "to": "converge_1", "from_port": "true"},
+                {"from": "cond", "to": "converge_1", "from_port": "false"},
+            ],
+        }
+        result = validator.collect_findings(definition)
+        converge_errors = [
+            f
+            for f in result.findings
+            if f.category == ValidationCategory.converge_configuration and f.severity == ValidationSeverity.error
+        ]
+        assert len(converge_errors) == 1
+        assert converge_errors[0].node_id == "converge_1"
+        assert "only 1 incoming branch" in converge_errors[0].message
+
+    def test_converge_any_n_required_zero_rejected_by_schema(self, validator: WorkflowValidator) -> None:
+        """n_required=0 is caught by JSON schema (minimum: 1) before graph checks run."""
+        result = validator.collect_findings(
+            _converge_definition(
+                converge_params={"strategy": "any", "n_required": 0},
+                predecessor_ids=["branch_a", "branch_b"],
+            )
+        )
+        schema_errors = [f for f in result.findings if f.category == ValidationCategory.schema_violation]
+        assert any("minimum" in f.message.lower() or "0" in f.message for f in schema_errors)
+
+    def ***REMOVED***(self, validator: WorkflowValidator) -> None:
+        """Only the misconfigured converge gets findings."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "multi-converge",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {"id": "a", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+                {"id": "b", "type": "script", "parameters": {"language": "python", "code": "pass"}},
+                {"id": "good_converge", "type": "converge", "parameters": {}},
+                {"id": "bad_converge", "type": "converge", "parameters": {}},
+            ],
+            "edges": [
+                {"from": "t1", "to": "a"},
+                {"from": "t1", "to": "b"},
+                {"from": "a", "to": "good_converge"},
+                {"from": "b", "to": "good_converge"},
+            ],
+        }
+        result = validator.collect_findings(definition)
+        converge_findings = [f for f in result.findings if f.category == ValidationCategory.converge_configuration]
+        assert len(converge_findings) == 1
+        assert converge_findings[0].node_id == "bad_converge"

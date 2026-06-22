@@ -165,6 +165,73 @@ def _check_orphaned_nodes_findings(
     ]
 
 
+def _check_converge_node_findings(
+    workflow_definition: dict[str, Any],
+) -> list[ValidationFinding]:
+    """Check converge node configuration against the workflow graph structure.
+
+    Validates:
+    - Each converge node has at least 2 incoming branches (0 = error, 1 = error)
+    - For ``strategy='any'``, ``n_required`` does not exceed the branch count
+    """
+    findings: list[ValidationFinding] = []
+
+    predecessors: dict[str, set[str]] = defaultdict(set)
+    for edge in workflow_definition.get("edges", []):
+        if edge.get("to_port") not in _FEEDBACK_PORTS:
+            predecessors[edge["to"]].add(edge["from"])
+
+    for node in workflow_definition.get("nodes", []):
+        if node.get("type") != "converge":
+            continue
+        node_id = node.get("id")
+        if node_id is None:
+            continue
+
+        pred_count = len(predecessors.get(node_id, []))
+
+        if pred_count == 0:
+            findings.append(
+                ValidationFinding(
+                    severity=ValidationSeverity.error,
+                    category=ValidationCategory.converge_configuration,
+                    message=f"Converge node '{node_id}' has no incoming edges (unreachable synchronization point)",
+                    node_id=node_id,
+                )
+            )
+        elif pred_count == 1:
+            findings.append(
+                ValidationFinding(
+                    severity=ValidationSeverity.error,
+                    category=ValidationCategory.converge_configuration,
+                    message=(
+                        f"Converge node '{node_id}' has only 1 incoming branch; "
+                        f"converge requires at least 2 predecessors"
+                    ),
+                    node_id=node_id,
+                )
+            )
+
+        params = node.get("parameters", {})
+        strategy = params.get("strategy", "all")
+        n_required = params.get("n_required")
+        if strategy == "any" and n_required is not None and pred_count > 0 and n_required > pred_count:
+            findings.append(
+                ValidationFinding(
+                    severity=ValidationSeverity.error,
+                    category=ValidationCategory.converge_configuration,
+                    message=(
+                        f"Converge node '{node_id}': n_required ({n_required}) exceeds "
+                        f"the number of incoming branches ({pred_count})"
+                    ),
+                    node_id=node_id,
+                    field_path="parameters.n_required",
+                )
+            )
+
+    return findings
+
+
 def _select_best_branch(
     context_errors: list[jsonschema.ValidationError],
 ) -> tuple[Any, dict[Any, list[str]]]:
@@ -455,6 +522,7 @@ class WorkflowValidator:
         connected_nodes = _build_graph_and_find_connected(workflow_definition)
         findings.extend(_check_cycles_findings(workflow_definition, node_ids))
         findings.extend(_check_orphaned_nodes_findings(workflow_definition, node_ids, connected_nodes))
+        findings.extend(_check_converge_node_findings(workflow_definition))
         return findings
 
     def _collect_schema_findings(self, workflow_definition: dict[str, Any]) -> list[ValidationFinding]:

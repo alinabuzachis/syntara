@@ -34,6 +34,7 @@ class ValidationCategory(StrEnum):
     invalid_reference = "invalid_reference"
     cycle_detected = "cycle_detected"
     orphaned_node = "orphaned_node"
+    converge_configuration = "converge_configuration"
 
 
 class ValidationFinding(SQLModel):

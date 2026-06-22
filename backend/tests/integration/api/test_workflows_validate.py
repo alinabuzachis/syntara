@@ -231,3 +231,168 @@ async def test_validate_orphaned_node_warning(jwt_client: AsyncClient) -> None:
     orphan_warnings = [w for w in data["warnings"] if "orphaned_node" in w["message"]]
     assert len(orphan_warnings) == 1
     assert orphan_warnings[0]["node_id"] == "orphaned_node"
+
+
+@pytest.mark.asyncio
+async def test_validate_converge_no_predecessors(jwt_client: AsyncClient) -> None:
+    """Converge node with no incoming edges is rejected."""
+    payload = {
+        "workflow_definition": {
+            "schema_version": "2.0.0",
+            "name": "converge-no-preds",
+            "description": "Converge with no branches",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "task_a",
+                    "name": "Task A",
+                    "type": "script",
+                    "parameters": {"language": "python", "code": "pass"},
+                },
+                {"id": "conv", "name": "Converge", "type": "converge", "parameters": {}},
+            ],
+            "edges": [{"from": "t1", "to": "task_a"}],
+        },
+    }
+
+    response = await jwt_client.post("/api/v1/workflows/validate", json=payload)
+
+    assert response.status_code == 422
+    data = response.json()
+    assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
+    vr = data["validation_result"]
+    assert vr["valid"] is False
+    converge_errors = [e for e in vr["errors"] if "conv" in e["message"] and "no incoming" in e["message"]]
+    assert len(converge_errors) == 1
+
+
+@pytest.mark.asyncio
+async def test_validate_converge_single_predecessor_error(jwt_client: AsyncClient) -> None:
+    """Converge node with 1 predecessor is rejected."""
+    payload = {
+        "workflow_definition": {
+            "schema_version": "2.0.0",
+            "name": "converge-one-pred",
+            "description": "Converge with single branch",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "task_a",
+                    "name": "Task A",
+                    "type": "script",
+                    "parameters": {"language": "python", "code": "pass"},
+                },
+                {"id": "conv", "name": "Converge", "type": "converge", "parameters": {}},
+            ],
+            "edges": [
+                {"from": "t1", "to": "task_a"},
+                {"from": "task_a", "to": "conv"},
+            ],
+        },
+    }
+
+    response = await jwt_client.post("/api/v1/workflows/validate", json=payload)
+
+    assert response.status_code == 422
+    data = response.json()
+    assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
+    vr = data["validation_result"]
+    assert vr["valid"] is False
+    converge_errors = [e for e in vr["errors"] if "only 1 incoming" in e["message"]]
+    assert len(converge_errors) == 1
+    assert converge_errors[0]["node_id"] == "conv"
+
+
+@pytest.mark.asyncio
+async def test_validate_converge_n_required_exceeds_branches(jwt_client: AsyncClient) -> None:
+    """Converge with n_required > branch count is rejected."""
+    payload = {
+        "workflow_definition": {
+            "schema_version": "2.0.0",
+            "name": "converge-bad-n-required",
+            "description": "n_required too large",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "task_a",
+                    "name": "Task A",
+                    "type": "script",
+                    "parameters": {"language": "python", "code": "pass"},
+                },
+                {
+                    "id": "task_b",
+                    "name": "Task B",
+                    "type": "script",
+                    "parameters": {"language": "python", "code": "pass"},
+                },
+                {
+                    "id": "conv",
+                    "name": "Converge",
+                    "type": "converge",
+                    "parameters": {"strategy": "any", "n_required": 5},
+                },
+            ],
+            "edges": [
+                {"from": "t1", "to": "task_a"},
+                {"from": "t1", "to": "task_b"},
+                {"from": "task_a", "to": "conv"},
+                {"from": "task_b", "to": "conv"},
+            ],
+        },
+    }
+
+    response = await jwt_client.post("/api/v1/workflows/validate", json=payload)
+
+    assert response.status_code == 422
+    data = response.json()
+    assert data["code"] == "WORKFLOW_DEFINITION_INVALID"
+    vr = data["validation_result"]
+    assert vr["valid"] is False
+    n_req_errors = [e for e in vr["errors"] if "n_required" in e["message"]]
+    assert len(n_req_errors) == 1
+
+
+@pytest.mark.asyncio
+async def test_validate_converge_valid(jwt_client: AsyncClient) -> None:
+    """Well-formed converge node passes validation."""
+    payload = {
+        "workflow_definition": {
+            "schema_version": "2.0.0",
+            "name": "converge-valid",
+            "description": "Valid converge",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [
+                {
+                    "id": "task_a",
+                    "name": "Task A",
+                    "type": "script",
+                    "parameters": {"language": "python", "code": "pass"},
+                },
+                {
+                    "id": "task_b",
+                    "name": "Task B",
+                    "type": "script",
+                    "parameters": {"language": "python", "code": "pass"},
+                },
+                {
+                    "id": "conv",
+                    "name": "Converge",
+                    "type": "converge",
+                    "parameters": {"strategy": "any", "n_required": 1},
+                },
+            ],
+            "edges": [
+                {"from": "t1", "to": "task_a"},
+                {"from": "t1", "to": "task_b"},
+                {"from": "task_a", "to": "conv"},
+                {"from": "task_b", "to": "conv"},
+            ],
+        },
+    }
+
+    response = await jwt_client.post("/api/v1/workflows/validate", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is True
+    assert data["errors"] == []

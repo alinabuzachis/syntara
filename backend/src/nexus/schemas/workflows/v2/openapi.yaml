@@ -1052,6 +1052,7 @@ components:
         - invalid_reference
         - cycle_detected
         - orphaned_node
+        - converge_configuration
 
     ValidationFinding:
       type: object
