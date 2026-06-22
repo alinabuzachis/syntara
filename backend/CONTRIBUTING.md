@@ -152,11 +152,11 @@ The pre-commit configuration file is located at `.pre-commit-config.yaml` in the
 Pre-commit runs OpenAPI checks automatically when `openapi.yaml` changes. You can also run them manually:
 
 ```bash
-# Check for breaking changes against main branch
+# Check for breaking changes against devel branch
 make check-openapi-breaking
 
 # Or run the script directly with custom options
-./scripts/openapi/check-breaking-changes.py --base main --head HEAD --format text
+./scripts/openapi/check-breaking-changes.py --base devel --head HEAD --format text
 ```
 
 This helps you catch issues before pushing to GitHub and speeds up your development workflow.
@@ -171,15 +171,17 @@ make gen-contracts
 
 This updates `frontend/packages/nexus-contracts/src/` with types matching your schema changes.
 
+CI posts an informational warning if the spec changed but contracts were not regenerated. For spec-only changes with no type impact (descriptions, examples, metadata), add to the PR description: `no-contract-regen: <justification>`.
+
 #### 2. Breaking Changes Check (AAP-77358)
 
-The pre-commit hook (enforced in CI) compares your spec against `main` to detect breaking changes (removed fields, type changes, deleted endpoints).
+The pre-commit hook (enforced in CI) compares your spec against `devel` to detect breaking changes (removed fields, type changes, deleted endpoints).
 
 **If breaking changes are detected**, you must acknowledge them in the PR description:
 
 - Add to PR description: `breaking-change-ack: <detailed justification>`
-- Minimum 20 characters explaining why necessary, migration path, and how UI is updated
-- Example: `breaking-change-ack: Removing deprecated created_by_id field in favor of created_by object. UI PR #456 updates all references. Migration guide added to API docs.`
+- Minimum 20 characters explaining why necessary, migration path, and how the frontend is updated
+- Example: `breaking-change-ack: Removing deprecated created_by_id field in favor of created_by object. Regenerated contracts and updated UI references in this PR. Migration guide added to API docs.`
 
 **This check blocks merge** until breaking changes are acknowledged. See [OpenAPI Breaking Changes](docs/openapi-breaking-changes.md) for details.
 
@@ -190,7 +192,7 @@ The pre-commit hook (enforced in CI) compares your spec against `main` to detect
    git push origin feature/your-feature-name
    ```
 
-2. Open a pull request against the `main` branch of the upstream repository
+2. Open a pull request against the `devel` branch of the upstream repository
 
 3. **Fill out the pull request template** with:
    - A clear description of the changes

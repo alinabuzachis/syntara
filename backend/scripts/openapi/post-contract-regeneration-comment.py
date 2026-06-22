@@ -5,8 +5,8 @@ This script formats the contract check results and posts/updates
 a PR comment using the GitHub API via gh CLI.
 
 Usage:
-    ./post-companion-pr-comment.py --results results.json --pr-number 123
-    ./post-companion-pr-comment.py --results results.json --pr-number 123 --repo owner/repo
+    ./post-contract-regeneration-comment.py --results results.json --pr-number 123
+    ./post-contract-regeneration-comment.py --results results.json --pr-number 123 --repo owner/repo
 
 Environment variables:
     GITHUB_TOKEN - GitHub API token (optional, gh CLI handles auth)
@@ -20,11 +20,11 @@ from pathlib import Path
 from typing import Dict
 
 
-def format_companion_pr_comment(results: Dict, repo_owner: str, repo_name: str) -> str:
+def format_contract_regeneration_comment(results: Dict, repo_owner: str, repo_name: str) -> str:
     """Format contract check results as a GitHub comment.
 
     Args:
-        results: Output from check-companion-pr.py
+        results: Output from check-contract-regeneration.py
         repo_owner: Repository owner
         repo_name: Repository name
 
@@ -99,7 +99,7 @@ def main():
     parser.add_argument(
         "--results",
         required=True,
-        help="Path to JSON results file from check-companion-pr.py",
+        help="Path to JSON results file from check-contract-regeneration.py",
     )
     parser.add_argument(
         "--pr-number",
@@ -128,7 +128,7 @@ def main():
 
     repo_owner, repo_name = repo.split("/")
 
-    comment_body = format_companion_pr_comment(results, repo_owner, repo_name)
+    comment_body = format_contract_regeneration_comment(results, repo_owner, repo_name)
 
     post_or_update_comment(args.pr_number, comment_body, repo)
 

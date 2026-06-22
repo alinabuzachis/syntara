@@ -55,21 +55,21 @@ Checks for breaking changes in OpenAPI spec using `oasdiff`. Automatically resol
 }
 ```
 
-#### `check-companion-pr.py`
+#### `check-contract-regeneration.py`
 Checks that frontend contracts are regenerated when the OpenAPI spec changes. In the monorepo, when `backend/src/nexus/schemas/openapi.yaml` changes, the TypeScript types in `frontend/packages/nexus-contracts/src/` should also be updated via `make gen-contracts`. If the bundled spec is unchanged, the check is skipped.
 
 ```bash
 # Check against devel branch (auto-detects changed files)
-./check-companion-pr.py --changed-files-from devel
+./check-contract-regeneration.py --changed-files-from devel
 
 # Check with explicit file list
-./check-companion-pr.py --changed-files backend/src/nexus/schemas/openapi.yaml frontend/packages/nexus-contracts/src/index.ts
+./check-contract-regeneration.py --changed-files backend/src/nexus/schemas/openapi.yaml frontend/packages/nexus-contracts/src/index.ts
 
 # Include PR body for exception justification
-./check-companion-pr.py --changed-files-from devel --pr-body "no-ui-pr: description-only change"
+./check-contract-regeneration.py --changed-files-from devel --pr-body "no-contract-regen: description-only change"
 
 # Output as text instead of JSON
-./check-companion-pr.py --changed-files-from devel --format text
+./check-contract-regeneration.py --changed-files-from devel --format text
 ```
 
 **Exit Codes:**
@@ -110,17 +110,17 @@ Posts or updates GitHub PR comment with breaking changes check results.
 - `gh` CLI must be installed and authenticated
 - Results file from `check-breaking-changes.py`
 
-#### `post-companion-pr-comment.py`
+#### `post-contract-regeneration-comment.py`
 Posts or updates GitHub PR comment with contract regeneration check results.
 
 ```bash
 # Post results to PR
-./post-companion-pr-comment.py \
+./post-contract-regeneration-comment.py \
   --results results.json \
   --pr-number 123
 
 # Specify repository explicitly
-./post-companion-pr-comment.py \
+./post-contract-regeneration-comment.py \
   --results results.json \
   --pr-number 123 \
   --repo syntara-orchestration/syntara
@@ -128,7 +128,7 @@ Posts or updates GitHub PR comment with contract regeneration check results.
 
 **Requirements:**
 - `gh` CLI must be installed and authenticated
-- Results file from `check-companion-pr.py`
+- Results file from `check-contract-regeneration.py`
 
 ## Local Development Workflow
 
@@ -159,28 +159,28 @@ make check-openapi-breaking
 
 ```bash
 # Using make (recommended) — skips when openapi.yaml is unchanged vs devel
-make check-openapi-companion
+make check-openapi-contracts
 
 # Or directly — auto-detects changed files vs devel
-./scripts/openapi/check-companion-pr.py \
+./scripts/openapi/check-contract-regeneration.py \
   --changed-files-from devel \
   --format text
 
 # Simulate spec change without contract regen (expect warning)
-./scripts/openapi/check-companion-pr.py \
+./scripts/openapi/check-contract-regeneration.py \
   --changed-files backend/src/nexus/schemas/openapi.yaml \
   --format text
 
 # Simulate spec + contract update (expect success)
-./scripts/openapi/check-companion-pr.py \
+./scripts/openapi/check-contract-regeneration.py \
   --changed-files backend/src/nexus/schemas/openapi.yaml \
     frontend/packages/nexus-contracts/src/index.ts \
   --format text
 
-# Spec change with no-ui-pr exception in PR body
-./scripts/openapi/check-companion-pr.py \
+# Spec change with no-contract-regen exception in PR body
+./scripts/openapi/check-contract-regeneration.py \
   --changed-files backend/src/nexus/schemas/openapi.yaml \
-  --pr-body "no-ui-pr: description-only change, no type impact" \
+  --pr-body "no-contract-regen: description-only change, no type impact" \
   --format text
 ```
 
@@ -197,14 +197,14 @@ PR_BODY="breaking-change-ack: This change is necessary for the new feature"
   --output /tmp/breaking-results.json
 
 # 2. Check contract regeneration
-./scripts/openapi/check-companion-pr.py \
+./scripts/openapi/check-contract-regeneration.py \
   --changed-files-from devel \
   --pr-body "$PR_BODY" \
-  --output /tmp/companion-results.json
+  --output /tmp/contract-regeneration-results.json
 
 # 3. View results
 cat /tmp/breaking-results.json | jq
-cat /tmp/companion-results.json | jq
+cat /tmp/contract-regeneration-results.json | jq
 ```
 
 ## Makefile Targets
@@ -219,11 +219,11 @@ Checks OpenAPI spec for breaking changes against the devel branch. Auto-installs
 make check-openapi-breaking
 ```
 
-### `make check-openapi-companion`
+### `make check-openapi-contracts`
 Checks if frontend contracts were regenerated when the OpenAPI spec changed.
 
 ```bash
-make check-openapi-companion
+make check-openapi-contracts
 ```
 
 ### `make check-openapi`
@@ -247,7 +247,7 @@ The CI `pre-commit` job:
 The `openapi-breaking-changes` job:
 1. Detects changes to `backend/src/nexus/schemas/openapi.yaml`
 2. Runs `check-breaking-changes.py` and posts results via `post-breaking-changes-comment.py`
-3. Runs `check-companion-pr.py` to verify contracts are regenerated and posts results via `post-companion-pr-comment.py`
+3. Runs `check-contract-regeneration.py` to verify contracts are regenerated and posts results via `post-contract-regeneration-comment.py`
 
 ## Security Features
 

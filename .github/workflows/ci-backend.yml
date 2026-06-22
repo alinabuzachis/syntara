@@ -367,12 +367,12 @@ jobs:
         if: steps.detect.outputs.changed == 'true'
         run: |
           PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body)
-          ./scripts/openapi/check-companion-pr.py \
+          ./scripts/openapi/check-contract-regeneration.py \
             --changed-files-from devel \
-            --output companion-results.json \
+            --output contract-regeneration-results.json \
             --pr-body "$PR_BODY"
-          ./scripts/openapi/post-companion-pr-comment.py \
-            --results companion-results.json \
+          ./scripts/openapi/post-contract-regeneration-comment.py \
+            --results contract-regeneration-results.json \
             --pr-number ${{ github.event.pull_request.number }}
         working-directory: backend
         env:

@@ -58,7 +58,7 @@ These hooks run automatically on commit (and in CI via the `pre-commit` job):
 |------|-----------|
 | `api-spec-bundle` | Always runs; regenerates the bundled spec before commit |
 | `api-spec-drift` | Advisory only (`|| true`); warns when the committed spec diverges from the generated one but does not block the commit |
-| `check-openapi-breaking` | Runs when `openapi.yaml` changes; compares against `main` and blocks on unacknowledged breaking changes |
+| `check-openapi-breaking` | Runs when `openapi.yaml` changes; compares against `devel` and blocks on unacknowledged breaking changes |
 
 The drift hook is non-blocking by design — it surfaces drift early without enforcing it at commit time. CI enforces it strictly.
 
@@ -69,6 +69,8 @@ In CI, `OPENAPI_PR_BODY` is set from the pull request description so `breaking-c
 `make api-spec-drift` is a **blocking CI check**. A PR that introduces spec drift will fail CI until the committed `openapi.yaml` is updated via `make api-spec-bundle`.
 
 `make api-spec-validation` also runs in CI and validates spec conventions (see below).
+
+When `openapi.yaml` changes, CI also runs a contract regeneration check (informational): if `frontend/packages/nexus-contracts/src/` is not updated in the same PR, run `make gen-contracts` from the repo root and commit the result. For spec-only changes with no type impact, add `no-contract-regen: <justification>` to the PR description.
 
 ## OpenAPI Sub-spec Conventions
 

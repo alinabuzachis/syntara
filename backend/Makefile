@@ -723,15 +723,15 @@ check-openapi-breaking-pre-commit: ## Pre-commit: breaking changes when openapi.
 	fi; \
 	$(MAKE) check-openapi-breaking OPENAPI_BASE_REF="$$BASE_REF"
 
-.PHONY: check-openapi-companion
-check-openapi-companion: ## Check if frontend contracts are regenerated for OpenAPI changes
+.PHONY: check-openapi-contracts
+check-openapi-contracts: ## Check if frontend contracts are regenerated for OpenAPI changes
 	@echo "Checking if frontend contracts are up to date..."
-	@./scripts/openapi/check-companion-pr.py \
+	@./scripts/openapi/check-contract-regeneration.py \
 		--changed-files-from $(OPENAPI_BASE_REF) \
 		--format text
 
 .PHONY: check-openapi
-check-openapi: check-openapi-breaking check-openapi-companion ## Run all OpenAPI checks
+check-openapi: check-openapi-breaking check-openapi-contracts ## Run all OpenAPI checks
 
 
 # Pre-commit targets

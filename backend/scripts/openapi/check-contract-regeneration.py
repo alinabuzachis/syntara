@@ -6,9 +6,9 @@ the generated TypeScript contracts in frontend/packages/nexus-contracts/src/
 must also be updated (via `make gen-contracts`).
 
 Usage:
-    ./check-companion-pr.py --changed-files-from devel
-    ./check-companion-pr.py --changed-files file1.ts file2.ts ...
-    ./check-companion-pr.py --changed-files-stdin < changed_files.txt
+    ./check-contract-regeneration.py --changed-files-from devel
+    ./check-contract-regeneration.py --changed-files file1.ts file2.ts ...
+    ./check-contract-regeneration.py --changed-files-stdin < changed_files.txt
 
 Returns:
     JSON with structure:
@@ -32,11 +32,15 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 
 OPENAPI_SPEC = "backend/src/nexus/schemas/openapi.yaml"
 CONTRACTS_DIR = "frontend/packages/nexus-contracts/src/"
+EXCEPTION_PATTERN = re.compile(
+    r"no-(?:contract-regen|ui-pr)\s*:\s*(.+)",
+    re.IGNORECASE,
+)
 
 
 def escape_markdown(text: str) -> str:
@@ -87,9 +91,7 @@ def check_contracts_updated(changed_files: list[str], pr_body: str = "") -> Dict
         return _build_no_spec_change_result()
 
     contracts_updated = any(f.startswith(CONTRACTS_DIR) for f in changed_files)
-
-    exception_pattern = re.compile(r"no-ui-pr\s*:\s*(.+)", re.IGNORECASE)
-    exception_match = exception_pattern.search(pr_body) if pr_body else None
+    exception_match = EXCEPTION_PATTERN.search(pr_body) if pr_body else None
 
     if contracts_updated:
         return _build_contracts_updated_result()
@@ -144,7 +146,7 @@ def _build_exception_result(justification: str) -> Dict[str, any]:
     if len(justification) < 10:
         message = (
             "**Exception claimed but justification is too brief**\n\n"
-            "You've marked this as `no-ui-pr` but the justification is insufficient:\n"
+            "You've marked this as `no-contract-regen` but the justification is insufficient:\n"
             f"```\n{escaped_justification}\n```\n\n"
             'Please provide a detailed explanation (e.g., "description-only change, '
             'no type impact — verified via contract regen").'
@@ -191,8 +193,8 @@ def _build_contracts_stale_result() -> Dict[str, any]:
         "   Then commit the regenerated files in this PR.\n\n"
         "2. **OR, if this is a spec-only change** (description, examples, metadata) "
         "with no type impact:\n"
-        "   - Add to PR description: `no-ui-pr: <justification>`\n"
-        "   - Example: `no-ui-pr: description-only change, no type impact`\n\n"
+        "   - Add to PR description: `no-contract-regen: <justification>`\n"
+        "   - Example: `no-contract-regen: description-only change, no type impact`\n\n"
         "### Why This Matters\n\n"
         "- **Additive changes** (new endpoints, new fields) make types available to "
         "UI developers\n"
