@@ -109,21 +109,26 @@ function keepIfNeeded<T extends { source: string; sourceHandle?: string | null; 
   }
 }
 
+const HANDLE_TO_CONTEXT_KEY: Record<
+  string,
+  keyof Pick<ButtonEdgeFilterContext, 'conditionHandles' | 'loopHandles' | 'approvalHandles'>
+> = {
+  [EdgeHandleEnum.TRUE]: 'conditionHandles',
+  [EdgeHandleEnum.FALSE]: 'conditionHandles',
+  [EdgeHandleEnum.DONE]: 'loopHandles',
+  [EdgeHandleEnum.LOOP]: 'loopHandles',
+  [EdgeHandleEnum.APPROVED]: 'approvalHandles',
+  [EdgeHandleEnum.REJECTED]: 'approvalHandles',
+}
+
 export function getKeptButtonEdge<
   T extends { source: string; sourceHandle?: string | null; data?: Record<string, unknown> },
 >(edge: T, ctx: ButtonEdgeFilterContext): (T & { data: Record<string, unknown> }) | null {
   const handleId = edge.sourceHandle
 
-  if (handleId === EdgeHandleEnum.TRUE || handleId === EdgeHandleEnum.FALSE) {
-    return keepIfNeeded(edge, ctx.conditionHandles, ctx)
-  }
-
-  if (handleId === EdgeHandleEnum.DONE || handleId === EdgeHandleEnum.LOOP) {
-    return keepIfNeeded(edge, ctx.loopHandles, ctx)
-  }
-
-  if (handleId === EdgeHandleEnum.APPROVED || handleId === EdgeHandleEnum.REJECTED) {
-    return keepIfNeeded(edge, ctx.approvalHandles, ctx)
+  const ctxKey = handleId ? HANDLE_TO_CONTEXT_KEY[handleId] : undefined
+  if (ctxKey) {
+    return keepIfNeeded(edge, ctx[ctxKey], ctx)
   }
 
   if (isSwitchHandleId(handleId)) {

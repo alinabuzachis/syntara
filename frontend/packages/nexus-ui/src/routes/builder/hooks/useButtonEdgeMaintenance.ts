@@ -57,6 +57,35 @@ function buildConnectedHandlesMap(edges: EdgeType[]): Map<string, Set<string>> {
   return connectedHandles
 }
 
+type MultiHandleConfig = {
+  handles: readonly string[]
+  handlePositions: Record<string, { yOffset: number; xOffset?: number }>
+}
+
+const MULTI_HANDLE_CONFIGS: Record<string, MultiHandleConfig> = {
+  [FlowNodeType.CONDITION]: {
+    handles: [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE],
+    handlePositions: {
+      [EdgeHandleEnum.TRUE]: { yOffset: -30 },
+      [EdgeHandleEnum.FALSE]: { yOffset: 30 },
+    },
+  },
+  [FlowNodeType.APPROVAL]: {
+    handles: [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED],
+    handlePositions: {
+      [EdgeHandleEnum.APPROVED]: { yOffset: -30 },
+      [EdgeHandleEnum.REJECTED]: { yOffset: 30 },
+    },
+  },
+  [FlowNodeType.LOOP]: {
+    handles: [EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP],
+    handlePositions: {
+      [EdgeHandleEnum.DONE]: { yOffset: -30 },
+      [EdgeHandleEnum.LOOP]: { yOffset: 30 },
+    },
+  },
+}
+
 type RunButtonEdgeMaintenanceWorkArgs = {
   nodes: NodeType[]
   edges: EdgeType[]
@@ -104,7 +133,6 @@ function processSwitchNode(options: {
  * Order matters: placeholder nodes must exist in React Flow before button edges reference them
  * (`flushSync` + `setNodes` first when needed), then `setEdges`, then node class updates.
  */
-// eslint-disable-next-line sonarjs/cognitive-complexity -- function was at limit before switch; AAP-77228 will refactor to map/object lookup
 function runButtonEdgeMaintenanceWork({
   nodes,
   edges,
@@ -129,59 +157,25 @@ function runButtonEdgeMaintenanceWork({
   const approvalHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
   const switchHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
 
+  const handleListsByNodeType: Record<string, { nodeId: string; handleId: string }[]> = {
+    [FlowNodeType.CONDITION]: conditionHandlesNeedingButtonEdges,
+    [FlowNodeType.LOOP]: loopHandlesNeedingButtonEdges,
+    [FlowNodeType.APPROVAL]: approvalHandlesNeedingButtonEdges,
+  }
+
   const existingNodeIds = new Set(nodes.map((node) => node.id))
 
   for (const node of realNodes) {
-    const isConditionNode = node.type === FlowNodeType.CONDITION
-    const isLoopNode = node.type === FlowNodeType.LOOP
-    const isApprovalNode = node.type === FlowNodeType.APPROVAL
-
-    if (isConditionNode) {
+    const multiHandleConfig = node.type ? MULTI_HANDLE_CONFIGS[node.type] : undefined
+    if (multiHandleConfig && node.type) {
       processMultiHandleNode({
         node,
-        handles: [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE] as const,
-        handlePositions: {
-          [EdgeHandleEnum.TRUE]: { yOffset: -30 },
-          [EdgeHandleEnum.FALSE]: { yOffset: 30 },
-        },
+        handles: multiHandleConfig.handles,
+        handlePositions: multiHandleConfig.handlePositions,
         connectedHandles,
         pendingEdge,
         nodes,
-        handlesNeedingButtonEdges: conditionHandlesNeedingButtonEdges,
-        placeholderNodesToAdd,
-      })
-      continue
-    }
-
-    if (isApprovalNode) {
-      processMultiHandleNode({
-        node,
-        handles: [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as const,
-        handlePositions: {
-          [EdgeHandleEnum.APPROVED]: { yOffset: -30 },
-          [EdgeHandleEnum.REJECTED]: { yOffset: 30 },
-        },
-        connectedHandles,
-        pendingEdge,
-        nodes,
-        handlesNeedingButtonEdges: approvalHandlesNeedingButtonEdges,
-        placeholderNodesToAdd,
-      })
-      continue
-    }
-
-    if (isLoopNode) {
-      processMultiHandleNode({
-        node,
-        handles: [EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP] as const,
-        handlePositions: {
-          [EdgeHandleEnum.DONE]: { yOffset: -30 },
-          [EdgeHandleEnum.LOOP]: { yOffset: 30 },
-        },
-        connectedHandles,
-        pendingEdge,
-        nodes,
-        handlesNeedingButtonEdges: loopHandlesNeedingButtonEdges,
+        handlesNeedingButtonEdges: handleListsByNodeType[node.type],
         placeholderNodesToAdd,
       })
       continue
@@ -201,15 +195,12 @@ function runButtonEdgeMaintenanceWork({
 
     const sourceHandleConnected = connectedHandles.get(node.id)?.has(EdgeHandleEnum.SOURCE) ?? false
     const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
-    const shouldHaveButtonEdge = !sourceHandleConnected && !hasPendingEdge
-
-    if (!shouldHaveButtonEdge) {
+    if (sourceHandleConnected || hasPendingEdge) {
       continue
     }
 
     nodesNeedingButtonEdges.push(node.id)
 
-    // A button edge can still exist in state after its placeholder was removed; (re)add the placeholder.
     const placeholderId = `placeholder-${node.id}`
     if (existingNodeIds.has(placeholderId)) {
       continue

@@ -772,6 +772,101 @@ describe('useWorkflowStore', () => {
     })
   })
 
+  describe('updateSwitchActivity', () => {
+    const switchActivity: Activity = {
+      type: 'switch',
+      id: 'switch-1',
+      name: 'Route',
+      parameters: { cases: [{ port: 'case_0', label: 'Path 1', condition: '${a} == 1' }], default_port: 'default' },
+    }
+
+    beforeEach(() => {
+      const workflow = makeWorkflow('Test')
+      useWorkflowStore.getState().setWorkflow(workflow)
+      useWorkflowStore.getState().addActivity(switchActivity)
+      useWorkflowStore.setState({
+        edges: [
+          { id: 'e0', source: 'switch-1', target: 'node-a', sourceHandle: 'case_0' },
+          { id: 'e1', source: 'switch-1', target: 'node-b', sourceHandle: 'case_1' },
+          { id: 'e-default', source: 'switch-1', target: 'node-d', sourceHandle: 'default' },
+          { id: 'e-no-handle', source: 'switch-1', target: 'node-x' },
+          { id: 'e-source', source: 'switch-1', target: 'node-y', sourceHandle: 'source' },
+          { id: 'e-other', source: 'other-node', target: 'node-z', sourceHandle: 'case_0' },
+        ],
+      })
+    })
+
+    it('remaps switch case edges per portMapping', () => {
+      const portMapping = new Map([['case_0', 'case_1']])
+      const updated = { ...switchActivity, name: 'Updated' }
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', updated, portMapping)
+
+      const edges = useWorkflowStore.getState().edges
+      const remapped = edges.find((e) => e.id === 'e0')
+      expect(remapped?.sourceHandle).toBe('case_1')
+    })
+
+    it('removes switch case edges not in portMapping', () => {
+      const portMapping = new Map([['case_0', 'case_0']])
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', switchActivity, portMapping)
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.find((e) => e.id === 'e1')).toBeUndefined()
+    })
+
+    it('preserves default handle edges', () => {
+      const portMapping = new Map<string, string>()
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', switchActivity, portMapping)
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.find((e) => e.id === 'e-default')?.sourceHandle).toBe('default')
+    })
+
+    it('preserves edges without sourceHandle', () => {
+      const portMapping = new Map<string, string>()
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', switchActivity, portMapping)
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.find((e) => e.id === 'e-no-handle')).toBeDefined()
+    })
+
+    it('preserves non-switch sourceHandle edges', () => {
+      const portMapping = new Map<string, string>()
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', switchActivity, portMapping)
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.find((e) => e.id === 'e-source')?.sourceHandle).toBe('source')
+    })
+
+    it('does not affect edges from other nodes', () => {
+      const portMapping = new Map<string, string>()
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', switchActivity, portMapping)
+
+      const edges = useWorkflowStore.getState().edges
+      const otherEdge = edges.find((e) => e.id === 'e-other')
+      expect(otherEdge?.source).toBe('other-node')
+      expect(otherEdge?.sourceHandle).toBe('case_0')
+    })
+
+    it('updates the activity atomically with edge remapping', () => {
+      const portMapping = new Map([['case_0', 'case_1']])
+      const updated = { ...switchActivity, name: 'Renamed' }
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', updated, portMapping)
+
+      const activity = useWorkflowStore.getState().currentWorkflow?.workflow.activities.find((a) => a.id === 'switch-1')
+      expect(activity?.name).toBe('Renamed')
+      expect(useWorkflowStore.getState().isDirty).toBe(true)
+    })
+
+    it('increments workflowVersion for canvas re-render', () => {
+      const versionBefore = useWorkflowStore.getState().workflowVersion
+      const portMapping = new Map<string, string>()
+      useWorkflowStore.getState().updateSwitchActivity('switch-1', switchActivity, portMapping)
+
+      expect(useWorkflowStore.getState().workflowVersion).toBe(versionBefore + 1)
+    })
+  })
+
   describe('undo/redo (temporal middleware)', () => {
     beforeEach(() => {
       useWorkflowStore.setState({ _temporalBatchPending: false })

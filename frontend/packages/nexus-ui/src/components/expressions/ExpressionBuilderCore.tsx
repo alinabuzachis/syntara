@@ -3,8 +3,16 @@
  * Uses useReducer for managing nested expression tree
  */
 
-import { FormSelect, FormSelectOption, Stack, StackItem } from '@patternfly/react-core'
-import { useReducer, useEffect, useRef } from 'react'
+import {
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
+  Stack,
+  StackItem,
+} from '@patternfly/react-core'
+import { useCallback, useReducer, useEffect, useRef, useState } from 'react'
 
 import { createDefaultGroup, createDefaultCondition } from '../../utils/expressions/defaults'
 import { parseExpression } from '../../utils/expressions/parser'
@@ -53,8 +61,12 @@ function VisualExpressionEditor({ group, onUpdateRoot, error }: VisualExpression
 type ExpressionBuilderCoreProps = {
   /** Current expression value (template string) */
   value: string
-  /** Callback when expression changes */
-  onChange: (value: string) => void
+  /** Callback when expression changes. Additional args preserve state for round-trip. */
+  onChange: (value: string, expressionTree?: Expression, mode?: 'visual' | 'raw') => void
+  /** Optional: provide an initial expression tree to avoid lossy string parsing */
+  initialExpression?: Expression
+  /** Optional: restore the editor mode from a previous session */
+  initialMode?: 'visual' | 'raw'
   /** Placeholder text */
   placeholder?: string
   /** Whether to show error state */
@@ -77,6 +89,7 @@ type BuilderState = {
 type BuilderAction =
   | { type: 'SET_EXPRESSION'; payload: Expression }
   | { type: 'SET_RAW_VALUE'; payload: string }
+  | { type: 'SET_MODE'; payload: EditorMode }
   | { type: 'TOGGLE_MODE' }
   | { type: 'UPDATE_ROOT'; payload: ExpressionNode | null }
 
@@ -93,6 +106,12 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       return {
         ...state,
         rawValue: action.payload,
+      }
+
+    case 'SET_MODE':
+      return {
+        ...state,
+        mode: action.payload,
       }
 
     case 'TOGGLE_MODE': {
@@ -134,15 +153,34 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
  * Follows the DateRangeCadencePicker pattern for external sync
  */
 export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
-  const { value, onChange, error, placeholder, id, 'aria-labelledby': ariaLabelledBy } = props
+  const {
+    value,
+    onChange,
+    initialExpression: providedExpression,
+    initialMode: providedMode,
+    error,
+    placeholder,
+    id,
+    'aria-labelledby': ariaLabelledBy,
+  } = props
 
-  // Initialize state by parsing the value (lazy init avoids re-parsing on every render)
+  // Initialize state — use provided mode if available (preserves user's last choice).
+  // Fall back to provided expression tree (preserves nesting structure),
+  // then string parsing (which can lose same-operator nesting).
   const [state, dispatch] = useReducer(builderReducer, value, (initialValue): BuilderState => {
-    const initialExpression = parseExpression(initialValue)
-    const initialMode: EditorMode = !initialExpression.root && initialValue ? 'raw' : 'visual'
+    if (providedMode === 'raw') {
+      return {
+        expression: providedExpression?.root ? providedExpression : { root: createDefaultGroup() },
+        mode: 'raw',
+        rawValue: initialValue,
+      }
+    }
+
+    const expression = providedExpression?.root ? providedExpression : parseExpression(initialValue)
+    const initialMode: EditorMode = providedMode ?? (!expression.root && initialValue ? 'raw' : 'visual')
 
     return {
-      expression: initialExpression.root ? initialExpression : { root: createDefaultGroup() },
+      expression: expression.root ? expression : { root: createDefaultGroup() },
       mode: initialMode,
       rawValue: initialValue,
     }
@@ -152,37 +190,67 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
   const prevValueRef = useRef(value)
   const lastEmittedRef = useRef<string | undefined>(undefined)
 
-  // Update local state when value prop changes from external source
+  // Update local state and mode when value prop changes from external source
   useEffect(() => {
     if (value !== prevValueRef.current && value !== lastEmittedRef.current) {
       const parsed = parseExpression(value)
       if (parsed.root) {
-        // Valid expression - update both expression and rawValue
         dispatch({ type: 'SET_EXPRESSION', payload: parsed })
-      } else {
-        // Invalid expression - preserve raw value, use fallback for visual mode
+      } else if (value) {
         dispatch({ type: 'SET_EXPRESSION', payload: { root: createDefaultGroup() } })
         dispatch({ type: 'SET_RAW_VALUE', payload: value })
+      } else {
+        dispatch({ type: 'SET_EXPRESSION', payload: { root: createDefaultGroup() } })
+        dispatch({ type: 'SET_RAW_VALUE', payload: '' })
       }
     }
     prevValueRef.current = value
   }, [value])
 
-  // Emit changes to parent
+  // Emit changes to parent — value, expression tree, and mode
+  const prevModeRef = useRef(state.mode)
   useEffect(() => {
     const newValue = state.mode === 'visual' ? serializeExpression(state.expression) : state.rawValue
+    const modeChanged = state.mode !== prevModeRef.current
+    prevModeRef.current = state.mode
 
     if (newValue !== value && newValue !== lastEmittedRef.current) {
       lastEmittedRef.current = newValue
-      onChange(newValue)
+      const tree = state.mode === 'visual' ? state.expression : { root: null }
+      onChange(newValue, tree, state.mode)
+    } else if (modeChanged) {
+      const tree = state.mode === 'visual' ? state.expression : { root: null }
+      onChange(value, tree, state.mode)
     }
   }, [state.expression, state.rawValue, state.mode, onChange, value])
 
-  const handleModeChange = (_event: React.FormEvent<HTMLSelectElement>, value: string) => {
-    if ((value === 'visual' && state.mode === 'raw') || (value === 'raw' && state.mode === 'visual')) {
-      dispatch({ type: 'TOGGLE_MODE' })
-    }
-  }
+  const [isModeOpen, setIsModeOpen] = useState(false)
+
+  const handleModeSelect = useCallback(
+    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      const selected = String(value)
+      if ((selected === 'visual' && state.mode === 'raw') || (selected === 'raw' && state.mode === 'visual')) {
+        dispatch({ type: 'TOGGLE_MODE' })
+      }
+      setIsModeOpen(false)
+    },
+    [state.mode]
+  )
+
+  const modeToggleRef = useCallback(
+    (toggleRef: React.Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        onClick={() => setIsModeOpen((prev) => !prev)}
+        isExpanded={isModeOpen}
+        isFullWidth
+        aria-label="Expression editor mode"
+      >
+        {state.mode === 'visual' ? 'Visual expression builder' : 'Custom expression'}
+      </MenuToggle>
+    ),
+    [isModeOpen, state.mode]
+  )
 
   const handleRawChange = (rawValue: string) => {
     dispatch({ type: 'SET_RAW_VALUE', payload: rawValue })
@@ -199,10 +267,18 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
       role="group"
     >
       <StackItem>
-        <FormSelect value={state.mode} onChange={handleModeChange} aria-label="Expression editor mode">
-          <FormSelectOption value="visual" label="Visual expression builder" />
-          <FormSelectOption value="raw" label="Custom expression" />
-        </FormSelect>
+        <Select
+          isOpen={isModeOpen}
+          onSelect={handleModeSelect}
+          onOpenChange={setIsModeOpen}
+          toggle={modeToggleRef}
+          selected={state.mode}
+        >
+          <SelectList aria-label="Expression editor mode">
+            <SelectOption value="visual">Visual expression builder</SelectOption>
+            <SelectOption value="raw">Custom expression</SelectOption>
+          </SelectList>
+        </Select>
       </StackItem>
 
       <StackItem>
@@ -212,6 +288,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
             borderRadius: 'var(--pf-t--global--border-radius--default)',
             backgroundColor: 'var(--pf-t--global--color--surface--primary)',
             width: '100%',
+            padding: 'var(--pf-t--global--spacer--sm)',
           }}
         >
           {state.mode === 'visual' ? (
@@ -221,14 +298,12 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
               error={error}
             />
           ) : (
-            <div style={{ padding: 'var(--pf-t--global--spacer--sm)' }}>
-              <ExpressionRawEditor
-                value={state.rawValue}
-                onChange={handleRawChange}
-                error={error}
-                placeholder={placeholder}
-              />
-            </div>
+            <ExpressionRawEditor
+              value={state.rawValue}
+              onChange={handleRawChange}
+              error={error}
+              placeholder={placeholder}
+            />
           )}
         </div>
       </StackItem>

@@ -223,6 +223,7 @@ describe('TaskNodeDetails Component', () => {
       removeActivity: vi.fn(),
       replaceActivity: vi.fn(),
       duplicateActivity: vi.fn(),
+      updateSwitchActivity: vi.fn(),
       moveActivityBefore: vi.fn(),
       moveActivityAfter: vi.fn(),
       reorderActivitiesFromEdges: vi.fn(),

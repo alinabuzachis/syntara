@@ -11,6 +11,7 @@ import { generateActivityId } from '../utils/generateUUID'
 import {
   findActivityById,
   getValidSourceHandles,
+  remapSwitchEdges,
   removeActivityFromList,
   reorderActivities,
   replaceActivityInList,
@@ -331,6 +332,24 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
                 activities: replaceActivityInList(state.currentWorkflow.workflow.activities, activityId, newActivity),
               },
             },
+            isDirty: true,
+          }
+        })
+      },
+
+      updateSwitchActivity: (nodeId, updatedActivity, portMapping) => {
+        set((state) => {
+          if (!state.currentWorkflow) return state
+          return {
+            edges: remapSwitchEdges(state.edges, nodeId, portMapping),
+            currentWorkflow: {
+              ...state.currentWorkflow,
+              workflow: {
+                ...state.currentWorkflow.workflow,
+                activities: replaceActivityInList(state.currentWorkflow.workflow.activities, nodeId, updatedActivity),
+              },
+            },
+            workflowVersion: state.workflowVersion + 1,
             isDirty: true,
           }
         })

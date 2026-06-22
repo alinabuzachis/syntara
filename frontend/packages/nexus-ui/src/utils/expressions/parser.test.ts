@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { parseExpression, parseNode, splitByOperator } from './parser'
+import { serializeExpression } from './serializer'
 import type { ExpressionCondition, ExpressionGroup } from './types'
 
 describe('parseExpression', () => {
@@ -191,6 +192,129 @@ describe('parseExpression', () => {
     const deeplyNestedGroup = nestedGroup.children[0] as ExpressionGroup
     expect(deeplyNestedGroup.operator).toBe('AND')
     expect(deeplyNestedGroup.children).toHaveLength(2)
+  })
+
+  it('preserves nested group from backend format (OR with nested AND)', () => {
+    const backendCondition = '(${trigger.tier} == "vip" or (${trigger.tier} == "premium" and ${trigger.spend} > 10000))'
+    const result = parseExpression(backendCondition)
+    const root = result.root as ExpressionGroup
+
+    expect(root.operator).toBe('OR')
+    expect(root.children).toHaveLength(2)
+    expect(root.children[0].type).toBe('condition')
+    expect(root.children[1].type).toBe('group')
+    expect((root.children[1] as ExpressionGroup).operator).toBe('AND')
+    expect((root.children[1] as ExpressionGroup).children).toHaveLength(2)
+
+    // Serialize back and re-parse — structure should be preserved
+    const serialized = serializeExpression(result)
+    const reparsed = parseExpression(serialized)
+    const reroot = reparsed.root as ExpressionGroup
+
+    expect(reroot.operator).toBe('OR')
+    expect(reroot.children).toHaveLength(2)
+    expect(reroot.children[1].type).toBe('group')
+    expect((reroot.children[1] as ExpressionGroup).operator).toBe('AND')
+    expect((reroot.children[1] as ExpressionGroup).children).toHaveLength(2)
+  })
+
+  it('preserves same-operator nesting (AND inside AND)', () => {
+    const result = parseExpression('${a} > 1 && (${b} == "x" && ${c} > 5)')
+
+    const rootGroup = result.root as ExpressionGroup
+    expect(rootGroup.operator).toBe('AND')
+    expect(rootGroup.children).toHaveLength(2)
+    expect(rootGroup.children[0].type).toBe('condition')
+    expect(rootGroup.children[1].type).toBe('group')
+    expect((rootGroup.children[1] as ExpressionGroup).operator).toBe('AND')
+    expect((rootGroup.children[1] as ExpressionGroup).children).toHaveLength(2)
+  })
+
+  it('preserves same-operator nesting through serialize-parse round-trip', () => {
+    const input = '${a} > 1 && (${b} == "x" && ${c} > 5)'
+    const parsed1 = parseExpression(input)
+
+    const serialized = serializeExpression(parsed1)
+
+    const parsed2 = parseExpression(serialized)
+    const root = parsed2.root as ExpressionGroup
+
+    expect(root.operator).toBe('AND')
+    expect(root.children).toHaveLength(2)
+    expect(root.children[0].type).toBe('condition')
+    expect(root.children[1].type).toBe('group')
+    expect((root.children[1] as ExpressionGroup).operator).toBe('AND')
+    expect((root.children[1] as ExpressionGroup).children).toHaveLength(2)
+  })
+
+  it('flattens single-child nested same-operator group (known limitation)', () => {
+    const expression = {
+      root: {
+        type: 'group' as const,
+        id: '1',
+        operator: 'AND' as const,
+        children: [
+          { type: 'condition' as const, id: '2', variable: 'a', operator: '==' as const, value: '1', negate: false },
+          {
+            type: 'group' as const,
+            id: '3',
+            operator: 'AND' as const,
+            children: [
+              { type: 'condition' as const, id: '4', variable: 'b', operator: '>' as const, value: '5', negate: false },
+            ],
+          },
+        ],
+      },
+    }
+
+    const serialized = serializeExpression(expression)
+    const parsed = parseExpression(serialized)
+    const root = parsed.root as ExpressionGroup
+
+    // Single-child nested group flattens to a condition — the string format
+    // cannot distinguish `(${b} > 5)` as a parenthesized condition vs a group.
+    // Users add a second condition to preserve the group structure.
+    expect(root.children).toHaveLength(2)
+    expect(root.children[1].type).toBe('condition')
+  })
+
+  it('preserves multi-child nested same-operator group through round-trip', () => {
+    const expression = {
+      root: {
+        type: 'group' as const,
+        id: '1',
+        operator: 'AND' as const,
+        children: [
+          { type: 'condition' as const, id: '2', variable: 'a', operator: '==' as const, value: '1', negate: false },
+          {
+            type: 'group' as const,
+            id: '3',
+            operator: 'AND' as const,
+            children: [
+              { type: 'condition' as const, id: '4', variable: 'b', operator: '>' as const, value: '5', negate: false },
+              {
+                type: 'condition' as const,
+                id: '5',
+                variable: 'c',
+                operator: '<' as const,
+                value: '10',
+                negate: false,
+              },
+            ],
+          },
+        ],
+      },
+    }
+
+    const serialized = serializeExpression(expression)
+    const parsed = parseExpression(serialized)
+    const root = parsed.root as ExpressionGroup
+
+    expect(root.children).toHaveLength(2)
+    expect(root.children[0].type).toBe('condition')
+    expect(root.children[1].type).toBe('group')
+    expect((root.children[1] as ExpressionGroup).operator).toBe('AND')
+    expect((root.children[1] as ExpressionGroup).children).toHaveLength(2)
   })
 
   it('parses expression with extra parentheses', () => {

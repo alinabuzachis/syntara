@@ -61,12 +61,12 @@ export function serializeExpression(expression: Expression, options?: { forBacke
  * @param forBackend - If true, use 'not' for Python backend. If false, use '!' for UI display
  * @returns String representation of the node
  */
-function serializeNode(node: ExpressionNode, forBackend: boolean): string {
+function serializeNode(node: ExpressionNode, forBackend: boolean, isNested = false): string {
   if (node.type === 'condition') {
     return serializeCondition(node, forBackend)
   }
 
-  return serializeGroup(node, forBackend)
+  return serializeGroup(node, forBackend, isNested)
 }
 
 /**
@@ -240,41 +240,44 @@ function serializeCondition(condition: ExpressionCondition, forBackend: boolean)
  * }, true)
  * // Returns: "not ((input.age >= 18 && input.score > 50))" (backend mode)
  */
-function serializeGroup(group: ExpressionGroup, forBackend: boolean): string {
-  // Use Python 'and'/'or' for backend, JavaScript '&&'/'||' for UI display
+function serializeSingleChild(
+  result: string,
+  negatePrefix: string,
+  isGroupNegated: boolean,
+  isChildNegated: boolean,
+  isNested: boolean
+): string {
+  if ((isGroupNegated && isChildNegated) || (isNested && isGroupNegated)) {
+    return `${negatePrefix}((${result}))`
+  }
+  if (isNested) {
+    return `(${result})`
+  }
+  return isGroupNegated ? `${negatePrefix}(${result})` : result
+}
+
+function serializeGroup(group: ExpressionGroup, forBackend: boolean, isNested = false): string {
   let operatorSymbol: string
-  if (forBackend) {
-    operatorSymbol = group.operator === 'AND' ? 'and' : 'or'
+  if (group.operator === 'AND') {
+    operatorSymbol = forBackend ? 'and' : '&&'
   } else {
-    operatorSymbol = group.operator === 'AND' ? '&&' : '||'
+    operatorSymbol = forBackend ? 'or' : '||'
   }
 
-  // Serialize all children, filtering out empty ones
   const childExpressions = group.children
-    .map((node) => serializeNode(node, forBackend))
+    .map((node) => serializeNode(node, forBackend, true))
     .filter((expr) => expr.trim() !== '')
 
-  // Empty group
   if (childExpressions.length === 0) {
     return ''
   }
 
-  // Determine negation prefix: '!' for UI display (default), 'not ' for backend
   const negatePrefix = forBackend ? 'not ' : '!'
 
-  // Single child doesn't need parentheses or operator
   if (childExpressions.length === 1) {
-    const result = childExpressions[0]
-    // Special case: if both group and child are negated, preserve group structure
-    // to avoid ambiguity: not ((not (c == d))) vs not (not (c == d)) or !((!(c == d)))
-    const childIsNegated = group.children[0].negate
-    if (group.negate && childIsNegated) {
-      return `${negatePrefix}((${result}))`
-    }
-    return group.negate ? `${negatePrefix}(${result})` : result
+    return serializeSingleChild(childExpressions[0], negatePrefix, !!group.negate, !!group.children[0].negate, isNested)
   }
 
-  // Multiple children need grouping with parentheses
   const separator = ` ${operatorSymbol} `
   const result = `(${childExpressions.join(separator)})`
   return group.negate ? `${negatePrefix}(${result})` : result

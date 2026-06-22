@@ -65,6 +65,15 @@ type ButtonHandleKeySets = {
   switchKeys: Set<string>
 }
 
+const HANDLE_TO_KEY_SET: Record<string, 'conditionKeys' | 'loopKeys' | 'approvalKeys'> = {
+  [EdgeHandleEnum.TRUE]: 'conditionKeys',
+  [EdgeHandleEnum.FALSE]: 'conditionKeys',
+  [EdgeHandleEnum.DONE]: 'loopKeys',
+  [EdgeHandleEnum.LOOP]: 'loopKeys',
+  [EdgeHandleEnum.APPROVED]: 'approvalKeys',
+  [EdgeHandleEnum.REJECTED]: 'approvalKeys',
+}
+
 function buildButtonHandleKeySets(existingButtonEdges: EdgeType[]): ButtonHandleKeySets {
   const nodesWithRegularButtonEdge = new Set<string>()
   const conditionKeys = new Set<string>()
@@ -72,15 +81,15 @@ function buildButtonHandleKeySets(existingButtonEdges: EdgeType[]): ButtonHandle
   const approvalKeys = new Set<string>()
   const switchKeys = new Set<string>()
 
+  const keySets = { conditionKeys, loopKeys, approvalKeys }
+
   for (const edge of existingButtonEdges) {
     const handle = edge.sourceHandle
     const key = `${edge.source}-${handle}`
-    if (handle === EdgeHandleEnum.TRUE || handle === EdgeHandleEnum.FALSE) {
-      conditionKeys.add(key)
-    } else if (handle === EdgeHandleEnum.DONE || handle === EdgeHandleEnum.LOOP) {
-      loopKeys.add(key)
-    } else if (handle === EdgeHandleEnum.APPROVED || handle === EdgeHandleEnum.REJECTED) {
-      approvalKeys.add(key)
+
+    const setName = handle ? HANDLE_TO_KEY_SET[handle] : undefined
+    if (setName) {
+      keySets[setName].add(key)
     } else if (handle === EdgeHandleEnum.DEFAULT || isSwitchCasePort(handle)) {
       switchKeys.add(key)
     } else if (handle === EdgeHandleEnum.SOURCE || handle == null || handle === '') {

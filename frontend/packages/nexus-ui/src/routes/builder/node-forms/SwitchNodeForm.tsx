@@ -207,12 +207,22 @@ function SwitchCaseItem({
                       <FormGroup
                         label="Path expression"
                         labelHelp={<PathExpressionHelp />}
+                        isRequired
                         fieldId={`case-condition-${fieldId}`}
                       >
                         <ExpressionBuilder
                           id={`case-condition-${fieldId}`}
                           value={currentCase?.condition ?? ''}
-                          onChange={(val) => field.onChange({ ...currentCase, condition: val })}
+                          initialExpression={currentCase?.expressionTree}
+                          initialMode={currentCase?.editorMode}
+                          onChange={(val, tree, mode) =>
+                            field.onChange({
+                              ...currentCase,
+                              condition: val,
+                              expressionTree: tree?.root ? tree : undefined,
+                              editorMode: mode,
+                            })
+                          }
                           error={hasError}
                           placeholder="Build your condition"
                         />

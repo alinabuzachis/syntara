@@ -193,3 +193,19 @@ export function reorderActivities(activities: Activity[], edges: EdgeConnection[
 
   return reorderedActivities
 }
+
+export function remapSwitchEdges(
+  edges: EdgeConnection[],
+  nodeId: string,
+  portMapping: Map<string, string>
+): EdgeConnection[] {
+  return edges
+    .map((edge) => {
+      if (edge.source !== nodeId) return edge
+      const handle = edge.sourceHandle
+      if (!handle || !isSwitchCasePort(handle)) return edge
+      const newHandle = portMapping.get(handle)
+      return newHandle ? { ...edge, sourceHandle: newHandle } : null
+    })
+    .filter((edge): edge is NonNullable<typeof edge> => edge !== null)
+}

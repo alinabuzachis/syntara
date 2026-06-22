@@ -94,7 +94,8 @@ describe('ConditionNodeForm', () => {
       await user.paste('Test Condition')
 
       // Switch to raw mode and enter expression
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      await user.click(screen.getByRole('button', { name: /Expression editor mode/i }))
+      await user.click(await screen.findByRole('option', { name: 'Custom expression' }))
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${result > 0}')
@@ -118,7 +119,8 @@ describe('ConditionNodeForm', () => {
       const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
       await user.click(nameInput)
       await user.paste('Another Condition')
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      await user.click(screen.getByRole('button', { name: /Expression editor mode/i }))
+      await user.click(await screen.findByRole('option', { name: 'Custom expression' }))
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${x == 5}')

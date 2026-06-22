@@ -5,6 +5,7 @@ import {
   collectAllActivityIds,
   findActivityById,
   getValidSourceHandles,
+  remapSwitchEdges,
   removeActivityFromList,
   updateActivityInList,
   reorderActivities,
@@ -237,5 +238,67 @@ describe('getValidSourceHandles', () => {
   it('returns SOURCE for script activity type', () => {
     const handles = getValidSourceHandles(ActivityTypeEnum.SCRIPT)
     expect(handles).toEqual(new Set([EdgeHandleEnum.SOURCE]))
+  })
+})
+
+describe('remapSwitchEdges', () => {
+  const portMapping = new Map([
+    ['case_0', 'case_0'],
+    ['case_2', 'case_1'],
+  ])
+
+  const edge = (id: string, source: string, target: string, sourceHandle?: string) => ({
+    id,
+    source,
+    target,
+    sourceHandle,
+  })
+
+  it('remaps switch case edges according to port mapping', () => {
+    const edges = [edge('e0', 'switch-1', 'node-a', 'case_0'), edge('e2', 'switch-1', 'node-c', 'case_2')]
+    const result = remapSwitchEdges(edges, 'switch-1', portMapping)
+
+    expect(result[0].sourceHandle).toBe('case_0')
+    expect(result[1].sourceHandle).toBe('case_1')
+  })
+
+  it('removes edges whose port is not in the mapping', () => {
+    const edges = [edge('e1', 'switch-1', 'node-b', 'case_1')]
+    const result = remapSwitchEdges(edges, 'switch-1', portMapping)
+
+    expect(result).toHaveLength(0)
+  })
+
+  it('preserves edges without sourceHandle', () => {
+    const edges = [edge('e-no-handle', 'switch-1', 'node-x')]
+    const result = remapSwitchEdges(edges, 'switch-1', portMapping)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].target).toBe('node-x')
+  })
+
+  it('preserves default handle edges', () => {
+    const edges = [edge('e-default', 'switch-1', 'node-d', EdgeHandleEnum.DEFAULT)]
+    const result = remapSwitchEdges(edges, 'switch-1', portMapping)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].sourceHandle).toBe(EdgeHandleEnum.DEFAULT)
+  })
+
+  it('preserves non-switch sourceHandle edges', () => {
+    const edges = [edge('e-source', 'switch-1', 'node-y', EdgeHandleEnum.SOURCE)]
+    const result = remapSwitchEdges(edges, 'switch-1', portMapping)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].sourceHandle).toBe(EdgeHandleEnum.SOURCE)
+  })
+
+  it('does not affect edges from other nodes', () => {
+    const edges = [edge('e-other', 'other-node', 'node-z', 'case_0')]
+    const result = remapSwitchEdges(edges, 'switch-1', portMapping)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].source).toBe('other-node')
+    expect(result[0].sourceHandle).toBe('case_0')
   })
 })

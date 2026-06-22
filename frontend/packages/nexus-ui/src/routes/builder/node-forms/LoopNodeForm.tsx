@@ -192,11 +192,8 @@ function LoopFormFields({
       {type === 'while' && (
         <StackItem>
           <FormGroup
-            label={
-              <>
-                Conditional expression <ConditionalExpressionHelp />
-              </>
-            }
+            label="Conditional expression"
+            labelHelp={<ConditionalExpressionHelp />}
             isRequired
             fieldId="loop-condition-while"
           >

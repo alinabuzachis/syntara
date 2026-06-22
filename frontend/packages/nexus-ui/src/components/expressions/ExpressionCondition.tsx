@@ -11,16 +11,21 @@ import {
   FlexItem,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectGroup,
+  SelectList,
+  SelectOption,
   TextInput,
   Button,
   Stack,
   StackItem,
 } from '@patternfly/react-core'
-import { TrashIcon } from '@patternfly/react-icons'
+import { RhUiTrashIcon } from '@patternfly/react-icons'
+import { useCallback, useState } from 'react'
 
 import { isUnaryOperator, OPERATOR_LABELS, OPERATOR_GROUPS } from '../../utils/expressions/defaults'
 import type { ExpressionCondition as ExpressionConditionType, ComparisonOperator } from '../../utils/expressions/types'
@@ -105,15 +110,35 @@ type ExpressionConditionProps = {
 export function ExpressionCondition(props: ExpressionConditionProps) {
   const { condition, onChange, onRemove, error, fieldErrors } = props
 
-  // Handle operator change
-  const handleOperatorChange = (_event: unknown, value: string) => {
-    const newOp = value as ComparisonOperator
-    // Clear value when switching to unary operator (exists, isEmpty don't need values)
-    onChange({
-      operator: newOp,
-      ...(isUnaryOperator(newOp) && { value: '' }),
-    })
-  }
+  const [isOperatorOpen, setIsOperatorOpen] = useState(false)
+
+  const handleOperatorSelect = useCallback(
+    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      const newOp = String(value) as ComparisonOperator
+      onChange({
+        operator: newOp,
+        ...(isUnaryOperator(newOp) && { value: '' }),
+      })
+      setIsOperatorOpen(false)
+    },
+    [onChange]
+  )
+
+  const operatorToggle = useCallback(
+    (toggleRef: React.Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        onClick={() => setIsOperatorOpen((prev) => !prev)}
+        isExpanded={isOperatorOpen}
+        isFullWidth
+        aria-label="Comparison operator"
+        id={`operator-${condition.id}`}
+      >
+        {OPERATOR_LABELS[condition.operator]}
+      </MenuToggle>
+    ),
+    [isOperatorOpen, condition.operator, condition.id]
+  )
 
   return (
     <Card style={{ borderRadius: 'var(--pf-t--global--border-radius--pill)' }}>
@@ -128,7 +153,7 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
             }}
           >
             <Button variant="plain" isDanger onClick={onRemove} aria-label="Remove condition">
-              <TrashIcon />
+              <RhUiTrashIcon />
             </Button>
           </div>
         )}
@@ -176,20 +201,25 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
           {/* Operator */}
           <StackItem>
             <FormGroup label="Operator" labelHelp={<OperatorHelp />} isRequired fieldId={`operator-${condition.id}`}>
-              <FormSelect
-                id={`operator-${condition.id}`}
-                value={condition.operator}
-                onChange={handleOperatorChange}
-                aria-label="Comparison operator"
+              <Select
+                isOpen={isOperatorOpen}
+                onSelect={handleOperatorSelect}
+                onOpenChange={setIsOperatorOpen}
+                toggle={operatorToggle}
+                selected={condition.operator}
               >
-                {OPERATOR_GROUPS.map((group) => (
-                  <optgroup key={group.label} label={group.label}>
-                    {group.operators.map((op) => (
-                      <FormSelectOption key={op} value={op} label={OPERATOR_LABELS[op]} />
-                    ))}
-                  </optgroup>
-                ))}
-              </FormSelect>
+                <SelectList aria-label="Comparison operator">
+                  {OPERATOR_GROUPS.map((opGroup) => (
+                    <SelectGroup key={opGroup.label} label={opGroup.label}>
+                      {opGroup.operators.map((op) => (
+                        <SelectOption key={op} value={op}>
+                          {OPERATOR_LABELS[op]}
+                        </SelectOption>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectList>
+              </Select>
             </FormGroup>
           </StackItem>
 

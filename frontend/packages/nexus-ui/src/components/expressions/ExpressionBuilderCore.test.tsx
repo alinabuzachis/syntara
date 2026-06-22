@@ -7,6 +7,23 @@ import { createDefaultCondition, createDefaultGroup } from '../../utils/expressi
 import { ExpressionBuilderCore } from './ExpressionBuilderCore'
 import { prepareRootNode } from './prepareRootNode'
 
+const MODE_LABELS: Record<string, string> = {
+  visual: 'Visual expression builder',
+  raw: 'Custom expression',
+}
+
+async function selectMode(user: ReturnType<typeof userEvent.setup>, mode: 'visual' | 'raw') {
+  const toggle = screen.getByRole('button', { name: 'Expression editor mode' })
+  await user.click(toggle)
+  const option = await screen.findByRole('option', { name: MODE_LABELS[mode] })
+  await user.click(option)
+}
+
+function expectModeValue(mode: 'visual' | 'raw') {
+  const toggle = screen.getByRole('button', { name: 'Expression editor mode' })
+  expect(toggle).toHaveTextContent(MODE_LABELS[mode])
+}
+
 describe('prepareRootNode', () => {
   it('wraps a condition node in a group', () => {
     const condition = createDefaultCondition()
@@ -14,7 +31,6 @@ describe('prepareRootNode', () => {
 
     const result = prepareRootNode(expression)
 
-    // Destructured to avoid testing-library/no-node-access false-positive on `.children`
     const { children: resultChildren } = result
     expect(result.type).toBe('group')
     expect(resultChildren).toHaveLength(1)
@@ -36,7 +52,6 @@ describe('prepareRootNode', () => {
   it('creates a default group when root is null', () => {
     const result = prepareRootNode({ root: null })
 
-    // Destructured to avoid testing-library/no-node-access false-positive on `.children`
     const { children: resultChildren } = result
     expect(result.type).toBe('group')
     expect(result.operator).toBe('AND')
@@ -50,18 +65,20 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} />)
 
-    expect(screen.getByLabelText('Expression editor mode')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Expression editor mode' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add condition' })).toBeInTheDocument()
   })
 
-  it('renders mode selector with visual and raw options', () => {
+  it('renders mode selector with visual and raw options', async () => {
+    const user = userEvent.setup()
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} />)
 
-    const modeSelect = screen.getByLabelText('Expression editor mode')
-    expect(modeSelect).toHaveValue('visual')
+    expectModeValue('visual')
 
-    // Check options exist
+    const toggle = screen.getByRole('button', { name: 'Expression editor mode' })
+    await user.click(toggle)
+
     expect(screen.getByRole('option', { name: 'Visual expression builder' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Custom expression' })).toBeInTheDocument()
   })
@@ -70,7 +87,7 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="${input.age >= 18}" onChange={onChange} />)
 
-    expect(screen.getByLabelText('Expression editor mode')).toHaveValue('visual')
+    expectModeValue('visual')
     expect(screen.getByRole('button', { name: 'Add condition' })).toBeInTheDocument()
   })
 
@@ -78,7 +95,7 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="${invalid syntax" onChange={onChange} />)
 
-    expect(screen.getByLabelText('Expression editor mode')).toHaveValue('raw')
+    expectModeValue('raw')
   })
 
   it('switches from visual to raw mode', async () => {
@@ -86,8 +103,7 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} />)
 
-    const modeSelect = screen.getByLabelText('Expression editor mode')
-    await user.selectOptions(modeSelect, 'raw')
+    await selectMode(user, 'raw')
 
     await waitFor(() => {
       expect(screen.getByLabelText('Raw expression')).toBeInTheDocument()
@@ -99,17 +115,12 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="${input.age >= 18}" onChange={onChange} />)
 
-    // Start in visual mode
-    const modeSelect = screen.getByLabelText('Expression editor mode')
-
-    // Switch to raw
-    await user.selectOptions(modeSelect, 'raw')
+    await selectMode(user, 'raw')
     await waitFor(() => {
       expect(screen.getByLabelText('Raw expression')).toBeInTheDocument()
     })
 
-    // Switch back to visual
-    await user.selectOptions(modeSelect, 'visual')
+    await selectMode(user, 'visual')
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Add condition' })).toBeInTheDocument()
     })
@@ -123,7 +134,6 @@ describe('ExpressionBuilderCore', () => {
     const fieldInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
     await user.type(fieldInputs[0], 'test')
 
-    // Field should update
     expect(fieldInputs[0]).toHaveValue('test')
   })
 
@@ -132,15 +142,12 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="${test}" onChange={onChange} />)
 
-    // Switch to raw mode
-    const modeSelect = screen.getByLabelText('Expression editor mode')
-    await user.selectOptions(modeSelect, 'raw')
+    await selectMode(user, 'raw')
 
     const rawInput = await screen.findByLabelText('Raw expression')
     await user.clear(rawInput)
     await user.type(rawInput, 'updated')
 
-    // Should show typed text
     expect(rawInput).toHaveValue('updated')
   })
 
@@ -149,9 +156,7 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="${input.age} >= 18" onChange={onChange} />)
 
-    // Switch to raw mode
-    const modeSelect = screen.getByLabelText('Expression editor mode')
-    await user.selectOptions(modeSelect, 'raw')
+    await selectMode(user, 'raw')
 
     const rawInput = await screen.findByLabelText('Raw expression')
     expect(rawInput).toHaveValue('${input.age} >= 18')
@@ -161,7 +166,6 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     const { rerender } = render(<ExpressionBuilderCore value="" onChange={onChange} />)
 
-    // Update value externally
     rerender(<ExpressionBuilderCore value="${input.score > 50}" onChange={onChange} />)
 
     await waitFor(() => {
@@ -175,10 +179,8 @@ describe('ExpressionBuilderCore', () => {
 
     onChange.mockClear()
 
-    // Re-render with same value
     rerender(<ExpressionBuilderCore value="${input.age >= 18}" onChange={onChange} />)
 
-    // Should not call onChange for external update
     expect(onChange).not.toHaveBeenCalled()
   })
 
@@ -187,8 +189,7 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} placeholder="Custom placeholder" />)
 
-    const modeSelect = screen.getByLabelText('Expression editor mode')
-    await user.selectOptions(modeSelect, 'raw')
+    await selectMode(user, 'raw')
 
     expect(await screen.findByPlaceholderText('Custom placeholder')).toBeInTheDocument()
   })
@@ -204,7 +205,6 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} id="custom-builder-id" />)
 
-    // Get the outermost group (ExpressionBuilderCore container)
     expect(screen.getByRole('group', { name: 'Expression builder' })).toHaveAttribute('id', 'custom-builder-id')
   })
 
@@ -212,7 +212,6 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} aria-labelledby="custom-label" />)
 
-    // Get the outermost group by the custom label
     const groups = screen.getAllByRole('group')
     const builderGroup = groups.find((g) => g.hasAttribute('aria-labelledby'))
     expect(builderGroup).toBeDefined()
@@ -234,7 +233,6 @@ describe('ExpressionBuilderCore', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add condition' }))
 
-    // Should have multiple conditions now
     const fieldInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
     expect(fieldInputs.length).toBeGreaterThan(1)
   })
@@ -246,7 +244,6 @@ describe('ExpressionBuilderCore', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add group' }))
 
-    // Should have nested group (at level 1, so it will have Group label)
     const groupLabels = screen.getAllByText('Group')
     expect(groupLabels.length).toBeGreaterThan(0)
   })
@@ -256,14 +253,11 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="${input.age >= 18}" onChange={onChange} />)
 
-    // Add another condition first
     await user.click(screen.getByRole('button', { name: 'Add condition' }))
 
-    // Find and click remove button
     const removeButtons = screen.getAllByRole('button', { name: 'Remove condition' })
     await user.click(removeButtons[0])
 
-    // Should still have one condition (default)
     const fieldInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
     expect(fieldInputs.length).toBeGreaterThan(0)
   })
@@ -272,7 +266,6 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="${input.age >= 18}" onChange={onChange} />)
 
-    // Should render group wrapper
     expect(screen.getByRole('button', { name: 'Add condition' })).toBeInTheDocument()
   })
 
@@ -280,7 +273,6 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} />)
 
-    // Should render default empty group
     expect(screen.getByRole('button', { name: 'Add condition' })).toBeInTheDocument()
   })
 
@@ -289,16 +281,16 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} />)
 
-    // Add another condition to show operator selector
     await user.click(screen.getByRole('button', { name: 'Add condition' }))
 
-    const operatorSelect = screen.getByLabelText('Logical operator')
-    expect(operatorSelect).toHaveValue('AND')
+    const operatorToggle = screen.getByRole('button', { name: 'Logical operator' })
+    expect(operatorToggle).toHaveTextContent('AND')
 
-    await user.selectOptions(operatorSelect, 'OR')
+    await user.click(operatorToggle)
+    const orOption = await screen.findByRole('option', { name: 'OR' })
+    await user.click(orOption)
 
-    // Should update to OR
-    expect(operatorSelect).toHaveValue('OR')
+    expect(screen.getByRole('button', { name: 'Logical operator' })).toHaveTextContent('OR')
   })
 
   it('allows switching to visual mode with invalid raw expression', async () => {
@@ -306,19 +298,63 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} />)
 
-    // Switch to raw
-    const modeSelect = screen.getByLabelText('Expression editor mode')
-    await user.selectOptions(modeSelect, 'raw')
+    await selectMode(user, 'raw')
 
-    // Enter invalid expression
     const rawInput = await screen.findByLabelText('Raw expression')
     await user.type(rawInput, 'invalid')
 
-    // Switch back to visual - should show default empty group
-    await user.selectOptions(modeSelect, 'visual')
+    await selectMode(user, 'visual')
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Add condition' })).toBeInTheDocument()
+    })
+  })
+
+  describe('External value change mode sync', () => {
+    it('preserves raw mode when external value changes to a parseable expression', () => {
+      const onChange = vi.fn()
+      const { rerender } = render(<ExpressionBuilderCore value="unparseable syntax {{" onChange={onChange} />)
+
+      expectModeValue('raw')
+
+      rerender(<ExpressionBuilderCore value='${status} == "active"' onChange={onChange} />)
+
+      expectModeValue('raw')
+    })
+
+    it('preserves visual mode when external value changes to an unparseable expression', () => {
+      const onChange = vi.fn()
+      const { rerender } = render(<ExpressionBuilderCore value='${status} == "active"' onChange={onChange} />)
+
+      expectModeValue('visual')
+
+      rerender(<ExpressionBuilderCore value="unparseable {{syntax" onChange={onChange} />)
+
+      expectModeValue('visual')
+    })
+
+    it('preserves visual mode when external value changes to another parseable expression', () => {
+      const onChange = vi.fn()
+      const { rerender } = render(<ExpressionBuilderCore value="${a} == 1" onChange={onChange} />)
+
+      expectModeValue('visual')
+
+      rerender(<ExpressionBuilderCore value="${b} > 5" onChange={onChange} />)
+
+      expectModeValue('visual')
+    })
+
+    it('preserves current mode when external value changes to empty', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const { rerender } = render(<ExpressionBuilderCore value='${status} == "active"' onChange={onChange} />)
+
+      await selectMode(user, 'raw')
+      expectModeValue('raw')
+
+      rerender(<ExpressionBuilderCore value="" onChange={onChange} />)
+
+      expectModeValue('raw')
     })
   })
 })

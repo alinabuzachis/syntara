@@ -2,9 +2,10 @@ import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@ansible
 import { type ReactNode, useMemo } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
-import { useWorkflowStore, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import type { Expression } from '../../../utils/expressions/types'
 import { SwitchNodeForm, type SwitchFormData } from '../node-forms/SwitchNodeForm'
-import { buildSwitchCasePort, isSwitchCasePort } from '../utils/switchCaseHelpers'
+import { buildSwitchCasePort } from '../utils/switchCaseHelpers'
 
 type SwitchNodeDetailsProps = {
   switchData: SwitchActivity
@@ -15,9 +16,12 @@ type SwitchNodeDetailsProps = {
 
 export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContentChange }: SwitchNodeDetailsProps) {
   const { showError } = useAlerts()
-  const { updateActivity } = useWorkflowStoreActions()
+  const { updateSwitchActivity } = useWorkflowStoreActions()
 
   const switchConfig = (switchData.parameters ?? { cases: [] }) as SwitchConfig
+  const uiState = (switchData.parameters as Record<string, unknown> | undefined) ?? {}
+  const expressionTrees = uiState._expressionTrees as Record<string, Expression> | undefined
+  const editorModes = uiState._editorModes as Record<string, 'visual' | 'raw'> | undefined
 
   const { initialCases, oldCaseIdToPort } = useMemo(() => {
     const portMap = new Map<string, string>()
@@ -28,10 +32,12 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
           caseId: c.port,
           label: c.label || `Path ${i + 1}`,
           condition: c.condition,
+          expressionTree: expressionTrees?.[c.port],
+          editorMode: editorModes?.[c.port],
         }
       }) ?? []
     return { initialCases: cases, oldCaseIdToPort: portMap }
-  }, [switchConfig.cases])
+  }, [switchConfig.cases, expressionTrees, editorModes])
 
   const initialData: Partial<SwitchFormData> = {
     name: switchData.name,
@@ -40,11 +46,22 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
 
   const handleSubmit = (data: SwitchFormData) => {
     try {
-      const newCases = data.cases.map((c, i) => ({
-        port: buildSwitchCasePort(i),
-        label: c.label || `Path ${i + 1}`,
-        condition: c.condition,
-      }))
+      const trees: Record<string, Expression> = {}
+      const modes: Record<string, 'visual' | 'raw'> = {}
+      const newCases = data.cases.map((c, i) => {
+        const port = buildSwitchCasePort(i)
+        if (c.expressionTree) {
+          trees[port] = c.expressionTree
+        }
+        if (c.editorMode) {
+          modes[port] = c.editorMode
+        }
+        return {
+          port,
+          label: c.label || `Path ${i + 1}`,
+          condition: c.condition,
+        }
+      })
 
       const updatedActivity: SwitchActivity = {
         ...switchData,
@@ -52,6 +69,8 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
         parameters: {
           cases: newCases,
           default_port: EdgeHandleEnum.DEFAULT,
+          _expressionTrees: trees,
+          _editorModes: modes,
         },
       } as SwitchActivity
 
@@ -63,23 +82,7 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
         }
       })
 
-      updateActivity(nodeId, updatedActivity)
-
-      const currentEdges = useWorkflowStore.getState().edges
-      const updatedEdges = currentEdges
-        .map((edge) => {
-          if (edge.source !== nodeId) return edge
-          const handle = edge.sourceHandle
-          if (!handle || handle === EdgeHandleEnum.DEFAULT) return edge
-          if (isSwitchCasePort(handle)) {
-            const newHandle = portMapping.get(handle)
-            return newHandle ? { ...edge, sourceHandle: newHandle } : null
-          }
-          return edge
-        })
-        .filter((edge): edge is NonNullable<typeof edge> => edge !== null)
-
-      useWorkflowStore.getState().setEdges(updatedEdges)
+      updateSwitchActivity(nodeId, updatedActivity, portMapping)
 
       onClose()
     } catch (error) {

@@ -85,7 +85,7 @@ describe('ExpressionGroup', () => {
     render(<ExpressionGroup {...defaultProps} group={group} />)
 
     // Should render Rule selector between conditions
-    expect(screen.getByLabelText('Logical operator')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Logical operator' })).toBeInTheDocument()
   })
 
   it('shows "Rule" label at level 0', () => {
@@ -117,8 +117,10 @@ describe('ExpressionGroup', () => {
     }
     render(<ExpressionGroup {...defaultProps} group={group} onChange={onChange} />)
 
-    const select = screen.getByLabelText('Logical operator')
-    await user.selectOptions(select, 'OR')
+    const toggle = screen.getByRole('button', { name: 'Logical operator' })
+    await user.click(toggle)
+    const orOption = await screen.findByRole('option', { name: 'OR' })
+    await user.click(orOption)
 
     expect(onChange).toHaveBeenCalledWith({ operator: 'OR' })
   })
@@ -130,7 +132,7 @@ describe('ExpressionGroup', () => {
     }
     render(<ExpressionGroup {...defaultProps} group={group} />)
 
-    const selects = screen.getAllByLabelText('Logical operator')
+    const selects = screen.getAllByRole('button', { name: 'Logical operator' })
     expect(selects[0]).not.toBeDisabled()
   })
 
@@ -141,7 +143,7 @@ describe('ExpressionGroup', () => {
     }
     render(<ExpressionGroup {...defaultProps} group={group} />)
 
-    const selects = screen.getAllByLabelText('Logical operator')
+    const selects = screen.getAllByRole('button', { name: 'Logical operator' })
     expect(selects[0]).not.toBeDisabled() // First is enabled
     expect(selects[1]).toBeDisabled() // Second is disabled
   })
@@ -153,9 +155,9 @@ describe('ExpressionGroup', () => {
     }
     render(<ExpressionGroup {...defaultProps} group={group} />)
 
-    const selects = screen.getAllByLabelText('Logical operator')
-    selects.forEach((select) => {
-      expect(select).toHaveValue('OR')
+    const toggles = screen.getAllByRole('button', { name: 'Logical operator' })
+    toggles.forEach((toggle) => {
+      expect(toggle).toHaveTextContent('OR')
     })
   })
 
@@ -250,7 +252,7 @@ describe('ExpressionGroup', () => {
     render(<ExpressionGroup {...defaultProps} group={group} />)
 
     // Should only have one Rule selector (before second child)
-    const selects = screen.getAllByLabelText('Logical operator')
+    const selects = screen.getAllByRole('button', { name: 'Logical operator' })
     expect(selects).toHaveLength(1)
   })
 
@@ -373,7 +375,7 @@ describe('ExpressionGroup', () => {
     }
     render(<ExpressionGroup {...defaultProps} group={group} />)
 
-    const selects = screen.getAllByLabelText('Logical operator')
+    const selects = screen.getAllByRole('button', { name: 'Logical operator' })
     // Hover over the disabled (second) select
     await user.hover(selects[1])
 
@@ -511,10 +513,12 @@ describe('ExpressionGroup', () => {
     }
     render(<ExpressionGroup {...defaultProps} group={group} onChange={onChange} />)
 
-    const select = screen.getByLabelText('Logical operator')
-    expect(select).toHaveValue('OR')
+    const toggle = screen.getByRole('button', { name: 'Logical operator' })
+    expect(toggle).toHaveTextContent('OR')
 
-    await user.selectOptions(select, 'AND')
+    await user.click(toggle)
+    const andOption = await screen.findByRole('option', { name: 'AND' })
+    await user.click(andOption)
 
     expect(onChange).toHaveBeenCalledWith({ operator: 'AND' })
   })
@@ -636,7 +640,7 @@ describe('ExpressionGroup', () => {
     }
     render(<ExpressionGroup {...defaultProps} group={group} />)
 
-    const selects = screen.getAllByLabelText('Logical operator')
+    const selects = screen.getAllByRole('button', { name: 'Logical operator' })
     // Should have 3 selects (before 2nd, 3rd, and 4th children)
     expect(selects).toHaveLength(3)
     // First should be enabled

@@ -75,7 +75,8 @@ describe('LoopNodeForm', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Invalid Max Loop')
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      await user.click(screen.getByRole('button', { name: /Expression editor mode/i }))
+      await user.click(await screen.findByRole('option', { name: 'Custom expression' }))
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${running}')
@@ -291,7 +292,8 @@ describe('LoopNodeForm', () => {
 
       await user.type(screen.getByRole('spinbutton', { name: /Max iterations/i }), '500')
 
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      await user.click(screen.getByRole('button', { name: /Expression editor mode/i }))
+      await user.click(await screen.findByRole('option', { name: 'Custom expression' }))
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${x < 100}')
@@ -316,7 +318,8 @@ describe('LoopNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Simple While')
 
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      await user.click(screen.getByRole('button', { name: /Expression editor mode/i }))
+      await user.click(await screen.findByRole('option', { name: 'Custom expression' }))
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${running}')
@@ -336,7 +339,8 @@ describe('LoopNodeForm', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Clean While')
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      await user.click(screen.getByRole('button', { name: /Expression editor mode/i }))
+      await user.click(await screen.findByRole('option', { name: 'Custom expression' }))
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${running}')

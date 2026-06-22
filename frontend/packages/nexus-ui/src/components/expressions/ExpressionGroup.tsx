@@ -11,17 +11,20 @@ import {
   ContentVariants,
   Flex,
   FlexItem,
-  FormSelect,
-  FormSelectOption,
   List,
   ListItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
   FormGroup,
   Tooltip,
 } from '@patternfly/react-core'
-import { PlusIcon, TrashIcon } from '@patternfly/react-icons'
-import React from 'react'
+import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import React, { useCallback, useState } from 'react'
 
 import { createDefaultCondition, createDefaultGroup } from '../../utils/expressions/defaults'
 import type {
@@ -101,6 +104,62 @@ const GroupNotHelp = () => (
   />
 )
 
+type OperatorSelectProps = {
+  groupId: string
+  index: number
+  operator: LogicalOperator
+  onSelect: (_event: React.MouseEvent | undefined, value: string | number | undefined) => void
+  isDisabled: boolean
+}
+
+function OperatorSelect({ groupId, index, operator, onSelect, isDisabled }: OperatorSelectProps) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const toggle = useCallback(
+    (toggleRef: React.Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        onClick={() => setIsOpen((prev) => !prev)}
+        isExpanded={isOpen}
+        isDisabled={isDisabled}
+        isFullWidth
+        aria-label="Logical operator"
+        id={`rule-${groupId}-${index}`}
+      >
+        {operator}
+      </MenuToggle>
+    ),
+    [isOpen, isDisabled, groupId, index, operator]
+  )
+
+  const handleSelect = useCallback(
+    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      onSelect(_event, value)
+      setIsOpen(false)
+    },
+    [onSelect]
+  )
+
+  const select = (
+    <Select isOpen={isOpen} onSelect={handleSelect} onOpenChange={setIsOpen} toggle={toggle} selected={operator}>
+      <SelectList aria-label="Logical operator">
+        <SelectOption value="AND">AND</SelectOption>
+        <SelectOption value="OR">OR</SelectOption>
+      </SelectList>
+    </Select>
+  )
+
+  if (isDisabled) {
+    return (
+      <Tooltip content="All conditions in this group must follow the same rule. To switch between AND/OR, please adjust the first rule input at the top of this level.">
+        {select}
+      </Tooltip>
+    )
+  }
+
+  return select
+}
+
 type ExpressionGroupProps = {
   /** The group data */
   group: ExpressionGroupType
@@ -143,9 +202,12 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
     error,
   } = props
 
-  const handleOperatorChange = (_event: React.FormEvent<HTMLSelectElement>, value: string) => {
-    onChange({ operator: value as LogicalOperator })
-  }
+  const handleOperatorSelect = useCallback(
+    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      onChange({ operator: String(value) as LogicalOperator })
+    },
+    [onChange]
+  )
 
   // Styling for visual hierarchy — level 0 has no border/padding so content fills the
   // full width of the parent (matching the mode dropdown above). Nested groups get
@@ -157,7 +219,7 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
           border: '1px solid var(--pf-t--global--color--border--default)',
           borderRadius: 'var(--pf-t--global--border-radius--default)',
           padding: 'var(--pf-t--global--spacer--sm)',
-          marginLeft: 'var(--pf-t--global--spacer--md)',
+          marginLeft: 'var(--pf-t--global--spacer--sm)',
           borderLeft: '2px solid var(--pf-t--global--color--brand--default)',
           backgroundColor: 'transparent',
         }
@@ -214,7 +276,7 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
                       isDanger
                       size="sm"
                       onClick={onRemove}
-                      icon={<TrashIcon />}
+                      icon={<RhUiTrashIcon />}
                       aria-label="Remove group"
                     />
                   </FlexItem>
@@ -232,35 +294,17 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
               <StackItem>
                 <div style={{ maxWidth: '100px' }}>
                   <FormGroup
-                    label={
-                      <span>
-                        {level > 0 ? 'Group rule' : 'Rule'} {level > 0 ? <GroupRuleHelp /> : <RuleHelp />}
-                      </span>
-                    }
+                    label={level > 0 ? 'Group rule' : 'Rule'}
+                    labelHelp={level > 0 ? <GroupRuleHelp /> : <RuleHelp />}
                     fieldId={`rule-${group.id}-${index}`}
                   >
-                    {(() => {
-                      const formSelect = (
-                        <FormSelect
-                          id={`rule-${group.id}-${index}`}
-                          value={group.operator}
-                          onChange={handleOperatorChange}
-                          aria-label="Logical operator"
-                          isDisabled={index > 1}
-                        >
-                          <FormSelectOption value="AND" label="AND" />
-                          <FormSelectOption value="OR" label="OR" />
-                        </FormSelect>
-                      )
-
-                      return index > 1 ? (
-                        <Tooltip content="All conditions in this group must follow the same rule. To switch between AND/OR, please adjust the first rule input at the top of this level.">
-                          {formSelect}
-                        </Tooltip>
-                      ) : (
-                        formSelect
-                      )
-                    })()}
+                    <OperatorSelect
+                      groupId={group.id}
+                      index={index}
+                      operator={group.operator}
+                      onSelect={handleOperatorSelect}
+                      isDisabled={index > 1}
+                    />
                   </FormGroup>
                 </div>
               </StackItem>
@@ -309,14 +353,14 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
           <Flex spaceItems={{ default: 'spaceItemsSm' }}>
             <FlexItem>
               <Tooltip content="Adds a single row for a new field/operator/value comparison within the current group.">
-                <Button variant="secondary" size="sm" onClick={onAddCondition} icon={<PlusIcon />}>
+                <Button variant="secondary" size="sm" onClick={onAddCondition} icon={<RhUiAddIcon />}>
                   Add condition
                 </Button>
               </Tooltip>
             </FlexItem>
             <FlexItem>
               <Tooltip content='Creates a new nested logic container, allowing you to build multi-layered "And/Or" requirements.'>
-                <Button variant="secondary" size="sm" onClick={onAddGroup} icon={<PlusIcon />}>
+                <Button variant="secondary" size="sm" onClick={onAddGroup} icon={<RhUiAddIcon />}>
                   Add group
                 </Button>
               </Tooltip>

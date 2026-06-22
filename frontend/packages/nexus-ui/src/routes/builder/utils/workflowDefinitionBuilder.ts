@@ -153,6 +153,19 @@ function validateNameLength(name: string | undefined, entityLabel: string): void
   }
 }
 
+function transformSwitchParametersForBackend(
+  parameters: Record<string, unknown> & { cases: Array<{ port: string; label: string; condition: string }> }
+): Record<string, unknown> {
+  const rest = Object.fromEntries(Object.entries(parameters).filter(([key]) => !key.startsWith('_')))
+  return {
+    ...rest,
+    cases: parameters.cases.map((c) => ({
+      ...c,
+      condition: transformConditionForBackend(c.condition) ?? c.condition,
+    })),
+  }
+}
+
 /**
  * Transform condition expression from UI format to backend format.
  * Converts `!(...)` syntax to `not (...)` for Python backend compatibility.
@@ -258,13 +271,9 @@ export function buildWorkflowDefinition(
       }
 
       if (a.type === ActivityTypeEnum.SWITCH && isSwitchCaseArray(parameters.cases)) {
-        parameters = {
-          ...parameters,
-          cases: parameters.cases.map((c) => ({
-            ...c,
-            condition: transformConditionForBackend(c.condition) ?? c.condition,
-          })),
-        }
+        parameters = transformSwitchParametersForBackend(
+          parameters as Record<string, unknown> & { cases: Array<{ port: string; label: string; condition: string }> }
+        )
       }
 
       // Transform approval node approvers from objects to string arrays

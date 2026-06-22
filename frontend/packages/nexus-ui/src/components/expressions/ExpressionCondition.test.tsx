@@ -1,10 +1,10 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createDefaultCondition } from '../../utils/expressions/defaults'
-import type { ExpressionCondition as ExpressionConditionType } from '../../utils/expressions/types'
+import { createDefaultCondition, OPERATOR_LABELS } from '../../utils/expressions/defaults'
+import type { ExpressionCondition as ExpressionConditionType, ComparisonOperator } from '../../utils/expressions/types'
 
 import { ExpressionCondition } from './ExpressionCondition'
 
@@ -18,6 +18,13 @@ function ControlledExpressionCondition({ initialCondition }: { initialCondition:
   )
 }
 
+async function selectOperator(user: ReturnType<typeof userEvent.setup>, operatorValue: ComparisonOperator) {
+  const toggle = screen.getByRole('button', { name: 'Comparison operator' })
+  await user.click(toggle)
+  const option = await screen.findByRole('option', { name: OPERATOR_LABELS[operatorValue] })
+  await user.click(option)
+}
+
 describe('ExpressionCondition', () => {
   const defaultProps = {
     condition: createDefaultCondition(),
@@ -27,14 +34,11 @@ describe('ExpressionCondition', () => {
   it('renders condition with all fields', () => {
     render(<ExpressionCondition {...defaultProps} />)
 
-    // Check for field inputs using placeholders
     const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-    expect(inputs).toHaveLength(2) // Field and Value inputs
+    expect(inputs).toHaveLength(2)
 
-    // Check for operator select - verify it exists with the default value
-    const selects = screen.getAllByRole('combobox')
-    const operatorSelect = selects.find((select) => (select as HTMLSelectElement).value === '==')
-    expect(operatorSelect).toBeInTheDocument()
+    const operatorToggle = screen.getByRole('button', { name: 'Comparison operator' })
+    expect(operatorToggle).toHaveTextContent(OPERATOR_LABELS['=='])
   })
 
   it('renders NOT checkbox', () => {
@@ -81,16 +85,7 @@ describe('ExpressionCondition', () => {
     const condition = { ...createDefaultCondition(), operator: '==' as const }
     render(<ExpressionCondition {...defaultProps} condition={condition} onChange={onChange} />)
 
-    // Find all select elements - looking for the one with value "=="
-    const selects = screen.getAllByRole('combobox')
-    // Find the select that has the operator value
-    const operatorSelect = selects.find((select) => (select as HTMLSelectElement).value === '==')
-
-    if (!operatorSelect) {
-      throw new Error('Could not find operator select')
-    }
-
-    await user.selectOptions(operatorSelect, '>')
+    await selectOperator(user, '>')
 
     expect(onChange).toHaveBeenCalledWith({ operator: '>' })
   })
@@ -107,8 +102,7 @@ describe('ExpressionCondition', () => {
   })
 
   it('shows remove button when onRemove is provided', () => {
-    const onRemove = vi.fn()
-    render(<ExpressionCondition {...defaultProps} onRemove={onRemove} />)
+    render(<ExpressionCondition {...defaultProps} onRemove={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: 'Remove condition' })).toBeInTheDocument()
   })
@@ -128,74 +122,73 @@ describe('ExpressionCondition', () => {
     expect(onRemove).toHaveBeenCalledTimes(1)
   })
 
-  it('renders all 14 operators with semantic grouping in dropdown', () => {
+  it('renders all 14 operators with semantic grouping in dropdown', async () => {
+    const user = userEvent.setup()
     const condition = createDefaultCondition()
     render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
-    expect(operatorSelect).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Comparison operator' })
+    await user.click(toggle)
 
-    // Verify all 14 operators are present (no disabled separators)
-    const options = within(operatorSelect).getAllByRole('option')
-    expect(options).toHaveLength(14) // Only operators, no separators
+    const options = await screen.findAllByRole('option')
+    expect(options).toHaveLength(14)
 
-    // Verify semantic optgroups are present with descriptive labels
-    const optgroups = within(operatorSelect).queryAllByRole('group')
-    expect(optgroups).toHaveLength(4)
+    expect(screen.getByText('Comparison')).toBeInTheDocument()
+    expect(screen.getByText('String')).toBeInTheDocument()
+    expect(screen.getByText('Existence')).toBeInTheDocument()
+    expect(screen.getByText('Length')).toBeInTheDocument()
 
-    // Verify group labels
-    const groupLabels = optgroups.map((group) => group.getAttribute('label'))
-    expect(groupLabels).toEqual(['Comparison', 'String', 'Existence', 'Length'])
-
-    // Spot check operators from each group
     const operatorNames = options.map((opt) => opt.textContent)
-    expect(operatorNames).toContain('is equal to') // Comparison
-    expect(operatorNames).toContain('is greater than') // Comparison
-    expect(operatorNames).toContain('contains') // String
-    expect(operatorNames).toContain('exists') // Existence
-    expect(operatorNames).toContain('length is equal to') // Length
+    expect(operatorNames).toContain('is equal to')
+    expect(operatorNames).toContain('is greater than')
+    expect(operatorNames).toContain('contains')
+    expect(operatorNames).toContain('exists')
+    expect(operatorNames).toContain('length is equal to')
   })
 
-  it('does not include removed negated operators (use NOT checkbox instead)', () => {
+  it('does not include removed negated operators (use NOT checkbox instead)', async () => {
+    const user = userEvent.setup()
     const condition = createDefaultCondition()
     render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+    const toggle = screen.getByRole('button', { name: 'Comparison operator' })
+    await user.click(toggle)
 
-    // Verify negated operators are NOT present (use NOT checkbox instead)
-    expect(within(operatorSelect).queryByRole('option', { name: 'is not equal to' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'does not contain' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'does not start with' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'does not end with' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'does not match regex' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'does not exist' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'length is not equal to' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'is not empty' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'is not equal to' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'does not contain' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'does not start with' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'does not end with' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'does not match regex' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'does not exist' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'length is not equal to' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'is not empty' })).not.toBeInTheDocument()
   })
 
-  it('does not include removed Date/Time operators', () => {
+  it('does not include removed Date/Time operators', async () => {
+    const user = userEvent.setup()
     const condition = createDefaultCondition()
     render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+    const toggle = screen.getByRole('button', { name: 'Comparison operator' })
+    await user.click(toggle)
 
-    // Verify Date/Time operators are NOT present
-    expect(within(operatorSelect).queryByRole('option', { name: /is before$/i })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: /is after$/i })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: /is today/i })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: /is in the past/i })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: /is in the future/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /is before$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /is after$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /is today/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /is in the past/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /is in the future/i })).not.toBeInTheDocument()
   })
 
-  it('does not include removed Boolean operators', () => {
+  it('does not include removed Boolean operators', async () => {
+    const user = userEvent.setup()
     const condition = createDefaultCondition()
     render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+    const toggle = screen.getByRole('button', { name: 'Comparison operator' })
+    await user.click(toggle)
 
-    // Verify Boolean-specific operators are NOT present
-    expect(within(operatorSelect).queryByRole('option', { name: 'is true' })).not.toBeInTheDocument()
-    expect(within(operatorSelect).queryByRole('option', { name: 'is false' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'is true' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'is false' })).not.toBeInTheDocument()
   })
 
   it('shows error state on variable when error prop is true and variable is empty', () => {
@@ -207,7 +200,7 @@ describe('ExpressionCondition', () => {
   })
 
   it('shows error state on value when error prop is true and value is empty', () => {
-    const condition = { ...createDefaultCondition(), value: '', operator: '==' as const } // Explicitly use binary operator
+    const condition = { ...createDefaultCondition(), value: '', operator: '==' as const }
     render(<ExpressionCondition {...defaultProps} condition={condition} error={true} />)
 
     const valueInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
@@ -246,7 +239,7 @@ describe('ExpressionCondition', () => {
 
   it('opens value help popover on click', async () => {
     const user = userEvent.setup()
-    const condition = { ...createDefaultCondition(), operator: '==' as const } // Explicitly use binary operator
+    const condition = { ...createDefaultCondition(), operator: '==' as const }
     render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
     const helpButton = screen.getByRole('button', { name: 'Value help' })
@@ -273,9 +266,7 @@ describe('ExpressionCondition', () => {
 
       render(<ExpressionCondition {...defaultProps} condition={condition} onChange={onChange} />)
 
-      const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
-
-      await user.selectOptions(operatorSelect, 'contains')
+      await selectOperator(user, 'contains')
 
       expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ operator: 'contains' }))
     })
@@ -286,20 +277,17 @@ describe('ExpressionCondition', () => {
       const condition = { ...createDefaultCondition(), operator: '==' as const }
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-      // Value field should be present for binary operators
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(2) // Field and Value
+      expect(inputs).toHaveLength(2)
     })
 
     it('hides value field for object operators - exists', () => {
       const condition = { ...createDefaultCondition(), operator: 'exists' as const }
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-      // Only Field input should be present, not Value
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(1) // Only Field
+      expect(inputs).toHaveLength(1)
 
-      // Verify the Value help button is not present
       expect(screen.queryByRole('button', { name: 'Value help' })).not.toBeInTheDocument()
     })
 
@@ -308,7 +296,7 @@ describe('ExpressionCondition', () => {
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(1) // Only Field (exists is unary, doesn't need value)
+      expect(inputs).toHaveLength(1)
     })
 
     it('hides value field for object operators - isEmpty', () => {
@@ -316,7 +304,7 @@ describe('ExpressionCondition', () => {
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(1) // Only Field
+      expect(inputs).toHaveLength(1)
     })
 
     it('hides value field for unary operators - isEmpty with NOT checkbox', () => {
@@ -324,34 +312,31 @@ describe('ExpressionCondition', () => {
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(1) // Only Field (isEmpty is unary, doesn't need value even with NOT)
+      expect(inputs).toHaveLength(1)
     })
 
     it('shows value field for string operators', () => {
       const condition = { ...createDefaultCondition(), operator: 'contains' as const }
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-      // Value field should be present for binary string operators
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(2) // Field and Value
+      expect(inputs).toHaveLength(2)
     })
 
     it('shows value field for binary array operators (length)', () => {
       const condition = { ...createDefaultCondition(), operator: 'lengthEqualTo' as const }
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-      // Value field should be present for binary array operators
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(2) // Field and Value
+      expect(inputs).toHaveLength(2)
     })
 
     it('hides value field for unary/existence operators', () => {
       const condition = { ...createDefaultCondition(), operator: 'isEmpty' as const }
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-      // Value field should be hidden for unary/existence operators
       const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(1) // Only Field
+      expect(inputs).toHaveLength(1)
     })
 
     it('hides value field when switching to unary operator', async () => {
@@ -359,17 +344,13 @@ describe('ExpressionCondition', () => {
       const condition = { ...createDefaultCondition(), operator: '==' as const }
       render(<ControlledExpressionCondition initialCondition={condition} />)
 
-      // Initially, value field should be present
       let inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(2) // Field and Value
+      expect(inputs).toHaveLength(2)
 
-      // Switch to unary operator
-      const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
-      await user.selectOptions(operatorSelect, 'exists')
+      await selectOperator(user, 'exists')
 
-      // Value field should be hidden now
       inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(1) // Only Field
+      expect(inputs).toHaveLength(1)
     })
 
     it('shows value field when switching from unary to binary operator', async () => {
@@ -377,17 +358,13 @@ describe('ExpressionCondition', () => {
       const condition = { ...createDefaultCondition(), operator: 'exists' as const }
       render(<ControlledExpressionCondition initialCondition={condition} />)
 
-      // Initially, value field should be hidden
       let inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(1) // Only Field
+      expect(inputs).toHaveLength(1)
 
-      // Switch to binary operator
-      const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
-      await user.selectOptions(operatorSelect, '==')
+      await selectOperator(user, '==')
 
-      // Value field should be shown now
       inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-      expect(inputs).toHaveLength(2) // Field and Value
+      expect(inputs).toHaveLength(2)
     })
   })
 })

@@ -175,7 +175,8 @@ describe('LogicNodeForm', () => {
       await user.clear(nameInput)
       await user.type(nameInput, 'Updated Condition')
 
-      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      await user.click(screen.getByRole('button', { name: /Expression editor mode/i }))
+      await user.click(await screen.findByRole('option', { name: 'Custom expression' }))
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.clear(rawInput)
       await user.paste('${x > 5}')

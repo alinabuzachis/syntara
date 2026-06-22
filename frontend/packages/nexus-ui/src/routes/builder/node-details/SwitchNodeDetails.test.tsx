@@ -13,21 +13,18 @@ vi.mock('../../../utils/generateUUID', () => ({
   generateUUID: () => `stable-uuid-${uuidCounter++}`,
 }))
 
-const mockUpdateActivity = vi.fn()
-const mockSetEdges = vi.fn()
-const mockGetState = vi.fn()
+const mockUpdateSwitchActivity = vi.fn()
 
 vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStore: Object.assign(
     (selector: (state: Record<string, unknown>) => unknown) =>
       selector({ currentWorkflow: null, isDirty: false, edges: [] }),
     {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- mock store
-      getState: () => mockGetState(),
+      getState: () => ({}),
     }
   ),
   useWorkflowStoreActions: () => ({
-    updateActivity: mockUpdateActivity,
+    updateSwitchActivity: mockUpdateSwitchActivity,
   }),
 }))
 
@@ -57,14 +54,6 @@ describe('SwitchNodeDetails', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     uuidCounter = 0
-    mockGetState.mockReturnValue({
-      edges: [
-        { id: 'e1', source: 'switch-1', target: 'node-a', sourceHandle: buildSwitchCasePort(0) },
-        { id: 'e2', source: 'switch-1', target: 'node-b', sourceHandle: buildSwitchCasePort(1) },
-        { id: 'e3', source: 'switch-1', target: 'node-c', sourceHandle: EdgeHandleEnum.DEFAULT },
-      ],
-      setEdges: mockSetEdges,
-    })
   })
 
   describe('Rendering', () => {
@@ -194,16 +183,6 @@ describe('SwitchNodeDetails', () => {
         },
       }
 
-      mockGetState.mockReturnValue({
-        edges: [
-          { id: 'e0', source: 'switch-1', target: 'node-a', sourceHandle: buildSwitchCasePort(0) },
-          { id: 'e1', source: 'switch-1', target: 'node-b', sourceHandle: buildSwitchCasePort(1) },
-          { id: 'e2', source: 'switch-1', target: 'node-c', sourceHandle: buildSwitchCasePort(2) },
-          { id: 'e3', source: 'switch-1', target: 'node-d', sourceHandle: EdgeHandleEnum.DEFAULT },
-        ],
-        setEdges: mockSetEdges,
-      })
-
       const user = userEvent.setup()
       renderWithHeader(<SwitchNodeDetails switchData={threeCaseSwitch} nodeId="switch-1" onClose={mockOnClose} />)
 
@@ -213,85 +192,49 @@ describe('SwitchNodeDetails', () => {
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(mockSetEdges).toHaveBeenCalled()
+        expect(mockUpdateSwitchActivity).toHaveBeenCalled()
       })
 
-      const updatedEdges = mockSetEdges.mock.calls[0][0] as Array<{
-        id: string
-        sourceHandle: string
-        target: string
-      }>
-
-      expect(updatedEdges.find((e) => e.target === 'node-a')?.sourceHandle).toBe(buildSwitchCasePort(0))
-      expect(updatedEdges.find((e) => e.target === 'node-c')?.sourceHandle).toBe(buildSwitchCasePort(1))
-      expect(updatedEdges.find((e) => e.target === 'node-d')?.sourceHandle).toBe(EdgeHandleEnum.DEFAULT)
-      expect(updatedEdges.find((e) => e.target === 'node-b')).toBeUndefined()
+      const [nodeId, activity, portMapping] = mockUpdateSwitchActivity.mock.calls[0] as [
+        string,
+        SwitchActivity,
+        Map<string, string>,
+      ]
+      expect(nodeId).toBe('switch-1')
+      expect(activity.parameters.cases).toHaveLength(2)
+      expect(portMapping.get(buildSwitchCasePort(0))).toBe(buildSwitchCasePort(0))
+      expect(portMapping.get(buildSwitchCasePort(2))).toBe(buildSwitchCasePort(1))
+      expect(portMapping.has(buildSwitchCasePort(1))).toBe(false)
     })
 
-    it('preserves edges with no sourceHandle', async () => {
-      mockGetState.mockReturnValue({
-        edges: [
-          { id: 'e0', source: 'switch-1', target: 'node-a', sourceHandle: buildSwitchCasePort(0) },
-          { id: 'e-no-handle', source: 'switch-1', target: 'node-x' },
-        ],
-        setEdges: mockSetEdges,
-      })
-
+    it('calls updateSwitchActivity with correct port mapping on submit', async () => {
       renderWithHeader(<SwitchNodeDetails switchData={baseSwitchData} nodeId="switch-1" onClose={mockOnClose} />)
 
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(mockSetEdges).toHaveBeenCalled()
+        expect(mockUpdateSwitchActivity).toHaveBeenCalled()
       })
 
-      const updatedEdges = mockSetEdges.mock.calls[0][0] as Array<{ id: string }>
-      expect(updatedEdges.find((e) => e.id === 'e-no-handle')).toBeDefined()
+      const [nodeId, activity, portMapping] = mockUpdateSwitchActivity.mock.calls[0] as [
+        string,
+        SwitchActivity,
+        Map<string, string>,
+      ]
+      expect(nodeId).toBe('switch-1')
+      expect(activity.parameters.cases).toHaveLength(2)
+      expect(portMapping.get(buildSwitchCasePort(0))).toBe(buildSwitchCasePort(0))
+      expect(portMapping.get(buildSwitchCasePort(1))).toBe(buildSwitchCasePort(1))
     })
 
-    it('preserves edges with non-switch sourceHandle', async () => {
-      mockGetState.mockReturnValue({
-        edges: [
-          { id: 'e0', source: 'switch-1', target: 'node-a', sourceHandle: buildSwitchCasePort(0) },
-          { id: 'e-source', source: 'switch-1', target: 'node-y', sourceHandle: EdgeHandleEnum.SOURCE },
-        ],
-        setEdges: mockSetEdges,
-      })
-
+    it('closes the panel after successful submit', async () => {
       renderWithHeader(<SwitchNodeDetails switchData={baseSwitchData} nodeId="switch-1" onClose={mockOnClose} />)
 
       fireEvent.submit(screen.getByTestId('switch-node-form'))
 
       await waitFor(() => {
-        expect(mockSetEdges).toHaveBeenCalled()
+        expect(mockOnClose).toHaveBeenCalled()
       })
-
-      const updatedEdges = mockSetEdges.mock.calls[0][0] as Array<{ id: string }>
-      expect(updatedEdges.find((e) => e.id === 'e-source')).toBeDefined()
-    })
-
-    it('preserves default and non-switch edges through changes', async () => {
-      mockGetState.mockReturnValue({
-        edges: [
-          { id: 'e0', source: 'switch-1', target: 'node-a', sourceHandle: buildSwitchCasePort(0) },
-          { id: 'e1', source: 'switch-1', target: 'node-b', sourceHandle: buildSwitchCasePort(1) },
-          { id: 'e-default', source: 'switch-1', target: 'node-d', sourceHandle: EdgeHandleEnum.DEFAULT },
-          { id: 'e-other', source: 'other-node', target: 'node-z', sourceHandle: EdgeHandleEnum.SOURCE },
-        ],
-        setEdges: mockSetEdges,
-      })
-
-      renderWithHeader(<SwitchNodeDetails switchData={baseSwitchData} nodeId="switch-1" onClose={mockOnClose} />)
-
-      fireEvent.submit(screen.getByTestId('switch-node-form'))
-
-      await waitFor(() => {
-        expect(mockSetEdges).toHaveBeenCalled()
-      })
-
-      const updatedEdges = mockSetEdges.mock.calls[0][0] as Array<{ id: string; sourceHandle: string }>
-      expect(updatedEdges.find((e) => e.id === 'e-default')?.sourceHandle).toBe(EdgeHandleEnum.DEFAULT)
-      expect(updatedEdges.find((e) => e.id === 'e-other')).toBeDefined()
     })
   })
 })

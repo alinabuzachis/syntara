@@ -202,6 +202,7 @@ export type WorkflowStore = {
    * @returns The new activity's ID, or null when the source activity is not found.
    */
   duplicateActivity: (activityId: string) => string | null
+  updateSwitchActivity: (nodeId: string, updatedActivity: Activity, portMapping: Map<string, string>) => void
   moveActivityBefore: (activityId: string, beforeActivityId: string) => void
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
   syncConvergeNodeBranches: () => void
