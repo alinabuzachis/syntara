@@ -8,14 +8,18 @@ import { isSwitchCasePort } from './switchCaseHelpers'
 const handleToPortMap: Record<string, string> = {
   [EdgeHandleEnum.LOOP]: 'iterate',
   [EdgeHandleEnum.DONE]: 'complete',
-  [EdgeHandleEnum.END]: 'end',
+  [EdgeHandleEnum.END]: 'iterate',
 }
 
-/** Map from v2 API port names to React Flow handle IDs. */
+/** Map from v2 API port names to React Flow source handle IDs. */
 const portToHandleMap: Record<string, string> = {
   iterate: EdgeHandleEnum.LOOP,
   complete: EdgeHandleEnum.DONE,
-  end: EdgeHandleEnum.END,
+}
+
+/** Map from v2 API to_port names to React Flow target handle IDs. */
+const targetPortToHandleMap: Record<string, string> = {
+  iterate: EdgeHandleEnum.END,
 }
 
 /** Set of React Flow handles that represent meaningful v2 edge ports. */
@@ -52,6 +56,16 @@ export function handleToV2Port(handle: string | null | undefined): string | unde
 export function v2PortToHandle(port: string | null | undefined): string {
   if (!port) return EdgeHandleEnum.SOURCE
   return portToHandleMap[port] ?? port
+}
+
+/**
+ * Converts a v2 API to_port value to a React Flow target handle.
+ * - `iterate` → `end` (loop feedback edge target)
+ * - `undefined` returns `target` (default React Flow handle)
+ */
+export function v2TargetPortToHandle(port: string | null | undefined): string {
+  if (!port) return 'target'
+  return targetPortToHandleMap[port] ?? port
 }
 
 /**

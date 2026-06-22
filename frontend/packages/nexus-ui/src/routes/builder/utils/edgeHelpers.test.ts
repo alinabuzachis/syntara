@@ -15,6 +15,7 @@ import {
   isConditionalHandle,
   isLoopHandle,
   v2PortToHandle,
+  v2TargetPortToHandle,
 } from './edgeHelpers'
 
 describe('edgeHelpers', () => {
@@ -272,6 +273,10 @@ describe('edgeHelpers', () => {
       expect(handleToV2Port('case_99')).toBe('case_99')
     })
 
+    it('converts "end" to "iterate" for loop feedback edges', () => {
+      expect(handleToV2Port(EdgeHandleEnum.END)).toBe('iterate')
+    })
+
     it('passes switch default handle through as v2 port', () => {
       expect(handleToV2Port(EdgeHandleEnum.DEFAULT)).toBe('default')
     })
@@ -427,37 +432,34 @@ describe('edgeHelpers', () => {
     })
   })
 
-  describe('BuilderContent/ExecutionViewContent targetHandle conversion', () => {
-    it('converts to_port "iterate" correctly for targetHandle (fixes round-trip bug)', () => {
-      // Pattern: targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target'
-      const to_port = 'iterate'
-      const targetHandle = v2PortToHandle(to_port)
-      expect(targetHandle).toBe(EdgeHandleEnum.LOOP)
-
-      // Verify round-trip back to v2
-      const backToV2 = handleToV2Port(targetHandle)
-      expect(backToV2).toBe('iterate')
+  describe('v2TargetPortToHandle - converts v2 API to_port to React Flow target handles', () => {
+    it('converts "iterate" to END for loop feedback edges', () => {
+      expect(v2TargetPortToHandle('iterate')).toBe(EdgeHandleEnum.END)
     })
 
-    it('converts to_port "complete" correctly for targetHandle (fixes round-trip bug)', () => {
-      const to_port = 'complete'
-      const targetHandle = v2PortToHandle(to_port)
-      expect(targetHandle).toBe(EdgeHandleEnum.DONE)
-
-      // Verify round-trip back to v2
-      const backToV2 = handleToV2Port(targetHandle)
-      expect(backToV2).toBe('complete')
+    it('returns "target" for undefined', () => {
+      expect(v2TargetPortToHandle(undefined)).toBe('target')
     })
 
-    it('converts to_port undefined correctly to target handle', () => {
-      // Pattern: targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target'
-      const to_port = undefined
-      const targetHandle = to_port ? v2PortToHandle(to_port) : 'target'
-      expect(targetHandle).toBe('target')
+    it('returns "target" for null', () => {
+      expect(v2TargetPortToHandle(null)).toBe('target')
+    })
 
-      // Save path converts 'target' handle back to undefined
-      const backToV2 = handleToV2Port(targetHandle)
-      expect(backToV2).toBeUndefined()
+    it('returns "target" for empty string', () => {
+      expect(v2TargetPortToHandle('')).toBe('target')
+    })
+
+    it('passes through unknown ports unchanged', () => {
+      expect(v2TargetPortToHandle('custom')).toBe('custom')
+    })
+  })
+
+  describe('Loop feedback edge round-trip', () => {
+    it('END handle → to_port "iterate" → END handle', () => {
+      const v2Port = handleToV2Port(EdgeHandleEnum.END)
+      expect(v2Port).toBe('iterate')
+      const handle = v2TargetPortToHandle(v2Port)
+      expect(handle).toBe(EdgeHandleEnum.END)
     })
   })
 })

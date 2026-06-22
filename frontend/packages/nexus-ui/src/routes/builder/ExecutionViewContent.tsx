@@ -12,7 +12,7 @@ import { useExecutionStoreActions } from '../workflows/stores/useExecutionStore'
 import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'
 import type { EdgeConnection } from './types/edge'
-import { v2PortToHandle } from './utils/edgeHelpers'
+import { v2PortToHandle, v2TargetPortToHandle } from './utils/edgeHelpers'
 
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
@@ -128,7 +128,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
           source,
           target,
           sourceHandle: v2PortToHandle(e.from_port),
-          targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target',
+          targetHandle: v2TargetPortToHandle(e.to_port),
         }
       })
 

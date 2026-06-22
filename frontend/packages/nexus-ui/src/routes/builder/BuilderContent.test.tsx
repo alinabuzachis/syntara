@@ -2665,7 +2665,7 @@ describe('BuilderContent', () => {
       })
     })
 
-    it('maps loop port names: iterate→loop, complete→done', async () => {
+    it('maps loop port names: from_port iterate→loop, to_port iterate→end, to_port complete passes through', async () => {
       const workflowWithLoopPorts = {
         ...mockWorkflow,
         version: {
@@ -2678,7 +2678,7 @@ describe('BuilderContent', () => {
             ],
             edges: [
               { from: 'loop-1', to: 'loop-body', from_port: 'iterate' }, // v2 name
-              { from: 'loop-body', to: 'loop-1', to_port: 'complete' }, // v2 name
+              { from: 'loop-body', to: 'loop-1', to_port: 'iterate' }, // v2 feedback edge
             ],
             $defs: {},
           },
@@ -2712,9 +2712,9 @@ describe('BuilderContent', () => {
         const iterateEdge = state.edges.find((e) => e.source === 'loop-1' && e.target === 'loop-body')
         expect(iterateEdge?.sourceHandle).toBe('loop')
 
-        // Find complete edge (should map to 'done')
-        const completeEdge = state.edges.find((e) => e.source === 'loop-body' && e.target === 'loop-1')
-        expect(completeEdge?.targetHandle).toBe('done')
+        // Find feedback edge (to_port 'iterate' should map to 'end')
+        const feedbackEdge = state.edges.find((e) => e.source === 'loop-body' && e.target === 'loop-1')
+        expect(feedbackEdge?.targetHandle).toBe('end')
       })
     })
   })

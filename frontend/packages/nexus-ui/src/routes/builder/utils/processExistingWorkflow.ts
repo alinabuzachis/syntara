@@ -5,7 +5,7 @@ import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { buildTriggerNodeId } from '../../../utils/triggerNodeIds'
 import type { EdgeConnection } from '../types/edge'
 
-import { v2PortToHandle } from './edgeHelpers'
+import { v2PortToHandle, v2TargetPortToHandle } from './edgeHelpers'
 import { DEFAULT_WORKFLOW_NAME } from './workflowNaming'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
@@ -81,7 +81,7 @@ export function convertV2Definition(
         source,
         target,
         sourceHandle: v2PortToHandle(e.from_port),
-        targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target',
+        targetHandle: v2TargetPortToHandle(e.to_port),
       }
     })
     .filter((edge) => {
