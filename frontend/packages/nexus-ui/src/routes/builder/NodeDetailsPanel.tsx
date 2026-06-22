@@ -462,6 +462,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       onNavigateToNode={onNavigateToNode}
       workflowMetadata={props.workflowMetadata}
       tabBarAction={tabBarAction}
+      mode={mode}
     />
   )
 }

@@ -311,7 +311,7 @@ describe('NodeDetailsPanel', () => {
     expect(mockOnClose).toHaveBeenCalled()
   })
 
-  it('closes when the close button is clicked', async () => {
+  it('closes when the cancel button is clicked in add mode', async () => {
     const user = userEvent.setup()
 
     mockNodeRegistryGet.mockReturnValue({
@@ -325,7 +325,7 @@ describe('NodeDetailsPanel', () => {
 
     render(<NodeDetailsPanel mode="add" nodeTypeId="action" nodeSubtypeId={null} onClose={mockOnClose} />)
 
-    await user.click(screen.getByRole('button', { name: /Close/i }))
+    await user.click(screen.getByRole('button', { name: /Cancel step creation/i }))
 
     expect(mockOnClose).toHaveBeenCalled()
   })
@@ -611,7 +611,7 @@ describe('NodeDetailsPanel', () => {
 
     // Should render panel layout even when node type not found (empty parameters content)
     // The panel itself will be shown, but the content area will be empty
-    expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Cancel step creation/i })).toBeInTheDocument()
   })
 
   it('renders trigger form in add mode', () => {

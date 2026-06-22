@@ -1,5 +1,5 @@
 import { Button, Flex, FlexItem, Stack, StackItem, Tooltip } from '@patternfly/react-core'
-import { RhUiExternalLinkIcon, RhUiMinusIcon } from '@patternfly/react-icons'
+import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
 import { NxPanel } from '../../components/layout/NxPanel'
@@ -53,6 +53,7 @@ type NodeEditorLayoutProps = {
   onNavigateToNode?: (nodeId: string) => void
   workflowMetadata?: WorkflowMetadata
   tabBarAction?: ReactNode
+  mode?: 'add' | 'edit'
 }
 
 export function NodeEditorLayout({
@@ -73,6 +74,7 @@ export function NodeEditorLayout({
   onNavigateToNode,
   workflowMetadata,
   tabBarAction,
+  mode = 'edit',
 }: NodeEditorLayoutProps) {
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
@@ -129,34 +131,32 @@ export function NodeEditorLayout({
                         onClick={() => {
                           onClose?.()
                         }}
-                        aria-label="Cancel without saving"
+                        aria-label={mode === 'add' ? 'Cancel step creation' : 'Cancel without saving'}
                         type="button"
                       >
                         Cancel
                       </Button>
                     </FlexItem>
                     <FlexItem>
-                      <Tooltip content="Save and close">
-                        <Button
-                          variant="plain"
-                          onClick={() => {
-                            if (formId) {
-                              const element = document.getElementById(formId)
-                              if (element instanceof HTMLFormElement) {
-                                element.requestSubmit()
-                              } else {
-                                onClose?.()
-                              }
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          if (formId) {
+                            const element = document.getElementById(formId)
+                            if (element instanceof HTMLFormElement) {
+                              element.requestSubmit()
                             } else {
                               onClose?.()
                             }
-                          }}
-                          aria-label="Save and close"
-                          type="button"
-                        >
-                          <RhUiMinusIcon />
-                        </Button>
-                      </Tooltip>
+                          } else {
+                            onClose?.()
+                          }
+                        }}
+                        type="button"
+                      >
+                        {mode === 'add' ? 'Create' : 'Update'}
+                      </Button>
                     </FlexItem>
                   </>
                 )}
