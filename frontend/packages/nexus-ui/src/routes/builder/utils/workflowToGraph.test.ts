@@ -115,7 +115,20 @@ describe('workflowToGraph', () => {
       expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Cron: 0 9 * * *' })
     })
 
-    it('handles interval scheduled trigger', () => {
+    it('shows plain-language summary for ISO 8601 interval', () => {
+      const trigger: Trigger = {
+        type: TriggerTypeEnum.SCHEDULED,
+        parameters: {
+          schedule_type: 'interval',
+          interval: 'R/2024-01-01T10:00:00Z/P1D',
+        },
+      }
+      const result = getTriggerDisplayData(trigger)
+      expect(result.name).toBe('Trigger')
+      expect(result.details).toMatch(/^Daily at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2024$/)
+    })
+
+    it('falls back to raw interval for non-ISO format', () => {
       const trigger: Trigger = {
         type: TriggerTypeEnum.SCHEDULED,
         parameters: {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseRepeatingInterval, durationToHumanReadableCadence, formatIntervalDescription } from './triggerFormatting'
+import {
+  parseRepeatingInterval,
+  durationToHumanReadableCadence,
+  formatIntervalDescription,
+  formatScheduleSummary,
+} from './triggerFormatting'
 
 describe('parseRepeatingInterval', () => {
   it('parses interval with start and duration', () => {
@@ -99,5 +104,53 @@ describe('formatIntervalDescription', () => {
   it('returns empty string for invalid interval', () => {
     expect(formatIntervalDescription('')).toBe('')
     expect(formatIntervalDescription('invalid')).toBe('')
+  })
+})
+
+describe('formatScheduleSummary', () => {
+  it('formats daily schedule', () => {
+    const result = formatScheduleSummary('R/2024-01-01T10:00:00Z/P1D')
+    expect(result).toMatch(/^Daily at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2024$/)
+  })
+
+  it('formats weekly schedule', () => {
+    const result = formatScheduleSummary('R/2024-03-15T14:30:00Z/P7D')
+    expect(result).toMatch(/^Weekly at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2024$/)
+  })
+
+  it('formats monthly schedule', () => {
+    const result = formatScheduleSummary('R/2026-06-05T10:00:00Z/P1M')
+    expect(result).toMatch(/^Monthly at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 2026$/)
+  })
+
+  it('formats annually schedule', () => {
+    const result = formatScheduleSummary('R/2024-01-01T00:00:00Z/P1Y')
+    expect(result).toMatch(/^Annually at \d{1,2}:\d{2} [AP]M starting \w{3} \d{1,2}, 202[34]$/)
+  })
+
+  it('includes end date when present', () => {
+    const result = formatScheduleSummary('R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59Z')
+    expect(result).toMatch(/^Daily at .+ starting .+, ending \w{3} \d{1,2}, 2024$/)
+  })
+
+  it('formats run-once schedule', () => {
+    const result = formatScheduleSummary('R1/2024-01-15T00:00:00Z/PT0S')
+    expect(result).toMatch(/^Once on \w{3} \d{1,2}, 2024 at \d{1,2}:\d{2} [AP]M$/)
+  })
+
+  it('returns null for unsupported durations', () => {
+    expect(formatScheduleSummary('R/2024-01-01T10:00:00Z/PT1H')).toBeNull()
+  })
+
+  it('returns null for non-ISO format', () => {
+    expect(formatScheduleSummary('1h')).toBeNull()
+  })
+
+  it('returns null for empty input', () => {
+    expect(formatScheduleSummary('')).toBeNull()
+  })
+
+  it('returns null for invalid input', () => {
+    expect(formatScheduleSummary('invalid')).toBeNull()
   })
 })

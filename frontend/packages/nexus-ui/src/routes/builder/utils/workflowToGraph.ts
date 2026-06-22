@@ -1,6 +1,7 @@
 import { ActivityTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
 import { MarkerType } from '@xyflow/react'
 
+import { formatScheduleSummary } from '../../../utils/triggerFormatting'
 import { BUTTON_EDGE_DEFAULT_STROKE } from '../edges/buttonEdgeStrokeColor'
 
 /**
@@ -72,7 +73,10 @@ function getScheduledDetails(parameters: Record<string, unknown> | undefined): s
   if (!parameters) return 'Scheduled'
   const scheduleType = parameters.schedule_type as string | undefined
   if (scheduleType === 'cron') return `Cron: ${(parameters.cron as string) ?? ''}`
-  if (scheduleType === 'interval') return `Interval: ${(parameters.interval as string) ?? ''}`
+  if (scheduleType === 'interval') {
+    const interval = (parameters.interval as string) ?? ''
+    return formatScheduleSummary(interval) ?? `Interval: ${interval}`
+  }
   return 'Continuous'
 }
 

@@ -93,3 +93,42 @@ export function formatIntervalDescription(interval: string): string {
 
   return parts.join('\n')
 }
+
+/**
+ * Format an ISO 8601 repeating interval as a single-line plain-language summary.
+ * Returns null if the interval cannot be parsed into a supported format.
+ *
+ * Examples:
+ * - "Daily at 10:00 AM starting Jan 1, 2024"
+ * - "Weekly at 2:30 PM starting Jan 1, 2024, ending Dec 31, 2024"
+ * - "Once on Jan 15, 2024 at 12:00 AM"
+ */
+export function formatScheduleSummary(interval: string): string | null {
+  const parsed = parseRepeatingInterval(interval)
+  if (!parsed.start || !parsed.cadence) return null
+
+  const cadence = durationToHumanReadableCadence(parsed.cadence)
+  const startDate = formatDate(parsed.start)
+  if (!startDate) return null
+
+  const startTime = formatTime(parsed.start)
+
+  if (cadence === 'Does not repeat') {
+    if (interval.startsWith('R1')) {
+      return startTime ? `Once on ${startDate} at ${startTime}` : `Once on ${startDate}`
+    }
+    return null
+  }
+
+  let summary = startTime ? `${cadence} at ${startTime}` : cadence
+  summary += ` starting ${startDate}`
+
+  if (parsed.end) {
+    const endDate = formatDate(parsed.end)
+    if (endDate) {
+      summary += `, ending ${endDate}`
+    }
+  }
+
+  return summary
+}
