@@ -1,0 +1,21 @@
+---
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/**'
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'frontend/**'
+llm:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/.claude/**'
+          - '**/CLAUDE.md'
+          - '**/AGENTS.md'
+          - '**/.cursor/**'
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - '.tekton/**'
