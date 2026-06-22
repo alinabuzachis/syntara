@@ -1,0 +1,60 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/syntara-orchestration/syntara?rev={{revision}}
+    build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
+    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "early-access"
+    pipelinesascode.tekton.dev/on-path-change: "[frontend/**]"
+    pipelinesascode.tekton.dev/on-path-change-ignore: "[***.md, LICENSE]"
+  creationTimestamp: null
+  labels:
+    appstudio.openshift.io/application: ansible-automation-orchestrator-early-access
+    appstudio.openshift.io/component: ansible-automation-orchestrator-ui-early-access
+    pipelines.appstudio.openshift.io/type: build
+  name: ansible-automation-orchestrator-ui-early-access-on-pull-request
+  namespace: nexus-tenant
+spec:
+  params:
+  - name: git-url
+    value: '{{repo_url}}'
+  - name: revision
+    value: '{{revision}}'
+  - name: output-image
+    value: quay.io/redhat-user-workloads/nexus-tenant/ansible-automation-platform/automation-orchestrator-ui-rhel9-early-access:on-pr-{{revision}}
+  - name: image-expires-after
+    value: 5d
+  - name: dockerfile
+    value: frontend/packages/nexus-ui/Containerfile.konflux
+  - name: path-context
+    value: frontend
+  - name: build-platforms
+    value:
+      - linux/x86_64
+      - linux/arm64
+  - name: hermetic
+    value: 'true'
+  - name: prefetch-input
+    value: '{"type": "npm", "path": "frontend"}'
+  pipelineRef:
+    params:
+      - name: name
+        value: container
+      - name: bundle
+        value: quay.io/aap-ci/tekton-catalog/pipeline/build/container:0.2@sha256:415045dff2c061307ff22fb09129dba1a52bbeeb54deccd31b3c238537d5b4ce
+      - name: kind
+        value: pipeline
+      - name: secret
+        value: quay-aap-ci-viewer
+    resolver: bundles
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-ansible-automation-orchestrator-ui-early-access
+  workspaces:
+  - name: git-auth
+    secret:
+      secretName: '{{ git_auth_secret }}'
+status: {}
