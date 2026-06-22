@@ -13,3 +13,8 @@
 # UX design system — requires UX team review
 /frontend/.claude/skills/patternfly-ux-design-system.md @syntara-orchestration/uxd-team
 /frontend/.cursor/rules/patternfly-ux-design-system.mdc @syntara-orchestration/uxd-team
+
+# Release
+/.tekton @syntara-orchestration/release-team
+/backend/containers/ @syntara-orchestration/release-team
+./frontend/packages/nexus-ui/ @syntara-orchestration/release-team
