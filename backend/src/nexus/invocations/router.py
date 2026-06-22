@@ -6,7 +6,6 @@ from uuid import UUID
 
 import structlog
 from fastapi import (
-    BackgroundTasks,
     Depends,
     Form,
     HTTPException,
@@ -34,6 +33,8 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
+from nexus.workflows.executions_router import get_temporal_execution_service
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 router = NexusRouter(prefix="/invocations", tags=["Invocation"])
 
@@ -70,26 +71,34 @@ def get_invocation_service(
     return InvocationService(db, current_user)
 
 
-def get_invocation_service_with_background_tasks(
-    background_tasks: BackgroundTasks,
+async def get_invocation_service_with_temporal(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
+    temporal_service: Annotated[TemporalExecutionService | None, Depends(get_temporal_execution_service)],
 ) -> InvocationService:
-    """Dependency provider for InvocationService with background tasks.
+    """Dependency provider for InvocationService with Temporal workflow support.
 
     Args:
-        background_tasks: FastAPI background tasks for document conversion
         db: Database session (injected by FastAPI)
         current_user: Current authenticated user
         request: FastAPI request object (contains app with dependency overrides)
+        temporal_service: Temporal execution service (injected by FastAPI)
 
     Returns:
-        InvocationService configured with all necessary dependencies
+        InvocationService configured with Temporal execution support
 
     """
+    from nexus.workflows.services.execution_service import ExecutionService  # noqa: PLC0415
+
     session_factory = create_session_factory_from_request(request)
-    return InvocationService(db, current_user, background_tasks, session_factory=session_factory)
+    execution_service = ExecutionService(db, current_user, temporal_service=temporal_service)
+    return InvocationService(
+        db,
+        current_user,
+        session_factory=session_factory,
+        execution_service=execution_service,
+    )
 
 
 def _validate_multipart_required_fields(prompt: str | None, session_id: str | None) -> tuple[str, str]:
@@ -161,7 +170,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
 )
 async def create_invocation(
     request_body: InvocationCreateRequest,
-    service: Annotated[InvocationService, Depends(get_invocation_service_with_background_tasks)],
+    service: Annotated[InvocationService, Depends(get_invocation_service_with_temporal)],
 ) -> Invocation:
     """Accept async invocation request (JSON).
 
@@ -194,7 +203,7 @@ async def create_invocation(
     response_description="Invocation accepted",
 )
 async def create_invocation_chat(
-    service: Annotated[InvocationService, Depends(get_invocation_service_with_background_tasks)],
+    service: Annotated[InvocationService, Depends(get_invocation_service_with_temporal)],
     form: Annotated[InvocationRequestWithFile, Form(media_type="multipart/form-data")],
 ) -> Invocation:
     """Accept async invocation request with optional file uploads (multipart/form-data).

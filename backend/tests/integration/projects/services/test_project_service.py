@@ -160,8 +160,8 @@ async def test_list_projects_cursor_include_total_no_filter(seeded_db: AsyncSess
         await svc.create_project(name=f"total-p{i}")
 
     result = await svc.list_projects_cursor(limit=3, include_total=True)
-    # 5 created + 1 seeded default project
-    assert result.total == 6
+    # 5 created + 1 seeded default project + 1 seeded system project
+    assert result.total == 7
     assert len(result.resources) == 3
 
 
@@ -205,8 +205,8 @@ async def test_list_projects_cursor_include_total_with_all_projects(seeded_db: A
 
     allowed = AllowedProjectsResult(all_projects=True, project_ids=[])
     result = await svc.list_projects_cursor(limit=10, include_total=True, allowed_projects=allowed)
-    # 4 created + 1 seeded default project
-    assert result.total == 5
+    # 4 created + 1 seeded default project + 1 seeded system project
+    assert result.total == 6
 
 
 @pytest.mark.asyncio
@@ -586,6 +586,60 @@ async def test_delete_project_with_no_resources(seeded_db: AsyncSession, test_us
     """Deleting a project with no child resources succeeds cleanly."""
     svc = ProjectService(seeded_db, test_user)
     project = await svc.create_project(name="empty-cascade")
+    await svc.delete_project(project.id)
+    with pytest.raises(ProjectNotFoundError):
+        await svc.get_project(project.id)
+
+
+# ============================================================================
+# Builtin Project Protection
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_builtin_project_raises(seeded_db: AsyncSession, test_user: User) -> None:
+    """Updating a builtin project raises BuiltinProtectionError."""
+    from nexus.authz.exceptions import BuiltinProtectionError
+    from nexus.authz.models.project import Project
+
+    result = await seeded_db.exec(select(Project).where(Project.is_builtin == True))  # noqa: E712
+    builtin_project = result.first()
+    assert builtin_project is not None, "seed_authz_data should create a built-in project"
+
+    svc = ProjectService(seeded_db, test_user)
+    with pytest.raises(BuiltinProtectionError, match="cannot be modified"):
+        await svc.update_project(builtin_project.id, name="renamed")
+
+
+@pytest.mark.asyncio
+async def test_delete_builtin_project_raises(seeded_db: AsyncSession, test_user: User) -> None:
+    """Deleting a builtin project raises BuiltinProtectionError."""
+    from nexus.authz.exceptions import BuiltinProtectionError
+    from nexus.authz.models.project import Project
+
+    result = await seeded_db.exec(select(Project).where(Project.is_builtin == True))  # noqa: E712
+    builtin_project = result.first()
+    assert builtin_project is not None
+
+    svc = ProjectService(seeded_db, test_user)
+    with pytest.raises(BuiltinProtectionError, match="cannot be deleted"):
+        await svc.delete_project(builtin_project.id)
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(seeded_db: AsyncSession, test_user: User) -> None:
+    """Updating a non-builtin project succeeds normally."""
+    svc = ProjectService(seeded_db, test_user)
+    project = await svc.create_project(name="normal-project")
+    updated = await svc.update_project(project.id, name="renamed-project")
+    assert updated.name == "renamed-project"
+
+
+@pytest.mark.asyncio
+async def ***REMOVED***(seeded_db: AsyncSession, test_user: User) -> None:
+    """Deleting a non-builtin project succeeds normally."""
+    svc = ProjectService(seeded_db, test_user)
+    project = await svc.create_project(name="deletable-project")
     await svc.delete_project(project.id)
     with pytest.raises(ProjectNotFoundError):
         await svc.get_project(project.id)

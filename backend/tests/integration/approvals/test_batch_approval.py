@@ -85,7 +85,7 @@ class TestBatchApprovalContract:
                 assert field in result, f"Required field '{field}' missing from result {i}"
 
             assert result["approval_id"] == approval_ids[i]
-            assert result["success"] is True
+            assert result["success"] is True, f"Decision {i} failed: {result.get('error')}"
 
             # For successful results, these fields should be present
             success_fields = ["status", "decided_at", "decided_by", "decision_notes"]

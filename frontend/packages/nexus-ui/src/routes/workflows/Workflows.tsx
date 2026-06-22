@@ -125,7 +125,7 @@ export default function Workflows() {
   )
 
   const workflowsQuery = isAllProjects ? allWorkflowsQuery : projectWorkflowsQuery
-  const workflows = (workflowsQuery.data?.resources ?? []) as Workflow[]
+  const workflows = useMemo(() => (workflowsQuery.data?.resources ?? []) as Workflow[], [workflowsQuery.data])
   const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow, isPending: isDeleting } = workflowClient.useMutation(
     'delete',
@@ -137,7 +137,15 @@ export default function Workflows() {
   )
   const { mutate: unpublishWorkflow } = workflowClient.useMutation('post', '/workflows/{workflow_id}/unpublish')
 
-  const sortedWorkflows = workflows
+  const builtinProjectIds = useMemo(() => new Set(projects.filter((p) => p.is_builtin).map((p) => p.id)), [projects])
+
+  const sortedWorkflows = useMemo(() => {
+    if (!isAllProjects) return workflows
+    return workflows.filter((w) => {
+      const pid = (w as WorkflowWithProject).project_id ?? 'unknown'
+      return !builtinProjectIds.has(pid)
+    })
+  }, [workflows, isAllProjects, builtinProjectIds])
 
   // Group workflows by project when viewing all projects
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())

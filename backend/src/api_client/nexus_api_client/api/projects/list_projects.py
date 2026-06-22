@@ -18,6 +18,7 @@ def _get_kwargs(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
     is_default: bool | None | Unset = UNSET,
+    is_builtin: bool | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -55,6 +56,13 @@ def _get_kwargs(
     else:
         json_is_default = is_default
     params["is_default"] = json_is_default
+
+    json_is_builtin: bool | None | Unset
+    if isinstance(is_builtin, Unset):
+        json_is_builtin = UNSET
+    else:
+        json_is_builtin = is_builtin
+    params["is_builtin"] = json_is_builtin
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -138,6 +146,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
     is_default: bool | None | Unset = UNSET,
+    is_builtin: bool | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ProjectListResponse]:
     """List Projects
@@ -151,6 +160,7 @@ def sync_detailed(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         name (None | str | Unset):
         is_default (bool | None | Unset):
+        is_builtin (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -167,6 +177,7 @@ def sync_detailed(
         include_total=include_total,
         name=name,
         is_default=is_default,
+        is_builtin=is_builtin,
         additional_params=additional_params,
     )
 
@@ -186,6 +197,7 @@ def sync(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
     is_default: bool | None | Unset = UNSET,
+    is_builtin: bool | None | Unset = UNSET,
 ) -> ErrorData | ProjectListResponse | None:
     """List Projects
 
@@ -198,6 +210,7 @@ def sync(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         name (None | str | Unset):
         is_default (bool | None | Unset):
+        is_builtin (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -215,6 +228,7 @@ def sync(
         include_total=include_total,
         name=name,
         is_default=is_default,
+        is_builtin=is_builtin,
     ).parsed
 
 
@@ -227,6 +241,7 @@ async def asyncio_detailed(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
     is_default: bool | None | Unset = UNSET,
+    is_builtin: bool | None | Unset = UNSET,
 ) -> Response[ErrorData | ProjectListResponse]:
     """List Projects
 
@@ -239,6 +254,7 @@ async def asyncio_detailed(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         name (None | str | Unset):
         is_default (bool | None | Unset):
+        is_builtin (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -255,6 +271,7 @@ async def asyncio_detailed(
         include_total=include_total,
         name=name,
         is_default=is_default,
+        is_builtin=is_builtin,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -271,6 +288,7 @@ async def asyncio(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
     is_default: bool | None | Unset = UNSET,
+    is_builtin: bool | None | Unset = UNSET,
 ) -> ErrorData | ProjectListResponse | None:
     """List Projects
 
@@ -283,6 +301,7 @@ async def asyncio(
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         name (None | str | Unset):
         is_default (bool | None | Unset):
+        is_builtin (bool | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -301,5 +320,6 @@ async def asyncio(
             include_total=include_total,
             name=name,
             is_default=is_default,
+            is_builtin=is_builtin,
         )
     ).parsed

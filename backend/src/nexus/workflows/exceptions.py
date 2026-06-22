@@ -40,10 +40,14 @@ class WorkflowDefinitionInvalidError(WorkflowError):
 class WorkflowNotFoundError(WorkflowError):
     """Raised when a workflow is not found."""
 
-    def __init__(self, workflow_id: UUID) -> None:
-        """Initialize exception with workflow ID."""
+    def __init__(self, workflow_id: UUID | None = None, *, workflow_name: str | None = None) -> None:
+        """Initialize exception with workflow ID or name."""
         self.workflow_id = workflow_id
-        super().__init__(f"Workflow {workflow_id} not found")
+        self.workflow_name = workflow_name
+        if workflow_name:
+            super().__init__(f"Workflow with name '{workflow_name}' not found")
+        else:
+            super().__init__(f"Workflow {workflow_id} not found")
 
 
 @fastapi_exception(handler="nexus.workflows.error_handlers.workflow_name_conflict_handler")
@@ -140,6 +144,36 @@ class PayloadTooLargeError(WorkflowError):
 # ============================================================================
 # Webhook Trigger Exceptions
 # ============================================================================
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.builtin_workflow_delete_handler")
+class BuiltinWorkflowDeleteError(WorkflowError):
+    """Raised when attempting to delete a built-in workflow."""
+
+    def __init__(self, workflow_name: str) -> None:
+        """Initialize exception with workflow name."""
+        self.workflow_name = workflow_name
+        super().__init__(f"The built-in '{workflow_name}' workflow cannot be deleted")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.builtin_workflow_modify_handler")
+class BuiltinWorkflowModifyError(WorkflowError):
+    """Raised when attempting to modify a built-in workflow."""
+
+    def __init__(self, workflow_name: str) -> None:
+        """Initialize exception with workflow name."""
+        self.workflow_name = workflow_name
+        super().__init__(f"The built-in '{workflow_name}' workflow cannot be modified")
+
+
+@fastapi_exception(handler="nexus.workflows.error_handlers.builtin_workflow_missing_handler")
+class BuiltinWorkflowMissingError(WorkflowError):
+    """Raised when a required built-in workflow is not found at runtime."""
+
+    def __init__(self, workflow_name: str) -> None:
+        """Initialize exception with workflow name."""
+        self.workflow_name = workflow_name
+        super().__init__(f"Required built-in workflow '{workflow_name}' is missing")
 
 
 class WebhookTriggerError(WorkflowError):

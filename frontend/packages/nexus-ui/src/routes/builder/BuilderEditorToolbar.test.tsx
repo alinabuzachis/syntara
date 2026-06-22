@@ -7,6 +7,7 @@ import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 
 describe('BuilderEditorToolbar', () => {
   const defaultProps = {
+    isBuiltin: false,
     isNew: false,
     workflow: { id: 'wf-1' },
     isPending: false,

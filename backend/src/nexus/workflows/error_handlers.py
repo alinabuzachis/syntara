@@ -15,6 +15,9 @@ from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_resp
 
 if TYPE_CHECKING:
     from nexus.workflows.exceptions import (
+        BuiltinWorkflowDeleteError,
+        BuiltinWorkflowMissingError,
+        BuiltinWorkflowModifyError,
         ExecutionInTerminalStateError,
         ExecutionNotFoundError,
         PayloadTooLargeError,
@@ -167,6 +170,48 @@ def workflow_not_published_handler(request: Request, exc: "WorkflowNotPublishedE
         detail="The requested workflow has no published version",
         code="WORKFLOW_NOT_PUBLISHED",
         retryable=False,
+        instance=str(request.url),
+    )
+
+
+def builtin_workflow_delete_handler(request: Request, exc: "BuiltinWorkflowDeleteError") -> JSONResponse:
+    """Handle BuiltinWorkflowDeleteError with RFC 9457 format."""
+    logger.warning("Attempted to delete builtin workflow", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail=str(exc),
+        code="BUILTIN_WORKFLOW_DELETE_FORBIDDEN",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def builtin_workflow_modify_handler(request: Request, exc: "BuiltinWorkflowModifyError") -> JSONResponse:
+    """Handle BuiltinWorkflowModifyError with RFC 9457 format."""
+    logger.warning("Attempted to modify builtin workflow", exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        problem_type=PROBLEM_TYPES["forbidden"],
+        title="Forbidden",
+        detail=str(exc),
+        code="BUILTIN_WORKFLOW_MODIFY_FORBIDDEN",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def builtin_workflow_missing_handler(request: Request, exc: "BuiltinWorkflowMissingError") -> JSONResponse:
+    """Handle BuiltinWorkflowMissingError with RFC 9457 format."""
+    logger.error("Required builtin workflow missing", workflow_name=exc.workflow_name, exc_info=exc)
+    return create_problem_details_response(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        problem_type=PROBLEM_TYPES["internal_error"],
+        title="System Misconfigured",
+        detail="A required system workflow is missing. Contact your administrator.",
+        code="BUILTIN_WORKFLOW_MISSING",
+        retryable=True,
         instance=str(request.url),
     )
 

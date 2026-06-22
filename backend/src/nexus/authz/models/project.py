@@ -33,6 +33,7 @@ class Project(NamedResource, SoftDeletableResource, table=True):
         *NamedResource.__filterable_fields__,
         *SoftDeletableResource.__filterable_fields__,
         "is_default",
+        "is_builtin",
     ]
 
     __sortable_fields__: ClassVar[list[str]] = list(
@@ -49,6 +50,12 @@ class Project(NamedResource, SoftDeletableResource, table=True):
         description="Whether this is the default project",
         index=True,
     )
+    is_builtin: bool = Field(
+        default=False,
+        description="Whether this is a built-in system project",
+        index=True,
+        sa_column_kwargs={"server_default": text("false")},
+    )
 
     __table_args__ = (
         Index(
@@ -61,4 +68,4 @@ class Project(NamedResource, SoftDeletableResource, table=True):
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return f"<Project(id={self.id}, name={self.name}, is_default={self.is_default})>"
+        return f"<Project(id={self.id}, name={self.name}, is_default={self.is_default}, is_builtin={self.is_builtin})>"

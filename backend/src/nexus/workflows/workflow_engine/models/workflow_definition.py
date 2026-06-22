@@ -75,6 +75,7 @@ class ActivityName(StrEnum):
     AGENTIC = "execute_agentic_activity"
     APPROVAL = "execute_approval_activity"
     HTTP_REQUEST = "execute_http_request_activity"
+    INTERNAL_ACTIVITY = "execute_internal_activity"
     SCRIPT = "execute_script_activity"
     # Internal
     CREDENTIAL_RESOLUTION = "resolve_workflow_credentials"
@@ -106,6 +107,7 @@ class NodeType(str, Enum):
     AGENTIC = "agentic"
     APPROVAL = "approval"
     HTTP_REQUEST = "http_request"
+    INTERNAL_ACTIVITY = "internal_activity"
     SCRIPT = "script"
 
 

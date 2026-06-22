@@ -82,6 +82,10 @@ async def _seed_authz(test_db_session: AsyncSession) -> None:
     """
     await seed_authz_data(test_db_session)
 
+    from nexus.workflows.seed_builtin import seed_builtin_workflows
+
+    await seed_builtin_workflows(test_db_session)
+
     # Create a group with the 'admin' role for test users (functional tests need
     # broad permissions; authz-specific tests create their own limited-role users)
     test_group = Group(id=uuid4(), name=_TEST_GROUP_NAME, description="Test users group", is_builtin=False, labels={})

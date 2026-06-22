@@ -395,6 +395,11 @@ export interface components {
        * @default false
        */
       is_default?: boolean
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
     }
     /**
      * ProjectListResponse

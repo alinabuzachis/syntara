@@ -1666,6 +1666,7 @@ class ActivitySyncService:
                         NodeType.AGENTIC,
                         NodeType.APPROVAL,
                         NodeType.HTTP_REQUEST,
+                        NodeType.INTERNAL_ACTIVITY,
                         NodeType.SCRIPT,
                     ]:
                         new_activity = ActivityExecution(

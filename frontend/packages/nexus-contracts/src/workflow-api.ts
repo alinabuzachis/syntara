@@ -204,6 +204,8 @@ export interface components {
       components['schemas']['UserOwnedResource'] & {
         /** @description Current active version number */
         current_version?: number
+        /** @description Whether this is a built-in system workflow */
+        is_builtin?: boolean
         /** @description Whether workflow is enabled and available for execution */
         is_enabled?: boolean
         /** @description Version number of the currently published version, or null if unpublished */

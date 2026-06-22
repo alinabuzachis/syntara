@@ -49,7 +49,7 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
         />
       </Td>
       <Td isActionCell>
-        <NxKebabMenu actions={actions} aria-label={`Actions for ${workflow.name}`} />
+        {actions.length > 0 && <NxKebabMenu actions={actions} aria-label={`Actions for ${workflow.name}`} />}
       </Td>
     </Tr>
   )

@@ -169,7 +169,8 @@ class TestFilesAPIUpload:
         assert file_record is not None
         assert file_record.filename == "database_test.txt"
         assert file_record.mime_type == "text/plain"
-        assert file_record.status == FileStatus.CONVERTED
+        # Conversion runs asynchronously via Temporal workflow, not inline
+        assert file_record.status == FileStatus.PENDING_CONVERSION
 
     @pytest.mark.asyncio
     async def test_upload_returns_correct_response_schema(
@@ -241,10 +242,10 @@ class TestFilesAPIConversion:
         file_id_str = response_data["file_ids"][0]
         file_id = UUID(file_id_str)
 
+        # Verify initial status is PENDING_CONVERSION (conversion is async via Temporal)
         result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
         file_record = result.one()
-        assert file_record.status == FileStatus.CONVERTED
-        assert file_record.converted_content_path is not None
+        assert file_record.status == FileStatus.PENDING_CONVERSION
 
     @pytest.mark.asyncio
     async def test_uploaded_pdf_can_be_converted(
@@ -295,10 +296,10 @@ startxref
         file_id_str = response_data["file_ids"][0]
         file_id = UUID(file_id_str)
 
+        # Verify initial status is PENDING_CONVERSION (conversion is async via Temporal)
         result = await test_db_session.exec(select(FileMetadata).where(FileMetadata.id == file_id))
         file_record = result.one()
-        assert file_record.status == FileStatus.CONVERTED
-        assert file_record.converted_content_path is not None
+        assert file_record.status == FileStatus.PENDING_CONVERSION
 
     @pytest.mark.asyncio
     async def test_multiple_uploaded_files_can_be_converted(

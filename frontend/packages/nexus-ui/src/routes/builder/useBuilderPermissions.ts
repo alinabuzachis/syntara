@@ -26,7 +26,7 @@ export type BuilderPermissions = {
  * All values default to `false` (safe-false) until the checks resolve,
  * so the builder starts in read-only mode until permissions confirm edit access.
  */
-export function useBuilderPermissions(isNew: boolean): BuilderPermissions {
+export function useBuilderPermissions(isNew: boolean, isBuiltin = false): BuilderPermissions {
   const { allowed: canCreate, isChecking: c1 } = useCanI('create', 'workflow')
   const { allowed: canUpdate, isChecking: c2 } = useCanI('update', 'workflow')
   const { allowed: canDelete, isChecking: c3 } = useCanI('delete', 'workflow')
@@ -34,7 +34,8 @@ export function useBuilderPermissions(isNew: boolean): BuilderPermissions {
 
   return useMemo(() => {
     const isLoading = c1 || c2 || c3 || c4
-    const canEdit = isNew ? canCreate : canUpdate
+    const rbacCanEdit = isNew ? canCreate : canUpdate
+    const canEdit = isBuiltin ? false : rbacCanEdit
     const editTooltip = isNew
       ? permissionTooltip('create a workflow', 'workflow:create')
       : permissionTooltip('edit this workflow', 'workflow:update')
@@ -45,7 +46,7 @@ export function useBuilderPermissions(isNew: boolean): BuilderPermissions {
     return {
       canEdit,
       canRun,
-      canDelete,
+      canDelete: isBuiltin ? false : canDelete,
       isLoading,
       tooltips: {
         edit: editTooltip,
@@ -56,5 +57,5 @@ export function useBuilderPermissions(isNew: boolean): BuilderPermissions {
         delete: permissionTooltip('delete this workflow', 'workflow:delete'),
       },
     }
-  }, [isNew, canCreate, canUpdate, canDelete, canRun, c1, c2, c3, c4])
+  }, [isNew, isBuiltin, canCreate, canUpdate, canDelete, canRun, c1, c2, c3, c4])
 }

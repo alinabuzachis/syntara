@@ -4,7 +4,7 @@ This module provides the standalone file upload endpoint that creates
 FileMetadata records in the database for later use in agent invocations.
 
 Document conversion is triggered automatically for each uploaded file
-as a background task (AAP-60780 decoupling).
+via a builtin Temporal workflow.
 """
 
 from io import BytesIO
@@ -13,11 +13,9 @@ from uuid import UUID
 
 import structlog
 from fastapi import (
-    BackgroundTasks,
     Depends,
     Form,
     HTTPException,
-    Request,
     UploadFile,
     status,
 )
@@ -26,15 +24,19 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
+from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
-from nexus.core.utils.session_factory import create_session_factory_from_request
 from nexus.files.audit.file_downloaded import FileDownloadedEvent
-from nexus.files.document_conversion.tasks import DocumentConversionTask
 from nexus.files.file_manager import FileManager, get_file_manager
 from nexus.files.models.file_metadata import FileMetadata, FileStatus
 from nexus.files.storage import sanitize_filename
+from nexus.workflows.exceptions import WorkflowNotFoundError
+from nexus.workflows.executions_router import get_temporal_execution_service
+from nexus.workflows.services.execution_service import ExecutionService
+from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 
 router = NexusRouter(prefix="/files", tags=["Files"])
 logger = structlog.stdlib.get_logger(__name__)
@@ -48,22 +50,6 @@ _files_perm_upload = PermissionChecker(
 # ============================================================================
 # Dependency Injection Providers
 # ============================================================================
-
-
-def get_document_conversion_task(
-    request: Request,
-) -> DocumentConversionTask:
-    """Dependency provider for DocumentConversionTask.
-
-    Args:
-        request: FastAPI request object (contains app with dependency overrides)
-
-    Returns:
-        DocumentConversionTask configured with appropriate session factory
-
-    """
-    session_factory = create_session_factory_from_request(request)
-    return DocumentConversionTask(session_factory=session_factory)
 
 
 class UploadFilesBody(BaseModel):
@@ -146,9 +132,9 @@ class FileUploadResponse(BaseModel):
 async def upload_files(
     db: Annotated[AsyncSession, Depends(get_db)],
     file_manager: Annotated[FileManager, Depends(get_file_manager)],
-    background_tasks: BackgroundTasks,
-    document_conversion_task: Annotated[DocumentConversionTask, Depends(get_document_conversion_task)],
+    current_user: Annotated[User, Depends(get_current_user)],
     body: Annotated[UploadFilesBody, Form(media_type="multipart/form-data")],
+    temporal_service: Annotated[TemporalExecutionService | None, Depends(get_temporal_execution_service)],
 ) -> FileUploadResponse:
     """Upload files for later use in agent invocations.
 
@@ -156,18 +142,14 @@ async def upload_files(
     1. Validated (size, type, count)
     2. Stored on the filesystem
     3. Registered in the FileMetadata database table
-    4. Queued for document conversion (background task)
-
-    The returned file_ids can be stored in workflow configuration and passed
-    to invocations via context_data.file_ids. Pre-converted files enable
-    immediate invocation execution without conversion delay.
+    4. Queued for document conversion (via builtin Temporal workflow)
 
     Args:
         db: Database session (dependency injected)
         file_manager: FileManager instance (dependency injected)
-        background_tasks: FastAPI background tasks for scheduling conversion
-        document_conversion_task: DocumentConversionTask with session factory
+        current_user: Current authenticated user
         body: Upload body containing the list of files (multipart/form-data)
+        temporal_service: Temporal execution service (injected by FastAPI)
 
     Returns:
         FileUploadResponse with file_ids and file metadata
@@ -197,14 +179,24 @@ async def upload_files(
     for metadata in file_metadata_list:
         await db.refresh(metadata)
 
-    # Schedule document conversion for each file as a background task (AAP-60780)
-    # This enables pre-conversion so files are ready when attached to invocations
-    for metadata in file_metadata_list:
-        logger.info(
-            "Scheduling document conversion for standalone file upload",
-            file_id=metadata.id,
+    # Start builtin document conversion workflows via Temporal (non-blocking RPC)
+    if temporal_service:
+        exec_service = ExecutionService(db, current_user, temporal_service=temporal_service)
+
+        from nexus.workflows.constants import (  # noqa: PLC0415
+            BUILTIN_PROJECT_NAME,
+            BUILTIN_WORKFLOW_DOCUMENT_CONVERSION,
         )
-        background_tasks.add_task(document_conversion_task.convert, metadata.id)
+
+        for metadata in file_metadata_list:
+            try:
+                await exec_service.create_execution_by_name(
+                    workflow_name=BUILTIN_WORKFLOW_DOCUMENT_CONVERSION,
+                    input_data={"file_id": str(metadata.id)},
+                    project_name=BUILTIN_PROJECT_NAME,
+                )
+            except WorkflowNotFoundError:
+                logger.warning("Builtin workflow 'Document Conversion' not found, skipping")
 
     # Build response (exclude file_path for security)
     file_upload_infos = [

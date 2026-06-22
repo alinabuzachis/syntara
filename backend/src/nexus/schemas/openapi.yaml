@@ -10916,6 +10916,15 @@ paths:
               - type: 'null'
             title: Is Default
           description: Filter by default project status
+        - name: is_builtin
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: boolean
+              - type: 'null'
+            title: Is Builtin
+          description: Filter by built-in project status
       responses:
         '200':
           description: Paginated list of accessible projects
@@ -27776,6 +27785,10 @@ components:
           type: boolean
           default: false
           title: Is Default
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
       required:
         - name
       type: object
@@ -30557,6 +30570,10 @@ components:
         current_version:
           type: integer
           title: Current Version
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
         is_enabled:
           type: boolean
           title: Is Enabled
@@ -30637,6 +30654,10 @@ components:
         current_version:
           type: integer
           title: Current Version
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
         is_enabled:
           type: boolean
           title: Is Enabled

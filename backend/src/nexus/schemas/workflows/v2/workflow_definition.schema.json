@@ -340,6 +340,26 @@
             {
               "properties": {
                 "type": {
+                  "const": "internal_activity"
+                },
+                "parameters": {
+                  "$ref": "executors/internal_activity.schema.json#/parameterSchema"
+                },
+                "settings": {
+                  "$ref": "common-definitions.schema.json#/$defs/nodeSettingsFull"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/node_base"
+            },
+            {
+              "properties": {
+                "type": {
                   "const": "condition"
                 },
                 "parameters": {

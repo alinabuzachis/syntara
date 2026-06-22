@@ -39,31 +39,32 @@ async def admin_settings_client(
     async def override_get_current_user() -> User:
         return admin
 
-    session_app.dependency_overrides[get_db] = override_get_db
-    session_app.dependency_overrides[get_current_user] = override_get_current_user
+    from tests.conftest import _scoped_overrides
 
-    # Mock OPA to always allow — integration tests validate API behavior, not authz.
-    mock_opa = AsyncMock()
-    mock_opa.evaluate = AsyncMock(
-        return_value={
-            "allow": True,
-            "deny": False,
-            "matched_policy": "test-allow-all",
-            "allowed_projects": ["*"],
-        }
-    )
+    async with _scoped_overrides(session_app):
+        session_app.dependency_overrides[get_db] = override_get_db
+        session_app.dependency_overrides[get_current_user] = override_get_current_user
 
-    def _mock_getter(request: Any = None) -> AsyncMock:  # noqa: ANN401
-        return mock_opa
+        # Mock OPA to always allow — integration tests validate API behavior, not authz.
+        mock_opa = AsyncMock()
+        mock_opa.evaluate = AsyncMock(
+            return_value={
+                "allow": True,
+                "deny": False,
+                "matched_policy": "test-allow-all",
+                "allowed_projects": ["*"],
+            }
+        )
 
-    with patch("nexus.authz.dependencies.get_opa_client", _mock_getter):
-        async with AsyncClient(
-            transport=ASGITransport(app=session_app),
-            base_url="http://test",
-        ) as client:
-            yield client
+        def _mock_getter(request: Any = None) -> AsyncMock:  # noqa: ANN401
+            return mock_opa
 
-    session_app.dependency_overrides.clear()
+        with patch("nexus.authz.dependencies.get_opa_client", _mock_getter):
+            async with AsyncClient(
+                transport=ASGITransport(app=session_app),
+                base_url="http://test",
+            ) as client:
+                yield client
 
 
 class TestListSettings:

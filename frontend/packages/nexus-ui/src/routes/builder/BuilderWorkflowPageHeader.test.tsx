@@ -53,6 +53,7 @@ describe('BuilderWorkflowPageHeader', () => {
     workflowName: 'wf',
     workflowDescription: '',
     workflowTags: [],
+    isBuiltin: false,
     isNew: true,
     workflow: undefined,
     isPending: false,

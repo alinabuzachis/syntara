@@ -18,6 +18,7 @@ from temporalio.service import RPCError
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.models import Project
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -32,6 +33,8 @@ from nexus.workflows.audit.workflow_version import (
     WorkflowVersionUnpublishedEvent,
 )
 from nexus.workflows.exceptions import (
+    BuiltinWorkflowDeleteError,
+    BuiltinWorkflowModifyError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
@@ -278,6 +281,14 @@ class WorkflowService(BaseService):
             from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
 
             await assert_project_alive(self.session, project_id)
+
+            project = await self.session.get(Project, project_id)
+            if project and project.is_builtin:
+                from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
+
+                msg = f"Cannot create workflows in built-in project '{project.name}'"
+                raise BuiltinProtectionError(msg)
+
             await self._validate_credential_project_scope(workflow_definition, project_id)
 
         schema_version = workflow_definition.get("schema_version")
@@ -619,6 +630,9 @@ class WorkflowService(BaseService):
         """
         workflow = await self._get_workflow_for_update(workflow_id)
 
+        if workflow.is_builtin:
+            raise BuiltinWorkflowModifyError(workflow.name)
+
         # Update metadata fields
         if any([name is not None, description is not None, labels is not None]):
             await self.update_workflow_metadata(
@@ -730,6 +744,9 @@ class WorkflowService(BaseService):
     async def unpublish_workflow(self, workflow_id: UUID) -> Workflow:
         """Unpublish the currently published version."""
         workflow = await self._get_workflow_for_update(workflow_id)
+
+        if workflow.is_builtin:
+            raise BuiltinWorkflowModifyError(workflow.name)
 
         if workflow.published_version is None:
             raise WorkflowNotPublishedError(workflow_id)
@@ -854,6 +871,9 @@ class WorkflowService(BaseService):
 
         """
         workflow = await self.get_workflow_by_id(workflow_id)
+
+        if workflow.is_builtin:
+            raise BuiltinWorkflowDeleteError(workflow.name)
 
         # Delete associated webhook triggers before soft-deleting the workflow
         webhook_service = WebhookTriggerService(self.session, self.user)

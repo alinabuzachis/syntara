@@ -52,6 +52,7 @@ class Workflow(Resource, table=True):
     # Define filterable fields for API endpoints - extend base Resource fields
     __filterable_fields__: ClassVar[list[str]] = [
         *Resource.__filterable_fields__,
+        "is_builtin",
         "is_enabled",
         "published_version",
         "project_id",
@@ -79,6 +80,13 @@ class Workflow(Resource, table=True):
         default=None,
         description="Version number of the currently published version",
         index=True,
+    )
+
+    is_builtin: bool = Field(
+        default=False,
+        description="Whether this is a built-in workflow",
+        index=True,
+        sa_column_kwargs={"server_default": text("false")},
     )
 
     project_id: UUID | None = Field(
@@ -200,6 +208,7 @@ class WorkflowRead(WorkflowBase):
 
     id: UUID
     current_version: int
+    is_builtin: bool = False
     is_enabled: bool
     published_version: int | None = None
     created_by: UUID

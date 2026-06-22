@@ -32,6 +32,7 @@ export const ActivityTypeEnum = {
   CONVERGE: 'converge',
   SWITCH: 'switch',
   WAIT: 'wait',
+  INTERNAL_ACTIVITY: 'internal_activity',
 } as const
 
 /**

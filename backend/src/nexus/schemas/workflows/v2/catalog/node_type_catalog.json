@@ -133,6 +133,17 @@
       "since": "2.0.0"
     },
     {
+      "type": "internal_activity",
+      "name": "Internal Activity",
+      "description": "Execute built-in system operations as native Temporal activities",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/internal_activity.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
       "type": "condition",
       "name": "Condition",
       "description": "Binary conditional branching (if/then/else)",

@@ -11,6 +11,7 @@ import {
   RhUiUserCheckIcon,
   RhUiTreeViewIcon,
   RhUiClockIcon,
+  RhUiSettingsIcon,
 } from '@patternfly/react-icons'
 import type { ComponentType } from 'react'
 
@@ -101,5 +102,6 @@ export const executorMetadata: Record<string, ExecutorDisplayMetadata> = {
   aap_workflow_job_template: aapWorkflowExecutorDisplay,
   /** Internal key from detectTaskNodeType (agentic + ansible connector prompt), not an API executor string */
   aap: aapJobExecutorDisplay,
-  approval: { icon: RhUiUserCheckIcon, label: 'Approval' }, // Human approval gate
+  approval: { icon: RhUiUserCheckIcon, label: 'Approval' },
+  internal_activity: { icon: RhUiSettingsIcon, label: 'System' },
 }

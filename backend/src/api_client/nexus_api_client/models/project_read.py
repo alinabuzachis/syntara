@@ -30,6 +30,7 @@ class ProjectRead:
             'production', 'region': 'us-east-1', 'team': 'platform'}.
         description (None | str | Unset):
         is_default (bool | Unset):  Default: False.
+        is_builtin (bool | Unset):  Default: False.
     """
 
     name: str
@@ -39,6 +40,7 @@ class ProjectRead:
     labels: ProjectReadLabels | Unset = UNSET
     description: None | str | Unset = UNSET
     is_default: bool | Unset = False
+    is_builtin: bool | Unset = False
 
     def to_dict(self) -> dict[str, Any]:
         name = self.name
@@ -67,6 +69,8 @@ class ProjectRead:
 
         is_default = self.is_default
 
+        is_builtin = self.is_builtin
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -86,6 +90,8 @@ class ProjectRead:
             field_dict["description"] = description
         if is_default is not UNSET:
             field_dict["is_default"] = is_default
+        if is_builtin is not UNSET:
+            field_dict["is_builtin"] = is_builtin
 
         return field_dict
 
@@ -135,6 +141,8 @@ class ProjectRead:
 
         is_default = d.pop("is_default", UNSET)
 
+        is_builtin = d.pop("is_builtin", UNSET)
+
         project_read = cls(
             name=name,
             id=id,
@@ -143,6 +151,7 @@ class ProjectRead:
             labels=labels,
             description=description,
             is_default=is_default,
+            is_builtin=is_builtin,
         )
 
         return project_read

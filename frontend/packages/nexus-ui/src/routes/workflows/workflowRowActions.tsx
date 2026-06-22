@@ -33,6 +33,8 @@ export function buildWorkflowRowActions(
   permissions: ReturnType<typeof useWorkflowPermissions>,
   callbacks: WorkflowRowActionCallbacks
 ): RowAction[] {
+  if (workflow.is_builtin) return []
+
   const noUpdate = permissions.canUpdate ? undefined : { content: permissions.tooltips.update }
   const noCreate = permissions.canCreate ? undefined : { content: permissions.tooltips.create }
   const noRun = permissions.canRun ? undefined : { content: permissions.tooltips.run }

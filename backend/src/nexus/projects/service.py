@@ -182,6 +182,11 @@ class ProjectService(BaseService):
 
         """
         project = await self.get_project(project_id)
+        if project.is_builtin:
+            from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
+
+            msg = f"The built-in '{project.name}' project cannot be modified"
+            raise BuiltinProtectionError(msg)
         if name is not None:
             project.name = name
         if description is not None:
@@ -204,6 +209,11 @@ class ProjectService(BaseService):
 
         """
         project = await self.get_project(project_id)
+        if project.is_builtin:
+            from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
+
+            msg = f"The built-in '{project.name}' project cannot be deleted"
+            raise BuiltinProtectionError(msg)
         await self._cascade_cleanup_project_resources(project_id)
         project.soft_delete(self.user.id)
         self.session.add(project)

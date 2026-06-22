@@ -1,0 +1,85 @@
+"""Internal activity executor for built-in operations.
+
+Dispatches to registered internal operations (document conversion,
+invocation execution) that run directly in the Temporal worker
+process via native Temporal activities.
+
+Heavy dependencies (InvocationExecutor, DocumentConversionTask) are
+imported lazily inside the dispatch functions to avoid pulling them
+into the worker process at startup — eager imports trigger Temporal
+sandbox warnings that can interfere with other activities.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+from uuid import UUID
+
+import structlog
+from temporalio import activity
+from temporalio.exceptions import ApplicationError
+
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+
+logger = structlog.stdlib.get_logger(__name__)
+
+
+async def _run_document_conversion(operation_input: dict[str, Any]) -> dict[str, Any]:
+    file_id = operation_input.get("file_id")
+    if not file_id:
+        msg = "document_conversion requires 'file_id'"
+        raise ApplicationError(msg, non_retryable=True)
+
+    from nexus.files.document_conversion.tasks import DocumentConversionTask  # noqa: PLC0415
+
+    task = DocumentConversionTask()
+    result = await task.convert(UUID(file_id))
+    return {"output": {"status": result.name}}
+
+
+async def _run_invocation_execution(operation_input: dict[str, Any]) -> dict[str, Any]:
+    invocation_id = operation_input.get("invocation_id")
+    if not invocation_id:
+        msg = "invocation_execution requires 'invocation_id'"
+        raise ApplicationError(msg, non_retryable=True)
+
+    from nexus.agent_orchestrator.executor.invocation_executor import InvocationExecutor  # noqa: PLC0415
+
+    executor = InvocationExecutor()
+    await executor.execute_invocation(UUID(invocation_id))
+    return {"output": {"status": "completed"}}
+
+
+_DISPATCH: dict[str, Any] = {
+    "document_conversion": _run_document_conversion,
+    "invocation_execution": _run_invocation_execution,
+}
+
+
+@activity.defn(name=ActivityName.INTERNAL_ACTIVITY)
+async def execute_internal_activity(
+    input_config: dict[str, Any],
+    _output_config: dict[str, str] | None,
+) -> dict[str, Any]:
+    """Execute an internal system operation.
+
+    Args:
+        input_config: Must contain ``activity`` (operation name) and ``input`` (operation params).
+        _output_config: Output mapping (unused, kept for dispatch compatibility).
+
+    """
+    operation_name = input_config.get("activity")
+    if not operation_name:
+        msg = "internal_activity node requires 'activity' in config"
+        raise ApplicationError(msg, non_retryable=True)
+
+    handler = _DISPATCH.get(operation_name)
+    if handler is None:
+        msg = f"Unknown internal activity: {operation_name}"
+        raise ApplicationError(msg, non_retryable=True)
+
+    operation_input = input_config.get("input", {})
+    logger.info("Executing internal activity", operation=operation_name, input_keys=list(operation_input.keys()))
+
+    result: dict[str, Any] = await handler(operation_input)
+    return result

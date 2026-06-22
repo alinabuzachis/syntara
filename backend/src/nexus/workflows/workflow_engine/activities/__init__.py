@@ -23,6 +23,7 @@ from .execution_tracker import (
 )
 from .http_request_activity import execute_http_request_activity
 from .internal import register_activity_monitoring
+from .internal_activity import execute_internal_activity
 from .loop import loop
 from .manual_trigger import manual_trigger
 from .runtime_settings_activity import fetch_workflow_runtime_settings
@@ -47,6 +48,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     eda_trigger,
     switch,
     execute_http_request_activity,
+    execute_internal_activity,
     loop,
     manual_trigger,
     scheduled_trigger,

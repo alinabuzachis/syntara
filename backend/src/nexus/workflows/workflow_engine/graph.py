@@ -20,6 +20,7 @@ _NODE_SETTINGS_CLASS: dict[str, type[NodeSettingsBase]] = {
     NodeType.HTTP_REQUEST: NodeSettingsFull,
     NodeType.AAP_JOB_TEMPLATE: NodeSettingsFull,
     NodeType.AAP_WORKFLOW_JOB_TEMPLATE: NodeSettingsFull,
+    NodeType.INTERNAL_ACTIVITY: NodeSettingsFull,
     NodeType.SCRIPT: NodeSettingsNoRetry,
     NodeType.AGENTIC: NodeSettingsNoRetry,
     NodeType.APPROVAL: NodeSettingsNoRetry,

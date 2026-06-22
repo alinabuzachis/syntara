@@ -16,12 +16,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.exceptions import BuiltinProtectionError
 from nexus.authz.models.project import Project
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.workflows.exceptions import (
+    BuiltinWorkflowDeleteError,
+    BuiltinWorkflowModifyError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
     WorkflowNotPublishedError,
@@ -45,6 +48,7 @@ class TestWorkflowServiceBase:
         created_by: UUID | None = None,
         *,
         is_enabled: bool = True,
+        is_builtin: bool = False,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         deleted_at: datetime | None = None,
@@ -59,6 +63,7 @@ class TestWorkflowServiceBase:
             current_version=current_version,
             created_by=created_by or uuid4(),
             is_enabled=is_enabled,
+            is_builtin=is_builtin,
             published_version=current_version if is_enabled else None,
             created_at=created_at or now,
             updated_at=updated_at or now,
@@ -1728,3 +1733,128 @@ class TestCredentialProjectScopeValidation(TestWorkflowServiceBase):
 
         with patch(_PATCH_VALIDATOR), pytest.raises(SafeValueError, match="invalid or belong to a different project"):
             await service.create_workflow_version(workflow, wf_def_v2, "add credential")
+
+
+class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
+    """Test that built-in workflows cannot be deleted, updated, or unpublished."""
+
+    @pytest.mark.asyncio
+    async def test_delete_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        with pytest.raises(BuiltinWorkflowDeleteError, match="Builtin WF"):
+            await service.delete_workflow(workflow.id)
+
+    @pytest.mark.asyncio
+    async def test_delete_non_builtin_workflow_succeeds(self, test_db_session: AsyncSession, test_user: User) -> None:
+        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        await service.delete_workflow(workflow.id)
+
+        result = await test_db_session.get(Workflow, workflow.id)
+        assert result is not None
+        assert result.deleted_at is not None
+
+    @pytest.mark.asyncio
+    async def test_update_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        with pytest.raises(BuiltinWorkflowModifyError, match="Builtin WF"):
+            await service.update_workflow(workflow.id, description="hacked")
+
+    @pytest.mark.asyncio
+    async def test_update_non_builtin_workflow_succeeds(self, test_db_session: AsyncSession, test_user: User) -> None:
+        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        updated, _ = await service.update_workflow(workflow.id, description="updated desc")
+        assert updated.description == "updated desc"
+
+    @pytest.mark.asyncio
+    async def test_unpublish_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        version.status = WorkflowVersionStatus.PUBLISHED
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        with pytest.raises(BuiltinWorkflowModifyError, match="Builtin WF"):
+            await service.unpublish_workflow(workflow.id)
+
+    @pytest.mark.asyncio
+    async def test_unpublish_non_builtin_workflow_succeeds(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        workflow = self._create_test_workflow(name="Normal WF", created_by=test_user.id)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        version.status = WorkflowVersionStatus.PUBLISHED
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        result = await service.unpublish_workflow(workflow.id)
+        assert result.published_version is None
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_in_builtin_project_raises(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        builtin_project = Project(
+            name=f"builtin-{uuid4().hex[:6]}",
+            is_builtin=True,
+        )
+        test_db_session.add(builtin_project)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        with pytest.raises(BuiltinProtectionError, match="built-in project"):
+            await service.create_workflow(
+                name="user-workflow",
+                description="should fail",
+                labels={},
+                workflow_definition=self._create_minimal_workflow_definition(),
+                project_id=builtin_project.id,
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_workflow_in_normal_project_succeeds(
+        self, test_db_session: AsyncSession, test_user: User
+    ) -> None:
+        normal_project = Project(
+            name=f"normal-{uuid4().hex[:6]}",
+            is_builtin=False,
+        )
+        test_db_session.add(normal_project)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        workflow, _version = await service.create_workflow(
+            name=f"user-workflow-{uuid4().hex[:6]}",
+            description="should succeed",
+            labels={},
+            workflow_definition=self._create_minimal_workflow_definition(),
+            project_id=normal_project.id,
+        )
+        assert workflow.project_id == normal_project.id

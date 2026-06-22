@@ -36,6 +36,7 @@ class WorkflowRead:
             updated_at (datetime.datetime):
             description (None | str | Unset): Workflow description
             labels (WorkflowReadLabels | Unset): Workflow labels
+            is_builtin (bool | Unset):  Default: False.
             project_id (None | Unset | UUID):
             published_version (int | None | Unset):
             deleted_at (datetime.datetime | None | Unset):
@@ -51,6 +52,7 @@ class WorkflowRead:
     updated_at: datetime.datetime
     description: None | str | Unset = UNSET
     labels: WorkflowReadLabels | Unset = UNSET
+    is_builtin: bool | Unset = False
     project_id: None | Unset | UUID = UNSET
     published_version: int | None | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
@@ -81,6 +83,8 @@ class WorkflowRead:
         labels: dict[str, Any] | Unset = UNSET
         if not isinstance(self.labels, Unset):
             labels = self.labels.to_dict()
+
+        is_builtin = self.is_builtin
 
         project_id: None | str | Unset
         if isinstance(self.project_id, Unset):
@@ -129,6 +133,8 @@ class WorkflowRead:
             field_dict["description"] = description
         if labels is not UNSET:
             field_dict["labels"] = labels
+        if is_builtin is not UNSET:
+            field_dict["is_builtin"] = is_builtin
         if project_id is not UNSET:
             field_dict["project_id"] = project_id
         if published_version is not UNSET:
@@ -174,6 +180,8 @@ class WorkflowRead:
             labels = UNSET
         else:
             labels = WorkflowReadLabels.from_dict(_labels)
+
+        is_builtin = d.pop("is_builtin", UNSET)
 
         def _parse_project_id(data: object) -> None | Unset | UUID:
             if data is None:
@@ -245,6 +253,7 @@ class WorkflowRead:
             updated_at=updated_at,
             description=description,
             labels=labels,
+            is_builtin=is_builtin,
             project_id=project_id,
             published_version=published_version,
             deleted_at=deleted_at,

@@ -19,7 +19,7 @@ import asyncio
 import os
 import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
-from contextlib import AbstractContextManager, ExitStack, contextmanager
+from contextlib import AbstractContextManager, ExitStack, asynccontextmanager, contextmanager
 from datetime import UTC, datetime
 from importlib.util import find_spec
 from pathlib import Path
@@ -68,6 +68,7 @@ from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.services.execution_streaming_service import ExecutionStreamingService
 from nexus.workflows.workflow_engine.activities.condition import condition
 from nexus.workflows.workflow_engine.activities.converge import converge
+from nexus.workflows.workflow_engine.activities.internal_activity import execute_internal_activity
 from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
 from nexus.workflows.workflow_engine.activities.runtime_settings_activity import fetch_workflow_runtime_settings
 from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
@@ -788,6 +789,17 @@ def mock_session_factory() -> Callable[[], AsyncGenerator[Any, None]]:
     return session_gen
 
 
+@asynccontextmanager
+async def _scoped_overrides(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Save and restore dependency_overrides around a test fixture."""
+    saved = dict(app.dependency_overrides)
+    try:
+        yield
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(saved)
+
+
 @pytest_asyncio.fixture
 async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     """Create a base test client with database session override (no authentication).
@@ -803,40 +815,43 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
         AsyncClient for API testing without authentication
 
     """
+    async with _scoped_overrides(session_app):
 
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        yield test_db_session
+        async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+            yield test_db_session
 
-    session_app.dependency_overrides[get_db] = override_get_db
+        session_app.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=session_app),
-        base_url="http://test",
-    ) as client:
-        yield client
+        async with AsyncClient(
+            transport=ASGITransport(app=session_app),
+            base_url="http://test",
+        ) as client:
+            yield client
 
-    session_app.dependency_overrides.clear()
+
+@pytest.fixture
+def _override_temporal(
+    session_app: FastAPI,
+    temporal_env: WorkflowEnvironment,
+    temporal_worker: Worker,
+) -> None:
+    """Add Temporal execution service to dependency overrides.
+
+    Depends on temporal_worker to ensure the worker is running.
+    Any fixture that needs Temporal can add this as a dependency.
+    """
+    from nexus.workflows.executions_router import get_temporal_execution_service
+    from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
+
+    _svc = TemporalExecutionService(temporal_env.client, "test-workflow-queue")
+    session_app.dependency_overrides[get_temporal_execution_service] = lambda: _svc
 
 
 @pytest_asyncio.fixture
-async def base_client_with_mocked_llm(base_client: AsyncClient, mock_openrouter_llm: MagicMock) -> AsyncClient:
-    """Create a base test client with mocked OpenRouter LLM.
-
-    Use this fixture for tests that need to:
-    - Bypass the 503 check when OpenRouter API key is not configured
-    - Test invocation execution with a mocked LLM response
-
-    The mock LLM supports async invocation (ainvoke) and returns a properly
-    structured AIMessage response.
-
-    Args:
-        base_client: Base test client with database session
-        mock_openrouter_llm: Mock for OpenRouter LLM configuration
-
-    Returns:
-        AsyncClient for API testing with mocked LLM
-
-    """
+async def base_client_with_mocked_llm(
+    base_client: AsyncClient, mock_openrouter_llm: MagicMock, _override_temporal: None
+) -> AsyncClient:
+    """Base test client with mocked LLM and Temporal support."""
     return base_client
 
 
@@ -1273,46 +1288,46 @@ async def temporal_client(temporal_env: WorkflowEnvironment) -> Client:
     return temporal_env.client
 
 
-@pytest_asyncio.fixture
-async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[Worker, None]:
-    """Provide a Temporal worker for testing.
+_TEST_WORKER_ACTIVITIES: list[Callable[..., Any]] = [
+    execute_script_activity,
+    manual_trigger,
+    condition,
+    converge,
+    fetch_workflow_runtime_settings,
+    execute_internal_activity,
+]
 
-    This worker is configured with the NexusWorkflow and the unified script
-    activity executor.
 
-    Args:
-        temporal_env: The Temporal test environment fixture
+async def _create_temporal_worker(
+    temporal_env: WorkflowEnvironment,
+) -> AsyncGenerator[Worker, None]:
+    """Start a Temporal worker with all registered activities.
 
-    Yields:
-        Worker: Configured Temporal worker
-
+    Installs FakeSettingsCache so activities that call get_runtime_settings()
+    don't require a real settings cache singleton.
     """
     import nexus.settings.cache.settings_cache as _settings_mod
 
-    task_queue = "test-workflow-queue"
-
-    logger.info("Starting test worker on queue: %s", task_queue)
-
-    # Activities like execute_script_activity call get_runtime_settings()
-    # which requires a real SettingsCache singleton. Always install FakeSettingsCache
-    # here so a leaked mock from another test in the same xdist worker cannot
-    # interfere (the guard `if original is None` was insufficient).
     original = _settings_mod._runtime_settings
     _settings_mod._runtime_settings = FakeSettingsCache()  # type: ignore[assignment]
 
     try:
         async with Worker(
             temporal_env.client,
-            task_queue=task_queue,
+            task_queue="test-workflow-queue",
             workflows=[NexusWorkflow],
-            activities=[execute_script_activity, manual_trigger, condition, converge, fetch_workflow_runtime_settings],
+            activities=_TEST_WORKER_ACTIVITIES,
         ) as worker:
-            logger.info("Test worker started on queue: %s", task_queue)
             yield worker
-
-        logger.info("Test worker stopped")
     finally:
         _settings_mod._runtime_settings = original
+
+
+@pytest_asyncio.fixture
+async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[Worker, None]:
+    """Function-scoped Temporal worker for per-test workflow testing."""
+    async for worker in _create_temporal_worker(temporal_env):
+        yield worker
 
 
 @pytest.fixture
@@ -1821,40 +1836,27 @@ async def jwt_client(
         email=test_user.email or "",
     )
 
-    # Override database session for test isolation
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        yield test_db_session
+    async with _scoped_overrides(session_app):
+        # Override database session for test isolation
+        async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+            yield test_db_session
 
-    session_app.dependency_overrides[get_db] = override_get_db
+        session_app.dependency_overrides[get_db] = override_get_db
 
-    # Create client with Authorization header
-    async with AsyncClient(
-        transport=ASGITransport(app=session_app),
-        base_url="http://test",
-        headers={"Authorization": f"Bearer {access_token}"},
-    ) as client:
-        yield client
-
-    session_app.dependency_overrides.clear()
+        # Create client with Authorization header
+        async with AsyncClient(
+            transport=ASGITransport(app=session_app),
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {access_token}"},
+        ) as client:
+            yield client
 
 
 @pytest_asyncio.fixture
 async def jwt_client_with_mocked_llm(
-    jwt_client: AsyncClient,
-    mock_openrouter_llm: MagicMock,
+    jwt_client: AsyncClient, mock_openrouter_llm: MagicMock, _override_temporal: None
 ) -> AsyncClient:
-    """Create a JWT-authenticated test client with mocked OpenRouter LLM.
-
-    Use this fixture for tests that need real JWT authentication AND a mocked LLM.
-
-    Args:
-        jwt_client: JWT-authenticated test client
-        mock_openrouter_llm: Mock for OpenRouter LLM
-
-    Returns:
-        AsyncClient: JWT-authenticated client with mocked LLM
-
-    """
+    """JWT-authenticated test client with mocked LLM and Temporal support."""
     return jwt_client
 
 

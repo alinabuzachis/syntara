@@ -121,6 +121,7 @@ export function processExistingWorkflow(workflow: WorkflowWithVersion) {
 
   const flattenedWorkflow = {
     ...workflowDef,
+    is_builtin: workflow.is_builtin === true,
     triggers,
     workflow: { activities: flattenedActivities },
   } as unknown as WorkflowDefinition

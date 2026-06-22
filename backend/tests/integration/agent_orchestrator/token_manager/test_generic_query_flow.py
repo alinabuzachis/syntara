@@ -17,7 +17,7 @@ class TestGenericQueryFlow:
 
     @pytest.mark.asyncio
     async def test_information_query_routes_to_generic_agent(
-        self, jwt_client_with_mocked_llm: AsyncClient, test_user
+        self, auth_client_with_mocked_llm: AsyncClient, test_user
     ) -> None:
         """Test POST /invocations with info query routes to GenericAgent."""
         # Arrange
@@ -29,7 +29,7 @@ class TestGenericQueryFlow:
         }
 
         # Act
-        response = await jwt_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
+        response = await auth_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
 
         # Assert
         assert response.status_code == 202
@@ -38,7 +38,7 @@ class TestGenericQueryFlow:
         invocation_id = data["id"]
 
         # Wait for execution to start
-        async with wait_for_invocation_execution(jwt_client_with_mocked_llm, invocation_id) as final_data:
+        async with wait_for_invocation_execution(auth_client_with_mocked_llm, invocation_id) as final_data:
             data = final_data or data
             assert data["status"] in ["running", "completed"]  # Execution should have started
 
@@ -48,7 +48,7 @@ class TestGenericQueryFlow:
 
     @pytest.mark.asyncio
     async def test_generic_agent_returns_answer_not_workflow(
-        self, jwt_client_with_mocked_llm: AsyncClient, test_user
+        self, auth_client_with_mocked_llm: AsyncClient, test_user
     ) -> None:
         """Test GenericAgent returns result_type='answer' (not 'workflow')."""
         # Arrange
@@ -59,7 +59,7 @@ class TestGenericQueryFlow:
         }
 
         # Act
-        response = await jwt_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
+        response = await auth_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
 
         # Assert
         assert response.status_code == 202
@@ -68,7 +68,7 @@ class TestGenericQueryFlow:
 
     @pytest.mark.asyncio
     async def test_no_workflow_generation_for_information_queries(
-        self, jwt_client_with_mocked_llm: AsyncClient, test_user
+        self, auth_client_with_mocked_llm: AsyncClient, test_user
     ) -> None:
         """Test information queries don't trigger workflow generation."""
         # Arrange
@@ -79,13 +79,13 @@ class TestGenericQueryFlow:
         }
 
         # Act
-        response = await jwt_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
+        response = await auth_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
 
         # Assert - invocation accepted means GenericAgent will process via mocked LLM
         assert response.status_code == 202
 
     @pytest.mark.asyncio
-    async def test_llm_generates_answer_for_query(self, jwt_client_with_mocked_llm: AsyncClient, test_user) -> None:
+    async def test_llm_generates_answer_for_query(self, auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
         """Test LangChain LLM generates answer (using mocked LLM response)."""
         # Arrange
         request_data = {
@@ -95,7 +95,7 @@ class TestGenericQueryFlow:
         }
 
         # Act
-        response = await jwt_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
+        response = await auth_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
 
         # Assert
         assert response.status_code == 202
@@ -103,7 +103,7 @@ class TestGenericQueryFlow:
         invocation_id = data["id"]
 
         # Wait for execution to start
-        async with wait_for_invocation_execution(jwt_client_with_mocked_llm, invocation_id) as final_data:
+        async with wait_for_invocation_execution(auth_client_with_mocked_llm, invocation_id) as final_data:
             data = final_data or data
             assert data["status"] in ["running", "completed"]
         # Invocation accepted successfully - LLM will process in background/sync
@@ -113,7 +113,7 @@ class TestGenericQueryErrorHandling:
     """Test error handling for information query flow."""
 
     @pytest.mark.asyncio
-    async def test_handles_llm_errors_gracefully(self, jwt_client_with_mocked_llm: AsyncClient, test_user) -> None:
+    async def test_handles_llm_errors_gracefully(self, auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
         """Test system handles LLM errors without crashing."""
         # Arrange
         request_data = {
@@ -128,14 +128,14 @@ class TestGenericQueryErrorHandling:
             mock_get_llm.return_value = mock_llm
 
             # Act
-            response = await jwt_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
+            response = await auth_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)
 
             # Assert
             # Should still accept invocation (error handled in background)
             assert response.status_code == 202
 
     @pytest.mark.asyncio
-    async def test_handles_invalid_request_data(self, jwt_client_with_mocked_llm: AsyncClient, test_user) -> None:
+    async def test_handles_invalid_request_data(self, auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
         """Test system validates request data properly."""
         # Arrange
 
@@ -146,7 +146,7 @@ class TestGenericQueryErrorHandling:
         }
 
         # Act
-        response = await jwt_client_with_mocked_llm.post("/api/v1/invocations", json=invalid_request)
+        response = await auth_client_with_mocked_llm.post("/api/v1/invocations", json=invalid_request)
 
         # Assert
         assert response.status_code == 422  # Unprocessable Entity (validation error)

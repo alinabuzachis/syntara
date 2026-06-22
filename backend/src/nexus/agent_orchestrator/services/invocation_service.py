@@ -20,11 +20,11 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import structlog
-from fastapi import BackgroundTasks, UploadFile
+from fastapi import UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 if TYPE_CHECKING:
-    from nexus.agent_orchestrator.executor import InvocationExecutor
+    from nexus.workflows.services.execution_service import ExecutionService
 
 from nexus.agent_orchestrator.models import (
     Invocation,
@@ -42,10 +42,6 @@ from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.files import utils as file_utils
-from nexus.files.document_conversion.tasks import (
-    DocumentConversionTask,
-    get_document_conversion_task,
-)
 from nexus.files.file_manager import FileManager, get_file_manager
 from nexus.files.models import FileMetadata
 from nexus.invocations.audit.invocation_cancelled import InvocationCancellationResult, InvocationCancelledEvent
@@ -65,37 +61,24 @@ class InvocationService(BaseService):
         self,
         session: AsyncSession,
         user: User,
-        background_tasks: BackgroundTasks | None = None,
         session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
-        document_conversion_task_factory: Callable[
-            [Callable[[], AsyncGenerator[AsyncSession, None]]], DocumentConversionTask
-        ] = get_document_conversion_task,
         file_manager_factory: Callable[[], FileManager] = get_file_manager,
-        invocation_executor_factory: Callable[[Callable[[], AsyncGenerator[AsyncSession, None]]], "InvocationExecutor"]
-        | None = None,
+        execution_service: "ExecutionService | None" = None,
     ) -> None:
         """Initialize service with database session.
 
         Args:
             session: Database session for queries
             user: Current authenticated user
-            background_tasks: Optional FastAPI background tasks for document conversion
             session_factory: Session factory for background tasks (defaults to get_db)
-            document_conversion_task_factory: Factory function for creating a DocumentConversionTask
             file_manager_factory: Factory function for creating FileManager
-            invocation_executor_factory: Factory function for creating InvocationExecutor
+            execution_service: Service for creating workflow executions
 
         """
         super().__init__(session, user)
         self.file_manager = file_manager_factory()
-        self.background_tasks = background_tasks
         self.session_factory = session_factory
-        self.document_conversion_task = document_conversion_task_factory(session_factory)
-        if invocation_executor_factory is None:
-            from nexus.agent_orchestrator.executor import get_invocation_executor  # noqa: PLC0415
-
-            invocation_executor_factory = get_invocation_executor
-        self.invocation_executor = invocation_executor_factory(session_factory)
+        self.execution_service = execution_service
 
     async def _handle_file_uploads(self, files: list[UploadFile]) -> list[FileMetadata]:
         if not files:
@@ -133,48 +116,51 @@ class InvocationService(BaseService):
 
         return existing_files
 
-    def _schedule_conversion_tasks(
+    async def _start_builtin_workflows(
         self,
-        file_ids: list[str],
         invocation_id: UUID,
+        file_ids: list[str] | None = None,
     ) -> None:
-        """Schedule document conversion for files that need conversion.
+        """Start built-in workflows for this invocation.
+
+        Starts the agent execution workflow and, if file_ids are provided,
+        document conversion workflows. Workflows are started via Temporal
+        (non-blocking RPC) so this returns quickly.
 
         Args:
-            file_ids: List of file UUIDs (as strings) to convert
-            invocation_id: Invocation ID for logging
+            invocation_id: Invocation ID to execute
+            file_ids: Optional file UUIDs to convert
 
         """
-        if not self.background_tasks or not file_ids:
+        if not self.execution_service:
             return
 
-        for file_id_str in file_ids:
-            file_id = UUID(file_id_str)
-            logger.info(
-                "Scheduling document conversion",
-                file_id=file_id,
-                invocation_id=invocation_id,
-            )
-            self.background_tasks.add_task(self.document_conversion_task.convert, file_id)
-
-        logger.info(
-            "Scheduled document conversion tasks",
-            task_count=len(file_ids),
-            invocation_id=invocation_id,
+        from nexus.workflows.constants import (  # noqa: PLC0415
+            BUILTIN_PROJECT_NAME,
+            BUILTIN_WORKFLOW_AGENT_EXECUTION,
+            BUILTIN_WORKFLOW_DOCUMENT_CONVERSION,
         )
+        from nexus.workflows.exceptions import BuiltinWorkflowMissingError, WorkflowNotFoundError  # noqa: PLC0415
 
-    def _schedule_execution_task(self, invocation_id: UUID) -> None:
-        """Schedule invocation execution as a background task.
+        if file_ids:
+            for file_id in file_ids:
+                try:
+                    await self.execution_service.create_execution_by_name(
+                        workflow_name=BUILTIN_WORKFLOW_DOCUMENT_CONVERSION,
+                        input_data={"file_id": file_id},
+                        project_name=BUILTIN_PROJECT_NAME,
+                    )
+                except WorkflowNotFoundError:
+                    logger.warning("Builtin workflow 'Document Conversion' not found, skipping")
 
-        Args:
-            invocation_id: ID of the invocation to execute
-
-        """
-        if not self.background_tasks:
-            return
-
-        logger.info("Scheduling invocation execution", invocation_id=invocation_id)
-        self.background_tasks.add_task(self.invocation_executor.execute_invocation, invocation_id)
+        try:
+            await self.execution_service.create_execution_by_name(
+                workflow_name=BUILTIN_WORKFLOW_AGENT_EXECUTION,
+                input_data={"invocation_id": str(invocation_id)},
+                project_name=BUILTIN_PROJECT_NAME,
+            )
+        except WorkflowNotFoundError as exc:
+            raise BuiltinWorkflowMissingError(BUILTIN_WORKFLOW_AGENT_EXECUTION) from exc
 
     async def create_invocation(
         self,
@@ -308,22 +294,8 @@ class InvocationService(BaseService):
             )
             raise
 
-        # Schedule background tasks AFTER successful commit
-        # Orchestration logic:
-        # - If new files uploaded: convert them, then execute
-        # - If only pre-uploaded file_ids: execute directly (already converted)
-        # - If no files: execute directly
-        if new_file_ids:
-            # Schedule conversion for new files
-            # Note: Execution is triggered by conversion completion (not implemented here yet)
-            # For now, we schedule execution after conversion tasks
-            self._schedule_conversion_tasks(new_file_ids, invocation_id)
-            # TODO(nexus): Implement conversion->execution chaining AAP-61184
-            # For now, schedule execution as well (files may still be converting)
-            self._schedule_execution_task(invocation_id)
-        else:
-            # No new uploads - execute directly
-            self._schedule_execution_task(invocation_id)
+        # Start builtin workflows AFTER successful commit
+        await self._start_builtin_workflows(invocation_id, file_ids=new_file_ids or None)
 
         return invocation
 
@@ -415,9 +387,8 @@ class InvocationService(BaseService):
         # Clean up uploaded and converted files associated with this invocation
         cleaned_file_ids = await self._cleanup_invocation_files(invocation)
 
-        # Note: Background document conversion tasks cannot be cancelled directly due to
-        # FastAPI BackgroundTasks limitations. However, conversion tasks are typically
-        # short-lived and will complete harmlessly even for cancelled invocations.
+        # Note: Document conversion workflows will complete harmlessly even for
+        # cancelled invocations. Execution workflow cancellation is handled by Temporal.
 
         try:
             await self.session.commit()

@@ -31,7 +31,14 @@ async def seed_groups_project_admin(session: AsyncSession) -> None:
     Role assignments reference roles by name — no role rows need to
     exist in the database.
     """
-    auth_group, admin_group, auditors_group, users_group, default_project = await _seed_groups_and_project(session)
+    (
+        auth_group,
+        admin_group,
+        auditors_group,
+        users_group,
+        default_project,
+        _system_project,
+    ) = await _seed_groups_and_project(session)
     await session.flush()
     await _seed_assignments_and_admin(session, auth_group, admin_group, auditors_group, users_group, default_project)
     await session.commit()
@@ -42,7 +49,14 @@ async def seed_authz_data(session: AsyncSession) -> None:
 
     This is the entry point used by tests after table truncation.
     """
-    auth_group, admin_group, auditors_group, users_group, default_project = await _seed_groups_and_project(session)
+    (
+        auth_group,
+        admin_group,
+        auditors_group,
+        users_group,
+        default_project,
+        _system_project,
+    ) = await _seed_groups_and_project(session)
     await session.flush()
     await _seed_assignments_and_admin(session, auth_group, admin_group, auditors_group, users_group, default_project)
     await session.commit()
@@ -50,10 +64,10 @@ async def seed_authz_data(session: AsyncSession) -> None:
 
 async def _seed_groups_and_project(
     session: AsyncSession,
-) -> tuple[Group, Group, Group, Group, Project]:
-    """Seed default project and all built-in groups.
+) -> tuple[Group, Group, Group, Group, Project, Project]:
+    """Seed default project, system project, and all built-in groups.
 
-    Returns (auth_group, admin_group, auditors_group, users_group, default_project).
+    Returns (auth_group, admin_group, auditors_group, users_group, default_project, system_project).
     """
     existing_proj = await session.exec(
         select(Project).where(
@@ -65,6 +79,25 @@ async def _seed_groups_and_project(
     if not default_project:
         default_project = Project(id=uuid4(), name="default", description="Default project", is_default=True, labels={})
         session.add(default_project)
+
+    from nexus.workflows.constants import BUILTIN_PROJECT_NAME  # noqa: PLC0415
+
+    existing_system = await session.exec(
+        select(Project).where(
+            Project.name == BUILTIN_PROJECT_NAME,
+            Project.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    system_project = existing_system.one_or_none()
+    if not system_project:
+        system_project = Project(
+            id=uuid4(),
+            name=BUILTIN_PROJECT_NAME,
+            description="Default project for built-in workflows",
+            is_builtin=True,
+            labels={},
+        )
+        session.add(system_project)
 
     existing_auth = await session.exec(select(Group).where(Group.name == "authenticated"))
     auth_group = existing_auth.one_or_none()
@@ -114,7 +147,7 @@ async def _seed_groups_and_project(
         )
         session.add(users_group)
 
-    return auth_group, admin_group, auditors_group, users_group, default_project
+    return auth_group, admin_group, auditors_group, users_group, default_project, system_project
 
 
 async def _ensure_role_assignment(

@@ -185,6 +185,7 @@ def _register_all() -> None:
     from nexus.credentials.lib.preseed import preseed_credential_types  # noqa: PLC0415
     from nexus.settings.seeder import seed_settings_with_session  # noqa: PLC0415
     from nexus.workflows.seed import seed_sample_workflows  # noqa: PLC0415
+    from nexus.workflows.seed_builtin import seed_builtin_workflows  # noqa: PLC0415
 
     _register(
         SeederRegistration(
@@ -212,6 +213,14 @@ def _register_all() -> None:
             name="audit_metadata",
             func=seed_audit_metadata,
             description="Populate audit_table_metadata and create audit triggers",
+        )
+    )
+    _register(
+        SeederRegistration(
+            name="builtin_workflows",
+            func=seed_builtin_workflows,
+            depends_on=("authz",),
+            description="Seed built-in workflows (document conversion, invocation execution)",
         )
     )
     _register(

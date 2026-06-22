@@ -8,7 +8,6 @@ import {
   Icon,
   MenuToggle,
   type MenuToggleElement,
-  Tooltip,
 } from '@patternfly/react-core'
 import {
   RhUiPlayIcon,
@@ -18,7 +17,6 @@ import {
   RhUiHistoryIcon,
   RhUiImportIcon,
   RhUiPublishIcon,
-  RhUiSaveFillIcon,
   RhUiTrashIcon,
   RhUiEllipsisVerticalFillIcon,
   RhUiAddSquareIcon,
@@ -27,9 +25,9 @@ import {
 import { useCallback, useState, type Dispatch, type Ref } from 'react'
 
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
-import { formatDateTime } from '../../utils/dateUtils'
 
 import type { BuilderAction } from './builderReducer'
+import { SaveWorkflowButton } from './SaveWorkflowButton'
 import type { BuilderPermissions } from './useBuilderPermissions'
 import { useWorkflowImportExport, type PendingImportData } from './useWorkflowImportExport'
 
@@ -54,6 +52,7 @@ function WorkflowKebabToggle({ toggleRef, isKebabOpen, dispatch }: WorkflowKebab
 }
 
 type WorkflowKebabMenuProps = Readonly<{
+  isBuiltin: boolean
   isNew: boolean
   workflow: { id: string } | undefined
   isKebabOpen: boolean
@@ -70,6 +69,7 @@ type WorkflowKebabMenuProps = Readonly<{
 }>
 
 function WorkflowKebabMenu({
+  isBuiltin,
   isNew,
   workflow,
   isKebabOpen,
@@ -127,136 +127,88 @@ function WorkflowKebabMenu({
             </DropdownItem>
           </DropdownList>
         </DropdownGroup>
-        <Divider />
-        <DropdownGroup label="Actions">
-          <DropdownList>
-            <DropdownItem onClick={handleVerify}>
-              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                <RhUiCheckCircleIcon />
-              </Icon>
-              Verify workflow
-            </DropdownItem>
-            <DropdownItem onClick={handleExport}>
-              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                <RhUiExportIcon />
-              </Icon>
-              Export workflow
-            </DropdownItem>
-            <DropdownItem
-              isAriaDisabled={!builderPermissions.canEdit}
-              tooltipProps={builderPermissions.canEdit ? undefined : { content: builderPermissions.tooltips.edit }}
-              onClick={
-                builderPermissions.canEdit
-                  ? () => {
-                      importFileRef.current?.click()
-                      dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-                    }
-                  : undefined
-              }
-            >
-              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                <RhUiImportIcon />
-              </Icon>
-              Import workflow
-            </DropdownItem>
-            {!isNew && workflow?.id && publishedVersion != null && (
+        {!isBuiltin && <Divider />}
+        {!isBuiltin && (
+          <DropdownGroup label="Actions">
+            <DropdownList>
+              <DropdownItem onClick={handleVerify}>
+                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <RhUiCheckCircleIcon />
+                </Icon>
+                Verify workflow
+              </DropdownItem>
+              <DropdownItem onClick={handleExport}>
+                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <RhUiExportIcon />
+                </Icon>
+                Export workflow
+              </DropdownItem>
               <DropdownItem
                 isAriaDisabled={!builderPermissions.canEdit}
-                tooltipProps={
-                  builderPermissions.canEdit ? undefined : { content: builderPermissions.tooltips.unpublish }
-                }
+                tooltipProps={builderPermissions.canEdit ? undefined : { content: builderPermissions.tooltips.edit }}
                 onClick={
                   builderPermissions.canEdit
                     ? () => {
-                        onUnpublish()
+                        importFileRef.current?.click()
                         dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
                       }
                     : undefined
                 }
               >
                 <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                  <RhUiMinusCircleFillIcon />
+                  <RhUiImportIcon />
                 </Icon>
-                Unpublish workflow
+                Import workflow
               </DropdownItem>
-            )}
-            {!isNew && workflow?.id && (
-              <DropdownItem
-                isAriaDisabled={!builderPermissions.canDelete}
-                tooltipProps={
-                  builderPermissions.canDelete ? undefined : { content: builderPermissions.tooltips.delete }
-                }
-                onClick={
-                  builderPermissions.canDelete
-                    ? () => {
-                        dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
-                        dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-                      }
-                    : undefined
-                }
-                isDanger={builderPermissions.canDelete}
-              >
-                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                  <RhUiTrashIcon />
-                </Icon>
-                Delete workflow
-              </DropdownItem>
-            )}
-          </DropdownList>
-        </DropdownGroup>
+              {!isNew && workflow?.id && publishedVersion != null && (
+                <DropdownItem
+                  isAriaDisabled={!builderPermissions.canEdit}
+                  tooltipProps={
+                    builderPermissions.canEdit ? undefined : { content: builderPermissions.tooltips.unpublish }
+                  }
+                  onClick={
+                    builderPermissions.canEdit
+                      ? () => {
+                          onUnpublish()
+                          dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                        }
+                      : undefined
+                  }
+                >
+                  <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                    <RhUiMinusCircleFillIcon />
+                  </Icon>
+                  Unpublish workflow
+                </DropdownItem>
+              )}
+              {!isNew && workflow?.id && (
+                <DropdownItem
+                  isAriaDisabled={!builderPermissions.canDelete}
+                  tooltipProps={
+                    builderPermissions.canDelete ? undefined : { content: builderPermissions.tooltips.delete }
+                  }
+                  onClick={
+                    builderPermissions.canDelete
+                      ? () => {
+                          dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
+                          dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                        }
+                      : undefined
+                  }
+                  isDanger={builderPermissions.canDelete}
+                >
+                  <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                    <RhUiTrashIcon />
+                  </Icon>
+                  Delete workflow
+                </DropdownItem>
+              )}
+            </DropdownList>
+          </DropdownGroup>
+        )}
       </Dropdown>
       <input ref={importFileRef} type="file" accept=".json" onChange={handleImportFile} style={{ display: 'none' }} />
     </>
-  )
-}
-
-type SaveWorkflowButtonProps = Readonly<{
-  isPending: boolean
-  isDirty: boolean
-  isNew: boolean
-  lastSavedAt?: string | null
-  onSave: () => void
-  canEdit: boolean
-  editTooltip: string
-}>
-
-function SaveWorkflowButton({
-  isPending,
-  isDirty,
-  isNew,
-  lastSavedAt,
-  onSave,
-  canEdit,
-  editTooltip,
-}: SaveWorkflowButtonProps) {
-  const isDisabledByState = isPending || (!isDirty && !isNew)
-
-  let tooltipContent: string
-  if (!canEdit) {
-    tooltipContent = editTooltip
-  } else if (lastSavedAt) {
-    tooltipContent = `Last saved ${formatDateTime(lastSavedAt)}`
-  } else {
-    tooltipContent = 'Save workflow'
-  }
-
-  return (
-    <Tooltip content={tooltipContent} position="bottom" enableFlip={false}>
-      <Button
-        variant="plain"
-        onClick={canEdit ? onSave : undefined}
-        isLoading={isPending}
-        isAriaDisabled={!canEdit || isDisabledByState}
-        icon={
-          <Icon isInline>
-            <RhUiSaveFillIcon />
-          </Icon>
-        }
-        iconPosition="start"
-      >
-        {isPending ? 'Saving...' : 'Save'}
-      </Button>
-    </Tooltip>
   )
 }
 
@@ -355,6 +307,7 @@ function RunWorkflowSection({ triggers, dispatch, builderPermissions }: RunWorkf
 }
 
 type BuilderEditorToolbarProps = Readonly<{
+  isBuiltin: boolean
   isNew: boolean
   workflow: { id: string } | undefined
   isPending: boolean
@@ -377,6 +330,7 @@ type BuilderEditorToolbarProps = Readonly<{
 }>
 
 export function BuilderEditorToolbar({
+  isBuiltin,
   isNew,
   workflow,
   isPending,
@@ -406,6 +360,27 @@ export function BuilderEditorToolbar({
 
   if (!builderPermissions.canEdit && hasNoWorkflowNodes && isNew) {
     return null
+  }
+
+  if (isBuiltin) {
+    return (
+      <WorkflowKebabMenu
+        isBuiltin={isBuiltin}
+        isNew={isNew}
+        workflow={workflow}
+        isKebabOpen={isKebabOpen}
+        publishedVersion={publishedVersion}
+        dispatch={dispatch}
+        handleToggleHistory={handleToggleHistory}
+        handleToggleDetails={handleToggleDetails}
+        onUnpublish={onUnpublish}
+        builderPermissions={builderPermissions}
+        importFileRef={importFileRef}
+        handleImportFile={handleImportFile}
+        handleExport={handleExport}
+        handleVerify={handleVerify}
+      />
+    )
   }
 
   return (
@@ -490,6 +465,7 @@ export function BuilderEditorToolbar({
 
       <Divider orientation={{ default: 'vertical' }} />
       <WorkflowKebabMenu
+        isBuiltin={isBuiltin}
         isNew={isNew}
         workflow={workflow}
         isKebabOpen={isKebabOpen}

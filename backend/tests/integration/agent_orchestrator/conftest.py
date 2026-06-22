@@ -1,19 +1,98 @@
 """Fixtures specific to agent orchestrator integration tests."""
 
-from collections.abc import AsyncGenerator, AsyncIterator, Generator
-from typing import Any
+from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
+
+if TYPE_CHECKING:
+    from temporalio.testing import WorkflowEnvironment
+    from temporalio.worker import Worker
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.services.token_service import TokenService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _seed_data(_seed_integration_data: None) -> None:
+    """Opt into shared authz + builtin workflow seeding."""
+
+
+@asynccontextmanager
+async def _ao_test_client(
+    test_db_session_factory: async_sessionmaker[AsyncSession],
+    session_app: FastAPI,
+    test_user: User,
+    temporal_env: "WorkflowEnvironment",
+) -> AsyncGenerator[AsyncClient, None]:
+    """Create an authenticated test client with DB + Temporal overrides.
+
+    Uses fresh DB sessions per request so that cross-session updates
+    (e.g. InvocationExecutor committing status in a Temporal activity)
+    are visible to subsequent GET requests.
+
+    Shared by both auth_client_with_mocked_llm and
+    auth_client_with_tool_aware_mocked_llm.
+    """
+    from nexus.workflows.executions_router import get_temporal_execution_service
+    from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
+
+    token_service = TokenService()
+    access_token = token_service.create_access_token(
+        user_id=test_user.id,
+        username=test_user.username,
+        email=test_user.email or "",
+    )
+
+    _svc = TemporalExecutionService(temporal_env.client, "test-workflow-queue")
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with test_db_session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    async def override_temporal() -> TemporalExecutionService:
+        return _svc
+
+    session_app.dependency_overrides[get_db] = override_get_db
+    session_app.dependency_overrides[get_temporal_execution_service] = override_temporal
+
+    async with AsyncClient(
+        transport=ASGITransport(app=session_app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {access_token}"},
+    ) as client:
+        yield client
+
+    session_app.dependency_overrides.pop(get_db, None)
+    session_app.dependency_overrides.pop(get_temporal_execution_service, None)
+
+
+@pytest_asyncio.fixture
+async def auth_client_with_mocked_llm(
+    test_db_session_factory: async_sessionmaker[AsyncSession],
+    session_app: FastAPI,
+    test_user: User,
+    mock_openrouter_llm: MagicMock,
+    temporal_env: "WorkflowEnvironment",
+    temporal_worker: "Worker",
+) -> AsyncGenerator[AsyncClient, None]:
+    """Authenticated client with mocked LLM and Temporal for AO tests."""
+    async with _ao_test_client(test_db_session_factory, session_app, test_user, temporal_env) as client:
+        yield client
 
 
 def _extract_tool_results(messages: list[Any]) -> tuple[str, bool, list[dict[str, str]]]:
@@ -179,50 +258,13 @@ def mock_tool_aware_llm() -> Generator[MagicMock, None, None]:
 
 @pytest_asyncio.fixture
 async def auth_client_with_tool_aware_mocked_llm(
-    test_db_session: AsyncSession,
+    test_db_session_factory: async_sessionmaker[AsyncSession],
     session_app: FastAPI,
     test_user: User,
     mock_tool_aware_llm: MagicMock,
+    temporal_env: "WorkflowEnvironment",
+    temporal_worker: "Worker",
 ) -> AsyncGenerator[AsyncClient, None]:
-    """Create authenticated test client with tool-aware mocked LLM.
-
-    This client:
-    - Uses mocked LLM that intelligently calls tools based on prompts
-    - Allows real tool discovery and execution
-    - Enables testing of complete tool execution workflow
-    - Supports assertions on tool calls and results
-    - Includes valid JWT authentication
-
-    Args:
-        test_db_session: Test database session
-        session_app: Session-scoped app
-        test_user: Existing test user from main conftest.py
-        mock_tool_aware_llm: Tool-aware LLM mock
-
-    Yields:
-        AsyncClient with JWT authentication and smart tool calling
-
-    """
-    # Generate real JWT token for the test user
-    token_service = TokenService()
-    access_token = token_service.create_access_token(
-        user_id=test_user.id,
-        username=test_user.username,
-        email=test_user.email or "",
-    )
-
-    # Override database session in the app
-    async def override_get_db() -> AsyncIterator[AsyncSession]:
-        yield test_db_session
-
-    session_app.dependency_overrides[get_db] = override_get_db
-
-    async with AsyncClient(
-        transport=ASGITransport(app=session_app),
-        base_url="http://test",
-        headers={"Authorization": f"Bearer {access_token}"},
-    ) as client:
+    """Authenticated client with tool-aware mocked LLM and Temporal."""
+    async with _ao_test_client(test_db_session_factory, session_app, test_user, temporal_env) as client:
         yield client
-
-    # Clean up
-    session_app.dependency_overrides.clear()

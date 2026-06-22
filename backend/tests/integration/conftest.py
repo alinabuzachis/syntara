@@ -96,6 +96,20 @@ async def _seed_authenticated_group(test_db_session: AsyncSession) -> None:
         await test_db_session.flush()
 
 
+@pytest_asyncio.fixture
+async def _seed_integration_data(test_db_session: AsyncSession) -> None:
+    """Seed authz and builtin workflow data.
+
+    Not autouse — directories opt in via autouse wrapper fixtures in subdirectory conftest files.
+    This avoids inflating workflow/resource counts in pagination and telemetry tests.
+    """
+    from nexus.authz.seed import seed_authz_data
+    from nexus.workflows.seed_builtin import seed_builtin_workflows
+
+    await seed_authz_data(test_db_session)
+    await seed_builtin_workflows(test_db_session)
+
+
 @pytest.fixture(autouse=True)
 def _reset_opa_cache() -> Generator[None, None, None]:
     """Reset OPA cache between integration tests."""
@@ -113,6 +127,9 @@ def _mock_opa_allow_all(monkeypatch: pytest.MonkeyPatch) -> None:
     The ``api`` conftest's ``_mock_opa`` fixture overrides this one for
     tests in that directory because pytest uses the most-specific conftest.
     """
+    from nexus.api.main import app
+    from nexus.authz.dependencies import get_opa_client
+
     mock_opa = AsyncMock()
     mock_opa.evaluate = AsyncMock(
         return_value={
@@ -128,3 +145,5 @@ def _mock_opa_allow_all(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr("nexus.authz.dependencies.get_opa_client", _mock_getter)
     monkeypatch.setattr("nexus.workflows.executions_router.get_opa_client", _mock_getter)
+
+    app.dependency_overrides[get_opa_client] = lambda: mock_opa

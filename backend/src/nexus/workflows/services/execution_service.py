@@ -317,6 +317,56 @@ class ExecutionService(BaseService):
 
         return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
 
+    async def create_execution_by_name(
+        self,
+        workflow_name: str,
+        input_data: dict[str, Any],
+        project_name: str,
+    ) -> ExecutionRead:
+        """Look up a workflow by name within a project and start an execution.
+
+        Convenience method for builtin workflows where the caller knows
+        the workflow name but not the ID.
+
+        Args:
+            workflow_name: Name of the workflow (e.g., "Document Conversion")
+            input_data: Input parameters for the workflow trigger
+            project_name: Project name to scope the lookup
+
+        Returns:
+            Created execution with status=PENDING
+
+        Raises:
+            WorkflowNotFoundError: If no workflow with this name exists
+
+        """
+        from sqlmodel import col  # noqa: PLC0415
+
+        from nexus.authz.models import Project  # noqa: PLC0415
+
+        query = select(Workflow).where(
+            col(Workflow.name) == workflow_name,
+            Workflow.deleted_at.is_(None),  # type: ignore[union-attr]
+            Workflow.project_id
+            == select(Project.id)
+            .where(
+                Project.name == project_name,
+                Project.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+            .scalar_subquery(),
+        )
+
+        result = await self.session.exec(query)
+        workflow = result.one_or_none()
+        if workflow is None:
+            raise WorkflowNotFoundError(workflow_name=workflow_name)
+
+        return await self.create_execution(
+            workflow_id=workflow.id,
+            input_data=input_data,
+            use_published=True,
+        )
+
     @staticmethod
     def _validate_pre_resolved_nodes(
         pre_resolved_nodes: dict[str, "PreResolvedNodeOutput"],

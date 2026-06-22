@@ -48,6 +48,10 @@ components:
         current_version:
           type: integer
           title: Current Version
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
         is_enabled:
           type: boolean
           title: Is Enabled
@@ -129,6 +133,10 @@ components:
         current_version:
           type: integer
           title: Current Version
+        is_builtin:
+          type: boolean
+          default: false
+          title: Is Builtin
         is_enabled:
           type: boolean
           title: Is Enabled

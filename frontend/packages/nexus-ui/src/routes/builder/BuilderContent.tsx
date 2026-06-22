@@ -1,5 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { Alert, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
@@ -8,7 +8,6 @@ import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
 import { NxPage } from '../../components/layout/NxPage'
 import { NxPanel } from '../../components/layout/NxPanel'
-import { ResizableDivider } from '../../components/ResizableDivider'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
@@ -20,12 +19,13 @@ import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExp
 
 import styles from './BuilderContent.module.css'
 import { BuilderFlow } from './BuilderFlow'
+import { BuilderMostRecentRunPanel } from './BuilderMostRecentRunPanel'
+import { BuilderReadOnlyBanner } from './BuilderReadOnlyBanner'
 import { builderReducer, getInitialBuilderState } from './builderReducer'
 import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
 import { BuilderDialogs } from './components/BuilderDialogs'
 import { BuilderSidePanels } from './components/BuilderSidePanels'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
-import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
 import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
 import { useBuilderDerivedUiFlags } from './hooks/useBuilderDerivedUiFlags'
@@ -290,7 +290,7 @@ export function BuilderContent(props: BuilderContentProps) {
     isLiveRunActive,
   })
 
-  const builderPermissions = useBuilderPermissions(isNew)
+  const builderPermissions = useBuilderPermissions(isNew, currentWorkflow?.is_builtin === true)
 
   const triggers = currentWorkflow?.triggers ?? []
   const selectedTrigger = triggers[selectedTriggerIndex] ?? triggers[0]
@@ -298,6 +298,22 @@ export function BuilderContent(props: BuilderContentProps) {
   const nodeExpandedAllContextValue = useMemo(
     () => ({ expandAllEvent, collapseAllEvent }),
     [expandAllEvent, collapseAllEvent]
+  )
+  const triggerInputSchema = (selectedTrigger?.parameters as Record<string, unknown> | undefined)?.input_schema as
+    | Record<string, unknown>
+    | undefined
+  const handleRunStepExecutionCreated = useCallback(
+    (executionId: string, { clearMocksOnComplete }: { clearMocksOnComplete: boolean }) => {
+      lastRunStepNodeIdRef.current = clearMocksOnComplete ? (runStepDialog.item?.nodeId ?? null) : null
+      dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
+    },
+    [lastRunStepNodeIdRef, runStepDialog.item?.nodeId, dispatch]
+  )
+  const handleCloseNodeEditor = useCallback(() => dispatch({ type: 'CLOSE_NODE_EDITOR' }), [dispatch])
+  const nodeEditorProjectId = (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
+  const handleRunSelectedStep = useMemo(
+    () => (selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined),
+    [selectedNode, handleRunStep]
   )
 
   return (
@@ -339,16 +355,15 @@ export function BuilderContent(props: BuilderContentProps) {
                 triggers={triggers}
                 isAddNodePanelOpen={isAddNodePanelOpen}
                 hasNoWorkflowNodes={hasNoWorkflowNodes}
+                isBuiltin={currentWorkflow?.is_builtin === true}
                 builderPermissions={builderPermissions}
               />
             </StackItem>
-            {!builderPermissions.canEdit && !builderPermissions.isLoading && (
-              <StackItem>
-                <Alert variant="info" isInline title="You are viewing this workflow in read-only mode.">
-                  You do not have permission to edit this workflow. Contact your administrator to request access.
-                </Alert>
-              </StackItem>
-            )}
+            <BuilderReadOnlyBanner
+              canEdit={builderPermissions.canEdit}
+              isLoading={builderPermissions.isLoading}
+              isBuiltin={currentWorkflow?.is_builtin === true}
+            />
             <ValidationBanner
               errors={state.validationErrors}
               dispatch={dispatch}
@@ -416,31 +431,21 @@ export function BuilderContent(props: BuilderContentProps) {
                       </NxPanel>
                     </StackItem>
                     {showMostRecentRunPanelInEditor && mostRecentExecutionId && (
-                      <>
-                        <ResizableDivider onResize={handleMostRecentResize} />
-                        <StackItem
-                          style={{
-                            height: `${mostRecentPanelHeight}px`,
-                            flexShrink: 0,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <ExecutionDetailsPanel
-                            executionId={mostRecentExecutionId}
-                            workflowDefinition={
-                              workflow?.version?.workflow_definition as Parameters<
-                                typeof ExecutionDetailsPanel
-                              >[0]['workflowDefinition']
-                            }
-                            selectedNodeId={mostRecentSelectedNodeId}
-                            selectedNodeName={mostRecentSelectedNodeName}
-                            onNodeSelect={handleMostRecentNodeSelect}
-                            onDeselectNode={handleMostRecentDeselectNode}
-                            headerLabel="Most recent run details"
-                            onClosePanel={isTerminalStatus ? handleCloseMostRecentRunPanel : undefined}
-                          />
-                        </StackItem>
-                      </>
+                      <BuilderMostRecentRunPanel
+                        executionId={mostRecentExecutionId}
+                        workflowDefinition={
+                          workflow?.version?.workflow_definition as Parameters<
+                            typeof BuilderMostRecentRunPanel
+                          >[0]['workflowDefinition']
+                        }
+                        panelHeight={mostRecentPanelHeight}
+                        selectedNodeId={mostRecentSelectedNodeId}
+                        selectedNodeName={mostRecentSelectedNodeName}
+                        onResize={handleMostRecentResize}
+                        onNodeSelect={handleMostRecentNodeSelect}
+                        onDeselectNode={handleMostRecentDeselectNode}
+                        onClosePanel={isTerminalStatus ? handleCloseMostRecentRunPanel : undefined}
+                      />
                     )}
                   </Stack>
                 </FlexItem>
@@ -487,14 +492,11 @@ export function BuilderContent(props: BuilderContentProps) {
                   executionId={mostRecentExecutionId}
                   workflowId={workflowId}
                   onConnect={handleConnectFromPanel}
-                  onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
+                  onClose={handleCloseNodeEditor}
                   onNavigateToNode={handleNavigateToNode}
-                  projectId={
-                    // TODO: Remove cast when project_id is added to the OpenAPI spec
-                    (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
-                  }
+                  projectId={nodeEditorProjectId}
                   workflowMetadata={workflowMetadata}
-                  onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
+                  onRunStep={handleRunSelectedStep}
                 />
               </Flex>
             </StackItem>
@@ -510,16 +512,9 @@ export function BuilderContent(props: BuilderContentProps) {
             handleDeleteWorkflow={handleDeleteWorkflow}
             triggerName={selectedTrigger?.name ?? 'Trigger'}
             triggerNodeId={selectedTrigger?.id}
-            triggerInputSchema={
-              (selectedTrigger?.parameters as Record<string, unknown> | undefined)?.input_schema as
-                | Record<string, unknown>
-                | undefined
-            }
+            triggerInputSchema={triggerInputSchema}
             runStepDialog={runStepDialog}
-            onRunStepExecutionCreated={(executionId, { clearMocksOnComplete }) => {
-              lastRunStepNodeIdRef.current = clearMocksOnComplete ? (runStepDialog.item?.nodeId ?? null) : null
-              dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
-            }}
+            onRunStepExecutionCreated={handleRunStepExecutionCreated}
             pendingImport={pendingImport}
             setPendingImport={setPendingImport}
             importDeps={{

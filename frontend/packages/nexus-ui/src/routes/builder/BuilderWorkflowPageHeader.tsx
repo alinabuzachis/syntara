@@ -41,6 +41,7 @@ type BuilderToolbarContentProps = Readonly<{
   onUnpublish: () => void
   onPendingImport: (data: PendingImportData) => void
   triggers?: { id: string; name?: string }[]
+  isBuiltin: boolean
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
   builderPermissions: BuilderPermissions
@@ -52,6 +53,7 @@ type BuilderToolbarContentProps = Readonly<{
  * - Default: full editor toolbar
  */
 function BuilderToolbarContent({
+  isBuiltin,
   isLiveRunActive,
   executionId,
   executionStatus,
@@ -104,6 +106,7 @@ function BuilderToolbarContent({
 
   return (
     <BuilderEditorToolbar
+      isBuiltin={isBuiltin}
       isNew={isNew}
       workflow={workflow}
       isPending={isPending}
@@ -156,6 +159,7 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   triggers?: { id: string; name?: string }[]
   isAddNodePanelOpen: boolean
   hasNoWorkflowNodes: boolean
+  isBuiltin: boolean
   builderPermissions: BuilderPermissions
   ProjectSelector: ReactNode
   dispatch: Dispatch<BuilderAction>
@@ -195,6 +199,7 @@ export function BuilderWorkflowPageHeader({
   triggers,
   isAddNodePanelOpen,
   hasNoWorkflowNodes,
+  isBuiltin,
   builderPermissions,
   ProjectSelector,
   dispatch,
@@ -263,11 +268,14 @@ export function BuilderWorkflowPageHeader({
                 <WorkflowPublishStatusBadge publishedVersion={publishedVersion} currentVersion={currentVersion} />
               </FlexItem>
             )}
-            {builderPermissions.canEdit && <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>}
+            {(builderPermissions.canEdit || isBuiltin) && (
+              <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
+            )}
           </Flex>
         }
         toolbar={
           <BuilderToolbarContent
+            isBuiltin={isBuiltin}
             isLiveRunActive={isLiveRunActive}
             executionId={executionId}
             executionStatus={executionStatus}

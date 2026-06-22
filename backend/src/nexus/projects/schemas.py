@@ -39,6 +39,7 @@ class ProjectRead(BaseResource):
     name: str
     description: str | None = None
     is_default: bool = False
+    is_builtin: bool = False
 
 
 class ProjectRoleCreate(SQLModel):
@@ -55,6 +56,7 @@ class ProjectListParams(BaseListParams):
 
     name: str | None = Field(default=None, description="Filter by project name")
     is_default: bool | None = Field(default=None, description="Filter by default project status")
+    is_builtin: bool | None = Field(default=None, description="Filter by built-in project status")
 
 
 class ProjectListResponse(ResourcesResponse[ProjectRead]):

@@ -891,6 +891,7 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         {
             NodeType.SCRIPT,
             NodeType.HTTP_REQUEST,
+            NodeType.INTERNAL_ACTIVITY,
             NodeType.AAP_JOB_TEMPLATE,
             NodeType.AAP_WORKFLOW_JOB_TEMPLATE,
             NodeType.AGENTIC,
@@ -903,6 +904,7 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         NodeType.AAP_JOB_TEMPLATE: ActivityName.AAP_JOB_TEMPLATE,
         NodeType.AAP_WORKFLOW_JOB_TEMPLATE: ActivityName.AAP_WORKFLOW_JOB_TEMPLATE,
         NodeType.HTTP_REQUEST: ActivityName.HTTP_REQUEST,
+        NodeType.INTERNAL_ACTIVITY: ActivityName.INTERNAL_ACTIVITY,
         NodeType.SCRIPT: ActivityName.SCRIPT,
         NodeType.CONDITION: ActivityName.CONDITION,
         NodeType.SWITCH: ActivityName.SWITCH,

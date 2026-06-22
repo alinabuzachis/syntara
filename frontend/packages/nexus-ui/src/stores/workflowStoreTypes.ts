@@ -27,6 +27,8 @@ export type WorkflowDefinition = Omit<WorkflowDefinitionBase, 'triggers' | 'node
   workflow: {
     activities: Activity[]
   }
+  /** Whether this is a built-in workflow */
+  is_builtin?: boolean
   /** Optional metadata from the API (labels, etc.) */
   metadata?: Record<string, unknown>
 }

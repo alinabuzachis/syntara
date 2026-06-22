@@ -11,6 +11,11 @@ from nexus.authz.models import Project
 from tests.fixtures import get_fixtures_dir
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _seed_data(_seed_integration_data: None) -> None:
+    """Opt into shared authz + builtin workflow seeding."""
+
+
 @pytest_asyncio.fixture
 async def test_project_id(test_db_session: AsyncSession) -> str:
     """Create a test project and return its ID as a string."""

@@ -85,9 +85,18 @@ export default function Executions() {
     initialDirection: 'desc',
   })
 
-  const sortedExecutions = sortData(executions, (execution) =>
-    getExecutionSortValue(execution, activeSortIndex, showWorkflowColumn)
-  )
+  const builtinProjectIds = useMemo(() => new Set(projects.filter((p) => p.is_builtin).map((p) => p.id)), [projects])
+
+  const sortedExecutions = useMemo(() => {
+    const sorted = sortData(executions, (execution) =>
+      getExecutionSortValue(execution, activeSortIndex, showWorkflowColumn)
+    )
+    if (!isAllProjects) return sorted
+    return sorted.filter((e) => {
+      const pid = e.project_id ?? 'unknown'
+      return !builtinProjectIds.has(pid)
+    })
+  }, [executions, sortData, activeSortIndex, showWorkflowColumn, isAllProjects, builtinProjectIds])
 
   // Group executions by project when viewing all projects
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
@@ -96,7 +105,8 @@ export default function Executions() {
     if (!isAllProjects) return null
     const groups = new Map<string, { project: (typeof projects)[number] | null; executions: Execution[] }>()
     for (const execution of sortedExecutions) {
-      const projectId = ((execution as Record<string, unknown>).project_id as string | undefined) ?? 'unknown'
+      const projectId = execution.project_id ?? 'unknown'
+      if (builtinProjectIds.has(projectId)) continue
       if (!groups.has(projectId)) {
         groups.set(projectId, {
           project: projects.find((p) => p.id === projectId) ?? null,
@@ -106,7 +116,7 @@ export default function Executions() {
       groups.get(projectId)!.executions.push(execution)
     }
     return groups
-  }, [sortedExecutions, projects, isAllProjects])
+  }, [sortedExecutions, projects, isAllProjects, builtinProjectIds])
 
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {

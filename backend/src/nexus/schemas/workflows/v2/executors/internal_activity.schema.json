@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/internal_activity",
+  "title": "Internal Activity Node",
+  "description": "Execute built-in system operations (document conversion, invocation execution) as native Temporal activities",
+  "parameterSchema": {
+    "type": "object",
+    "required": [
+      "activity"
+    ],
+    "properties": {
+      "activity": {
+        "type": "string",
+        "enum": [
+          "document_conversion",
+          "invocation_execution"
+        ],
+        "description": "Internal operation to execute"
+      },
+      "input": {
+        "type": "object",
+        "description": "Input parameters for the internal operation",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "settingSchema": {
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsFull"
+  },
+  "resultSchema": {
+    "type": "object",
+    "required": [
+      "status"
+    ],
+    "properties": {
+      "status": {
+        "type": "string",
+        "description": "Operation result status"
+      }
+    },
+    "additionalProperties": true
+  }
+}
