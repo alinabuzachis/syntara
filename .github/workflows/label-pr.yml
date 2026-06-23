@@ -1,7 +1,9 @@
 ---
 name: Label PR
 on:
-  pull_request:
+  # pull_request_target so the token has write access for fork PRs (safe — no fork code is checked out or executed).
+  # See: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target:~:text=This%20event%20allows%20your%20workflow%20to%20do%20things%20like%20label%20or%20comment%20on%20pull%20requests%20from%20forks.
+  pull_request_target:
     types: [opened, synchronize, reopened] # cover full PR lifecycle so labels stay accurate after force-pushes or reopens
 permissions:
   contents: read
@@ -10,7 +12,7 @@ jobs:
   label:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: actions/labeler@f27b608878404679385c85cfa523b85ccb86e213 # v6.1.0
         with:
           sync-labels: true
