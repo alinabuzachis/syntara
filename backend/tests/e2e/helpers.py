@@ -1,7 +1,7 @@
 """Shared utility functions for E2E tests."""
 
 import time
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import httpx
@@ -13,6 +13,8 @@ from nexus_api_client.models import (
     WorkflowCreate,
     WorkflowUpdate,
 )
+from nexus_api_client.models.approval_request_read import ApprovalRequestRead
+from nexus_api_client.models.approval_request_status import ApprovalRequestStatus
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.workflow_definition import WorkflowDefinition
 
@@ -61,6 +63,33 @@ def poll_execution(
         if execution.status in TERMINAL_STATUSES:
             return execution
     pytest.fail(f"Execution {exec_id} did not finish within {timeout}s")
+
+
+def poll_for_pending_approval(
+    api: NexusApiRegistry,
+    execution_id: UUID,
+    timeout: int = 30,
+    interval: int = 1,
+) -> ApprovalRequestRead:
+    """Poll until a PENDING approval request appears for the given execution."""
+    elapsed = 0
+    while elapsed < timeout:
+        time.sleep(interval)
+        elapsed += interval
+        response = _retry_api_call(
+            lambda: api.approvals.list(
+                execution_id=execution_id,
+                status=ApprovalRequestStatus.PENDING,
+                limit=5,
+            )
+        )
+        result = response.assert_and_get()
+        if result.resources:
+            return cast("ApprovalRequestRead", result.resources[0])
+    pytest.fail(
+        f"No PENDING approval for execution {execution_id} within {timeout}s. "
+        "Check that Temporal is running: make temporal-run"
+    )
 
 
 def create_and_run_workflow(
