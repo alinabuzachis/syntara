@@ -35,8 +35,7 @@ class UserFactory(Protocol):
 @pytest.fixture(scope="module")
 def create_user() -> Generator[UserFactory, None, None]:
     """Create test users. Returns ``(user_id, username, password)``."""
-    created_user_id = None
-    test_api = None
+    created: list[tuple[NexusApiRegistry, UUID]] = []
 
     def _create_user(
         api: NexusApiRegistry,
@@ -59,17 +58,15 @@ def create_user() -> Generator[UserFactory, None, None]:
             ),
         )
         user = resp.assert_and_get()
-        nonlocal created_user_id, test_api
-        test_api = api
-        created_user_id = UUID(str(user.id))
-        return created_user_id, name, password
+        user_id = UUID(str(user.id))
+        created.append((api, user_id))
+        return user_id, name, password
 
     yield _create_user
 
-    # delete user
-    if created_user_id is not None and test_api is not None:
+    for api, user_id in reversed(created):
         try:
-            test_api.users.delete(user_id=created_user_id)
+            api.users.delete(user_id=user_id)
         except Exception:
             pass  # Best effort cleanup
 

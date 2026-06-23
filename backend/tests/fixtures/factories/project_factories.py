@@ -29,24 +29,27 @@ class ProjectFactory(Protocol):
 
 @pytest.fixture(scope="module")
 def create_project() -> Generator[ProjectFactory, None, None]:
-    """Create a test project. Returns ``(project_id, name)``."""
-    created_project_id = None
-    test_api = None
+    """Create test projects. Returns ``(project_id, name)``.
+
+    Tracks every project created during the module and deletes them all
+    on teardown.  Project deletion cascades to roles, role-assignments,
+    and other child resources, so sibling fixtures do not need to clean
+    those up independently.
+    """
+    created: list[tuple[NexusApiRegistry, UUID]] = []
 
     def _create_project(api: NexusApiRegistry, prefix: str | None = None, name: str | None = None) -> tuple[UUID, str]:
         name = name or unique_name(f"e2e-rbac-{prefix or 'test'}")
         resp = api.projects.create(body=ProjectCreate(name=name))
         project = resp.assert_and_get()
-        nonlocal created_project_id, test_api
-        test_api = api
-        created_project_id = UUID(str(project.id))
-        return created_project_id, str(project.name)
+        project_id = UUID(str(project.id))
+        created.append((api, project_id))
+        return project_id, str(project.name)
 
     yield _create_project
-    # cleanup resources
-    if created_project_id is not None and test_api is not None:
+    for api, project_id in reversed(created):
         try:
-            test_api.projects.delete(project_id=created_project_id)
+            api.projects.delete(project_id=project_id)
         except Exception:
             pass
 
