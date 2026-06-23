@@ -1,0 +1,260 @@
+---
+name: Check Contract Drift
+
+on:
+  schedule:
+    # Weekly: Tuesday 9:00 AM EST (14:00 UTC)
+    - cron: '0 14 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  NODE_VERSION: '22.13.0'
+
+jobs:
+  check-drift:
+    name: Check Contract Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: devel
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Regenerate contracts
+        working-directory: frontend
+        run: npm run gen
+        timeout-minutes: 10
+
+      - name: Detect drift
+        id: drift
+        run: |
+          set -euo pipefail
+
+          CHANGED=$(git diff --name-only frontend/packages/nexus-contracts/src/)
+          if [ -z "$CHANGED" ]; then
+            echo "drift_detected=false" >> "$GITHUB_OUTPUT"
+            echo "changed_count=0" >> "$GITHUB_OUTPUT"
+            echo "No contract drift detected."
+            exit 0
+          fi
+
+          COUNT=$(echo "$CHANGED" | wc -l | tr -d ' ')
+          echo "drift_detected=true" >> "$GITHUB_OUTPUT"
+          echo "changed_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "changed_files<<DRIFT_EOF"
+            echo "$CHANGED"
+            echo "DRIFT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Contract drift detected in $COUNT file(s):"
+          echo "$CHANGED"
+
+      - name: Generate drift report
+        if: steps.drift.outputs.drift_detected == 'true'
+        id: report
+        run: |
+          set -euo pipefail
+
+          STAT=$(git diff --stat frontend/packages/nexus-contracts/src/)
+          DIFF=$(git diff frontend/packages/nexus-contracts/src/)
+
+          DIFF_LINES=$(echo "$DIFF" | wc -l | tr -d ' ')
+
+          MAX_CHARS=50000
+          if [ ${#DIFF} -gt $MAX_CHARS ]; then
+            DIFF="${DIFF:0:$MAX_CHARS}"
+            TRUNCATED="true"
+          else
+            TRUNCATED="false"
+          fi
+
+          echo "diff_lines=$DIFF_LINES" >> "$GITHUB_OUTPUT"
+          echo "truncated=$TRUNCATED" >> "$GITHUB_OUTPUT"
+
+          # Write to files for safe env-var passing (avoids ${{ }} injection)
+          echo "$STAT" > "$RUNNER_TEMP/drift-stat.txt"
+          echo "$DIFF" > "$RUNNER_TEMP/drift-diff.txt"
+
+      - name: Manage drift issue
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          DRIFT_DETECTED: ${{ steps.drift.outputs.drift_detected }}
+          CHANGED_COUNT: ${{ steps.drift.outputs.changed_count }}
+          CHANGED_FILES: ${{ steps.drift.outputs.changed_files }}
+          DIFF_LINES: ${{ steps.report.outputs.diff_lines }}
+          TRUNCATED: ${{ steps.report.outputs.truncated }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const LABEL = 'contract-drift';
+            const driftDetected = process.env.DRIFT_DETECTED === 'true';
+            const changedCount = parseInt(process.env.CHANGED_COUNT || '0', 10);
+
+            // Ensure label exists
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: LABEL,
+                color: 'd93f0b',
+                description: 'Frontend TypeScript contracts drifted from backend OpenAPI specs',
+              });
+              core.info(`Created label "${LABEL}"`);
+            } catch (e) {
+              if (e.status === 422) {
+                core.info(`Label "${LABEL}" already exists`);
+              } else {
+                throw e;
+              }
+            }
+
+            // Find existing open drift issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: LABEL,
+              state: 'open',
+              per_page: 1,
+              sort: 'created',
+              direction: 'desc',
+            });
+            const existingIssue = issues[0] || null;
+
+            if (!driftDetected) {
+              if (existingIssue) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  body: [
+                    '## Contract Drift Resolved',
+                    '',
+                    'The scheduled drift check found no differences between the backend OpenAPI specs and the committed frontend contracts.',
+                    '',
+                    `**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                  ].join('\n'),
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  state: 'closed',
+                  state_reason: 'completed',
+                });
+                core.info(`Closed resolved drift issue #${existingIssue.number}`);
+              } else {
+                core.info('No drift and no open issue — nothing to do.');
+              }
+              return;
+            }
+
+            // Read report data from files (safe from injection)
+            const tempDir = process.env.RUNNER_TEMP;
+            const stat = fs.readFileSync(path.join(tempDir, 'drift-stat.txt'), 'utf8').trim();
+            const diff = fs.readFileSync(path.join(tempDir, 'drift-diff.txt'), 'utf8').trim();
+            const changedFiles = (process.env.CHANGED_FILES || '').trim();
+            const diffLines = process.env.DIFF_LINES || '0';
+            const truncated = process.env.TRUNCATED === 'true';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const timestamp = new Date().toISOString();
+
+            const fileList = changedFiles.split('\n').filter(Boolean).map(f => `- \`${f}\``).join('\n');
+            const truncationNotice = truncated
+              ? `\n> **Note:** Diff truncated to 50,000 characters. See the [full workflow run](${runUrl}) for the complete diff.\n`
+              : '';
+
+            const body = [
+              '## Contract Drift Detected',
+              '',
+              'The generated TypeScript contracts in `frontend/packages/nexus-contracts/src/` are out of sync',
+              'with the backend OpenAPI specs in `backend/src/nexus/schemas/`.',
+              '',
+              `**${changedCount} file(s) have drifted:**`,
+              '',
+              fileList,
+              '',
+              '### Diff Summary',
+              '',
+              '```',
+              stat,
+              '```',
+              '',
+              `### Full Diff (${diffLines} lines)`,
+              '',
+              '<details>',
+              '<summary>Click to expand</summary>',
+              '',
+              '```diff',
+              diff,
+              '```',
+              '',
+              '</details>',
+              truncationNotice,
+              '### How to Fix',
+              '',
+              'Run the following from the repository root:',
+              '',
+              '```bash',
+              'make gen-contracts',
+              '```',
+              '',
+              'Then commit and push the regenerated files.',
+              '',
+              '---',
+              '',
+              `- **Detected:** ${timestamp}`,
+              `- **Workflow run:** [View run](${runUrl})`,
+              '- **Branch:** \`devel\`',
+            ].join('\n');
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: [
+                  '## Updated Drift Report',
+                  '',
+                  `Contract drift still present — **${changedCount} file(s)** out of sync.`,
+                  '',
+                  fileList,
+                  '',
+                  '### Diff Summary',
+                  '',
+                  '```',
+                  stat,
+                  '```',
+                  '',
+                  `**Workflow run:** [View run](${runUrl})`,
+                  `**Detected:** ${timestamp}`,
+                ].join('\n'),
+              });
+              core.info(`Updated existing drift issue #${existingIssue.number}`);
+            } else {
+              const { data: newIssue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Contract drift detected: ${changedCount} file(s) out of sync`,
+                body,
+                labels: [LABEL],
+              });
+              core.info(`Created drift issue #${newIssue.number}`);
+            }
