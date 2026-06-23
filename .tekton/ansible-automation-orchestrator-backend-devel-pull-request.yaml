@@ -9,16 +9,16 @@ metadata:
     build.appstudio.redhat.com/target_branch: "{{target_branch}}"
     pipelinesascode.tekton.dev/cancel-in-progress: "true"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: (event == "pull_request" && target_branch == "main") || (event == "push" && target_branch.startsWith("gh-readonly-queue/main/"))
+    pipelinesascode.tekton.dev/on-cel-expression: (event == "pull_request" && target_branch == "devel") || (event == "push" && target_branch.startsWith("gh-readonly-queue/main/"))
     pipelinesascode.tekton.dev/on-comment: "^/build"
-    pipelinesascode.tekton.dev/on-target-branch: "[main,gh-readonly-queue/main/*]"
+    pipelinesascode.tekton.dev/on-target-branch: "[devel,gh-readonly-queue/devel/*]"
     pipelinesascode.tekton.dev/on-path-change: "[backend/**]"
   creationTimestamp: null
   labels:
-    appstudio.openshift.io/application: ansible-automation-orchestrator-main
-    appstudio.openshift.io/component: ansible-automation-orchestrator-backend-main
+    appstudio.openshift.io/application: ansible-automation-orchestrator-devel
+    appstudio.openshift.io/component: ansible-automation-orchestrator-backend-devel
     pipelines.appstudio.openshift.io/type: build
-  name: ansible-automation-orchestrator-backend-main-on-pull-request
+  name: ansible-automation-orchestrator-backend-devel-on-pull-request
   namespace: nexus-tenant
 spec:
   params:
@@ -61,7 +61,7 @@ spec:
         value: quay-aap-ci-viewer
     resolver: bundles
   taskRunTemplate:
-    serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-main
+    serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-devel
   workspaces:
     - name: git-auth
       secret:

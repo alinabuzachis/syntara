@@ -4,21 +4,17 @@ metadata:
   annotations:
     build.appstudio.openshift.io/repo: https://github.com/syntara-orchestration/syntara?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
-    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
-    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: (event == "pull_request" && target_branch == "main") || (event == "push" && target_branch.startsWith("gh-readonly-queue/main/"))
-    pipelinesascode.tekton.dev/on-comment: "^/build"
-    pipelinesascode.tekton.dev/on-target-branch: "[main,gh-readonly-queue/main/*]"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "devel"
     pipelinesascode.tekton.dev/on-path-change: "[frontend/**]"
-    pipelinesascode.tekton.dev/on-path-change-ignore: "[***.md, LICENSE]"
   creationTimestamp: null
   labels:
-    appstudio.openshift.io/application: ansible-automation-orchestrator-main
-    appstudio.openshift.io/component: ansible-automation-orchestrator-ui-main
+    appstudio.openshift.io/application: ansible-automation-orchestrator-devel
+    appstudio.openshift.io/component: ansible-automation-orchestrator-ui-devel
     pipelines.appstudio.openshift.io/type: build
-  name: ansible-automation-orchestrator-ui-main-on-pull-request
+  name: ansible-automation-orchestrator-ui-devel-on-push
   namespace: nexus-tenant
 spec:
   params:
@@ -27,9 +23,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/nexus-tenant/ansible-automation-platform/automation-orchestrator-ui-rhel9:on-pr-{{revision}}
-  - name: image-expires-after
-    value: 5d
+    value: quay.io/redhat-user-workloads/nexus-tenant/ansible-automation-platform/automation-orchestrator-ui-rhel9:{{revision}}
   - name: dockerfile
     value: frontend/packages/nexus-ui/Containerfile.konflux
   - name: path-context
@@ -54,7 +48,7 @@ spec:
         value: quay-aap-ci-viewer
     resolver: bundles
   taskRunTemplate:
-    serviceAccountName: build-pipeline-ansible-automation-orchestrator-ui-main
+    serviceAccountName: build-pipeline-ansible-automation-orchestrator-ui-devel
   workspaces:
   - name: git-auth
     secret:

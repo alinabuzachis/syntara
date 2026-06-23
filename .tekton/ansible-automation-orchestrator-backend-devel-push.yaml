@@ -8,14 +8,14 @@ metadata:
     build.appstudio.redhat.com/target_branch: "{{target_branch}}"
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "devel"
     pipelinesascode.tekton.dev/on-path-change: "[backend/**]"
   creationTimestamp: null
   labels:
-    appstudio.openshift.io/application: ansible-automation-orchestrator-main
-    appstudio.openshift.io/component: ansible-automation-orchestrator-backend-main
+    appstudio.openshift.io/application: ansible-automation-orchestrator-devel
+    appstudio.openshift.io/component: ansible-automation-orchestrator-backend-devel
     pipelines.appstudio.openshift.io/type: build
-  name: ansible-automation-orchestrator-backend-main-on-push
+  name: ansible-automation-orchestrator-backend-devel-on-push
   namespace: nexus-tenant
 spec:
   params:
@@ -56,7 +56,7 @@ spec:
         value: quay-aap-ci-viewer
     resolver: bundles
   taskRunTemplate:
-    serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-main
+    serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-devel
   workspaces:
     - name: git-auth
       secret:
