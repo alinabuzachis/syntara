@@ -4,7 +4,7 @@ Validates that approving a HitL approval node in a running workflow:
 - Creates a PENDING approval record visible via GET /approvals?execution_id=...
 - Sends the Temporal async-complete signal that resumes the paused execution
 - Executes the downstream node connected on the "approved" port
-- Records decision, approver identity, timestamp, and notes in the activity output
+- Records decision, decided_by, decided_at, and decision_notes in the activity output
 
 Requirements: AAP-79xxx (API-21)
 
@@ -169,7 +169,7 @@ class TestApproveSignal:
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
     ) -> None:
-        """Approval node output includes decision, approver, timestamp, and notes.
+        """Approval node output includes decision, decided_by, decided_at, and decision_notes.
 
         Procedure:
         1. Create workflow with an approval node only (no downstream for simplicity).
@@ -179,9 +179,9 @@ class TestApproveSignal:
         Expected:
         - 'approval_gate' activity output_data contains:
           - decision == 'approved'
-          - approver (non-empty string — the deciding user's username)
-          - timestamp (non-empty ISO string)
-          - comments == the notes text supplied in the decision
+          - decided_by (non-empty string — the deciding user's username)
+          - decided_at (non-empty ISO string)
+          - decision_notes == the notes text supplied in the decision
         """
         name = unique_name("e2e-approve-output")
         workflow = workflow_factory(
@@ -220,10 +220,12 @@ class TestApproveSignal:
         assert output.get("decision") == "approved", (
             f"output.decision should be 'approved', got: {output.get('decision')!r}"
         )
-        assert output.get("approver"), f"output.approver must be a non-empty string, got: {output.get('approver')!r}"
-        assert output.get("timestamp"), f"output.timestamp must be set, got: {output.get('timestamp')!r}"
-        assert output.get("comments") == notes_text, (
-            f"output.comments should be {notes_text!r}, got: {output.get('comments')!r}"
+        assert output.get("decided_by"), (
+            f"output.decided_by must be a non-empty string, got: {output.get('decided_by')!r}"
+        )
+        assert output.get("decided_at"), f"output.decided_at must be set, got: {output.get('decided_at')!r}"
+        assert output.get("decision_notes") == notes_text, (
+            f"output.decision_notes should be {notes_text!r}, got: {output.get('decision_notes')!r}"
         )
         assert output.get("status") == "completed", (
             f"output.status should be 'completed', got: {output.get('status')!r}"

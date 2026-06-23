@@ -233,7 +233,7 @@ class TestRejectSignal:
         nexus_api: NexusApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
     ) -> None:
-        """Rejection records decision, approver, and timestamp in the activity output.
+        """Rejection records decision, decided_by, and decided_at in the activity output.
 
         Procedure:
         1. Create workflow with approval node only.
@@ -243,9 +243,9 @@ class TestRejectSignal:
         Expected:
         - 'approval_gate' activity output_data contains:
           - decision == 'rejected'
-          - approver (non-empty string)
-          - timestamp (non-empty ISO string)
-          - comments == the rejection notes text
+          - decided_by (non-empty string)
+          - decided_at (non-empty ISO string)
+          - decision_notes == the rejection notes text
         """
         name = unique_name("e2e-reject-output")
         workflow = workflow_factory(
@@ -284,10 +284,12 @@ class TestRejectSignal:
         assert output.get("decision") == "rejected", (
             f"output.decision should be 'rejected', got: {output.get('decision')!r}"
         )
-        assert output.get("approver"), f"output.approver must be a non-empty string, got: {output.get('approver')!r}"
-        assert output.get("timestamp"), f"output.timestamp must be set, got: {output.get('timestamp')!r}"
-        assert output.get("comments") == rejection_notes, (
-            f"output.comments should be {rejection_notes!r}, got: {output.get('comments')!r}"
+        assert output.get("decided_by"), (
+            f"output.decided_by must be a non-empty string, got: {output.get('decided_by')!r}"
+        )
+        assert output.get("decided_at"), f"output.decided_at must be set, got: {output.get('decided_at')!r}"
+        assert output.get("decision_notes") == rejection_notes, (
+            f"output.decision_notes should be {rejection_notes!r}, got: {output.get('decision_notes')!r}"
         )
         assert output.get("status") == "completed", (
             f"output.status should be 'completed', got: {output.get('status')!r}"
