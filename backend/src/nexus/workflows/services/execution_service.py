@@ -15,6 +15,7 @@ from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.exceptions import ApplicationError
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -22,6 +23,7 @@ from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.emission import emit_completion_metrics
 from nexus.metrics.types import ComponentLabel, MetricType
+from nexus.workflows.audit.execution_lifecycle import ExecutionAction, ExecutionLifecycleEvent
 from nexus.workflows.exceptions import (
     ExecutionInTerminalStateError,
     ExecutionNotFoundError,
@@ -134,6 +136,27 @@ class ExecutionService(BaseService):
             convert_resource_mixin=ExecutionsConvertResourceMixin(),
         )
         self.temporal_service = temporal_service
+
+    @staticmethod
+    def _emit_lifecycle_event(
+        *,
+        execution_id: UUID,
+        workflow_id: UUID,
+        workflow_name: str,
+        action: ExecutionAction,
+        mode: str | None = None,
+        error_type: str | None = None,
+    ) -> None:
+        AuditEventDispatcher.dispatch(
+            ExecutionLifecycleEvent(
+                execution_id=execution_id,
+                workflow_id=workflow_id,
+                workflow_name=workflow_name,
+                action=action,
+                mode=mode,
+                error_type=error_type,
+            )
+        )
 
     async def _resolve_user_display_name(self, user_id: UUID) -> str:
         """Resolve a user ID to a display name, falling back to UUID string."""
@@ -294,7 +317,18 @@ class ExecutionService(BaseService):
         )
 
         self.session.add(execution)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except Exception as exc:
+            self._emit_lifecycle_event(
+                execution_id=execution.id,
+                workflow_id=workflow.id,
+                workflow_name=workflow.name,
+                action=ExecutionAction.STARTED,
+                mode=ExecutionMode.STANDARD.value,
+                error_type=type(exc).__name__,
+            )
+            raise
 
         logger.info(
             "Execution created successfully",
@@ -314,6 +348,14 @@ class ExecutionService(BaseService):
         )
         recorder.increment("total_workflows")
         recorder.increment_gauge("active_workflows")
+
+        self._emit_lifecycle_event(
+            execution_id=execution.id,
+            workflow_id=workflow.id,
+            workflow_name=workflow.name,
+            action=ExecutionAction.STARTED,
+            mode=ExecutionMode.STANDARD.value,
+        )
 
         return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
 
@@ -857,7 +899,12 @@ class ExecutionService(BaseService):
             TemporalUnavailableError: If Temporal service is unavailable
 
         """
-        query = select(Execution).where(Execution.id == execution_id).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+        query = (
+            select(Execution)
+            .where(Execution.id == execution_id)
+            .where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+            .options(selectinload(Execution.workflow))  # type: ignore[arg-type]
+        )
         result = await self.session.exec(query)
         execution = result.one_or_none()
 
@@ -882,4 +929,23 @@ class ExecutionService(BaseService):
             current_status=execution.status.value,
         )
 
-        await self.temporal_service.cancel_workflow(temporal_workflow_id=execution.temporal_workflow_id)
+        try:
+            await self.temporal_service.cancel_workflow(temporal_workflow_id=execution.temporal_workflow_id)
+        except Exception as exc:
+            self._emit_lifecycle_event(
+                execution_id=execution.id,
+                workflow_id=execution.workflow_id,
+                workflow_name=execution.workflow.name,
+                action=ExecutionAction.CANCELLED,
+                mode=execution.mode.value,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        self._emit_lifecycle_event(
+            execution_id=execution.id,
+            workflow_id=execution.workflow_id,
+            workflow_name=execution.workflow.name,
+            action=ExecutionAction.CANCELLED,
+            mode=execution.mode.value,
+        )

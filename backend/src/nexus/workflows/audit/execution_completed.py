@@ -1,8 +1,8 @@
-"""Workflow-completed domain event and audit handler.
+"""Workflow execution completed — domain event and audit handler.
 
-Emits an audit trail event when a workflow execution reaches a terminal state.
-
-Requirement: AAP-74303
+Fired by ActivitySyncService when a workflow execution reaches a terminal
+state (COMPLETED, FAILED, or CANCELLED) in Temporal.  Captures execution
+summary metrics: duration, node count, and error count.
 """
 
 from __future__ import annotations
@@ -66,6 +66,7 @@ class WorkflowCompletedHandler(AuditEventHandler[WorkflowCompletedEvent]):
             source_component="nexus.workflows",
             structured_data=data,
             execution_id=event.execution_id,
+            workflow_id=event.workflow_id,
             resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )

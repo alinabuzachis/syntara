@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from nexus.telemetry.events.workflow_execution import WorkflowExecutionCompletedEvent
 from nexus.telemetry.handlers.workflow_completed import WorkflowCompletedTelemetryHandler
-from nexus.workflows.audit.workflow_completed import WorkflowCompletedEvent
+from nexus.workflows.audit.execution_completed import WorkflowCompletedEvent
 from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
 
 

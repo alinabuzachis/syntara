@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from nexus.telemetry.events.workflow_error import TimedOutComponent, WorkflowErrorEvent
 from nexus.telemetry.handlers.workflow_execution_error import WorkflowExecutionErrorTelemetryHandler
-from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
+from nexus.workflows.audit.execution_error import WorkflowExecutionErrorEvent
 
 EXECUTION_ID = uuid4()
 WORKFLOW_ID = uuid4()

@@ -26,6 +26,7 @@ from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.credentials.models.credential import Credential
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
+from nexus.workflows.audit.workflow_lifecycle import WorkflowAction, WorkflowLifecycleEvent
 from nexus.workflows.audit.workflow_version import (
     WorkflowVersionCreatedEvent,
     WorkflowVersionPublishedEvent,
@@ -81,14 +82,34 @@ class WorkflowService(BaseService):
         super().__init__(session, user, convert_resource_mixin=WorkflowConvertResourceMixin())
 
     @staticmethod
-    def _emit_version_telemetry(workflow: Workflow, version: WorkflowVersion) -> None:
+    def _emit_lifecycle_event(
+        *,
+        workflow_id: UUID,
+        workflow_name: str,
+        action: WorkflowAction,
+        version: int | None = None,
+        project_id: UUID | None = None,
+        error_type: str | None = None,
+        new_version_created: bool = False,
+    ) -> None:
         AuditEventDispatcher.dispatch(
-            WorkflowVersionCreatedEvent(
-                workflow_id=workflow.id,
-                version=version.version,
-                workflow_name=workflow.name,
+            WorkflowLifecycleEvent(
+                workflow_id=workflow_id,
+                workflow_name=workflow_name,
+                action=action,
+                version=version,
+                project_id=project_id,
+                error_type=error_type,
             )
         )
+        if new_version_created and version is not None:
+            AuditEventDispatcher.dispatch(
+                WorkflowVersionCreatedEvent(
+                    workflow_id=workflow_id,
+                    workflow_name=workflow_name,
+                    version=version,
+                )
+            )
 
     async def _sync_all_trigger_types(
         self,
@@ -339,7 +360,14 @@ class WorkflowService(BaseService):
 
             # Single atomic commit
             await self.session.commit()
-        except Exception:
+        except Exception as exc:
+            self._emit_lifecycle_event(
+                workflow_id=workflow.id,
+                workflow_name=workflow.name,
+                action=WorkflowAction.CREATED,
+                project_id=workflow.project_id,
+                error_type=type(exc).__name__,
+            )
             with _workflow_creation_lock:
                 _workflow_creation_counts[1] += 1
                 rate = _workflow_creation_counts[0] / _workflow_creation_counts[1]
@@ -361,7 +389,14 @@ class WorkflowService(BaseService):
             component=component,
         )
 
-        self._emit_version_telemetry(workflow, version)
+        self._emit_lifecycle_event(
+            workflow_id=workflow.id,
+            workflow_name=workflow.name,
+            action=WorkflowAction.CREATED,
+            version=version.version,
+            project_id=workflow.project_id,
+            new_version_created=True,
+        )
 
         return workflow, version
 
@@ -657,7 +692,6 @@ class WorkflowService(BaseService):
 
         if new_version:
             await self.session.refresh(new_version)
-            self._emit_version_telemetry(workflow, new_version)
 
         # Get current version for return
         _, current_version = await self.get_workflow_with_version(workflow_id)
@@ -675,7 +709,26 @@ class WorkflowService(BaseService):
         )
 
         # Single atomic commit (workflow metadata + version + triggers)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except Exception as exc:
+            self._emit_lifecycle_event(
+                workflow_id=workflow.id,
+                workflow_name=workflow.name,
+                action=WorkflowAction.UPDATED,
+                project_id=workflow.project_id,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        self._emit_lifecycle_event(
+            workflow_id=workflow.id,
+            workflow_name=workflow.name,
+            action=WorkflowAction.UPDATED,
+            version=new_version.version if new_version else current_version.version,
+            project_id=workflow.project_id,
+            new_version_created=new_version is not None,
+        )
 
         return workflow, current_version
 
@@ -700,7 +753,6 @@ class WorkflowService(BaseService):
                 target_version.change_description = change_description
             workflow.updated_at = datetime.now(UTC)
             workflow.updated_by = self.user.id
-            await self.session.commit()
         else:
             if workflow.published_version is not None:
                 await self._demote_published_version(workflow_id, workflow.published_version, "publish")
@@ -725,7 +777,28 @@ class WorkflowService(BaseService):
                 is_enabled=True,
             )
 
+        try:
             await self.session.commit()
+        except Exception as exc:
+            AuditEventDispatcher.dispatch(
+                WorkflowVersionPublishedEvent(
+                    workflow_id=workflow.id,
+                    version=version,
+                    workflow_name=workflow.name,
+                    project_id=workflow.project_id,
+                    error_type=type(exc).__name__,
+                )
+            )
+            raise
+
+        AuditEventDispatcher.dispatch(
+            WorkflowVersionPublishedEvent(
+                workflow_id=workflow.id,
+                version=version,
+                workflow_name=workflow.name,
+                project_id=workflow.project_id,
+            )
+        )
 
         # Sync scheduled triggers (Temporal Schedules, outside DB transaction).
         # Publish propagates errors — the user must know if schedules failed
@@ -733,10 +806,6 @@ class WorkflowService(BaseService):
         await self._sync_scheduled_triggers(
             workflow.id,
             target_version.workflow_definition,
-        )
-
-        AuditEventDispatcher.dispatch(
-            WorkflowVersionPublishedEvent(workflow_id=workflow.id, version=version, workflow_name=workflow.name)
         )
 
         return workflow, target_version
@@ -768,12 +837,26 @@ class WorkflowService(BaseService):
                 is_enabled=False,
             )
 
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except Exception as exc:
+            AuditEventDispatcher.dispatch(
+                WorkflowVersionUnpublishedEvent(
+                    workflow_id=workflow.id,
+                    version=version_number,
+                    workflow_name=workflow.name,
+                    project_id=workflow.project_id,
+                    error_type=type(exc).__name__,
+                )
+            )
+            raise
+
         AuditEventDispatcher.dispatch(
             WorkflowVersionUnpublishedEvent(
                 workflow_id=workflow.id,
                 version=version_number,
                 workflow_name=workflow.name,
+                project_id=workflow.project_id,
             )
         )
 
@@ -844,18 +927,40 @@ class WorkflowService(BaseService):
         workflow.updated_at = datetime.now(UTC)
         workflow.updated_by = self.user.id
 
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except Exception as exc:
+            AuditEventDispatcher.dispatch(
+                WorkflowVersionRestoredEvent(
+                    workflow_id=workflow.id,
+                    restored_from_version=version,
+                    new_version=new_version.version,
+                    workflow_name=workflow.name,
+                    project_id=workflow.project_id,
+                    error_type=type(exc).__name__,
+                )
+            )
+            raise
+
         await self.session.refresh(workflow)
         await self.session.refresh(new_version)
 
         # Intentional dual emission: "created" tracks total versions, "restored" tracks rollbacks
-        self._emit_version_telemetry(workflow, new_version)
+        self._emit_lifecycle_event(
+            workflow_id=workflow.id,
+            workflow_name=workflow.name,
+            action=WorkflowAction.RESTORED,
+            version=new_version.version,
+            project_id=workflow.project_id,
+            new_version_created=True,
+        )
         AuditEventDispatcher.dispatch(
             WorkflowVersionRestoredEvent(
                 workflow_id=workflow.id,
                 restored_from_version=version,
                 new_version=new_version.version,
                 workflow_name=workflow.name,
+                project_id=workflow.project_id,
             )
         )
         return workflow, new_version
@@ -881,7 +986,24 @@ class WorkflowService(BaseService):
 
         # Soft delete
         workflow.soft_delete(self.user.id)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except Exception as exc:
+            self._emit_lifecycle_event(
+                workflow_id=workflow.id,
+                workflow_name=workflow.name,
+                action=WorkflowAction.DELETED,
+                project_id=workflow.project_id,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        self._emit_lifecycle_event(
+            workflow_id=workflow.id,
+            workflow_name=workflow.name,
+            action=WorkflowAction.DELETED,
+            project_id=workflow.project_id,
+        )
 
         # Delete scheduled triggers (Temporal Schedules, outside DB transaction).
         # If this fails, schedules are orphaned — the launcher will fail with

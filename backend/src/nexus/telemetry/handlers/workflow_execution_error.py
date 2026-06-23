@@ -13,7 +13,7 @@ import structlog
 from nexus.audit.handler import AuditEventHandler
 from nexus.telemetry.client import get_telemetry_registry
 from nexus.telemetry.events.workflow_error import WorkflowErrorEvent
-from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
+from nexus.workflows.audit.execution_error import WorkflowExecutionErrorEvent
 
 if TYPE_CHECKING:
     from nexus.audit.models.audit_event import AuditEvent

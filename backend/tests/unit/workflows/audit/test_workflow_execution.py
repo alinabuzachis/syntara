@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.telemetry.events.workflow_error import TimedOutComponent
-from nexus.workflows.audit.workflow_execution import (
+from nexus.workflows.audit.execution_error import (
     WorkflowExecutionErrorEvent,
     WorkflowExecutionErrorHandler,
 )

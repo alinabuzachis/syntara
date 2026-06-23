@@ -31,9 +31,9 @@ from nexus.telemetry.events.workflow_emitters import (
     emit_activities,
 )
 from nexus.telemetry.events.workflow_error import RETRY_REASON_MAX_LENGTH, TimedOutComponent
-from nexus.workflows.audit.workflow_completed import WorkflowCompletedEvent
-from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
-from nexus.workflows.audit.workflow_start import WorkflowStartEvent
+from nexus.workflows.audit.execution_completed import WorkflowCompletedEvent
+from nexus.workflows.audit.execution_error import WorkflowExecutionErrorEvent
+from nexus.workflows.audit.execution_started import WorkflowStartEvent
 from nexus.workflows.models.activity_execution import TERMINAL_ACTIVITY_STATUSES, ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
@@ -265,10 +265,18 @@ class ActivitySyncService:
 
                     # Dispatch workflow-start domain event through audit framework
                     trigger_activity_type = self._extract_trigger_activity_type(metadata.activity_definitions_map)
+                    workflow_name = metadata.workflow_name
+                    if not workflow_name:
+                        workflow_name = "unknown"
+                        logger.warning(
+                            "Workflow name missing from execution metadata, using fallback",
+                            execution_id=str(metadata.execution_id),
+                        )
                     AuditEventDispatcher.dispatch(
                         WorkflowStartEvent(
                             execution_id=execution.id,
                             workflow_id=execution.workflow_id,
+                            workflow_name=workflow_name,
                             trigger_type=trigger_activity_type,
                             request_id=metadata.request_id,
                         )

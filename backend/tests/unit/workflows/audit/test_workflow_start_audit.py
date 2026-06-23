@@ -1,0 +1,57 @@
+"""Unit tests for WorkflowStartEvent audit handler."""
+
+# mypy: disable-error-code="attr-defined"
+
+from uuid import uuid4
+
+from nexus.audit.handler import AuditEventHandler
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.structured_data import AuditContextData
+from nexus.workflows.audit.execution_started import WorkflowStartEvent, WorkflowStartHandler
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+
+EXECUTION_ID = uuid4()
+WORKFLOW_ID = uuid4()
+REQUEST_ID = uuid4()
+
+
+class TestWorkflowStartHandler:
+    """Tests for WorkflowStartHandler."""
+
+    def test_is_audit_event_handler_subclass(self) -> None:
+        assert issubclass(WorkflowStartHandler, AuditEventHandler)
+
+    def test_produces_audit_event_with_resource_fields(self) -> None:
+        event = WorkflowStartEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            workflow_name="Deploy to Production",
+            trigger_type=ActivityName.MANUAL_TRIGGER,
+            request_id=REQUEST_ID,
+        )
+        result = WorkflowStartHandler().handle(event)
+
+        assert result.event_category == EventCategory.WORKFLOW_EVENT
+        assert result.event_severity == EventSeverity.INFO
+        assert result.event_status == EventStatus.SUCCESS
+        assert result.event_action == "workflow_execution_started"
+        assert result.event_message == "Workflow execution started: Deploy to Production"
+        assert result.source_component == "nexus.workflows"
+        assert result.execution_id == EXECUTION_ID
+        assert result.workflow_id == WORKFLOW_ID
+        assert result.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert result.resource_name == "Deploy to Production"
+        assert isinstance(result.structured_data, AuditContextData)
+        assert result.structured_data.data_type == "workflow-execution-started"
+        assert result.structured_data.workflow_name == "Deploy to Production"
+        assert result.structured_data.trigger_type == ActivityName.MANUAL_TRIGGER.value
+
+    def test_trigger_type_optional(self) -> None:
+        event = WorkflowStartEvent(
+            execution_id=EXECUTION_ID,
+            workflow_id=WORKFLOW_ID,
+            workflow_name="Deploy to Production",
+        )
+        result = WorkflowStartHandler().handle(event)
+
+        assert "trigger_type" not in result.structured_data.model_dump(exclude_none=True)

@@ -1,7 +1,7 @@
-"""Workflow execution domain events and audit handlers.
+"""Workflow execution error — domain event and audit handler.
 
-Emits audit trail events for engine-level workflow/activity errors
-(timeouts and retries).
+Fired by ActivitySyncService when the Temporal engine reports a
+workflow-level or activity-level timeout, or an activity retry.
 """
 
 from __future__ import annotations

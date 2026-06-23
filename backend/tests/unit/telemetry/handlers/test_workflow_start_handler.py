@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from nexus.telemetry.events.workflow_execution import WorkflowExecutionStartEvent
 from nexus.telemetry.handlers.workflow_start import WorkflowStartTelemetryHandler
-from nexus.workflows.audit.workflow_start import WorkflowStartEvent
+from nexus.workflows.audit.execution_started import WorkflowStartEvent
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 
@@ -25,6 +25,7 @@ class TestWorkflowStartTelemetryHandler:
         domain_event = WorkflowStartEvent(
             execution_id=execution_id,
             workflow_id=workflow_id,
+            workflow_name="test-workflow",
             trigger_type=ActivityName.MANUAL_TRIGGER,
             request_id=request_id,
         )
@@ -48,6 +49,7 @@ class TestWorkflowStartTelemetryHandler:
         domain_event = WorkflowStartEvent(
             execution_id=uuid4(),
             workflow_id=uuid4(),
+            workflow_name="wf",
         )
         result = WorkflowStartTelemetryHandler().handle(domain_event)
 
@@ -61,6 +63,7 @@ class TestWorkflowStartTelemetryHandler:
         domain_event = WorkflowStartEvent(
             execution_id=uuid4(),
             workflow_id=uuid4(),
+            workflow_name="wf",
         )
         result = WorkflowStartTelemetryHandler().handle(domain_event)
         assert result is None
@@ -75,6 +78,7 @@ class TestWorkflowStartTelemetryHandler:
         domain_event = WorkflowStartEvent(
             execution_id=uuid4(),
             workflow_id=uuid4(),
+            workflow_name="wf",
         )
         result = WorkflowStartTelemetryHandler().handle(domain_event)
 

@@ -12,8 +12,8 @@ from uuid import uuid4
 import pytest
 from temporalio.api.enums.v1 import EventType
 
-from nexus.workflows.audit.workflow_completed import WorkflowCompletedEvent
-from nexus.workflows.audit.workflow_execution import WorkflowExecutionErrorEvent
+from nexus.workflows.audit.execution_completed import WorkflowCompletedEvent
+from nexus.workflows.audit.execution_error import WorkflowExecutionErrorEvent
 from nexus.workflows.models import Execution
 from nexus.workflows.models.execution import ExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
