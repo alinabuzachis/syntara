@@ -1,7 +1,7 @@
 """Approval activity executor for workflow human approval integration.
 
-This module provides functionality to create and expire approval requests
-within workflows via the Approvals API client.
+This module provides functionality to create, expire, and cancel approval
+requests within workflows via the Approvals API client.
 """
 
 from typing import Any, NoReturn
@@ -105,26 +105,29 @@ async def create_approval_request_activity(
     activity.raise_complete_async()
 
 
-@activity.defn(name=ActivityName.EXPIRE_APPROVAL)
-async def expire_approval_requests_activity(
+async def _batch_update_approvals(
     execution_id: str,
-    node_id: str,
+    operation: str,
+    batch_method_name: str,
+    result_key: str,
+    node_id: str | None = None,
 ) -> dict[str, Any]:
-    """Expire pending approval requests for a specific node after its decision window.
-
-    Looks up pending approvals for the given execution, filters to the node,
-    and batch-expires them.
+    """Shared helper for batch expire/cancel of pending approval requests.
 
     Args:
         execution_id: Parent workflow execution ID (UUID string).
-        node_id: The approval node whose requests should be expired.
+        operation: Human-readable operation name for logging (e.g. "expire", "cancel").
+        batch_method_name: Name of the ApprovalsApiClient method to call.
+        result_key: Key for the count in the return dict (e.g. "expired_count").
+        node_id: Optional node filter. When set, only approvals for this node are affected.
 
     Returns:
-        Dict with expired_count and any errors.
+        Dict with {result_key: int} and optional error.
 
     """
     logger.info(
-        "Expiring approval requests for timed-out node",
+        "Batch %s approval requests",
+        operation,
         execution_id=execution_id,
         node_id=node_id,
     )
@@ -135,52 +138,61 @@ async def expire_approval_requests_activity(
             auth_token=create_service_token(),
         ) as client:
             pending = await client.list_approvals_by_execution(UUID(execution_id), status="pending")
-            node_approvals = [a for a in pending if a.get("approval_node_id") == node_id]
+            if node_id:
+                pending = [a for a in pending if a.get("approval_node_id") == node_id]
 
-            if not node_approvals:
-                logger.info(
-                    "No pending approvals to expire",
-                    execution_id=execution_id,
-                    node_id=node_id,
-                )
-                return {"expired_count": 0}
+            if not pending:
+                logger.info("No pending approvals to %s", operation, execution_id=execution_id, node_id=node_id)
+                return {result_key: 0}
 
-            approval_ids = [UUID(a["id"]) for a in node_approvals]
-            result = await client.batch_expire(approval_ids)
+            approval_ids = [UUID(a["id"]) for a in pending]
+            batch_fn = getattr(client, batch_method_name)
+            result = await batch_fn(approval_ids)
 
-            expired_count = result.get("total_success", 0)
+            count = result.get("total_success", 0)
             logger.info(
-                "Expired approval requests",
+                "Batch %s approvals completed",
+                operation,
                 execution_id=execution_id,
                 node_id=node_id,
-                expired_count=expired_count,
+                success_count=count,
                 failed_count=result.get("total_failed", 0),
             )
-
-            for approval_id in approval_ids:
-                AuditEventDispatcher.dispatch(
-                    ApprovalExpiredEvent(
-                        approval_id=approval_id,
-                        execution_id=UUID(execution_id),
-                        approval_node_id=node_id,
-                    )
-                )
-
-            return {"expired_count": expired_count}
+            return {result_key: count, "_approval_ids": approval_ids}
 
     except ApprovalsApiClientError as e:
-        logger.warning(
-            "Failed to expire approval requests",
-            execution_id=execution_id,
-            node_id=node_id,
-            error=str(e),
-        )
-        return {"expired_count": 0, "error": str(e)}
+        logger.warning("Failed to %s approval requests", operation, execution_id=execution_id, error=str(e))
+        return {result_key: 0, "error": str(e)}
     except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Unexpected error expiring approval requests",
-            execution_id=execution_id,
-            node_id=node_id,
-            error=str(e),
+        logger.warning("Unexpected error during %s", operation, execution_id=execution_id, error=str(e))
+        return {result_key: 0, "error": str(e)}
+
+
+@activity.defn(name=ActivityName.EXPIRE_APPROVAL)
+async def expire_approval_requests_activity(
+    execution_id: str,
+    node_id: str,
+) -> dict[str, Any]:
+    """Expire pending approval requests for a specific node after its decision window."""
+    result = await _batch_update_approvals(execution_id, "expire", "batch_expire", "expired_count", node_id=node_id)
+
+    for approval_id in result.pop("_approval_ids", []):
+        AuditEventDispatcher.dispatch(
+            ApprovalExpiredEvent(
+                approval_id=approval_id,
+                execution_id=UUID(execution_id),
+                approval_node_id=node_id,
+            )
         )
-        return {"expired_count": 0, "error": str(e)}
+
+    return result
+
+
+@activity.defn(name=ActivityName.CANCEL_APPROVAL)
+async def cancel_approval_requests_activity(
+    execution_id: str,
+) -> dict[str, Any]:
+    """Cancel all pending approval requests when a workflow is cancelled."""
+    result = await _batch_update_approvals(execution_id, "cancel", "batch_cancel", "cancelled_count")
+    result.pop("_approval_ids", None)
+    return result

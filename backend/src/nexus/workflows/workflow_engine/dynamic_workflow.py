@@ -107,32 +107,38 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         # Note: Activity monitoring (register_activity_monitoring) should be called
         # by the application code BEFORE starting the workflow execution.
         # This keeps the workflow logic independent of infrastructure concerns.
-        graph = WorkflowGraph.from_dict(workflow_definition)
-        self._initialize_state(
-            execution_id,
-            request_id=request_id,
-            pre_resolved_outputs=pre_resolved_outputs,
-            stop_after_nodes=stop_after_nodes,
-            workflow_metadata=workflow_metadata,
-        )
-        self._runtime_settings = cast(
-            "dict[str, Any]",
-            await workflow.execute_local_activity(
-                ActivityName.FETCH_RUNTIME_SETTINGS,
-                activity_id="__internal__fetch_runtime_settings",
-                start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
-            ),
-        )
+        try:
+            graph = WorkflowGraph.from_dict(workflow_definition)
+            self._initialize_state(
+                execution_id,
+                request_id=request_id,
+                pre_resolved_outputs=pre_resolved_outputs,
+                stop_after_nodes=stop_after_nodes,
+                workflow_metadata=workflow_metadata,
+            )
+            self._runtime_settings = cast(
+                "dict[str, Any]",
+                await workflow.execute_local_activity(
+                    ActivityName.FETCH_RUNTIME_SETTINGS,
+                    activity_id="__internal__fetch_runtime_settings",
+                    start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+                ),
+            )
 
-        self._build_converge_branch_nodes_index(graph)
+            self._build_converge_branch_nodes_index(graph)
 
-        pending_tasks: dict[str, asyncio.Task[Any]] = {}
-        await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
-        await self._process_pending_tasks(pending_tasks, graph)
-        self._cleanup_timeout_tasks()
-        self._mark_remaining_unreachable_nodes(graph)
+            pending_tasks: dict[str, asyncio.Task[Any]] = {}
+            await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
+            await self._process_pending_tasks(pending_tasks, graph)
+            self._cleanup_timeout_tasks()
+            self._mark_remaining_unreachable_nodes(graph)
 
-        return self._build_result(execution_id, include_node_results)
+            return self._build_result(execution_id, include_node_results)
+
+        except asyncio.CancelledError:
+            workflow.logger.info("Workflow cancelled, cleaning up pending approvals")
+            await self._cancel_approval_requests()
+            raise
 
     def _initialize_state(
         self,

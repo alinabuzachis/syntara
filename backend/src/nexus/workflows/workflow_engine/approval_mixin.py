@@ -1,13 +1,15 @@
 """Mixin encapsulating approval node orchestration logic.
 
 Provides approval request creation, decision handling,
-timeout expiration, and previous-step context building.
+timeout expiration, cancellation cleanup, and previous-step context building.
 """
 
+import asyncio
 from datetime import timedelta
 from typing import Any, ClassVar, cast
 
 from temporalio import workflow
+from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError
 from temporalio.exceptions import TimeoutError as TemporalTimeoutError
 
@@ -51,6 +53,7 @@ class WorkflowApprovalMixin:
                 args=[self.execution_id, node_id],
                 activity_id=f"__internal__expire_approval_{node_id}",
                 start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+                retry_policy=RetryPolicy(maximum_attempts=1),
             )
         except Exception:  # noqa: BLE001
             workflow.logger.warning(
@@ -71,6 +74,27 @@ class WorkflowApprovalMixin:
             and isinstance(error.cause, TemporalTimeoutError)
         ):
             await self._expire_approval_requests(node_id)
+
+    async def _cancel_approval_requests(self) -> None:
+        """Best-effort cancel all pending approval requests when workflow is cancelled.
+
+        Uses asyncio.shield to prevent the cleanup activity from being
+        cancelled by the already-cancelled workflow scope.
+        """
+        try:
+            await asyncio.shield(
+                workflow.execute_activity(
+                    ActivityName.CANCEL_APPROVAL,
+                    args=[self.execution_id],
+                    activity_id="__internal__cancel_approvals",
+                    start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+                    retry_policy=RetryPolicy(maximum_attempts=1),
+                )
+            )
+        except Exception:  # noqa: BLE001
+            workflow.logger.warning(
+                "Failed to cancel approval requests for execution (best-effort)",
+            )
 
     def _get_previous_step_context(
         self,

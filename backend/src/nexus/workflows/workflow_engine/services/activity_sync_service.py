@@ -7,6 +7,7 @@ to the database in real-time by streaming Temporal history events.
 import asyncio
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -1150,6 +1151,58 @@ class ActivitySyncService:
 
         return updated_activities
 
+    async def _maybe_update_execution_paused_status(
+        self,
+        execution: Execution,
+        activities: Sequence[ActivityExecution],
+    ) -> ExecutionStatus | None:
+        """Toggle execution between PAUSED and RUNNING based on activity states.
+
+        Uses the already-loaded execution and activities from the caller's session
+        to avoid an extra DB roundtrip.
+
+        Pre-created PENDING placeholders are excluded — only activities that Temporal
+        has actually started (non-PENDING) are considered.
+
+        RUNNING -> PAUSED: when all non-PENDING non-terminal activities are WAITING
+                           (no RUNNING or RETRYING).
+        PAUSED -> RUNNING: when any activity is active, or no WAITING activities remain.
+        """
+        if execution.status not in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED):
+            return None
+
+        non_terminal = [a for a in activities if a.status not in TERMINAL_ACTIVITY_STATUSES]
+        if not non_terminal:
+            return None
+
+        scheduled = [a for a in non_terminal if a.status != ActivityStatus.PENDING]
+        if not scheduled:
+            return None
+
+        active_statuses = {ActivityStatus.RUNNING, ActivityStatus.RETRYING}
+        has_active = any(a.status in active_statuses for a in scheduled)
+        has_waiting = any(a.status == ActivityStatus.WAITING for a in scheduled)
+
+        new_status: ExecutionStatus | None = None
+
+        if execution.status == ExecutionStatus.RUNNING and has_waiting and not has_active:
+            new_status = ExecutionStatus.PAUSED
+        elif execution.status == ExecutionStatus.PAUSED and (has_active or not has_waiting):
+            new_status = ExecutionStatus.RUNNING
+
+        if new_status is None:
+            return None
+
+        execution.status = new_status
+        execution.updated_at = datetime.now(UTC)
+
+        logger.info(
+            "Execution status transitioned",
+            execution_id=execution.id,
+            new_status=new_status.value,
+        )
+        return new_status
+
     def _process_activity_event(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process a single activity event and update metadata's pending updates.
 
@@ -1335,6 +1388,11 @@ class ActivitySyncService:
                 execution = result.one_or_none()
                 if execution:
                     execution.last_processed_event_id = metadata.last_processed_event_id
+
+                # Check if execution should transition between PAUSED and RUNNING
+                # using already-loaded data from this session (no extra DB roundtrip).
+                if updated_activities and execution:
+                    await self._maybe_update_execution_paused_status(execution, list(existing_activities.values()))
 
                 await session.commit()
                 metadata.pending_sync_event_ids.clear()
