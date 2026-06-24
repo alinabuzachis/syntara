@@ -53,7 +53,6 @@ type BuilderDialogsProps = Readonly<{
 
 type UseRunConfirmStateParams = {
   confirmDialogOpen: boolean
-  isDirty: boolean
   hasInputSchema: boolean
   dispatch: Dispatch<BuilderAction>
   handleRunWorkflow: (inputData?: Record<string, unknown>, triggerNodeId?: string) => void
@@ -62,7 +61,6 @@ type UseRunConfirmStateParams = {
 
 function useRunConfirmState({
   confirmDialogOpen,
-  isDirty,
   hasInputSchema,
   dispatch,
   handleRunWorkflow,
@@ -81,7 +79,7 @@ function useRunConfirmState({
     setPrevOpen(false)
   }
 
-  const skipConfirm = confirmDialogOpen && !isDirty && getRunConfirmDismissed()
+  const skipConfirm = confirmDialogOpen && getRunConfirmDismissed()
 
   // Auto-run when confirmation is skipped and there's no input schema
   // Use a ref to track if we've already auto-run to prevent infinite loops
@@ -154,7 +152,7 @@ export function BuilderDialogs({
     (triggerInputSchema.properties || triggerInputSchema.type || Object.keys(triggerInputSchema).length > 0)
   )
   const { showConfirmStep, showInputStep, doNotShowAgain, setDoNotShowAgain, closeAll, handleConfirmRun } =
-    useRunConfirmState({ confirmDialogOpen, isDirty, hasInputSchema, dispatch, handleRunWorkflow, triggerNodeId })
+    useRunConfirmState({ confirmDialogOpen, hasInputSchema, dispatch, handleRunWorkflow, triggerNodeId })
   return (
     <>
       <NxConfirmationDialog
@@ -177,7 +175,7 @@ export function BuilderDialogs({
           <StackItem>
             <Checkbox
               id="run-workflow-do-not-show-again"
-              label="Don't show again"
+              label="Don't show again for all manual workflow runs"
               isChecked={doNotShowAgain}
               onChange={(_event, checked) => setDoNotShowAgain(checked)}
             />

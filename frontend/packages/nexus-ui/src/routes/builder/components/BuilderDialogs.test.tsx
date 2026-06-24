@@ -244,7 +244,7 @@ describe('BuilderDialogs', () => {
       triggerInputSchema: { type: 'object', properties: { name: { type: 'string' } } },
     })
 
-    const checkbox = screen.getByRole('checkbox', { name: "Don't show again" })
+    const checkbox = screen.getByRole('checkbox', { name: "Don't show again for all manual workflow runs" })
     await user.click(checkbox)
     expect(checkbox).toBeChecked()
 
@@ -262,7 +262,7 @@ describe('BuilderDialogs', () => {
     renderDialogs({ confirmDialogOpen: true, handleRunWorkflow, dispatch })
 
     // Check the "Don't show again" checkbox
-    const checkbox = screen.getByRole('checkbox', { name: "Don't show again" })
+    const checkbox = screen.getByRole('checkbox', { name: "Don't show again for all manual workflow runs" })
     await user.click(checkbox)
     expect(checkbox).toBeChecked()
 
