@@ -23,6 +23,7 @@ vi.mock('../../../client', () => ({
       return { mutate: vi.fn(), isPending: false }
     }),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../providers/alerts', () => ({

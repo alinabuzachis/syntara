@@ -1,16 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, renderHook, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
+import { useLocation } from 'wouter'
 
 import { usersClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
+import { createTestRouter } from '../../../test/createTestRouter'
 
 import { TransferIdentityWizard } from './TransferIdentityWizard'
 
 vi.mock('../../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
   usersClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
@@ -22,25 +25,6 @@ vi.mock('../../access/accessClient', () => ({
   accessClient: {
     useQuery: (...args: unknown[]): unknown => mockAccessClientUseQuery(...args),
   },
-}))
-
-const mockNavigate = vi.fn<(path: string) => void>()
-vi.mock('../../../hooks/routing/navigate', () => ({
-  navigate: (path: string): void => {
-    mockNavigate(path)
-  },
-}))
-
-vi.mock('../../../hooks/routing/useParams', () => ({
-  useParams: () => ({ userId: 'target-user' }),
-}))
-
-vi.mock('../../../hooks/routing/Link', () => ({
-  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode; [key: string]: unknown }) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
 }))
 
 vi.mock('../../../utils/generateUUID', () => ({
@@ -75,12 +59,17 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
 
-function wrapper({ children }: { children: ReactNode }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AlertProvider>{children}</AlertProvider>
-    </QueryClientProvider>
-  )
+function createWrapper(path = '/system-administration/access-management/users/target-user/identities') {
+  const RouterWrapper = createTestRouter(path, '/system-administration/access-management/users/:userId/identities')
+  return function wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AlertProvider>
+          <RouterWrapper>{children}</RouterWrapper>
+        </AlertProvider>
+      </QueryClientProvider>
+    )
+  }
 }
 
 let mockMutate: ReturnType<typeof vi.fn>
@@ -133,25 +122,24 @@ function setupMocks({ identities = mockIdentities }: { identities?: unknown[] } 
 describe('TransferIdentityWizard', () => {
   beforeEach(() => {
     queryClient.clear()
-    mockNavigate.mockClear()
     setupAccessClientMock()
     setupMocks()
   })
 
   it('renders the page header with username in title', () => {
-    render(<TransferIdentityWizard />, { wrapper })
+    render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
     expect(screen.getByRole('heading', { name: /Transfer identity to targetuser/i })).toBeInTheDocument()
   })
 
   it('renders the description text with username', () => {
-    render(<TransferIdentityWizard />, { wrapper })
+    render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
     expect(screen.getByText(/Transfer a federated identity from another user to/i)).toBeInTheDocument()
   })
 
   it('renders the wizard step navigation', () => {
-    render(<TransferIdentityWizard />, { wrapper })
+    render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
     const nav = screen.getByRole('navigation', { name: /wizard/i })
     expect(nav).toBeInTheDocument()
@@ -161,7 +149,7 @@ describe('TransferIdentityWizard', () => {
 
   describe('Step 1 - Select a user', () => {
     it('shows users table excluding the target user', () => {
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       expect(screen.getByText('alice')).toBeInTheDocument()
       expect(screen.getByText('bob')).toBeInTheDocument()
@@ -169,21 +157,21 @@ describe('TransferIdentityWizard', () => {
     })
 
     it('renders Username and Email column headers', () => {
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       expect(screen.getByRole('columnheader', { name: /Username/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Email/i })).toBeInTheDocument()
     })
 
     it('shows step description text', () => {
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       expect(screen.getByText(/Choose the user whose federated identity you want to transfer/i)).toBeInTheDocument()
     })
 
     it('has Next button disabled until a user is selected', async () => {
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 
@@ -193,7 +181,7 @@ describe('TransferIdentityWizard', () => {
     })
 
     it('has Back button visible but disabled on step 1', () => {
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       const backButton = screen.getByRole('button', { name: 'Back' })
       expect(backButton).toBeInTheDocument()
@@ -201,7 +189,7 @@ describe('TransferIdentityWizard', () => {
     })
 
     it('shows radio buttons for single selection', () => {
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       const radios = screen.getAllByRole('radio')
       expect(radios.length).toBeGreaterThan(0)
@@ -211,7 +199,7 @@ describe('TransferIdentityWizard', () => {
   describe('Step 2 - Select an identity', () => {
     async function goToStep2() {
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
       return user
@@ -237,7 +225,7 @@ describe('TransferIdentityWizard', () => {
     it('shows empty state when selected user has no identities', async () => {
       setupMocks({ identities: [] })
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
@@ -286,7 +274,7 @@ describe('TransferIdentityWizard', () => {
   describe('Navigation', () => {
     it('navigates back to identities tab when Cancel is clicked', async () => {
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       await user.click(screen.getByRole('link', { name: 'Cancel' }))
 
@@ -298,7 +286,7 @@ describe('TransferIdentityWizard', () => {
 
     it('navigates to user detail when username link is clicked', async () => {
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       const aliceLink = screen.getByRole('link', { name: 'alice' })
       expect(aliceLink).toHaveAttribute('href', '/system-administration/access-management/users/user-1')
@@ -307,7 +295,7 @@ describe('TransferIdentityWizard', () => {
 
     it('navigates to identity provider detail when provider link is clicked', async () => {
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
@@ -321,7 +309,12 @@ describe('TransferIdentityWizard', () => {
   describe('Mutation callbacks', () => {
     it('shows success alert and navigates back on successful attach', async () => {
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+
+      const TestWrapper = createWrapper()
+
+      // Render the component and track location separately
+      render(<TransferIdentityWizard />, { wrapper: TestWrapper })
+      const { result: locationResult } = renderHook(() => useLocation(), { wrapper: TestWrapper })
 
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
@@ -334,15 +327,13 @@ describe('TransferIdentityWizard', () => {
       })
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(
-          '/system-administration/access-management/users/target-user/identities'
-        )
+        expect(locationResult.current[0]).toBe('/system-administration/access-management/users/target-user/identities')
       })
     })
 
     it('shows error alert on transfer failure', async () => {
       const user = userEvent.setup()
-      render(<TransferIdentityWizard />, { wrapper })
+      render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))
@@ -362,14 +353,14 @@ describe('TransferIdentityWizard', () => {
 
   describe('Accessibility', () => {
     it('has no accessibility violations on step 1', async () => {
-      const { container } = render(<TransferIdentityWizard />, { wrapper })
+      const { container } = render(<TransferIdentityWizard />, { wrapper: createWrapper() })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
 
     it('has no accessibility violations on step 2', async () => {
       const user = userEvent.setup()
-      const { container } = render(<TransferIdentityWizard />, { wrapper })
+      const { container } = render(<TransferIdentityWizard />, { wrapper: createWrapper() })
 
       await user.click(screen.getByText('bob@example.com'))
       await user.click(screen.getByRole('button', { name: 'Next' }))

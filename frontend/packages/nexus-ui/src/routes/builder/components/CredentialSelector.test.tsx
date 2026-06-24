@@ -14,6 +14,7 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../configuration/credentials/form/CredentialFormModal', () => ({

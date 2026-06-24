@@ -8,6 +8,7 @@ vi.mock('../../../client', () => ({
   approvalsClient: {
     useQuery: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 const mockApproval = {

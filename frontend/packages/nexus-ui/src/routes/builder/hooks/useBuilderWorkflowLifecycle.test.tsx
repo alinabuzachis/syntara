@@ -35,6 +35,7 @@ vi.mock('../../../client', () => ({
   workflowClient: {
     queryOptions: queryOptionsMock,
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 const refetchQueriesMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { DocLinkProvider } from './DocLinkProvider'
-import docsUrls from './docsUrls.json'
+import docsUrls from './docsUrls.json' with { type: 'json' }
 import type { DocKey } from './types'
 import { useDocLink } from './useDocLink'
 

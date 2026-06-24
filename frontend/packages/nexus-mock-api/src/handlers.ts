@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { v4 as uuidv4 } from 'uuid'
 import { mockDate } from './resources/mockDates'
+import { createMockJwt } from './mockJwt'
 import type * as ApprovalsAPI from '@ansible/nexus-contracts/src/approvals-api.js'
 import type * as ExecutionsAPI from '@ansible/nexus-contracts/src/executions-api.js'
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
@@ -119,8 +120,29 @@ function approvalCreatedAt(a: Approval): string | undefined {
 
 function getUsernameFromRequest(request: Request): string {
   const auth = request.headers.get('Authorization') ?? ''
-  const match = /^Bearer .*mock-token-(.+)$/.exec(auth)
-  return match ? match[1] : 'admin'
+
+  // Try old-style mock token format first (backwards compatibility)
+  const oldStyleMatch = /^Bearer .*mock-token-(.+)$/.exec(auth)
+  if (oldStyleMatch) return oldStyleMatch[1]
+
+  // Parse JWT token to extract username from preferred_username claim
+  const jwtMatch = /^Bearer (.+)$/.exec(auth)
+  if (jwtMatch) {
+    try {
+      const token = jwtMatch[1]
+      const payload = token.split('.')[1]
+      if (payload) {
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+        const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+        const decoded = JSON.parse(atob(padded)) as { preferred_username?: string }
+        return decoded.preferred_username ?? 'admin'
+      }
+    } catch {
+      // Fall through to default
+    }
+  }
+
+  return 'admin'
 }
 
 function matchesProviderType(provider: ToolProvider, providerType: string): boolean {
@@ -1253,8 +1275,9 @@ export const handlers = [
   http.post('/api/v1/auth/login', async ({ request }) => {
     const body = (await request.json()) as { username?: string } | null
     const username = body?.username ?? 'admin'
+    const userId = `user-${username}`
     return HttpResponse.json({
-      access_token: `mock-token-${username}`,
+      access_token: createMockJwt({ username, userId }),
       token_type: 'bearer',
       expires_in: 3600,
     })
@@ -1268,8 +1291,9 @@ export const handlers = [
   // Auth refresh — preserve username from existing token
   http.post('/api/v1/auth/refresh', ({ request }) => {
     const username = getUsernameFromRequest(request)
+    const userId = `user-${username}`
     return HttpResponse.json({
-      access_token: `mock-token-${username}`,
+      access_token: createMockJwt({ username, userId }),
       token_type: 'bearer',
       expires_in: 3600,
     })

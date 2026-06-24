@@ -14,6 +14,8 @@ import { useId, useState } from 'react'
 
 import { detachPromise } from '../../utils/detachPromise'
 
+import styles from './NxCodeBlock.module.css'
+
 function resolveCopyText(
   codeContent: React.ReactNode,
   jsonObject: object | undefined,
@@ -106,7 +108,7 @@ export function NxCodeBlock(props: {
     >
       <ModalHeader title={props.expandTitle ?? 'Code detail'} />
       <ModalBody>
-        <PFCodeBlock actions={modalActions || undefined}>
+        <PFCodeBlock actions={modalActions || undefined} className={styles.codeBlock}>
           <CodeBlockCode>{codeContent}</CodeBlockCode>
         </PFCodeBlock>
       </ModalBody>
@@ -114,7 +116,7 @@ export function NxCodeBlock(props: {
   )
 
   const codeBlock = (
-    <PFCodeBlock actions={actions || undefined}>
+    <PFCodeBlock actions={actions || undefined} className={styles.codeBlock}>
       <CodeBlockCode>{codeContent}</CodeBlockCode>
     </PFCodeBlock>
   )

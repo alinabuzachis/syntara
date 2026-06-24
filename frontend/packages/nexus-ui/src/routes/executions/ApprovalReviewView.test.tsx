@@ -33,6 +33,11 @@ vi.mock('../../client', () => ({
       isLoading: false,
     })),
   },
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../access/accessClient', () => ({
+  accessFetchClient: { POST: vi.fn(() => Promise.resolve({ data: { allowed: true } })) },
 }))
 
 vi.mock('../../providers/alerts', () => ({
@@ -59,6 +64,18 @@ vi.mock('../approvals/useCanDecideApproval', () => ({
   useCanDecideApproval: vi.fn(() => ({
     canDecide: mockCanDecide(),
     isLoading: false,
+  })),
+}))
+
+// Mock useApprovalPermissions to return allowed by default
+vi.mock('../approvals/useApprovalPermissions', () => ({
+  useApprovalPermissions: vi.fn(() => ({
+    canRead: true,
+    canDecide: true, // Default: RBAC permission allowed
+    isChecking: false,
+    tooltips: {
+      decide: 'To decide on approvals, you need a role with the approval:decide policy.',
+    },
   })),
 }))
 

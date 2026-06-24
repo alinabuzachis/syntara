@@ -8,6 +8,10 @@ import type { ProjectRead } from '../routes/access/types'
 
 import { usePaginatedProjects } from './usePaginatedProjects'
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../routes/access/accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),

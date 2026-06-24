@@ -15,6 +15,10 @@ type QueryResult = {
 }
 const mockUseQuery = vi.fn<(...args: unknown[]) => QueryResult>()
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: (...args: unknown[]) => mockUseQuery(...args),

@@ -5,11 +5,17 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { useQueryState } from '../../components/states/useQueryState'
 import { AlertProvider } from '../../providers/alerts'
+import { createTestRouter } from '../../test/createTestRouter'
 
 import { accessClient } from './accessClient'
 import { RolesTab } from './RolesTab'
 import type { RoleRead } from './types'
+
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
 
 vi.mock('./accessClient', () => ({
   accessClient: {
@@ -28,6 +34,10 @@ vi.mock('./useProjectNameMap', () => ({
   }),
 }))
 
+vi.mock('../../components/states/useQueryState', () => ({
+  useQueryState: vi.fn(),
+}))
+
 vi.mock('./useRolePermissions', () => ({
   useRolePermissions: () => ({
     canCreate: true,
@@ -38,77 +48,22 @@ vi.mock('./useRolePermissions', () => ({
   }),
 }))
 
-// Reactive wouter mock: useLocation and useSearch share state so that
-// navigate() updates both the path and the search string.
-const mockUrl = { current: '/system-administration/access-management/roles', listeners: new Set<() => void>() }
-function setMockUrl(url: string) {
-  mockUrl.current = url
-  mockUrl.listeners.forEach((l) => l())
-}
-
-vi.mock('../../hooks/routing/useLocation', async () => {
-  const React = await import('react')
-  function useMockUrl() {
-    const [, rerender] = React.useState(0)
-    React.useEffect(() => {
-      const listener = () => rerender((n) => n + 1)
-      mockUrl.listeners.add(listener)
-      return () => {
-        mockUrl.listeners.delete(listener)
-      }
-    }, [])
-    return mockUrl.current
-  }
-  return {
-    useLocation: () => {
-      const url = useMockUrl()
-      return url.split('?')[0]
-    },
-  }
-})
-
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => setMockUrl,
-}))
-
-vi.mock('../../hooks/routing/useSearch', async () => {
-  const React = await import('react')
-  function useMockUrl() {
-    const [, rerender] = React.useState(0)
-    React.useEffect(() => {
-      const listener = () => rerender((n) => n + 1)
-      mockUrl.listeners.add(listener)
-      return () => {
-        mockUrl.listeners.delete(listener)
-      }
-    }, [])
-    return mockUrl.current
-  }
-  return {
-    useSearch: () => {
-      const url = useMockUrl()
-      const idx = url.indexOf('?')
-      return idx >= 0 ? url.slice(idx) : ''
-    },
-  }
-})
-
-vi.mock('../../hooks/routing/useSearchParams', async () => {
-  const React = await import('react')
-  return {
-    useSearchParams: () => React.useState(new URLSearchParams()),
-  }
-})
-
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={queryClient}>
-    <AlertProvider>{children}</AlertProvider>
-  </QueryClientProvider>
-)
+function createWrapper(initialPath = '/system-administration/access-management/roles') {
+  const RouterWrapper = createTestRouter(initialPath)
+  return function wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AlertProvider>
+          <RouterWrapper>{children}</RouterWrapper>
+        </AlertProvider>
+      </QueryClientProvider>
+    )
+  }
+}
 
 const mockRoles: RoleRead[] = [
   {
@@ -155,7 +110,9 @@ describe('RolesTab', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUrl.current = '/system-administration/access-management/roles'
+
+    // Default: useQueryState returns null (success state)
+    vi.mocked(useQueryState).mockReturnValue(null)
 
     vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
       if (path === '/projects') {
@@ -200,7 +157,7 @@ describe('RolesTab', () => {
 
   describe('Accessibility', () => {
     it('has no accessibility violations with data', async () => {
-      const { container } = render(<RolesTab />, { wrapper })
+      const { container } = render(<RolesTab />, { wrapper: createWrapper() })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
@@ -215,7 +172,7 @@ describe('RolesTab', () => {
         refetch: mockRefetch,
       } as never)
 
-      const { container } = render(<RolesTab />, { wrapper })
+      const { container } = render(<RolesTab />, { wrapper: createWrapper() })
       const results = await axe(container)
       expect(results).toHaveNoViolations()
     })
@@ -223,7 +180,7 @@ describe('RolesTab', () => {
 
   describe('Rendering', () => {
     it('renders roles in table', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByText('admin')).toBeInTheDocument()
       expect(screen.getByText('custom-editor')).toBeInTheDocument()
@@ -231,14 +188,14 @@ describe('RolesTab', () => {
     })
 
     it('renders role descriptions', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByText('Full admin access')).toBeInTheDocument()
       expect(screen.getByText('Custom editor role')).toBeInTheDocument()
     })
 
     it('renders dash for null description', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const table = screen.getByRole('grid', { name: 'Roles' })
       const viewerRow = within(table)
@@ -249,26 +206,26 @@ describe('RolesTab', () => {
     })
 
     it('renders Built-in label for builtin roles', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByText('Built-in')).toBeInTheDocument()
     })
 
     it('renders Custom label for non-builtin roles', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const customLabels = screen.getAllByText('Custom')
       expect(customLabels.length).toBe(2)
     })
 
     it('renders Create role button', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByRole('button', { name: /create role/i })).toBeInTheDocument()
     })
 
     it('renders table column headers', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByRole('columnheader', { name: /Row expansion/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Name/i })).toBeInTheDocument()
@@ -288,7 +245,7 @@ describe('RolesTab', () => {
         refetch: mockRefetch,
       } as never)
 
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByText('No roles found')).toBeInTheDocument()
       expect(screen.getByText('No roles are available.')).toBeInTheDocument()
@@ -318,7 +275,7 @@ describe('RolesTab', () => {
         } as never
       })
 
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByTestId('loading-state')).toBeInTheDocument()
     })
@@ -345,7 +302,7 @@ describe('RolesTab', () => {
         } as never
       })
 
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByTestId('error-state')).toBeInTheDocument()
     })
@@ -353,7 +310,7 @@ describe('RolesTab', () => {
 
   describe('Row actions', () => {
     it('shows kebab actions only for non-builtin roles', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       // There should be 2 kebab toggles (custom-editor and viewer), not 3
       const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
@@ -362,7 +319,7 @@ describe('RolesTab', () => {
 
     it('opens edit dialog when edit action is clicked on a custom role', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabs[0])
@@ -377,7 +334,7 @@ describe('RolesTab', () => {
 
     it('opens delete confirmation when delete action is clicked', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabs[0])
@@ -394,7 +351,7 @@ describe('RolesTab', () => {
   describe('Delete flow', () => {
     async function openDeleteDialog() {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabs[0])
@@ -482,7 +439,7 @@ describe('RolesTab', () => {
   describe('Create role dialog', () => {
     it('opens AddRoleDialog when Create role button is clicked', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       await user.click(screen.getByRole('button', { name: /create role/i }))
 
@@ -494,14 +451,14 @@ describe('RolesTab', () => {
 
   describe('Sorting', () => {
     it('renders sortable Name column', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
       expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
     })
 
     it('renders sortable Type column', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const typeHeader = screen.getByRole('columnheader', { name: /Type/i })
       expect(within(typeHeader).getByRole('button')).toBeInTheDocument()
@@ -509,7 +466,7 @@ describe('RolesTab', () => {
 
     it('sends sort parameter when column header is clicked', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
       await user.click(within(nameHeader).getByRole('button'))
@@ -526,7 +483,7 @@ describe('RolesTab', () => {
 
   describe('Pagination', () => {
     it('renders footer with item count', () => {
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument()
     })
@@ -554,7 +511,7 @@ describe('RolesTab', () => {
       })
 
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const nextButton = screen.getByRole('button', { name: /next page/i })
       await user.click(nextButton)
@@ -572,7 +529,7 @@ describe('RolesTab', () => {
   describe('Sorting descending', () => {
     it('sends descending sort parameter when column is clicked twice', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const nameHeader = screen.getByRole('columnheader', { name: /Name/i })
       const sortButton = within(nameHeader).getByRole('button')
@@ -594,7 +551,7 @@ describe('RolesTab', () => {
   describe('Filter bar', () => {
     it('does not offer Description in the attribute field selector', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const filterToolbar = screen.getByRole('search')
       expect(filterToolbar).toBeTruthy()
@@ -610,7 +567,7 @@ describe('RolesTab', () => {
   describe('Expandable rows', () => {
     it('policies are hidden by default and shown when row is expanded', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       expect(screen.queryByText('admin-policy')).not.toBeVisible()
 
@@ -623,7 +580,7 @@ describe('RolesTab', () => {
 
     it('expand-all button expands all rows, clicking again collapses them', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const expandAllButton = screen.getByRole('button', { name: /expand all/i })
       await user.click(expandAllButton)
@@ -639,7 +596,7 @@ describe('RolesTab', () => {
 
     it('toggling a single row does not affect other rows', async () => {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const expandButtons = screen.getAllByRole('button', { name: /details/i })
       await user.click(expandButtons[0])
@@ -652,7 +609,7 @@ describe('RolesTab', () => {
   describe('Delete dialog acknowledgement checkbox', () => {
     async function openDeleteDialog() {
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       const kebabs = screen.getAllByRole('button', { name: 'Kebab toggle' })
       await user.click(kebabs[0])
@@ -710,7 +667,7 @@ describe('RolesTab', () => {
       })
 
       const user = userEvent.setup()
-      render(<RolesTab />, { wrapper })
+      render(<RolesTab />, { wrapper: createWrapper() })
 
       // Apply a filter by typing in the name filter input and pressing Enter
       const textInput = screen.getByRole('textbox', { name: /name filter/i })

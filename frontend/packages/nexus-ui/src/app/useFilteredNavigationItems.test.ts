@@ -48,6 +48,7 @@ function setPermissions(overrides: Record<string, boolean>) {
       'identity-provider:read': true,
       'project:read': true,
       'role-assignment:read': true,
+      'approval:read': true,
       ...overrides,
     },
     isLoading: false,
@@ -88,11 +89,21 @@ describe('useFilteredNavigationItems', () => {
       'identity-provider:read': false,
       'project:read': false,
       'role-assignment:read': false,
+      'approval:read': true, // Approvals now requires approval:read permission
     })
     const { result } = renderHook(() => useFilteredNavigationItems())
 
     expect(findItem(result.current, 'Workflows')).toBeDefined()
     expect(findItem(result.current, 'Approvals')).toBeDefined()
+    expect(findItem(result.current, 'Workflow Runs')).toBeDefined()
+  })
+
+  it('excludes Approvals when approval:read is denied', () => {
+    setPermissions({ 'approval:read': false })
+    const { result } = renderHook(() => useFilteredNavigationItems())
+
+    expect(findItem(result.current, 'Approvals')).toBeUndefined()
+    expect(findItem(result.current, 'Workflows')).toBeDefined()
     expect(findItem(result.current, 'Workflow Runs')).toBeDefined()
   })
 

@@ -14,6 +14,10 @@ import { useAdminToggle } from './useAdminToggle'
 // Mocks
 // ---------------------------------------------------------------------------
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../access/accessClient', () => ({
   accessClient: { useMutation: vi.fn() },
   accessFetchClient: { use: vi.fn() },

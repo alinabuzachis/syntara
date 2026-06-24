@@ -14,6 +14,10 @@ import { useUserFormSubmit } from './useUserFormSubmit'
 // Mocks
 // ---------------------------------------------------------------------------
 
+vi.mock('../../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../../access/accessClient', () => ({
   accessClient: { useMutation: vi.fn() },
 }))

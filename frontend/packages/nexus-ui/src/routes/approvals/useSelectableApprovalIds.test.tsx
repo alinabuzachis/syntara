@@ -13,6 +13,7 @@ vi.mock('../../client', () => ({
   usersClient: {
     useQuery: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../stores/useAuthStore', () => ({

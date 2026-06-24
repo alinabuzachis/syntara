@@ -23,6 +23,7 @@ vi.mock('../../../client', () => ({
   executionsClient: {
     useQuery: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 const queryClient = new QueryClient({

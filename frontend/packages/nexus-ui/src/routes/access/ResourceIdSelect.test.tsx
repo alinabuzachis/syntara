@@ -11,6 +11,10 @@ function mockFetchResponse(data: unknown, error?: unknown) {
   return { data, error, response: new Response() } as never
 }
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),

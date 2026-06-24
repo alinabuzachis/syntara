@@ -15,6 +15,7 @@ vi.mock('../../../client', () => ({
   workflowFetchClient: {
     POST: mockPost,
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 // Mock Monaco editor since it doesn't work well in test environment

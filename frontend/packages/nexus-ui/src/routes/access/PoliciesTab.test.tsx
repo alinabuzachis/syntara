@@ -5,6 +5,8 @@ import type React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { useQueryState } from '../../components/states/useQueryState'
+
 import { accessClient } from './accessClient'
 import { PoliciesTab } from './PoliciesTab'
 import type { PolicyRead } from './types'
@@ -26,25 +28,19 @@ vi.mock('./useProjectNameMap', () => ({
   }),
 }))
 
+vi.mock('../../components/states/useQueryState', () => ({
+  useQueryState: vi.fn(),
+}))
+
 vi.mock('../../components/details/NxCodeBlock', () => ({
   NxCodeBlock: ({ jsonObject }: { jsonObject: unknown }) => <pre>{JSON.stringify(jsonObject)}</pre>,
 }))
 
-vi.mock('../../hooks/routing/useLocation', () => ({
-  useLocation: () => '/system-administration/access-management/policies',
-}))
-const mockNavigate = vi.fn()
-vi.mock('../../hooks/routing/useNavigate', () => ({
-  useNavigate: () => mockNavigate,
-}))
-
-vi.mock('../../hooks/routing/useSearch', () => ({
-  useSearch: () => '',
-}))
-
-vi.mock('../../hooks/routing/useSearchParams', async () => {
+vi.mock('wouter', async () => {
   const React = await import('react')
   return {
+    useLocation: () => ['/system-administration/access-management/policies', vi.fn()],
+    useSearch: () => '',
     useSearchParams: () => React.useState(new URLSearchParams()),
   }
 })
@@ -103,6 +99,7 @@ describe('PoliciesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    vi.mocked(useQueryState).mockReturnValue(null)
   })
 
   it('renders empty state when no policies exist', () => {

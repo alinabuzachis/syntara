@@ -21,6 +21,7 @@ vi.mock('../../../client', async (importOriginal) => {
       useQuery: vi.fn(),
       useMutation: vi.fn(),
     },
+    authMiddleware: { onRequest: vi.fn() },
   }
 })
 

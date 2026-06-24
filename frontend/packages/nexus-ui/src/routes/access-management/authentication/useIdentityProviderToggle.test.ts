@@ -12,6 +12,7 @@ vi.mock('../../../client', () => ({
   identityProvidersClient: {
     useMutation: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../hooks/useMutationErrorHandler', () => ({

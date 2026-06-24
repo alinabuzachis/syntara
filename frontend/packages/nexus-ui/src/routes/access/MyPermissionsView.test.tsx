@@ -8,6 +8,10 @@ import { axe } from 'vitest-axe'
 import { accessFetchClient } from './accessClient'
 import { MyPermissionsView } from './MyPermissionsView'
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),

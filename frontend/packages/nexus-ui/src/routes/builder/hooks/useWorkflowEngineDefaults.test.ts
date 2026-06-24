@@ -9,6 +9,7 @@ import { useWorkflowEngineDefaults } from './useWorkflowEngineDefaults'
 const mockGet = vi.fn()
 vi.mock('../../../client', () => ({
   settingsFetchClient: { GET: (...args: unknown[]) => mockGet(...args) as unknown },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 function makeWrapper() {

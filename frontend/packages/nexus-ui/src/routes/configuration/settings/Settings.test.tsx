@@ -31,6 +31,7 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: () => ({ mutate: mockMutate, isPending: false }),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../providers/alerts', () => ({

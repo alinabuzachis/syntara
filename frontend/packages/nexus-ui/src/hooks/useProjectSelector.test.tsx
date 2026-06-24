@@ -15,6 +15,10 @@ import { useProjectSelector } from './useProjectSelector'
 
 const mockShowAlert = vi.fn()
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../providers/alerts', () => ({
   useAlerts: () => ({
     showAlert: mockShowAlert,
@@ -42,6 +46,10 @@ const mockSetSelectedProjectName = vi.fn((name: string | null) => {
   mockSelectedProjectName = name
 })
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../stores/useProjectStore', () => ({
   useProjectStore: () => ({
     selectedProjectId: mockSelectedProjectId,
@@ -51,6 +59,10 @@ vi.mock('../stores/useProjectStore', () => ({
     favoriteProjectIds: mockFavoriteProjectIds,
     toggleFavoriteProjectId: mockToggleFavoriteProjectId,
   }),
+}))
+
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('./useFormMutationErrorHandler', () => ({
@@ -70,6 +82,10 @@ let mockQueryResponse: { data: PaginatedResponse | undefined; isPending: boolean
 function makePaginatedData(projects: ProjectRead[], next: string | null = null): PaginatedResponse {
   return { resources: projects, next, prev: null, total: projects.length }
 }
+
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
 
 vi.mock('../routes/access/accessClient', () => ({
   accessClient: {

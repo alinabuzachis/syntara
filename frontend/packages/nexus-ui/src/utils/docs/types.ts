@@ -1,4 +1,4 @@
-import type docsUrls from './docsUrls.json'
+import docsUrls from './docsUrls.json' with { type: 'json' }
 
 export type DocKey = keyof typeof docsUrls
 

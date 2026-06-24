@@ -24,6 +24,7 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
   },
   OIDC_AUTHORIZE_PATH: '/api/v1/auth/oidc/authorize',
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('./AttachIdentityModal', () => ({

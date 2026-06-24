@@ -27,6 +27,7 @@ vi.mock('../../../client', () => ({
   executionsClient: {
     useQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

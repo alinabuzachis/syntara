@@ -11,6 +11,10 @@ import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
 import { useAllProjects } from './useAllProjects'
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),

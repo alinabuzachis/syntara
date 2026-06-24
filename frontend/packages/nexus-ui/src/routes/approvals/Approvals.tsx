@@ -1,8 +1,9 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { StackItem } from '@patternfly/react-core'
+import { Spinner, StackItem } from '@patternfly/react-core'
 import type { ThProps } from '@patternfly/react-table'
 import { useMemo, useReducer, useState } from 'react'
 
+import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { NxPage, NxPageBody } from '../../components/layout/NxPage'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
@@ -28,6 +29,7 @@ import { BulkApproveDialog } from './BulkApproveDialog'
 import { BulkRejectDialog } from './BulkRejectDialog'
 import { canDecideOnApproval } from './canDecideOnApproval'
 import { useApprovalDecideProjects } from './useApprovalDecideProjects'
+import { useApprovalPermissions } from './useApprovalPermissions'
 import { useApprovalsData } from './useApprovalsData'
 import { useApprovalSelection } from './useApprovalSelection'
 import { useBulkApprovalActions } from './useBulkApprovalActions'
@@ -285,6 +287,36 @@ function ApprovalsTableContent({
 
 export default function Approvals() {
   const approvalsDocLink = useDocLink('approvals')
+  const permissions = useApprovalPermissions()
+
+  // Show loading spinner while checking permissions
+  if (permissions.isChecking) {
+    return (
+      <NxPage>
+        <NxPageHeader title="Approvals" docLink={approvalsDocLink ?? undefined} />
+        <NxPageBody isCentered>
+          <Spinner aria-label="Loading approval permissions" />
+        </NxPageBody>
+      </NxPage>
+    )
+  }
+
+  // Show access denied if user lacks read permission
+  if (!permissions.canRead) {
+    return (
+      <NxPage>
+        <NxPageHeader title="Approvals" docLink={approvalsDocLink ?? undefined} />
+        <NxPageBody isCentered>
+          <EmptyStateAccessDenied description="You do not have permission to view approvals. Contact your administrator to request access." />
+        </NxPageBody>
+      </NxPage>
+    )
+  }
+
+  return <ApprovalsPage approvalsDocLink={approvalsDocLink} />
+}
+
+function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null | undefined }) {
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {
     expandedRows: new Set<string>(),
@@ -402,7 +434,7 @@ export default function Approvals() {
   if (queryState) {
     return (
       <NxPage>
-        <NxPageHeader title="Approvals" docLink={approvalsDocLink} projectSelector={ProjectSelector} />
+        <NxPageHeader title="Approvals" docLink={approvalsDocLink ?? undefined} projectSelector={ProjectSelector} />
         <NxPageBody>
           <NxPanel isFullHeight>{queryState}</NxPanel>
         </NxPageBody>
@@ -427,7 +459,7 @@ export default function Approvals() {
     <NxPage>
       <NxPageHeader
         title="Approvals"
-        docLink={approvalsDocLink}
+        docLink={approvalsDocLink ?? undefined}
         projectSelector={ProjectSelector}
         toolbar={
           <ApprovalsBulkActions

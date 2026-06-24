@@ -5,6 +5,10 @@ import { useCanApprovalAction } from './useCanApprovalAction'
 
 // Mock the access client
 const mockPost = vi.fn()
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../access/accessClient', () => ({
   accessFetchClient: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument

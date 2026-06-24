@@ -17,6 +17,7 @@ vi.mock('../../client', () => ({
       isPending: false,
     })),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../providers/alerts/AlertContext', () => ({

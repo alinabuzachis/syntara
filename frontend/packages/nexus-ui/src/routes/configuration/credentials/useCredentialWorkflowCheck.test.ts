@@ -14,6 +14,7 @@ vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 type MockQueryReturn = Pick<UseQueryResult, 'data' | 'error' | 'isLoading'>

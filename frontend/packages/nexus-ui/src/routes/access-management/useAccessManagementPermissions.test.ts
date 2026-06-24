@@ -8,6 +8,10 @@ import { accessFetchClient } from '../access/accessClient'
 
 import { useAccessManagementPermissions } from './useAccessManagementPermissions'
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../access/accessClient', () => ({
   accessFetchClient: {
     POST: vi.fn(),

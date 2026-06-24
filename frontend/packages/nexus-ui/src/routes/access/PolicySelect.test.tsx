@@ -8,6 +8,10 @@ import { axe } from 'vitest-axe'
 import { accessClient } from './accessClient'
 import { PolicySelect } from './PolicySelect'
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('./accessClient', () => ({
   accessClient: {
     useQuery: vi.fn(),

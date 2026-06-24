@@ -33,6 +33,7 @@ vi.mock('../../../client', () => ({
       isPending: false,
     })),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 let mockVersions = [

@@ -8,6 +8,10 @@ const mockUseQuery = vi.fn()
 function getMockValue(): unknown {
   return mockUseQuery()
 }
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../access/accessClient', () => ({
   accessClient: {
     useQuery: getMockValue,

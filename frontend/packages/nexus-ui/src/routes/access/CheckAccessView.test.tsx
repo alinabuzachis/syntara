@@ -5,6 +5,8 @@ import type React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { mockAuthMiddleware } from '../../test/mockAuthMiddleware'
+
 import { accessClient, accessFetchClient, dynamicFetchClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
 import { CheckAccessView } from './CheckAccessView'
@@ -12,6 +14,10 @@ import { useAllProjects } from './useAllProjects'
 
 const { mockMutate } = vi.hoisted(() => ({
   mockMutate: vi.fn<(...args: unknown[]) => void>(),
+}))
+
+vi.mock('../../client', () => ({
+  authMiddleware: mockAuthMiddleware,
 }))
 
 vi.mock('./useAllProjects', () => ({

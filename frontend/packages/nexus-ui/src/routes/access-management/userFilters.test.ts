@@ -8,6 +8,7 @@ vi.mock('../../client', () => ({
   authFetchClient: {
     GET: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 // Import after mock so vi.mocked() works

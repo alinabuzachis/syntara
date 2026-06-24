@@ -6,6 +6,10 @@ import { axe } from 'vitest-axe'
 import { PolicyJsonModal } from './PolicyJsonModal'
 import type { PolicyRead } from './types'
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../../components/details/NxCodeBlock', () => ({
   NxCodeBlock: ({ jsonObject }: { jsonObject: unknown }) => <pre>{JSON.stringify(jsonObject)}</pre>,
 }))

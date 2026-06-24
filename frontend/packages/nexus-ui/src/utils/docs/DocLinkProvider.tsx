@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 
 import { DocLinkContext, type DocLinkContextValue } from './docLinkContext'
-import docsConfig from './docsConfig.json'
+import docsConfig from './docsConfig.json' with { type: 'json' }
 import type { DocMode } from './types'
 
 function resolveDocMode(): DocMode {

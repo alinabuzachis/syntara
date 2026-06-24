@@ -25,6 +25,7 @@ vi.mock('../../client', () => ({
   executionsClient: {
     useQuery: (...args: unknown[]) => mockUseQuery(...(args as [])),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 const queryClient = new QueryClient({

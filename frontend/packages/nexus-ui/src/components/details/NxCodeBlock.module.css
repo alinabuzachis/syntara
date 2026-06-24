@@ -1,0 +1,10 @@
+/**
+ * CodeBlockCode renders as <pre><code>, which has white-space: pre by default.
+ * Long unbreakable strings (like "TTTTTTT...") cause horizontal overflow.
+ * We force word-wrapping to keep content within the container bounds.
+ */
+.codeBlock :global(.pf-v6-c-code-block__code) {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}

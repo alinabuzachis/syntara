@@ -4,6 +4,10 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
 vi.mock('../../access/accessClient', () => ({
   accessFetchClient: {
     POST: vi.fn(),

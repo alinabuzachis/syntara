@@ -571,6 +571,8 @@ export const approvalInteractivePages: PageEntry[] = [
     path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
     waitFor: waitForApprovalPanel,
     setup: async (page) => {
+      // Wait for permission checks to complete before clicking
+      await expect(page.getByRole('button', { name: 'Approve' })).toBeEnabled({ timeout: 10_000 })
       await page.getByRole('button', { name: 'Approve' }).click()
       await expect(page.getByRole('button', { name: 'Submit decision' })).toBeVisible()
     },
@@ -581,6 +583,8 @@ export const approvalInteractivePages: PageEntry[] = [
     path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
     waitFor: waitForApprovalPanel,
     setup: async (page) => {
+      // Wait for permission checks to complete before clicking
+      await expect(page.getByRole('button', { name: 'Reject' })).toBeEnabled({ timeout: 10_000 })
       await page.getByRole('button', { name: 'Reject' }).click()
       await expect(page.getByRole('button', { name: 'Submit decision' })).toBeVisible()
     },

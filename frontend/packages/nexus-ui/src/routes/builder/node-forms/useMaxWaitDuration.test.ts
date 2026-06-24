@@ -9,6 +9,7 @@ vi.mock('../../../client', () => ({
   settingsFetchClient: {
     GET: () => mockGet() as Promise<unknown>,
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 const mockUseQuery = vi.fn()

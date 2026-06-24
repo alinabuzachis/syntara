@@ -23,13 +23,16 @@ import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { permissionTooltip } from '../../hooks/permissionUtils'
 import { useMutationErrorHandler } from '../../hooks/useMutationErrorHandler'
+import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 
 import styles from './ApprovalDetailContent.module.css'
 import { ApprovalStatusBadges } from './approvalUtils'
-import { useCanApprovalAction } from './useCanApprovalAction'
+import { canDecideOnApproval } from './canDecideOnApproval'
+import { useApprovalDecideProjects } from './useApprovalDecideProjects'
+import { useCanDecideApproval } from './useCanDecideApproval'
 
 /**
  * Fallback extraction for description/prompt text from the approval object.
@@ -63,14 +66,174 @@ type ApprovalDetailContentProps = Readonly<{
   onWorkflowClick?: (link: string) => void
 }>
 
+function getDecideTooltip(
+  permissions: { canDecide: boolean },
+  canDecideBasedOnApproverList: boolean,
+  approval: Approval
+): string | undefined {
+  if (!permissions.canDecide) {
+    return permissionTooltip('approve or reject this approval', 'approval:decide')
+  }
+  if (!canDecideBasedOnApproverList) {
+    const approverUsers = approval.approver_users?.map((u) => u.username) ?? []
+    const approverGroups = approval.approver_groups?.map((g) => g.name) ?? []
+
+    if (approverUsers.length === 0 && approverGroups.length === 0) {
+      return 'This approval has no authorized approvers configured.'
+    }
+
+    const parts = []
+    if (approverUsers.length > 0) {
+      parts.push(`Users: ${approverUsers.join(', ')}`)
+    }
+    if (approverGroups.length > 0) {
+      parts.push(`Groups: ${approverGroups.join(', ')}`)
+    }
+
+    return `This approval is restricted to: ${parts.join(' • ')}`
+  }
+  return undefined
+}
+
+function DecisionButtons({
+  canDecide,
+  isCheckingPermission,
+  isSubmitting,
+  decideTooltip,
+  onApprove,
+  onReject,
+}: Readonly<{
+  canDecide: boolean
+  isCheckingPermission: boolean
+  isSubmitting: boolean
+  decideTooltip: string
+  onApprove: () => void
+  onReject: () => void
+}>) {
+  const buttonsDisabled = isSubmitting || isCheckingPermission || !canDecide
+  return (
+    <ActionList className={styles.buttonGap}>
+      <ActionListItem>
+        <DisabledWithTooltip isDisabled={!canDecide && !isCheckingPermission} content={decideTooltip}>
+          <Button icon={<RhUiLikeIcon />} variant="secondary" isAriaDisabled={buttonsDisabled} onClick={onApprove}>
+            Approve
+          </Button>
+        </DisabledWithTooltip>
+      </ActionListItem>
+      <ActionListItem>
+        <DisabledWithTooltip isDisabled={!canDecide && !isCheckingPermission} content={decideTooltip}>
+          <Button
+            icon={<RhUiDislikeIcon />}
+            variant="secondary"
+            isDanger
+            isAriaDisabled={buttonsDisabled}
+            onClick={onReject}
+          >
+            Reject
+          </Button>
+        </DisabledWithTooltip>
+      </ActionListItem>
+    </ActionList>
+  )
+}
+
+function PendingDecisionForm({
+  pendingDecision,
+  pendingReason,
+  isSubmitting,
+  onReasonChange,
+  onUndo,
+}: Readonly<{
+  pendingDecision: 'approved' | 'rejected'
+  pendingReason: string
+  isSubmitting: boolean
+  onReasonChange: (value: string) => void
+  onUndo: () => void
+}>) {
+  const decisionCopy = getDecisionCopy(pendingDecision)
+  return (
+    <Stack hasGutter>
+      <Split hasGutter>
+        <ApprovalStatusBadges status={pendingDecision} />
+        <Button
+          icon={<RhUiBackwardsIcon />}
+          variant="plain"
+          isInline
+          aria-label="Undo decision"
+          isDisabled={isSubmitting}
+          onClick={onUndo}
+        />
+      </Split>
+      <FormGroup isInline label={decisionCopy.label}>
+        <TextInput
+          aria-label={decisionCopy.label}
+          value={pendingReason}
+          onChange={(_e, value: string) => onReasonChange(value)}
+          placeholder={`Explain the reason for ${decisionCopy.verb} this workflow step.`}
+        />
+      </FormGroup>
+    </Stack>
+  )
+}
+
+function ApprovalSummary({
+  approval,
+  approvalInitiated,
+  approvalMessage,
+  workflowName,
+  workflowLink,
+  onWorkflowClick,
+}: Readonly<{
+  approval: Approval
+  approvalInitiated: string
+  approvalMessage: string | undefined
+  workflowName: string
+  workflowLink: string | undefined
+  onWorkflowClick?: (link: string) => void
+}>) {
+  return (
+    <DescriptionList>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Approval step</DescriptionListTerm>
+        <DescriptionListDescription>{approval.name}</DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Workflow</DescriptionListTerm>
+        <DescriptionListDescription>
+          {workflowLink && onWorkflowClick ? (
+            <Button
+              variant="link"
+              isInline
+              onClick={() => onWorkflowClick(workflowLink)}
+              className={styles.workflowLink}
+            >
+              {workflowName}
+            </Button>
+          ) : (
+            workflowName
+          )}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Approval initiated</DescriptionListTerm>
+        <DescriptionListDescription>{approvalInitiated}</DescriptionListDescription>
+      </DescriptionListGroup>
+      {approvalMessage && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>Message</DescriptionListTerm>
+          <DescriptionListDescription>{approvalMessage}</DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
+    </DescriptionList>
+  )
+}
+
 /**
  * Reusable approval detail content: decision actions, summary, and context JSON.
  * Used by the execution viewer and builder approval side panels.
  *
  * Layout (top→bottom): Approve/Reject → summary fields → message → JSON block.
  */
-const DECIDE_TOOLTIP = permissionTooltip('approve or reject this approval', 'approval:decide')
-
 export function ApprovalDetailContent({
   approval,
   message,
@@ -81,12 +244,28 @@ export function ApprovalDetailContent({
   const queryClient = useQueryClient()
   const decisionMutation = approvalsClient.useMutation('patch', '/approvals/{approval_id}')
   const handleError = useMutationErrorHandler()
-  const { canPerformAction: canDecide, isChecking: isCheckingPermission } = useCanApprovalAction('decide')
+
+  // Get project list to map project_id to project name for permission check
+  const { projects } = useProjectSelector()
+
+  // Check RBAC permissions (global + project-scoped)
+  const {
+    canDecideAllProjects,
+    canDecideProjectNames,
+    isLoading: isLoadingDecideProjects,
+  } = useApprovalDecideProjects()
+  const hasRbacPermission = canDecideOnApproval(approval, canDecideAllProjects, canDecideProjectNames, projects)
+
+  // Check approver list membership
+  const { canDecide: canDecideBasedOnApproverList, isLoading: isCheckingApproverList } = useCanDecideApproval(approval)
+
+  // User can decide if they have BOTH RBAC permission AND are in approver list
+  const canDecide = hasRbacPermission && canDecideBasedOnApproverList
+  const isCheckingPermission = isLoadingDecideProjects || isCheckingApproverList
 
   const [pendingDecision, setPendingDecision] = useState<'approved' | 'rejected' | undefined>(undefined)
   const [pendingReason, setPendingReason] = useState('')
 
-  const approvalId = approval.id
   const approvalStatus = approval.status ?? 'pending'
   const isPending = approvalStatus === 'pending'
   const workflowName = approval.workflow_context?.workflow_name || 'Workflow'
@@ -98,18 +277,14 @@ export function ApprovalDetailContent({
   const notesLabel = getNotesLabel(approvalStatus)
   const isSubmitting = decisionMutation.isPending
   const canSubmit = isPending && Boolean(pendingDecision) && !decisionMutation.isSuccess
-  const decisionCopy = pendingDecision ? getDecisionCopy(pendingDecision) : undefined
 
   const handleSubmit = () => {
-    if (!pendingDecision || !approvalId || isSubmitting) return
+    if (!pendingDecision || !approval.id || isSubmitting) return
 
     decisionMutation.mutate(
       {
-        params: { path: { approval_id: approvalId } },
-        body: {
-          status: pendingDecision,
-          notes: pendingReason.trim() || null,
-        },
+        params: { path: { approval_id: approval.id } },
+        body: { status: pendingDecision, notes: pendingReason.trim() || null },
       },
       {
         onSuccess: () => {
@@ -153,66 +328,33 @@ export function ApprovalDetailContent({
     }
 
     if (!pendingDecision) {
-      const buttonsDisabled = isSubmitting || isCheckingPermission || !canDecide
+      const decideTooltip =
+        getDecideTooltip({ canDecide: hasRbacPermission }, canDecideBasedOnApproverList, approval) ?? ''
       return (
-        <ActionList className={styles.buttonGap}>
-          <ActionListItem>
-            <DisabledWithTooltip isDisabled={!canDecide && !isCheckingPermission} content={DECIDE_TOOLTIP}>
-              <Button
-                icon={<RhUiLikeIcon />}
-                variant="secondary"
-                isAriaDisabled={buttonsDisabled}
-                onClick={() => setPendingDecision('approved')}
-              >
-                Approve
-              </Button>
-            </DisabledWithTooltip>
-          </ActionListItem>
-          <ActionListItem>
-            <DisabledWithTooltip isDisabled={!canDecide && !isCheckingPermission} content={DECIDE_TOOLTIP}>
-              <Button
-                icon={<RhUiDislikeIcon />}
-                variant="secondary"
-                isDanger
-                isAriaDisabled={buttonsDisabled}
-                onClick={() => setPendingDecision('rejected')}
-              >
-                Reject
-              </Button>
-            </DisabledWithTooltip>
-          </ActionListItem>
-        </ActionList>
+        <DecisionButtons
+          canDecide={canDecide}
+          isCheckingPermission={isCheckingPermission}
+          isSubmitting={isSubmitting}
+          decideTooltip={decideTooltip}
+          onApprove={() => setPendingDecision('approved')}
+          onReject={() => setPendingDecision('rejected')}
+        />
       )
     }
 
     return (
-      <Stack hasGutter>
-        <Split hasGutter>
-          <ApprovalStatusBadges status={pendingDecision} />
-          <Button
-            icon={<RhUiBackwardsIcon />}
-            variant="plain"
-            isInline
-            aria-label="Undo decision"
-            isDisabled={isSubmitting}
-            onClick={() => setPendingDecision(undefined)}
-          />
-        </Split>
-        <FormGroup isInline label={decisionCopy?.label ?? 'Notes'}>
-          <TextInput
-            aria-label={decisionCopy?.label ?? 'Notes'}
-            value={pendingReason}
-            onChange={(_e, value: string) => setPendingReason(value)}
-            placeholder={`Explain the reason for ${decisionCopy?.verb ?? 'updating'} this workflow step.`}
-          />
-        </FormGroup>
-      </Stack>
+      <PendingDecisionForm
+        pendingDecision={pendingDecision}
+        pendingReason={pendingReason}
+        isSubmitting={isSubmitting}
+        onReasonChange={setPendingReason}
+        onUndo={() => setPendingDecision(undefined)}
+      />
     )
   }
 
   return (
     <Stack hasGutter className={styles.outerStack}>
-      {/* Sticky: decision actions + divider */}
       <StackItem>
         <Stack hasGutter>
           <StackItem>{renderDecisionActions()}</StackItem>
@@ -229,43 +371,17 @@ export function ApprovalDetailContent({
         </Stack>
       </StackItem>
 
-      {/* Scrollable: summary fields + JSON context */}
       <StackItem isFilled className={styles.scrollableBody}>
         <Stack hasGutter>
           <StackItem>
-            <DescriptionList>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Approval step</DescriptionListTerm>
-                <DescriptionListDescription>{approval.name}</DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Workflow</DescriptionListTerm>
-                <DescriptionListDescription>
-                  {workflowLink && onWorkflowClick ? (
-                    <Button
-                      variant="link"
-                      isInline
-                      onClick={() => onWorkflowClick(workflowLink)}
-                      className={styles.workflowLink}
-                    >
-                      {workflowName}
-                    </Button>
-                  ) : (
-                    workflowName
-                  )}
-                </DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Approval initiated</DescriptionListTerm>
-                <DescriptionListDescription>{approvalInitiated}</DescriptionListDescription>
-              </DescriptionListGroup>
-              {approvalMessage && (
-                <DescriptionListGroup>
-                  <DescriptionListTerm>Message</DescriptionListTerm>
-                  <DescriptionListDescription>{approvalMessage}</DescriptionListDescription>
-                </DescriptionListGroup>
-              )}
-            </DescriptionList>
+            <ApprovalSummary
+              approval={approval}
+              approvalInitiated={approvalInitiated}
+              approvalMessage={approvalMessage}
+              workflowName={workflowName}
+              workflowLink={workflowLink}
+              onWorkflowClick={onWorkflowClick}
+            />
           </StackItem>
           <StackItem className={styles.codeBlockContainer}>
             <NxCodeBlock jsonObject={approval} enableCopy enableExpand expandTitle="Approval context" fillHeight />

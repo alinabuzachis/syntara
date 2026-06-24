@@ -1,0 +1,10 @@
+/**
+ * Prevent long unbreakable strings in table cells from causing horizontal overflow.
+ * Table cells should wrap text and use ellipsis for very long content.
+ */
+.table :global(.pf-v6-c-table__td),
+.table :global(.pf-v6-c-table__th) {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 400px;
+}

@@ -12,6 +12,7 @@ vi.mock('../../../client', () => ({
   approvalsClient: {
     useQuery: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 function makeWrapper(queryClient: QueryClient) {

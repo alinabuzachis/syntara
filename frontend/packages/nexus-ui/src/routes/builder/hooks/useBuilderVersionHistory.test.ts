@@ -52,6 +52,7 @@ vi.mock('../../../client', () => ({
         : undefined,
     })),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../utils/processExistingWorkflow', () => ({

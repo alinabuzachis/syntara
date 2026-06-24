@@ -32,6 +32,7 @@ import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { ApprovalSummaryList } from '../approvals/ApprovalSummaryList'
+import { useApprovalPermissions } from '../approvals/useApprovalPermissions'
 import { useCanDecideApproval } from '../approvals/useCanDecideApproval'
 
 import { approvalDecisionSchema, type ApprovalDecisionFormData } from './approvalDecisionSchema'
@@ -88,9 +89,18 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   const queryClient = useQueryClient()
   const decisionMutation = approvalsClient.useMutation('patch', '/approvals/{approval_id}')
 
-  // SECURITY: Client-side check for UX only - disables controls for unauthorized users
+  // SECURITY: Client-side checks for UX only - disable controls for unauthorized users
   // Backend ALWAYS validates and returns 403 via ApprovalService._is_user_authorized_approver()
+
+  // Check 1: RBAC permission check (approval:decide)
+  const permissions = useApprovalPermissions()
+
+  // Check 2: Approver list check (user is in approver_users or approver_groups)
   const { canDecide: canDecideBasedOnApproverList, isLoading: isCheckingApproverList } = useCanDecideApproval(approval)
+
+  // User can decide only if BOTH checks pass
+  const canDecide = permissions.canDecide && canDecideBasedOnApproverList
+  const isCheckingPermissions = permissions.isChecking || isCheckingApproverList
 
   const {
     handleSubmit,
@@ -148,7 +158,7 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
   const approvalDisplayName = resolvedNodeName ? `Approval for ${resolvedNodeName}` : approval.name
 
   // If user is not authorized, show read-only view with approver information
-  if (!isCheckingApproverList && !canDecideBasedOnApproverList) {
+  if (!isCheckingPermissions && !canDecide) {
     const approverUsernames = approval.approver_users?.map((u) => u.username) ?? []
     const approverGroupNames = approval.approver_groups?.map((g) => g.name) ?? []
     return (
@@ -178,7 +188,7 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
                 variant="primary"
                 onClick={handleSubmit(onSubmit)}
                 isLoading={decisionMutation.isPending}
-                isDisabled={decisionMutation.isPending || isCheckingApproverList || !canDecideBasedOnApproverList}
+                isDisabled={decisionMutation.isPending || isCheckingPermissions || !canDecide}
               >
                 Submit decision
               </Button>
@@ -230,14 +240,14 @@ export function ApprovalReviewView({ approval, activityNameMap, onClose }: Appro
                   buttonId="approve-toggle"
                   isSelected={currentStatus === 'approved'}
                   onChange={() => setValue('status', 'approved')}
-                  isDisabled={isCheckingApproverList || !canDecideBasedOnApproverList}
+                  isDisabled={isCheckingPermissions || !canDecide}
                 />
                 <ToggleGroupItem
                   text="Reject"
                   buttonId="reject-toggle"
                   isSelected={currentStatus === 'rejected'}
                   onChange={() => setValue('status', 'rejected')}
-                  isDisabled={isCheckingApproverList || !canDecideBasedOnApproverList}
+                  isDisabled={isCheckingPermissions || !canDecide}
                 />
               </ToggleGroup>
             </FormGroup>

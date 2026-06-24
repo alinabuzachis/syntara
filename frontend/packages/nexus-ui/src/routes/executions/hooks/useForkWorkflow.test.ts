@@ -19,6 +19,7 @@ vi.mock('../../../client', () => ({
       isPending: mockIsPending,
     }),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 const MOCK_DEFINITION: Record<string, unknown> = {

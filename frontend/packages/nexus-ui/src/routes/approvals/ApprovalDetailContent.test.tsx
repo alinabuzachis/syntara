@@ -17,6 +17,7 @@ vi.mock('../../client', () => ({
       isSuccess: false,
     })),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../providers/alerts', () => ({
@@ -32,9 +33,42 @@ vi.mock('../../components/details/NxCodeBlock', () => ({
   ),
 }))
 
-const mockUseCanApprovalAction = vi.fn(() => ({ canPerformAction: true, isChecking: false }))
-vi.mock('./useCanApprovalAction', () => ({
-  useCanApprovalAction: () => mockUseCanApprovalAction(),
+vi.mock('../access/accessClient', () => ({
+  accessFetchClient: { POST: vi.fn(() => Promise.resolve({ data: { allowed: true } })) },
+  accessClient: {
+    useQuery: vi.fn(() => ({
+      data: { permissions: [] },
+      isLoading: false,
+      error: null,
+    })),
+  },
+}))
+
+// Mock useApprovalDecideProjects to return allowed by default
+vi.mock('./useApprovalDecideProjects', () => ({
+  useApprovalDecideProjects: vi.fn(() => ({
+    canDecideAllProjects: true, // Default: user can decide on all projects
+    canDecideProjectNames: new Set<string>(),
+    isLoading: false,
+    error: null,
+  })),
+}))
+
+// Mock useProjectSelector to return empty projects list
+vi.mock('../../hooks/useProjectSelector', () => ({
+  useProjectSelector: vi.fn(() => ({
+    projects: [],
+    isLoading: false,
+  })),
+}))
+
+// Mock useCanDecideApproval to return allowed by default
+const mockCanDecide = vi.fn(() => true)
+vi.mock('./useCanDecideApproval', () => ({
+  useCanDecideApproval: vi.fn(() => ({
+    canDecide: mockCanDecide(),
+    isLoading: false,
+  })),
 }))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -277,7 +311,7 @@ describe('ApprovalDetailContent', () => {
   })
 
   it('disables approve/reject buttons when permission is denied', () => {
-    mockUseCanApprovalAction.mockReturnValue({ canPerformAction: false, isChecking: false })
+    mockCanDecide.mockReturnValue(false)
 
     render(<ApprovalDetailContent approval={mockApproval} />, { wrapper })
 

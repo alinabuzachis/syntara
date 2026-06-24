@@ -1,8 +1,8 @@
 import { useContext } from 'react'
 
 import { DocLinkContext } from './docLinkContext'
-import docsConfig from './docsConfig.json'
-import docsUrls from './docsUrls.json'
+import docsConfig from './docsConfig.json' with { type: 'json' }
+import docsUrls from './docsUrls.json' with { type: 'json' }
 import type { DocKey, DocsUrlMap } from './types'
 
 export function useDocLink(key: DocKey): string {

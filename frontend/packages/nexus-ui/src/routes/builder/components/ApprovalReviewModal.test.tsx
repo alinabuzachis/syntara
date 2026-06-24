@@ -20,6 +20,7 @@ vi.mock('../../../client', () => ({
       isLoading: false,
     })),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../../../stores/useAuthStore', () => ({
@@ -34,6 +35,17 @@ vi.mock('../../approvals/useCanDecideApproval', () => ({
   useCanDecideApproval: vi.fn(() => ({
     canDecide: true,
     isLoading: false,
+  })),
+}))
+
+vi.mock('../../approvals/useApprovalPermissions', () => ({
+  useApprovalPermissions: vi.fn(() => ({
+    canRead: true,
+    canDecide: true,
+    isChecking: false,
+    tooltips: {
+      decide: 'To decide on approvals, you need a role with the approval:decide policy.',
+    },
   })),
 }))
 

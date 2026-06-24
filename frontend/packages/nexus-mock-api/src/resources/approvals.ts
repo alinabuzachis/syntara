@@ -15,6 +15,8 @@ export const approvals: Approval[] = [
     description: 'Review the deployment plan before proceeding to production.',
     status: 'pending',
     timeout_at: mockDate.hoursFromNow23,
+    approver_users: [{ id: 'user-admin', username: 'admin' }],
+    approver_groups: [],
     next_step_approved: {
       id: 'deploy_to_prod',
       name: 'Deploy to Production',

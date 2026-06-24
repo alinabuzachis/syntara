@@ -10,8 +10,15 @@ import { axe } from 'vitest-axe'
 import { groupMappingEditFormSchema } from './groupMappingEditFormSchema'
 import { GroupMappingEditPanel, type GroupMappingEditPanelProps } from './GroupMappingEditPanel'
 
-vi.mock('../../access/accessClient', () => ({
-  accessClient: { useQuery: vi.fn(), useMutation: vi.fn() },
+vi.mock('../../../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../../../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn(() => ({ data: undefined, isLoading: false, error: null })),
+    useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  },
   accessFetchClient: { POST: vi.fn() },
 }))
 

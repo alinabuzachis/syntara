@@ -23,6 +23,7 @@ vi.mock('../../client', () => ({
   approvalsClient: {
     useMutation: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 // Mock the alerts provider

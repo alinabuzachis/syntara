@@ -55,6 +55,7 @@ Each page area has a dedicated `use*Permissions` hook that aggregates multiple `
 | `useUserDetailPermissions`       | `routes/access-management/users/useUserDetailPermissions.ts`                | `user:read`, `group:read`, `user_identity:read`, `role-assignment:read`                    |
 | `useGroupDetailPermissions`      | `routes/access-management/groups/useGroupDetailPermissions.ts`              | `group:read`, `role-assignment:read`                                                       |
 | `useProjectDetailPermissions`    | `routes/access-management/projects/useProjectDetailPermissions.ts`          | `role-assignment:read`                                                                     |
+| `useApprovalPermissions`         | `routes/approvals/useApprovalPermissions.ts`                                | `approval:read`, `approval:decide`                                                         |
 | `useApprovalDecideProjects`      | `routes/approvals/useApprovalDecideProjects.ts`                             | `approval:decide` (via `what_can_i`, project-scoped)                                       |
 | `useCanDecideApproval`           | `routes/approvals/useCanDecideApproval.ts`                                  | Checks if user can decide specific approval (approver list + group membership)             |
 | `useApprovalDecideUsers`         | `routes/builder/node-forms/useApprovalDecideUsers.ts`                       | `approval:decide` (via `who_can`, all authorized users)                                    |
@@ -220,13 +221,13 @@ Backend defines `policy:create`, `policy:update`, `policy:delete`. The UI curren
 
 ### Executions — partial gating
 
-| Gap                          | Permission                         | Pattern to follow                               |
-| ---------------------------- | ---------------------------------- | ----------------------------------------------- |
-| Executions list page guard   | `execution:read`                   | Add `requiredPermissions` to nav item           |
-| Execution detail route guard | `execution:read`                   | `EmptyStateAccessDenied` on 403                 |
-| Review approval strip        | `approval:decide` (project-scoped) | `useApprovalDecideProjects` or scoped `useCanI` |
-| ApprovalReviewView           | `approval:decide`                  | Same                                            |
-| Future rerun action          | `execution:run`                    | `DisabledWithTooltip`                           |
+| Gap                          | Permission       | Pattern to follow                     |
+| ---------------------------- | ---------------- | ------------------------------------- |
+| Executions list page guard   | `execution:read` | Add `requiredPermissions` to nav item |
+| Execution detail route guard | `execution:read` | `EmptyStateAccessDenied` on 403       |
+| Future rerun action          | `execution:run`  | `DisabledWithTooltip`                 |
+
+**Note**: Approval permission gating is complete for UI components (list page, nav item, decision actions) with comprehensive unit tests. E2E test coverage in `e2e/permission-gating.spec.ts` for the viewer/auditor/user roles is recommended as a follow-up to verify end-to-end permission flows.
 
 ### Integrations — no authz resource type yet
 

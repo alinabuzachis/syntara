@@ -92,6 +92,10 @@ export const NAV_ITEMS: TNavigationItem[] = [
     path: AppRoute.Approvals.Root,
     element: <Approvals />,
     icon: <RhUiLikeIcon />,
+    requiredPermissions: [
+      { action: 'read', resourceType: 'approval' },
+      { action: 'decide', resourceType: 'approval' },
+    ],
   },
   {
     label: 'Configuration',
