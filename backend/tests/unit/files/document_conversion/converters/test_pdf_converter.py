@@ -101,7 +101,7 @@ class TestPDFConverterWithRealFiles:
 
         # Should contain expected metadata
         assert result.metadata["input_format"] == "pdf"
-        assert result.metadata["converter"] == "pymupdf"
+        assert result.metadata["converter"] == "pypdf"
         assert result.metadata["mime_type"] == "application/pdf"
         assert result.metadata["page_count"] == 1
 
