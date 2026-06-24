@@ -124,10 +124,10 @@ export function CredentialSelector({
     return credentialTypes.filter((t) => compatibleTypeNames.includes(t.name)).map((t) => t.id)
   }, [compatibleTypeNames, credentialTypes])
 
-  // Auto-resolve preSelectedTypeId from compatible types (first match)
+  // Auto-resolve preSelectedTypeId only when exactly one compatible type exists
   const resolvedPreSelectedTypeId = useMemo(() => {
     if (preSelectedTypeId) return preSelectedTypeId
-    if (compatibleTypeIds && compatibleTypeIds.length > 0) return compatibleTypeIds[0]
+    if (compatibleTypeIds?.length === 1) return compatibleTypeIds[0]
     return undefined
   }, [preSelectedTypeId, compatibleTypeIds])
 

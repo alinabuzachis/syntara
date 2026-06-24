@@ -518,6 +518,35 @@ describe('CredentialSelector', () => {
       expect(screen.getByTestId('credential-form-modal')).toHaveAttribute('data-default-project-id', 'proj-456')
     })
 
+    it('does not lock credential type when multiple compatible types exist (AAP-78917)', async () => {
+      const user = userEvent.setup()
+      mockUseQuery()
+      renderSelector({
+        allowCreate: true,
+        compatibleTypeNames: ['HTTP Bearer Token', 'HTTP Basic Auth'],
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: 'Create new credential' }))
+
+      const modal = screen.getByTestId('credential-form-modal')
+      expect(modal).not.toHaveAttribute('data-pre-selected-type-id')
+    })
+
+    it('locks credential type when exactly one compatible type exists', async () => {
+      const user = userEvent.setup()
+      mockUseQuery()
+      renderSelector({
+        allowCreate: true,
+        compatibleTypeNames: ['HTTP Bearer Token'],
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: 'Create new credential' }))
+
+      expect(screen.getByTestId('credential-form-modal')).toHaveAttribute('data-pre-selected-type-id', 'type-1')
+    })
+
     it('does not show "No credentials available" when allowCreate is true and list is empty', async () => {
       const user = userEvent.setup()
       mockUseQueryLegacy({ data: { resources: [] } })
