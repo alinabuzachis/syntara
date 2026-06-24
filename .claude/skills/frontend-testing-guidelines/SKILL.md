@@ -128,9 +128,9 @@ test('user creates a workflow', async ({ app }) => {
 })
 ```
 
-**Important:** When running against the real backend, always clean up created resources (they persist in a real database). See the [Playwright E2E skill](.claude/skills/frontend-playwright-e2e/SKILL.md) for both mock API and real backend setup.
+**Important:** When running against the real backend, always clean up created resources (they persist in a real database). See the [Playwright E2E skill](../frontend-playwright-e2e/SKILL.md) for both mock API and real backend setup.
 
-**For comprehensive E2E guidance:** See [`.claude/skills/frontend-playwright-e2e/SKILL.md`](.claude/skills/frontend-playwright-e2e/SKILL.md)
+**For comprehensive E2E guidance:** See [`.claude/skills/frontend-playwright-e2e/SKILL.md`](../frontend-playwright-e2e/SKILL.md)
 
 ### Why the Distinction Matters
 
@@ -192,7 +192,7 @@ screen.getByRole('status') // or screen.getByText(/loading/i)
 screen.getByRole('alert') // for error states
 ```
 
-Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. **New test code must produce zero warnings** -- these rules will be promoted to `error` once existing violations are cleaned up. See [.claude/skills/frontend-coding-standards/SKILL.md section 8 -- Zero New Warnings Policy](.claude/skills/frontend-coding-standards/SKILL.md).
+Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. **New test code must produce zero warnings** -- these rules will be promoted to `error` once existing violations are cleaned up. See [.claude/skills/frontend-coding-standards/SKILL.md section 8 -- Zero New Warnings Policy](../frontend-coding-standards/SKILL.md).
 
 **Scope assertions with `within()`:** When asserting on elements inside a specific container (dialog footer, form group, select dropdown), use `within()` to scope queries. This prevents false positives from matching elements elsewhere on the page.
 
@@ -280,7 +280,7 @@ This ensures the 80% coverage threshold is met on the hook file independently, a
 
 ### 4. Unnecessary `useEffect` in Hooks
 
-The ESLint plugin `eslint-plugin-react-you-might-not-need-an-effect` (configured at `warn` level) catches most unnecessary `useEffect` patterns automatically. See [.claude/skills/frontend-coding-standards/SKILL.md §23](.claude/skills/frontend-coding-standards/SKILL.md) for details.
+The ESLint plugin `eslint-plugin-react-you-might-not-need-an-effect` (configured at `warn` level) catches most unnecessary `useEffect` patterns automatically. See [.claude/skills/frontend-coding-standards/SKILL.md §23](../frontend-coding-standards/SKILL.md) for details.
 
 ### 5. Isolate the Field Under Test in Validation Tests
 

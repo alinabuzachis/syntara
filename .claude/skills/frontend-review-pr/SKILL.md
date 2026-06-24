@@ -1,5 +1,6 @@
 ---
 description: "Review a frontend PR against the project's 31-item checklist and coding standards."
+user-invocable: true
 ---
 
 # Review PR

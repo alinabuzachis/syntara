@@ -11,7 +11,7 @@ user-invocable: false
 
 # Claude Skill: PatternFly UX Design System — Opinionated Implementation
 
-> **Before writing React, Zod, Zustand, or other library code**, fetch current docs from [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md).
+> **Before writing React, Zod, Zustand, or other library code**, fetch current docs from [`.claude/skills/frontend-library-references/SKILL.md`](../frontend-library-references/SKILL.md).
 
 Your goal is to build frontend UI that adheres to PatternFly standards **and** the Automation Orchestrator UX team's opinionated component usage. This skill codifies specific "Ansible-first" patterns to ensure consistency across all feature teams and reduce cognitive load for users.
 
@@ -336,7 +336,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Selecting/filling the required field clears the danger styling immediately
   - **Human-readable validation copy:** Never expose raw regex patterns or API validation strings to users. Use plain-language error messages (e.g., "Project name can only contain letters, numbers, hyphens, underscores, or colons. It must start and end with a letter or number."). Provide proactive field guidance via inline hint text (using `HintOrError` or `HelperText`) that displays before the user triggers an error; the hint is replaced by the error message on validation failure. Use example-style placeholders (e.g., `'my-project-name'`) instead of generic `"Enter project name"`.
 - **Read-only system values:** Never use a disabled `TextInput` to display system-provided, non-editable values. Disabled inputs imply the field could be editable in another context. Instead use `DescriptionList isCompact` (term + description), `ClipboardCopy` (when copying is the primary action), or plain text to make clear the value is informational.
-- **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler -- not in a `useEffect` watching the field value. See [.claude/skills/frontend-coding-standards/SKILL.md §23](.claude/skills/frontend-coding-standards/SKILL.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
+- **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler -- not in a `useEffect` watching the field value. See [.claude/skills/frontend-coding-standards/SKILL.md §23](../frontend-coding-standards/SKILL.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
 - **FormSection for complex forms:** When a single form step has 10+ fields spanning logical domains, group them with PatternFly `FormSection`:
   - `title="Section Name"` + `titleElement="h3"` for each group
   - **Grouping logic:** General (identity/metadata) -> Connection (endpoints/secrets) -> Options (toggles/advanced)

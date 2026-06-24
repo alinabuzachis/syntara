@@ -17,7 +17,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 2. **`.claude/skills/frontend-testing-guidelines/SKILL.md`** — Testing rules (userEvent over fireEvent, accessible queries, vitest-axe), coverage requirements (80%), AAA pattern, and accessibility testing at three levels.
 
-3. **`.claude/skills/frontend-library-references/SKILL.md`** — `llms.txt` URLs for React, Zod, Zustand, Vitest, Vite, and TanStack Query. **Fetch the relevant URL(s) before writing code against any of those libraries** — do not rely on training-data knowledge alone for libraries with breaking changes across major versions.
+3. **`.claude/skills/frontend-library-references/SKILL.md`** — `llms.txt` URLs and official docs for all frontend libraries (React, Zod, Zustand, Vitest, Vite, TanStack Query/Router, React Flow, Storybook, dnd-kit, and more). **Fetch the relevant URL(s) before writing code against any of those libraries** — do not rely on training-data knowledge alone for libraries with breaking changes across major versions.
 
 **Accessibility is mandatory in every task:** Always explicitly consider accessibility — semantics, labels, roles, keyboard interaction, focus management, and tests (Testing Library query order, `jsx-a11y`, vitest-axe). Do not ship or approve UI changes without an accessibility pass.
 

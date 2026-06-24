@@ -11,7 +11,7 @@ Detailed code examples and patterns for this project. Referenced from CLAUDE.md'
 
 ## Library References
 
-See [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md) for `llms.txt` URLs and official docs links for all libraries used in this project. Fetch the relevant entry before writing code against a library to ensure you use current APIs.
+See [`.claude/skills/frontend-library-references/SKILL.md`](../frontend-library-references/SKILL.md) for `llms.txt` URLs and official docs links for all libraries used in this project. Fetch the relevant entry before writing code against a library to ensure you use current APIs.
 
 ---
 
@@ -36,7 +36,7 @@ Before writing custom utilities, hooks, or helpers, check whether the library or
 
 **Caveat -- verify browser API availability in all deployment contexts.** Some Web APIs are restricted to secure contexts (HTTPS or localhost). For example, `crypto.randomUUID()` is unavailable over plain HTTP and causes a runtime crash. The project uses `generateUUID()` from `frontend/packages/nexus-ui/src/utils/generateUUID.ts` which wraps `crypto.getRandomValues()` (available in all contexts). When using a native API, check [MDN's "Secure context: required" badge](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) and verify the app works over both HTTP and HTTPS.
 
-When reviewing code, flag any pattern that duplicates what a dependency or browser API already exposes. If unsure whether a library covers a use case, check [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md) and fetch the `llms.txt` URL for that library.
+When reviewing code, flag any pattern that duplicates what a dependency or browser API already exposes. If unsure whether a library covers a use case, check [`.claude/skills/frontend-library-references/SKILL.md`](../frontend-library-references/SKILL.md) and fetch the `llms.txt` URL for that library.
 
 ---
 

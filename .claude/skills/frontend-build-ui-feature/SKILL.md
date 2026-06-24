@@ -1,5 +1,6 @@
 ---
 description: "Walk through building a frontend UI feature step by step — gathers requirements, implements, and validates."
+user-invocable: true
 ---
 
 You are walking a contributor through building a UI feature from start to finish. Ask questions, wait for answers, then do the work.
