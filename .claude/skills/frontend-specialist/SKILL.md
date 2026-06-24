@@ -1,3 +1,8 @@
+---
+description: "Standards for implementing, reviewing, and refactoring frontend code — React 19, TypeScript 5.9+, PatternFly 6, Vitest."
+user-invocable: false
+---
+
 # Claude Skill: Frontend Specialist
 
 Standards for implementing, reviewing, and refactoring frontend code using React 19, TypeScript 5.9+, PatternFly 6, Vite, and Vitest. Ensures production-grade code with exceptional testability, readability, and error resilience.
@@ -8,11 +13,11 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 
 **Before implementing ANY code**, read these project skill files:
 
-1. **`.claude/skills/coding_standards.md`** — API integration rules, form patterns, shared hooks (`useCursorPagination`, `useDialogState`, `useDeleteAction`, `NxConfirmationDialog`), PatternFly guidelines, i18n rules, and enum constant usage.
+1. **`.claude/skills/frontend-coding-standards/SKILL.md`** — API integration rules, form patterns, shared hooks (`useCursorPagination`, `useDialogState`, `useDeleteAction`, `NxConfirmationDialog`), PatternFly guidelines, i18n rules, and enum constant usage.
 
-2. **`.claude/skills/testing_guidelines.md`** — Testing rules (userEvent over fireEvent, accessible queries, vitest-axe), coverage requirements (80%), AAA pattern, and accessibility testing at three levels.
+2. **`.claude/skills/frontend-testing-guidelines/SKILL.md`** — Testing rules (userEvent over fireEvent, accessible queries, vitest-axe), coverage requirements (80%), AAA pattern, and accessibility testing at three levels.
 
-3. **`.claude/skills/library_references.md`** — `llms.txt` URLs for React, Zod, Zustand, Vitest, Vite, and TanStack Query. **Fetch the relevant URL(s) before writing code against any of those libraries** — do not rely on training-data knowledge alone for libraries with breaking changes across major versions.
+3. **`.claude/skills/frontend-library-references/SKILL.md`** — `llms.txt` URLs for React, Zod, Zustand, Vitest, Vite, and TanStack Query. **Fetch the relevant URL(s) before writing code against any of those libraries** — do not rely on training-data knowledge alone for libraries with breaking changes across major versions.
 
 **Accessibility is mandatory in every task:** Always explicitly consider accessibility — semantics, labels, roles, keyboard interaction, focus management, and tests (Testing Library query order, `jsx-a11y`, vitest-axe). Do not ship or approve UI changes without an accessibility pass.
 
@@ -88,8 +93,8 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - [ ] `RhUi*` icons for all action buttons -- not PatternFly icons like `PlusCircleIcon`
 - [ ] No `eslint-disable` or `eslint-disable-next-line` in new/modified code -- fix the code so every rule passes; pre-existing suppressions are tech debt being cleaned up
 - [ ] No `// TODO` / `// FIXME` comments -- track deferred work in Jira, not code
-- [ ] All async server state uses TanStack Query (`useQuery`/`useMutation`/`useQueries`) -- no manual `useEffect` + `useState` for API calls (see coding_standards.md §30)
-- [ ] Hooks called unconditionally but used conditionally -- extract to wrapper component (see coding_standards.md §29)
+- [ ] All async server state uses TanStack Query (`useQuery`/`useMutation`/`useQueries`) -- no manual `useEffect` + `useState` for API calls (see .claude/skills/frontend-coding-standards/SKILL.md §30)
+- [ ] Hooks called unconditionally but used conditionally -- extract to wrapper component (see .claude/skills/frontend-coding-standards/SKILL.md §29)
 
 ### Permission Gating
 
@@ -97,7 +102,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - [ ] Create/edit routes: set `routePermission` for `ProtectedRoute` guard
 - [ ] New CRUD actions: wrap in `DisabledWithTooltip` with domain permission hook and `permissionTooltip()`
 - [ ] New permission-gated features: add role-aware mock handlers in `handlers.ts` for all 4 roles
-- [ ] See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for architecture
+- [ ] See [`frontend/docs/permissions-rbac.md`](../../frontend/docs/permissions-rbac.md) for architecture
 
 ### Documentation Links
 
@@ -107,15 +112,15 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 ### PR Completeness
 
 - [ ] UI changes include screenshots or screen recordings
-- [ ] New API endpoints have mock handlers in `packages/nexus-mock-api/src/handlers.ts`
+- [ ] New API endpoints have mock handlers in `frontend/packages/nexus-mock-api/src/handlers.ts`
 - [ ] It is the responsibility of the PR creator to _prove their change works_ — not the reviewer.
 
 ---
 
 ## Implementation Workflow
 
-1. **Read the skills** — `coding_standards.md`, `testing_guidelines.md`, and `library_references.md` (fetch the relevant `llms.txt` URLs for any library you will use)
-2. **Check for reusability** — Search `src/components/` and PatternFly docs before creating new components
+1. **Read the skills** — `.claude/skills/frontend-coding-standards/SKILL.md`, `.claude/skills/frontend-testing-guidelines/SKILL.md`, and `.claude/skills/frontend-library-references/SKILL.md` (fetch the relevant `llms.txt` URLs for any library you will use)
+2. **Check for reusability** — Search `frontend/packages/nexus-ui/src/components/` and PatternFly docs before creating new components
 3. **Implement incrementally** — Happy path first, then edge cases
 4. **Write tests concurrently** — Tests alongside implementation
 5. **Verify accessibility** — Keyboard navigation, ARIA attributes, axe tests

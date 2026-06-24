@@ -1,3 +1,8 @@
+---
+description: "Frontend coding standards — PatternFly patterns, API integration, forms, testing, permissions."
+user-invocable: false
+---
+
 # Coding Standards
 
 Detailed code examples and patterns for this project. Referenced from CLAUDE.md's condensed checklist.
@@ -6,7 +11,7 @@ Detailed code examples and patterns for this project. Referenced from CLAUDE.md'
 
 ## Library References
 
-See [`./library_references.md`](./library_references.md) for `llms.txt` URLs and official docs links for all libraries used in this project. Fetch the relevant entry before writing code against a library to ensure you use current APIs.
+See [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md) for `llms.txt` URLs and official docs links for all libraries used in this project. Fetch the relevant entry before writing code against a library to ensure you use current APIs.
 
 ---
 
@@ -29,9 +34,9 @@ Before writing custom utilities, hooks, or helpers, check whether the library or
 - `URL` constructor instead of string concatenation for URLs
 - `crypto.getRandomValues()` + a wrapper instead of Math.random() for IDs
 
-**Caveat -- verify browser API availability in all deployment contexts.** Some Web APIs are restricted to secure contexts (HTTPS or localhost). For example, `crypto.randomUUID()` is unavailable over plain HTTP and causes a runtime crash. The project uses `generateUUID()` from `src/utils/generateUUID.ts` which wraps `crypto.getRandomValues()` (available in all contexts). When using a native API, check [MDN's "Secure context: required" badge](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) and verify the app works over both HTTP and HTTPS.
+**Caveat -- verify browser API availability in all deployment contexts.** Some Web APIs are restricted to secure contexts (HTTPS or localhost). For example, `crypto.randomUUID()` is unavailable over plain HTTP and causes a runtime crash. The project uses `generateUUID()` from `frontend/packages/nexus-ui/src/utils/generateUUID.ts` which wraps `crypto.getRandomValues()` (available in all contexts). When using a native API, check [MDN's "Secure context: required" badge](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) and verify the app works over both HTTP and HTTPS.
 
-When reviewing code, flag any pattern that duplicates what a dependency or browser API already exposes. If unsure whether a library covers a use case, check [`./library_references.md`](./library_references.md) and fetch the `llms.txt` URL for that library.
+When reviewing code, flag any pattern that duplicates what a dependency or browser API already exposes. If unsure whether a library covers a use case, check [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md) and fetch the `llms.txt` URL for that library.
 
 ---
 
@@ -151,7 +156,7 @@ const { mutate, isPending } = credentialsClient.useMutation('post', '/credential
 1. Create a schema file next to your form: `myNodeFormSchema.ts` — define shape and validation with `z.object()` (use `.superRefine()` for conditional rules, or `z.discriminatedUnion()` for executor-type-style forms). Export the schema and `type MyFormData = z.infer<typeof myNodeFormSchema>`. Import `z` from `'zod'`.
 2. For optional number fields use `optionalNumber` from `src/routes/builder/node-forms/shared/formSchemaUtils` so empty `valueAsNumber` inputs (NaN) validate
 3. In form component: `useForm<MyFormData>({ resolver: zodResolver(myNodeFormSchema, undefined, { mode: 'sync' }), defaultValues })` — import `zodResolver` from `./shared/formSchemaUtils`
-4. Use `useFormMutationErrorHandler(setError)` for API 422 field errors; Zod handles client-side only. See: [`docs/error-handling.md`](../../docs/error-handling.md) - "Client-side validation (Zod + @hookform/resolvers)"
+4. Use `useFormMutationErrorHandler(setError)` for API 422 field errors; Zod handles client-side only. See: [`frontend/docs/error-handling.md`](frontend/docs/error-handling.md) - "Client-side validation (Zod + @hookform/resolvers)"
 
 ---
 
@@ -296,7 +301,7 @@ Codebase Search Patterns:
 - `useCursorReset(itemCount, hasActiveFilters, cursor, isFetching, setCursor)` — reset to page 1
 - `useDialogState<T>()` — dialog open/close state with associated item
 - `useDeleteAction(options)` — delete mutation with success/error alerts
-- `NxConfirmationDialog` — reusable confirm/cancel modal (`src/components/dialogs/NxConfirmationDialog.tsx`)
+- `NxConfirmationDialog` — reusable confirm/cancel modal (`frontend/packages/nexus-ui/src/components/dialogs/NxConfirmationDialog.tsx`)
 
 ### List Page Standard Pattern
 
@@ -361,12 +366,12 @@ export function MyListPage() {
 Before writing any new UI code, follow this checklist:
 
 1. **Check for Existing Components**
-   - Search `packages/nexus-ui/src/components/` for existing application-specific components
+   - Search `frontend/packages/nexus-ui/src/components/` for existing application-specific components
    - Check PatternFly documentation for available components: Button, Alert, Switch, Table, Dialog, EmptyState, Menu, Tooltip, Checkbox, etc.
    - Verify if a PatternFly component or existing app component can be reused or extended
 
 2. **Component Location Strategy**
-   - **Application-specific components** → `packages/nexus-ui/src/components/`
+   - **Application-specific components** → `frontend/packages/nexus-ui/src/components/`
    - Use PatternFly components directly from `@patternfly/react-core` and related packages
    - When in doubt, prefer PatternFly components over custom implementations
 
@@ -374,15 +379,15 @@ Before writing any new UI code, follow this checklist:
    - ALWAYS use PatternFly components as the foundation
    - Build accessible components following PatternFly patterns and design system
    - Include comprehensive tests (see existing `.test.tsx` files)
-   - Place in `packages/nexus-ui/src/components/` for app-specific components
+   - Place in `frontend/packages/nexus-ui/src/components/` for app-specific components
    - **Use PF6 design tokens instead of hardcoded pixel values** for spacing, sizing, colors, and icons. Use `var(--pf-t--global--spacer--*)` for margins/padding, `var(--pf-t--global--icon--size--*)` for icon dimensions, `var(--pf-t--global--color--*)` for colors, and content-aware units (`ch`, `rem`) for input widths. Hardcoded `px` values are acceptable only for layout constraints (table column widths, fixed panel heights) where no semantic token applies. **CSS modules must also use PF tokens** -- ESLint only catches hardcoded values in JSX, so CSS modules need manual review. Use semantic tokens like `var(--pf-t--global--text--color--subtle)` rather than lower-level tokens like `var(--pf-t--global--color--200)`.
    - **Use `RhUi*` icons** (e.g., `RhUiAddIcon`, `RhUiTrashIcon`, `RhUiEditIcon`) for all action buttons, not legacy PatternFly icons like `PlusCircleIcon`, `CopyIcon`, or `TrashIcon`. The `RhUi*` icon set is the project standard. **Enforced by ESLint:** `no-restricted-imports` (warn) flags any non-`RhUi` import from `@patternfly/react-icons`. Existing legacy icons are being phased out.
    - **Add `shouldFocusToggleOnSelect` to PF Select components** for accessibility. The select should receive focus when a selection is made. This is not a PF default but is needed for proper keyboard navigation.
-   - **JSDoc on shared/global component props** -- every exported component in `src/components/` (especially `Nx*` components) must have JSDoc descriptions on its props interface. TypeScript types convey shape; JSDoc conveys intent. Describe what each prop controls, when to use optional props, and any non-obvious default behavior. This helps both human contributors and AI agents use components correctly without reading the implementation.
+   - **JSDoc on shared/global component props** -- every exported component in `frontend/packages/nexus-ui/src/components/` (especially `Nx*` components) must have JSDoc descriptions on its props interface. TypeScript types convey shape; JSDoc conveys intent. Describe what each prop controls, when to use optional props, and any non-obvious default behavior. This helps both human contributors and AI agents use components correctly without reading the implementation.
 
 4. **Custom Hooks**
    - Extract reusable logic into custom hooks
-   - Place hooks in `packages/nexus-ui/src/hooks/`
+   - Place hooks in `frontend/packages/nexus-ui/src/hooks/`
    - Follow naming convention: `useXxx`
    - Include TypeScript types
 
@@ -415,7 +420,7 @@ Result: Use PatternFly Modal component or extend existing app component
 
 ### Code Readability Enforcement (ESLint)
 
-ESLint enforces readability, type safety, and code quality rules at `error` level. CI will block violations. See `packages/nexus-ui/eslint.config.js` for the full list of rules and thresholds.
+ESLint enforces readability, type safety, and code quality rules at `error` level. CI will block violations. See `frontend/packages/nexus-ui/eslint.config.js` for the full list of rules and thresholds.
 
 ### Zero New Warnings Policy
 
@@ -656,7 +661,7 @@ Before writing a string comparison or assignment:
 
 ## 11. Error Handling with RFC 9457 Problem Details
 
-The application uses RFC 9457 Problem Details for API error responses. See [`docs/error-handling.md`](../../docs/error-handling.md) for complete patterns.
+The application uses RFC 9457 Problem Details for API error responses. See [`frontend/docs/error-handling.md`](frontend/docs/error-handling.md) for complete patterns.
 
 ### Error Format
 
@@ -891,7 +896,7 @@ Enforced by ESLint rule `react/jsx-no-constructed-context-values` at error level
 
 ## 16. Module-scoped pure helpers (Sonar)
 
-Prefer **module scope** (or another stable outer scope) for helpers that are **pure**: they only use their parameters and do not close over React props, state, context, or hooks from the component body. Defining those helpers inside the component recreates the function every render and tends to re-trigger Sonar “move to outer scope” maintainability findings without adding behavior.
+Prefer **module scope** (or another stable outer scope) for helpers that are **pure**: they only use their parameters and do not close over React props, state, context, or hooks from the component body. Defining those helpers inside the component recreates the function every render and tends to re-trigger Sonar "move to outer scope" maintainability findings without adding behavior.
 
 There is **no ESLint rule** in this repo that matches that Sonar check narrowly; `unicorn/consistent-function-scoping` is broader and was not adopted globally. Use **SonarCloud / code review** to catch new cases until a dedicated lint strategy exists (for example a custom rule or a repo-wide Unicorn cleanup).
 
@@ -964,7 +969,7 @@ function CredentialsTable() {
 
 ## 17. Prefer `Set` for membership-only checks (Sonar **typescript:S7776**)
 
-Sonar rule **typescript:S7776** (_Arrays used only for existence checks should be Sets_) applies when a collection is used **mainly or only** to answer “is this value present?”—for example repeated **`Array#includes()`** lookups.
+Sonar rule **typescript:S7776** (_Arrays used only for existence checks should be Sets_) applies when a collection is used **mainly or only** to answer "is this value present?"—for example repeated **`Array#includes()`** lookups.
 
 **Why it matters (per Sonar):** `includes()` is **O(n)** per call because it may scan the whole array. **`Set#has()`** is **O(1)** on average. For very small collections the difference is usually negligible; it matters more for **larger lists** and when checks run **often** (loops, drag/drop handlers, render-hot paths).
 
@@ -986,7 +991,7 @@ const isAllowed = (value: number) => allowedValues.has(value)
 
 ## 18. No nested React components; stable PatternFly `toggle` / render props (Sonar **typescript:S6478**)
 
-Sonar **typescript:S6478** (_React components should not be nested_): do not declare **function or class components inside** another component’s body. A nested definition is a **new component type on every parent render**, which can **reset subtree state** and waste reconciliation work.
+Sonar **typescript:S6478** (_React components should not be nested_): do not declare **function or class components inside** another component's body. A nested definition is a **new component type on every parent render**, which can **reset subtree state** and waste reconciliation work.
 
 **PatternFly `Select`, `Dropdown`, `Popover`, etc.** often require a **`toggle={(toggleRef) => …}`** or **`bodyContent={(hide) => …}`**. You cannot remove that callback, but you **must not** declare `function Inner()` / `const Inner = () => …` **inside** the parent component just to return JSX from it.
 
@@ -1010,15 +1015,15 @@ function Parent() {
   return <Select toggle={(ref) => <ParentMenuToggle toggleRef={ref} label={label} />} />
 ```
 
-Sonar’s docs also allow factories in props whose names match **`render*`** (and some **`children`** patterns). PatternFly uses names like **`toggle`**, so **module-scoped** presentational components are the usual fix.
+Sonar's docs also allow factories in props whose names match **`render*`** (and some **`children`** patterns). PatternFly uses names like **`toggle`**, so **module-scoped** presentational components are the usual fix.
 
-**ESLint:** `react/no-unstable-nested-components` overlaps this theme but often still flags **valid** `(ref) => <ModuleScopedToggle … />` shapes unless **`allowAsProps: true`**, which then **permits** many other “component in prop” patterns Sonar would still reject. This repo therefore relies on **SonarCloud S6478** (and review) rather than enabling that rule globally.
+**ESLint:** `react/no-unstable-nested-components` overlaps this theme but often still flags **valid** `(ref) => <ModuleScopedToggle … />` shapes unless **`allowAsProps: true`**, which then **permits** many other "component in prop" patterns Sonar would still reject. This repo therefore relies on **SonarCloud S6478** (and review) rather than enabling that rule globally.
 
 ---
 
 ## 19. `showSuccess` / `showError` — Sentence Case
 
-The object parameter form (`{ title, description? }`) is enforced by ESLint `no-restricted-syntax` at error level. Use **sentence case** for alert titles (“Workflow created successfully”, not “Workflow Created Successfully”). The same applies to `showWarning` and `showInfo`.
+The object parameter form (`{ title, description? }`) is enforced by ESLint `no-restricted-syntax` at error level. Use **sentence case** for alert titles ("Workflow created successfully", not "Workflow Created Successfully"). The same applies to `showWarning` and `showInfo`.
 
 ---
 
@@ -1081,9 +1086,9 @@ export function useResourceActions() {
 
 **Do** load the full list by following `next` cursors in a small utility, then cache with React Query in a dedicated hook:
 
-- Use `fetchAllPages` from `src/utils/fetchAllPages.ts` (safety caps: `MAX_PAGES`, `MAX_ITEMS`, loop detection).
+- Use `fetchAllPages` from `frontend/packages/nexus-ui/src/utils/fetchAllPages.ts` (safety caps: `MAX_PAGES`, `MAX_ITEMS`, loop detection).
 - Expose one hook per resource, e.g. `useAllProjects`, `useAllSettings`, in the route/feature folder, with `queryKey` like `['all-projects']` and a matching test file.
-- **Tables** that paginate in the UI should keep using **`useCursorPagination`** — `fetchAllPages` is only for “need every row once” scenarios (dropdowns, full settings catalog, modals).
+- **Tables** that paginate in the UI should keep using **`useCursorPagination`** — `fetchAllPages` is only for "need every row once" scenarios (dropdowns, full settings catalog, modals).
 
 ```typescript
 // ❌ BAD — at most 100 projects, no second page
@@ -1483,7 +1488,7 @@ function useCanI(action: string, resourceType: string, options?: UseCanIOptions)
 
 ## 31. Permission Gating Patterns
 
-All CRUD and destructive actions must be gated by permissions. See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for the full architecture.
+All CRUD and destructive actions must be gated by permissions. See [`frontend/docs/permissions-rbac.md`](frontend/docs/permissions-rbac.md) for the full architecture.
 
 ### When to create a domain hook vs inline `useCanI`
 
@@ -1567,7 +1572,7 @@ queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })
 
 ### Mock API
 
-When adding new permission-gated features, add role-aware responses in `packages/nexus-mock-api/src/handlers.ts` for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`.
+When adding new permission-gated features, add role-aware responses in `frontend/packages/nexus-mock-api/src/handlers.ts` for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`.
 
 ---
 
@@ -1641,10 +1646,10 @@ export type SwitchConfig = { cases: Array<{ label: string }> }
 
 The doc link system has four parts:
 
-1. **`src/utils/docs/docsUrls.json`** -- maps logical doc keys to path fragments for each mode (upstream / product). Adding a new page means adding a new entry here.
-2. **`src/utils/docs/types.ts`** -- `DocKey` type is derived from `keyof typeof docsUrls`, so TypeScript rejects any key not in the JSON at compile time.
-3. **`src/utils/docs/DocLinkProvider.tsx`** -- React context provider (wired in `App.tsx`) that reads `VITE_DOC_MODE` env var to determine the current mode. Defaults to `upstream`.
-4. **`src/utils/docs/useDocLink.ts`** -- hook that combines the base URL + path for the current mode.
+1. **`frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`** -- maps logical doc keys to path fragments for each mode (upstream / product). Adding a new page means adding a new entry here.
+2. **`frontend/packages/nexus-ui/src/utils/docs/types.ts`** -- `DocKey` type is derived from `keyof typeof docsUrls`, so TypeScript rejects any key not in the JSON at compile time.
+3. **`frontend/packages/nexus-ui/src/utils/docs/DocLinkProvider.tsx`** -- React context provider (wired in `App.tsx`) that reads `VITE_DOC_MODE` env var to determine the current mode. Defaults to `upstream`.
+4. **`frontend/packages/nexus-ui/src/utils/docs/useDocLink.ts`** -- hook that combines the base URL + path for the current mode.
 
 ### Usage
 
@@ -1665,7 +1670,7 @@ The sidebar help icon (`AppDockedNav`) uses the `home` key to open the documenta
 
 ### Adding a New Doc Link
 
-1. Add a new entry to `src/utils/docs/docsUrls.json`:
+1. Add a new entry to `frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`:
 
 ```json
 {

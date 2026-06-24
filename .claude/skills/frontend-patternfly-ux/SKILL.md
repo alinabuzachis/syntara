@@ -1,3 +1,8 @@
+---
+description: "PatternFly 6 UX design system guide — component selection, layout patterns, accessibility, Automation Orchestrator conventions."
+user-invocable: false
+---
+
 <!--
   SYNC NOTE: A condensed version of this file exists at .cursor/rules/patternfly-ux-design-system.mdc
   (the Cursor rule). Both files must stay in sync — when updating one, update the other.
@@ -6,7 +11,7 @@
 
 # Claude Skill: PatternFly UX Design System — Opinionated Implementation
 
-> **Before writing React, Zod, Zustand, or other library code**, fetch current docs from [`./library_references.md`](./library_references.md).
+> **Before writing React, Zod, Zustand, or other library code**, fetch current docs from [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md).
 
 Your goal is to build frontend UI that adheres to PatternFly standards **and** the Automation Orchestrator UX team's opinionated component usage. This skill codifies specific "Ansible-first" patterns to ensure consistency across all feature teams and reduce cognitive load for users.
 
@@ -55,7 +60,7 @@ How the Automation Orchestrator UI is anchored, and how it relates to other Red 
   3. **Engage PatternFly.** If UX confirms the gap, UX coordinates with PatternFly on resolution — new component, variant, token, or an accepted override — often via a PatternFly GitHub issue or direct conversation.
   4. **Document and track.** If a temporary override is approved, create a Jira issue in AAP with the label `patternfly-override` to track technical debt. Link the PatternFly issue if one exists. The UXSC reviews active overrides periodically.
   5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly or the Ansible UI Framework. Overrides without a resolution path are flagged in quarterly reviews.
-- **`Nx` prefix convention** — AO opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with AO-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
+- **`Nx` prefix convention** — AO opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `frontend/packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with AO-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
 - **What this is not** — The experience is **not** built on custom libraries, like the Genie proof-of-concept tech demo. Orchestrator deliberately uses a PatternFly-first stack so it stays aligned with the rest of the Red Hat portfolio.
 
 ---
@@ -157,7 +162,7 @@ Every page **must** follow this structural hierarchy:
 | Main Content       | Table / Canvas / Form       | Primary page content                     |
 | Footer (on tables) | `PaginationFooter`          | Navigation between table pages           |
 
-For **floating panels on the workflow canvas** under the glass theme, prefer `NxPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `packages/nexus-ui/src/components/layout/NxPanel.tsx`.
+For **floating panels on the workflow canvas** under the glass theme, prefer `NxPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `frontend/packages/nexus-ui/src/components/layout/NxPanel.tsx`.
 
 ### Centered Layout for Loading / Empty States
 
@@ -165,7 +170,7 @@ Use `NxPageBody` with `isCentered` for page-level centered layouts (loading spin
 
 ### Panel Content Stack
 
-Use `NxPanelContentStack` (from `src/components/layout/NxPanelContentStack.tsx`) as the main content column inside `NxPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
+Use `NxPanelContentStack` (from `frontend/packages/nexus-ui/src/components/layout/NxPanelContentStack.tsx`) as the main content column inside `NxPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
 
 | Variant   | Use case                                                            |
 | --------- | ------------------------------------------------------------------- |
@@ -298,7 +303,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - `NxScrollableTableContainer` uses `table-layout: fixed` for equal column distribution — do not opt out with `useFixedLayout={false}`
   - Wrap cell text in `<Truncate content={value} />` for any column that may contain user-generated or variable-length content
   - `LinkCell` children support `<Truncate>` — the link button constrains overflow automatically
-- **`NxKebabMenu` component** — Use `NxKebabMenu` (from `src/components/NxKebabMenu.tsx`) for table row actions and contextual overflow menus. API:
+- **`NxKebabMenu` component** — Use `NxKebabMenu` (from `frontend/packages/nexus-ui/src/components/NxKebabMenu.tsx`) for table row actions and contextual overflow menus. API:
   - `actions`: array of `{ key, title, onClick, isSeparator?, isDanger?, isAriaDisabled?, tooltipProps? }`
   - `aria-label`: must be unique per row (e.g., `` `Actions for ${resource.name}` ``)
   - Action ordering: non-destructive first → `isSeparator: true` → destructive last (`isDanger: true`)
@@ -331,7 +336,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Selecting/filling the required field clears the danger styling immediately
   - **Human-readable validation copy:** Never expose raw regex patterns or API validation strings to users. Use plain-language error messages (e.g., "Project name can only contain letters, numbers, hyphens, underscores, or colons. It must start and end with a letter or number."). Provide proactive field guidance via inline hint text (using `HintOrError` or `HelperText`) that displays before the user triggers an error; the hint is replaced by the error message on validation failure. Use example-style placeholders (e.g., `'my-project-name'`) instead of generic `"Enter project name"`.
 - **Read-only system values:** Never use a disabled `TextInput` to display system-provided, non-editable values. Disabled inputs imply the field could be editable in another context. Instead use `DescriptionList isCompact` (term + description), `ClipboardCopy` (when copying is the primary action), or plain text to make clear the value is informational.
-- **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler -- not in a `useEffect` watching the field value. See [coding_standards.md §23](../../.claude/skills/coding_standards.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
+- **Cascading field resets:** When one field change should clear or reset dependent fields (e.g., changing "Resource type" resets "Action"), put the reset logic in the field's `onChange` handler -- not in a `useEffect` watching the field value. See [.claude/skills/frontend-coding-standards/SKILL.md §23](.claude/skills/frontend-coding-standards/SKILL.md) and [React docs](https://react.dev/learn/you-might-not-need-an-effect).
 - **FormSection for complex forms:** When a single form step has 10+ fields spanning logical domains, group them with PatternFly `FormSection`:
   - `title="Section Name"` + `titleElement="h3"` for each group
   - **Grouping logic:** General (identity/metadata) -> Connection (endpoints/secrets) -> Options (toggles/advanced)
@@ -374,11 +379,11 @@ For fields where users can select multiple items (e.g., group assignment on user
 
 ### Details Component
 
-- Use `NxDetailList` + `NxDetail` for detail page fields (from `src/components/details/`)
+- Use `NxDetailList` + `NxDetail` for detail page fields (from `frontend/packages/nexus-ui/src/components/details/`)
   - **Vertical** (default) for standard detail pages
   - **`isHorizontal`** for compact contexts (e.g., canvas step detail panels)
 - `NxDetail` with empty/null/undefined children **renders nothing automatically** — optional fields can be passed unconditionally without manual null checks
-- Use `NxCodeBlock` (from `src/components/details/NxCodeBlock.tsx`) for scripts, JSON payloads, or log output
+- Use `NxCodeBlock` (from `frontend/packages/nexus-ui/src/components/details/NxCodeBlock.tsx`) for scripts, JSON payloads, or log output
   - Supports `enableCopy` (clipboard), `enableExpand` (full-screen modal), and `jsonObject` (auto-formatted JSON)
   - Default max height of 24rem with scroll; use `noMaxHeight` when inside a height-constrained parent
 - Use consistent formatting for dates and durations — follow PatternFly's [Date/Time guidelines](https://www.patternfly.org/ux-writing/numerics/#date-and-time-formats)
@@ -642,7 +647,7 @@ For canonical copy patterns per tier → see Storybook: `list-all-documentation 
 
 ### Delete: Destructive Confirmation Modal with Checkbox
 
-**Always** use `NxConfirmationDialog` from `src/components/dialogs/NxConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
+**Always** use `NxConfirmationDialog` from `frontend/packages/nexus-ui/src/components/dialogs/NxConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
 
 There are three delete variants depending on what happens downstream when the resource is deleted.
 
@@ -897,9 +902,9 @@ Use `Label` only when visual distinction is needed — for statuses, categorical
 | User-authored tags, workflow tags                    | `NxUserTag`                                         | Outlined compact            |
 | Filter chips (active filters)                        | `Label variant="outline" isCompact` in `LabelGroup` | Outlined compact, removable |
 
-**`NxLabel`** (from `src/components/NxLabel.tsx`) — thin wrapper over PF `Label` with UX defaults: `isCompact={true}`, `variant="filled"`.
+**`NxLabel`** (from `frontend/packages/nexus-ui/src/components/NxLabel.tsx`) — thin wrapper over PF `Label` with UX defaults: `isCompact={true}`, `variant="filled"`.
 
-**`NxUserTag`** (from `src/components/NxUserTag.tsx`) — outline-only wrapper for user-authored content. Always use for content typed by users (workflow tags, custom labels).
+**`NxUserTag`** (from `frontend/packages/nexus-ui/src/components/NxUserTag.tsx`) — outline-only wrapper for user-authored content. Always use for content typed by users (workflow tags, custom labels).
 
 ### Statuses
 
@@ -1147,7 +1152,7 @@ For create/edit forms accessible via direct URL:
 
 **Note:** List/detail pages use in-page empty states or tab filtering -- not route guards. Route guards target mutation form routes only.
 
-See [`docs/permissions-rbac.md`](../../docs/permissions-rbac.md) for the full permission gating architecture.
+See [`frontend/docs/permissions-rbac.md`](frontend/docs/permissions-rbac.md) for the full permission gating architecture.
 
 ### Empty-State Actions Must Be Permission-Gated
 
@@ -1251,7 +1256,7 @@ Workflows use a **Draft → Publish → Unpublish** model instead of enable/disa
 **Status badges (`WorkflowPublishStatusBadge`):**
 
 | State                            | Label               | Style                              |
-| -------------------------------- | ------------------- | ---------------------------------- |
+| -------------------------------- | -------------------- | ---------------------------------- |
 | Never published                  | Draft               | Grey filled                        |
 | Current version = published      | Published           | Green filled (`status="success"`)  |
 | Saved changes after last publish | Unpublished changes | Yellow filled (`status="warning"`) |

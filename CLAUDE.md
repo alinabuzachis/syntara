@@ -29,8 +29,17 @@ Read the component docs when working in that area — they contain detailed stan
 | Working on... | Read |
 |---|---|
 | Backend Python code | [backend/AGENTS.md](backend/AGENTS.md) — SQLModel patterns, Alembic migrations, testing standards, 12+ domain-specific standards docs |
-| Frontend React/TypeScript | [frontend/CLAUDE.md](frontend/CLAUDE.md) — Skills system, PatternFly patterns, 29-item PR checklist, architecture guides |
+| Frontend React/TypeScript | [frontend/CLAUDE.md](frontend/CLAUDE.md) — PatternFly patterns, 31-item PR checklist, architecture guides |
 | Both (E2E, contracts, infra) | This file |
+
+### Skills
+
+Skills live in `.claude/skills/` at the repo root, prefixed by workspace:
+
+- **`frontend-*`** — Frontend-specific skills (coding standards, PR review, PatternFly UX, testing, Playwright E2E, library references)
+- **`backend-*`** — Backend-specific skills (API spec drift detection)
+
+User-invocable skills: `/frontend-review-pr`, `/frontend-build-ui-feature`, `/backend-fix-api-spec-drift`. Reference skills (coding standards, testing guidelines, etc.) are loaded automatically by Claude when working on relevant files.
 
 ## Development Workflow
 

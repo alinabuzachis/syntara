@@ -86,8 +86,12 @@ frontend/.eslintcache
 .cursorignore
 .cursorindexingignore
 
-# AI agent local files
-.claude/
+# AI agent local files — ignore .claude/ contents by default, then selectively un-ignore
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+!.claude/commands/
+!.claude/commands/**
 CLAUDE.local.md
 AGENTS.local.md
 .gemini/

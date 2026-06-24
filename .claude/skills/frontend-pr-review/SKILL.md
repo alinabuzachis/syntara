@@ -1,3 +1,8 @@
+---
+description: "Comprehensive PR review checklist and validation workflow for frontend code."
+user-invocable: false
+---
+
 # Claude Skill: Pull Request Review & Self-Review
 
 Your goal is to review code with high clarity, consistency, and alignment with the repo's standards. This skill serves two purposes:
@@ -52,7 +57,7 @@ If the numbers don't match the GitHub PR page (e.g., GitHub shows 3 files but gi
 
 Before reviewing the PR, read:
 
-- `CLAUDE.md` (global instructions)
+- `frontend/CLAUDE.md` (global instructions)
 - Any relevant project guidelines: architecture, naming, lint, testing
 - Any domain-specific instructions (e.g., Django, React, PatternFly, SOLID)
 
@@ -73,7 +78,7 @@ Check whether the changes follow:
 
 **Project-Specific:**
 
-- Components in correct location (packages/nexus-ui/src/components/)
+- Components in correct location (frontend/packages/nexus-ui/src/components/)
 - Uses PatternFly 6 components for UI foundation, styling, and design system
 - TanStack Query for server state, Zustand (useWorkflowStore) for workflow state
 - No `any` types, uses generated OpenAPI types
@@ -82,7 +87,7 @@ Check whether the changes follow:
 
 ### 3a. Recurring Issues Checklist (MANDATORY)
 
-**Run through every item in CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-30).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
+**Run through every item in frontend/CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-30).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
 
 | Search for...                                               | Flags violation of checklist item...                                            |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -94,7 +99,7 @@ Check whether the changes follow:
 | Copy-pasted dialogs or action handlers                      | #6 -- extract to shared component/hook                                          |
 | String literals for type discriminators                     | #9 -- use enum constants from `@ansible/nexus-contracts`                        |
 | Display strings in conditionals                             | #10 -- compare API values, not translatable labels                              |
-| New route in `AppRoute.tsx` without registry entry          | Add to `e2e/visual-regression/page-registry.ts` (see `VISUAL_REGRESSION.md`)    |
+| New route in `AppRoute.tsx` without registry entry          | Add to `e2e/visual-regression/page-registry.ts` (see `frontend/packages/nexus-ui/VISUAL_REGRESSION.md`)    |
 | Title Case in alert titles                                  | Use sentence case: "Workflow created", not "Created"                            |
 | Derived data without `useMemo` in custom hooks              | #13 -- wrap computed maps/arrays in `useMemo`                                   |
 | New `use*.ts` hook without `use*.test.ts(x)`                | #14 -- every new hook needs a dedicated test file                               |
@@ -110,7 +115,7 @@ Check whether the changes follow:
 | `useEffect` + `useState` for API calls                      | #25 -- use TanStack Query (`useQuery`/`useMutation`/`useQueries`)               |
 | Manual `Promise.all` + cancellation for parallel fetches    | #25 -- use `useQueries` from TanStack Query                                     |
 | `// TODO` / `// FIXME` / `// HACK` / `// XXX`               | #26 -- track deferred work in Jira, not code comments                           |
-| Hardcoded `docs.redhat.com` or `docs.ansible.com` URLs      | #30 -- use `useDocLink('key')` from `src/utils/docs/useDocLink.ts`              |
+| Hardcoded `docs.redhat.com` or `docs.ansible.com` URLs      | #30 -- use `useDocLink('key')` from `frontend/packages/nexus-ui/src/utils/docs/useDocLink.ts`              |
 | `NxPageHeader` without `docLink` prop                       | #30 -- every page header should pass `docLink={useDocLink('key')}`              |
 | Hardcoded colors in CSS modules                             | ESLint can't catch these; review CSS module files manually                      |
 | `new Date()` in `nexus-mock-api/src/resources/` or `utils/` | #31 -- use `mockDate.*` from `mockDates.ts` for deterministic visual regression |
@@ -136,7 +141,7 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 | `@ts-ignore` / `@ts-expect-error`                             | Suppresses a TypeScript error instead of fixing the type. Hides real bugs.                             | Fix the type, add a type guard, or update the contract.                                                                            |
 | `// TODO` / `// FIXME` / `// HACK` / `// XXX`                 | Deferred work buried in source. Invisible to sprint planning and never addressed.                      | Create a Jira ticket and reference it inline: `// Workaround until AAP-12345 adds the endpoint`.                                   |
 | `rules: { 'rule-name': { enabled: false } }` in axe config    | Disables an accessibility rule to make a test pass instead of fixing the a11y bug.                     | Fix the component so it passes the axe rule. Only disable with a linked upstream PatternFly issue proving a false positive.        |
-| `useEffect` + `useState` for data that TanStack Query handles | Re-implements caching, dedup, retry, and error handling that `useQuery`/`useMutation` already provide. | Use the library API. See coding_standards.md "Prefer Library and Native Browser APIs Over Custom Code".                            |
+| `useEffect` + `useState` for data that TanStack Query handles | Re-implements caching, dedup, retry, and error handling that `useQuery`/`useMutation` already provide. | Use the library API. See .claude/skills/frontend-coding-standards/SKILL.md "Prefer Library and Native Browser APIs Over Custom Code".                            |
 | Custom deep copy, URL parsing, UUID generation                | Re-implements what `structuredClone`, `URLSearchParams`, `generateUUID` already provide.               | Use the native API or existing project utility.                                                                                    |
 
 **Pre-existing suppressions:** If a suppression appears in the diff context but was not added by the PR (no `+` prefix), ignore it. Only flag new additions.
@@ -146,8 +151,8 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 | Check                                           | How to verify                                                                                                                                                      |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **UI PRs include screenshots**                  | PRs changing visible UI must include screenshots or recordings of key states                                                                                       |
-| **New API endpoints have mock handlers**        | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged                                                                          |
-| **`useQueryState` object form**                 | Verify `useQueryState(query, { title, onRetry })` -- not bare string form (see coding_standards.md §2)                                                             |
+| **New API endpoints have mock handlers**        | Check `frontend/packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged                                                                          |
+| **`useQueryState` object form**                 | Verify `useQueryState(query, { title, onRetry })` -- not bare string form (see .claude/skills/frontend-coding-standards/SKILL.md §2)                                                             |
 | **Error handling consistency**                  | Verify `useQueryState` / `useMutationErrorHandler` -- no ad-hoc try/catch with custom error display                                                                |
 | **userEvent regressions**                       | Check if PR replaces existing `userEvent` calls with `fireEvent` -- that is a regression                                                                           |
 | **Unreachable dead code in tests**              | Look for nested `it()` blocks inside other `it()` blocks (after `return` statements)                                                                               |
@@ -156,10 +161,10 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 | **Zero new ESLint warnings**                    | New code must not introduce warnings, even for rules currently set to `warn` -- they will become `error`                                                           |
 | **New routes have `requiredPermissions`**       | Every route with access requirements must set `requiredPermissions` in `navigationItems.tsx`; create/edit routes need `routePermission` for `ProtectedRoute` guard |
 | **New write actions use `DisabledWithTooltip`** | Create/edit/delete buttons must be wrapped with `DisabledWithTooltip` + domain permission hook; use `permissionTooltip()` for copy                                 |
-| **New resources have mock `can_i` handlers**    | `packages/nexus-mock-api/src/handlers.ts` must include role-aware responses for all 4 roles (admin, viewer, auditor, user)                                         |
+| **New resources have mock `can_i` handlers**    | `frontend/packages/nexus-mock-api/src/handlers.ts` must include role-aware responses for all 4 roles (admin, viewer, auditor, user)                                         |
 | **Permission hooks include `isError`**          | Any `useCanI` mock must include `isError: false`; real hook returns `{ allowed, isChecking, isError }`                                                             |
 | **Permission cache invalidation**               | After role/assignment mutations, verify `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })` is called                                                |
-| **New shared components have stories**          | Components in `src/components/` (especially `Nx*`) should have Storybook stories for documentation                                                                 |
+| **New shared components have stories**          | Components in `frontend/packages/nexus-ui/src/components/` (especially `Nx*`) should have Storybook stories for documentation                                                                 |
 | **Unrelated snapshot changes explained**        | If visual regression screenshots changed for pages not related to the PR, ask why                                                                                  |
 | **Visual regression uses stable data**          | Screenshot baselines must use deterministic mock data -- no timestamps, random IDs, or flaky API state                                                             |
 | **Gated content hidden during loading**         | Permission-dependent UI (tabs, buttons) should hide until permission check resolves, not flash then disappear                                                      |
@@ -187,9 +192,9 @@ For anything not listed above, query the PatternFly MCP before using raw HTML.
 
 Ask:
 
-- “Does this PR introduce a new pattern that already exists in the codebase?”
-- “Is there duplication that should be replaced by existing helpers/modules?”
-- “Is this logic available natively in a browser/Web API instead of custom code?”
+- "Does this PR introduce a new pattern that already exists in the codebase?"
+- "Is there duplication that should be replaced by existing helpers/modules?"
+- "Is this logic available natively in a browser/Web API instead of custom code?"
 
 Examples:
 
@@ -287,11 +292,11 @@ When reviewing your own implementation before committing, verify these gates pas
 
 ### Implementation Workflow Check
 
-1. **Checked for reusability** — searched `src/components/` and PatternFly docs before creating new components
+1. **Checked for reusability** — searched `frontend/packages/nexus-ui/src/components/` and PatternFly docs before creating new components
 2. **Implemented incrementally** — happy path first, then edge cases
 3. **Wrote tests concurrently** — tests alongside implementation, not after
 4. **Verified accessibility** — keyboard navigation, ARIA attributes, axe tests
-5. **Library docs consulted** — fetched `llms.txt` URLs from `.claude/skills/library_references.md` for any library used
+5. **Library docs consulted** — fetched `llms.txt` URLs from `.claude/skills/frontend-library-references/SKILL.md` for any library used
 
 ### Quality Gates (All Must Pass)
 

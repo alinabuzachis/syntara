@@ -1,3 +1,8 @@
+---
+description: "Playwright E2E testing guide — fixtures, patterns, test structure, and best practices for the frontend."
+user-invocable: false
+---
+
 # Claude Skill: Playwright E2E Testing
 
 Your goal is to author comprehensive, production-grade end-to-end tests using Playwright that follow the project's established patterns and cover critical user workflows.
@@ -10,12 +15,12 @@ Your goal is to author comprehensive, production-grade end-to-end tests using Pl
 
 | Component     | Location                                     |
 | ------------- | -------------------------------------------- |
-| Config        | `packages/nexus-ui/playwright.config.ts`     |
-| Test files    | `packages/nexus-ui/e2e/*.spec.ts`            |
-| Fixtures      | `packages/nexus-ui/e2e/fixtures.ts`          |
-| Helpers       | `packages/nexus-ui/e2e/helpers/workflows.ts` |
-| Utils (API)   | `packages/nexus-ui/e2e/utils/api.ts`         |
-| Utils (Mocks) | `packages/nexus-ui/e2e/utils/mockData.ts`    |
+| Config        | `frontend/packages/nexus-ui/playwright.config.ts`     |
+| Test files    | `frontend/packages/nexus-ui/e2e/*.spec.ts`            |
+| Fixtures      | `frontend/packages/nexus-ui/e2e/fixtures.ts`          |
+| Helpers       | `frontend/packages/nexus-ui/e2e/helpers/workflows.ts` |
+| Utils (API)   | `frontend/packages/nexus-ui/e2e/utils/api.ts`         |
+| Utils (Mocks) | `frontend/packages/nexus-ui/e2e/utils/mockData.ts`    |
 
 ### Key Conventions (extracted from existing tests)
 
@@ -106,7 +111,7 @@ To test against the real Nexus backend instead of the mock API:
 
 ### Step 1: Read existing test files
 
-Read all files in `packages/nexus-ui/e2e/`:
+Read all files in `frontend/packages/nexus-ui/e2e/`:
 
 - `fixtures.ts` — custom `{ app }` fixture definition and `toAppUrl` helper
 - `helpers/workflows.ts` — `buildUniqueName`, `createBasicWorkflow`, `addNodePanel` (Add step panel), `fillCodeEditor`, `closeNodeEditorPanel`
@@ -183,7 +188,7 @@ Instead of guessing that a button is called "Save":
 
 ### Key information to gather
 
-1. **Routes:** Read `src/app/AppRoute.tsx` and `src/app/navigationItems.tsx`
+1. **Routes:** Read `frontend/packages/nexus-ui/src/app/AppRoute.tsx` and `frontend/packages/nexus-ui/src/app/navigationItems.tsx`
 2. **Features:** Workflows, Builder, Executions, Credentials, Integrations, Approvals
 3. **Critical paths:**
    - Create workflow → Add steps → Save → Execute → View results
@@ -626,7 +631,7 @@ Use `app` (admin) to create resources, then `viewerApp`/`auditorApp`/`userApp` t
 
 #### Adding tests for new permission-gated features
 
-1. Add role-aware `can_i` responses in `packages/nexus-mock-api/src/handlers.ts` for all 4 roles
+1. Add role-aware `can_i` responses in `frontend/packages/nexus-mock-api/src/handlers.ts` for all 4 roles
 2. Add test cases in `e2e/permission-gating.spec.ts` using the appropriate role fixture
 3. For route guards, test both the admin positive case and the denied case for each restricted role
 4. For action buttons, verify `aria-disabled="true"` and tooltip content
@@ -635,7 +640,7 @@ Use `app` (admin) to create resources, then `viewerApp`/`auditorApp`/`userApp` t
 
 ### Resource Utility Pattern (Recommended for Real Backend)
 
-For faster test setup/teardown when running against a real backend, create API-based resource utilities in `packages/nexus-ui/e2e/utils/`.
+For faster test setup/teardown when running against a real backend, create API-based resource utilities in `frontend/packages/nexus-ui/e2e/utils/`.
 
 **Add new resource-specific helpers alongside the existing utilities:**
 
@@ -937,7 +942,7 @@ npm run tsc
 
 ## Deliverables
 
-1. **Test files** — `packages/nexus-ui/e2e/*.spec.ts`
-2. **Helpers** — Reusable functions in `packages/nexus-ui/e2e/helpers/`
-3. **Resource utilities** — `packages/nexus-ui/e2e/utils/` (if creating API-based setup/teardown)
+1. **Test files** — `frontend/packages/nexus-ui/e2e/*.spec.ts`
+2. **Helpers** — Reusable functions in `frontend/packages/nexus-ui/e2e/helpers/`
+3. **Resource utilities** — `frontend/packages/nexus-ui/e2e/utils/` (if creating API-based setup/teardown)
 4. **Coverage summary** — Brief comment documenting features, edge cases, and known gaps

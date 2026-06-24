@@ -1,3 +1,8 @@
+---
+description: "Library llms.txt URLs for React, Zod, Zustand, Vitest, Vite, and TanStack Query. Fetch before writing code against these libraries."
+user-invocable: false
+---
+
 # Library References
 
 **Before writing code that uses any library listed below that provides an `llms.txt`, fetch it and use it as your primary reference for current APIs and patterns.** These files are maintained by each project and reflect their latest stable documentation. Do not rely on training-data knowledge alone — APIs change across major versions. Verify that the documentation is accurate and consistent with the code being reviewed.

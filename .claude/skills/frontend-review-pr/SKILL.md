@@ -1,10 +1,14 @@
+---
+description: "Review a frontend PR against the project's 31-item checklist and coding standards."
+---
+
 # Review PR
 
-Follow the steps in `.claude/skills/pr_review.md` to conduct a thorough pull request review.
+Follow the steps in `.claude/skills/frontend-pr-review/SKILL.md` to conduct a thorough pull request review.
 
 Start by:
 
-1. Reading CLAUDE.md (especially the "Common PR Mistakes" section) and relevant project guidelines
+1. Reading `frontend/CLAUDE.md` (especially the "Common PR Mistakes" section) and relevant project guidelines
 2. Checking what files have changed (git diff or user-provided context)
 3. Following all 9 steps from the PR review skill
 
@@ -22,6 +26,6 @@ Start by:
 - Duplicated dialog/logic patterns across files
 - Inconsistent `useQueryState` / mutation error-handler usage vs project patterns
 - UI changes without screenshots or screen recordings
-- New API endpoints without mock API handlers in `packages/nexus-mock-api/src/handlers.ts`
+- New API endpoints without mock API handlers in `frontend/packages/nexus-mock-api/src/handlers.ts`
 
 Provide a structured review with the deliverables outlined in step 9.
