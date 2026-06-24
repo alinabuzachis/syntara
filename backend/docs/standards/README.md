@@ -33,6 +33,7 @@ These existing documents define core standards and should be consulted first:
 | [Services](services.md) | BaseService, extension mixins, dependency injection, middleware, periodic workers |
 | [Exceptions](exceptions.md) | Exception naming, error handlers, PROBLEM_TYPES, @fastapi_exception, retry classification |
 | [OpenAPI Spec Management](openapi-spec-management.md) | Sub-spec layout, bundling, drift detection, CI checks, AsyncAPI conventions |
+| [UI-API Parity](ui-api-parity.md) | Typed clients, contract generation, full-stack PR workflow, WebSocket scope |
 | [Static Analysis](static-analysis.md) | Dead code detection (Vulture), import cycle detection (pyan3), CI checks, allowlists |
 | [Formatting](formatting.md) | Pre-commit as single source of truth, tool inventory, generated file cleanup, adding formatters |
 | [Locks](locks.md) | Thread safety, lock types, best practices, state machines, protected counters, testing |

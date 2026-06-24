@@ -88,6 +88,7 @@ Consult these standards when making changes.
 - [Services](/docs/standards/services.md) — BaseService, extension mixins, dependency injection, middleware, periodic workers
 - [Exceptions](/docs/standards/exceptions.md) — exception naming, error handlers, PROBLEM_TYPES, @fastapi_exception, retry classification
 - [OpenAPI Spec Management](/docs/standards/openapi-spec-management.md) — sub-spec layout, bundling, drift detection, CI checks, AsyncAPI conventions
+- [UI-API Parity](/docs/standards/ui-api-parity.md) — typed clients, contract generation, full-stack PR workflow, WebSocket scope
 - [Static Analysis](/docs/standards/static-analysis.md) — dead code detection (Vulture), import cycle detection (pyan3), allowlists, CI checks
 - [Formatting](/docs/standards/formatting.md) — pre-commit as single source of truth, tool inventory, generated file cleanup
 

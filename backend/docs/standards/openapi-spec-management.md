@@ -56,17 +56,17 @@ These hooks run automatically on commit (and in CI via the `pre-commit` job):
 
 | Hook | Behaviour |
 |------|-----------|
-| `api-spec-bundle` | Always runs; regenerates the bundled spec before commit |
-| `api-spec-drift` | Advisory only (`|| true`); warns when the committed spec diverges from the generated one but does not block the commit |
-| `check-openapi-breaking` | Runs when `openapi.yaml` changes; compares against `devel` and blocks on unacknowledged breaking changes |
-
-The drift hook is non-blocking by design — it surfaces drift early without enforcing it at commit time. CI enforces it strictly.
+| `backend-api-spec-bundle` | Runs when backend YAML/Python changes; regenerates the bundled spec before commit |
+| `backend-api-spec-drift` | Runs when backend `.py` files change; invokes `make api-spec-drift` to compare the committed spec to the live FastAPI schema; **blocking** |
+| `backend-check-openapi-breaking` | Runs when `openapi.yaml` changes; compares against `devel` and blocks on unacknowledged breaking changes |
 
 In CI, `OPENAPI_PR_BODY` is set from the pull request description so `breaking-change-ack:` acknowledgments are honored. Locally, add the acknowledgment to your PR description before CI runs.
 
 ## CI Checks
 
-`make api-spec-drift` is a **blocking CI check**. A PR that introduces spec drift will fail CI until the committed `openapi.yaml` is updated via `make api-spec-bundle`.
+The **blocking** `pre-commit` CI job checks for spec drift via the `backend-api-spec-drift` hook (which runs `make api-spec-drift`). A PR that introduces spec drift will fail CI until the committed `openapi.yaml` is updated via `make api-spec-bundle`.
+
+Run `make api-spec-drift` locally to reproduce the same check outside of pre-commit.
 
 `make api-spec-validation` also runs in CI and validates spec conventions (see below).
 
