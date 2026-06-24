@@ -192,3 +192,48 @@ class ActivityPatchMessage(BaseModel):
             ]
         }
     )
+
+
+class ExecutionPatchMessage(BaseModel):
+    """WebSocket message for execution-level status updates.
+
+    Contains JSON Patch operations to apply to execution fields (e.g. status),
+    enabling lightweight real-time updates without resending the full snapshot.
+
+    Attributes:
+        type: Message type discriminator (always "execution_patch")
+        execution_id: Execution identifier
+        event_id: Redis Stream event ID for replay support
+        ops: JSON Patch operations to apply
+        timestamp: When this message was generated
+
+    """
+
+    type: Literal["execution_patch"] = Field(
+        description="Message type discriminator",
+        examples=["execution_patch"],
+    )
+    execution_id: str = Field(
+        description="Execution identifier",
+        examples=["123e4567-e89b-12d3-a456-426614174000"],
+    )
+    event_id: str = Field(
+        description="Redis Stream event ID for replay support",
+        examples=["1642680123456-1"],
+    )
+    ops: list[JsonPatchOperation] = Field(
+        description="JSON Patch operations to apply to execution fields",
+        examples=[
+            [
+                {
+                    "op": "replace",
+                    "path": "/status",
+                    "value": "paused",
+                }
+            ]
+        ],
+    )
+    timestamp: datetime = Field(
+        description="When this message was generated",
+        examples=["2024-01-20T10:35:00Z"],
+    )

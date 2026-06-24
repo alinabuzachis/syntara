@@ -92,9 +92,19 @@ export type ActivityPatchMessage = {
 } & BaseWebSocketMessage
 
 /**
+ * Execution patch message
+ * Execution-level field updates (e.g. status) using JSON Patch format
+ */
+export type ExecutionPatchMessage = {
+  type: 'execution_patch'
+  /** One or more JSON Patch operations */
+  ops: JsonPatchOperation[]
+} & BaseWebSocketMessage
+
+/**
  * Union of all possible WebSocket message types
  */
-export type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage
+export type WebSocketMessage = ExecutionSnapshotMessage | ActivityPatchMessage | ExecutionPatchMessage
 
 // ============================================================================
 // Visualization State Types

@@ -16,6 +16,7 @@ from nexus.workflows.models.activity_execution import ActivityExecution
 from nexus.workflows.models.execution import ActivityData, Execution
 from nexus.workflows.models.visualization import (
     ActivityPatchMessage,
+    ExecutionPatchMessage,
     ExecutionSnapshotMessage,
     JsonPatchOperation,
 )
@@ -214,6 +215,47 @@ class ActivityUpdatePublisher:
             )
             logger.debug(
                 "Published activity patch to stream",
+                execution_id=execution_id,
+                stream_id=stream_id,
+                event_id=event_id,
+                operation_count=len(ops),
+            )
+            return event_id
+
+    async def publish_execution_patch(
+        self,
+        execution_id: UUID | str,
+        ops: list[JsonPatchOperation],
+    ) -> str:
+        """Publish execution-level field updates as JSON Patch operations.
+
+        Sends a lightweight patch for execution status changes (e.g. RUNNING→PAUSED)
+        instead of resending the full snapshot.
+
+        Args:
+            execution_id: The execution UUID
+            ops: JSON Patch operations to apply to execution fields
+
+        Returns:
+            The Redis-generated event ID
+
+        """
+        stream_id = self._get_stream_id(execution_id)
+
+        message = ExecutionPatchMessage(
+            type="execution_patch",
+            execution_id=str(execution_id),
+            event_id="",
+            ops=ops,
+            timestamp=datetime.now(UTC),
+        )
+
+        async with StreamClient() as client:
+            event_id = await client.publish(
+                stream_id, message.model_dump(mode="json", by_alias=True, exclude={"event_id"})
+            )
+            logger.debug(
+                "Published execution patch to stream",
                 execution_id=execution_id,
                 stream_id=stream_id,
                 event_id=event_id,

@@ -282,3 +282,59 @@ class TestPublishActivityPatch:
             call_args = mock_stream_client.publish.call_args
             message_data = call_args[0][1]
             assert message_data["ops"] == []
+
+
+class TestPublishExecutionPatch:
+    """Tests for publish_execution_patch method."""
+
+    @pytest.mark.asyncio
+    async def test_publishes_status_patch(self, mock_stream_client: AsyncMock) -> None:
+        """Test publishing execution status change as JSON Patch."""
+        from nexus.workflows.models.visualization import JsonPatchOperation
+
+        publisher = ActivityUpdatePublisher()
+        execution_id = uuid4()
+        ops = [JsonPatchOperation(op="replace", path="/status", value="running")]
+
+        with mock_patch(
+            "nexus.workflows.services.activity_update_publisher.StreamClient", return_value=mock_stream_client
+        ):
+            event_id = await publisher.publish_execution_patch(execution_id, ops)
+
+            assert event_id == "1642680000000-0"
+
+            call_args = mock_stream_client.publish.call_args
+            stream_id = call_args[0][0]
+            message_data = call_args[0][1]
+
+            assert stream_id == f"execution:{execution_id}:events"
+            assert message_data["type"] == "execution_patch"
+            assert message_data["execution_id"] == str(execution_id)
+            assert "timestamp" in message_data
+            assert "event_id" not in message_data
+            assert len(message_data["ops"]) == 1
+            assert message_data["ops"][0]["op"] == "replace"
+            assert message_data["ops"][0]["path"] == "/status"
+            assert message_data["ops"][0]["value"] == "running"
+
+    @pytest.mark.asyncio
+    async def test_publishes_multiple_ops(self, mock_stream_client: AsyncMock) -> None:
+        """Test publishing multiple execution-level patch operations."""
+        from nexus.workflows.models.visualization import JsonPatchOperation
+
+        publisher = ActivityUpdatePublisher()
+        execution_id = uuid4()
+        ops = [
+            JsonPatchOperation(op="replace", path="/status", value="paused"),
+            JsonPatchOperation(op="replace", path="/updated_at", value="2024-01-20T10:30:00Z"),
+        ]
+
+        with mock_patch(
+            "nexus.workflows.services.activity_update_publisher.StreamClient", return_value=mock_stream_client
+        ):
+            event_id = await publisher.publish_execution_patch(execution_id, ops)
+
+            assert event_id == "1642680000000-0"
+            call_args = mock_stream_client.publish.call_args
+            message_data = call_args[0][1]
+            assert len(message_data["ops"]) == 2

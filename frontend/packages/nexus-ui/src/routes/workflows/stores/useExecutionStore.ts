@@ -16,6 +16,7 @@ import { create } from 'zustand'
 
 import type {
   Execution,
+  ExecutionStatus,
   ExecutionVisualization,
   JsonPatchOperation,
   ActivityState,
@@ -91,6 +92,12 @@ type ExecutionStoreActions = {
    * Updates activity states incrementally
    */
   applyPatch: (ops: JsonPatchOperation[], eventId: string) => void
+
+  /**
+   * Apply JSON Patch operations from WebSocket execution_patch message
+   * Updates execution-level fields (e.g. status) incrementally
+   */
+  applyExecutionPatch: (ops: JsonPatchOperation[], eventId: string) => void
 
   /**
    * Mark execution as complete (received final_snapshot)
@@ -359,6 +366,20 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     }
   },
 
+  applyExecutionPatch: (ops: JsonPatchOperation[], eventId: string) => {
+    const { visualization } = get()
+    if (!visualization) return
+
+    let updated = visualization
+    for (const op of ops) {
+      if (op.op === 'replace' && op.path === '/status' && typeof op.value === 'string') {
+        updated = { ...updated, status: op.value as ExecutionStatus }
+      }
+    }
+
+    set({ visualization: updated, lastEventId: eventId })
+  },
+
   setComplete: (complete: boolean) => {
     set({ isComplete: complete })
   },
@@ -527,3 +548,15 @@ export type ExecutionStoreActionAccessors = ReturnType<typeof useExecutionStoreA
 // These hooks provide controlled access to specific state slices.
 // Prefer using these over direct store access for better encapsulation.
 // ============================================================================
+
+type ExecutionRead = ExecutionsAPI.components['schemas']['ExecutionRead']
+
+/**
+ * Overlay live WebSocket status onto query data so downstream components
+ * always see the most recent execution status without extra props.
+ */
+export function useExecutionWithLiveStatus<T extends ExecutionRead | undefined>(data: T): T {
+  const liveStatus = useExecutionStore((s) => s.visualization?.status)
+  if (!data) return data
+  return { ...data, status: liveStatus ?? data.status } as T
+}

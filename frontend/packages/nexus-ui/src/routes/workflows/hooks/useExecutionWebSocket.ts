@@ -2,7 +2,7 @@
  * Execution WebSocket Hook
  *
  * React hook for real-time execution streaming via WebSocket.
- * Handles initial_snapshot, activity_patch, and final_snapshot messages.
+ * Handles initial_snapshot, activity_patch, execution_patch, and final_snapshot messages.
  * Supports auto-reconnection with event replay from last known state.
  */
 
@@ -113,6 +113,7 @@ export function useExecutionWebSocket(
   // Store actions
   const setExecution = useExecutionStore((state) => state.setExecution)
   const applyPatch = useExecutionStore((state) => state.applyPatch)
+  const applyExecutionPatch = useExecutionStore((state) => state.applyExecutionPatch)
   const setComplete = useExecutionStore((state) => state.setComplete)
   const setConnectionState = useExecutionStore((state) => state.setConnectionState)
   const setLastEventId = useExecutionStore((state) => state.setLastEventId)
@@ -179,6 +180,12 @@ export function useExecutionWebSocket(
           break
         }
 
+        case 'execution_patch': {
+          const patch = msg as unknown as WebSocketMessage & { type: 'execution_patch' }
+          applyExecutionPatch(patch.ops, patch.event_id)
+          break
+        }
+
         case 'final_snapshot': {
           const snapshot = msg as unknown as WebSocketMessage & { type: 'final_snapshot' }
           setExecution(snapshot.execution)
@@ -192,7 +199,7 @@ export function useExecutionWebSocket(
           break
       }
     },
-    [setExecution, applyPatch, setComplete, setLastEventId, onExecutionComplete, setIsReconnecting]
+    [setExecution, applyPatch, applyExecutionPatch, setComplete, setLastEventId, onExecutionComplete, setIsReconnecting]
   )
 
   // Handle connection state changes

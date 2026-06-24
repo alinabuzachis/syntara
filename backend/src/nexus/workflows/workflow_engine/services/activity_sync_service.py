@@ -17,7 +17,6 @@ import structlog
 from jsonpatch import JsonPatch  # type: ignore[import-untyped]
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.api.enums.v1 import EventType, PendingActivityState
 from temporalio.api.history.v1 import HistoryEvent
 from temporalio.client import Client, WorkflowHandle
@@ -37,6 +36,7 @@ from nexus.workflows.audit.execution_error import WorkflowExecutionErrorEvent
 from nexus.workflows.audit.execution_started import WorkflowStartEvent
 from nexus.workflows.models.activity_execution import TERMINAL_ACTIVITY_STATUSES, ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.visualization import JsonPatchOperation
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
@@ -201,31 +201,64 @@ class ActivitySyncService:
         else:
             logger.info("Monitoring task for execution completed successfully", execution_id=execution_id)
 
-    async def _publish_snapshot_safely(
+    async def _publish_snapshot(
         self,
-        session: AsyncSession,
-        execution_id: UUID,
+        execution_or_id: UUID | Execution,
         snapshot_type: Literal["initial_snapshot", "final_snapshot"],
     ) -> None:
-        """Load execution with activities and publish a snapshot (best-effort).
+        """Publish an execution snapshot (best-effort).
+
+        Accepts either a UUID (loads from DB with activities) or an already-loaded
+        Execution instance (skips the query).
 
         Args:
-            session: Active database session (post-commit).
-            execution_id: Execution UUID to snapshot.
+            execution_or_id: Execution UUID or loaded Execution object.
             snapshot_type: Either ``"initial_snapshot"`` or ``"final_snapshot"``.
 
         """
+        execution_id = execution_or_id if isinstance(execution_or_id, UUID) else execution_or_id.id
         try:
-            query = select(Execution).where(Execution.id == execution_id)
-            query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
-            result = await session.exec(query)
-            execution = result.one_or_none()
-            if execution:
-                await self.activity_publisher.publish_snapshot(execution, snapshot_type)
-                logger.debug("Published snapshot for execution", execution_id=execution_id, snapshot_type=snapshot_type)
+            if isinstance(execution_or_id, UUID):
+                async with self.session_factory() as session:
+                    query = select(Execution).where(Execution.id == execution_or_id)
+                    query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
+                    result = await session.exec(query)
+                    resolved = result.one_or_none()
+                    if not resolved:
+                        logger.warning(
+                            "Execution not found for snapshot", execution_id=execution_id, snapshot_type=snapshot_type
+                        )
+                        return
+            else:
+                resolved = execution_or_id
+            await self.activity_publisher.publish_snapshot(resolved, snapshot_type)
+            logger.debug("Published snapshot for execution", execution_id=execution_id, snapshot_type=snapshot_type)
         except Exception:
             logger.exception(
                 "Failed to publish snapshot (non-fatal)", execution_id=execution_id, snapshot_type=snapshot_type
+            )
+
+    async def _publish_execution_patch(
+        self,
+        execution_id: UUID,
+        status: ExecutionStatus,
+    ) -> None:
+        """Publish an execution status change as a JSON Patch (best-effort).
+
+        Args:
+            execution_id: Execution UUID.
+            status: New execution status to broadcast.
+
+        """
+        try:
+            await self.activity_publisher.publish_execution_patch(
+                execution_id,
+                [JsonPatchOperation(op="replace", path="/status", value=status.value)],
+            )
+        except Exception:
+            logger.exception(
+                "Failed to publish execution patch (non-fatal)",
+                execution_id=execution_id,
             )
 
     async def _update_execution_to_running(self, metadata: ExecutionMonitorMetadata, event: HistoryEvent) -> None:
@@ -261,8 +294,7 @@ class ActivitySyncService:
                     await session.commit()
                     logger.info("Updated execution to RUNNING status", execution_id=metadata.execution_id)
 
-                    # Publish snapshot so WebSocket clients see the RUNNING status
-                    await self._publish_snapshot_safely(session, metadata.execution_id, "initial_snapshot")
+                    await self._publish_execution_patch(metadata.execution_id, ExecutionStatus.RUNNING)
 
                     # Dispatch workflow-start domain event through audit framework
                     trigger_activity_type = self._extract_trigger_activity_type(metadata.activity_definitions_map)
@@ -1053,15 +1085,7 @@ class ActivitySyncService:
                 if cancelled_activities:
                     await self._publish_activity_patches(metadata, cancelled_activities)
 
-                # Publish final snapshot after execution reaches terminal state
-                try:
-                    await self.activity_publisher.publish_snapshot(execution, "final_snapshot")
-                    logger.debug("Published final snapshot for execution", execution_id=metadata.execution_id)
-                except Exception:
-                    # Log error but don't fail (publishing is best-effort)
-                    logger.exception(
-                        "Failed to publish final snapshot for execution (non-fatal)", execution_id=metadata.execution_id
-                    )
+                await self._publish_snapshot(execution, "final_snapshot")
 
                 # Dispatch workflow-completed domain event through audit framework
                 # (activity counts are now accurate after commit)
@@ -1391,8 +1415,11 @@ class ActivitySyncService:
 
                 # Check if execution should transition between PAUSED and RUNNING
                 # using already-loaded data from this session (no extra DB roundtrip).
+                new_execution_status: ExecutionStatus | None = None
                 if updated_activities and execution:
-                    await self._maybe_update_execution_paused_status(execution, list(existing_activities.values()))
+                    new_execution_status = await self._maybe_update_execution_paused_status(
+                        execution, list(existing_activities.values())
+                    )
 
                 await session.commit()
                 metadata.pending_sync_event_ids.clear()
@@ -1400,6 +1427,9 @@ class ActivitySyncService:
                 # Publish activity patches after commit
                 if updated_activities:
                     await self._publish_activity_patches(metadata, updated_activities)
+
+                if new_execution_status is not None:
+                    await self._publish_execution_patch(metadata.execution_id, new_execution_status)
 
                 # Emit telemetry for activities that reached terminal states
                 emit_activities(
@@ -1764,7 +1794,7 @@ class ActivitySyncService:
                     )
 
                     # Publish initial snapshot after activities are created
-                    await self._publish_snapshot_safely(session, execution_id, "initial_snapshot")
+                    await self._publish_snapshot(execution_id, "initial_snapshot")
 
             except Exception:
                 await session.rollback()

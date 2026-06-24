@@ -481,4 +481,73 @@ describe('useExecutionStore', () => {
       expect(isLoaded).toBe(false)
     })
   })
+
+  describe('applyExecutionPatch', () => {
+    it('updates visualization status from execution_patch', () => {
+      const execution = createMockExecution({ status: 'pending' })
+      useExecutionStore.getState().setExecution(execution)
+
+      expect(useExecutionStore.getState().visualization?.status).toBe('pending')
+
+      useExecutionStore.getState().applyExecutionPatch(
+        [{ op: 'replace', path: '/status', value: 'running' }],
+        'event-1'
+      )
+
+      expect(useExecutionStore.getState().visualization?.status).toBe('running')
+      expect(useExecutionStore.getState().lastEventId).toBe('event-1')
+    })
+
+    it('updates status from running to paused', () => {
+      const execution = createMockExecution({ status: 'running' })
+      useExecutionStore.getState().setExecution(execution)
+
+      useExecutionStore.getState().applyExecutionPatch(
+        [{ op: 'replace', path: '/status', value: 'paused' }],
+        'event-2'
+      )
+
+      expect(useExecutionStore.getState().visualization?.status).toBe('paused')
+    })
+
+    it('no-ops when visualization is null', () => {
+      useExecutionStore.getState().reset()
+
+      useExecutionStore.getState().applyExecutionPatch(
+        [{ op: 'replace', path: '/status', value: 'running' }],
+        'event-3'
+      )
+
+      expect(useExecutionStore.getState().visualization).toBeNull()
+    })
+
+    it('ignores non-status paths', () => {
+      const execution = createMockExecution({ status: 'running' })
+      useExecutionStore.getState().setExecution(execution)
+
+      useExecutionStore.getState().applyExecutionPatch(
+        [{ op: 'replace', path: '/unknown_field', value: 'something' }],
+        'event-4'
+      )
+
+      expect(useExecutionStore.getState().visualization?.status).toBe('running')
+      expect(useExecutionStore.getState().lastEventId).toBe('event-4')
+    })
+
+    it('preserves other visualization fields when updating status', () => {
+      const execution = createMockExecution({ status: 'pending' })
+      useExecutionStore.getState().setExecution(execution)
+
+      useExecutionStore.getState().applyExecutionPatch(
+        [{ op: 'replace', path: '/status', value: 'running' }],
+        'event-5'
+      )
+
+      const viz = useExecutionStore.getState().visualization
+      expect(viz?.status).toBe('running')
+      expect(viz?.executionId).toBe('exec-123')
+      expect(viz?.workflowId).toBe('workflow-456')
+      expect(viz?.activities.size).toBe(3)
+    })
+  })
 })

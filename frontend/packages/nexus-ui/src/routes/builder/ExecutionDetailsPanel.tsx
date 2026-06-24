@@ -30,6 +30,7 @@ import type { ActivityState } from '../workflows/execution/types'
 import {
   useExecutionStore,
   useExecutionStoreActions,
+  useExecutionWithLiveStatus,
   type ExecutionMetadata,
 } from '../workflows/stores/useExecutionStore'
 
@@ -388,7 +389,7 @@ export function ExecutionDetailsPanel({
     },
   })
 
-  const execution = executionQuery.data
+  const execution = useExecutionWithLiveStatus(executionQuery.data)
   const executionStatus = execution?.status
   const isRunning = executionStatus === 'running' || executionStatus === 'pending' || executionStatus === 'paused'
   const startedAtValue = execution?.created_at ?? null

@@ -30,7 +30,7 @@ import { buildFilterParams } from '../../utils/filterUtils'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
 import { WorkflowHistoryCard } from '../builder/WorkflowHistoryCard'
-import { useExecutionStore } from '../workflows/stores/useExecutionStore'
+import { useExecutionStore, useExecutionWithLiveStatus } from '../workflows/stores/useExecutionStore'
 
 import { ApprovalSidePanel } from './ApprovalSidePanel'
 import { ConnectionBanner } from './ConnectionBanner'
@@ -267,7 +267,7 @@ export default function ExecutionDetail() {
     enabled: !!executionId,
   })
 
-  const execution = executionQuery.data
+  const execution = useExecutionWithLiveStatus(executionQuery.data)
 
   useExecutionStreaming(executionId, execution)
 
