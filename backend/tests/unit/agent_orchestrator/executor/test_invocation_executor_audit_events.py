@@ -22,8 +22,9 @@ from nexus.agent_orchestrator.executor.invocation_executor import InvocationExec
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
-from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventStatus
+from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
 from nexus.core.config.base import get_settings
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -180,11 +181,11 @@ class TestInvocationExecutorLifecycleEvents:
         if user is not None:
             expected_actor_id: UUID = user.id
             expected_actor_username: str = user.username
-            expected_actor_type: ActorType = ActorType.USER
+            expected_actor_type: PrincipalType = PrincipalType.USER
         else:
             expected_actor_id = get_settings().system_user_id
             expected_actor_username = "system"
-            expected_actor_type = ActorType.SYSTEM
+            expected_actor_type = PrincipalType.SYSTEM
 
         # Verify events: RUNNING, COMPLETED
         assert len(events) == 2
@@ -260,13 +261,13 @@ class TestInvocationExecutorLifecycleEvents:
         assert lifecycle_events[0].event_action == "invocation_running"
         assert lifecycle_events[0].actor_id == user.id
         assert lifecycle_events[0].actor_username == user.username
-        assert lifecycle_events[0].actor_type == ActorType.USER
+        assert lifecycle_events[0].actor_type == PrincipalType.USER
 
         assert lifecycle_events[1].event_action == "invocation_cancelled"
         assert lifecycle_events[1].structured_data.invocation_status == InvocationStatus.CANCELLED  # type: ignore[attr-defined]
         assert lifecycle_events[1].actor_id == user.id
         assert lifecycle_events[1].actor_username == user.username
-        assert lifecycle_events[1].actor_type == ActorType.USER
+        assert lifecycle_events[1].actor_type == PrincipalType.USER
 
     @pytest.mark.asyncio
     async def test_execute_orchestration_emits_failed_event_on_exception(self) -> None:
@@ -296,14 +297,14 @@ class TestInvocationExecutorLifecycleEvents:
         assert lifecycle_events[0].event_action == "invocation_running"
         assert lifecycle_events[0].actor_id == user.id
         assert lifecycle_events[0].actor_username == user.username
-        assert lifecycle_events[0].actor_type == ActorType.USER
+        assert lifecycle_events[0].actor_type == PrincipalType.USER
 
         assert lifecycle_events[1].event_action == "invocation_failed"
         assert lifecycle_events[1].structured_data.invocation_status == InvocationStatus.FAILED  # type: ignore[attr-defined]
         assert lifecycle_events[1].structured_data.error_type == "RuntimeError"
         assert lifecycle_events[1].actor_id == user.id
         assert lifecycle_events[1].actor_username == user.username
-        assert lifecycle_events[1].actor_type == ActorType.USER
+        assert lifecycle_events[1].actor_type == PrincipalType.USER
 
     @pytest.mark.asyncio
     async def test_execute_orchestration_includes_model_name_in_completed_event(self) -> None:
@@ -338,7 +339,7 @@ class TestInvocationExecutorLifecycleEvents:
         assert completed_events[0].structured_data.model_name == "gpt-4"  # type: ignore[attr-defined]
         assert completed_events[0].actor_id == user.id
         assert completed_events[0].actor_username == user.username
-        assert completed_events[0].actor_type == ActorType.USER
+        assert completed_events[0].actor_type == PrincipalType.USER
 
     @pytest.mark.asyncio
     async def test_execute_orchestration_no_cancelled_event_on_invocation_cancelled_error(self) -> None:
@@ -372,7 +373,7 @@ class TestInvocationExecutorLifecycleEvents:
         assert lifecycle_events[0].event_action == "invocation_running"
         assert lifecycle_events[0].actor_id == user.id
         assert lifecycle_events[0].actor_username == user.username
-        assert lifecycle_events[0].actor_type == ActorType.USER
+        assert lifecycle_events[0].actor_type == PrincipalType.USER
 
     @pytest.mark.asyncio
     async def test_handle_execution_error_emits_failed_event(self) -> None:
@@ -437,7 +438,7 @@ class TestInvocationExecutorLifecycleEvents:
         assert lifecycle_events[0].event_action == "invocation_running"
         assert lifecycle_events[0].actor_id == user.id
         assert lifecycle_events[0].actor_username == user.username
-        assert lifecycle_events[0].actor_type == ActorType.USER
+        assert lifecycle_events[0].actor_type == PrincipalType.USER
 
         # Event 2: FAILED (triggered by _fail_invocation_status_if_not_cancelled)
         assert lifecycle_events[1].event_action == "invocation_failed"
@@ -447,7 +448,7 @@ class TestInvocationExecutorLifecycleEvents:
         assert lifecycle_events[1].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
         assert lifecycle_events[1].actor_id == user.id
         assert lifecycle_events[1].actor_username == user.username
-        assert lifecycle_events[1].actor_type == ActorType.USER
+        assert lifecycle_events[1].actor_type == PrincipalType.USER
 
     @pytest.mark.asyncio
     async def test_handle_execution_error_no_failed_event_when_cancelled(self) -> None:
@@ -516,7 +517,7 @@ class TestInvocationExecutorLifecycleEvents:
         assert lifecycle_events[0].event_action == "invocation_running"
         assert lifecycle_events[0].actor_id == user.id
         assert lifecycle_events[0].actor_username == user.username
-        assert lifecycle_events[0].actor_type == ActorType.USER
+        assert lifecycle_events[0].actor_type == PrincipalType.USER
 
     @pytest.mark.asyncio
     async def test_invocation_lifecycle_events_includes_context_identifiers(self) -> None:

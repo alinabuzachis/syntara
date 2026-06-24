@@ -11,8 +11,9 @@ from nexus.aap.audit.aap_resource_access import (
     AAPResourceType,
 )
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 
 
 class TestAAPResourceAccessEvent:
@@ -80,7 +81,7 @@ class TestAAPResourceAccessHandler:
         assert result.source_component == "nexus.aap"
         assert result.resource_urn == "urn:nexus:aap:organizations"
         assert result.actor_id == user_id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "testuser"
         assert result.resource_name is None
         assert "5 results" in result.event_message
@@ -194,7 +195,7 @@ class TestAAPResourceAccessHandler:
         assert "0 results" in result.event_message
 
     def test_no_user_id_actor_type_system(self) -> None:
-        """No user_id -> actor_type=SYSTEM."""
+        """No user_id -> actor_type=SYSTEM (consistent with peer handlers)."""
         event = AAPResourceAccessEvent(
             resource_type=AAPResourceType.ORGANIZATIONS,
             action=AAPAccessAction.LIST,
@@ -202,7 +203,7 @@ class TestAAPResourceAccessHandler:
         )
         result = AAPResourceAccessHandler().handle(event)
 
-        assert result.actor_type == ActorType.SYSTEM
+        assert result.actor_type == PrincipalType.SYSTEM
         assert result.actor_id is None
 
     def test_resource_urn_format_list(self) -> None:

@@ -16,6 +16,7 @@ from sqlmodel import JSON, DateTime, Field, Index
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource
+from nexus.core.models.principal import PrincipalType
 
 
 class AuthType(StrEnum):
@@ -50,6 +51,7 @@ class User(SoftDeletableResource, table=True):
     """
 
     __tablename__ = "users"
+    __principal_type__: ClassVar[PrincipalType] = PrincipalType.USER
 
     id: UUID = Field(
         default_factory=uuid4,

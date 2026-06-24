@@ -31,12 +31,19 @@ if TYPE_CHECKING:
 
 
 class PrincipalType(StrEnum):
-    """Types that get rows in the principals table (class-table inheritance)."""
+    """Types that get rows in the principals table (class-table inheritance).
+
+    Most types correspond 1:1 to a child table (USER → ``users``,
+    SERVICE_ACCOUNT → ``service_accounts``).  SYSTEM is the exception:
+    the system user's row lives in ``users``, but its principal_type is
+    SYSTEM so audit attribution can distinguish automated actions from
+    human-user actions without inspecting the actor_id.
+    """
 
     USER = "user"
     SERVICE_ACCOUNT = "service_account"
-    # Not implemented yet. Possible future types:
-    #   - SYSTEM: for automated/system-initiated actions (see AAP-74264)
+    SYSTEM = "system"
+    # Not implemented yet. Possible future type:
     #   - DELETED_USER: sentinel for hard-deleted users, so created_by/updated_by
     #     FKs remain valid and the audit trail records "done by a removed user"
 
@@ -68,29 +75,22 @@ class Principal(SQLModel, table=True):
         return cls(id=sa_id, principal_type=PrincipalType.SERVICE_ACCOUNT)
 
 
-_PRINCIPAL_SUBTYPES: dict[str, PrincipalType] = {}
-
-
-def _register_principal_subtype(tablename: str, principal_type: PrincipalType) -> None:
-    """Register a model's tablename as a principal subtype for auto-creation."""
-    _PRINCIPAL_SUBTYPES[tablename] = principal_type
-
-
 def _before_flush(session: Session, _flush_context: object, _instances: object) -> None:
     """Auto-create Principal rows for new principal subtypes before flush.
 
-    Uses a Core INSERT (bypassing the ORM unit-of-work) so the row
-    exists before SQLAlchemy flushes the subtype. This sidesteps the
-    flush-ordering problem where SQLAlchemy cannot detect the FK
-    dependency when the PK itself is the FK.
+    Any model with a ``__principal_type__`` ClassVar is treated as a
+    principal subtype.  Uses a Core INSERT (bypassing the ORM
+    unit-of-work) so the row exists before SQLAlchemy flushes the
+    subtype.  This sidesteps the flush-ordering problem where
+    SQLAlchemy cannot detect the FK dependency when the PK itself is
+    the FK.
     """
     from sqlalchemy.dialects.postgresql import insert as pg_insert  # noqa: PLC0415
 
     existing_principal_ids = {obj.id for obj in session.new if isinstance(obj, Principal)}
     for obj in list(session.new):
-        tablename = getattr(obj, "__tablename__", None)
-        if tablename in _PRINCIPAL_SUBTYPES and obj.id not in existing_principal_ids:
-            principal_type = _PRINCIPAL_SUBTYPES[tablename]
+        principal_type = getattr(obj, "__principal_type__", None)
+        if principal_type is not None and obj.id not in existing_principal_ids:
             stmt = pg_insert(Principal.__table__).values(  # type: ignore[attr-defined]
                 id=obj.id, principal_type=principal_type.value
             )

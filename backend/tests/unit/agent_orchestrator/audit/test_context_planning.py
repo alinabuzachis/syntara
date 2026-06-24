@@ -14,8 +14,9 @@ from nexus.agent_orchestrator.audit.context_planning import (
 )
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -40,7 +41,7 @@ class TestContextPlanningHandler:
             execution_id=execution_id,
             request_id=request_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
         )
 
@@ -54,7 +55,7 @@ class TestContextPlanningHandler:
         assert result.event_message == "Context planning retrieval phase started"
         assert result.source_component == "nexus.agent_orchestrator.context_manager"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
         assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
@@ -80,7 +81,7 @@ class TestContextPlanningHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             document_count=15,
         )
@@ -106,7 +107,7 @@ class TestContextPlanningHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             error_type="TokenLimitExceeded",
         )
@@ -250,7 +251,7 @@ class TestCancellationHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
         )
 
@@ -264,7 +265,7 @@ class TestCancellationHandler:
         assert result.event_message == "Invocation cancelled during retrieval phase"
         assert result.source_component == "nexus.agent_orchestrator.context_manager"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
         assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"

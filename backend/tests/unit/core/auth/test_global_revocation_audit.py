@@ -3,7 +3,6 @@
 from uuid import uuid4
 
 from nexus.audit.models.audit_event import (
-    ActorType,
     EventCategory,
     EventSeverity,
     EventStatus,
@@ -14,6 +13,7 @@ from nexus.auth.audit.global_revocation import (
     GlobalRevocationRejectEvent,
     GlobalRevocationRejectHandler,
 )
+from nexus.core.models.principal import PrincipalType
 
 
 class TestGlobalRevocationHandler:
@@ -33,7 +33,7 @@ class TestGlobalRevocationHandler:
         assert audit_event.event_severity == EventSeverity.CRITICAL
         assert audit_event.event_status == EventStatus.SUCCESS
         assert audit_event.event_action == "global_token_revocation"
-        assert audit_event.actor_type == ActorType.USER
+        assert audit_event.actor_type == PrincipalType.USER
         assert audit_event.actor_username == "admin-cli"
         assert "admin-cli" in audit_event.event_message
         assert "cli" in audit_event.event_message

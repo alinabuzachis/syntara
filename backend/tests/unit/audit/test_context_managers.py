@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.audit.context_managers import actor_context, audit_context
+from nexus.audit.context_managers import _build_actor_context, actor_context, audit_context
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
@@ -22,7 +22,6 @@ from nexus.audit.emitter import (
 from nexus.audit.events.audit_context import AuditContextEvent, AuditContextHandler
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
@@ -30,6 +29,7 @@ from nexus.audit.models.audit_event import (
 )
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import REDACTED
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -59,7 +59,7 @@ class TestActorContext:
             assert _actor_context is not None
             assert _actor_context.actor_id == test_user.id
             assert _actor_context.actor_username == test_user.username
-            assert _actor_context.actor_type == ActorType.USER
+            assert _actor_context.actor_type == PrincipalType.USER
             assert workflow_id_context_var.get() == test_workflow_id
             assert activity_id_context_var.get() == test_activity_id
             assert execution_id_context_var.get() == test_execution_id
@@ -80,7 +80,7 @@ class TestActorContext:
         assert request_id_context_var.get() is None
 
     async def test_actor_context_system_actor_with_all_context(self) -> None:
-        """Test actor_context with no user (SYSTEM) and full context IDs.
+        """Test actor_context with no user (None) and full context IDs.
 
         This mirrors the Temporal worker use case where workflow metadata
         provides execution context but there is no human actor.
@@ -100,7 +100,7 @@ class TestActorContext:
             assert _actor_context is not None
             assert _actor_context.actor_id is None
             assert _actor_context.actor_username is None
-            assert _actor_context.actor_type == ActorType.SYSTEM
+            assert _actor_context.actor_type is None
             assert workflow_id_context_var.get() == test_workflow_id
             assert execution_id_context_var.get() == test_execution_id
             assert request_id_context_var.get() == test_request_id
@@ -113,13 +113,13 @@ class TestActorContext:
         assert activity_id_context_var.get() is None
 
     async def test_actor_context_with_defaults(self) -> None:
-        """Test actor_context with default values (actor=None means SYSTEM)."""
+        """Test actor_context with default values (actor=None means None)."""
         with actor_context():
             ctx = actor_context_var.get()
             assert ctx is not None
             assert ctx.actor_id is None
             assert ctx.actor_username is None
-            assert ctx.actor_type == ActorType.SYSTEM
+            assert ctx.actor_type is None
             assert workflow_id_context_var.get() is None
             assert activity_id_context_var.get() is None
             assert execution_id_context_var.get() is None
@@ -139,7 +139,7 @@ class TestActorContext:
             assert _actor_context is not None
             assert _actor_context.actor_id == test_user.id
             assert _actor_context.actor_username == test_user.username
-            assert _actor_context.actor_type == ActorType.USER
+            assert _actor_context.actor_type == PrincipalType.USER
             raise ValueError(error_msg)
 
         # Assert - context should be reset even after exception
@@ -172,21 +172,21 @@ class TestActorContext:
             assert _actor_context is not None
             assert _actor_context.actor_id == test_user.id
             assert _actor_context.actor_username == test_user.username
-            assert _actor_context.actor_type == ActorType.USER
+            assert _actor_context.actor_type == PrincipalType.USER
 
             with actor_context(actor=inner_user):
                 _actor_context_inner = actor_context_var.get()
                 assert _actor_context_inner is not None
                 assert _actor_context_inner.actor_id == inner_user.id
                 assert _actor_context_inner.actor_username == inner_user.username
-                assert _actor_context_inner.actor_type == ActorType.USER
+                assert _actor_context_inner.actor_type == PrincipalType.USER
 
             # Should restore outer context
             _actor_context_final = actor_context_var.get()
             assert _actor_context_final is not None
             assert _actor_context_final.actor_id == test_user.id
             assert _actor_context_final.actor_username == test_user.username
-            assert _actor_context_final.actor_type == ActorType.USER
+            assert _actor_context_final.actor_type == PrincipalType.USER
 
         # Should restore original context
         assert actor_context_var.get() is None
@@ -214,7 +214,7 @@ class TestActorContextSystemUserClassification:
             assert _actor_context is not None
             assert _actor_context.actor_id == settings.system_user_id
             assert _actor_context.actor_username == "system_user"
-            assert _actor_context.actor_type == ActorType.SYSTEM
+            assert _actor_context.actor_type == PrincipalType.SYSTEM
 
         assert actor_context_var.get() is None
 
@@ -231,9 +231,53 @@ class TestActorContextSystemUserClassification:
             assert _actor_context is not None
             assert _actor_context.actor_id == test_user.id
             assert _actor_context.actor_username == test_user.username
-            assert _actor_context.actor_type == ActorType.USER
+            assert _actor_context.actor_type == PrincipalType.USER
 
         assert actor_context_var.get() is None
+
+
+class TestBuildActorContextDuckTyping:
+    """Test _build_actor_context duck-typing branch for non-User principals."""
+
+    def test_service_account_uses_principal_type_and_name(self) -> None:
+        """ServiceAccount has __principal_type__ and name but no username."""
+        from nexus.service_accounts.models.service_account import ServiceAccount
+
+        sa = ServiceAccount(
+            name="my-bot",
+            client_id="cid-test",
+            hashed_secret="not-real",  # noqa: S106
+            project_id=uuid4(),
+            created_by=uuid4(),
+        )
+        ctx = _build_actor_context(sa)
+
+        assert ctx.actor_id == sa.id
+        assert ctx.actor_type == PrincipalType.SERVICE_ACCOUNT
+        assert ctx.actor_username == "my-bot"
+
+    def test_falls_through_to_name_when_username_is_empty(self) -> None:
+        """If a principal has username='' the or-chain falls through to name."""
+        from nexus.service_accounts.models.service_account import ServiceAccount
+
+        sa = ServiceAccount(
+            name="fallback-name",
+            client_id="cid-test2",
+            hashed_secret="not-real",  # noqa: S106
+            project_id=uuid4(),
+            created_by=uuid4(),
+        )
+        sa.__dict__["username"] = ""
+        ctx = _build_actor_context(sa)
+
+        assert ctx.actor_username == "fallback-name"
+        assert ctx.actor_type == PrincipalType.SERVICE_ACCOUNT
+
+    def test_none_actor_returns_all_none(self) -> None:
+        ctx = _build_actor_context(None)
+        assert ctx.actor_id is None
+        assert ctx.actor_username is None
+        assert ctx.actor_type is None
 
 
 class TestAuditContextSystemUserClassification:
@@ -271,7 +315,7 @@ class TestAuditContextSystemUserClassification:
         assert isinstance(emitted_event, AuditEvent)
         assert emitted_event.actor_id == settings.system_user_id
         assert emitted_event.actor_username == "system_user"
-        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_type == PrincipalType.SYSTEM
         assert emitted_event.event_status == EventStatus.SUCCESS
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -297,7 +341,7 @@ class TestAuditContextSystemUserClassification:
         assert isinstance(emitted_event, AuditEvent)
         assert emitted_event.actor_id == test_user.id
         assert emitted_event.actor_username == test_user.username
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.event_status == EventStatus.SUCCESS
 
 
@@ -336,7 +380,7 @@ class TestAuditContext:
         assert emitted_event.event_message == "Operation test_action completed successfully"
         assert emitted_event.source_component == "test.component"
         assert emitted_event.actor_id == test_user.id
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.actor_username == test_user.username
 
         assert emitted_event.event_status == EventStatus.SUCCESS
@@ -421,7 +465,7 @@ class TestAuditContext:
         test_context_data: dict[str, Any] = {"test_field": "test_value"}
         error_msg = "test error"
 
-        # Act & Assert - Use actor=None for SYSTEM type
+        # Act & Assert - Use actor=None (no actor)
         with (
             pytest.raises(ValueError, match="test error"),
             audit_context(
@@ -445,7 +489,7 @@ class TestAuditContext:
         assert emitted_event.event_action == "test_action_error"
         assert emitted_event.event_message == "Operation test_action failed with ValueError"
         assert emitted_event.source_component == "test.component"
-        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_type is None
         assert emitted_event.actor_username is None
 
         assert emitted_event.event_status == EventStatus.ERROR
@@ -526,7 +570,7 @@ class TestAuditContext:
 
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
-        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_type is None
         assert emitted_event.actor_username is None
         # Should only have base fields (data_type, error_type, error_message with defaults)
         structured_dict = emitted_event.structured_data.model_dump()
@@ -708,7 +752,7 @@ class TestContextManagersWithTrackEventDecorator:
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_id == test_user.id
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.actor_username == test_user.username
         assert isinstance(emitted_event.structured_data, AuditContextData)
         assert emitted_event.structured_data.function_args == {"param1": "test_value"}
@@ -741,14 +785,14 @@ class TestContextManagersWithTrackEventDecorator:
         decorator_event = mock_emit.call_args_list[0][0][0]
         assert decorator_event.event_category == EventCategory.API_EXECUTION
         assert decorator_event.event_action == "test_function"
-        assert decorator_event.actor_type == ActorType.USER
+        assert decorator_event.actor_type == PrincipalType.USER
         assert decorator_event.actor_username == test_user.username
 
         # Verify context manager event (second call, index 1)
         context_event = mock_emit.call_args_list[1][0][0]
         assert context_event.event_category == EventCategory.SYSTEM_OPERATION
         assert context_event.event_action == "wrapper_operation"
-        assert context_event.actor_type == ActorType.USER
+        assert context_event.actor_type == PrincipalType.USER
         assert context_event.event_status == EventStatus.SUCCESS
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -761,7 +805,7 @@ class TestContextManagersWithTrackEventDecorator:
         def test_function() -> str:
             raise RuntimeError(error_msg)
 
-        # Act & Assert - Use actor=None for SERVICE type
+        # Act & Assert - Use actor=None (no actor)
         with (
             pytest.raises(RuntimeError, match="function error"),
             audit_context(
@@ -781,14 +825,14 @@ class TestContextManagersWithTrackEventDecorator:
         decorator_event = mock_emit.call_args_list[0][0][0]
         assert decorator_event.event_category == EventCategory.API_EXECUTION
         assert decorator_event.event_action == "test_function_error"
-        assert decorator_event.actor_type == ActorType.SYSTEM
+        assert decorator_event.actor_type is None
         assert decorator_event.actor_username is None
 
         # Verify context manager error event (second call, index 1)
         context_event = mock_emit.call_args_list[1][0][0]
         assert context_event.event_category == EventCategory.SYSTEM_OPERATION
         assert context_event.event_action == "wrapper_operation_error"
-        assert context_event.actor_type == ActorType.SYSTEM
+        assert context_event.actor_type is None
         assert context_event.actor_username is None
         assert context_event.event_status == EventStatus.ERROR
         assert context_event.structured_data.error_type == "RuntimeError"
@@ -803,7 +847,7 @@ class TestContextManagersWithTrackEventDecorator:
         def test_function(value: str) -> dict[str, str]:
             return {"result": f"processed_{value}"}
 
-        # Act - Use actor=None for SYSTEM type
+        # Act - Use actor=None (no actor)
         with actor_context(
             actor=None,
             workflow_id=test_workflow_id,
@@ -817,7 +861,7 @@ class TestContextManagersWithTrackEventDecorator:
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_id is None
-        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_type is None
         assert emitted_event.actor_username is None
         assert emitted_event.workflow_id == test_workflow_id
         assert isinstance(emitted_event.structured_data, AuditContextData)
@@ -832,7 +876,7 @@ class TestContextManagersWithTrackEventDecorator:
         async def async_test_function(param: str) -> str:
             return f"async_result_{param}"
 
-        # Act - Use actor=None for SYSTEM type
+        # Act - Use actor=None (no actor)
         with actor_context(actor=None):
             result = await async_test_function("test")
 
@@ -843,7 +887,7 @@ class TestContextManagersWithTrackEventDecorator:
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_id is None
-        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_type is None
         assert emitted_event.actor_username is None
         assert emitted_event.event_action == "async_test_function"
 
@@ -868,7 +912,7 @@ class TestActorContextSanitizationAndTruncation:
             test_function("my_secret_key", "alice")
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.actor_username == test_user.username
         function_data = emitted_event.structured_data
         assert isinstance(function_data, AuditContextData)
@@ -891,7 +935,7 @@ class TestActorContextSanitizationAndTruncation:
             test_function()
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.actor_username == test_user.username
         function_data = emitted_event.structured_data
         assert isinstance(function_data, AuditContextData)
@@ -923,7 +967,7 @@ class TestAuditContextSanitizationAndTruncation:
             pass
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.actor_username == test_user.username
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
@@ -976,7 +1020,7 @@ class TestAuditContextSanitizationAndTruncation:
             pass
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.actor_username == test_user.username
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
@@ -1002,7 +1046,7 @@ class TestAuditContextSanitizationAndTruncation:
             pass
 
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.actor_type == PrincipalType.USER
         assert emitted_event.actor_username == test_user.username
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)

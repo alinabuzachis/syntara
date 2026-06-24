@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -124,6 +124,6 @@ class AAPResourceAccessHandler(AuditEventHandler[AAPResourceAccessEvent]):
             resource_urn=resource_urn,
             resource_name=event.resource_name,
             actor_id=event.user_id,
-            actor_type=ActorType.USER if event.user_id else ActorType.SYSTEM,
+            actor_type=PrincipalType.USER if event.user_id else PrincipalType.SYSTEM,
             actor_username=event.username,
         )

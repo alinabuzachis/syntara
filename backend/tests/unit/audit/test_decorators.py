@@ -13,9 +13,10 @@ from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
-from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import REDACTED
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -27,7 +28,7 @@ def _assert_audit_event_fields(
     expected_source: str,
     expected_message: str,
     expected_actor_id: UUID | None = None,
-    expected_actor_type: ActorType = ActorType.SYSTEM,
+    expected_actor_type: PrincipalType | None = None,
     expected_actor_name: str | None = None,
     expected_status: EventStatus | None = EventStatus.SUCCESS,
     expected_workflow_id: UUID | None = None,
@@ -222,7 +223,7 @@ class TestTrackEventDecorator:
                 "Function test_function executed successfully",
                 expected_actor_id=test_user.id,
                 expected_actor_name=test_user.username,
-                expected_actor_type=ActorType.USER,
+                expected_actor_type=PrincipalType.USER,
             )
 
     def test_audit_actor_param_specification(self, test_user: User) -> None:
@@ -246,7 +247,7 @@ class TestTrackEventDecorator:
                 "Function test_function executed successfully",
                 expected_actor_id=test_user.id,
                 expected_actor_name=test_user.username,
-                expected_actor_type=ActorType.USER,
+                expected_actor_type=PrincipalType.USER,
             )
 
     def test_audit_system_actor_default(self) -> None:
@@ -485,7 +486,7 @@ class TestTrackEventDecorator:
 
         # Set context variables
         token_actor = actor_context_var.set(
-            AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+            AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER)
         )
         token_workflow_id = workflow_id_context_var.set(workflow_id)
         token_activity_id = activity_id_context_var.set(activity_id)
@@ -505,7 +506,7 @@ class TestTrackEventDecorator:
                     "tests.unit.audit.test_decorators",
                     "Function test_function executed successfully",
                     expected_actor_id=test_user.id,
-                    expected_actor_type=ActorType.USER,
+                    expected_actor_type=PrincipalType.USER,
                     expected_actor_name=test_user.username,
                     expected_workflow_id=workflow_id,
                     expected_activity_id=activity_id,
@@ -546,9 +547,9 @@ class TestTrackEventEdgeCases:
             assert "outer" in actions
             assert "inner" in actions
 
-            # No actor context set — defaults to SYSTEM
+            # No actor context set — defaults to None
             for call in calls:
-                assert call[0][0].actor_type == ActorType.SYSTEM
+                assert call[0][0].actor_type is None
 
     def test_audit_comprehensive_parameter_usage(self) -> None:
         """Test decorator with all parameters specified."""
@@ -608,7 +609,7 @@ class TestTrackEventEdgeCases:
                 "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
                 expected_actor_id=test_user.id,
-                expected_actor_type=ActorType.USER,
+                expected_actor_type=PrincipalType.USER,
                 expected_actor_name=test_user.username,
             )
 
@@ -657,7 +658,7 @@ class TestTrackEventEdgeCases:
 
             # Verify result was captured correctly
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
             assert function_data.function_result == "processed_test_data"
@@ -680,7 +681,7 @@ class TestTrackEventEdgeCases:
 
             # Verify error event was captured correctly
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             assert event_obj.event_action == "async_function_with_error_error"
             assert "failed with ValueError" in event_obj.event_message
 
@@ -702,7 +703,7 @@ class TestTrackEventEdgeCases:
             test_function("john", "secret123", "login", "abc123")
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -733,7 +734,7 @@ class TestTrackEventEdgeCases:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -765,7 +766,7 @@ class TestTrackEventEdgeCases:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -789,7 +790,7 @@ class TestTrackEventEdgeCases:
             test_function("john", "secret")
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -813,7 +814,7 @@ class TestTrackEventEdgeCases:
             test_function("arg1", "arg2", kwarg1="value1")
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -831,7 +832,7 @@ class TestTrackEventEdgeCases:
             test_function("john", "safe_value")
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -887,9 +888,9 @@ class TestTrackEventEdgeCases:
             ("sync_function", "emitted"),
         ]
 
-        # No actor context set — both events default to SYSTEM
+        # No actor context set — both events default to None
         for call in mock_emit.call_args_list:
-            assert call[0][0].actor_type == ActorType.SYSTEM
+            assert call[0][0].actor_type is None
 
     async def test_audit_async_context_variables_cleanup(self) -> None:
         """Test that async functions properly clean up context variables."""
@@ -904,7 +905,7 @@ class TestTrackEventEdgeCases:
             assert actor_context is not None
             assert actor_context.actor_id is None
             assert actor_context.actor_username is None
-            assert actor_context.actor_type == ActorType.SYSTEM
+            assert actor_context.actor_type is None
             await asyncio.sleep(0)
             return "result"
 
@@ -918,9 +919,9 @@ class TestTrackEventEdgeCases:
         with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             await async_function()
 
-        # Verify emitted event has SYSTEM actor_type
+        # Verify emitted event has no actor_type
         emitted_event = mock_emit.call_args[0][0]
-        assert emitted_event.actor_type == ActorType.SYSTEM
+        assert emitted_event.actor_type is None
 
         # Verify context is restored to initial state
         final_actor_context = None
@@ -943,7 +944,7 @@ class TestTrackEventEdgeCases:
 
             assert result == "Hello World"
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -962,7 +963,7 @@ class TestTrackEventEdgeCases:
 
             assert result == "Hello World"
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -984,7 +985,7 @@ class TestTrackEventEdgeCases:
 
             assert result == "Hello World"
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -1017,7 +1018,7 @@ class TestTrackEventSanitizationAndTruncation:
             test_function("super_secret_123", "alice")
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 
@@ -1039,7 +1040,7 @@ class TestTrackEventSanitizationAndTruncation:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
-            assert event_obj.actor_type == ActorType.SYSTEM
+            assert event_obj.actor_type is None
             function_data = event_obj.structured_data
             assert isinstance(function_data, AuditContextData)
 

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import structlog
 
-from nexus.audit.models.audit_event import ActorType, AuditEvent
 from nexus.audit.outbox.worker import get_outbox_worker
 from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
@@ -16,6 +15,9 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
+
+    from nexus.audit.models.audit_event import AuditEvent
+    from nexus.core.models.principal import PrincipalType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -29,7 +31,7 @@ class AuditActorContext(NamedTuple):
 
     actor_id: UUID | None = None
     actor_username: str | None = None
-    actor_type: ActorType = ActorType.SYSTEM
+    actor_type: PrincipalType | None = None
 
 
 # Context variables for async-safe actor context management

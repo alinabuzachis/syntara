@@ -14,8 +14,9 @@ from nexus.agent_orchestrator.audit.tool_management import (
 )
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -39,7 +40,7 @@ class TestToolDiscoveryHandler:
             execution_id=execution_id,
             request_id=request_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
         )
 
@@ -53,7 +54,7 @@ class TestToolDiscoveryHandler:
         assert result.event_message == "Tool discovery and synchronization started"
         assert result.source_component == "nexus.agent_orchestrator.tool_manager"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
         assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
@@ -77,7 +78,7 @@ class TestToolDiscoveryHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             providers_discovered=3,
             tools_discovered=15,
@@ -113,7 +114,7 @@ class TestToolDiscoveryHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             error_type="ToolManagerConnectionError",
         )
@@ -252,7 +253,7 @@ class TestToolInvocationHandler:
             execution_id=execution_id,
             request_id=request_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
         )
 
@@ -266,7 +267,7 @@ class TestToolInvocationHandler:
         assert result.event_message == "Tool invocation started: read_file"
         assert result.source_component == "nexus.agent_orchestrator.tool_manager"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
         assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
@@ -292,7 +293,7 @@ class TestToolInvocationHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             tool_input={"command": "ls -la"},
             tool_output="total 128\ndrwxr-xr-x  5 user  staff  160 May 26 10:00 .",
@@ -319,7 +320,7 @@ class TestToolInvocationHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             error_type="PermissionDenied",
         )

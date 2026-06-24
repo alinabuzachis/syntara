@@ -5,10 +5,11 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from nexus.audit.models.audit_event import ActorType, EventSeverity
+from nexus.audit.models.audit_event import EventSeverity
 from nexus.audit.utils import escalate_actor_type, escalate_actor_type_from_jwt, escalate_severity
 from nexus.core.auth.jwt_utils import ActorClaims
 from nexus.core.config.base import get_settings
+from nexus.core.models.principal import PrincipalType
 
 
 class TestEscalateSeverity:
@@ -73,30 +74,30 @@ class TestEscalateActorTypeFromJwt:
     """Unit tests for ``escalate_actor_type_from_jwt``.
 
     Validates that service tokens (amr containing "service") are classified
-    as ActorType.SYSTEM while all other tokens are ActorType.USER.
+    as PrincipalType.SERVICE_ACCOUNT while all other tokens are PrincipalType.USER.
     """
 
     @pytest.mark.parametrize(
         ("amr", "expected"),
         [
-            # Service tokens → SYSTEM
-            (["service"], ActorType.SYSTEM),
-            (["service", "mfa"], ActorType.SYSTEM),
-            (["mfa", "service"], ActorType.SYSTEM),
+            # Service tokens → SERVICE_ACCOUNT
+            (["service"], PrincipalType.SERVICE_ACCOUNT),
+            (["service", "mfa"], PrincipalType.SERVICE_ACCOUNT),
+            (["mfa", "service"], PrincipalType.SERVICE_ACCOUNT),
             # Non-service tokens → USER
-            (None, ActorType.USER),
-            ([], ActorType.USER),
-            (["pwd"], ActorType.USER),
-            (["pwd", "mfa"], ActorType.USER),
-            (["mfa"], ActorType.USER),
+            (None, PrincipalType.USER),
+            ([], PrincipalType.USER),
+            (["pwd"], PrincipalType.USER),
+            (["pwd", "mfa"], PrincipalType.USER),
+            (["mfa"], PrincipalType.USER),
         ],
     )
     def test_escalate_actor_type_from_jwt(
         self,
         amr: list[str] | None,
-        expected: ActorType,
+        expected: PrincipalType,
     ) -> None:
-        """Service tokens return SYSTEM, all others return USER."""
+        """Service tokens return SERVICE_ACCOUNT, all others return USER."""
         actor_claims = ActorClaims(
             actor_id=uuid4(),
             actor_username="test-user",
@@ -109,27 +110,27 @@ class TestEscalateActorType:
     """Unit tests for ``escalate_actor_type``.
 
     Validates that the configured system user ID is classified as
-    ActorType.SYSTEM while all other user IDs are ActorType.USER.
+    PrincipalType.SYSTEM while all other user IDs are PrincipalType.USER.
     """
 
     @pytest.mark.parametrize(
         ("actor_id", "expected"),
         [
             # System user → SYSTEM
-            (get_settings().system_user_id, ActorType.SYSTEM),
+            (get_settings().system_user_id, PrincipalType.SYSTEM),
             # Regular users → USER
-            (uuid4(), ActorType.USER),
-            (UUID("00000000-0000-0000-0000-000000000000"), ActorType.USER),
+            (uuid4(), PrincipalType.USER),
+            (UUID("00000000-0000-0000-0000-000000000000"), PrincipalType.USER),
         ],
     )
     def test_escalate_actor_type(
         self,
         actor_id: UUID,
-        expected: ActorType,
+        expected: PrincipalType,
     ) -> None:
         """System user returns SYSTEM, all others return USER."""
         # Skip the regular user test if it happens to match system_user_id
-        if actor_id != get_settings().system_user_id and expected == ActorType.SYSTEM:
+        if actor_id != get_settings().system_user_id and expected == PrincipalType.SYSTEM:
             pytest.skip("Test UUID randomly matched system_user_id")
 
         assert escalate_actor_type(actor_id) == expected

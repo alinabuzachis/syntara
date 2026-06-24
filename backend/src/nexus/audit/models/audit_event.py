@@ -12,6 +12,7 @@ from uuid_utils import uuid7 as _uuid7_native
 
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.constants import FieldLimits
+from nexus.core.models.principal import PrincipalType
 
 
 def _uuid7() -> UUID:
@@ -63,14 +64,6 @@ class EventStatus(StrEnum):
     ERROR = "error"
 
 
-class ActorType(StrEnum):
-    """Types of actors that can perform audited actions."""
-
-    USER = "user"
-    SYSTEM = "system"
-    SERVICE = "service"
-
-
 class AuditEvent(SQLModel):
     """Audit event model for tracking system activities and user actions."""
 
@@ -83,7 +76,7 @@ class AuditEvent(SQLModel):
 
     # Actor and source information
     actor_id: UUID | None = Field(default=None, description="User/system/service that performed action")
-    actor_type: ActorType | None = Field(default=None, description="Type of actor (user|system|service)")
+    actor_type: PrincipalType | None = Field(default=None, description="Type of actor (user|system|service_account)")
     actor_username: str | None = Field(default=None, description="Username of the actor")
     source_component: str = Field(description="Component that generated event")
     resource_urn: str | None = Field(

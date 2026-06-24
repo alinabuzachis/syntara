@@ -53,7 +53,7 @@ def register_sqlalchemy_events() -> None:
     - Audit context propagation (Postgres session variables)
     - Auto-creation of Principal rows for principal subtypes
     """
-    from nexus.core.models.principal import PrincipalType, _before_flush, _register_principal_subtype  # noqa: PLC0415
+    from nexus.core.models.principal import _before_flush  # noqa: PLC0415
 
     target = AsyncSession.sync_session_class
 
@@ -62,9 +62,6 @@ def register_sqlalchemy_events() -> None:
         event.listen(target, "before_flush", set_audit_context)
     if not event.contains(target, "before_flush", _before_flush):
         event.listen(target, "before_flush", _before_flush)
-
-    _register_principal_subtype("users", PrincipalType.USER)
-    _register_principal_subtype("service_accounts", PrincipalType.SERVICE_ACCOUNT)
 
 
 def set_audit_context(session: Session, _flush_context: object, _instances: object) -> None:

@@ -8,13 +8,13 @@ from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 
 # ---------------------------------------------------------------------------
 # Helper types
@@ -99,7 +99,7 @@ class SessionLifecycleHandler(AuditEventHandler[SessionLifecycleEvent]):
             source_component="nexus.auth.session",
             structured_data=data,
             actor_id=event.user_id,
-            actor_type=ActorType.USER,
+            actor_type=PrincipalType.USER,
             actor_username=event.username,
             resource_urn=f"urn:nexus:user:{quote(resource_identifier, safe='')}",
             resource_name=resource_identifier,

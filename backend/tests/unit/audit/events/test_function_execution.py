@@ -5,9 +5,10 @@ from nexus.audit.emitter import AuditActorContext
 # mypy: disable-error-code="attr-defined"
 from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import REDACTED
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -26,7 +27,7 @@ class TestFunctionExecutionHandler:
             event_action="create_workflow",
             source_component="workflows.service",
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             event_severity=EventSeverity.INFO,
             function_args={"name": "test_workflow", "type": "sequential"},
@@ -45,7 +46,7 @@ class TestFunctionExecutionHandler:
         assert result.event_message == "Function create_workflow executed successfully"
         assert result.source_component == "workflows.service"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
 
         assert isinstance(result.structured_data, AuditContextData)
@@ -55,13 +56,13 @@ class TestFunctionExecutionHandler:
         assert result.structured_data.error_type is None
         assert result.structured_data.error_message is None
 
-    def test_successful_execution_system_actor(self) -> None:
-        """Successful function execution with SYSTEM actor produces SUCCESS status."""
+    def test_successful_execution_no_actor(self) -> None:
+        """Successful function execution with no actor produces SUCCESS status."""
         event = FunctionExecutionEvent(
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="scheduled_cleanup",
             source_component="maintenance.service",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.INFO,
             function_args={"retention_days": 30},
             function_result={"deleted_count": 42},
@@ -79,7 +80,7 @@ class TestFunctionExecutionHandler:
         assert result.event_message == "Function scheduled_cleanup executed successfully"
         assert result.source_component == "maintenance.service"
         assert result.actor_id is None
-        assert result.actor_type == ActorType.SYSTEM
+        assert result.actor_type is None
         assert result.actor_username is None
 
         assert isinstance(result.structured_data, AuditContextData)
@@ -94,7 +95,7 @@ class TestFunctionExecutionHandler:
             event_action="delete_workflow",
             source_component="workflows.service",
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             event_severity=EventSeverity.INFO,
             function_args={"workflow_id": "wf-456"},
@@ -113,7 +114,7 @@ class TestFunctionExecutionHandler:
         assert result.event_message == "Function delete_workflow failed with WorkflowNotFoundError"
         assert result.source_component == "workflows.service"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
 
         assert isinstance(result.structured_data, AuditContextData)
@@ -130,7 +131,7 @@ class TestFunctionExecutionHandler:
             event_category=EventCategory.API_EXECUTION,
             event_action="fetch_data",
             source_component="api.client",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.INFO,
             function_args={},
             error_type="ConnectionError",
@@ -148,7 +149,7 @@ class TestFunctionExecutionHandler:
             event_category=EventCategory.API_EXECUTION,
             event_action="fetch_data",
             source_component="api.client",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.WARNING,
             function_args={},
             error_type="TimeoutError",
@@ -166,7 +167,7 @@ class TestFunctionExecutionHandler:
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="backup_database",
             source_component="backup.service",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.CRITICAL,
             function_args={},
             error_type="DatabaseConnectionError",
@@ -185,7 +186,7 @@ class TestFunctionExecutionHandler:
             event_category=EventCategory.SECURITY_EVENT,
             event_action="validate_token",
             source_component="auth.service",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.WARNING,
             function_args={"token": REDACTED},
             function_result={"valid": True, "expires_soon": True},
@@ -205,7 +206,7 @@ class TestFunctionExecutionHandler:
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="health_check",
             source_component="health.service",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.INFO,
             function_args={},
             function_result={"status": "healthy"},
@@ -226,7 +227,7 @@ class TestFunctionExecutionHandler:
             event_category=EventCategory.USER_ACTION,
             event_action="log_event",
             source_component="logging.service",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.INFO,
             function_args={"message": "test"},
             function_result=None,
@@ -249,7 +250,7 @@ class TestFunctionExecutionHandler:
             event_action="execute_workflow",
             source_component="workflows.engine",
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             event_severity=EventSeverity.INFO,
             function_args={
@@ -286,7 +287,7 @@ class TestFunctionExecutionHandler:
             event_category=EventCategory.API_EXECUTION,
             event_action="call_external_api",
             source_component="api.client",
-            actor_context=AuditActorContext(),  # SYSTEM actor
+            actor_context=AuditActorContext(),
             event_severity=EventSeverity.INFO,
             function_args={"endpoint": "/users"},
             function_result={"data": "should not appear"},  # Result exists but error occurred

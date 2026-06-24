@@ -3,11 +3,12 @@
 from uuid import uuid4
 
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.auth.audit.stale_token_detection import (
     StaleTokenDetectionEvent,
     StaleTokenDetectionHandler,
 )
+from nexus.core.models.principal import PrincipalType
 
 
 class TestStaleTokenDetectionHandler:
@@ -31,7 +32,7 @@ class TestStaleTokenDetectionHandler:
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "stale_token_detected"
         assert result.source_component == "nexus.auth.middleware"
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
 
     def test_resource_fields(self) -> None:
         user_id = str(uuid4())

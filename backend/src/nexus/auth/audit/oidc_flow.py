@@ -7,13 +7,13 @@ from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 
 # ---------------------------------------------------------------------------
 # Helper types
@@ -54,7 +54,7 @@ class OIDCFlowHandler(AuditEventHandler[OIDCFlowEvent]):
     def handle(self, event: OIDCFlowEvent) -> AuditEvent:
         """Map an OIDCFlowEvent to a normalized AuditEvent."""
         provider_id_str = str(event.provider_id) if event.provider_id is not None else None
-        actor_type = ActorType.USER if event.user_id else ActorType.SYSTEM
+        actor_type = PrincipalType.USER if event.user_id else PrincipalType.SYSTEM
         action = f"oidc_{event.stage}"
 
         is_error = event.error_type is not None

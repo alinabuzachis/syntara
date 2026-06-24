@@ -3,12 +3,12 @@
 from uuid import uuid4
 
 from nexus.audit.models.audit_event import (
-    ActorType,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
 from nexus.auth.audit.user_login import AMR, UserLoginEvent, UserLoginHandler
+from nexus.core.models.principal import PrincipalType
 
 
 class TestUserLoginHandler:
@@ -25,7 +25,7 @@ class TestUserLoginHandler:
         assert audit.event_severity == EventSeverity.INFO
         assert audit.event_status == EventStatus.SUCCESS
         assert audit.actor_id == user_id
-        assert audit.actor_type == ActorType.USER
+        assert audit.actor_type == PrincipalType.USER
         assert audit.actor_username == "alice"
         assert audit.source_component == "nexus.auth.login"
         assert "local" in audit.event_message

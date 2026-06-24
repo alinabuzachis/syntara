@@ -5,7 +5,7 @@
 from uuid import uuid4
 
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.auth.audit.login_attempt import (
     LoginAttemptEvent,
@@ -13,6 +13,7 @@ from nexus.auth.audit.login_attempt import (
     LoginErrorReason,
     LoginMethod,
 )
+from nexus.core.models.principal import PrincipalType
 
 
 class TestLoginAttemptEvent:
@@ -62,7 +63,7 @@ class TestLoginAttemptHandler:
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "login"
         assert result.actor_id == uid
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "alice"
         assert result.source_component == "nexus.auth.login"
         assert result.resource_urn == "urn:nexus:user:alice"
@@ -85,7 +86,7 @@ class TestLoginAttemptHandler:
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "login"
         assert result.actor_id == uid
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "alice"
         # Business errors have no error_type in structured_data, error is in message
         assert isinstance(result.structured_data, AuditContextData)
@@ -103,7 +104,7 @@ class TestLoginAttemptHandler:
         result = handler.handle(event)
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.SYSTEM
+        assert result.actor_type == PrincipalType.SYSTEM
         assert result.actor_username == "notexist"
         assert result.event_status == EventStatus.ERROR
         assert "unknown_user" in result.event_message
@@ -125,7 +126,7 @@ class TestLoginAttemptHandler:
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "login"
         assert result.actor_id == uid
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "alice"
         # Technical errors have error_type in structured_data
         assert isinstance(result.structured_data, AuditContextData)
@@ -145,7 +146,7 @@ class TestLoginAttemptHandler:
 
         assert result.event_status == EventStatus.SUCCESS
         assert result.actor_id == uid
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "carol"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "login-context"

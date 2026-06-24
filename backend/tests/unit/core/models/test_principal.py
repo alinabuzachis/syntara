@@ -1,13 +1,13 @@
-"""Unit tests for Principal model and event listener registration."""
+"""Unit tests for Principal model and __principal_type__ marker convention."""
 
 from uuid import uuid4
 
 from nexus.core.models.principal import (
-    _PRINCIPAL_SUBTYPES,
     Principal,
     PrincipalType,
-    _register_principal_subtype,
 )
+from nexus.core.models.user import User
+from nexus.service_accounts.models.service_account import ServiceAccount
 
 
 class TestPrincipalType:
@@ -48,16 +48,14 @@ class TestPrincipalModel:
         assert "ix_principals_principal_type" in index_names
 
 
-class TestPrincipalSubtypeRegistry:
-    """Tests for the subtype registration used by the before_flush listener."""
+class TestPrincipalTypeMarker:
+    """Tests for the __principal_type__ convention on subtype models."""
 
-    def test_register_and_lookup(self) -> None:
-        _register_principal_subtype("users", PrincipalType.USER)
-        assert _PRINCIPAL_SUBTYPES["users"] == PrincipalType.USER
+    def test_user_has_principal_type(self) -> None:
+        assert User.__principal_type__ == PrincipalType.USER
 
-    def test_service_accounts_registered(self) -> None:
-        _register_principal_subtype("service_accounts", PrincipalType.SERVICE_ACCOUNT)
-        assert _PRINCIPAL_SUBTYPES["service_accounts"] == PrincipalType.SERVICE_ACCOUNT
+    def test_service_account_has_principal_type(self) -> None:
+        assert ServiceAccount.__principal_type__ == PrincipalType.SERVICE_ACCOUNT
 
-    def test_unknown_tablename_not_in_registry(self) -> None:
-        assert "nonexistent_table" not in _PRINCIPAL_SUBTYPES
+    def test_principal_itself_has_no_marker(self) -> None:
+        assert not hasattr(Principal, "__principal_type__")

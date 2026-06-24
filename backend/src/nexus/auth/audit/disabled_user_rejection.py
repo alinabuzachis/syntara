@@ -10,13 +10,13 @@ import structlog
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -67,7 +67,7 @@ class DisabledUserRejectionHandler(AuditEventHandler[DisabledUserRejectionEvent]
             source_component=self._SOURCE.get(event.context, "nexus.auth"),
             structured_data=data,
             actor_id=actor_id,
-            actor_type=ActorType.USER,
+            actor_type=PrincipalType.USER,
             resource_urn=f"urn:nexus:user:{quote(event.user_id, safe='')}",
             resource_name=event.user_name or event.user_id,
         )

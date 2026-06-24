@@ -15,9 +15,10 @@ from nexus.audit.emitter import (
     request_id_context_var,
     workflow_id_context_var,
 )
-from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventStatus
+from nexus.audit.models.audit_event import AuditEvent, EventCategory, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import REDACTED, EventSanitizer, sanitizer
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -42,7 +43,7 @@ class TestEventCaptureEmitAuditEvent:
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
             actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor_type=PrincipalType.USER,
             source_component="test_component",
             event_message="Test message",
             event_status=EventStatus.SUCCESS,
@@ -61,7 +62,7 @@ class TestEventCaptureEmitAuditEvent:
         assert call_args.event_category == EventCategory.USER_ACTION
         assert call_args.event_action == "test_action"
         assert call_args.event_status == EventStatus.SUCCESS
-        assert call_args.actor_type == ActorType.USER
+        assert call_args.actor_type == PrincipalType.USER
         assert call_args.source_component == "test_component"
         assert call_args.event_message == "Test message"
         assert call_args.structured_data is not None
@@ -79,7 +80,9 @@ class TestEventCaptureEmitAuditEvent:
         def test_in_context() -> None:
             # Set context variables
             actor_context_var.set(
-                AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+                AuditActorContext(
+                    actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
+                )
             )
             workflow_id_context_var.set(test_workflow_id)
             activity_id_context_var.set(test_activity_id)
@@ -89,7 +92,7 @@ class TestEventCaptureEmitAuditEvent:
             event = AuditEvent(
                 event_category=EventCategory.SYSTEM_OPERATION,
                 event_action="auto_action",
-                actor_type=ActorType.SYSTEM,  # Required field, will not be overridden since it's truthy
+                actor_type=PrincipalType.SYSTEM,  # Required field, will not be overridden since it's truthy
                 source_component="test_component",
                 event_message="Auto message",
                 structured_data=AuditContextData(data_type="test"),
@@ -105,7 +108,7 @@ class TestEventCaptureEmitAuditEvent:
             # Verify context injection worked for None fields only
             assert event_obj.actor_id == test_user.id
             assert event_obj.actor_username == test_user.username
-            assert event_obj.actor_type == ActorType.SYSTEM  # Not overridden because it was already set
+            assert event_obj.actor_type == PrincipalType.SYSTEM  # Not overridden because it was already set
             assert event_obj.workflow_id == test_workflow_id
             assert event_obj.activity_id == test_activity_id
             assert event_obj.execution_id == test_execution_id
@@ -124,7 +127,9 @@ class TestEventCaptureEmitAuditEvent:
         def test_in_context() -> None:
             # Set context variables
             actor_context_var.set(
-                AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+                AuditActorContext(
+                    actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
+                )
             )
             workflow_id_context_var.set(context_workflow_id)
 
@@ -134,7 +139,7 @@ class TestEventCaptureEmitAuditEvent:
                 event_action="user_action",
                 actor_id=test_user.id,  # Should not be overridden
                 actor_username=test_user.username,  # Should not be overridden
-                actor_type=ActorType.USER,
+                actor_type=PrincipalType.USER,
                 workflow_id=event_workflow_id,  # Should not be overridden
                 source_component="test_component",
                 event_message="User message",
@@ -160,7 +165,7 @@ class TestEventCaptureEmitAuditEvent:
             event_category=EventCategory.SECURITY_EVENT,
             event_action="login",
             actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor_type=PrincipalType.USER,
             source_component="auth_service",
             event_message="User login",
             event_status=EventStatus.SUCCESS,
@@ -194,7 +199,7 @@ class TestEventCaptureEmitAuditEvent:
             event_category=EventCategory.SECURITY_EVENT,
             event_action="authentication",
             actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor_type=PrincipalType.USER,
             source_component="auth_service",
             event_message="User authentication attempt",
             event_status=EventStatus.SUCCESS,
@@ -348,7 +353,7 @@ class TestEventCaptureEmitAuditEvent:
             event_action="field_test",
             event_status=EventStatus.SUCCESS,
             actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor_type=PrincipalType.USER,
             source_component="test_service",
             workflow_id=None,
             activity_id=None,
@@ -380,7 +385,7 @@ class TestEventCaptureEmitAuditEvent:
             event_category=EventCategory.USER_ACTION,
             event_action="create_user",
             actor_id=uuid4(),
-            actor_type=ActorType.USER,
+            actor_type=PrincipalType.USER,
             source_component="user_service",
             event_message="User creation request",
             event_status=EventStatus.SUCCESS,
@@ -436,7 +441,7 @@ class TestEventCaptureEmitAuditEvent:
                 event_category=EventCategory.API_EXECUTION,
                 event_action="api_call",
                 actor_id=uuid4(),
-                actor_type=ActorType.USER,
+                actor_type=PrincipalType.USER,
                 source_component="api_service",
                 event_message="API call executed",
                 event_status=EventStatus.SUCCESS,
@@ -473,7 +478,7 @@ class TestEventCaptureEmitAuditEvent:
                 event_category=EventCategory.API_EXECUTION,
                 event_action="api_call",
                 actor_id=uuid4(),
-                actor_type=ActorType.USER,
+                actor_type=PrincipalType.USER,
                 source_component="api_service",
                 event_message="API call executed",
                 event_status=EventStatus.SUCCESS,
@@ -503,7 +508,7 @@ class TestEventCaptureEmitAuditEvent:
         event = AuditEvent(
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="system_action",
-            actor_type=ActorType.SYSTEM,
+            actor_type=PrincipalType.SYSTEM,
             source_component="system_service",
             event_message="System operation",
             event_status=EventStatus.SUCCESS,
@@ -534,7 +539,9 @@ class TestEventCaptureIntegration:
         def test_in_context() -> None:
             # Set up context
             actor_context_var.set(
-                AuditActorContext(actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER)
+                AuditActorContext(
+                    actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
+                )
             )
             workflow_id_context_var.set(test_workflow_id)
             activity_id_context_var.set("activity_id")
@@ -545,7 +552,7 @@ class TestEventCaptureIntegration:
                 event_action="agent_query",
                 actor_id=None,  # Will be injected
                 actor_username=None,  # Will be injected
-                actor_type=ActorType.SYSTEM,  # Required field, will NOT be overridden since it's truthy
+                actor_type=PrincipalType.SYSTEM,  # Required field, will NOT be overridden since it's truthy
                 source_component="agent_service",
                 event_message="User queried agent",
                 event_status=EventStatus.SUCCESS,
@@ -566,7 +573,7 @@ class TestEventCaptureIntegration:
             # Verify context injection
             assert event_obj.actor_id == test_user.id
             assert event_obj.actor_username == test_user.username
-            assert event_obj.actor_type == ActorType.SYSTEM  # Not overridden because it was already set
+            assert event_obj.actor_type == PrincipalType.SYSTEM  # Not overridden because it was already set
             assert event_obj.workflow_id == test_workflow_id
 
             # Verify event data
@@ -596,7 +603,7 @@ class TestEventCaptureIntegration:
                 event_category=EventCategory.USER_ACTION,
                 event_action=f"action_{i}",
                 actor_id=uuid4(),
-                actor_type=ActorType.USER,
+                actor_type=PrincipalType.USER,
                 source_component="test_component",
                 event_message=f"Test message {i}",
                 event_status=EventStatus.SUCCESS,

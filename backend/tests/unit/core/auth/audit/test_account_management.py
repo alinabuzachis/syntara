@@ -1,13 +1,14 @@
 """Unit tests for AccountEnableEvent/Handler and PasswordResetEvent/Handler."""
 
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.auth.audit.account_management import (
     AccountEnableEvent,
     AccountEnableHandler,
     PasswordResetEvent,
     PasswordResetHandler,
 )
+from nexus.core.models.principal import PrincipalType
 
 
 class TestAccountEnableHandler:
@@ -30,7 +31,7 @@ class TestAccountEnableHandler:
         assert result.event_severity == EventSeverity.WARNING
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "account_enable"
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "ops@corp.com"
         assert result.source_component == "nexus.auth.account_management"
         assert "alice" in result.event_message
@@ -75,7 +76,7 @@ class TestPasswordResetHandler:
         assert result.event_severity == EventSeverity.CRITICAL
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "password_reset"
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "security-team@corp.com"
         assert result.source_component == "nexus.auth.account_management"
         assert "charlie" in result.event_message

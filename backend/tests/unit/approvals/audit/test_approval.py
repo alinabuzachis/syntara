@@ -10,7 +10,8 @@ from nexus.approvals.audit.approval import (
     ApprovalRequestedHandler,
 )
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
+from nexus.core.models.principal import PrincipalType
 
 
 class TestApprovalRequestedHandler:
@@ -101,7 +102,7 @@ class TestApprovalDecidedHandler:
         assert result.execution_id == execution_id
         assert result.activity_id == "approve_deployment"
         assert result.actor_id == decided_by
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
 
     def test_resource_fields(self) -> None:
         approval_id = uuid4()

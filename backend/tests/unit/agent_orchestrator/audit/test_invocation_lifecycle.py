@@ -11,8 +11,9 @@ from nexus.agent_orchestrator.audit.invocation_lifecycle import (
 from nexus.agent_orchestrator.models import InvocationStatus
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -36,7 +37,7 @@ class TestInvocationLifecycleHandler:
             execution_id=execution_id,
             request_id=request_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
         )
 
@@ -50,7 +51,7 @@ class TestInvocationLifecycleHandler:
         assert result.event_message == "Invocation running"
         assert result.source_component == "nexus.agent_orchestrator.executor"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
         assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
@@ -71,7 +72,7 @@ class TestInvocationLifecycleHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             error_type="LLMConnectionError",
         )

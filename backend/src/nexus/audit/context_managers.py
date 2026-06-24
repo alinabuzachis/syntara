@@ -1,9 +1,9 @@
 """Context managers for audit event capture and specialized use cases."""
 
-from collections.abc import Generator
+from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
@@ -15,44 +15,53 @@ from nexus.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.audit.events.audit_context import AuditContextEvent
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity
+from nexus.audit.models.audit_event import EventCategory, EventSeverity
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.utils import escalate_actor_type, escalate_severity
 from nexus.core.config.base import get_settings
 from nexus.core.models.user import User
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+    from uuid import UUID
+
+    from nexus.service_accounts.models.service_account import ServiceAccount
 
 _RESERVED_AUDIT_FIELDS = frozenset(AuditContextData.model_fields.keys())
 
 settings = get_settings()
 
 
-def _build_actor_context(actor: User | None) -> AuditActorContext:
-    """Build an AuditActorContext from a User or fall back to SYSTEM.
+def _build_actor_context(actor: User | ServiceAccount | None) -> AuditActorContext:
+    """Build an AuditActorContext from a principal model.
 
-    When *actor* is a ``User``, fields are extracted atomically to guarantee
-    integrity (prevents mismatched id/username pairs). The actor type is
-    determined by comparing the user ID against the system user ID from settings.
-    When *actor* is ``None``, the actor type is set to ``ActorType.SYSTEM`` with
-    no actor identity.
+    For ``User`` objects, actor_type is determined by comparing the user ID
+    against the system user ID (escalating to SYSTEM when they match).
+    For other principal models (e.g. ``ServiceAccount``), actor_type is read
+    from the model's ``__principal_type__`` class variable.
+    When *actor* is ``None``, all fields are ``None`` (no actor identity).
     """
-    if actor is not None:
-        actor_type = escalate_actor_type(actor.id)
+    if actor is None:
+        return AuditActorContext(actor_id=None, actor_username=None, actor_type=None)
+
+    if isinstance(actor, User):
         return AuditActorContext(
             actor_id=actor.id,
             actor_username=actor.username,
-            actor_type=actor_type,
+            actor_type=escalate_actor_type(actor.id),
         )
+
     return AuditActorContext(
-        actor_id=None,
-        actor_username=None,
-        actor_type=ActorType.SYSTEM,
+        actor_id=actor.id,
+        actor_username=getattr(actor, "username", None) or getattr(actor, "name", None),
+        actor_type=getattr(actor, "__principal_type__", None),
     )
 
 
 @contextmanager
 def actor_context(
     *,
-    actor: User | AuditActorContext | None = None,
+    actor: User | ServiceAccount | AuditActorContext | None = None,
     workflow_id: UUID | None = None,
     activity_id: str | None = None,
     execution_id: UUID | None = None,
@@ -66,7 +75,7 @@ def actor_context(
 
     This context manager supports both HTTP and non-HTTP contexts (e.g. Temporal
     workers, background tasks). When ``actor`` is ``None``, events are attributed
-    to ``ActorType.SYSTEM``.
+    to ``None``.
 
     Args:
         actor: User object to extract actor information from. If None, events
@@ -104,7 +113,7 @@ def audit_context(
     event_action: str,
     source_component: str,
     *,
-    actor: User | None,
+    actor: User | ServiceAccount | None,
     event_severity: EventSeverity = EventSeverity.INFO,
     resource_urn: str | None = None,
     resource_name: str | None = None,

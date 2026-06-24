@@ -3,9 +3,10 @@
 from uuid import uuid4
 
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCFlowHandler, OIDCStage
+from nexus.core.models.principal import PrincipalType
 
 
 class TestOIDCFlowEvent:
@@ -38,7 +39,7 @@ class TestOIDCFlowHandler:
         assert result.event_severity == EventSeverity.INFO
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "oidc_authorize"
-        assert result.actor_type == ActorType.SYSTEM
+        assert result.actor_type == PrincipalType.SYSTEM
         assert result.actor_id is None
         assert result.actor_username is None
         assert result.source_component == "nexus.auth.oidc"
@@ -52,7 +53,7 @@ class TestOIDCFlowHandler:
 
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "oidc_callback"
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_id == uid
         assert result.actor_username == "testuser"
 

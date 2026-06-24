@@ -11,8 +11,9 @@ from nexus.agent_orchestrator.audit.agent_execution import (
 )
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
 
 
@@ -37,7 +38,7 @@ class TestAgentExecutionHandler:
             execution_id=execution_id,
             request_id=request_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
         )
 
@@ -51,7 +52,7 @@ class TestAgentExecutionHandler:
         assert result.event_message == "Agent orchestrator started"
         assert result.source_component == "nexus.agent_orchestrator.agents.orchestrator"
         assert result.actor_id == test_user.id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
         assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
@@ -76,7 +77,7 @@ class TestAgentExecutionHandler:
             invocation_id=invocation_id,
             execution_id=execution_id,
             actor_context=AuditActorContext(
-                actor_id=test_user.id, actor_username=test_user.username, actor_type=ActorType.USER
+                actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             error_type="TimeoutError",
         )
@@ -162,7 +163,7 @@ class TestAgentExecutionHandler:
         assert result.structured_data.invocation_id == invocation_id
 
     def test_no_actor_context(self) -> None:
-        """Event without actor_context defaults to SYSTEM actor."""
+        """Event without actor_context defaults to no actor."""
         invocation_id = uuid4()
         execution_id = uuid4()
         event = AgentExecutionEvent(

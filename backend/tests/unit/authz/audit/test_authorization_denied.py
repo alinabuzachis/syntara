@@ -3,11 +3,12 @@
 from uuid import uuid4
 
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.authz.audit.authorization_denied import (
     AuthorizationDeniedEvent,
     AuthorizationDeniedHandler,
 )
+from nexus.core.models.principal import PrincipalType
 
 
 class TestAuthorizationDeniedHandler:
@@ -34,7 +35,7 @@ class TestAuthorizationDeniedHandler:
         assert result.event_severity == EventSeverity.WARNING
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "authorization_denied"
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_id == user_id
         assert result.actor_username == "alice"
         assert result.source_component == "nexus.authz"

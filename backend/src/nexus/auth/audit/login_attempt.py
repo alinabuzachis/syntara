@@ -7,13 +7,13 @@ from uuid import UUID
 
 from nexus.audit.handler import AuditEventHandler
 from nexus.audit.models.audit_event import (
-    ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 
 
 class LoginMethod(StrEnum):
@@ -66,7 +66,7 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
     def handle(self, event: LoginAttemptEvent) -> AuditEvent:
         """Map a LoginAttemptEvent to a normalized AuditEvent."""
         action = "login"
-        actor_type = ActorType.USER if event.user_id else ActorType.SYSTEM
+        actor_type = PrincipalType.USER if event.user_id else PrincipalType.SYSTEM
 
         is_error = event.error_type is not None
 

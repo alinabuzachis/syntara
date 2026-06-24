@@ -408,7 +408,7 @@ class TestAuditMiddlewareUserContext:
 
     @pytest.mark.asyncio
     async def test_no_user_logs_without_authentication(self) -> None:
-        """Requests without authentication have system actor type."""
+        """Requests without authentication have no actor identity."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
@@ -419,7 +419,7 @@ class TestAuditMiddlewareUserContext:
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
         assert events[0].actor_id is None
-        assert events[0].actor_type == "system"
+        assert events[0].actor_type is None
         assert events[0].actor_username is None
         assert isinstance(events[0].structured_data, AuditContextData)
 
@@ -474,7 +474,7 @@ class TestAuditMiddlewareUserContext:
 
     @pytest.mark.asyncio
     async def test_malformed_jwt_token(self) -> None:
-        """Middleware gracefully handles malformed JWT tokens (returns system actor)."""
+        """Middleware gracefully handles malformed JWT tokens (no actor identity)."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
@@ -487,9 +487,9 @@ class TestAuditMiddlewareUserContext:
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
-        # Malformed token → empty AuditActorContext → system actor
+        # Malformed token → empty AuditActorContext → no actor
         assert events[0].actor_id is None
-        assert events[0].actor_type == "system"
+        assert events[0].actor_type is None
         assert events[0].actor_username is None
 
     @pytest.mark.asyncio
@@ -510,14 +510,14 @@ class TestAuditMiddlewareUserContext:
 
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
-        # Invalid UUID → empty AuditActorContext → system actor
+        # Invalid UUID → empty AuditActorContext → no actor
         assert events[0].actor_id is None
-        assert events[0].actor_type == "system"
+        assert events[0].actor_type is None
         assert events[0].actor_username is None
 
     @pytest.mark.asyncio
-    async def test_service_token_classified_as_system_actor(self) -> None:
-        """JWT with amr=['service'] is classified as SYSTEM actor type."""
+    async def test_service_token_classified_as_service_account(self) -> None:
+        """JWT with amr=['service'] is classified as SERVICE_ACCOUNT actor type."""
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app, _make_fastapi_app())
 
@@ -539,7 +539,7 @@ class TestAuditMiddlewareUserContext:
         events = _get_audit_events(mock_emit, "request_completed")
         assert len(events) == 1
         assert str(events[0].actor_id) == user_id
-        assert events[0].actor_type == "system"
+        assert events[0].actor_type == "service_account"
         assert events[0].actor_username == "service-account"
 
     @pytest.mark.asyncio

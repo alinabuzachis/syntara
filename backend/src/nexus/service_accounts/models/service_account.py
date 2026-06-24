@@ -17,6 +17,7 @@ from nexus.core.models.base.base_resource import AuditLevel
 from nexus.core.models.base.named import NamedResource
 from nexus.core.models.base.soft_deletable import SoftDeletableResource
 from nexus.core.models.base.user_owned import UserOwnedResource
+from nexus.core.models.principal import PrincipalType
 
 
 class ServiceAccountStatus(StrEnum):
@@ -30,6 +31,7 @@ class ServiceAccount(NamedResource, SoftDeletableResource, UserOwnedResource, ta
     """OAuth 2.0 service account for programmatic API access."""
 
     __tablename__ = "service_accounts"
+    __principal_type__: ClassVar[PrincipalType] = PrincipalType.SERVICE_ACCOUNT
 
     id: UUID = Field(
         default_factory=uuid4,

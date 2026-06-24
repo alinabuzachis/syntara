@@ -1,18 +1,23 @@
-"""Integration tests for Principal auto-creation via the before_flush listener.
+"""Integration tests for Principal auto-creation and audit attribution.
 
 Tests verify:
 - Adding a User or ServiceAccount via session.add() auto-creates a Principal row
 - FK integrity between principals and subtypes
 - Multiple entities in one flush each get their own Principal
 - Non-principal entities are ignored
+- CRUD operations attributed to a ServiceAccount produce audit outbox records
+  with the correct actor_id and actor_type
 """
 
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.context_managers import actor_context
+from nexus.audit.outbox.models import AuditOutboxRecord
 from nexus.authz.models.project import Project
 from nexus.core.models.principal import (
     Principal,
@@ -170,3 +175,49 @@ class TestPrincipalAutoCreation:
 
         principal = await test_db_session.get(Principal, p.id)
         assert principal is None
+
+
+class TestServiceAccountAuditAttribution:
+    """Verify ServiceAccount CRUD audit attribution.
+
+    CRUD operations attributed to a ServiceAccount should produce audit
+    outbox records carrying the SA's UUID and SERVICE_ACCOUNT principal type.
+    """
+
+    @pytest.mark.asyncio
+    async def test_crud_as_service_account_writes_audit_outbox(
+        self, test_db_session: AsyncSession, owner_user: User, project: Project
+    ) -> None:
+        """Update a project as a ServiceAccount and check the audit outbox."""
+        # Seed audit metadata for the projects table so the CRUD trigger fires.
+        await test_db_session.exec(  # type: ignore[call-overload]
+            text(
+                "INSERT INTO audit_table_metadata"
+                " (table_name, model_name, audit_level, auditable_fields)"
+                " VALUES ('projects', 'Project', 'full', NULL)"
+                " ON CONFLICT (table_name) DO NOTHING"
+            )
+        )
+        await test_db_session.exec(text("SELECT * FROM audit_triggers_enable()"))  # type: ignore[call-overload]
+        await test_db_session.flush()
+
+        sa = _make_service_account(project_id=project.id, created_by=owner_user.id)
+        test_db_session.add(sa)
+        await test_db_session.flush()
+
+        with actor_context(actor=sa):
+            project.description = "updated-by-service-account"
+            test_db_session.add(project)
+            await test_db_session.flush()
+
+        result = await test_db_session.exec(
+            select(AuditOutboxRecord).order_by(
+                AuditOutboxRecord.created_at.desc()  # type: ignore[attr-defined]
+            )
+        )
+        records = result.all()
+        matching = [r for r in records if r.event_payload.get("actor_id") == str(sa.id)]
+        assert matching, f"No audit outbox record found for actor_id={sa.id}. Total outbox records: {len(records)}"
+        payload = matching[0].event_payload
+        assert payload["actor_type"] == PrincipalType.SERVICE_ACCOUNT.value
+        assert payload["actor_username"] == sa.name

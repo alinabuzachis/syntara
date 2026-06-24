@@ -1,7 +1,6 @@
 """Unit tests for session revocation audit events and handler."""
 
 from nexus.audit.models.audit_event import (
-    ActorType,
     EventCategory,
     EventSeverity,
     EventStatus,
@@ -10,6 +9,7 @@ from nexus.auth.audit.session_revocation import (
     SessionRevocationEvent,
     SessionRevocationHandler,
 )
+from nexus.core.models.principal import PrincipalType
 
 
 class TestSessionRevocationHandler:
@@ -31,7 +31,7 @@ class TestSessionRevocationHandler:
         assert audit_event.event_severity == EventSeverity.CRITICAL
         assert audit_event.event_status == EventStatus.SUCCESS
         assert audit_event.event_action == "session_revocation"
-        assert audit_event.actor_type == ActorType.USER
+        assert audit_event.actor_type == PrincipalType.USER
         assert audit_event.actor_username == "admin-cli"
         assert "3 session(s)" in audit_event.event_message
         assert "user" in audit_event.event_message

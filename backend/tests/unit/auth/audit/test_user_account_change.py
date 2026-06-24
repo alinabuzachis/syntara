@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.auth.audit.user_account_change import (
     AccountStatus,
     UserAccountStatusChangedEvent,
@@ -11,6 +11,7 @@ from nexus.auth.audit.user_account_change import (
     UserPasswordChangedEvent,
     UserPasswordChangedHandler,
 )
+from nexus.core.models.principal import PrincipalType
 
 
 class TestUserPasswordChangedHandler:
@@ -35,7 +36,7 @@ class TestUserPasswordChangedHandler:
         assert result.event_severity == EventSeverity.WARNING
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "password_changed"
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_id == actor_id
         assert result.actor_username == "admin"
         assert result.source_component == "nexus.auth.account_management"
@@ -84,7 +85,7 @@ class TestUserAccountStatusChangedHandler:
         assert result.event_severity == EventSeverity.WARNING
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "account_disabled"
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.actor_id == actor_id
         assert result.actor_username == "admin"
         assert result.source_component == "nexus.auth.account_management"

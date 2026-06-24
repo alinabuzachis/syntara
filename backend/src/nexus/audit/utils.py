@@ -4,9 +4,10 @@ from uuid import UUID
 
 import structlog
 
-from nexus.audit.models.audit_event import ActorType, EventSeverity
+from nexus.audit.models.audit_event import EventSeverity
 from nexus.core.auth.jwt_utils import ActorClaims
 from nexus.core.config.base import get_settings
+from nexus.core.models.principal import PrincipalType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -31,17 +32,17 @@ def escalate_severity(current: EventSeverity, minimum: EventSeverity) -> EventSe
     return current if _SEVERITY_RANK[current] >= _SEVERITY_RANK[minimum] else minimum
 
 
-def escalate_actor_type_from_jwt(actor_claims: ActorClaims) -> ActorType:
-    """Determine ActorType from JWT authentication method reference (amr).
+def escalate_actor_type_from_jwt(actor_claims: ActorClaims) -> PrincipalType:
+    """Determine PrincipalType from JWT authentication method reference (amr).
 
     Service-to-service tokens (amr containing "service") are classified as
-    ActorType.SYSTEM. All other tokens are ActorType.USER.
+    SERVICE_ACCOUNT. All other tokens are USER.
 
     Args:
         actor_claims: Extracted JWT claims containing authentication method reference.
 
     Returns:
-        ActorType.SYSTEM for service tokens, ActorType.USER otherwise.
+        PrincipalType.SERVICE_ACCOUNT for service tokens, PrincipalType.USER otherwise.
 
     """
     is_service_token = isinstance(actor_claims.amr, list) and "service" in actor_claims.amr
@@ -50,26 +51,25 @@ def escalate_actor_type_from_jwt(actor_claims: ActorClaims) -> ActorType:
         logger.debug(
             "actor_type_escalated_from_jwt",
             amr=actor_claims.amr,
-            actor_type=ActorType.SYSTEM,
+            actor_type=PrincipalType.SERVICE_ACCOUNT,
             reason="service token detected in amr claim",
         )
-        return ActorType.SYSTEM
+        return PrincipalType.SERVICE_ACCOUNT
 
-    return ActorType.USER
+    return PrincipalType.USER
 
 
-def escalate_actor_type(actor_id: UUID) -> ActorType:
-    """Determine ActorType by comparing actor_id against the system user ID.
+def escalate_actor_type(actor_id: UUID) -> PrincipalType:
+    """Determine PrincipalType by comparing actor_id against the system user ID.
 
     The system user (configured via SYSTEM_USER_ID) represents internal
-    operations and is classified as ActorType.SYSTEM. All other users are
-    ActorType.USER.
+    operations and is classified as SYSTEM. All other users are USER.
 
     Args:
         actor_id: UUID of the actor to classify.
 
     Returns:
-        ActorType.SYSTEM if actor_id matches system_user_id, ActorType.USER otherwise.
+        PrincipalType.SYSTEM if actor_id matches system_user_id, PrincipalType.USER otherwise.
 
     """
     settings = get_settings()
@@ -80,9 +80,9 @@ def escalate_actor_type(actor_id: UUID) -> ActorType:
             "actor_type_escalated",
             actor_id=str(actor_id),
             system_user_id=str(settings.system_user_id),
-            actor_type=ActorType.SYSTEM,
+            actor_type=PrincipalType.SYSTEM,
             reason="actor_id matches configured system_user_id",
         )
-        return ActorType.SYSTEM
+        return PrincipalType.SYSTEM
 
-    return ActorType.USER
+    return PrincipalType.USER

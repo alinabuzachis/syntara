@@ -34,10 +34,10 @@ from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignal
 from nexus.audit.context_managers import actor_context as audit_actor_context
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import AuditActorContext
-from nexus.audit.models.audit_event import ActorType
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.models.principal import PrincipalType
 from nexus.core.services.secret_service import create_secret_service
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
@@ -152,7 +152,7 @@ class InvocationExecutor:
         return AuditActorContext(
             actor_id=get_settings().system_user_id,
             actor_username="system",
-            actor_type=ActorType.SYSTEM,
+            actor_type=PrincipalType.SYSTEM,
         )
 
     async def _load_invocation(self, invocation_id: UUID) -> Invocation | None:

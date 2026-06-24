@@ -7,8 +7,9 @@ from uuid import uuid4
 from nexus.audit.emitter import AuditActorContext
 from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
 from nexus.audit.handler import AuditEventHandler
-from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditContextData
+from nexus.core.models.principal import PrincipalType
 
 
 class TestHTTPRequestHandler:
@@ -26,7 +27,9 @@ class TestHTTPRequestHandler:
             method="GET",
             path="/api/v1/workflows",
             status_code=200,
-            actor_context=AuditActorContext(actor_id=user_id, actor_username="test-user", actor_type=ActorType.USER),
+            actor_context=AuditActorContext(
+                actor_id=user_id, actor_username="test-user", actor_type=PrincipalType.USER
+            ),
         )
 
         handler = HTTPRequestHandler()
@@ -38,7 +41,7 @@ class TestHTTPRequestHandler:
         assert result.event_action == "request_completed"
         assert result.event_message == "Request completed: GET /api/v1/workflows 200"
         assert result.actor_id == user_id
-        assert result.actor_type == ActorType.USER
+        assert result.actor_type == PrincipalType.USER
         assert result.source_component == "nexus.audit.middleware"
 
         assert isinstance(result.structured_data, AuditContextData)
@@ -148,7 +151,7 @@ class TestHTTPRequestHandler:
         assert result.source_component == "nexus.workflows.router"
 
     def test_unauthenticated_request(self) -> None:
-        """Unauthenticated request uses SYSTEM actor type."""
+        """Unauthenticated request has no actor."""
         event = HTTPRequestEvent(
             method="GET",
             path="/health",
@@ -160,4 +163,4 @@ class TestHTTPRequestHandler:
         result = handler.handle(event)
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.SYSTEM
+        assert result.actor_type is None
