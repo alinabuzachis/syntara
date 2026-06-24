@@ -13,7 +13,7 @@ import pytest
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     _build_launch_body,
 )
-from nexus.workflows.workflow_engine.models.workflow_definition import AAPJobTemplateExecutorConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import AAPJobTemplateExecutorParameters
 
 TEST_AAP_URL = "http://test.aap"
 TEST_ORG_NAME = "Engineering"
@@ -38,7 +38,7 @@ class TestInstanceGroupResolution:
 
     async def test_build_launch_body_with_instance_group_id(self) -> None:
         """Should include instance_groups array when instance group ID provided."""
-        config = AAPJobTemplateExecutorConfig(
+        config = AAPJobTemplateExecutorParameters(
             job_template_id=123,
             organization_name=TEST_ORG_NAME,
         )
@@ -49,7 +49,7 @@ class TestInstanceGroupResolution:
 
     async def test_build_launch_body_without_instance_group(self) -> None:
         """Should omit instance_groups when no instance group provided."""
-        config = AAPJobTemplateExecutorConfig(
+        config = AAPJobTemplateExecutorParameters(
             job_template_id=123,
             organization_name=TEST_ORG_NAME,
         )
@@ -60,7 +60,7 @@ class TestInstanceGroupResolution:
 
     async def test_build_launch_body_with_inventory_and_instance_group(self) -> None:
         """Should include both inventory and instance_groups when both provided."""
-        config = AAPJobTemplateExecutorConfig(
+        config = AAPJobTemplateExecutorParameters(
             job_template_id=123,
             organization_name=TEST_ORG_NAME,
         )
@@ -73,7 +73,7 @@ class TestInstanceGroupResolution:
     async def test_instance_group_id_field_validation(self) -> None:
         """Should validate instance_group_id is positive integer."""
         # Valid instance group ID
-        config = AAPJobTemplateExecutorConfig(
+        config = AAPJobTemplateExecutorParameters(
             job_template_id=123,
             organization_name=TEST_ORG_NAME,
             instance_group_id=42,
@@ -82,7 +82,7 @@ class TestInstanceGroupResolution:
 
         # Zero should fail validation
         with pytest.raises(ValueError, match="greater than or equal to 1"):
-            AAPJobTemplateExecutorConfig(
+            AAPJobTemplateExecutorParameters(
                 job_template_id=123,
                 organization_name=TEST_ORG_NAME,
                 instance_group_id=0,
@@ -90,7 +90,7 @@ class TestInstanceGroupResolution:
 
         # Negative should fail validation
         with pytest.raises(ValueError, match="greater than or equal to 1"):
-            AAPJobTemplateExecutorConfig(
+            AAPJobTemplateExecutorParameters(
                 job_template_id=123,
                 organization_name=TEST_ORG_NAME,
                 instance_group_id=-1,
@@ -98,7 +98,7 @@ class TestInstanceGroupResolution:
 
     async def test_instance_group_name_field(self) -> None:
         """Should accept instance_group_name string."""
-        config = AAPJobTemplateExecutorConfig(
+        config = AAPJobTemplateExecutorParameters(
             job_template_id=123,
             organization_name=TEST_ORG_NAME,
             instance_group_name="default",
@@ -107,7 +107,7 @@ class TestInstanceGroupResolution:
 
     async def test_both_instance_group_id_and_name_allowed(self) -> None:
         """Should allow both instance_group_id and instance_group_name (ID takes precedence)."""
-        config = AAPJobTemplateExecutorConfig(
+        config = AAPJobTemplateExecutorParameters(
             job_template_id=123,
             organization_name=TEST_ORG_NAME,
             instance_group_id=42,

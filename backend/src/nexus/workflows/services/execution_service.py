@@ -88,8 +88,8 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
         if self.include and len(self.include) > 0:
             # Only include workflow_definition if explicitly requested
             if ExecutionInclude.WORKFLOW_DEFINITION in self.include:
-                result.workflow_definition = WorkflowDefinition.model_validate(
-                    resource.workflow_version.workflow_definition
+                result.workflow_definition = WorkflowDefinition.model_construct(
+                    **resource.workflow_version.workflow_definition
                 )
 
             # Only include activities if explicitly requested

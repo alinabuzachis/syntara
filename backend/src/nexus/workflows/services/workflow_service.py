@@ -42,6 +42,7 @@ from nexus.workflows.exceptions import (
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
+from nexus.workflows.models.workflow_definition import WorkflowDefinition
 from nexus.workflows.models.workflow_version import WorkflowVersionStatus
 from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 from nexus.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES, WebhookTriggerService
@@ -152,8 +153,15 @@ class WorkflowService(BaseService):
         """
         current_version = await self._get_version_or_none(workflow.id, workflow.current_version)
 
-        if current_version and current_version.workflow_definition == workflow_definition:
-            return None
+        if current_version:
+            try:
+                stored_normalized = WorkflowDefinition.model_validate(current_version.workflow_definition).model_dump(
+                    exclude_defaults=True
+                )
+            except Exception:  # noqa: BLE001
+                stored_normalized = current_version.workflow_definition
+            if stored_normalized == workflow_definition:
+                return None
 
         count_result = await self.session.exec(
             select(func.max(WorkflowVersion.version)).filter(

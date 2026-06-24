@@ -8,8 +8,8 @@ import pytest
 from pydantic import Field, ValidationError
 
 from nexus.workflows.workflow_engine.models.workflow_definition import (
-    AgenticExecutorConfig,
-    ScriptExecutorConfig,
+    AgenticExecutorParameters,
+    ScriptExecutorParameters,
     ScriptLanguage,
     TemplateAwareBaseModel,
 )
@@ -41,13 +41,13 @@ class TestTemplateAwareBaseModel:
 
     def test_string_field_accepts_template(self) -> None:
         """Test string field accepts template expressions."""
-        config = ScriptExecutorConfig(language="${input.lang}", code="${input.script}")  # type: ignore[arg-type]
+        config = ScriptExecutorParameters(language="${input.lang}", code="${input.script}")  # type: ignore[arg-type]
         assert config.language == "${input.lang}"
         assert config.code == "${input.script}"
 
     def test_multiple_fields_with_mixed_values(self) -> None:
         """Test multiple fields can mix literal and template values."""
-        config = AgenticExecutorConfig(
+        config = AgenticExecutorParameters(
             prompt="Analyze this data",  # Literal string
             agent="${input.agent}",  # Template string
         )
@@ -61,7 +61,7 @@ class TestTemplateAwareBaseModel:
     def test_mixed_template_expressions_in_single_value(self) -> None:
         """Test that values containing ${...} are treated as templates."""
         # Partial template (mixed with literal text)
-        config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo ${input.message} and ${input.other}")
+        config = ScriptExecutorParameters(language=ScriptLanguage.BASH, code="echo ${input.message} and ${input.other}")
         assert config.code == "echo ${input.message} and ${input.other}"
 
     def test_malformed_template_string_rejected(self) -> None:

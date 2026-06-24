@@ -74,6 +74,69 @@ def _inject_permission_metadata(app: FastAPI, spec: dict[str, Any]) -> None:
                 paths[path][method_lower]["x-app-permission"] = permission
 
 
+def _rewrite_refs(obj: Any, mapping: dict[str, str]) -> Any:
+    """Recursively rewrite $ref and discriminator mapping values."""
+    if isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            if k == "$ref":
+                result[k] = mapping.get(v, v)
+            elif k == "mapping" and isinstance(v, dict):
+                result[k] = {mk: mapping.get(mv, mv) for mk, mv in v.items()}  # type: ignore[assignment]
+            else:
+                result[k] = _rewrite_refs(v, mapping)
+        return result
+    if isinstance(obj, list):
+        return [_rewrite_refs(item, mapping) for item in obj]
+    return obj
+
+
+def _consolidate_identical_input_output_schemas(spec: dict[str, Any]) -> None:
+    """Merge identical Foo-Input/Foo-Output schema pairs into a single Foo schema.
+
+    FastAPI generates separate -Input and -Output schemas when
+    separate_input_output_schemas is True (the default). When both
+    variants are structurally identical the split is noise — collapse them
+    into one schema and rewrite all $ref pointers.
+
+    Runs in passes: merging leaf schemas and rewriting refs may make parent
+    schemas identical too (e.g. WorkflowDefinition).
+    """
+    max_passes = 5
+    for _pass in range(max_passes):
+        schemas = spec.get("components", {}).get("schemas", {})
+
+        ref_map: dict[str, str] = {}
+        merged: list[tuple[str, str, str]] = []
+        for name in list(schemas):
+            if not name.endswith("-Input"):
+                continue
+            base = name.removesuffix("-Input")
+            output_name = f"{base}-Output"
+            if output_name in schemas and schemas[name] == schemas[output_name] and base not in schemas:
+                merged.append((base, name, output_name))
+                ref_map[f"#/components/schemas/{name}"] = f"#/components/schemas/{base}"
+                ref_map[f"#/components/schemas/{output_name}"] = f"#/components/schemas/{base}"
+
+        if not merged:
+            break
+
+        for base, input_name, output_name in merged:
+            schemas[base] = schemas.pop(input_name)
+            del schemas[output_name]
+
+        rewritten = _rewrite_refs(spec, ref_map)
+        spec.clear()
+        spec.update(rewritten)
+    else:
+        remaining = [n for n in spec.get("components", {}).get("schemas", {}) if n.endswith(("-Input", "-Output"))]
+        if remaining:
+            sys.stderr.write(
+                f"WARNING: Schema consolidation did not converge after {max_passes} passes. "
+                f"Remaining duplicates: {remaining}\n"
+            )
+
+
 def build_spec_app() -> FastAPI:
     """Build a minimal FastAPI app with all routers for spec generation."""
     from nexus.authz.resource_actions import build_resource_actions
@@ -148,6 +211,7 @@ def main() -> int:
     spec = app.openapi()
     apply_rfc9457_media_types(spec)
     _inject_permission_metadata(app, spec)
+    _consolidate_identical_input_output_schemas(spec)
 
     # Strip auth responses from explicitly unauthenticated endpoints
     for path_ops in spec.get("paths", {}).values():

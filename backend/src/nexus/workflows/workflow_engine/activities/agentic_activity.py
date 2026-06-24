@@ -16,7 +16,7 @@ from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
+from nexus.workflows.workflow_engine.models import AgenticExecutorParameters
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
@@ -101,7 +101,7 @@ async def execute_agentic_activity(  # noqa: C901, PLR0915
             raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
         # Validate config
-        config = AgenticExecutorConfig.model_validate(input_config)
+        config = AgenticExecutorParameters.model_validate(input_config)
 
         # Validate prompt
         if not config.prompt.strip():

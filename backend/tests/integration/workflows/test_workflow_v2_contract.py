@@ -9,7 +9,6 @@ These tests validate the V2 workflow API contract:
 These are unit-level contract tests -- no database or Temporal required.
 """
 
-from http import HTTPMethod
 from typing import Any
 
 import pytest
@@ -20,10 +19,11 @@ from nexus.workflows.validators.workflow_definition import WorkflowValidator
 from nexus.workflows.workflow_engine.graph import WorkflowGraph
 from nexus.workflows.workflow_engine.models.responses import WorkflowResultResponse
 from nexus.workflows.workflow_engine.models.workflow_definition import (
-    AAPJobTemplateExecutorConfig,
-    AgenticExecutorConfig,
-    APIExecutorConfig,
-    ScriptExecutorConfig,
+    AAPJobTemplateExecutorParameters,
+    AgenticExecutorParameters,
+    APIExecutorParameters,
+    HTTPMethod,
+    ScriptExecutorParameters,
     ScriptLanguage,
 )
 
@@ -302,42 +302,42 @@ class TestTriggerStructure:
 # ---------------------------------------------------------------------------
 
 
-class TestScriptNodeConfig:
-    """Validate ScriptExecutorConfig contract."""
+class TestScriptNodeParameters:
+    """Validate ScriptExecutorParameters contract."""
 
     def test_valid_python_script(self) -> None:
         """Python script with code and language is valid."""
-        config = ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="print('hi')")
+        config = ScriptExecutorParameters(language=ScriptLanguage.PYTHON, code="print('hi')")
         assert config.language == ScriptLanguage.PYTHON
         assert config.code == "print('hi')"
 
     def test_valid_bash_script(self) -> None:
         """Bash script is a valid language option."""
-        config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code="echo hi")
+        config = ScriptExecutorParameters(language=ScriptLanguage.BASH, code="echo hi")
         assert config.language == ScriptLanguage.BASH
 
     def test_rejects_empty_code(self) -> None:
         """Script node requires non-empty code."""
         with pytest.raises(ValidationError, match="code"):
-            ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="")
+            ScriptExecutorParameters(language=ScriptLanguage.PYTHON, code="")
 
     def test_template_expression_bypasses_validation(self) -> None:
         """Template expressions like ${input.code} bypass field validation."""
-        config = ScriptExecutorConfig(language=ScriptLanguage.PYTHON, code="${input.code}")
+        config = ScriptExecutorParameters(language=ScriptLanguage.PYTHON, code="${input.code}")
         assert config.code == "${input.code}"
 
 
-class TestAPIExecutorConfig:
-    """Validate APIExecutorConfig (http_request) contract."""
+class TestAPIExecutorParameters:
+    """Validate APIExecutorParameters (http_request) contract."""
 
     def test_valid_get_request(self) -> None:
         """GET request with url and method is valid."""
-        config = APIExecutorConfig(method=HTTPMethod.GET, url="https://example.com/api")
+        config = APIExecutorParameters(method=HTTPMethod.GET, url="https://example.com/api")
         assert config.url == "https://example.com/api"
 
     def test_valid_post_with_body(self) -> None:
         """POST request can include a body."""
-        config = APIExecutorConfig(
+        config = APIExecutorParameters(
             method=HTTPMethod.POST,
             url="https://example.com/api",
             body={"key": "value"},
@@ -347,55 +347,55 @@ class TestAPIExecutorConfig:
     def test_requires_method(self) -> None:
         """HTTP method is required."""
         with pytest.raises(ValidationError, match="method"):
-            APIExecutorConfig(url="https://example.com")  # type: ignore[call-arg]
+            APIExecutorParameters(url="https://example.com")  # type: ignore[call-arg]
 
     def test_requires_url(self) -> None:
         """URL is required."""
         with pytest.raises(ValidationError, match="url"):
-            APIExecutorConfig(method=HTTPMethod.GET)  # type: ignore[call-arg]
+            APIExecutorParameters(method=HTTPMethod.GET)  # type: ignore[call-arg]
 
 
-class TestAgenticExecutorConfig:
-    """Validate AgenticExecutorConfig contract."""
+class TestAgenticExecutorParameters:
+    """Validate AgenticExecutorParameters contract."""
 
     def test_valid_agentic_config(self) -> None:
         """Agentic config with prompt is valid."""
-        config = AgenticExecutorConfig(prompt="Analyze this data")
+        config = AgenticExecutorParameters(prompt="Analyze this data")
         assert config.prompt == "Analyze this data"
 
     def test_optional_agent_and_model(self) -> None:
         """Agent and model fields are optional."""
-        config = AgenticExecutorConfig(prompt="Do something")
+        config = AgenticExecutorParameters(prompt="Do something")
         assert config.agent is None
         assert config.model is None
 
     def test_rejects_null_bytes_in_prompt(self) -> None:
         """Prompt with null bytes is rejected for security."""
         with pytest.raises((ValidationError, SafeValueError)):
-            AgenticExecutorConfig(prompt="bad\0prompt")
+            AgenticExecutorParameters(prompt="bad\0prompt")
 
     def test_file_ids_must_be_valid_uuids(self) -> None:
         """File IDs must be valid UUID format."""
         with pytest.raises((ValidationError, SafeValueError)):
-            AgenticExecutorConfig(prompt="test", file_ids=["not-a-uuid"])
+            AgenticExecutorParameters(prompt="test", file_ids=["not-a-uuid"])
 
     def test_file_ids_with_template_allowed(self) -> None:
         """Template expressions in file_ids bypass UUID validation."""
-        config = AgenticExecutorConfig(prompt="test", file_ids=["${input.file_id}"])
+        config = AgenticExecutorParameters(prompt="test", file_ids=["${input.file_id}"])
         assert config.file_ids == ["${input.file_id}"]
 
 
 class TestAAPJobTemplateConfig:
-    """Validate AAPJobTemplateExecutorConfig contract."""
+    """Validate AAPJobTemplateExecutorParameters contract."""
 
     def test_valid_by_id(self) -> None:
         """Job template config with job_template_id is valid."""
-        config = AAPJobTemplateExecutorConfig(job_template_id=42)
+        config = AAPJobTemplateExecutorParameters(job_template_id=42)
         assert config.job_template_id == 42
 
     def test_valid_by_name(self) -> None:
         """Job template config with name + org is valid."""
-        config = AAPJobTemplateExecutorConfig(
+        config = AAPJobTemplateExecutorParameters(
             job_template_name="my-template",
             organization_name="my-org",
         )
@@ -404,22 +404,22 @@ class TestAAPJobTemplateConfig:
     def test_rejects_name_without_org(self) -> None:
         """Job template name requires organization_name."""
         with pytest.raises((ValidationError, SafeValueError), match="organization_name"):
-            AAPJobTemplateExecutorConfig(job_template_name="my-template")
+            AAPJobTemplateExecutorParameters(job_template_name="my-template")
 
     def test_rejects_missing_id_and_name(self) -> None:
         """Either job_template_id or job_template_name must be specified."""
         with pytest.raises((ValidationError, SafeValueError)):
-            AAPJobTemplateExecutorConfig()
+            AAPJobTemplateExecutorParameters()
 
     def test_extra_vars_default_empty(self) -> None:
         """Extra vars default to empty dict."""
-        config = AAPJobTemplateExecutorConfig(job_template_id=1)
+        config = AAPJobTemplateExecutorParameters(job_template_id=1)
         assert config.extra_vars == {}
 
     def test_verbosity_range(self) -> None:
         """Verbosity must be 0-5."""
         with pytest.raises(ValidationError, match="verbosity"):
-            AAPJobTemplateExecutorConfig(job_template_id=1, verbosity=6)  # type: ignore[arg-type]
+            AAPJobTemplateExecutorParameters(job_template_id=1, verbosity=6)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------

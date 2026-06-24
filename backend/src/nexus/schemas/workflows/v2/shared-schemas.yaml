@@ -849,17 +849,73 @@ components:
                 type: string
 
     WorkflowDefinition:
-      title: WorkflowDefinition
-      description: |-
-        JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2.
-
-        Attributes:
-            schema_version: Schema version that this workflow definition conforms to
-            name: Workflow name
-            description: Human-readable description of the workflow's purpose
-            triggers: Trigger nodes that define how the workflow is initiated
-            nodes: Execution and control nodes in the workflow graph
-            edges: Directed edges connecting triggers and nodes in the workflow graph
+      properties:
+        schema_version:
+          type: string
+          const: 2.0.0
+          title: Schema Version
+          description: Schema version that this workflow definition conforms to
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Workflow name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 1000
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the workflow's purpose
+        triggers:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          minItems: 1
+          title: Triggers
+          description: Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation.
+        nodes:
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/AAPJobTemplateNode'
+              - $ref: '#/components/schemas/AAPWorkflowJobTemplateNode'
+              - $ref: '#/components/schemas/HTTPRequestNode'
+              - $ref: '#/components/schemas/AgenticNode'
+              - $ref: '#/components/schemas/ScriptNode'
+              - $ref: '#/components/schemas/ApprovalNode'
+              - $ref: '#/components/schemas/ConditionNode'
+              - $ref: '#/components/schemas/SwitchNode'
+              - $ref: '#/components/schemas/LoopNode'
+              - $ref: '#/components/schemas/ConvergeNode'
+              - $ref: '#/components/schemas/WaitNode'
+            discriminator:
+              propertyName: type
+              mapping:
+                aap_job_template: '#/components/schemas/AAPJobTemplateNode'
+                aap_workflow_job_template: '#/components/schemas/AAPWorkflowJobTemplateNode'
+                agentic: '#/components/schemas/AgenticNode'
+                approval: '#/components/schemas/ApprovalNode'
+                condition: '#/components/schemas/ConditionNode'
+                converge: '#/components/schemas/ConvergeNode'
+                http_request: '#/components/schemas/HTTPRequestNode'
+                loop: '#/components/schemas/LoopNode'
+                script: '#/components/schemas/ScriptNode'
+                switch: '#/components/schemas/SwitchNode'
+                wait: '#/components/schemas/WaitNode'
+          type: array
+          title: Nodes
+          description: Execution and control nodes in the workflow graph
+        edges:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Edges
+          description: List of directed edges connecting triggers and nodes in the workflow graph
+      additionalProperties: false
       type: object
       required:
         - schema_version
@@ -867,46 +923,1316 @@ components:
         - triggers
         - nodes
         - edges
+      title: WorkflowDefinition
+      description: "JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2.\n\nAttributes:\n    schema_version: Schema version that this workflow definition conforms to\n    name: Workflow name\n    description: Human-readable description of the workflow's purpose\n    triggers: Trigger nodes that define how the workflow is initiated\n    nodes: Execution and control nodes in the workflow graph\n    edges: Directed edges connecting triggers and nodes in the workflow graph"
+    AAPJobTemplateNode:
       properties:
-        schema_version:
+        id:
           type: string
-          const: "2.0.0"
-          title: Schema Version
-          description: Schema version that this workflow definition conforms to
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
         name:
-          type: string
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
           title: Name
-          description: Workflow name
-          minLength: 1
-          maxLength: 255
+          description: Human-readable name for the node
         description:
           anyOf:
             - type: string
               minLength: 1
-              maxLength: 1000
-            - type: "null"
+            - type: 'null'
           title: Description
-          description: Human-readable description of the workflow's purpose
-        triggers:
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: aap_job_template
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/AAPJobTemplateExecutorParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsFull'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: AAPJobTemplateNode
+      description: AAP job template executor node.
+    AAPWorkflowJobTemplateNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: aap_workflow_job_template
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/AAPWorkflowJobTemplateExecutorParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsFull'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: AAPWorkflowJobTemplateNode
+      description: AAP workflow job template executor node.
+    HTTPRequestNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: http_request
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/APIExecutorParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsFull'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: HTTPRequestNode
+      description: HTTP request executor node.
+    AgenticNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: agentic
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/AgenticExecutorParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsNoRetry'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: AgenticNode
+      description: Agentic executor node.
+    ScriptNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: script
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/ScriptExecutorParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsNoRetry'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: ScriptNode
+      description: Script executor node.
+    ApprovalNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: approval
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/ApprovalNodeParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsNoRetry'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: ApprovalNode
+      description: Approval gate node.
+    ConditionNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: condition
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/ConditionNodeParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsBase'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: ConditionNode
+      description: Binary conditional branching node.
+    SwitchNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: switch
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/SwitchNodeParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsBase'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: SwitchNode
+      description: Multi-case branching control node.
+    LoopNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: loop
+          title: Type
+        parameters:
+          oneOf:
+            - $ref: '#/components/schemas/ForEachLoopParameters'
+            - $ref: '#/components/schemas/DoWhileLoopParameters'
+          title: Parameters
+          discriminator:
+            propertyName: type
+            mapping:
+              do_while: '#/components/schemas/DoWhileLoopParameters'
+              for_each: '#/components/schemas/ForEachLoopParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsCof'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: LoopNode
+      description: Loop (for_each/do_while) control node.
+    ConvergeNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: converge
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/ConvergeNodeParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsCof'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: ConvergeNode
+      description: Convergence/synchronization control node.
+    WaitNode:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+          title: Id
+          description: Unique identifier for the node within the workflow
+        name:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Name
+          description: Human-readable name for the node
+        description:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Description
+          description: Human-readable description of the node purpose
+        outputs:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Outputs
+          description: Output extraction mapping
+        position:
+          anyOf:
+            - $ref: '#/components/schemas/NodePosition'
+            - type: 'null'
+          description: Optional UI position hint
+        type:
+          type: string
+          const: wait
+          title: Type
+        parameters:
+          $ref: '#/components/schemas/WaitNodeParameters'
+        settings:
+          anyOf:
+            - $ref: '#/components/schemas/NodeSettingsCofDisabled'
+            - type: 'null'
+      additionalProperties: true
+      type: object
+      required:
+        - id
+        - type
+        - parameters
+      title: WaitNode
+      description: Wait (delay) control node.
+    AAPJobTemplateExecutorParameters:
+      properties:
+        credential_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Credential Id
+          description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+        organizationId:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Organizationid
+          description: AAP organization ID (takes precedence over organization_name)
+        organization_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Organization Name
+          description: AAP organization name (used with template_name or inventory_name)
+        inventory_id:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Inventory Id
+          description: Override default inventory by ID (mutually exclusive with inventory_name)
+        inventory_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Inventory Name
+          description: Override default inventory by name (requires organization_name)
+        extra_vars:
+          additionalProperties: true
+          type: object
+          title: Extra Vars
+          description: Extra variables to pass to job/workflow job
+        limit:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Limit
+          description: Limit job execution to specific hosts
+        tags:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Tags
+          description: Ansible tags to run (comma-separated)
+        skip_tags:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Skip Tags
+          description: Ansible tags to skip (comma-separated)
+        labels:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: 'null'
+          title: Labels
+          description: "AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced."
+        job_template_id:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Job Template Id
+          description: AAP job template ID to launch
+        job_template_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Job Template Name
+          description: AAP job template name (used with organization_name)
+        job_credentials:
+          anyOf:
+            - items:
+                type: integer
+              type: array
+            - type: 'null'
+          title: Job Credentials
+          description: List of AAP credential IDs to use (takes precedence over credential_names)
+        credentialNames:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: 'null'
+          title: Credentialnames
+          description: List of AAP credential names to use (requires organization_name, resolved at launch time)
+        verbosity:
+          $ref: '#/components/schemas/AAPVerbosity'
+          description: Job verbosity level (0-5)
+          default: 0
+        job_type:
+          anyOf:
+            - $ref: '#/components/schemas/AAPJobType'
+            - type: 'null'
+          description: "Job type override: 'run' or 'check' (dry run)"
+        forks:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Forks
+          description: Number of parallel forks for job execution
+        job_slicing:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Job Slicing
+          description: Number of job slices
+        diff_mode:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Diff Mode
+          description: Enable diff mode for playbook runs
+        execution_environment:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Execution Environment
+          description: Execution environment override (deferred — requires ID resolution)
+        instance_group_id:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Instance Group Id
+          description: Override instance group by ID (takes precedence over instance_group_name)
+        instance_group_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Instance Group Name
+          description: Override instance group by name (requires organization_name for lookup)
+      type: object
+      title: AAPJobTemplateExecutorParameters
+      description: "Parameters for AAP Job Template executor.\n\nInherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,\ninventory, extra_vars, limit, tags, skip_tags, labels, timeout)."
+    AAPWorkflowJobTemplateExecutorParameters:
+      properties:
+        credential_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Credential Id
+          description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+        organizationId:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Organizationid
+          description: AAP organization ID (takes precedence over organization_name)
+        organization_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Organization Name
+          description: AAP organization name (used with template_name or inventory_name)
+        inventory_id:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Inventory Id
+          description: Override default inventory by ID (mutually exclusive with inventory_name)
+        inventory_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Inventory Name
+          description: Override default inventory by name (requires organization_name)
+        extra_vars:
+          additionalProperties: true
+          type: object
+          title: Extra Vars
+          description: Extra variables to pass to job/workflow job
+        limit:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Limit
+          description: Limit job execution to specific hosts
+        tags:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Tags
+          description: Ansible tags to run (comma-separated)
+        skip_tags:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Skip Tags
+          description: Ansible tags to skip (comma-separated)
+        labels:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: 'null'
+          title: Labels
+          description: "AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced."
+        workflow_job_template_id:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Workflow Job Template Id
+          description: AAP workflow job template ID to launch
+        workflow_job_template_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Workflow Job Template Name
+          description: AAP workflow job template name (used with organization_name)
+        scm_branch:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Scm Branch
+          description: SCM branch override for projects in workflow
+      type: object
+      title: AAPWorkflowJobTemplateExecutorParameters
+      description: "Parameters for AAP Workflow Job Template executor.\n\nInherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,\ninventory, extra_vars, limit, tags, skip_tags, labels, timeout)."
+    APIExecutorParameters:
+      properties:
+        method:
+          $ref: '#/components/schemas/HTTPMethod'
+          description: HTTP method
+        url:
+          type: string
+          title: Url
+          description: Request URL
+        headers:
+          additionalProperties: true
+          type: object
+          title: Headers
+        body:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: string
+            - type: 'null'
+          title: Body
+        query_params:
+          additionalProperties: true
+          type: object
+          title: Query Params
+        authentication:
+          anyOf:
+            - $ref: '#/components/schemas/Authentication'
+            - type: 'null'
+        credential_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Credential Id
+          description: Nexus credential UUID for authentication. Takes priority over authentication field.
+      type: object
+      required:
+        - method
+        - url
+      title: APIExecutorParameters
+      description: Parameters for API executor (http_request activity).
+    AgenticExecutorParameters:
+      properties:
+        prompt:
+          type: string
+          title: Prompt
+          description: Prompt template for the agent
+        agent:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Agent
+        model:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Model
+        credential_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Credential Id
+          description: Nexus credential UUID for LLM provider authentication
+        file_ids:
+          items:
+            type: string
           type: array
-          title: Triggers
-          description: Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation.
+          maxItems: 10
+          title: File Ids
+          description: File IDs for agent context
+        responseSchema:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: string
+            - type: 'null'
+          title: Responseschema
+          description: JSON Schema for structured output. When defined, agent output conforms to this schema.
+      type: object
+      required:
+        - prompt
+      title: AgenticExecutorParameters
+      description: Parameters for agentic executor.
+    ScriptExecutorParameters:
+      properties:
+        language:
+          $ref: '#/components/schemas/ScriptLanguage'
+        code:
+          type: string
+          minLength: 1
+          title: Code
+          description: Script code to execute
+        environment:
+          additionalProperties:
+            type: string
+          type: object
+          title: Environment
+          description: Environment variables
+        credential_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Credential Id
+          description: Nexus credential UUID for credential scrubbing
+      type: object
+      required:
+        - language
+        - code
+      title: ScriptExecutorParameters
+      description: Parameters for script executor.
+    ApprovalNodeParameters:
+      properties:
+        credential_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Credential Id
+          description: Nexus credential UUID
+        approver_users:
+          anyOf:
+            - items:
+                type: string
+              type: array
+              maxItems: 100
+            - type: 'null'
+          title: Approver Users
+          description: Usernames who can approve
+        approver_groups:
+          anyOf:
+            - items:
+                type: string
+              type: array
+              maxItems: 50
+            - type: 'null'
+          title: Approver Groups
+          description: Group names whose members can approve
+        prompt:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prompt
+          description: Message to display to approvers
+        fallback_decision:
+          anyOf:
+            - type: string
+              enum:
+                - approve
+                - reject
+            - type: 'null'
+          title: Fallback Decision
+          description: Decision when approval times out with continue_on_failure
+        decision_window:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Decision Window
+          description: Response timeout in seconds
+      type: object
+      title: ApprovalNodeParameters
+      description: Parameters for approval gate nodes.
+    ConditionNodeParameters:
+      properties:
+        condition:
+          type: string
+          minLength: 1
+          title: Condition
+          description: Expression that evaluates to boolean
+      type: object
+      required:
+        - condition
+      title: ConditionNodeParameters
+      description: Parameters for condition (if/then/else) control nodes.
+    SwitchNodeParameters:
+      properties:
+        cases:
+          items:
+            $ref: '#/components/schemas/SwitchCase'
+          type: array
           minItems: 1
-          items:
-            additionalProperties: true
-            type: object
-        nodes:
-          type: array
-          title: Nodes
-          description: Execution and control nodes in the workflow graph
-          items:
-            additionalProperties: true
-            type: object
-        edges:
-          type: array
-          title: Edges
-          description: List of directed edges connecting triggers and nodes in the workflow graph
-          items:
-            additionalProperties: true
-            type: object
+          title: Cases
+          description: Ordered list of cases
+        default_port:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Default Port
+          description: Port to route to when no case matches
+      type: object
+      required:
+        - cases
+      title: SwitchNodeParameters
+      description: Parameters for switch (multi-branch) control nodes.
+    SwitchCase:
+      properties:
+        port:
+          type: string
+          minLength: 1
+          title: Port
+          description: Port identifier for this case
+        label:
+          type: string
+          minLength: 1
+          title: Label
+          description: Display label for this case
+        condition:
+          type: string
+          minLength: 1
+          title: Condition
+          description: Boolean expression to evaluate
+      type: object
+      required:
+        - port
+        - label
+        - condition
+      title: SwitchCase
+      description: A single case in a switch node.
+    ConvergeNodeParameters:
+      properties:
+        strategy:
+          anyOf:
+            - $ref: '#/components/schemas/ConvergeStrategy'
+            - type: 'null'
+          description: Convergence strategy
+        n_required:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: N Required
+          description: Branches required when strategy is 'any'
+        wait_duration:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Wait Duration
+          description: Wait timeout in seconds
+      type: object
+      title: ConvergeNodeParameters
+      description: Parameters for converge (synchronization) control nodes.
+    ForEachLoopParameters:
+      properties:
+        type:
+          type: string
+          const: for_each
+          title: Type
+        items:
+          type: string
+          minLength: 1
+          title: Items
+          description: Array expression to iterate over
+        max_iterations:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Max Iterations
+          description: Maximum items to process
+      type: object
+      required:
+        - type
+        - items
+      title: ForEachLoopParameters
+      description: Parameters for for_each loop nodes.
+    DoWhileLoopParameters:
+      properties:
+        type:
+          type: string
+          const: do_while
+          title: Type
+        condition:
+          type: string
+          minLength: 1
+          title: Condition
+          description: Boolean expression evaluated after each iteration
+        max_iterations:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Max Iterations
+          description: Maximum iterations
+      type: object
+      required:
+        - type
+        - condition
+      title: DoWhileLoopParameters
+      description: Parameters for do_while loop nodes.
+    WaitNodeParameters:
+      properties:
+        duration:
+          type: integer
+          minimum: 1.0
+          title: Duration
+          description: Wait duration in seconds
+      type: object
+      required:
+        - duration
+      title: WaitNodeParameters
+      description: Parameters for wait (delay) control nodes.
+    NodePosition:
+      properties:
+        x:
+          type: number
+          title: X
+        y:
+          type: number
+          title: Y
+      type: object
+      required:
+        - x
+        - y
+      title: NodePosition
+      description: UI position hint for a workflow node.
+    NodeSettingsBase:
+      properties: {}
       additionalProperties: false
+      type: object
+      title: NodeSettingsBase
+      description: Base node settings — no user-configurable fields.
+    NodeSettingsCof:
+      properties:
+        continue_on_failure:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Continue On Failure
+      additionalProperties: false
+      type: object
+      title: NodeSettingsCof
+      description: Settings with continue_on_failure only (converge, loop).
+    NodeSettingsCofDisabled:
+      properties:
+        continue_on_failure:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Continue On Failure
+        disabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Disabled
+      additionalProperties: false
+      type: object
+      title: NodeSettingsCofDisabled
+      description: Settings with disabled and continue_on_failure (wait).
+    NodeSettingsNoRetry:
+      properties:
+        continue_on_failure:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Continue On Failure
+        disabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Disabled
+        timeout:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Timeout
+      additionalProperties: false
+      type: object
+      title: NodeSettingsNoRetry
+      description: Settings with disabled, continue_on_failure, and timeout (script, agentic, approval).
+    NodeSettingsFull:
+      properties:
+        continue_on_failure:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Continue On Failure
+        disabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Disabled
+        timeout:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Timeout
+        retry_policy:
+          anyOf:
+            - $ref: '#/components/schemas/RetryPolicyParameters'
+            - type: 'null'
+      additionalProperties: false
+      type: object
+      title: NodeSettingsFull
+      description: Full settings with retry_policy (http_request, aap_job_template, aap_workflow_job_template).
+    RetryPolicyParameters:
+      properties:
+        max_retries:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          title: Max Retries
+          description: Retries after initial attempt. 0 = no retry.
+        initial_interval:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Initial Interval
+          description: Initial retry interval in seconds.
+        max_interval:
+          anyOf:
+            - type: integer
+              minimum: 1.0
+            - type: 'null'
+          title: Max Interval
+          description: Maximum retry interval in seconds.
+        backoff_coefficient:
+          anyOf:
+            - type: number
+              minimum: 1.0
+            - type: 'null'
+          title: Backoff Coefficient
+          description: Multiplier per retry. 1.0 = fixed, >1.0 = exponential.
+      type: object
+      title: RetryPolicyParameters
+      description: "Retry policy parameters for a node.\n\nOnly applies to nodes whose settings class is NodeSettingsFull\n(http_request, aap_job_template, aap_workflow_job_template).\n\nAll fields default to None — the engine merges with global catalog values\n(workflow_engine.retry_*) for any unset field. Set max_retries=0 to\nexplicitly disable retry, overriding global defaults."
+    ScriptLanguage:
+      type: string
+      enum:
+        - bash
+        - python
+      title: ScriptLanguage
+      description: Supported script languages for script executor.
+    AuthenticationType:
+      type: string
+      enum:
+        - basic
+        - bearer
+        - api_key
+        - oauth2
+      title: AuthenticationType
+      description: Supported authentication types for API requests.
+    Authentication:
+      properties:
+        type:
+          $ref: '#/components/schemas/AuthenticationType'
+          description: Authentication type
+        credentials:
+          type: string
+          pattern: ^\$\{secrets\.[a-zA-Z0-9_]+\}$
+          title: Credentials
+          description: Reference to stored credentials
+      type: object
+      required:
+        - type
+        - credentials
+      title: Authentication
+      description: Authentication configuration for API requests.
+    ConvergeStrategy:
+      type: string
+      enum:
+        - all
+        - any
+      title: ConvergeStrategy
+      description: Convergence strategies for converge nodes.
+    AAPVerbosity:
+      type: integer
+      enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+      title: AAPVerbosity
+      description: AAP job verbosity levels (0-5).
+    AAPJobType:
+      type: string
+      enum:
+        - run
+        - check
+      title: AAPJobType
+      description: AAP job type values.
+    HTTPMethod:
+      type: string
+      enum:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - HEAD
+        - OPTIONS
+        - CONNECT
+        - TRACE
+      title: HTTPMethod
+      description: Supported HTTP methods for API requests.

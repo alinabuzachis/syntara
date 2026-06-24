@@ -624,7 +624,7 @@ print(json.dumps(data))
 
 
 class TestPydanticConfigValidation:
-    """Test that ScriptExecutorConfig.model_validate() is enforced."""
+    """Test that ScriptExecutorParameters.model_validate() is enforced."""
 
     @pytest.mark.asyncio
     async def test_empty_code_raises_config_error(self) -> None:

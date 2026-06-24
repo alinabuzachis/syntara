@@ -950,6 +950,86 @@ components:
     WorkflowDefinition:
       $ref: ./shared-schemas.yaml#/components/schemas/WorkflowDefinition
 
+    # Node type schemas (referenced by WorkflowDefinition.nodes oneOf)
+    AAPJobTemplateNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/AAPJobTemplateNode
+    AAPWorkflowJobTemplateNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/AAPWorkflowJobTemplateNode
+    HTTPRequestNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/HTTPRequestNode
+    AgenticNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/AgenticNode
+    ScriptNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/ScriptNode
+    ApprovalNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/ApprovalNode
+    ConditionNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/ConditionNode
+    SwitchNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/SwitchNode
+    LoopNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/LoopNode
+    ConvergeNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/ConvergeNode
+    WaitNode:
+      $ref: ./shared-schemas.yaml#/components/schemas/WaitNode
+
+    # Node parameter and settings schemas
+    AAPJobTemplateExecutorParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/AAPJobTemplateExecutorParameters
+    AAPWorkflowJobTemplateExecutorParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/AAPWorkflowJobTemplateExecutorParameters
+    APIExecutorParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/APIExecutorParameters
+    AgenticExecutorParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/AgenticExecutorParameters
+    ScriptExecutorParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/ScriptExecutorParameters
+    ApprovalNodeParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/ApprovalNodeParameters
+    ConditionNodeParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/ConditionNodeParameters
+    SwitchNodeParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/SwitchNodeParameters
+    SwitchCase:
+      $ref: ./shared-schemas.yaml#/components/schemas/SwitchCase
+    ConvergeNodeParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/ConvergeNodeParameters
+    ForEachLoopParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/ForEachLoopParameters
+    DoWhileLoopParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/DoWhileLoopParameters
+    WaitNodeParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/WaitNodeParameters
+    NodePosition:
+      $ref: ./shared-schemas.yaml#/components/schemas/NodePosition
+    NodeSettingsBase:
+      $ref: ./shared-schemas.yaml#/components/schemas/NodeSettingsBase
+    NodeSettingsCof:
+      $ref: ./shared-schemas.yaml#/components/schemas/NodeSettingsCof
+    NodeSettingsCofDisabled:
+      $ref: ./shared-schemas.yaml#/components/schemas/NodeSettingsCofDisabled
+    NodeSettingsNoRetry:
+      $ref: ./shared-schemas.yaml#/components/schemas/NodeSettingsNoRetry
+    NodeSettingsFull:
+      $ref: ./shared-schemas.yaml#/components/schemas/NodeSettingsFull
+    RetryPolicyParameters:
+      $ref: ./shared-schemas.yaml#/components/schemas/RetryPolicyParameters
+    Authentication:
+      $ref: ./shared-schemas.yaml#/components/schemas/Authentication
+    AuthenticationType:
+      $ref: ./shared-schemas.yaml#/components/schemas/AuthenticationType
+    HTTPMethod:
+      $ref: ./shared-schemas.yaml#/components/schemas/HTTPMethod
+    ScriptLanguage:
+      $ref: ./shared-schemas.yaml#/components/schemas/ScriptLanguage
+    ConvergeStrategy:
+      $ref: ./shared-schemas.yaml#/components/schemas/ConvergeStrategy
+    AAPVerbosity:
+      $ref: ./shared-schemas.yaml#/components/schemas/AAPVerbosity
+    AAPJobType:
+      $ref: ./shared-schemas.yaml#/components/schemas/AAPJobType
+
     WebhookResponse:
       type: object
       title: WebhookResponse

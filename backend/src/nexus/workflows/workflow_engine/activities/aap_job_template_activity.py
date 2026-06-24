@@ -17,7 +17,7 @@ from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.core.config.base import get_settings
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorParameters
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 from nexus.workflows.workflow_engine.models.workflow_definition import AAPJobTemplateOutput
 
@@ -58,7 +58,7 @@ _LAUNCH_BODY_FIELDS: list[tuple[str, str]] = [
 
 
 def _build_launch_body(
-    config: AAPJobTemplateExecutorConfig,
+    config: AAPJobTemplateExecutorParameters,
     inventory_id: int | None,
     instance_group_id: int | None = None,
 ) -> dict[str, Any]:
@@ -93,7 +93,7 @@ def _build_launch_body(
 
 async def _resolve_job_template_id(
     client: httpx.AsyncClient,
-    config: AAPJobTemplateExecutorConfig,
+    config: AAPJobTemplateExecutorParameters,
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
     base_url: str,
@@ -133,7 +133,7 @@ async def _resolve_job_template_id(
 
 async def _resolve_inventory_id(
     client: httpx.AsyncClient,
-    config: AAPJobTemplateExecutorConfig,
+    config: AAPJobTemplateExecutorParameters,
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
     base_url: str,
@@ -169,7 +169,7 @@ async def _resolve_inventory_id(
 
 async def _resolve_instance_group_id(
     client: httpx.AsyncClient,
-    config: AAPJobTemplateExecutorConfig,
+    config: AAPJobTemplateExecutorParameters,
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
     base_url: str,
@@ -210,14 +210,14 @@ async def _resolve_instance_group_id(
     return None
 
 
-def _get_template_reference_info(config: AAPJobTemplateExecutorConfig, job_template_id: int) -> str:
+def _get_template_reference_info(config: AAPJobTemplateExecutorParameters, job_template_id: int) -> str:
     """Build reference info string for logging/errors (ID or name+org)."""
     if config.job_template_id is not None:
         return f"ID {job_template_id}"
     return f"'{config.job_template_name}' in org '{config.organization_name}'"
 
 
-def _log_launch_success(config: AAPJobTemplateExecutorConfig, job_template_id: int, job_id: int) -> None:
+def _log_launch_success(config: AAPJobTemplateExecutorParameters, job_template_id: int, job_id: int) -> None:
     """Log successful job template launch (by ID or by name)."""
     if config.job_template_id is not None:
         logger.info("Launched AAP job template by ID", job_template_id=job_template_id, job_id=job_id)
@@ -233,7 +233,7 @@ def _log_launch_success(config: AAPJobTemplateExecutorConfig, job_template_id: i
 
 def _handle_http_status_error(
     e: httpx.HTTPStatusError,
-    config: AAPJobTemplateExecutorConfig,
+    config: AAPJobTemplateExecutorParameters,
     job_template_id: int,
     body: dict[str, Any],
 ) -> NoReturn:
@@ -256,7 +256,7 @@ def _handle_http_status_error(
 
 async def _launch_aap_job(
     client: httpx.AsyncClient,
-    config: AAPJobTemplateExecutorConfig,
+    config: AAPJobTemplateExecutorParameters,
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
     base_url: str,
@@ -392,7 +392,7 @@ async def execute_aap_job_template_activity(
     logger.info("Starting AAP job template activity")
 
     try:
-        config = AAPJobTemplateExecutorConfig.model_validate(input_config)
+        config = AAPJobTemplateExecutorParameters.model_validate(input_config)
     except Exception as e:  # noqa: BLE001
         # Log full details internally; omit values from user-facing message (may contain credentials)
         logger.warning("AAP config validation failed", error=str(e))

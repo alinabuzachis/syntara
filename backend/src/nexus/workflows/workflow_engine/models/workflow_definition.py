@@ -7,14 +7,14 @@ These are used by V2 workflow activities for config validation.
 import re
 import uuid
 from enum import Enum, IntEnum, StrEnum
-from http import HTTPMethod
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 from zoneinfo import available_timezones
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import ModelWrapValidatorHandler
 
+from nexus.aap.models.responses import AAPJobType as AAPJobType  # noqa: PLC0414
 from nexus.core.constants import WebhookLimits
 from nexus.core.exceptions import SafeValueError
 from nexus.workflows.json_schema_validation import validate_json_schema_definition
@@ -175,6 +175,20 @@ class ScriptLanguage(str, Enum):
     PYTHON = "python"
 
 
+class HTTPMethod(str, Enum):
+    """Supported HTTP methods for API requests."""
+
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    PATCH = "PATCH"
+    DELETE = "DELETE"
+    HEAD = "HEAD"
+    OPTIONS = "OPTIONS"
+    CONNECT = "CONNECT"
+    TRACE = "TRACE"
+
+
 class AuthenticationType(str, Enum):
     """Supported authentication types for API requests."""
 
@@ -187,8 +201,8 @@ class AuthenticationType(str, Enum):
 # Node-level settings models
 
 
-class RetryPolicyConfig(BaseModel):
-    """Retry policy for a node.
+class RetryPolicyParameters(BaseModel):
+    """Retry policy parameters for a node.
 
     Only applies to nodes whose settings class is NodeSettingsFull
     (http_request, aap_job_template, aap_workflow_job_template).
@@ -233,16 +247,17 @@ class NodeSettingsNoRetry(NodeSettingsCofDisabled):
 class NodeSettingsFull(NodeSettingsNoRetry):
     """Full settings with retry_policy (http_request, aap_job_template, aap_workflow_job_template)."""
 
-    retry_policy: RetryPolicyConfig | None = None
+    retry_policy: RetryPolicyParameters | None = None
 
 
 # Executor configuration models
-class ScriptExecutorConfig(TemplateAwareBaseModel):
-    """Configuration for script executor."""
+class ScriptExecutorParameters(TemplateAwareBaseModel):
+    """Parameters for script executor."""
 
     language: ScriptLanguage
     code: str = Field(min_length=1, description="Script code to execute")
     environment: dict[str, str] = Field(default_factory=dict, description="Environment variables")
+    credential_id: str | None = Field(default=None, description="Nexus credential UUID for credential scrubbing")
 
 
 class Authentication(TemplateAwareBaseModel):
@@ -255,8 +270,8 @@ class Authentication(TemplateAwareBaseModel):
     )
 
 
-class APIExecutorConfig(TemplateAwareBaseModel):
-    """Configuration for API executor (http_request activity)."""
+class APIExecutorParameters(TemplateAwareBaseModel):
+    """Parameters for API executor (http_request activity)."""
 
     method: HTTPMethod = Field(description="HTTP method")
     url: str = Field(description="Request URL")
@@ -282,8 +297,8 @@ class APIExecutorConfig(TemplateAwareBaseModel):
         return v
 
 
-class AgenticExecutorConfig(TemplateAwareBaseModel, populate_by_name=True):
-    """Configuration for agentic executor."""
+class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
+    """Parameters for agentic executor."""
 
     prompt: str = Field(description="Prompt template for the agent")
     agent: str | None = None
@@ -356,13 +371,6 @@ class AAPVerbosity(IntEnum):
     DEBUG = 3
     CONNECTION_DEBUG = 4
     WINRM_DEBUG = 5
-
-
-class AAPJobType(str, Enum):
-    """AAP job type values."""
-
-    RUN = "run"
-    CHECK = "check"
 
 
 class AAPResourceReferenceMixin(BaseModel):
@@ -459,8 +467,8 @@ class AAPResourceReferenceMixin(BaseModel):
             raise SafeValueError(msg)
 
 
-class AAPJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAwareBaseModel):
-    """Configuration for AAP Job Template executor.
+class AAPJobTemplateExecutorParameters(AAPResourceReferenceMixin, TemplateAwareBaseModel):
+    """Parameters for AAP Job Template executor.
 
     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
@@ -528,7 +536,7 @@ class AAPJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAwareBaseM
     )
 
     @model_validator(mode="after")
-    def validate_references(self) -> "AAPJobTemplateExecutorConfig":
+    def validate_references(self) -> "AAPJobTemplateExecutorParameters":
         """Validate job template and inventory references."""
         # Validate job template reference
         self._validate_id_or_name_reference(
@@ -551,8 +559,8 @@ class AAPJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAwareBaseM
         return self
 
 
-class AAPWorkflowJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAwareBaseModel):
-    """Configuration for AAP Workflow Job Template executor.
+class AAPWorkflowJobTemplateExecutorParameters(AAPResourceReferenceMixin, TemplateAwareBaseModel):
+    """Parameters for AAP Workflow Job Template executor.
 
     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
@@ -576,7 +584,7 @@ class AAPWorkflowJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAw
     )
 
     @model_validator(mode="after")
-    def validate_references(self) -> "AAPWorkflowJobTemplateExecutorConfig":
+    def validate_references(self) -> "AAPWorkflowJobTemplateExecutorParameters":
         """Validate workflow job template and inventory references."""
         # Validate workflow job template reference
         self._validate_id_or_name_reference(
@@ -599,8 +607,79 @@ class AAPWorkflowJobTemplateExecutorConfig(AAPResourceReferenceMixin, TemplateAw
         return self
 
 
+# ---------------------------------------------------------------------------
+# Control node parameters models
+# ---------------------------------------------------------------------------
+
+
+class ConditionNodeParameters(BaseModel):
+    """Parameters for condition (if/then/else) control nodes."""
+
+    condition: str = Field(min_length=1, description="Expression that evaluates to boolean")
+
+
+class SwitchCase(BaseModel):
+    """A single case in a switch node."""
+
+    port: str = Field(min_length=1, description="Port identifier for this case")
+    label: str = Field(min_length=1, description="Display label for this case")
+    condition: str = Field(min_length=1, description="Boolean expression to evaluate")
+
+
+class SwitchNodeParameters(BaseModel):
+    """Parameters for switch (multi-branch) control nodes."""
+
+    cases: list[SwitchCase] = Field(min_length=1, description="Ordered list of cases")
+    default_port: str | None = Field(default=None, description="Port to route to when no case matches")
+
+
+class ConvergeNodeParameters(BaseModel):
+    """Parameters for converge (synchronization) control nodes."""
+
+    strategy: ConvergeStrategy | None = Field(default=None, description="Convergence strategy")
+    n_required: int | None = Field(default=None, ge=1, description="Branches required when strategy is 'any'")
+    wait_duration: int | None = Field(default=None, ge=1, description="Wait timeout in seconds")
+
+
+class ForEachLoopParameters(BaseModel):
+    """Parameters for for_each loop nodes."""
+
+    type: Literal["for_each"]
+    items: str = Field(min_length=1, description="Array expression to iterate over")
+    max_iterations: int | None = Field(default=None, ge=1, description="Maximum items to process")
+
+
+class DoWhileLoopParameters(BaseModel):
+    """Parameters for do_while loop nodes."""
+
+    type: Literal["do_while"]
+    condition: str = Field(min_length=1, description="Boolean expression evaluated after each iteration")
+    max_iterations: int | None = Field(default=None, ge=1, description="Maximum iterations")
+
+
+class WaitNodeParameters(BaseModel):
+    """Parameters for wait (delay) control nodes."""
+
+    duration: int = Field(ge=1, description="Wait duration in seconds")
+
+
+class ApprovalNodeParameters(BaseModel):
+    """Parameters for approval gate nodes."""
+
+    credential_id: str | None = Field(default=None, description="Nexus credential UUID")
+    approver_users: list[str] | None = Field(default=None, max_length=100, description="Usernames who can approve")
+    approver_groups: list[str] | None = Field(
+        default=None, max_length=50, description="Group names whose members can approve"
+    )
+    prompt: str | None = Field(default=None, description="Message to display to approvers")
+    fallback_decision: Literal["approve", "reject"] | None = Field(
+        default=None, description="Decision when approval times out with continue_on_failure"
+    )
+    decision_window: int | None = Field(default=None, ge=1, description="Response timeout in seconds")
+
+
 class WebhookTriggerConfig(TemplateAwareBaseModel):
-    """Configuration for webhook trigger nodes.
+    """Parameters for webhook trigger nodes.
 
     Defines the endpoint configuration for a webhook trigger, including the
     URL path slug and an optional JSON Schema for payload validation.
@@ -826,7 +905,7 @@ def _get_valid_timezones() -> frozenset[str]:
 
 
 class ScheduledTriggerConfig(TemplateAwareBaseModel):
-    """Configuration for scheduled trigger nodes.
+    """Parameters for scheduled trigger nodes.
 
     Defines the schedule configuration for a scheduled trigger, including
     the schedule type, cron expression or interval, and timezone.

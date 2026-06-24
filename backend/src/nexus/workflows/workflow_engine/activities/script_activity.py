@@ -17,7 +17,11 @@ from temporalio.exceptions import ApplicationError
 
 from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ScriptExecutorConfig, ScriptOutput
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
+    ScriptExecutorParameters,
+    ScriptOutput,
+)
 
 from .common import ActivityExecutionError
 
@@ -342,7 +346,7 @@ async def execute_script_activity(
     try:
         # Validate config via Pydantic model
         try:
-            config = ScriptExecutorConfig.model_validate(input_config)
+            config = ScriptExecutorParameters.model_validate(input_config)
         except Exception:  # noqa: BLE001
             msg = "Script activity configuration validation failed"
             raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None

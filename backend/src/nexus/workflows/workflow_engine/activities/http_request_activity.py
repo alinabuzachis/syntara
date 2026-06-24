@@ -16,7 +16,7 @@ from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC,
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityName,
-    APIExecutorConfig,
+    APIExecutorParameters,
     AuthenticationType,
     HttpRequestOutput,
 )
@@ -66,7 +66,7 @@ def _add_credential_auth_headers(headers: dict[str, Any], extra_vars: dict[str, 
         logger.warning("Credential resolved but auth_type is missing from extra_vars — proceeding without auth")
 
 
-def _apply_authentication(headers: dict[str, Any], config: APIExecutorConfig) -> None:
+def _apply_authentication(headers: dict[str, Any], config: APIExecutorParameters) -> None:
     """Apply authentication to request headers based on config.
 
     Mutates the headers dict in place. Credentials references (e.g. ${secrets.token})
@@ -120,7 +120,7 @@ async def execute_http_request_activity(
     """
     # Validate config via Pydantic model
     try:
-        config = APIExecutorConfig.model_validate(input_config)
+        config = APIExecutorParameters.model_validate(input_config)
     except ValidationError as exc:
         # Log full details internally; omit values from user-facing message (may contain credentials)
         logger.warning("HTTP activity config validation failed", error_count=exc.error_count())

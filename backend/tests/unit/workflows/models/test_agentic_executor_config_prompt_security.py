@@ -1,4 +1,4 @@
-"""Unit tests for AgenticExecutorConfig prompt security validation.
+"""Unit tests for AgenticExecutorParameters prompt security validation.
 
 These tests verify:
 - Prompt length is NOT validated by the Pydantic model (done at runtime by the activity)
@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from nexus.workflows.workflow_engine.models.workflow_definition import (
-    AgenticExecutorConfig,
+    AgenticExecutorParameters,
 )
 
 
@@ -25,18 +25,18 @@ class TestPromptLengthValidation:
     def test_prompt_at_100k_accepted(self) -> None:
         """100KB prompt is accepted by the Pydantic model."""
         prompt = "a" * 100000
-        config = AgenticExecutorConfig(prompt=prompt)
+        config = AgenticExecutorParameters(prompt=prompt)
         assert config.prompt == prompt
 
     def test_prompt_over_100k_accepted_by_model(self) -> None:
         """Prompts over 100KB are accepted by Pydantic — length check is in the activity."""
         prompt = "a" * 200000
-        config = AgenticExecutorConfig(prompt=prompt)
+        config = AgenticExecutorParameters(prompt=prompt)
         assert config.prompt == prompt
 
     def test_prompt_well_under_max_length_accepted(self) -> None:
         """A short prompt should be accepted without issue."""
-        config = AgenticExecutorConfig(prompt="Summarize this document")
+        config = AgenticExecutorParameters(prompt="Summarize this document")
         assert config.prompt == "Summarize this document"
 
 
@@ -47,7 +47,7 @@ class TestPromptNullByteDetection:
         """Prompt containing a null byte should raise ValidationError."""
         prompt = "Hello\0World"
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt=prompt)
+            AgenticExecutorParameters(prompt=prompt)
 
         errors = exc_info.value.errors()
         assert len(errors) == 1
@@ -57,29 +57,29 @@ class TestPromptNullByteDetection:
         """Prompt starting with a null byte should be rejected."""
         prompt = "\0Some prompt text"
         with pytest.raises(ValidationError):
-            AgenticExecutorConfig(prompt=prompt)
+            AgenticExecutorParameters(prompt=prompt)
 
     def test_prompt_with_null_byte_at_end_rejected(self) -> None:
         """Prompt ending with a null byte should be rejected."""
         prompt = "Some prompt text\0"
         with pytest.raises(ValidationError):
-            AgenticExecutorConfig(prompt=prompt)
+            AgenticExecutorParameters(prompt=prompt)
 
     def test_prompt_with_multiple_null_bytes_rejected(self) -> None:
         """Prompt with multiple null bytes should be rejected."""
         prompt = "Hello\0World\0Again"
         with pytest.raises(ValidationError):
-            AgenticExecutorConfig(prompt=prompt)
+            AgenticExecutorParameters(prompt=prompt)
 
     def test_prompt_without_null_bytes_accepted(self) -> None:
         """Normal prompt without null bytes should be accepted."""
-        config = AgenticExecutorConfig(prompt="Normal prompt with unicode: àéîõü")
+        config = AgenticExecutorParameters(prompt="Normal prompt with unicode: àéîõü")
         assert "àéîõü" in config.prompt
 
     def test_prompt_with_other_special_chars_accepted(self) -> None:
         """Prompt with tabs, newlines, and other whitespace should be accepted."""
         prompt = "Line 1\nLine 2\tTabbed\rCarriage return"
-        config = AgenticExecutorConfig(prompt=prompt)
+        config = AgenticExecutorParameters(prompt=prompt)
         assert config.prompt == prompt
 
 
@@ -90,12 +90,12 @@ class TestPromptValidationPriority:
         """Null bytes should fail validation regardless of prompt length."""
         prompt = "a" * 200000 + "\0"
         with pytest.raises(ValidationError):
-            AgenticExecutorConfig(prompt=prompt)
+            AgenticExecutorParameters(prompt=prompt)
 
     def test_empty_string_prompt_accepted_by_security_validator(self) -> None:
         """Empty string passes security validation (no length issue, no null bytes)."""
         # The security validator itself doesn't reject empty strings
-        config = AgenticExecutorConfig(prompt="")
+        config = AgenticExecutorParameters(prompt="")
         assert config.prompt == ""
 
 
@@ -131,22 +131,22 @@ class TestDeadV1CodeRemoval:
         )
 
 
-class TestAgenticExecutorConfigPromptValidatorIntegration:
+class TestAgenticExecutorParametersPromptValidatorIntegration:
     """Integration tests verifying the validator works with model_validate."""
 
     def test_long_prompt_accepted_via_model_validate(self) -> None:
         """Long prompts pass Pydantic validation — length check is in the activity."""
-        config = AgenticExecutorConfig.model_validate({"timeout": 300, "prompt": "x" * 200000})
+        config = AgenticExecutorParameters.model_validate({"timeout": 300, "prompt": "x" * 200000})
         assert len(config.prompt) == 200000
 
     def test_null_byte_validation_via_model_validate(self) -> None:
         """Null byte detection fires when using model_validate (dict input)."""
         with pytest.raises(ValidationError):
-            AgenticExecutorConfig.model_validate({"timeout": 300, "prompt": "hello\0world"})
+            AgenticExecutorParameters.model_validate({"timeout": 300, "prompt": "hello\0world"})
 
     def test_valid_prompt_with_all_fields_via_model_validate(self) -> None:
         """Full config with valid prompt passes validation through model_validate."""
-        config = AgenticExecutorConfig.model_validate(
+        config = AgenticExecutorParameters.model_validate(
             {
                 "prompt": "Analyze the following data",
                 "agent": "analyzer",

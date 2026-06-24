@@ -1,4 +1,4 @@
-"""Unit tests for AgenticExecutorConfig response_schema validation.
+"""Unit tests for AgenticExecutorParameters response_schema validation.
 
 Tests for structured output support in agentic nodes.
 
@@ -13,11 +13,11 @@ These tests verify:
 import pytest
 from pydantic import ValidationError
 
-from nexus.workflows.workflow_engine.models.workflow_definition import AgenticExecutorConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import AgenticExecutorParameters
 
 
-class TestAgenticExecutorConfigResponseSchema:
-    """Test suite for AgenticExecutorConfig response_schema field validation."""
+class TestAgenticExecutorParametersResponseSchema:
+    """Test suite for AgenticExecutorParameters response_schema field validation."""
 
     # ==========================================================================
     # Valid Cases
@@ -25,7 +25,7 @@ class TestAgenticExecutorConfigResponseSchema:
 
     def test_response_schema_defaults_to_none(self) -> None:
         """Test that response_schema defaults to None when not provided."""
-        config = AgenticExecutorConfig(prompt="Test prompt")
+        config = AgenticExecutorParameters(prompt="Test prompt")
 
         assert config.response_schema is None
 
@@ -39,14 +39,14 @@ class TestAgenticExecutorConfigResponseSchema:
             },
             "required": ["hostname"],
         }
-        config = AgenticExecutorConfig(prompt="Test prompt", responseSchema=schema)
+        config = AgenticExecutorParameters(prompt="Test prompt", responseSchema=schema)
 
         assert config.response_schema == schema
 
     def test_response_schema_accepts_simple_string_schema(self) -> None:
         """Test that a simple string schema is accepted."""
         schema = {"type": "string"}
-        config = AgenticExecutorConfig(prompt="Test prompt", responseSchema=schema)
+        config = AgenticExecutorParameters(prompt="Test prompt", responseSchema=schema)
 
         assert config.response_schema == schema
 
@@ -56,7 +56,7 @@ class TestAgenticExecutorConfigResponseSchema:
             "type": "array",
             "items": {"type": "string"},
         }
-        config = AgenticExecutorConfig(prompt="Test prompt", responseSchema=schema)
+        config = AgenticExecutorParameters(prompt="Test prompt", responseSchema=schema)
 
         assert config.response_schema == schema
 
@@ -80,13 +80,13 @@ class TestAgenticExecutorConfigResponseSchema:
             },
             "required": ["servers"],
         }
-        config = AgenticExecutorConfig(prompt="Test prompt", responseSchema=schema)
+        config = AgenticExecutorParameters(prompt="Test prompt", responseSchema=schema)
 
         assert config.response_schema == schema
 
     def test_response_schema_accepts_none_explicitly(self) -> None:
         """Test that None can be explicitly set."""
-        config = AgenticExecutorConfig(prompt="Test prompt", responseSchema=None)
+        config = AgenticExecutorParameters(prompt="Test prompt", responseSchema=None)
 
         assert config.response_schema is None
 
@@ -97,14 +97,14 @@ class TestAgenticExecutorConfigResponseSchema:
     def test_response_schema_template_expression_bypass(self) -> None:
         """Test that template expressions bypass schema validation."""
         template = "${trigger.schema}"
-        config = AgenticExecutorConfig(prompt="Test prompt", responseSchema=template)
+        config = AgenticExecutorParameters(prompt="Test prompt", responseSchema=template)
 
         assert config.response_schema == template
 
     def test_response_schema_complex_template_expression(self) -> None:
         """Test that complex template expressions are allowed."""
         template = "${workflow.vars.output_schemas.server_info}"
-        config = AgenticExecutorConfig(prompt="Test", responseSchema=template)
+        config = AgenticExecutorParameters(prompt="Test", responseSchema=template)
 
         assert config.response_schema == template
 
@@ -112,7 +112,7 @@ class TestAgenticExecutorConfigResponseSchema:
         """Test that template expressions work in nested schema fields."""
         # When the entire response_schema is a template string, it bypasses dict validation
         template = "${input.dynamic_schema}"
-        config = AgenticExecutorConfig(prompt="Test", responseSchema=template)
+        config = AgenticExecutorParameters(prompt="Test", responseSchema=template)
 
         assert config.response_schema == template
 
@@ -127,7 +127,7 @@ class TestAgenticExecutorConfigResponseSchema:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", responseSchema=schema)
+            AgenticExecutorParameters(prompt="Test", responseSchema=schema)
 
         errors = exc_info.value.errors()
         assert len(errors) == 1
@@ -136,7 +136,7 @@ class TestAgenticExecutorConfigResponseSchema:
     def test_response_schema_rejects_empty_dict(self) -> None:
         """Test that empty dict is rejected (missing 'type')."""
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", responseSchema={})
+            AgenticExecutorParameters(prompt="Test", responseSchema={})
 
         errors = exc_info.value.errors()
         assert len(errors) == 1
@@ -151,7 +151,7 @@ class TestAgenticExecutorConfigResponseSchema:
         schema = {"type": "object", "properties": {"name": {"type": "string"}}}
 
         # Using alias in input (camelCase)
-        config = AgenticExecutorConfig.model_validate(
+        config = AgenticExecutorParameters.model_validate(
             {
                 "prompt": "Test",
                 "timeout": 300,
@@ -164,7 +164,7 @@ class TestAgenticExecutorConfigResponseSchema:
     def test_response_schema_serializes_with_alias(self) -> None:
         """Test that response_schema serializes to responseSchema when using by_alias."""
         schema = {"type": "string"}
-        config = AgenticExecutorConfig(prompt="Test", responseSchema=schema)
+        config = AgenticExecutorParameters(prompt="Test", responseSchema=schema)
 
         # Serialize with by_alias=True (for API responses)
         serialized = config.model_dump(mode="json", by_alias=True)
@@ -176,7 +176,7 @@ class TestAgenticExecutorConfigResponseSchema:
     def test_response_schema_serializes_without_alias(self) -> None:
         """Test that response_schema serializes to response_schema when not using alias."""
         schema = {"type": "string"}
-        config = AgenticExecutorConfig(prompt="Test", responseSchema=schema)
+        config = AgenticExecutorParameters(prompt="Test", responseSchema=schema)
 
         # Serialize without by_alias (Python-style)
         serialized = config.model_dump()
@@ -186,7 +186,7 @@ class TestAgenticExecutorConfigResponseSchema:
 
     def test_response_schema_omitted_when_none_in_serialization(self) -> None:
         """Test that response_schema is included even when None (Pydantic default behavior)."""
-        config = AgenticExecutorConfig(prompt="Test")
+        config = AgenticExecutorParameters(prompt="Test")
 
         serialized = config.model_dump(mode="json", by_alias=True)
 
@@ -194,8 +194,8 @@ class TestAgenticExecutorConfigResponseSchema:
         assert serialized["responseSchema"] is None
 
 
-class TestAgenticExecutorConfigResponseSchemaIntegration:
-    """Integration tests for AgenticExecutorConfig with response_schema and other fields."""
+class TestAgenticExecutorParametersResponseSchemaIntegration:
+    """Integration tests for AgenticExecutorParameters with response_schema and other fields."""
 
     def test_full_config_with_response_schema(self) -> None:
         """Test complete configuration with all fields including response_schema."""
@@ -208,7 +208,7 @@ class TestAgenticExecutorConfigResponseSchemaIntegration:
             "required": ["summary"],
         }
 
-        config = AgenticExecutorConfig(
+        config = AgenticExecutorParameters(
             prompt="Analyze the data",
             agent="data-analyzer",
             model="gpt-4",
@@ -236,7 +236,7 @@ class TestAgenticExecutorConfigResponseSchemaIntegration:
             },
         }
 
-        config = AgenticExecutorConfig.model_validate(yaml_config)
+        config = AgenticExecutorParameters.model_validate(yaml_config)
 
         assert config.prompt == "Extract server info"
         assert config.response_schema is not None
@@ -249,7 +249,7 @@ class TestAgenticExecutorConfigResponseSchemaIntegration:
         schema = {"type": "array", "items": {"type": "string"}}
         file_ids = ["550e8400-e29b-41d4-a716-446655440000"]
 
-        config = AgenticExecutorConfig(
+        config = AgenticExecutorParameters(
             prompt="Process files and return list",
             file_ids=file_ids,
             responseSchema=schema,

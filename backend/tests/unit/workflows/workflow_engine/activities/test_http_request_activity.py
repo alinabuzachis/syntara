@@ -12,7 +12,7 @@ from nexus.workflows.workflow_engine.activities.http_request_activity import (
     _apply_authentication,
     execute_http_request_activity,
 )
-from nexus.workflows.workflow_engine.models.workflow_definition import APIExecutorConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import APIExecutorParameters
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -108,8 +108,8 @@ class TestApplyAuthentication:
 
     # credentials must match ${secrets.xxx} — simulate post-resolution by
     # constructing the model with valid template refs
-    def _config(self, auth_type: str, credentials: str = "${secrets.token}") -> APIExecutorConfig:
-        return APIExecutorConfig.model_validate(
+    def _config(self, auth_type: str, credentials: str = "${secrets.token}") -> APIExecutorParameters:
+        return APIExecutorParameters.model_validate(
             {
                 "method": "GET",
                 "url": "https://example.com",
@@ -118,7 +118,7 @@ class TestApplyAuthentication:
         )
 
     def test_no_auth_is_noop(self) -> None:
-        config = APIExecutorConfig.model_validate({"method": "GET", "url": "https://example.com"})
+        config = APIExecutorParameters.model_validate({"method": "GET", "url": "https://example.com"})
         headers: dict[str, Any] = {}
         _apply_authentication(headers, config)
         assert headers == {}

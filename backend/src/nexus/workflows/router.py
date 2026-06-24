@@ -175,7 +175,7 @@ async def validate_workflow_definition(
     request: WorkflowValidateRequest,
 ) -> WorkflowValidationResult:
     """Validate a workflow definition without saving it."""
-    result = workflow_validator.collect_validation_issues(request.workflow_definition.model_dump())
+    result = workflow_validator.collect_validation_issues(request.workflow_definition.model_dump(exclude_defaults=True))
     if not result.valid:
         raise WorkflowDefinitionInvalidError(result)
     return result
@@ -193,7 +193,7 @@ async def validate_workflow_definition_detailed(
     request: WorkflowValidateRequest,
 ) -> ValidationResult:
     """Validate a workflow definition and return detailed per-finding results."""
-    result = workflow_validator.collect_findings(request.workflow_definition.model_dump())
+    result = workflow_validator.collect_findings(request.workflow_definition.model_dump(exclude_defaults=True))
     if not result.is_valid:
         raise WorkflowDefinitionInvalidError(result.to_legacy(), validation_result=result)
     return result
@@ -219,7 +219,7 @@ async def create_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
-        workflow_definition=request.workflow_definition.model_dump(),
+        workflow_definition=request.workflow_definition.model_dump(exclude_defaults=True),
         project_id=request.project_id,
     )
     return workflow
@@ -290,7 +290,9 @@ async def update_workflow(
         name=request.name,
         description=request.description,
         labels=request.labels,
-        workflow_definition=request.workflow_definition.model_dump() if request.workflow_definition else None,
+        workflow_definition=request.workflow_definition.model_dump(exclude_defaults=True)
+        if request.workflow_definition
+        else None,
         change_description=request.change_description,
     )
 
