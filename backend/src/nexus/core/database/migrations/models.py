@@ -26,6 +26,7 @@ from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.idp_group_mapping import IdpGroupMappingEntry
 from nexus.integrations.models.integration import Integration, IntegrationProjectAssignment
 from nexus.service_accounts.models.service_account import ServiceAccount
+from nexus.service_accounts.models.service_account_credential import ServiceAccountCredential
 from nexus.settings.models.runtime_setting import RuntimeSetting
 from nexus.settings.models.setting_category import SettingCategoryModel
 from nexus.tool_manager.models.rate_limit_config import RateLimit
@@ -70,6 +71,7 @@ ALL_MODELS = [
     Credential,
     CredentialType,
     ServiceAccount,
+    ServiceAccountCredential,
     Project,
     Group,
     Role,

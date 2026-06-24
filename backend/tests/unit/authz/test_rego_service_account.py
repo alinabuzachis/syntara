@@ -1,0 +1,107 @@
+"""Rego policy tests for service_account resource type."""
+
+from typing import Any
+
+import pytest
+
+from tests.unit.authz.conftest import allow_policy, build_opa_input
+
+SA_ACTIONS = ["create", "read", "update", "delete", "rotate_secret", "disable", "enable"]
+SA_WRITE_ACTIONS = ["create", "update", "delete", "rotate_secret", "disable", "enable"]
+
+PROJECT_ID = "proj-sa-test"
+OTHER_PROJECT_ID = "proj-other"
+
+
+def _admin_policies(project: str = PROJECT_ID) -> list[dict[str, Any]]:
+    return [
+        allow_policy(
+            f"service_account:{action}:{project}",
+            [f"service_account:{action}"],
+            scope="project",
+            project=project,
+        )
+        for action in SA_ACTIONS
+    ]
+
+
+def _auditor_policies(project: str = PROJECT_ID) -> list[dict[str, Any]]:
+    return [
+        allow_policy(
+            f"service_account:read:{project}",
+            ["service_account:read"],
+            scope="project",
+            project=project,
+        ),
+    ]
+
+
+class TestProjectAdminServiceAccountAccess:
+    """Project-admin has full service_account access in their project."""
+
+    @pytest.mark.parametrize("action", SA_ACTIONS, ids=SA_ACTIONS)
+    def test_allowed_in_own_project(self, opa_evaluate, action: str):
+        result = opa_evaluate(
+            build_opa_input(
+                action=action,
+                resource_type="service_account",
+                resource_project=PROJECT_ID,
+                effective_policies=_admin_policies(),
+            )
+        )
+        assert result["allow"] is True
+
+    @pytest.mark.parametrize("action", SA_ACTIONS, ids=SA_ACTIONS)
+    def test_denied_in_other_project(self, opa_evaluate, action: str):
+        result = opa_evaluate(
+            build_opa_input(
+                action=action,
+                resource_type="service_account",
+                resource_project=OTHER_PROJECT_ID,
+                effective_policies=_admin_policies(),
+            )
+        )
+        assert result["allow"] is False
+
+
+class TestProjectAuditorServiceAccountAccess:
+    """Project-auditor can only read service_accounts."""
+
+    def test_read_allowed(self, opa_evaluate):
+        result = opa_evaluate(
+            build_opa_input(
+                action="read",
+                resource_type="service_account",
+                resource_project=PROJECT_ID,
+                effective_policies=_auditor_policies(),
+            )
+        )
+        assert result["allow"] is True
+
+    @pytest.mark.parametrize("action", SA_WRITE_ACTIONS, ids=SA_WRITE_ACTIONS)
+    def test_write_actions_denied(self, opa_evaluate, action: str):
+        result = opa_evaluate(
+            build_opa_input(
+                action=action,
+                resource_type="service_account",
+                resource_project=PROJECT_ID,
+                effective_policies=_auditor_policies(),
+            )
+        )
+        assert result["allow"] is False
+
+
+class TestNoPoliciesServiceAccountAccess:
+    """Without any policies, all service_account actions are denied."""
+
+    @pytest.mark.parametrize("action", SA_ACTIONS, ids=SA_ACTIONS)
+    def test_all_actions_denied(self, opa_evaluate, action: str):
+        result = opa_evaluate(
+            build_opa_input(
+                action=action,
+                resource_type="service_account",
+                resource_project=PROJECT_ID,
+                effective_policies=[],
+            )
+        )
+        assert result["allow"] is False

@@ -71,7 +71,7 @@ async def _create_db_policies(
 async def test_list_roles_includes_all_builtins(test_db_session: AsyncSession, test_user: User) -> None:
     """All builtin roles appear in the listing (with a large enough limit)."""
     svc = RoleService(test_db_session, test_user)
-    result = await svc.list_roles(limit=100)
+    result = await svc.list_roles(limit=200)
     names = _all_names(result)
     for r in BUILTIN_ROLES:
         assert r.name in names, f"Builtin role '{r.name}' missing from listing"
@@ -82,7 +82,7 @@ async def test_list_roles_includes_db_roles(test_db_session: AsyncSession, test_
     """Custom DB roles appear alongside builtins."""
     svc = RoleService(test_db_session, test_user)
     db_names = await _create_db_roles(svc, 3)
-    result = await svc.list_roles(limit=100)
+    result = await svc.list_roles(limit=200)
     names = _all_names(result)
     for n in db_names:
         assert n in names
@@ -94,7 +94,7 @@ async def test_list_roles_total_count(test_db_session: AsyncSession, test_user: 
     """include_total returns correct total including builtins and DB items."""
     svc = RoleService(test_db_session, test_user)
     await _create_db_roles(svc, 5)
-    result = await svc.list_roles(limit=100, include_total=True)
+    result = await svc.list_roles(limit=200, include_total=True)
     assert result.total == ALL_BUILTIN_ROLE_COUNT + 5
 
 
@@ -110,7 +110,7 @@ async def test_list_roles_filter_is_builtin_false(test_db_session: AsyncSession,
     await _create_db_roles(svc, 3)
     non_builtin_builtins = [r for r in BUILTIN_ROLES if not r.is_builtin]
     result = await svc.list_roles(
-        limit=100,
+        limit=200,
         query_params_items=[("is_builtin", "false")],
     )
     names = _all_names(result)
@@ -129,7 +129,7 @@ async def test_list_roles_filter_is_builtin_true(test_db_session: AsyncSession, 
     svc = RoleService(test_db_session, test_user)
     await _create_db_roles(svc, 3)
     result = await svc.list_roles(
-        limit=100,
+        limit=200,
         query_params_items=[("is_builtin", "true")],
     )
     for r in result.resources:
@@ -143,7 +143,7 @@ async def test_list_roles_authenticated_role_is_builtin(test_db_session: AsyncSe
     """The 'authenticated' role (is_builtin=True) should appear for is_builtin=true."""
     svc = RoleService(test_db_session, test_user)
     result = await svc.list_roles(
-        limit=100,
+        limit=200,
         query_params_items=[("is_builtin", "true")],
     )
     names = _all_names(result)
@@ -161,7 +161,7 @@ async def test_list_roles_filter_name_exact(test_db_session: AsyncSession, test_
     svc = RoleService(test_db_session, test_user)
     await _create_db_roles(svc, 3)
     result = await svc.list_roles(
-        limit=100,
+        limit=200,
         query_params_items=[("name", "admin")],
     )
     names = _all_names(result)
@@ -174,7 +174,7 @@ async def test_list_roles_filter_name_contains(test_db_session: AsyncSession, te
     svc = RoleService(test_db_session, test_user)
     await _create_db_roles(svc, 3, prefix="admin-custom")
     result = await svc.list_roles(
-        limit=100,
+        limit=200,
         query_params_items=[("name[contains]", "admin")],
     )
     names = _all_names(result)
@@ -189,7 +189,7 @@ async def test_list_roles_filter_scope_system(test_db_session: AsyncSession, tes
     """scope=system returns only system-scoped roles."""
     svc = RoleService(test_db_session, test_user)
     result = await svc.list_roles(
-        limit=100,
+        limit=200,
         query_params_items=[("scope", "system")],
     )
     for r in result.resources:
@@ -201,7 +201,7 @@ async def test_list_roles_filter_scope_project(test_db_session: AsyncSession, te
     """scope=project returns only project-scoped roles."""
     svc = RoleService(test_db_session, test_user)
     result = await svc.list_roles(
-        limit=100,
+        limit=200,
         query_params_items=[("scope", "project")],
     )
     for r in result.resources:
@@ -362,7 +362,7 @@ async def test_list_roles_sort_by_name_single_page(test_db_session: AsyncSession
     """When all items fit on one page, sort=name is globally correct."""
     svc = RoleService(test_db_session, test_user)
     await _create_db_roles(svc, 3)
-    result = await svc.list_roles(limit=100, sort="name")
+    result = await svc.list_roles(limit=200, sort="name")
     names = _all_names(result)
     assert names == sorted(names)
 
@@ -399,7 +399,7 @@ async def test_list_roles_sort_by_is_builtin_asc(test_db_session: AsyncSession, 
 async def test_list_policies_includes_all_builtins(test_db_session: AsyncSession, test_user: User) -> None:
     """All builtin policies appear in the listing."""
     svc = PolicyService(test_db_session, test_user)
-    result = await svc.list_policies(limit=100)
+    result = await svc.list_policies(limit=200)
     names = _all_names(result)
     for p in BUILTIN_POLICIES:
         assert p.name in names, f"Builtin policy '{p.name}' missing"
@@ -410,7 +410,7 @@ async def test_list_policies_total_count(test_db_session: AsyncSession, test_use
     """include_total returns correct total including builtins and DB items."""
     svc = PolicyService(test_db_session, test_user)
     await _create_db_policies(svc, 3)
-    result = await svc.list_policies(limit=100, include_total=True)
+    result = await svc.list_policies(limit=200, include_total=True)
     assert result.total == ALL_BUILTIN_POLICY_COUNT + 3
 
 
@@ -420,7 +420,7 @@ async def test_list_policies_filter_is_builtin_false(test_db_session: AsyncSessi
     svc = PolicyService(test_db_session, test_user)
     await _create_db_policies(svc, 3)
     result = await svc.list_policies(
-        limit=100,
+        limit=200,
         query_params_items=[("is_builtin", "false")],
     )
     assert len(result.resources) == 3
@@ -434,7 +434,7 @@ async def test_list_policies_filter_is_builtin_true(test_db_session: AsyncSessio
     svc = PolicyService(test_db_session, test_user)
     await _create_db_policies(svc, 3)
     result = await svc.list_policies(
-        limit=100,
+        limit=200,
         query_params_items=[("is_builtin", "true")],
     )
     for p in result.resources:
@@ -449,7 +449,7 @@ async def test_list_policies_filter_scope(test_db_session: AsyncSession, test_us
     """scope=project returns only project-scoped policies."""
     svc = PolicyService(test_db_session, test_user)
     result = await svc.list_policies(
-        limit=100,
+        limit=200,
         query_params_items=[("scope", "project")],
     )
     for p in result.resources:
@@ -463,7 +463,7 @@ async def test_list_policies_filter_name_contains(test_db_session: AsyncSession,
     svc = PolicyService(test_db_session, test_user)
     await _create_db_policies(svc, 2, prefix="workflow-custom")
     result = await svc.list_policies(
-        limit=100,
+        limit=200,
         query_params_items=[("name[contains]", "workflow")],
     )
     for p in result.resources:
@@ -546,6 +546,6 @@ async def test_list_policies_sort_by_name_single_page(test_db_session: AsyncSess
     """When all items fit on one page, sort=name is globally correct."""
     svc = PolicyService(test_db_session, test_user)
     await _create_db_policies(svc, 3)
-    result = await svc.list_policies(limit=100, sort="name")
+    result = await svc.list_policies(limit=200, sort="name")
     names = _all_names(result)
     assert names == sorted(names)

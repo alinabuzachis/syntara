@@ -19,7 +19,7 @@ Use cases include CI/CD pipelines triggering workflows, ITSM platforms initiatin
 | Token refresh | `POST /auth/refresh` with cookie | Not supported — request a new token |
 | CSRF protection | Required (cookie-based auth) | N/A (bearer token only) |
 | Identity providers | OIDC federation, claim mapping | N/A |
-| Secret storage | Argon2id password hash on `users` | Argon2id secret hash on `service_accounts` |
+| Secret storage | Argon2id password hash on `users` | Argon2id secret hash on `service_account_credentials` |
 | Rate limiting | Per-user global (AAP-77407, in progress) | Per-`client_id` sliding window |
 
 ### Shared infrastructure
@@ -38,19 +38,14 @@ The `ServiceAccount` model (`src/nexus/service_accounts/models/service_account.p
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | UUID (PK) | Auto-generated primary key |
+| `id` | UUID (PK, FK → `principals`) | Auto-generated primary key |
 | `name` | VARCHAR(255) | Human-readable name |
 | `description` | VARCHAR(2000) | Optional description |
-| `client_id` | VARCHAR(64), UNIQUE | Public OAuth 2.0 client identifier (prefixed `nx_sa_`) |
-| `hashed_secret` | TEXT | Argon2id hash of the current client secret |
-| `old_hashed_secret` | TEXT, nullable | Previous secret hash during rotation grace period |
-| `old_secret_valid_until` | TIMESTAMPTZ, nullable | When the old secret stops being accepted |
-| `grace_period_seconds` | INT, default 3600 (0–86400) | How long the old secret remains valid after rotation |
 | `status` | ENUM (`active`, `disabled`) | Operational status |
 | `project_id` | UUID (FK → `projects`) | Project namespace for resource isolation |
 | `last_authenticated_at` | TIMESTAMPTZ, nullable | Timestamp of the most recent successful authentication |
-| `created_by` | UUID (FK → `users`) | User who created the service account |
-| `updated_by` | UUID (FK → `users`, nullable) | User who last modified the service account |
+| `created_by` | UUID (FK → `principals`) | User who created the service account |
+| `updated_by` | UUID (FK → `principals`, nullable) | User who last modified the service account |
 | `created_at` | TIMESTAMPTZ | Creation timestamp |
 | `updated_at` | TIMESTAMPTZ | Last modification timestamp |
 | `deleted_at` | TIMESTAMPTZ, nullable | Soft-delete timestamp |
@@ -59,69 +54,113 @@ The `ServiceAccount` model (`src/nexus/service_accounts/models/service_account.p
 
 **Indexes:**
 
-- `ix_service_accounts_client_id_unique` — unique index on `client_id`
 - `ix_service_accounts_created_at_id` — composite index for cursor-based pagination
 - Individual indexes on `status`, `project_id`, `name`, `created_by`, `updated_by`, `deleted_at`, `deleted_by`
 
-**Audit level:** `META` — audit events capture metadata fields only; `hashed_secret` and `old_hashed_secret` are excluded from audit logs.
+**Audit level:** `META` — audit events capture metadata fields only.
 
-### Client ID format
+### `service_account_credentials` table
 
-Client IDs use a `nx_sa_` prefix followed by a URL-safe random string (e.g., `nx_sa_7kx9m2p4q1w3n5v8`). The prefix identifies the credential type in logs and support contexts. The random component provides sufficient entropy for uniqueness. Generation logic lives in the service layer.
+The `ServiceAccountCredential` model (`src/nexus/service_accounts/models/service_account_credential.py`) extends `UserOwnedResource`. Credentials are a sub-resource of service accounts, supporting multiple credentials per account.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID (PK) | Auto-generated primary key |
+| `service_account_id` | UUID (FK → `service_accounts`) | Parent service account |
+| `credential_type` | ENUM (`client_credentials`) | Type of credential |
+| `identifier` | VARCHAR(64), UNIQUE | Public identifier (e.g., `client_id`) |
+| `hashed_secret` | TEXT | Argon2id hash of the secret |
+| `old_hashed_secret` | TEXT, nullable | Previous secret hash during rotation grace period |
+| `old_secret_valid_until` | TIMESTAMPTZ, nullable | When the old secret stops being accepted |
+| `grace_period_seconds` | INT, default 3600 (0–86400) | How long the old secret remains valid after rotation |
+| `status` | ENUM (`active`, `disabled`) | Operational status |
+| `expires_at` | TIMESTAMPTZ, nullable | Optional expiry timestamp |
+| `last_used_at` | TIMESTAMPTZ, nullable | Timestamp of last use |
+| `created_by` | UUID (FK → `principals`) | User who created the credential |
+| `updated_by` | UUID (FK → `principals`, nullable) | User who last modified the credential |
+| `created_at` | TIMESTAMPTZ | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | Last modification timestamp |
+| `labels` | JSONB | Key-value metadata |
+
+**Indexes:**
+
+- `ix_sa_credentials_identifier_unique` — unique index on `identifier`
+- `ix_sa_credentials_sa_id_type` — composite index on `(service_account_id, credential_type)`
+- `ix_sa_credentials_created_at_id` — composite index for cursor-based pagination
+
+**Audit level:** `META` — `hashed_secret` and `old_hashed_secret` are excluded from audit logs.
+
+**Limit:** Maximum 10 credentials per service account.
+
+### Credential types
+
+| Type | Identifier format | Secret format | Use case |
+|------|------------------|---------------|----------|
+| `client_credentials` | `nx_sa_{hex16}` | `token_urlsafe(48)` (64 chars) | OAuth 2.0 client credentials grant |
 
 ### Secret hashing
 
-Client secrets are hashed with **Argon2id** using the same `hash_password` / `verify_password` utilities as user passwords (`src/nexus/auth/passwords.py`). The plaintext secret is displayed exactly once at creation time and cannot be retrieved afterward.
+Secrets are hashed with **Argon2id** using the same `hash_password` / `verify_password` utilities as user passwords (`src/nexus/auth/passwords.py`). The plaintext secret is displayed exactly once at creation time and cannot be retrieved afterward.
 
 ## CRUD API
 
-> **Status:** Not yet implemented (AAP-78738)
+### Service account endpoints
 
-### Endpoints
-
-All endpoints are project-scoped under `/api/v1/projects/{project_id}/service_accounts`.
+All endpoints live under `/api/v1/service_accounts`. Project scoping is enforced via `project_id` in the request body (create) and `VisibilityFilter` (list).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/` | Create a service account (returns one-time plaintext secret) |
-| `GET` | `/` | List service accounts (paginated, filterable) |
-| `GET` | `/{service_account_id}` | Get service account details |
-| `PATCH` | `/{service_account_id}` | Update name, description, labels |
-| `DELETE` | `/{service_account_id}` | Soft-delete a service account |
-| `POST` | `/{service_account_id}/enable` | Set status to `active` |
-| `POST` | `/{service_account_id}/disable` | Set status to `disabled` |
+| `POST` | `/service_accounts` | Create a service account |
+| `GET` | `/service_accounts` | List service accounts (paginated, filterable, project-scoped) |
+| `GET` | `/service_accounts/{service_account_id}` | Get service account details |
+| `PATCH` | `/service_accounts/{service_account_id}` | Update name and/or description |
+| `DELETE` | `/service_accounts/{service_account_id}` | Soft-delete a service account |
+| `POST` | `/service_accounts/{service_account_id}/enable` | Set status to `active` |
+| `POST` | `/service_accounts/{service_account_id}/disable` | Set status to `disabled` |
+
+### Credential endpoints
+
+Credentials are nested sub-resources of service accounts. Permissions inherit from the parent service account.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/service_accounts/{sa_id}/credentials` | Create a credential (201, returns one-time secret) |
+| `GET` | `/service_accounts/{sa_id}/credentials` | List credentials (paginated) |
+| `GET` | `/service_accounts/{sa_id}/credentials/{cred_id}` | Get credential details |
+| `DELETE` | `/service_accounts/{sa_id}/credentials/{cred_id}` | Hard-delete a credential (204) |
+| `POST` | `/service_accounts/{sa_id}/credentials/{cred_id}/rotate` | Rotate secret |
+| `POST` | `/service_accounts/{sa_id}/credentials/{cred_id}/disable` | Disable credential |
+| `POST` | `/service_accounts/{sa_id}/credentials/{cred_id}/enable` | Enable credential |
 
 ### Create flow
 
 ```
-Admin sends POST /projects/{project_id}/service_accounts
-  { "name": "CI Pipeline", "description": "..." }
-  -> Backend generates client_id (nx_sa_ + random)
-  -> Backend generates random client secret
-  -> Backend hashes secret with Argon2id, stores hash
-  -> Backend returns 201 with service account details + plaintext secret
-  -> ⚠️ Secret is shown ONCE — it cannot be retrieved again
+1. Admin creates a service account:
+   POST /api/v1/service_accounts
+   { "name": "CI Pipeline", "description": "...", "project_id": "..." }
+   -> 201 with service account details (no credentials yet)
+
+2. Admin creates a credential for the service account:
+   POST /api/v1/service_accounts/{sa_id}/credentials
+   { "credential_type": "client_credentials" }
+   -> 201 with credential details + plaintext client_secret
+   -> ⚠️ Secret is shown ONCE — it cannot be retrieved again
 ```
 
 ### One-time secret display
 
-On creation (and on secret rotation), the plaintext secret is returned in the response body exactly once. The backend stores only the Argon2id hash. If the secret is lost, the only option is to rotate to a new one.
+On creation and rotation, the plaintext secret is returned in the response body exactly once. The backend stores only the Argon2id hash. If the secret is lost, the only option is to rotate to a new one.
 
 ## Secret Rotation
 
-> **Status:** Not yet implemented (AAP-78741)
-
-### Endpoint
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/projects/{project_id}/service_accounts/{id}/rotate_secret` | Generate a new secret |
-
 ### Grace period
 
-When a secret is rotated, both the old and new secrets are accepted for a configurable grace period. This prevents downtime when multiple consumers of the secret need time to update.
+When a credential's secret is rotated, both the old and new secrets are accepted for a configurable grace period. This prevents downtime when multiple consumers of the secret need time to update.
 
 ```
+POST /api/v1/service_accounts/{sa_id}/credentials/{cred_id}/rotate
+  { "grace_period_seconds": 7200 }   (optional override)
+
 Rotation:
   -> Backend generates new secret, hashes it
   -> Backend moves current hashed_secret → old_hashed_secret
@@ -140,7 +179,7 @@ After grace period expires:
   -> Backend clears old_hashed_secret and old_secret_valid_until on next auth attempt
 ```
 
-The default grace period is 3600 seconds (1 hour), configurable per service account via the `grace_period_seconds` field.
+The default grace period is 3600 seconds (1 hour), configurable per credential via the `grace_period_seconds` field.
 
 ## Client Credentials Grant
 
@@ -304,7 +343,7 @@ Tracked under epic [AAP-78469](AAP-78469).
 | Component | Jira | Status |
 |-----------|------|--------|
 | ServiceAccount model + migration | [AAP-78737](AAP-78737) | Done |
-| CRUD API endpoints | [AAP-78738](AAP-78738) | Not started |
+| CRUD API + credential sub-resource | [AAP-78738](AAP-78738) | Done |
 | Client credentials grant + token endpoint | [AAP-78741](AAP-78741) | Not started |
 | PrincipalType extension + RBAC | — | Not started |
 | Auth middleware integration | — | Not started |
@@ -318,7 +357,15 @@ Tracked under epic [AAP-78469](AAP-78469).
 | Path | Description |
 |------|-------------|
 | `src/nexus/service_accounts/models/service_account.py` | ServiceAccount SQLModel + ServiceAccountStatus enum |
-| `src/nexus/service_accounts/router.py` | API router (stub) |
-| `src/nexus/service_accounts/services/` | Service layer (not yet implemented) |
+| `src/nexus/service_accounts/models/service_account_credential.py` | ServiceAccountCredential SQLModel + enums |
+| `src/nexus/service_accounts/schemas.py` | Service account API request/response schemas |
+| `src/nexus/service_accounts/credential_schemas.py` | Credential API request/response schemas |
+| `src/nexus/service_accounts/router.py` | Service account CRUD endpoints |
+| `src/nexus/service_accounts/credential_router.py` | Credential CRUD endpoints (nested under service accounts) |
+| `src/nexus/service_accounts/services/service_account_service.py` | Service account service layer |
+| `src/nexus/service_accounts/services/credential_service.py` | Credential service layer |
+| `src/nexus/service_accounts/exceptions.py` | Domain exceptions |
+| `src/nexus/service_accounts/error_handlers.py` | RFC 9457 error handlers |
 | `src/nexus/auth/passwords.py` | Argon2id `hash_password` / `verify_password` (shared with user passwords) |
-| `src/nexus/core/database/migrations/versions/a0f042999fd8_add_service_accounts_table.py` | Alembic migration |
+| `src/nexus/core/database/migrations/versions/a0f042999fd8_add_service_accounts_table.py` | Initial SA migration |
+| `src/nexus/core/database/migrations/versions/c7d8e9f01234_add_service_account_credentials.py` | Credential table migration + SA column removal |

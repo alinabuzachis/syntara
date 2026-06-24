@@ -101,7 +101,7 @@ async def test_list_policies(test_db_session: AsyncSession, test_user: User) -> 
     await svc.create_policy(
         name="list-p2", statements=[{"effect": "allow", "actions": ["setting:write"], "scope": "any"}]
     )
-    result = await svc.list_policies(limit=100, include_total=True)
+    result = await svc.list_policies(limit=200, include_total=True)
     names = [r.name for r in result.resources]
     assert "list-p1" in names
     assert "list-p2" in names

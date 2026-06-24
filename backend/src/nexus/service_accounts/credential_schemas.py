@@ -1,0 +1,83 @@
+"""Service account credential API request/response schemas."""
+
+from datetime import datetime
+from typing import ClassVar
+from uuid import UUID
+
+from pydantic import ConfigDict
+from sqlmodel import Field, SQLModel
+
+from nexus.core.models.base.query_params import BaseListParams
+from nexus.core.models.pagination import ResourcesResponse
+from nexus.service_accounts.models.service_account_credential import (
+    ServiceAccountCredentialStatus,
+    ServiceAccountCredentialType,
+)
+
+
+class SACredentialCreate(SQLModel):
+    """Schema for creating a new service account credential."""
+
+    credential_type: ServiceAccountCredentialType = Field(
+        description="Type of credential to create",
+    )
+    grace_period_seconds: int = Field(
+        default=3600,
+        ge=0,
+        le=86400,
+        description="Duration (seconds) old secret remains valid after rotation",
+    )
+
+
+class SACredentialRead(SQLModel):
+    """Schema for credential responses (excludes secrets)."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+
+    id: UUID
+    service_account_id: UUID
+    credential_type: ServiceAccountCredentialType
+    identifier: str
+    status: ServiceAccountCredentialStatus
+    grace_period_seconds: int
+    expires_at: datetime | None = None
+    last_used_at: datetime | None = None
+    created_by: UUID
+    updated_by: UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SACredentialCreateResponse(SACredentialRead):
+    """Schema for the create response — includes one-time plaintext secret(s)."""
+
+    client_secret: str | None = Field(
+        default=None,
+        description="Plaintext client secret (shown only once)",
+    )
+
+
+class SACredentialRotateRequest(SQLModel):
+    """Schema for rotating a credential's secret."""
+
+    grace_period_seconds: int | None = Field(
+        default=None,
+        ge=0,
+        le=86400,
+        description="Override grace period for this rotation (uses credential default if omitted)",
+    )
+
+
+class SACredentialRotateResponse(SACredentialCreateResponse):
+    """Schema for the rotate response — same shape as create response."""
+
+
+class SACredentialListParams(BaseListParams):
+    """Query parameters for listing service account credentials."""
+
+    credential_type: ServiceAccountCredentialType | None = Field(default=None, description="Filter by credential type")
+    status: ServiceAccountCredentialStatus | None = Field(default=None, description="Filter by status")
+
+
+class SACredentialListResponse(ResourcesResponse[SACredentialRead]):
+    """Paginated list response for service account credentials."""

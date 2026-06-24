@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from .projects import ProjectsApi
     from .role_assignments import RoleAssignmentsApi
     from .roles import RolesApi
+    from .service_account_credentials import ServiceAccountCredentialsApi
+    from .service_accounts import ServiceAccountsApi
     from .settings import SettingsApi
     from .tool_manager import ToolManagerApi
     from .tool_metrics import ToolMetricsApi
@@ -137,6 +139,18 @@ class NexusApiRegistry:
         from .projects import ProjectsApi
 
         return ProjectsApi(client=self._client)
+
+    @cached_property
+    def service_accounts(self) -> ServiceAccountsApi:
+        from .service_accounts import ServiceAccountsApi
+
+        return ServiceAccountsApi(client=self._client)
+
+    @cached_property
+    def service_account_credentials(self) -> ServiceAccountCredentialsApi:
+        from .service_account_credentials import ServiceAccountCredentialsApi
+
+        return ServiceAccountCredentialsApi(client=self._client)
 
     @cached_property
     def settings(self) -> SettingsApi:

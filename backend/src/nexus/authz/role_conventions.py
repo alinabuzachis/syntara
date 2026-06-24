@@ -200,6 +200,14 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("files", "download", roles=("admin", "user")),
     PolicyInfo("files", "upload", scope="project", roles=("project-admin", "project-user")),
     PolicyInfo("files", "download", scope="project", roles=("project-admin", "project-user", "project-auditor")),
+    # -- service accounts (project-scoped only) --
+    PolicyInfo("service_account", "create", scope="project", roles=("project-admin",)),
+    PolicyInfo("service_account", "read", scope="project", roles=("project-admin", "project-auditor")),
+    PolicyInfo("service_account", "update", scope="project", roles=("project-admin",)),
+    PolicyInfo("service_account", "delete", scope="project", roles=("project-admin",)),
+    PolicyInfo("service_account", "rotate_secret", scope="project", roles=("project-admin",)),
+    PolicyInfo("service_account", "disable", scope="project", roles=("project-admin",)),
+    PolicyInfo("service_account", "enable", scope="project", roles=("project-admin",)),
 ]
 
 BUILTIN_ROLES: list[RoleInfo] = [
