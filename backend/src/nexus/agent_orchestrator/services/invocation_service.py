@@ -156,7 +156,12 @@ class InvocationService(BaseService):
         try:
             await self.execution_service.create_execution_by_name(
                 workflow_name=BUILTIN_WORKFLOW_AGENT_EXECUTION,
-                input_data={"invocation_id": str(invocation_id)},
+                input_data={
+                    "invocation_id": str(invocation_id),
+                    "actor_id": str(self.user.id),
+                    "actor_username": self.user.username,
+                    "actor_type": self.user.__principal_type__.value,
+                },
                 project_name=BUILTIN_PROJECT_NAME,
             )
         except WorkflowNotFoundError as exc:

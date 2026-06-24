@@ -1078,6 +1078,11 @@ export interface components {
       id: string
       /** Current Version */
       current_version: number
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
       /** Is Enabled */
       is_enabled: boolean
       /**
@@ -1519,6 +1524,8 @@ export interface operations {
         name?: string | null
         /** @description Filter by default project status */
         is_default?: boolean | null
+        /** @description Filter by built-in project status */
+        is_builtin?: boolean | null
       }
       header?: never
       path?: never

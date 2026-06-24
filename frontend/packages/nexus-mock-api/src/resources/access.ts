@@ -40,6 +40,7 @@ export interface MockProject {
   description: string | null
   labels: Record<string, string>
   is_default: boolean
+  is_builtin: boolean
   created_at: string
   updated_at: string
 }
@@ -51,6 +52,7 @@ export const mockProjects: MockProject[] = [
     description: 'Default project for all users',
     labels: {},
     is_default: true,
+    is_builtin: false,
     created_at: '2024-01-15T19:00:00.000Z',
     updated_at: mockDate.daysAgo2,
   },
@@ -60,6 +62,7 @@ export const mockProjects: MockProject[] = [
     description: 'Alice sandbox project',
     labels: { team: 'platform' },
     is_default: false,
+    is_builtin: false,
     created_at: '2024-02-01T19:00:00.000Z',
     updated_at: '2024-03-14T20:00:00.000Z',
   },

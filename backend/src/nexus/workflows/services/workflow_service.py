@@ -757,6 +757,9 @@ class WorkflowService(BaseService):
         """
         workflow = await self._get_workflow_for_update(workflow_id)
 
+        if workflow.is_builtin:
+            raise BuiltinWorkflowModifyError(workflow.name)
+
         target_version = await self._get_version_or_none(workflow_id, version)
         if not target_version:
             raise WorkflowVersionNotFoundError(workflow_id, version)
@@ -942,6 +945,9 @@ class WorkflowService(BaseService):
 
         """
         workflow = await self._get_workflow_for_update(workflow_id)
+
+        if workflow.is_builtin:
+            raise BuiltinWorkflowModifyError(workflow.name)
 
         target_version = await self._get_version_or_none(workflow_id, version)
         if not target_version:

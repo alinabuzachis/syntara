@@ -1850,6 +1850,30 @@ class TestBuiltinWorkflowGuards(TestWorkflowServiceBase):
         assert result.published_version is None
 
     @pytest.mark.asyncio
+    async def test_publish_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        with pytest.raises(BuiltinWorkflowModifyError, match="Builtin WF"):
+            await service.publish_workflow_version(workflow.id, version.version)
+
+    @pytest.mark.asyncio
+    async def test_restore_builtin_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
+        workflow = self._create_test_workflow(name="Builtin WF", created_by=test_user.id, is_builtin=True)
+        version = self._create_test_workflow_version(workflow_id=workflow.id, created_by=test_user.id)
+        test_db_session.add(workflow)
+        test_db_session.add(version)
+        await test_db_session.flush()
+
+        service = WorkflowService(test_db_session, test_user)
+        with pytest.raises(BuiltinWorkflowModifyError, match="Builtin WF"):
+            await service.restore_workflow_version(workflow.id, version.version)
+
+    @pytest.mark.asyncio
     async def test_create_workflow_in_builtin_project_raises(
         self, test_db_session: AsyncSession, test_user: User
     ) -> None:

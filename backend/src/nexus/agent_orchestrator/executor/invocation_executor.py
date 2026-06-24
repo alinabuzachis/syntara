@@ -299,7 +299,7 @@ class InvocationExecutor:
             # Cast to access rowcount (exists on CursorResult at runtime)
             return bool(cast("Any", result).rowcount > 0)
 
-    async def execute_invocation(self, invocation_id: UUID) -> None:
+    async def execute_invocation(self, invocation_id: UUID, *, actor_context: AuditActorContext | None = None) -> None:
         """Execute invocation by ID, loading fresh data from database.
 
         This method loads the invocation from the database to get the latest
@@ -310,10 +310,8 @@ class InvocationExecutor:
 
         Args:
             invocation_id: UUID of the invocation to execute
-
-        Returns:
-            True if execution completed (success or permanent failure),
-            False if execution was gated and should be retried later
+            actor_context: Pre-built actor context from the caller. When provided,
+                skips the DB lookup in _get_actor_context_for_invocation.
 
         """
         # Load fresh invocation from database to get latest FileMetadata status
@@ -348,7 +346,8 @@ class InvocationExecutor:
         activity_id: str | None = ctx.activity_id
         execution_id: UUID | None = extract_execution_id(ctx)
         request_id: UUID | None = extract_request_id(ctx)
-        actor_context = await self._get_actor_context_for_invocation(invocation)
+        if actor_context is None:
+            actor_context = await self._get_actor_context_for_invocation(invocation)
         with audit_actor_context(
             actor=actor_context,
             workflow_id=workflow_id,

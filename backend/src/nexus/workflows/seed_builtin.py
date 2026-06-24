@@ -101,8 +101,8 @@ async def seed_builtin_workflows(session: AsyncSession) -> None:
     )
     user = result.first()
     if not user:
-        logger.error("No admin user found — cannot seed builtin workflows")
-        return
+        msg = "No admin user found — cannot seed builtin workflows. Ensure authz seeder runs first."
+        raise RuntimeError(msg)
 
     project_result = await session.exec(
         select(Project).where(

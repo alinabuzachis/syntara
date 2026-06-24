@@ -33,7 +33,6 @@ from nexus.files.audit.file_downloaded import FileDownloadedEvent
 from nexus.files.file_manager import FileManager, get_file_manager
 from nexus.files.models.file_metadata import FileMetadata, FileStatus
 from nexus.files.storage import sanitize_filename
-from nexus.workflows.exceptions import WorkflowNotFoundError
 from nexus.workflows.executions_router import get_temporal_execution_service
 from nexus.workflows.services.execution_service import ExecutionService
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
@@ -195,8 +194,12 @@ async def upload_files(
                     input_data={"file_id": str(metadata.id)},
                     project_name=BUILTIN_PROJECT_NAME,
                 )
-            except WorkflowNotFoundError:
-                logger.warning("Builtin workflow 'Document Conversion' not found, skipping")
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "Document conversion dispatch failed, file uploaded but conversion skipped",
+                    file_id=str(metadata.id),
+                    exc_info=True,
+                )
 
     # Build response (exclude file_path for security)
     file_upload_infos = [

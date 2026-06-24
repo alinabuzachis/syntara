@@ -55,10 +55,10 @@ class TestSeedBuiltinWorkflows:
             yield mock_v
 
     @pytest.mark.asyncio
-    async def test_skips_when_no_admin_user(self) -> None:
+    async def test_raises_when_no_admin_user(self) -> None:
         session = _mock_session(None)
-        await seed_builtin_workflows(session)
-        session.add.assert_not_called()
+        with pytest.raises(RuntimeError, match="No admin user found"):
+            await seed_builtin_workflows(session)
 
     @pytest.mark.asyncio
     async def test_creates_all_builtin_workflows(self) -> None:

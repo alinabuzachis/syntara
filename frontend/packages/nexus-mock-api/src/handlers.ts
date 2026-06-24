@@ -2800,6 +2800,7 @@ export const handlers = [
     const url = new URL(request.url)
     const name = url.searchParams.get('name')
     const isDefault = url.searchParams.get('is_default')
+    const isBuiltin = url.searchParams.get('is_builtin')
     const cursor = url.searchParams.get('cursor')
     const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
@@ -2816,6 +2817,10 @@ export const handlers = [
       resources = resources.filter((p) => p.is_default === (isDefault === 'true'))
     }
 
+    if (isBuiltin !== null) {
+      resources = resources.filter((p) => p.is_builtin === (isBuiltin === 'true'))
+    }
+
     const body = paginate(resources, cursor, limit, includeTotal)
     return HttpResponse.json(body)
   }),
@@ -2829,6 +2834,7 @@ export const handlers = [
       description: body.description ?? null,
       labels: body.labels ?? {},
       is_default: false,
+      is_builtin: false,
       created_at: now,
       updated_at: now,
     }

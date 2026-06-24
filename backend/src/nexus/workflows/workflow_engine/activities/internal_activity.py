@@ -12,8 +12,11 @@ sandbox warnings that can interfere with other activities.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 import structlog
 from temporalio import activity
@@ -22,6 +25,15 @@ from temporalio.exceptions import ApplicationError
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+class InvocationExecutionInput(TypedDict):
+    """Wire format for the Agent Execution builtin workflow input."""
+
+    invocation_id: str
+    actor_id: str
+    actor_username: str | None
+    actor_type: str | None
 
 
 async def _run_document_conversion(operation_input: dict[str, Any]) -> dict[str, Any]:
@@ -37,20 +49,31 @@ async def _run_document_conversion(operation_input: dict[str, Any]) -> dict[str,
     return {"output": {"status": result.name}}
 
 
-async def _run_invocation_execution(operation_input: dict[str, Any]) -> dict[str, Any]:
+async def _run_invocation_execution(operation_input: InvocationExecutionInput) -> dict[str, Any]:
     invocation_id = operation_input.get("invocation_id")
     if not invocation_id:
         msg = "invocation_execution requires 'invocation_id'"
         raise ApplicationError(msg, non_retryable=True)
 
     from nexus.agent_orchestrator.executor.invocation_executor import InvocationExecutor  # noqa: PLC0415
+    from nexus.audit.emitter import AuditActorContext  # noqa: PLC0415
+    from nexus.core.models.principal import PrincipalType  # noqa: PLC0415
+
+    actor_context: AuditActorContext | None = None
+    if actor_id := operation_input.get("actor_id"):
+        actor_type = operation_input.get("actor_type")
+        actor_context = AuditActorContext(
+            actor_id=UUID(actor_id),
+            actor_username=operation_input.get("actor_username"),
+            actor_type=PrincipalType(actor_type) if actor_type else None,
+        )
 
     executor = InvocationExecutor()
-    await executor.execute_invocation(UUID(invocation_id))
+    await executor.execute_invocation(UUID(invocation_id), actor_context=actor_context)
     return {"output": {"status": "completed"}}
 
 
-_DISPATCH: dict[str, Any] = {
+_DISPATCH: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {
     "document_conversion": _run_document_conversion,
     "invocation_execution": _run_invocation_execution,
 }

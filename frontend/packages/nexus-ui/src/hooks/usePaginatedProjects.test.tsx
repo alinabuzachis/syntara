@@ -77,6 +77,14 @@ describe('usePaginatedProjects', () => {
       expect(result.current.isLoadingMore).toBe(false)
     })
 
+    it('passes is_builtin: false to exclude builtin projects', () => {
+      renderHook(() => usePaginatedProjects(), { wrapper })
+
+      const callArgs = vi.mocked(accessClient.useQuery).mock.calls[0] as unknown[]
+      const options = callArgs[2] as { params: { query: Record<string, unknown> } }
+      expect(options.params.query).toHaveProperty('is_builtin', false)
+    })
+
     it('returns empty array when query data is undefined', () => {
       vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
