@@ -28,6 +28,7 @@ jobs:
     outputs:
       code: ${{ steps.check.outputs.code }}
       backend: ${{ steps.check.outputs.backend }}
+      contracts: ${{ steps.check.outputs.contracts }}
     steps:
       - id: check
         env:
@@ -39,6 +40,7 @@ jobs:
             echo "::warning::No files from API, running all CI as fallback"
             echo "code=true" >> "$GITHUB_OUTPUT"
             echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "contracts=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if echo "$FILES" | grep -qvE '(\.md$|^LICENSE$)'; then
@@ -51,11 +53,16 @@ jobs:
           else
             echo "backend=false" >> "$GITHUB_OUTPUT"
           fi
+          if echo "$FILES" | grep -qE '^backend/src/nexus/schemas/'; then
+            echo "contracts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "contracts=false" >> "$GITHUB_OUTPUT"
+          fi
 
   checks:
     name: Checks
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -94,7 +101,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -132,7 +139,7 @@ jobs:
   coverage-report:
     name: Coverage Report
     needs: [changes, unit-tests]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -181,7 +188,7 @@ jobs:
   visual-regression:
     name: Visual Regression
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -549,7 +556,7 @@ jobs:
   storybook-build:
     name: Storybook Build
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -570,7 +577,7 @@ jobs:
   test-build:
     name: Test Container Build
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -600,7 +607,7 @@ jobs:
   e2e-gate:
     name: E2E Gate
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
