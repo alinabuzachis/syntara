@@ -1,5 +1,15 @@
 import { TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
-import { FormGroup, FormSelect, FormSelectOption, Stack, StackItem } from '@patternfly/react-core'
+import {
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+  TextInput,
+} from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
@@ -30,6 +40,7 @@ function TriggerFormFields({
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: {
     interval?: { message?: string }
+    cron?: { message?: string }
     inputSchema?: { message?: string }
     webhookPath?: { message?: string }
   }
@@ -46,6 +57,10 @@ function TriggerFormFields({
   useEffect(() => {
     if (errors.interval) document.getElementById('cadence-start')?.focus()
   }, [errors.interval])
+
+  useEffect(() => {
+    if (errors.cron) document.getElementById('cron-expression')?.focus()
+  }, [errors.cron])
 
   const nameField = useMemo(
     () => (
@@ -87,6 +102,7 @@ function TriggerFormFields({
                     onChange={(_event, value) => field.onChange(value)}
                   >
                     <FormSelectOption value="interval" label="Interval" />
+                    <FormSelectOption value="cron" label="Cron" />
                     <FormSelectOption value="continuous" label="Continuous" />
                   </FormSelect>
                 )}
@@ -112,6 +128,34 @@ function TriggerFormFields({
               />
             </StackItem>
           )}
+
+          {scheduleType === 'cron' && (
+            <StackItem>
+              <FormGroup label="Cron expression" fieldId="cron-expression" isRequired>
+                <Controller
+                  control={control}
+                  name="cron"
+                  render={({ field }) => (
+                    <TextInput
+                      id="cron-expression"
+                      aria-label="Cron expression"
+                      value={field.value ?? ''}
+                      onChange={(_event, value) => field.onChange(value)}
+                      placeholder="0 9 * * *"
+                      validated={errors.cron ? 'error' : 'default'}
+                    />
+                  )}
+                />
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem variant={errors.cron ? 'error' : 'default'}>
+                      {errors.cron?.message ?? 'Standard 5-field format: minute hour day-of-month month day-of-week'}
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </FormGroup>
+            </StackItem>
+          )}
         </>
       )}
 
@@ -130,6 +174,7 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
     triggerType: props.initialData?.triggerType ?? TriggerTypeEnum.MANUAL_TRIGGER,
     scheduleType: 'interval',
     interval: '',
+    cron: '',
     inputSchema: '',
     webhookPath: '',
     ...props.initialData,
@@ -155,6 +200,7 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
       inputSchema: isManual || isWebhookStyle ? data.inputSchema : undefined,
       scheduleType: isScheduled ? data.scheduleType : undefined,
       interval: isScheduled && data.scheduleType === 'interval' ? data.interval : undefined,
+      cron: isScheduled && data.scheduleType === 'cron' ? data.cron : undefined,
       webhookPath: isWebhookStyle ? normalizeWebhookPath(data.webhookPath ?? '') : undefined,
     }
     props.onSubmit(cleanedData)

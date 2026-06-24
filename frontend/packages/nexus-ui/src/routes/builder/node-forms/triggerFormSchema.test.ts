@@ -33,11 +33,12 @@ function parseManual(inputSchema?: string) {
   })
 }
 
-function parseScheduled(scheduleType: string, interval?: string) {
+function parseScheduled(scheduleType: string, interval?: string, cron?: string) {
   return triggerFormSchema.safeParse({
     triggerType: TriggerTypeEnum.SCHEDULED,
     scheduleType,
     interval,
+    cron,
   })
 }
 
@@ -334,6 +335,52 @@ describe('triggerFormSchema — scheduled trigger validation', () => {
 
   it('does not require interval for continuous schedule', () => {
     expect(parseScheduled('continuous').success).toBe(true)
+  })
+
+  it('requires cron when scheduleType is cron', () => {
+    const result = parseScheduled('cron', undefined, '')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
+      expect(cronError).toBe('Cron expression is required')
+    }
+  })
+
+  it('accepts valid 5-field cron expression', () => {
+    expect(parseScheduled('cron', undefined, '0 9 * * *').success).toBe(true)
+  })
+
+  it('rejects cron with wrong number of fields', () => {
+    const result = parseScheduled('cron', undefined, '0 9 *')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
+      expect(cronError).toBe('Cron expression must have exactly 5 fields: minute hour day-of-month month day-of-week')
+    }
+  })
+
+  it('rejects whitespace-only cron expression', () => {
+    const result = parseScheduled('cron', undefined, '   ')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
+      expect(cronError).toBe('Cron expression is required')
+    }
+  })
+
+  it('rejects cron with invalid characters', () => {
+    const result = parseScheduled('cron', undefined, 'hello world foo bar baz')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const cronError = result.error.issues.find((i) => i.path.includes('cron'))?.message
+      expect(cronError).toBe('Cron fields may only contain digits, *, /, -, and ,')
+    }
+  })
+
+  it('rejects cron exceeding 256 characters', () => {
+    const longCron = `${Array(150).fill('1').join(',')} * * * *`
+    const result = parseScheduled('cron', undefined, longCron)
+    expect(result.success).toBe(false)
   })
 })
 

@@ -113,22 +113,22 @@ function serializeInputSchema(rawSchema: unknown): string | undefined {
 
 function buildScheduledTrigger(data: TriggerFormData, triggerId: string, name: string): Trigger {
   const scheduleType = (data.scheduleType ?? 'interval') as 'cron' | 'interval' | 'continuous'
-  const config: Record<string, string> = {}
-  if (scheduleType === 'interval' && data.interval) {
-    if (!validateISO8601Interval(data.interval)) {
-      throw new Error(
-        `Invalid interval format: "${data.interval}". Expected ISO 8601 duration (e.g., PT1H, P1DT12H, PT1H30M) or recurring interval (e.g., R/2024-01-01T10:00:00Z/P1D).`
-      )
-    }
-    config.interval = data.interval
+  const scheduleValueMap: Record<string, string | undefined> = { interval: data.interval, cron: data.cron }
+  const scheduleValue = scheduleValueMap[scheduleType]
+
+  if (scheduleType === 'interval' && scheduleValue && !validateISO8601Interval(scheduleValue)) {
+    throw new Error(
+      `Invalid interval format: "${scheduleValue}". Expected ISO 8601 duration (e.g., PT1H, P1DT12H, PT1H30M) or recurring interval (e.g., R/2024-01-01T10:00:00Z/P1D).`
+    )
   }
+
   return {
     id: triggerId,
     type: TriggerTypeEnum.SCHEDULED,
     name: name ?? 'Scheduled Trigger',
     parameters: {
       schedule_type: scheduleType,
-      ...(config.interval && { interval: config.interval }),
+      ...(scheduleValue && { [scheduleType]: scheduleValue }),
     },
   }
 }
@@ -222,6 +222,15 @@ export function TriggerNodeDetails({ trigger, triggerIndex, onClose, onHeaderCon
           triggerType: TriggerTypeEnum.SCHEDULED,
           scheduleType: 'interval',
           interval: trigger.parameters?.interval as string | undefined,
+        }
+      }
+
+      if (scheduleType === 'cron') {
+        return {
+          name: trigger.name,
+          triggerType: TriggerTypeEnum.SCHEDULED,
+          scheduleType: 'cron',
+          cron: trigger.parameters?.cron as string | undefined,
         }
       }
 

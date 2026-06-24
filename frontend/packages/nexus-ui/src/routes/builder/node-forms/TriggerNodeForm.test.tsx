@@ -206,6 +206,64 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
     })
 
+    it('toggles cron input when schedule type changes', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'interval' }}
+        />
+      )
+
+      expect(screen.queryByLabelText('Cron expression')).not.toBeInTheDocument()
+
+      await user.selectOptions(screen.getByLabelText('Schedule type'), 'cron')
+      expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
+      expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
+
+      await user.selectOptions(screen.getByLabelText('Schedule type'), 'continuous')
+      expect(screen.queryByLabelText('Cron expression')).not.toBeInTheDocument()
+
+      await user.selectOptions(screen.getByLabelText('Schedule type'), 'cron')
+      expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
+    })
+
+    it('shows cron input for cron schedule type', () => {
+      renderWithHeader(
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'cron' }}
+        />
+      )
+
+      expect(screen.getByLabelText('Cron expression')).toBeInTheDocument()
+      expect(screen.queryByTestId('date-range-cadence-picker')).not.toBeInTheDocument()
+    })
+
+    it('shows cron input with initial value', () => {
+      renderWithHeader(
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'cron', cron: '0 9 * * *' }}
+        />
+      )
+
+      expect(screen.getByLabelText('Cron expression')).toHaveValue('0 9 * * *')
+    })
+
+    it('has no accessibility violations for cron schedule type', async () => {
+      const { container } = renderWithHeader(
+        <TriggerNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{ triggerType: TriggerTypeEnum.SCHEDULED, scheduleType: 'cron', cron: '0 9 * * *' }}
+        />
+      )
+      // Exclude aria-valid-attr-value: PF6 Tabs renders aria-controls pointing to
+      // a panel ID that may not exist in the DOM when only the active tab is rendered
+      const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
+      expect(results).toHaveNoViolations()
+    })
+
     it('renders with initial scheduled trigger data', () => {
       const initialData = {
         triggerType: TriggerTypeEnum.SCHEDULED,
@@ -413,6 +471,8 @@ describe('TriggerNodeForm Component', () => {
       const { container } = renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: TriggerTypeEnum.EDA_TRIGGER }} />
       )
+      // Exclude aria-valid-attr-value: PF6 Tabs renders aria-controls pointing to
+      // a panel ID that may not exist in the DOM when only the active tab is rendered
       const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
       expect(results).toHaveNoViolations()
     })

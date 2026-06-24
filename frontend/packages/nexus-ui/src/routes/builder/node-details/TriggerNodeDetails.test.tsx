@@ -287,6 +287,74 @@ describe('TriggerNodeDetails Component', () => {
     })
   })
 
+  describe('Scheduled Trigger - Cron', () => {
+    it('renders TriggerNodeForm with cron scheduled trigger data', () => {
+      const trigger = {
+        id: 'scheduled_trigger',
+        type: TriggerTypeEnum.SCHEDULED,
+        name: 'Daily Job',
+        parameters: {
+          schedule_type: 'cron',
+          cron: '0 9 * * 1-5',
+        },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      expect(screen.getByTestId('initial-data')).toHaveTextContent(
+        JSON.stringify({
+          name: 'Daily Job',
+          triggerType: TriggerTypeEnum.SCHEDULED,
+          scheduleType: 'cron',
+          cron: '0 9 * * 1-5',
+        })
+      )
+    })
+
+    it('calls updateTrigger with cron scheduled trigger on form submission', async () => {
+      const user = userEvent.setup()
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-cron"
+          onClick={() => {
+            onSubmit({
+              name: 'Cron Trigger',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'cron',
+              cron: '*/5 * * * *',
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        id: 'scheduled_trigger',
+        type: TriggerTypeEnum.SCHEDULED,
+        name: 'Trigger',
+        parameters: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={2} onClose={mockOnClose} />)
+
+      await user.click(screen.getByTestId('submit-cron'))
+
+      expect(mockUpdateTrigger).toHaveBeenCalledWith(2, {
+        id: 'scheduled_trigger',
+        type: TriggerTypeEnum.SCHEDULED,
+        name: 'Cron Trigger',
+        parameters: {
+          schedule_type: 'cron',
+          cron: '*/5 * * * *',
+        },
+      })
+      expect(mockOnClose).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('Scheduled Trigger - Continuous', () => {
     it('renders TriggerNodeForm with continuous scheduled trigger data', () => {
       const trigger = {

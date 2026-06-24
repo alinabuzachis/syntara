@@ -90,6 +90,7 @@ const triggerFormSchemaBase = z.object({
   triggerType: z.string(),
   scheduleType: z.string().optional(),
   interval: z.string().optional(),
+  cron: z.string().max(256).optional(),
   inputSchema: z.string().optional(),
   webhookPath: z.string().optional(),
 })
@@ -106,6 +107,32 @@ export const triggerFormSchema = triggerFormSchemaBase.superRefine((data, ctx) =
         message: 'Start date is required',
         path: ['interval'],
       })
+    }
+  }
+
+  if (data.triggerType === TriggerTypeEnum.SCHEDULED && data.scheduleType === 'cron') {
+    const cronValue = data.cron?.trim() ?? ''
+    if (!cronValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Cron expression is required',
+        path: ['cron'],
+      })
+    } else {
+      const fields = cronValue.split(/\s+/)
+      if (fields.length !== 5) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Cron expression must have exactly 5 fields: minute hour day-of-month month day-of-week',
+          path: ['cron'],
+        })
+      } else if (!fields.every((f) => /^[\d*/,-]+$/.test(f))) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Cron fields may only contain digits, *, /, -, and ,',
+          path: ['cron'],
+        })
+      }
     }
   }
 
