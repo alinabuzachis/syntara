@@ -29269,6 +29269,7 @@ components:
           anyOf:
             - type: string
               format: password
+              minLength: 14
               writeOnly: true
             - type: 'null'
           description: New password (will be hashed). Omit to keep current password.

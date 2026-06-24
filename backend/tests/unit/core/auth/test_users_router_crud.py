@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 
 from nexus.core.models import User
 from nexus.core.models.user_schemas import UserCreate, UserRead, UserUpdate
@@ -138,12 +138,18 @@ class TestUpdateUserEndpoint:
 
         mock_store = AsyncMock()
 
-        request = UserUpdate(password=SecretStr("newpassword"))
+        request = UserUpdate(password=SecretStr("NewPassword123!"))
 
         with patch("nexus.users.users_router.create_session_store", return_value=mock_store):
             await update_user(user.id, request, service, actor, db)
 
         mock_store.revoke_all_for_user.assert_called_once_with(user.id)
+
+    @pytest.mark.asyncio
+    async def test_rejects_weak_password_with_validation_error(self) -> None:
+        """PATCH /users/{id} rejects weak passwords (FastAPI returns 422)."""
+        with pytest.raises(ValidationError, match=r"at least 3.*character classes"):
+            UserUpdate(password=SecretStr("weakpasswordonly!!"))
 
 
 @pytest.mark.usefixtures("mock_session_store")

@@ -286,4 +286,14 @@ def _read_admin_password_hash() -> str | None:
         logger.warning("Admin password file is empty", path=password_path)
         return None
 
+    from nexus.auth.passwords import validate_password_complexity  # noqa: PLC0415
+
+    try:
+        validate_password_complexity(password)
+    except ValueError:
+        logger.warning(
+            "Admin password does not meet complexity requirements — consider updating it via 'ao-admin reset-password'",
+            path=password_path,
+        )
+
     return hash_password(password)

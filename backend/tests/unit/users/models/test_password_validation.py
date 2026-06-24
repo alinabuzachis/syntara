@@ -1,4 +1,4 @@
-"""Unit tests for password validation (API-46).
+"""Unit tests for password validation (API-46, AAP-79855).
 
 Tests the InfoSec password requirements:
 - Minimum 14 characters
@@ -8,7 +8,8 @@ Tests the InfoSec password requirements:
 import pytest
 from pydantic import ValidationError
 
-from nexus.core.models.user_schemas import UserCreate
+from nexus.auth.passwords import validate_password_complexity
+from nexus.core.models.user_schemas import UserCreate, UserUpdate
 
 
 class TestPasswordValidation:
@@ -125,3 +126,42 @@ class TestPasswordValidation:
             password=password,
         )
         assert user.username == "testuser"
+
+
+class TestUserUpdatePasswordValidation:
+    """Test password validation on UserUpdate (AAP-79855)."""
+
+    def test_weak_password_too_short_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="at least 14"):
+            UserUpdate(password="Short123!")  # noqa: S106
+
+    def test_weak_password_insufficient_classes_rejected(self) -> None:
+        with pytest.raises(ValidationError, match=r"at least 3.*character classes"):
+            UserUpdate(password="lowercasepasswordonly")  # noqa: S106
+
+    def test_strong_password_accepted(self) -> None:
+        update = UserUpdate(password="ValidPassword123!")  # noqa: S106
+        assert update.password is not None
+
+    def test_none_password_accepted(self) -> None:
+        update = UserUpdate(password=None)
+        assert update.password is None
+
+    def test_omitted_password_accepted(self) -> None:
+        update = UserUpdate(first_name="Updated")
+        assert update.password is None
+
+
+class TestValidatePasswordComplexity:
+    """Test the shared validate_password_complexity function."""
+
+    def test_valid_password(self) -> None:
+        validate_password_complexity("ValidPassword123!")
+
+    def test_too_short_raises(self) -> None:
+        with pytest.raises(ValueError, match="at least 14"):
+            validate_password_complexity("Short1!")
+
+    def test_insufficient_classes_raises(self) -> None:
+        with pytest.raises(ValueError, match="at least 3"):
+            validate_password_complexity("lowercasepasswordonly")

@@ -5,7 +5,6 @@ SQLModel Pattern 1 (separate models with table=False), consistent with
 the Group model pattern.
 """
 
-import re
 from datetime import datetime
 from typing import ClassVar
 from uuid import UUID
@@ -13,6 +12,7 @@ from uuid import UUID
 from pydantic import ConfigDict, EmailStr, SecretStr, field_validator
 from sqlmodel import Field, SQLModel
 
+from nexus.auth.passwords import validate_password_complexity
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.group import MembershipSource
@@ -43,40 +43,9 @@ class UserCreate(SQLModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password_complexity(cls, v: SecretStr) -> SecretStr:
-        """Validate password meets InfoSec security requirements.
-
-        Requirements:
-        - Minimum 14 characters (already enforced by Field(min_length=14))
-        - At least 3 of the following 4 character classes:
-          - Base 10 digits (0-9)
-          - Uppercase letters (A-Z)
-          - Lowercase letters (a-z)
-          - Punctuation, spaces, and other characters
-        """
-        min_character_classes = 3  # InfoSec requirement
-        password = v.get_secret_value()
-
-        # Count how many character classes are present
-        character_classes = 0
-
-        if re.search(r"\d", password):  # Digits
-            character_classes += 1
-        if re.search(r"[A-Z]", password):  # Uppercase
-            character_classes += 1
-        if re.search(r"[a-z]", password):  # Lowercase
-            character_classes += 1
-        if re.search(r"[^a-zA-Z0-9]", password):  # Punctuation, spaces, and other characters
-            character_classes += 1
-
-        if character_classes < min_character_classes:
-            msg = (
-                "Password must contain at least 3 of the following character classes: "
-                "digits (0-9), uppercase letters (A-Z), lowercase letters (a-z), "
-                "punctuation/spaces/other characters"
-            )
-            raise ValueError(msg)
-
+    def check_password_complexity(cls, v: SecretStr) -> SecretStr:
+        """Enforce InfoSec password complexity requirements."""
+        validate_password_complexity(v.get_secret_value())
         return v
 
 
@@ -95,9 +64,17 @@ class UserUpdate(SQLModel):
     last_name: str | None = Field(None, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update last name")
     email: EmailStr | None = Field(None, max_length=FieldLimits.NAME_MAX_LENGTH, description="Update email address")
     password: SecretStr | None = Field(
-        None, description="New password (will be hashed). Omit to keep current password."
+        None, min_length=14, description="New password (will be hashed). Omit to keep current password."
     )
     is_enabled: bool | None = Field(None, description="Enable or disable user account")
+
+    @field_validator("password")
+    @classmethod
+    def check_password_complexity(cls, v: SecretStr | None) -> SecretStr | None:
+        """Enforce InfoSec password complexity requirements when password is provided."""
+        if v is not None:
+            validate_password_complexity(v.get_secret_value())
+        return v
 
 
 class UserRead(SQLModel):

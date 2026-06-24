@@ -107,6 +107,14 @@ def main() -> int:
         print("Error: password cannot be empty", file=sys.stderr)
         return 1
 
+    from nexus.auth.passwords import validate_password_complexity
+
+    try:
+        validate_password_complexity(password)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
     asyncio.run(set_admin_password(password))
     return 0
 
