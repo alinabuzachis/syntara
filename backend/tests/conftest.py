@@ -109,6 +109,7 @@ if _EXTERNAL_SERVICES_AVAILABLE:
         "tests.fixtures.external_services.keycloak_groups",
         "tests.fixtures.external_services.openldap",
         "tests.fixtures.external_services.logstash",
+        "tests.fixtures.external_services.segment",
     ]
 
 _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata, Group)

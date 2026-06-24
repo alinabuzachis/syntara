@@ -459,10 +459,14 @@ class SettingsCache:
         self._watchers.setdefault(key, []).append(callback)
 
         # Seed the watch-values tracker from the cache so the first poll
-        # has a baseline to compare against.
-        cached = self._cache.get(key)
-        if cached is not None and key not in self._watch_values:
-            self._watch_values[key] = cached.value
+        # has a baseline to compare against.  When no cached value exists
+        # the key stays absent; the poll loop's .get(key, _SENTINEL) default
+        # then skips the first transition so it establishes the baseline
+        # without firing callbacks.
+        if key not in self._watch_values:
+            cached = self._cache.get(key)
+            if cached is not None:
+                self._watch_values[key] = cached.value
 
         logger.info("settings.on_change_registered", key=key)
 

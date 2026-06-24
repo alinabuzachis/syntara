@@ -119,7 +119,6 @@ define run-tests
 	uv run pytest $(1)
 endef
 
-E2E_IGNORE := --ignore=tests/e2e
 
 .PHONY: test
 test: test-unit ## Alias to unit tests
@@ -142,7 +141,6 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/ -v -m "mcp")
 else
 	@echo "🧪 Running MCP tests..."
-	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/ -v -m "mcp"
 endif
 
@@ -174,28 +172,26 @@ test-integration-coverage: check-deps ## Run integration tests with coverage rep
 
 .PHONY: test-coverage
 test-coverage: check-deps ## Run tests with combined coverage report (XML for CI)
-	$(call run-tests,tests/ -n auto -m "not mcp" $(E2E_IGNORE) --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
+	$(call run-tests,tests/ -n auto -m "not mcp" --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-coverage-report
 test-coverage-report: check-deps ## Run tests with combined coverage report (HTML)
-	$(call run-tests,tests/ -n auto -m "not mcp" $(E2E_IGNORE) --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
+	$(call run-tests,tests/ -n auto -m "not mcp" --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-fast
 test-fast: check-deps ## Run tests with fail-fast and short traceback
-	$(call run-tests,tests/ -x --tb=short $(E2E_IGNORE))
+	$(call run-tests,tests/ -x --tb=short)
 
 .PHONY: test-all
 test-all: check-deps ## Run all tests
-	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml $(E2E_IGNORE))
-
-SEGMENT_SERVER_PORT ?= 9999
+	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml)
 
 # _e2e-run: shared infrastructure setup for all e2e targets.
 # Starts mock Segment, database, Temporal, OPA, and the API server,
 # then runs the pytest command passed as $(1).
 # Usage: $(call _e2e-run,<pytest-args>)
 define _e2e-run
-@COMPOSE_CMD="$(COMPOSE_FINAL_CMD)" SEGMENT_SERVER_PORT="$(SEGMENT_SERVER_PORT)" \
+@COMPOSE_CMD="$(COMPOSE_FINAL_CMD)" \
 	./tools/scripts/e2e-run.sh $(1)
 endef
 
@@ -208,7 +204,6 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v -m "not global_revocation")
 else
 	@echo "🧪 Running end to end tests (excluding global revocation)..."
-	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/$(E2E_TARGET) -v -m "not global_revocation"
 endif
 
@@ -218,19 +213,16 @@ ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/ -v -m global_revocation)
 else
 	@echo "🧪 Running global revocation E2E tests..."
-	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/ -v -m global_revocation
 endif
 
 .PHONY: test-e2e-telemetry
 test-e2e-telemetry: check-deps ## Run telemetry E2E tests only
 ifndef APP_BASE_URL
-	$(call _e2e-run,tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && SEGMENT_SERVER_URL=http://localhost:$(SEGMENT_SERVER_PORT) APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run pytest tests/e2e/telemetry/test_performance_and_resilience.py -v)
+	$(call _e2e-run,tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run pytest tests/e2e/telemetry/test_performance_and_resilience.py -v)
 else
 	@echo "🧪 Running telemetry E2E tests..."
-	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && \
-	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/telemetry/test_performance_and_resilience.py -v
 endif
 

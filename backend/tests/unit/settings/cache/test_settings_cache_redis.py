@@ -348,8 +348,8 @@ class TestHandleChangeNotification:
         cb.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_first_notification_seeds_without_callback(self) -> None:
-        """First notification for a key seeds watch_values without firing."""
+    async def test_first_notification_seeds_baseline_without_firing(self) -> None:
+        """First notification for a previously-unset key establishes baseline without firing."""
         cache = _make_redis_cache()
         cb = MagicMock()
         cache.on_change("logging.log_level", cb)
@@ -357,7 +357,9 @@ class TestHandleChangeNotification:
         with patch.object(cache, "_fetch_from_db", new_callable=AsyncMock, return_value="DEBUG"):
             await cache._handle_change_notification("logging.log_level")
 
+        # Baseline is now set to the DB value
         assert cache._watch_values["logging.log_level"] == "DEBUG"
+        # Callback does NOT fire — first notification is baseline establishment
         cb.assert_not_called()
 
     @pytest.mark.asyncio

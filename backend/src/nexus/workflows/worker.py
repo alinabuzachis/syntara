@@ -57,6 +57,10 @@ async def main() -> None:
     set_runtime_settings(SettingsCache(session_factory=AsyncSessionLocal))
     await apply_runtime_log_level()
 
+    # Import telemetry watcher so @watch_setting("telemetry.segment_write_key")
+    # is registered before start_watching() applies pending watchers.
+    import nexus.telemetry.client  # noqa: F401, PLC0415
+
     # Start polling for setting changes (applies @watch_setting registrations)
     get_runtime_settings().start_watching()
 

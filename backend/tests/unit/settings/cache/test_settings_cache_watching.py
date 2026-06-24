@@ -100,23 +100,23 @@ class TestPollWatchedKeys:
         cb.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_first_poll_seeds_without_callback(self) -> None:
-        """First poll (no prior watch_values) seeds the value without firing callbacks."""
+    async def test_first_poll_seeds_baseline_without_firing(self) -> None:
+        """First poll for a previously-unset key establishes the baseline without firing callbacks."""
         cache = _make_watching_cache()
         cb = MagicMock()
         cache.on_change("logging.log_level", cb)
 
-        # No watch_values entry exists
+        # on_change does not seed watch_values when no cached value exists
         assert "logging.log_level" not in cache._watch_values
 
         with patch.object(cache, "_fetch_from_db", return_value="WARNING"):
             await cache._poll_watched_keys(AsyncMock())
 
-        # Watch values seeded
+        # Watch values updated to the DB value (baseline now set)
         assert cache._watch_values["logging.log_level"] == "WARNING"
         # Cache also updated
         assert cache._cache["logging.log_level"].value == "WARNING"
-        # But no callback (first poll, no baseline to compare)
+        # Callback does NOT fire — first poll is baseline establishment
         cb.assert_not_called()
 
     @pytest.mark.asyncio

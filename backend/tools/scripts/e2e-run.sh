@@ -9,12 +9,9 @@
 # Environment:
 #   COMPOSE_CMD           Full compose command with project/file args
 #                         (default: uv run podman-compose -p nexus -f podman-compose.yml)
-#   SEGMENT_SERVER_PORT   Mock Segment port (default: 9999)
 set -euo pipefail
 
 COMPOSE_CMD="${COMPOSE_CMD:-uv run podman-compose -p nexus -f podman-compose.yml}"
-
-SEGMENT_SERVER_PORT="${SEGMENT_SERVER_PORT:-9999}"
 MAKE="${MAKE:-make}"
 PYTEST_ARGS=("$@")
 
@@ -42,18 +39,22 @@ if command -v chcon >/dev/null 2>&1 && getenforce 2>/dev/null | grep -qi enforci
     chcon -R -t container_file_t src/api_client 2>/dev/null || true
 fi
 
-echo "🚀 Starting mock Segment, database, Temporal, OPA, and MCP server..."
+echo "🚀 Starting database first..."
+${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate database \
+    > /tmp/nexus-e2e-infra.log 2>&1
+
+echo "🚀 Starting remaining services..."
 APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
-APP_SEGMENT_ENDPOINT="http://mock-segment:${SEGMENT_SERVER_PORT}" \
+APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
 APP_SEGMENT_MAX_RETRIES=2 \
 APP_SEGMENT_TIMEOUT=5 \
 APP_COLLECTION_INTERVAL_SECONDS=10 \
-${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate database temporal temporal-worker mock-segment opa mcp-server nexus \
-    > /tmp/nexus-e2e-infra.log 2>&1
+${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate temporal temporal-worker mock-segment opa mcp-server nexus \
+    >> /tmp/nexus-e2e-infra.log 2>&1
 
 echo "⏳ Waiting for mock Segment server..."
 TRIES=0
-until curl -sf "http://localhost:${SEGMENT_SERVER_PORT}/health" 2>/dev/null | grep -q '"status":"ok"'; do
+until curl -sf "http://localhost:9999/health" 2>/dev/null | grep -q '"status":"ok"'; do
     sleep 1
     TRIES=$((TRIES + 1))
     if [[ $TRIES -ge 30 ]]; then
@@ -92,6 +93,6 @@ echo "✅ API server is ready"
 echo "🔧 Creating system user..."
 uv run python tools/create_system_user.py
 
-SEGMENT_SERVER_URL="http://localhost:${SEGMENT_SERVER_PORT}" \
+SEGMENT_SERVER_URL="http://localhost:9999" \
 APP_BASE_URL="${APP_BASE_URL:-http://localhost:8000}" \
 uv run pytest "${PYTEST_ARGS[@]}"

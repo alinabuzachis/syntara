@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12, <3.14"
 
 [[package]]
@@ -810,8 +810,8 @@ wheels = [
 
 [[package]]
 name = "external-services"
-version = "26.5.5.0"
-source = { git = "#fa008895dbdfc4883bc4ef90219a44e51feb4321" }
+version = "26.6.19.0"
+source = { git = "#8fe61783b7ea9613d968226e62ff561430b3eda2" }
 dependencies = [
     { name = "dnspython" },
     { name = "httpx" },
