@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -145,8 +146,8 @@ describe('useEdgeExecutionStatus', () => {
 
       const workflow = {
         triggers: [
-          { id: 'real-trigger-1', type: 'manual_trigger', name: 'T1', parameters: {} },
-          { id: 'real-trigger-2', type: 'scheduled', name: 'T2', parameters: {} },
+          { id: 'real-trigger-1', type: TriggerTypeEnum.MANUAL_TRIGGER, name: 'T1', parameters: {} },
+          { id: 'real-trigger-2', type: TriggerTypeEnum.SCHEDULED, name: 'T2', parameters: {} },
         ],
         workflow: { activities: [] },
       } as never

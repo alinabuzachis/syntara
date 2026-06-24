@@ -16,19 +16,19 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
   createManualTrigger: vi.fn((id: string, _: unknown, name: string) => ({
     id,
     name,
-    type: 'manual_trigger' as const,
+    type: TriggerTypeEnum.MANUAL_TRIGGER,
   })),
   createScheduledTrigger: vi.fn((id: string) => ({
     id,
-    type: 'scheduled' as const,
+    type: TriggerTypeEnum.SCHEDULED,
   })),
   createWebhookTrigger: vi.fn((id: string) => ({
     id,
-    type: 'webhook_trigger' as const,
+    type: TriggerTypeEnum.WEBHOOK_TRIGGER,
   })),
   createEdaTrigger: vi.fn((id: string) => ({
     id,
-    type: 'eda_trigger' as const,
+    type: TriggerTypeEnum.EDA_TRIGGER,
   })),
 }))
 

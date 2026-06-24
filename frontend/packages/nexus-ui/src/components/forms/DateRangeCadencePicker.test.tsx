@@ -4,26 +4,35 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { DateRangeCadencePicker } from './DateRangeCadencePicker'
 
+async function selectCadence(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(screen.getByRole('button', { name: 'Cadence' }))
+  await user.click(screen.getByRole('option', { name: label }))
+}
+
+async function selectPeriod(user: ReturnType<typeof userEvent.setup>, label: 'AM' | 'PM') {
+  await user.click(screen.getByRole('button', { name: 'Period' }))
+  await user.click(screen.getByRole('option', { name: label }))
+}
+
 describe('DateRangeCadencePicker', () => {
   describe('rendering', () => {
     it('renders all form fields', () => {
       render(<DateRangeCadencePicker />)
 
       expect(screen.getByLabelText('Start date')).toBeInTheDocument()
-      expect(screen.getByLabelText('Cadence')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cadence' })).toBeInTheDocument()
       expect(screen.getByLabelText('Hour')).toBeInTheDocument()
       expect(screen.getByLabelText('Minute')).toBeInTheDocument()
-      expect(screen.getByLabelText('Period')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Period' })).toBeInTheDocument()
       expect(screen.getByLabelText('End date')).toBeInTheDocument()
     })
 
-    it('renders cadence options', () => {
+    it('renders cadence options', async () => {
+      const user = userEvent.setup()
       render(<DateRangeCadencePicker />)
 
-      const cadenceSelect = screen.getByLabelText('Cadence')
-      expect(cadenceSelect).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Cadence' }))
 
-      // Check for all cadence options
       expect(screen.getByRole('option', { name: 'Does not repeat' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Daily' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Weekly' })).toBeInTheDocument()
@@ -31,8 +40,11 @@ describe('DateRangeCadencePicker', () => {
       expect(screen.getByRole('option', { name: 'Annually' })).toBeInTheDocument()
     })
 
-    it('renders time period options', () => {
+    it('renders time period options', async () => {
+      const user = userEvent.setup()
       render(<DateRangeCadencePicker />)
+
+      await user.click(screen.getByRole('button', { name: 'Period' }))
 
       expect(screen.getByRole('option', { name: 'AM' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'PM' })).toBeInTheDocument()
@@ -43,7 +55,7 @@ describe('DateRangeCadencePicker', () => {
 
       expect(screen.queryByLabelText('Hour')).not.toBeInTheDocument()
       expect(screen.queryByLabelText('Minute')).not.toBeInTheDocument()
-      expect(screen.queryByLabelText('Period')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Period' })).not.toBeInTheDocument()
     })
 
     it('shows time inputs by default', () => {
@@ -51,14 +63,14 @@ describe('DateRangeCadencePicker', () => {
 
       expect(screen.getByLabelText('Hour')).toBeInTheDocument()
       expect(screen.getByLabelText('Minute')).toBeInTheDocument()
-      expect(screen.getByLabelText('Period')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Period' })).toBeInTheDocument()
     })
 
     it('passes required prop to form groups', () => {
       render(<DateRangeCadencePicker required />)
 
       expect(screen.getByLabelText('Start date')).toHaveAttribute('aria-required', 'true')
-      expect(screen.getByLabelText('Cadence')).toHaveAttribute('aria-required', 'true')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveAttribute('aria-required', 'true')
       expect(screen.getByLabelText('Hour')).toHaveAttribute('aria-required', 'true')
     })
 
@@ -66,7 +78,7 @@ describe('DateRangeCadencePicker', () => {
       render(<DateRangeCadencePicker />)
 
       expect(screen.getByLabelText('Start date')).not.toHaveAttribute('aria-required', 'true')
-      expect(screen.getByLabelText('Cadence')).not.toHaveAttribute('aria-required', 'true')
+      expect(screen.getByRole('button', { name: 'Cadence' })).not.toHaveAttribute('aria-required', 'true')
     })
 
     it('applies custom className', () => {
@@ -80,9 +92,6 @@ describe('DateRangeCadencePicker', () => {
 
       const startDateInput = screen.getByLabelText('Start date')
       expect(startDateInput).toHaveAttribute('aria-invalid', 'true')
-
-      const cadenceSelect = screen.getByLabelText('Cadence')
-      expect(cadenceSelect).not.toHaveAttribute('aria-invalid', 'true')
     })
 
     it('shows error message under Start date when error and errorMessage are set', () => {
@@ -97,31 +106,31 @@ describe('DateRangeCadencePicker', () => {
       render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P1D" />)
 
       expect(screen.getByLabelText('Start date')).toHaveValue('2024-01-15')
-      expect(screen.getByLabelText('Cadence')).toHaveValue('daily')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Daily')
     })
 
     it('parses weekly interval', () => {
       render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P7D" />)
 
-      expect(screen.getByLabelText('Cadence')).toHaveValue('weekly')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Weekly')
     })
 
     it('parses weekly interval with P1W format', () => {
       render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P1W" />)
 
-      expect(screen.getByLabelText('Cadence')).toHaveValue('weekly')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Weekly')
     })
 
     it('parses monthly interval', () => {
       render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P1M" />)
 
-      expect(screen.getByLabelText('Cadence')).toHaveValue('monthly')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Monthly')
     })
 
     it('parses annually interval', () => {
       render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P1Y" />)
 
-      expect(screen.getByLabelText('Cadence')).toHaveValue('annually')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Annually')
     })
 
     it('parses interval with end date', () => {
@@ -134,16 +143,14 @@ describe('DateRangeCadencePicker', () => {
     it('parses time from interval', () => {
       render(<DateRangeCadencePicker value="R/2024-01-15T09:30:00Z/P1D" />)
 
-      // Verify time inputs are populated (actual values depend on timezone)
       const hourInput = screen.getByLabelText('Hour')
       const minuteInput = screen.getByLabelText('Minute')
-      const periodSelect = screen.getByLabelText('Period')
+      const periodButton = screen.getByRole('button', { name: 'Period' })
 
       expect(hourInput).toBeInTheDocument()
       expect(minuteInput).toBeInTheDocument()
-      expect(periodSelect).toBeInTheDocument()
+      expect(periodButton).toBeInTheDocument()
 
-      // Hour should be a valid 12-hour value (1-12)
       const hourValue = Number(hourInput.getAttribute('value'))
       expect(hourValue).toBeGreaterThanOrEqual(1)
       expect(hourValue).toBeLessThanOrEqual(12)
@@ -152,23 +159,22 @@ describe('DateRangeCadencePicker', () => {
     it('parses time and sets period', () => {
       render(<DateRangeCadencePicker value="R/2024-01-15T14:45:00Z/P1D" />)
 
-      const periodSelect = screen.getByLabelText<HTMLSelectElement>('Period')
-      // Period should be either AM or PM
-      expect(['AM', 'PM']).toContain(periodSelect.value)
+      const periodButton = screen.getByRole('button', { name: 'Period' })
+      expect(['AM', 'PM']).toContain(periodButton.textContent)
     })
 
     it('handles empty value', () => {
       render(<DateRangeCadencePicker value="" />)
 
       expect(screen.getByLabelText('Start date')).toHaveValue('')
-      expect(screen.getByLabelText('Cadence')).toHaveValue('none')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Does not repeat')
     })
 
     it('handles undefined value', () => {
       render(<DateRangeCadencePicker />)
 
       expect(screen.getByLabelText('Start date')).toHaveValue('')
-      expect(screen.getByLabelText('Cadence')).toHaveValue('none')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Does not repeat')
     })
   })
 
@@ -194,8 +200,7 @@ describe('DateRangeCadencePicker', () => {
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
-      const cadenceSelect = screen.getByLabelText('Cadence')
-      await user.selectOptions(cadenceSelect, 'weekly')
+      await selectCadence(user, 'Weekly')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -209,8 +214,7 @@ describe('DateRangeCadencePicker', () => {
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
-      const cadenceSelect = screen.getByLabelText('Cadence')
-      await user.selectOptions(cadenceSelect, 'none')
+      await selectCadence(user, 'Does not repeat')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenLastCalledWith(expect.stringMatching(/^R1\/.+\/PT0S$/))
@@ -250,8 +254,7 @@ describe('DateRangeCadencePicker', () => {
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
-      const periodSelect = screen.getByLabelText('Period')
-      await user.selectOptions(periodSelect, 'PM')
+      await selectPeriod(user, 'PM')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -282,11 +285,9 @@ describe('DateRangeCadencePicker', () => {
 
       const hourInput = screen.getByLabelText('Hour')
 
-      // Enter invalid high value
       await user.clear(hourInput)
       await user.type(hourInput, '15')
 
-      // Should be clamped to 12
       await waitFor(() => {
         expect(hourInput).toHaveValue(12)
       })
@@ -298,11 +299,9 @@ describe('DateRangeCadencePicker', () => {
 
       const minuteInput = screen.getByLabelText('Minute')
 
-      // Enter invalid high value
       await user.clear(minuteInput)
       await user.type(minuteInput, '75')
 
-      // Should be clamped to 59
       await waitFor(() => {
         expect(minuteInput).toHaveValue(59)
       })
@@ -315,13 +314,10 @@ describe('DateRangeCadencePicker', () => {
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} />)
 
-      // Set start date
       const startDate = screen.getByLabelText('Start date')
       await user.type(startDate, '2024-06-15')
 
-      // Set cadence to daily
-      const cadenceSelect = screen.getByLabelText('Cadence')
-      await user.selectOptions(cadenceSelect, 'daily')
+      await selectCadence(user, 'Daily')
 
       await waitFor(() => {
         expect(onChange).toHaveBeenCalled()
@@ -349,8 +345,7 @@ describe('DateRangeCadencePicker', () => {
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
-      const cadenceSelect = screen.getByLabelText('Cadence')
-      await user.selectOptions(cadenceSelect, 'monthly')
+      await selectCadence(user, 'Monthly')
 
       await waitFor(() => {
         const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0]
@@ -363,8 +358,7 @@ describe('DateRangeCadencePicker', () => {
       const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
-      const cadenceSelect = screen.getByLabelText('Cadence')
-      await user.selectOptions(cadenceSelect, 'annually')
+      await selectCadence(user, 'Annually')
 
       await waitFor(() => {
         const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0]
@@ -378,14 +372,13 @@ describe('DateRangeCadencePicker', () => {
       const { rerender } = render(<DateRangeCadencePicker value="R/2024-01-15T10:00:00Z/P1D" />)
 
       expect(screen.getByLabelText('Start date')).toHaveValue('2024-01-15')
-      expect(screen.getByLabelText('Cadence')).toHaveValue('daily')
+      expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Daily')
 
-      // Rerender with new value
       rerender(<DateRangeCadencePicker value="R/2024-06-01T14:30:00Z/P1M" />)
 
       await waitFor(() => {
         expect(screen.getByLabelText('Start date')).toHaveValue('2024-06-01')
-        expect(screen.getByLabelText('Cadence')).toHaveValue('monthly')
+        expect(screen.getByRole('button', { name: 'Cadence' })).toHaveTextContent('Monthly')
       })
     })
   })

@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NodeRegistry } from '../NodeRegistry'
@@ -11,9 +12,9 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
       batchAddActivitiesAndEdges: vi.fn(),
     })),
   },
-  createManualTrigger: vi.fn(() => ({ type: 'manual_trigger' })),
-  createScheduledTrigger: vi.fn(() => ({ type: 'scheduled' })),
-  createWebhookTrigger: vi.fn(() => ({ type: 'webhook_trigger' })),
+  createManualTrigger: vi.fn(() => ({ type: TriggerTypeEnum.MANUAL_TRIGGER })),
+  createScheduledTrigger: vi.fn(() => ({ type: TriggerTypeEnum.SCHEDULED })),
+  createWebhookTrigger: vi.fn(() => ({ type: TriggerTypeEnum.WEBHOOK_TRIGGER })),
   createScriptActivity: vi.fn(() => ({ type: 'script' })),
   createApiActivity: vi.fn(() => ({ type: 'http_request' })),
   createAgenticActivity: vi.fn(() => ({ type: 'agentic' })),

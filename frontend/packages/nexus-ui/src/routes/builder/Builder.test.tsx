@@ -1,3 +1,4 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -10,7 +11,7 @@ describe('Builder Workflow Store Helpers', () => {
       const trigger = createManualTrigger('test-trigger-1')
 
       expect(trigger.id).toBe('test-trigger-1')
-      expect(trigger.type).toBe('manual_trigger')
+      expect(trigger.type).toBe(TriggerTypeEnum.MANUAL_TRIGGER)
       expect(trigger.parameters).toEqual({})
     })
 
@@ -19,7 +20,7 @@ describe('Builder Workflow Store Helpers', () => {
       const trigger = createManualTrigger('test-trigger-2', true)
 
       expect(trigger.id).toBe('test-trigger-2')
-      expect(trigger.type).toBe('manual_trigger')
+      expect(trigger.type).toBe(TriggerTypeEnum.MANUAL_TRIGGER)
       expect(trigger.parameters).toEqual({})
     })
   })
@@ -33,7 +34,7 @@ describe('Builder Workflow Store Helpers', () => {
       })
 
       expect(trigger.id).toBe('test-trigger-3')
-      expect(trigger.type).toBe('scheduled')
+      expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
       expect(trigger.parameters.schedule_type).toBe('cron')
       expect(trigger.parameters.cron).toBe('0 0 * * *')
       expect(trigger.parameters.timezone).toBe('UTC')
@@ -46,7 +47,7 @@ describe('Builder Workflow Store Helpers', () => {
       })
 
       expect(trigger.id).toBe('test-trigger-4')
-      expect(trigger.type).toBe('scheduled')
+      expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
       expect(trigger.parameters.schedule_type).toBe('interval')
       expect(trigger.parameters.interval).toBe('PT1H')
     })
@@ -56,7 +57,7 @@ describe('Builder Workflow Store Helpers', () => {
       const trigger = createScheduledTrigger('test-trigger-5', 'continuous', {})
 
       expect(trigger.id).toBe('test-trigger-5')
-      expect(trigger.type).toBe('scheduled')
+      expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
       expect(trigger.parameters.schedule_type).toBe('continuous')
     })
   })

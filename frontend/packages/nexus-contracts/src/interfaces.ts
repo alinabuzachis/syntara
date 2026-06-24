@@ -40,7 +40,7 @@ export const ActivityTypeEnum = {
  */
 export const TriggerTypeEnum = {
   MANUAL_TRIGGER: 'manual_trigger',
-  SCHEDULED: 'scheduled',
+  SCHEDULED: 'scheduled_trigger',
   EVENT: 'event',
   WEBHOOK_TRIGGER: 'webhook_trigger',
   EDA_TRIGGER: 'eda_trigger',

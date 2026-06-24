@@ -2,7 +2,7 @@
  * Helper functions for adding each v2 workflow node type via the builder UI.
  *
  * V2 node types:
- *   Trigger:      manual, webhook
+ *   Trigger:      manual, webhook, scheduled
  *   Executors:    script, http_request, agentic, aap_job_template, approval
  *   Control flow: condition, loop, converge
  *
@@ -92,6 +92,37 @@ export async function addWebhookTrigger(page: Page, name: string, webhookPath: s
   await page.getByRole('button', { name: 'Save and close' }).click()
 
   // Panel auto-closes after adding trigger - no manual close needed
+}
+
+/** Add a scheduled trigger with interval config. Must be called on a fresh /workflow-builder/new page. */
+export async function addScheduledTrigger(
+  page: Page,
+  name: string,
+  opts: { startDate: string; cadence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'annually' }
+) {
+  await expect(page.getByRole('progressbar', { name: 'Loading' })).not.toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
+  await page.getByRole('button', { name: 'Schedule trigger', exact: true }).click()
+
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+
+  // Schedule type defaults to "interval" — DateRangeCadencePicker is visible
+  await expect(page.getByTestId('date-range-cadence-picker')).toBeVisible({ timeout: 5_000 })
+  await page.getByLabel('Start date').fill(opts.startDate)
+
+  if (opts.cadence) {
+    const cadenceLabels: Record<string, string> = {
+      none: 'Does not repeat',
+      daily: 'Daily',
+      weekly: 'Weekly',
+      monthly: 'Monthly',
+      annually: 'Annually',
+    }
+    await page.getByLabel('Cadence').click()
+    await page.getByRole('option', { name: cadenceLabels[opts.cadence] }).click()
+  }
+
+  await page.getByRole('button', { name: 'Save and close' }).click()
 }
 
 // ---------------------------------------------------------------------------

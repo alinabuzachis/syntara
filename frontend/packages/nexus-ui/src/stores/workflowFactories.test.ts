@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { buildSwitchCasePort } from '../routes/builder/utils/switchCaseHelpers'
@@ -30,7 +30,7 @@ describe('workflowFactories', () => {
         const trigger = createManualTrigger('trigger-1')
 
         expect(trigger.id).toBe('trigger-1')
-        expect(trigger.type).toBe('manual_trigger')
+        expect(trigger.type).toBe(TriggerTypeEnum.MANUAL_TRIGGER)
         expect(trigger.parameters).toEqual({})
       })
 
@@ -38,21 +38,21 @@ describe('workflowFactories', () => {
         const trigger = createManualTrigger('trigger-2', true)
 
         expect(trigger.id).toBe('trigger-2')
-        expect(trigger.type).toBe('manual_trigger')
+        expect(trigger.type).toBe(TriggerTypeEnum.MANUAL_TRIGGER)
       })
 
       it('creates a manual trigger with approval false (ignored in v2)', () => {
         const trigger = createManualTrigger('trigger-3', false)
 
         expect(trigger.id).toBe('trigger-3')
-        expect(trigger.type).toBe('manual_trigger')
+        expect(trigger.type).toBe(TriggerTypeEnum.MANUAL_TRIGGER)
       })
 
       it('creates a manual trigger with name', () => {
         const trigger = createManualTrigger('trigger-4', undefined, 'My Trigger')
 
         expect(trigger.id).toBe('trigger-4')
-        expect(trigger.type).toBe('manual_trigger')
+        expect(trigger.type).toBe(TriggerTypeEnum.MANUAL_TRIGGER)
         expect(trigger.name).toBe('My Trigger')
       })
 
@@ -69,7 +69,7 @@ describe('workflowFactories', () => {
         const trigger = createScheduledTrigger('trigger-5', 'cron', { cron: '0 9 * * *', timezone: 'UTC' })
 
         expect(trigger.id).toBe('trigger-5')
-        expect(trigger.type).toBe('scheduled')
+        expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
         expect(trigger.parameters.schedule_type).toBe('cron')
         expect(trigger.parameters.cron).toBe('0 9 * * *')
         expect(trigger.parameters.timezone).toBe('UTC')
@@ -88,7 +88,7 @@ describe('workflowFactories', () => {
         const trigger = createScheduledTrigger('trigger-7', 'interval', { interval: 'PT1H' })
 
         expect(trigger.id).toBe('trigger-7')
-        expect(trigger.type).toBe('scheduled')
+        expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
         expect(trigger.parameters.schedule_type).toBe('interval')
         expect(trigger.parameters.interval).toBe('PT1H')
       })
@@ -97,7 +97,7 @@ describe('workflowFactories', () => {
         const trigger = createScheduledTrigger('trigger-8', 'continuous', {})
 
         expect(trigger.id).toBe('trigger-8')
-        expect(trigger.type).toBe('scheduled')
+        expect(trigger.type).toBe(TriggerTypeEnum.SCHEDULED)
         expect(trigger.parameters.schedule_type).toBe('continuous')
       })
 
@@ -153,7 +153,7 @@ describe('workflowFactories', () => {
         const trigger = createWebhookTrigger('trigger-20', 'jira-updates')
 
         expect(trigger.id).toBe('trigger-20')
-        expect(trigger.type).toBe('webhook_trigger')
+        expect(trigger.type).toBe(TriggerTypeEnum.WEBHOOK_TRIGGER)
         expect(trigger.name).toBe('Webhook Trigger')
         expect(trigger.parameters.webhook_path).toBe('jira-updates')
         expect(trigger.parameters).not.toHaveProperty('input_schema')
@@ -187,7 +187,7 @@ describe('workflowFactories', () => {
         const trigger = createEdaTrigger('trigger-30', 'eda-events')
 
         expect(trigger.id).toBe('trigger-30')
-        expect(trigger.type).toBe('eda_trigger')
+        expect(trigger.type).toBe(TriggerTypeEnum.EDA_TRIGGER)
         expect(trigger.name).toBe('EDA Trigger')
         expect(trigger.parameters.webhook_path).toBe('eda-events')
         expect(trigger.parameters).not.toHaveProperty('input_schema')

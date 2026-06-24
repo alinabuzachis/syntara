@@ -5,16 +5,19 @@ import {
   FlexItem,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  type MenuToggleElement,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import { type Dispatch, useEffect, useReducer, useRef } from 'react'
+import { type Dispatch, useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
 import { parseRepeatingInterval as parseRepeatingIntervalUtil } from '../../utils/triggerFormatting'
 
@@ -346,22 +349,100 @@ function CadenceSelectField({
   dispatch: DispatchDateRangeCadence
   required: boolean
 }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedLabel = cadenceOptions.find((o) => o.value === cadence)?.label ?? 'Does not repeat'
+
+  const handleSelect = useCallback(
+    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      if (value === undefined) return
+      dispatch({ type: 'SET_CADENCE', payload: value as CadenceValue })
+      setIsOpen(false)
+    },
+    [dispatch]
+  )
+
+  const renderToggle = useCallback(
+    (toggleRef: React.Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        onClick={() => setIsOpen((prev) => !prev)}
+        isExpanded={isOpen}
+        isFullWidth
+        aria-label="Cadence"
+        aria-required={required || undefined}
+      >
+        {selectedLabel}
+      </MenuToggle>
+    ),
+    [isOpen, selectedLabel, required]
+  )
+
   return (
     <StackItem>
       <FormGroup label="Cadence" fieldId="cadence-select" isRequired={required}>
-        <FormSelect
+        <Select
           id="cadence-select"
-          value={cadence}
-          onChange={(_event, value) => dispatch({ type: 'SET_CADENCE', payload: value as CadenceValue })}
-          aria-label="Cadence"
-          aria-required={required || undefined}
+          isOpen={isOpen}
+          selected={cadence}
+          onSelect={handleSelect}
+          onOpenChange={setIsOpen}
+          shouldFocusToggleOnSelect
+          toggle={renderToggle}
         >
-          {cadenceOptions.map((option) => (
-            <FormSelectOption key={option.value} value={option.value} label={option.label} />
-          ))}
-        </FormSelect>
+          <SelectList aria-label="Cadence options">
+            {cadenceOptions.map((option) => (
+              <SelectOption key={option.value} value={option.value}>
+                {option.label}
+              </SelectOption>
+            ))}
+          </SelectList>
+        </Select>
       </FormGroup>
     </StackItem>
+  )
+}
+
+function PeriodSelect({ triggerPeriod, dispatch }: { triggerPeriod: 'AM' | 'PM'; dispatch: DispatchDateRangeCadence }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const handleSelect = useCallback(
+    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      if (value === undefined) return
+      dispatch({ type: 'SET_TRIGGER_PERIOD', payload: value as 'AM' | 'PM' })
+      setIsOpen(false)
+    },
+    [dispatch]
+  )
+
+  const renderToggle = useCallback(
+    (toggleRef: React.Ref<MenuToggleElement>) => (
+      <MenuToggle
+        ref={toggleRef}
+        onClick={() => setIsOpen((prev) => !prev)}
+        isExpanded={isOpen}
+        className={styles.triggerTimePeriod}
+        aria-label="Period"
+      >
+        {triggerPeriod}
+      </MenuToggle>
+    ),
+    [isOpen, triggerPeriod]
+  )
+
+  return (
+    <Select
+      isOpen={isOpen}
+      selected={triggerPeriod}
+      onSelect={handleSelect}
+      onOpenChange={setIsOpen}
+      shouldFocusToggleOnSelect
+      toggle={renderToggle}
+    >
+      <SelectList aria-label="Period options">
+        <SelectOption value="AM">AM</SelectOption>
+        <SelectOption value="PM">PM</SelectOption>
+      </SelectList>
+    </Select>
   )
 }
 
@@ -417,15 +498,7 @@ function TriggerTimeField({
             />
           </FlexItem>
           <FlexItem flex={{ default: 'flexNone' }}>
-            <FormSelect
-              className={styles.triggerTimePeriod}
-              value={triggerPeriod}
-              onChange={(_event, value) => dispatch({ type: 'SET_TRIGGER_PERIOD', payload: value as 'AM' | 'PM' })}
-              aria-label="Period"
-            >
-              <FormSelectOption value="AM" label="AM" />
-              <FormSelectOption value="PM" label="PM" />
-            </FormSelect>
+            <PeriodSelect triggerPeriod={triggerPeriod} dispatch={dispatch} />
           </FlexItem>
         </Flex>
       </FormGroup>

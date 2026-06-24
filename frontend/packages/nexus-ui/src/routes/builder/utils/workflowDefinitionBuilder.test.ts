@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import type { EdgeConnection } from '../types/edge'
@@ -41,7 +41,7 @@ describe('buildWorkflowDefinition', () => {
       const triggers: Activity[] = [
         {
           id: 'webhook_trigger_1',
-          type: 'webhook',
+          type: TriggerTypeEnum.WEBHOOK_TRIGGER,
           name: 'My Webhook',
           parameters: { url: 'https://example.com' },
         },
@@ -52,7 +52,7 @@ describe('buildWorkflowDefinition', () => {
       expect(result.triggers).toEqual([
         {
           id: 'webhook_trigger_1',
-          type: 'webhook',
+          type: TriggerTypeEnum.WEBHOOK_TRIGGER,
           name: 'My Webhook',
           parameters: { url: 'https://example.com' },
         },
@@ -63,7 +63,7 @@ describe('buildWorkflowDefinition', () => {
       const triggers: Activity[] = [
         {
           id: 'trigger-1',
-          type: 'manual_trigger',
+          type: TriggerTypeEnum.MANUAL_TRIGGER,
           parameters: {},
         },
       ]
@@ -77,7 +77,7 @@ describe('buildWorkflowDefinition', () => {
       const triggers: Activity[] = [
         {
           id: 'trigger-1',
-          type: 'manual_trigger',
+          type: TriggerTypeEnum.MANUAL_TRIGGER,
           parameters: undefined as unknown as Record<string, unknown>,
         },
       ]
@@ -380,7 +380,7 @@ describe('buildWorkflowDefinition', () => {
       const triggers: Activity[] = [
         {
           id: 'webhook_trigger_1',
-          type: 'webhook',
+          type: TriggerTypeEnum.WEBHOOK_TRIGGER,
           parameters: {},
         },
       ]
@@ -403,7 +403,7 @@ describe('buildWorkflowDefinition', () => {
       const triggers: Activity[] = [
         {
           id: 'webhook_trigger_1',
-          type: 'webhook',
+          type: TriggerTypeEnum.WEBHOOK_TRIGGER,
           parameters: {},
         },
       ]
@@ -424,7 +424,7 @@ describe('buildWorkflowDefinition', () => {
     it('SECURITY: throws error when trigger has no id property (prevents display ID leak)', () => {
       const triggers: Activity[] = [
         {
-          type: 'webhook',
+          type: TriggerTypeEnum.WEBHOOK_TRIGGER,
           parameters: {},
         } as Activity, // No id property
       ]
@@ -464,9 +464,9 @@ describe('buildWorkflowDefinition', () => {
     it('handles multiple triggers with correct index mapping', () => {
       const activities = [activity('task-1'), activity('task-2'), activity('task-3')]
       const triggers: Activity[] = [
-        { id: 'trigger_a', type: 'manual_trigger', parameters: {} },
-        { id: 'trigger_b', type: 'webhook', parameters: {} },
-        { id: 'trigger_c', type: 'scheduled', parameters: {} },
+        { id: 'trigger_a', type: TriggerTypeEnum.MANUAL_TRIGGER, parameters: {} },
+        { id: 'trigger_b', type: TriggerTypeEnum.WEBHOOK_TRIGGER, parameters: {} },
+        { id: 'trigger_c', type: TriggerTypeEnum.SCHEDULED, parameters: {} },
       ]
 
       const edges: EdgeConnection[] = [
@@ -488,7 +488,7 @@ describe('buildWorkflowDefinition', () => {
       const triggers: Activity[] = [
         {
           id: 'webhook_trigger_1',
-          type: 'webhook',
+          type: TriggerTypeEnum.WEBHOOK_TRIGGER,
           name: 'My Webhook',
           parameters: { url: 'https://example.com' },
         },
@@ -734,7 +734,7 @@ describe('buildWorkflowDefinition', () => {
     })
 
     it('includes position on triggers when nodePositions is provided', () => {
-      const triggers: Activity[] = [{ id: 'trigger_1', type: 'manual_trigger', parameters: {} }]
+      const triggers: Activity[] = [{ id: 'trigger_1', type: TriggerTypeEnum.MANUAL_TRIGGER, parameters: {} }]
       const nodePositions = { trigger_1: { x: 50, y: 75 } }
 
       const result = buildWorkflowDefinition('Test', '', [], triggers, { edges: [], nodePositions })

@@ -151,7 +151,7 @@ describe('nodeIconResolver', () => {
 
     it('returns manual trigger icon by default for trigger node', () => {
       const result = getCanvasNodeIconDescriptor(
-        { id: 'trigger-0', type: 'trigger', data: { id: 'trigger-0', type: 'manual_trigger' } },
+        { id: 'trigger-0', type: 'trigger', data: { id: 'trigger-0', type: TriggerTypeEnum.MANUAL_TRIGGER } },
         { triggers: [{ type: TriggerTypeEnum.MANUAL_TRIGGER }] }
       )
       expect(result.id).toBe(RegistryNodeId.TRIGGER_MANUAL)
@@ -159,7 +159,7 @@ describe('nodeIconResolver', () => {
 
     it('returns scheduled trigger icon', () => {
       const result = getCanvasNodeIconDescriptor(
-        { id: 'trigger-0', type: 'trigger', data: { id: 'trigger-0', type: 'scheduled' } },
+        { id: 'trigger-0', type: 'trigger', data: { id: 'trigger-0', type: TriggerTypeEnum.SCHEDULED } },
         { triggers: [{ type: TriggerTypeEnum.SCHEDULED }] }
       )
       expect(result.id).toBe(RegistryNodeId.TRIGGER_SCHEDULED)
@@ -167,7 +167,7 @@ describe('nodeIconResolver', () => {
 
     it('returns webhook trigger icon', () => {
       const result = getCanvasNodeIconDescriptor(
-        { id: 'trigger-0', type: 'trigger', data: { id: 'trigger-0', type: 'webhook_trigger' } },
+        { id: 'trigger-0', type: 'trigger', data: { id: 'trigger-0', type: TriggerTypeEnum.WEBHOOK_TRIGGER } },
         { triggers: [{ type: TriggerTypeEnum.WEBHOOK_TRIGGER }] }
       )
       expect(result.id).toBe(RegistryNodeId.TRIGGER_WEBHOOK)
