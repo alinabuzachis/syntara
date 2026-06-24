@@ -7,6 +7,8 @@ on:
       - 'frontend/**'
       - 'backend/**'
       - '.github/**'
+  merge_group:
+    branches: [devel]
 
 permissions:
   contents: read # checkout code
