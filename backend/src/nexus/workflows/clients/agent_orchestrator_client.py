@@ -14,6 +14,7 @@ from uuid import uuid4
 import httpx
 import structlog
 
+from nexus.core.tls.http_client import build_internal_http_client
 from nexus.workflows.exceptions import WorkflowError
 
 # Configure logger
@@ -124,7 +125,7 @@ class AgentOrchestratorClient:
 
         # Create async HTTP client with timeout configuration
         headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
-        self.http_client = httpx.AsyncClient(
+        self.http_client = build_internal_http_client(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
             follow_redirects=True,

@@ -1,6 +1,7 @@
 """Main FastAPI application module for Nexus."""
 
 import json
+import ssl
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -448,14 +449,24 @@ def main() -> None:
     # available, the logger will be reconfigured to use the runtime logging.log_level setting.
     settings = get_settings()
     fallback_log_level = settings.fallback_log_level
-    uvicorn.run(
-        "nexus.api.main:app",
-        host=settings.server_host,
-        port=settings.server_port,
-        reload=settings.server_reload,
-        log_config=build_uvicorn_logging_config(fallback_log_level),
-        log_level=fallback_log_level.lower(),
-    )
+    uvicorn_kwargs: dict[str, Any] = {
+        "app": "nexus.api.main:app",
+        "host": settings.server_host,
+        "port": settings.server_port,
+        "reload": settings.server_reload,
+        "log_config": build_uvicorn_logging_config(fallback_log_level),
+        "log_level": fallback_log_level.lower(),
+    }
+
+    if settings.s2s_tls_enabled:
+        uvicorn_kwargs["ssl_certfile"] = settings.s2s_tls_cert_path
+        uvicorn_kwargs["ssl_keyfile"] = settings.s2s_tls_key_path
+        uvicorn_kwargs["ssl_ca_certs"] = settings.s2s_tls_ca_cert_path
+        # CERT_OPTIONAL: kubelet health probes don't present client certs.
+        # Client cert enforcement on non-health routes is handled by auth middleware.
+        uvicorn_kwargs["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
+
+    uvicorn.run(**uvicorn_kwargs)
 
 
 # Export OpenAPI spec for documentation generation

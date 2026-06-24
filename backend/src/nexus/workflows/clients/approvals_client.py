@@ -19,6 +19,7 @@ from uuid import UUID
 import httpx
 import structlog
 
+from nexus.core.tls.http_client import build_internal_http_client
 from nexus.workflows.exceptions import WorkflowError
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -80,7 +81,7 @@ class ApprovalsApiClient:
         self.retry_backoff_base = retry_backoff_base
         self._auth_token = auth_token
 
-        self.http_client = httpx.AsyncClient(
+        self.http_client = build_internal_http_client(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
             follow_redirects=True,

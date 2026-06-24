@@ -10,6 +10,7 @@ import structlog
 
 from nexus.auth import create_service_token
 from nexus.core.exceptions import SafeValueError
+from nexus.core.tls.http_client import build_internal_http_client
 from nexus.core.utils.retry import retry_with_backoff
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
@@ -112,7 +113,7 @@ class ToolManagerClient:
 
         # Configure HTTP session with service-to-service auth
         token = create_service_token()
-        self.session = httpx.AsyncClient(
+        self.session = build_internal_http_client(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
             limits=httpx.Limits(

@@ -110,3 +110,54 @@ def generate_server_cert(
             serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()
         )
     )
+
+
+def generate_service_cert(
+    certs_dir: Path,
+    ca_key: rsa.RSAPrivateKey,
+    ca_cert: x509.Certificate,
+    common_name: str = "backend.nexus.svc",
+    filename: str = "service",
+) -> tuple[Path, Path]:
+    """Generate a CA-signed certificate with both serverAuth and clientAuth EKUs.
+
+    Used for mTLS testing where the same certificate serves as both the
+    server cert (uvicorn) and the client cert (outbound httpx calls).
+    """
+    from ipaddress import IPv4Address
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(ca_cert.subject)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(UTC))
+        .not_valid_after(datetime.now(UTC) + timedelta(days=1))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("localhost"), x509.IPAddress(IPv4Address("127.0.0.1"))]),
+            critical=False,
+        )
+        .add_extension(
+            x509.ExtendedKeyUsage(
+                [
+                    x509.oid.ExtendedKeyUsageOID.SERVER_AUTH,
+                    x509.oid.ExtendedKeyUsageOID.CLIENT_AUTH,
+                ]
+            ),
+            critical=False,
+        )
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+        .sign(ca_key, hashes.SHA256())
+    )
+    cert_path = certs_dir / f"{filename}.crt"
+    key_path = certs_dir / f"{filename}.key"
+    cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()
+        )
+    )
+    return cert_path, key_path

@@ -24,6 +24,7 @@ from temporalio.client import (
 from temporalio.service import RPCError, RPCStatusCode
 
 from nexus.core.config.base import get_settings
+from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.workflows.exceptions import TriggerValidationError
 from nexus.workflows.utils.schedule_parser import (
     build_schedule_id,
@@ -62,6 +63,7 @@ async def _get_shared_client() -> Client | None:
             _cached_client = await Client.connect(
                 settings.temporal_address,
                 namespace=settings.temporal_namespace,
+                tls=build_temporal_tls_config(),
             )
             return _cached_client
         except (OSError, RuntimeError, RPCError) as e:

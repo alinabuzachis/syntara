@@ -1157,6 +1157,74 @@ class TemporalSettings(BaseSettings):
     )
 
 
+def _validate_tls_cert_paths(
+    paths: list[tuple[str | None, str]],
+    context: str,
+) -> None:
+    """Shared validation for TLS certificate path fields.
+
+    Raises :class:`ValueError` when required paths are missing or files do not exist.
+    """
+    missing = [name for value, name in paths if value is None]
+    if missing:
+        msg = f"{context} is enabled but required paths are not set: {', '.join(missing)}"
+        raise ValueError(msg)
+
+    for path, name in paths:
+        if path is not None and not Path(path).is_file():
+            msg = f"{context} file not found for {name}: {path}"
+            raise ValueError(msg)
+
+
+class S2STLSSettings(BaseSettings):
+    """TLS configuration for internal service-to-service communication.
+
+    When enabled, mTLS is active for all internal communication: the backend
+    serves HTTPS, internal HTTP clients present client certificates, and
+    Temporal gRPC connections use TLS. The same certificate is used for
+    serving, client auth, and Temporal — each service certificate includes
+    both serverAuth and clientAuth EKUs.
+
+    Disabled by default for local development.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    s2s_tls_enabled: bool = Field(
+        default=False,
+        description="Enable mTLS for all internal service-to-service communication",
+    )
+
+    s2s_tls_ca_cert_path: str | None = Field(
+        default=None,
+        description="Path to CA certificate for verifying peer certificates",
+    )
+
+    s2s_tls_cert_path: str | None = Field(
+        default=None,
+        description="Path to this service's certificate (serving HTTPS, client auth, and Temporal)",
+    )
+
+    s2s_tls_key_path: str | None = Field(
+        default=None,
+        description="Path to this service's private key",
+    )
+
+    @model_validator(mode="after")
+    def _validate_s2s_tls_fields(self) -> Self:
+        if not self.s2s_tls_enabled:
+            return self
+        _validate_tls_cert_paths(
+            [
+                (self.s2s_tls_ca_cert_path, "s2s_tls_ca_cert_path"),
+                (self.s2s_tls_cert_path, "s2s_tls_cert_path"),
+                (self.s2s_tls_key_path, "s2s_tls_key_path"),
+            ],
+            context="S2S TLS",
+        )
+        return self
+
+
 # =============================================================================
 # Telemetry Configuration
 # =============================================================================
@@ -1685,6 +1753,7 @@ class Settings(
     AdapterRetrySettings,
     LoggingSettings,
     TemporalSettings,
+    S2STLSSettings,
     WorkflowEngineSettings,
     JWTSettings,
     ToolManagerSettings,

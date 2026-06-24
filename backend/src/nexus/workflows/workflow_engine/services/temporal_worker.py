@@ -17,6 +17,7 @@ from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.core.config.base import get_encryption_key, get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.core.lib.encryption import key_from_string
+from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.telemetry.client import flush_telemetry, initialize_telemetry
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.workflow_engine.activities import ACTIVITY_REGISTRY
@@ -86,6 +87,7 @@ class TemporalWorkerService:
                 self.temporal_address,
                 namespace=self.namespace,
                 data_converter=data_converter,
+                tls=build_temporal_tls_config(),
             )
 
             logger.info("Connected to Temporal. Starting worker on queue", task_queue=self.task_queue)

@@ -12,6 +12,7 @@ import httpx
 import structlog
 
 from nexus.auth import create_service_token
+from nexus.core.tls.http_client import build_internal_http_client
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -21,7 +22,7 @@ _SIGNAL_HTTP_TIMEOUT_SECONDS = 10.0
 async def _post_signal(callback_url: str, payload: dict[str, Any], invocation_id: UUID) -> None:
     """POST a signal payload to a callback URL with service auth."""
     token = create_service_token()
-    async with httpx.AsyncClient(timeout=_SIGNAL_HTTP_TIMEOUT_SECONDS) as client:
+    async with build_internal_http_client(timeout=_SIGNAL_HTTP_TIMEOUT_SECONDS) as client:
         response = await client.post(
             callback_url,
             json=payload,

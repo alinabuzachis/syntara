@@ -465,6 +465,7 @@ class TestCreateTemporalExecutionService:
             mock_client_class.connect.assert_awaited_once_with(
                 get_settings().temporal_address,
                 namespace=get_settings().temporal_namespace,
+                tls=None,
             )
 
     @pytest.mark.asyncio
@@ -486,6 +487,7 @@ class TestCreateTemporalExecutionService:
             mock_client_class.connect.assert_awaited_once_with(
                 "temporal.example.com:7233",
                 namespace="production",
+                tls=None,
             )
 
 

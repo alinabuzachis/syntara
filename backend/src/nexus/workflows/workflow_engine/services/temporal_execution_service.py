@@ -16,6 +16,7 @@ from temporalio.service import RPCError
 
 from nexus.core.config.base import get_settings
 from nexus.core.exceptions import SafeValueError
+from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
 from nexus.workflows.utils.datetime import ensure_timezone_aware
@@ -458,6 +459,7 @@ async def create_temporal_execution_service(
     client = await Client.connect(
         temporal_address,
         namespace=namespace,
+        tls=build_temporal_tls_config(),
     )
     # TODO: Handle how TemporalExecutionService is dispatched/deployed  # noqa: TD002, TD003
     # via containerization. This will be addressed in a future Containerization & Deployment ticket.

@@ -14,6 +14,7 @@ import structlog
 
 from nexus.auth import create_service_token
 from nexus.core.config.base import get_settings
+from nexus.core.tls.http_client import build_internal_http_client
 from nexus.workflows.utils.url import generate_activity_signal_url
 
 # HTTP status code constants for error classification
@@ -48,7 +49,7 @@ class WorkflowApiClient:
         self.max_backoff_seconds = settings.workflow_client_max_backoff_seconds
 
         # Create HTTP client with timeout configuration
-        self.http_client = httpx.AsyncClient(
+        self.http_client = build_internal_http_client(
             timeout=httpx.Timeout(self.timeout),
             follow_redirects=True,
         )

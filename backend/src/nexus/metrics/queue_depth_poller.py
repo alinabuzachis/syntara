@@ -22,6 +22,7 @@ from temporalio.client import Client
 from temporalio.service import RPCError
 
 from nexus.core.config.base import get_settings
+from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.core.workers.periodic import PeriodicWorker
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import ComponentLabel, MetricType
@@ -41,7 +42,7 @@ async def _ensure_client(address: str, namespace: str) -> Client | None:
     if _temporal_client is not None:
         return _temporal_client
     try:
-        _temporal_client = await Client.connect(address, namespace=namespace)
+        _temporal_client = await Client.connect(address, namespace=namespace, tls=build_temporal_tls_config())
     except (RPCError, OSError, RuntimeError):
         logger.warning(
             "queue_depth_poller_connect_failed",
