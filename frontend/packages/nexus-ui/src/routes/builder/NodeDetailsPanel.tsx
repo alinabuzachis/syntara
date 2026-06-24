@@ -292,9 +292,18 @@ type NodeDetailsPanelProps = {
   onClose: () => void
   projectId?: string
   onNavigateToNode?: (nodeId: string) => void
+  onAddStep?: (sourceNodeId: string, sourceHandle?: string) => void
   docLink?: string
   workflowMetadata?: WorkflowMetadata
   onRunStep?: () => void
+}
+
+function createAddStepHandler(
+  nodeId: string | undefined,
+  onAddStep: ((sourceNodeId: string, sourceHandle?: string) => void) | undefined
+): ((handle?: string) => void) | undefined {
+  if (!nodeId || !onAddStep) return undefined
+  return (handle?: string) => onAddStep(nodeId, handle)
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
@@ -311,6 +320,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     onClose,
     projectId,
     onNavigateToNode,
+    onAddStep,
     onRunStep,
   } = props
   const { showError } = useAlerts()
@@ -319,11 +329,13 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
   // Use action accessor - component won't re-render when store state changes
   const { moveActivityAfter, updateActivity, replaceActivity, removeActivity } = useWorkflowStoreActions()
+  const nodeId = node?.id
   const isTriggerNode = node?.type === FlowNodeType.TRIGGER
-  const triggerIndex = isTriggerNode ? parseTriggerIndex(node?.id ?? '') : undefined
+  const triggerIndex = isTriggerNode ? parseTriggerIndex(nodeId ?? '') : undefined
   const menuNodeType = resolveMenuNodeType(node?.type)
+  const nodeAddStepHandler = createAddStepHandler(nodeId, onAddStep)
   const menuActions = useNodeMenuActions({
-    nodeId: node?.id ?? 'unknown',
+    nodeId: nodeId ?? 'unknown',
     nodeType: menuNodeType,
     triggerIndex: isTriggerNode ? triggerIndex : undefined,
     disabled: getNodeDisabledState(node),
@@ -453,6 +465,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       docLink={props.docLink}
       showInputPanel={showInputPanel}
       nodeId={node?.id}
+      nodeFlowType={node?.type}
       executionId={executionId}
       workflowId={workflowId}
       onClose={onClose}
@@ -460,6 +473,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       formId={formId}
       showNavigation={mode === 'edit'}
       onNavigateToNode={onNavigateToNode}
+      onAddStep={nodeAddStepHandler}
       workflowMetadata={props.workflowMetadata}
       tabBarAction={tabBarAction}
       mode={mode}

@@ -21,6 +21,7 @@ type NodeEditorOverlayProps = {
   onClose: () => void
   projectId?: string
   onNavigateToNode?: (nodeId: string) => void
+  onAddStep?: (sourceNodeId: string, sourceHandle?: string) => void
   workflowMetadata?: WorkflowMetadata
   onRunStep?: () => void
 }
@@ -41,6 +42,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
     onClose,
     projectId,
     onNavigateToNode,
+    onAddStep,
     workflowMetadata,
     onRunStep,
   } = props
@@ -69,6 +71,7 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
           onClose={onClose}
           projectId={projectId}
           onNavigateToNode={onNavigateToNode}
+          onAddStep={onAddStep}
           docLink={builderDocLink}
           workflowMetadata={workflowMetadata}
           onRunStep={onRunStep}

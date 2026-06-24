@@ -7,17 +7,20 @@ import { useAdjacentNodes } from './hooks/useAdjacentNodes'
 import { InputPanel } from './InputPanel'
 import { NodePanelNavigationArrow } from './NodePanelNavigationArrow'
 import { OutputPanel } from './OutputPanel'
+import { RightSidePill } from './RightSidePill'
 
 type NodeEditorPanelBodyProps = {
   showInputPanel: boolean
   showNavigation: boolean
   nodeId?: string
+  nodeFlowType?: string
   sourceNodeId?: string | null
   inputData: Record<string, Record<string, unknown>> | null
   outputData: Record<string, unknown> | null
   outputFlex: 'flex_1' | 'flex_2'
   parametersContent: ReactNode
   onNavigateToNode?: (nodeId: string) => void
+  onAddStep?: (handle?: string) => void
   workflowMetadata?: WorkflowMetadata
 }
 
@@ -25,17 +28,20 @@ export function NodeEditorPanelBody({
   showInputPanel,
   showNavigation,
   nodeId,
+  nodeFlowType,
   sourceNodeId,
   inputData,
   outputData,
   outputFlex,
   parametersContent,
   onNavigateToNode,
+  onAddStep,
   workflowMetadata,
 }: Readonly<NodeEditorPanelBodyProps>) {
   const { upstream, downstream } = useAdjacentNodes(showNavigation ? nodeId : undefined)
   const showPreviousArrow = showNavigation && upstream.length > 0 && onNavigateToNode != null
   const showNextArrow = showNavigation && downstream.length > 0 && onNavigateToNode != null
+  const showAddStepPill = onAddStep != null
 
   return (
     <Flex
@@ -125,9 +131,20 @@ export function NodeEditorPanelBody({
           </FlexItem>
         </Flex>
       </FlexItem>
-      {showNextArrow && (
+      {(showNextArrow || showAddStepPill) && (
         <FlexItem style={{ flexShrink: 0, alignSelf: 'center' }}>
-          <NodePanelNavigationArrow direction="next" nodes={downstream} onNavigate={onNavigateToNode} />
+          <Flex direction={{ default: 'column' }} gap={{ default: 'gapNone' }}>
+            {showNextArrow && (
+              <FlexItem>
+                <NodePanelNavigationArrow direction="next" nodes={downstream} onNavigate={onNavigateToNode} />
+              </FlexItem>
+            )}
+            {showAddStepPill && (
+              <FlexItem>
+                <RightSidePill nodeFlowType={nodeFlowType} onAddStep={onAddStep} />
+              </FlexItem>
+            )}
+          </Flex>
         </FlexItem>
       )}
     </Flex>

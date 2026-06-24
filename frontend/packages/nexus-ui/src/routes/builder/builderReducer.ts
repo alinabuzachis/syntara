@@ -79,7 +79,10 @@ export type BuilderAction =
     }
   | { type: 'CLEAR_NEW_NODE_DESIRED_POSITION' }
   | { type: 'SET_NEW_NODE_DESIRED_POSITION'; payload: FlowPosition }
-  | { type: 'OPEN_ADD_NODE_PANEL'; payload: { sourceNodeId: string | null; replacementNodeId: string | null } }
+  | {
+      type: 'OPEN_ADD_NODE_PANEL'
+      payload: { sourceNodeId: string | null; replacementNodeId: string | null; sourceHandle?: string }
+    }
   | { type: 'CLOSE_ADD_NODE_PANEL' }
   | { type: 'CLOSE_OTHER_PANELS' }
   | { type: 'NODE_CLICK'; payload: { node: Node<NodeType['data']>; isGeneric: boolean } }
@@ -228,7 +231,7 @@ function handlePanelActions(state: BuilderState, action: BuilderAction): Builder
         sourceNodeId: action.payload.sourceNodeId,
         targetNodeId: null,
         edgeIdToReplace: null,
-        sourceHandle: undefined,
+        sourceHandle: action.payload.sourceHandle,
         targetHandle: undefined,
         replacementNodeId: action.payload.replacementNodeId,
         newNodeDesiredPosition: null,

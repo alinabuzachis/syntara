@@ -43,6 +43,7 @@ type NodeEditorLayoutProps = {
   docLink?: string
   showInputPanel: boolean
   nodeId?: string
+  nodeFlowType?: string
   executionId?: string | null
   workflowId?: string | null
   onClose?: () => void
@@ -51,6 +52,7 @@ type NodeEditorLayoutProps = {
   formId?: string
   showNavigation?: boolean
   onNavigateToNode?: (nodeId: string) => void
+  onAddStep?: (handle?: string) => void
   workflowMetadata?: WorkflowMetadata
   tabBarAction?: ReactNode
   mode?: 'add' | 'edit'
@@ -64,6 +66,7 @@ export function NodeEditorLayout({
   docLink,
   showInputPanel,
   nodeId,
+  nodeFlowType,
   executionId,
   workflowId,
   onClose,
@@ -72,6 +75,7 @@ export function NodeEditorLayout({
   formId,
   showNavigation = false,
   onNavigateToNode,
+  onAddStep,
   workflowMetadata,
   tabBarAction,
   mode = 'edit',
@@ -176,6 +180,7 @@ export function NodeEditorLayout({
             showInputPanel={showInputPanel}
             showNavigation={showNavigation}
             nodeId={nodeId}
+            nodeFlowType={nodeFlowType}
             sourceNodeId={sourceNodeId}
             inputData={inputData}
             outputData={outputData}
@@ -184,6 +189,7 @@ export function NodeEditorLayout({
               <NodeFormTabBarProvider tabBarAction={tabBarAction}>{parametersContent}</NodeFormTabBarProvider>
             }
             onNavigateToNode={onNavigateToNode}
+            onAddStep={onAddStep}
             workflowMetadata={workflowMetadata}
           />
         </StackItem>

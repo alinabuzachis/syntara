@@ -323,6 +323,21 @@ describe('builderReducer', () => {
       expect(result.historyCardOpen).toBe(false)
     })
 
+    it('OPEN_ADD_NODE_PANEL opens panel with optional sourceHandle for branching nodes', () => {
+      const action: BuilderAction = {
+        type: 'OPEN_ADD_NODE_PANEL',
+        payload: { sourceNodeId: 'condition-1', replacementNodeId: null, sourceHandle: 'true' },
+      }
+      const result = builderReducer(initialState, action)
+
+      expect(result.addNodePanelOpen).toBe(true)
+      expect(result.sourceNodeId).toBe('condition-1')
+      expect(result.sourceHandle).toBe('true')
+      expect(result.replacementNodeId).toBeNull()
+      expect(result.targetNodeId).toBeNull()
+      expect(result.edgeIdToReplace).toBeNull()
+    })
+
     it('CLOSE_ADD_NODE_PANEL clears all panel-related state', () => {
       const stateWithPanel: BuilderState = {
         ...initialState,

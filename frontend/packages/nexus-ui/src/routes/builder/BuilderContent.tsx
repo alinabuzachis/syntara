@@ -19,16 +19,17 @@ import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExp
 
 import styles from './BuilderContent.module.css'
 import { BuilderFlow } from './BuilderFlow'
-import { BuilderMostRecentRunPanel } from './BuilderMostRecentRunPanel'
 import { BuilderReadOnlyBanner } from './BuilderReadOnlyBanner'
 import { builderReducer, getInitialBuilderState } from './builderReducer'
 import { BuilderWorkflowPageHeader } from './BuilderWorkflowPageHeader'
 import { BuilderDialogs } from './components/BuilderDialogs'
 import { BuilderSidePanels } from './components/BuilderSidePanels'
+import { ExecutionDetailsPanelWrapper } from './components/ExecutionDetailsPanelWrapper'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
 import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
 import { useBuilderDerivedUiFlags } from './hooks/useBuilderDerivedUiFlags'
+import { useBuilderDialogProps } from './hooks/useBuilderDialogProps'
 import { useBuilderFlowInteractionHandlers } from './hooks/useBuilderFlowInteractionHandlers'
 import { useBuilderLiveRunPanel } from './hooks/useBuilderLiveRunPanel'
 import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hooks/useBuilderSaveWorkflow'
@@ -42,6 +43,7 @@ import { useRunStepDialog } from './hooks/useRunStepDialog'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext } from './NodeActionsContext'
 import { useBuilderPermissions } from './useBuilderPermissions'
+import { createAddStepHandler } from './utils/panelActions'
 import { ValidationBanner } from './ValidationBanner'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
@@ -86,7 +88,6 @@ export function BuilderContent(props: BuilderContentProps) {
   )
 
   const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
-
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
     confirmDialogOpen,
@@ -123,7 +124,6 @@ export function BuilderContent(props: BuilderContentProps) {
 
   useUndoRedoKeyboard({ disabled: isNodeEditorOpen })
   useEffect(() => () => useWorkflowStore.temporal.getState().clear(), [])
-
   const { executionsQuery, mostRecentExecutionQuery, workflowsListQuery } = useBuilderContentQueries({
     workflowId,
     isNew,
@@ -148,7 +148,6 @@ export function BuilderContent(props: BuilderContentProps) {
   })
 
   useExecutionCopyToEditor({ executionCopy, dispatch, markDirty, showSuccess })
-
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
     'patch',
@@ -156,29 +155,27 @@ export function BuilderContent(props: BuilderContentProps) {
   )
   const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
-
   const typedCreateWorkflow = createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow']
-  const wfName = workflow?.name ?? ''
-  const wfId = workflow?.id ?? ''
-  const wfCurrentVersion = workflow?.current_version
-  const wfVersionVersion = workflow?.version?.version
-  const wfPublishedVersion = workflow?.published_version
-  const wfCreatedBy = workflow?.created_by
   const workflowMetadata = useMemo(() => {
-    if (!wfName && !wfId) return undefined
+    if (!workflow?.name && !workflow?.id) return undefined
     return {
-      name: wfName,
-      id: wfId,
-      version: wfCurrentVersion ?? wfVersionVersion ?? 0,
-      published: wfPublishedVersion != null,
-      author: String(wfCreatedBy ?? 'Unknown'),
+      name: workflow?.name ?? '',
+      id: workflow?.id ?? '',
+      version: workflow?.current_version ?? workflow?.version?.version ?? 0,
+      published: workflow?.published_version != null,
+      author: String(workflow?.created_by ?? 'Unknown'),
     }
-  }, [wfName, wfId, wfCurrentVersion, wfVersionVersion, wfPublishedVersion, wfCreatedBy])
-
+  }, [
+    workflow?.name,
+    workflow?.id,
+    workflow?.current_version,
+    workflow?.version?.version,
+    workflow?.published_version,
+    workflow?.created_by,
+  ])
   const currentVersion = workflow?.current_version ?? workflow?.version?.version
   const { publish: onPublish, isPublishing } = usePublishWorkflow(workflowId, currentVersion)
   const { unpublish: onUnpublish } = useUnpublishWorkflow(workflowId)
-
   const handleSaveWorkflow = useBuilderSaveWorkflow({
     currentWorkflow,
     workflowName,
@@ -197,9 +194,7 @@ export function BuilderContent(props: BuilderContentProps) {
     createWorkflow: typedCreateWorkflow,
     updateWorkflow,
   })
-
   const mostRecentExecution = mostRecentExecutionQuery.data
-
   const {
     showMostRecentRunPanelInEditor,
     isTerminalStatus,
@@ -231,7 +226,6 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [handleSaveWorkflow, registerSaveHandler, unregisterSaveHandler])
 
   const [pendingImport, setPendingImport] = useState<import('./useWorkflowImportExport').PendingImportData | null>(null)
-
   const { handleRunWorkflow, handleDeleteWorkflow, handleToggleDetails, handleToggleHistory } =
     useBuilderToolbarHandlers({
       workflow: workflow as { id: string } | undefined,
@@ -249,7 +243,6 @@ export function BuilderContent(props: BuilderContentProps) {
       handleSaveWorkflow,
       currentWorkflow,
     })
-
   const {
     handleNodeClick,
     handleClearDesiredPosition,
@@ -267,12 +260,10 @@ export function BuilderContent(props: BuilderContentProps) {
     targetHandle,
     onRunStep: handleRunStep,
   })
-
   const handleNavigateToNode = useNodePanelNavigation(reactFlowInstance, dispatch)
-
+  const handleAddStepFromPanel = useMemo(() => createAddStepHandler(dispatch), [dispatch])
   /* Re-renders when React Flow node count changes (execution-view sequencing); see useBuilderWindowEffects */
   useBuilderWindowEffects(nodesInitialized, reactFlowInstance)
-
   const {
     pendingApproval,
     isApprovalLoading,
@@ -289,32 +280,31 @@ export function BuilderContent(props: BuilderContentProps) {
     handleNodeClick,
     isLiveRunActive,
   })
-
   const builderPermissions = useBuilderPermissions(isNew, currentWorkflow?.is_builtin === true)
-
   const triggers = currentWorkflow?.triggers ?? []
-  const selectedTrigger = triggers[selectedTriggerIndex] ?? triggers[0]
-
   const nodeExpandedAllContextValue = useMemo(
     () => ({ expandAllEvent, collapseAllEvent }),
     [expandAllEvent, collapseAllEvent]
   )
-  const triggerInputSchema = (selectedTrigger?.parameters as Record<string, unknown> | undefined)?.input_schema as
-    | Record<string, unknown>
-    | undefined
-  const handleRunStepExecutionCreated = useCallback(
-    (executionId: string, { clearMocksOnComplete }: { clearMocksOnComplete: boolean }) => {
-      lastRunStepNodeIdRef.current = clearMocksOnComplete ? (runStepDialog.item?.nodeId ?? null) : null
-      dispatch({ type: 'SET_MOST_RECENT_EXECUTION', payload: executionId })
-    },
-    [lastRunStepNodeIdRef, runStepDialog.item?.nodeId, dispatch]
-  )
-  const handleCloseNodeEditor = useCallback(() => dispatch({ type: 'CLOSE_NODE_EDITOR' }), [dispatch])
-  const nodeEditorProjectId = (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
-  const handleRunSelectedStep = useMemo(
-    () => (selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined),
-    [selectedNode, handleRunStep]
-  )
+  const dialogProps = useBuilderDialogProps({
+    workflowName,
+    workflowId,
+    confirmDialogOpen,
+    deleteDialogOpen,
+    selectedTriggerIndex,
+    currentWorkflow,
+    dispatch,
+    handleRunWorkflow,
+    handleDeleteWorkflow,
+    runStepDialog,
+    lastRunStepNodeIdRef,
+    pendingImport,
+    setPendingImport,
+    selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
+    createWorkflow: typedCreateWorkflow,
+    setLocation,
+    pinnedMockDataForDialog,
+  })
 
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>
@@ -431,20 +421,21 @@ export function BuilderContent(props: BuilderContentProps) {
                       </NxPanel>
                     </StackItem>
                     {showMostRecentRunPanelInEditor && mostRecentExecutionId && (
-                      <BuilderMostRecentRunPanel
+                      <ExecutionDetailsPanelWrapper
                         executionId={mostRecentExecutionId}
                         workflowDefinition={
                           workflow?.version?.workflow_definition as Parameters<
-                            typeof BuilderMostRecentRunPanel
+                            typeof ExecutionDetailsPanelWrapper
                           >[0]['workflowDefinition']
                         }
-                        panelHeight={mostRecentPanelHeight}
                         selectedNodeId={mostRecentSelectedNodeId}
                         selectedNodeName={mostRecentSelectedNodeName}
-                        onResize={handleMostRecentResize}
                         onNodeSelect={handleMostRecentNodeSelect}
                         onDeselectNode={handleMostRecentDeselectNode}
-                        onClosePanel={isTerminalStatus ? handleCloseMostRecentRunPanel : undefined}
+                        panelHeight={mostRecentPanelHeight}
+                        onResize={handleMostRecentResize}
+                        isTerminalStatus={isTerminalStatus}
+                        onClosePanel={handleCloseMostRecentRunPanel}
                       />
                     )}
                   </Stack>
@@ -492,38 +483,21 @@ export function BuilderContent(props: BuilderContentProps) {
                   executionId={mostRecentExecutionId}
                   workflowId={workflowId}
                   onConnect={handleConnectFromPanel}
-                  onClose={handleCloseNodeEditor}
+                  onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
                   onNavigateToNode={handleNavigateToNode}
-                  projectId={nodeEditorProjectId}
+                  onAddStep={handleAddStepFromPanel}
+                  projectId={
+                    // TODO: Remove cast when project_id is added to the OpenAPI spec
+                    (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
+                  }
                   workflowMetadata={workflowMetadata}
-                  onRunStep={handleRunSelectedStep}
+                  onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
                 />
               </Flex>
             </StackItem>
           </Stack>
 
-          <BuilderDialogs
-            workflowName={workflowName}
-            workflowId={workflowId}
-            confirmDialogOpen={confirmDialogOpen}
-            deleteDialogOpen={deleteDialogOpen}
-            dispatch={dispatch}
-            handleRunWorkflow={handleRunWorkflow}
-            handleDeleteWorkflow={handleDeleteWorkflow}
-            triggerName={selectedTrigger?.name ?? 'Trigger'}
-            triggerNodeId={selectedTrigger?.id}
-            triggerInputSchema={triggerInputSchema}
-            runStepDialog={runStepDialog}
-            onRunStepExecutionCreated={handleRunStepExecutionCreated}
-            pendingImport={pendingImport}
-            setPendingImport={setPendingImport}
-            importDeps={{
-              selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
-              createWorkflow: typedCreateWorkflow,
-              setLocation,
-            }}
-            pinnedMockData={pinnedMockDataForDialog}
-          />
+          <BuilderDialogs {...dialogProps} />
         </NxPage>
       </NodeExpandedAllContext.Provider>
     </NodeActionsContext.Provider>

@@ -1,0 +1,6 @@
+.addStepButton {
+  padding-block: var(--pf-t--global--spacer--xs);
+  padding-inline: var(--pf-t--global--spacer--xs);
+  min-width: auto;
+  border-radius: var(--pf-t--global--border--radius--pill) 0 0 var(--pf-t--global--border--radius--pill);
+}
