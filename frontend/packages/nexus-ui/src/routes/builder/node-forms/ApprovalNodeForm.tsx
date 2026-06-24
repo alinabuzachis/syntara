@@ -17,6 +17,7 @@ import { HelpPopover } from '../../../components/expressions/HelpPopover'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { approvalFormSchema, type ApprovalFormData } from './approvalFormSchema'
 import {
@@ -37,6 +38,7 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import { useApprovalDecideGroups } from './useApprovalDecideGroups'
@@ -148,6 +150,7 @@ function ApprovalFormFields({
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { approver_users?: { message?: string }; approver_groups?: { message?: string } }
 }) {
+  const isVersionView = useIsVersionView()
   const { register, control, setValue } = useFormContext<ApprovalFormData>()
   const decisionWindow = useWatch({ control, name: 'decision_window' })
   const { defaults } = useWorkflowEngineDefaults()
@@ -176,19 +179,21 @@ function ApprovalFormFields({
     <Stack hasGutter>
       <StackItem>
         <FormGroup label={APPROVER_USERS_LABEL} fieldId="approval-approver-users">
-          <Controller
-            name="approver_users"
-            control={control}
-            render={({ field: { value, onChange } }) => (
-              <ApproverUsersSelect
-                value={value ?? []}
-                onChange={onChange}
-                users={users}
-                isLoading={isLoadingUsers}
-                validationError={validationErrors?.approver_users}
-              />
-            )}
-          />
+          <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+            <Controller
+              name="approver_users"
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <ApproverUsersSelect
+                  value={value ?? []}
+                  onChange={onChange}
+                  users={users}
+                  isLoading={isLoadingUsers}
+                  validationError={validationErrors?.approver_users}
+                />
+              )}
+            />
+          </fieldset>
         </FormGroup>
       </StackItem>
       <StackItem>
@@ -203,19 +208,21 @@ function ApprovalFormFields({
             />
           }
         >
-          <Controller
-            name="approver_groups"
-            control={control}
-            render={({ field: { value, onChange } }) => (
-              <ApproverGroupsSelect
-                value={value ?? []}
-                onChange={onChange}
-                groups={groups}
-                isLoading={isLoadingGroups}
-                validationError={validationErrors?.approver_groups}
-              />
-            )}
-          />
+          <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+            <Controller
+              name="approver_groups"
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <ApproverGroupsSelect
+                  value={value ?? []}
+                  onChange={onChange}
+                  groups={groups}
+                  isLoading={isLoadingGroups}
+                  validationError={validationErrors?.approver_groups}
+                />
+              )}
+            />
+          </fieldset>
         </FormGroup>
       </StackItem>
       <StackItem>
@@ -225,6 +232,7 @@ function ApprovalFormFields({
             id="approval-prompt"
             placeholder="Please approve this deployment to production"
             rows={3}
+            isDisabled={isVersionView}
           />
         </FormGroup>
       </StackItem>
@@ -239,6 +247,7 @@ function ApprovalFormFields({
                 aria-label="Fallback decision"
                 value={field.value ?? 'reject'}
                 onChange={(_event, value) => field.onChange(value)}
+                isDisabled={isVersionView}
               >
                 <FormSelectOption value="reject" label="Reject (default)" />
                 <FormSelectOption value="approve" label="Approve" />
@@ -261,6 +270,7 @@ function ApprovalFormFields({
                 value={decisionWindow}
                 onChange={(val) => setValue('decision_window', val, { shouldDirty: true })}
                 idPrefix="approval-decision-window"
+                isDisabled={isVersionView}
               />
             </StackItem>
             <StackItem>

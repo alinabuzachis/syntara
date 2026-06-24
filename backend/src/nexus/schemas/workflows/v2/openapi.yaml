@@ -750,7 +750,6 @@ components:
       title: WorkflowVersionRead
       description: |-
         Schema for workflow version response (GET /workflows/{id}/versions/{version}).
-
         WorkflowVersion entities are read-only and managed automatically by the system.
 
         Note: deleted_at and deleted_by are None since soft-deleted versions are excluded from queries.
@@ -799,6 +798,11 @@ components:
           type: string
           format: uuid
           title: Created By
+        created_by_username:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Created By Username
         created_at:
           type: string
           format: date-time
@@ -848,6 +852,13 @@ components:
             - type: 'null'
           title: Change Description
           description: Description of changes in this version
+        workflow_definition:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Workflow Definition
+          description: Optional workflow definition to publish directly (skips separate save step)
 
     WorkflowVersionListResponse:
       type: object

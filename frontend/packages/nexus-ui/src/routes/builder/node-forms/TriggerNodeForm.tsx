@@ -15,12 +15,14 @@ import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { EdaFields } from './EdaTriggerFields'
 import { ManualTriggerFields } from './ManualTriggerFields'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { normalizeWebhookPath, triggerFormSchema, type TriggerFormData } from './triggerFormSchema'
 import { WebhookFields } from './WebhookTriggerFields'
@@ -45,6 +47,7 @@ function TriggerFormFields({
     webhookPath?: { message?: string }
   }
 }) {
+  const isVersionView = useIsVersionView()
   const {
     control,
     register,
@@ -85,7 +88,11 @@ function TriggerFormFields({
     <Stack hasGutter>
       <input type="hidden" {...register('triggerType')} />
 
-      {triggerType === TriggerTypeEnum.MANUAL_TRIGGER && <ManualTriggerFields errors={errors} />}
+      {triggerType === TriggerTypeEnum.MANUAL_TRIGGER && (
+        <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+          <ManualTriggerFields errors={errors} />
+        </fieldset>
+      )}
 
       {triggerType === TriggerTypeEnum.SCHEDULED && (
         <>
@@ -100,6 +107,7 @@ function TriggerFormFields({
                     aria-label="Schedule type"
                     value={field.value}
                     onChange={(_event, value) => field.onChange(value)}
+                    isDisabled={isVersionView}
                   >
                     <FormSelectOption value="interval" label="Interval" />
                     <FormSelectOption value="cron" label="Cron" />
@@ -112,20 +120,22 @@ function TriggerFormFields({
 
           {scheduleType === 'interval' && (
             <StackItem>
-              <Controller
-                control={control}
-                name="interval"
-                render={({ field }) => (
-                  <DateRangeCadencePicker
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    required
-                    showTime
-                    error={!!errors.interval}
-                    errorMessage={errors.interval?.message}
-                  />
-                )}
-              />
+              <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+                <Controller
+                  control={control}
+                  name="interval"
+                  render={({ field }) => (
+                    <DateRangeCadencePicker
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      required
+                      showTime
+                      error={!!errors.interval}
+                      errorMessage={errors.interval?.message}
+                    />
+                  )}
+                />
+              </fieldset>
             </StackItem>
           )}
 
@@ -159,9 +169,17 @@ function TriggerFormFields({
         </>
       )}
 
-      {triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER && <WebhookFields errors={errors} />}
+      {triggerType === TriggerTypeEnum.WEBHOOK_TRIGGER && (
+        <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+          <WebhookFields errors={errors} />
+        </fieldset>
+      )}
 
-      {triggerType === TriggerTypeEnum.EDA_TRIGGER && <EdaFields errors={errors} />}
+      {triggerType === TriggerTypeEnum.EDA_TRIGGER && (
+        <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+          <EdaFields errors={errors} />
+        </fieldset>
+      )}
     </Stack>
   )
 

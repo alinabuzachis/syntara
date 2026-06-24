@@ -1,0 +1,77 @@
+.versionRowStack {
+  gap: var(--pf-t--global--spacer--sm);
+}
+
+.versionTimestamp {
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.kebabFlexItem {
+  flex-shrink: 0;
+}
+
+.emptyStateText {
+  padding: var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg);
+}
+
+.groupTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pf-t--global--text--color--subtle);
+  margin: 0;
+}
+
+.panelRoot {
+  height: 100%;
+  max-height: 100%;
+  width: 20rem;
+  flex-shrink: 0;
+}
+
+.panelInner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panelStack {
+  height: 100%;
+  min-height: 0;
+}
+
+.panelHeader {
+  flex-shrink: 0;
+  padding: var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--md);
+}
+
+.filterSection {
+  flex-shrink: 0;
+  padding: 0 var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--sm);
+}
+
+.simpleList {
+  padding-bottom: var(--pf-t--global--spacer--lg);
+  --pf-v6-c-simple-list__item-link--PaddingBlockStart: var(--pf-t--global--spacer--md);
+  --pf-v6-c-simple-list__item-link--PaddingBlockEnd: var(--pf-t--global--spacer--md);
+  --pf-v6-c-simple-list__item-link--PaddingInlineStart: var(--pf-t--global--spacer--md);
+  --pf-v6-c-simple-list__item-link--PaddingInlineEnd: var(--pf-t--global--spacer--md);
+}
+
+.usernameLink {
+  display: inline-block;
+  width: fit-content;
+  font-size: var(--pf-t--global--font--size--sm);
+}
+
+.scrollableBody {
+  overflow-y: auto;
+  overflow-x: hidden;
+}

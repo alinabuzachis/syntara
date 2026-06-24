@@ -4,12 +4,36 @@ import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+
 import { usePublishWorkflow, useUnpublishWorkflow } from './usePublishWorkflow'
 
 const mockPublishMutate = vi.fn()
 const mockUnpublishMutate = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
+const mockMarkClean = vi.fn()
+const mockBuildWorkflowDefinition = vi.fn()
+
+vi.mock('../../../stores/useWorkflowStore', () => ({
+  useWorkflowStore: {
+    getState: vi.fn(() => ({
+      currentWorkflow: null,
+      isDirty: false,
+      edges: [],
+      nodePositions: {},
+      _positionsUserModified: false,
+      markClean: mockMarkClean,
+    })),
+  },
+}))
+
+vi.mock('../utils/workflowDefinitionBuilder', () => ({
+  buildWorkflowDefinition: (...args: unknown[]) => {
+    mockBuildWorkflowDefinition(...args)
+    return { built: true }
+  },
+}))
 
 vi.mock('../../../client', () => ({
   workflowClient: {
@@ -183,6 +207,93 @@ describe('usePublishWorkflow', () => {
       }),
       expect.any(Object)
     )
+  })
+
+  it('includes workflow_definition in body when store is dirty', () => {
+    const mockWorkflow = {
+      workflow: { name: 'Test WF', description: 'A desc', activities: [{ id: 'a1' }] },
+      triggers: [{ id: 't1' }],
+    }
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      currentWorkflow: mockWorkflow,
+      isDirty: true,
+      edges: [{ id: 'e1' }],
+      nodePositions: { n1: { x: 10, y: 20 } },
+      _positionsUserModified: true,
+      markClean: mockMarkClean,
+    } as unknown as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3, 'My WF', 'My Desc'), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    expect(mockBuildWorkflowDefinition).toHaveBeenCalledWith('My WF', 'My Desc', [{ id: 'a1' }], [{ id: 't1' }], {
+      edges: [{ id: 'e1' }],
+      nodePositions: { n1: { x: 10, y: 20 } },
+    })
+    const publishCall = mockPublishMutate.mock.calls[0] as unknown[]
+    const requestArg = publishCall[0] as { body: Record<string, unknown> }
+    expect(requestArg.body).toHaveProperty('workflow_definition', { built: true })
+  })
+
+  it('calls markClean on success when workflow_definition was sent', () => {
+    const mockWorkflow = {
+      workflow: { name: 'Test WF', description: 'A desc', activities: [] },
+      triggers: [],
+    }
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      currentWorkflow: mockWorkflow,
+      isDirty: true,
+      edges: [],
+      nodePositions: {},
+      _positionsUserModified: false,
+      markClean: mockMarkClean,
+    } as unknown as ReturnType<typeof useWorkflowStore.getState>)
+
+    mockPublishMutate.mockImplementation((_params: unknown, callbacks?: { onSuccess?: () => void }) => {
+      callbacks?.onSuccess?.()
+    })
+
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    expect(mockMarkClean).toHaveBeenCalled()
+  })
+
+  it('does not include workflow_definition when store is clean', () => {
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      currentWorkflow: {
+        workflow: { name: 'Test WF', description: 'A desc', activities: [] },
+        triggers: [],
+      },
+      isDirty: false,
+      edges: [],
+      nodePositions: {},
+      _positionsUserModified: false,
+      markClean: mockMarkClean,
+    } as unknown as ReturnType<typeof useWorkflowStore.getState>)
+
+    const { result } = renderHook(() => usePublishWorkflow('wf-123', 3), {
+      wrapper: makeWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.publish('v1.0')
+    })
+
+    expect(mockBuildWorkflowDefinition).not.toHaveBeenCalled()
+    const publishCall = mockPublishMutate.mock.calls[0] as unknown[]
+    const requestArg = publishCall[0] as { body: Record<string, unknown> }
+    expect(requestArg.body).not.toHaveProperty('workflow_definition')
   })
 })
 

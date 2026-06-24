@@ -251,6 +251,7 @@ __all__ = (
     "ProjectUpdateLabelsType0",
     "ProviderStatus",
     "PublishVersionRequest",
+    "PublishVersionRequestWorkflowDefinitionType0",
     "ResetInternalMetricsStoreResponseResetInternalMetricsStore",
     "ResourceActionsResponse",
     "ResourceActionsResponseResourceActions",

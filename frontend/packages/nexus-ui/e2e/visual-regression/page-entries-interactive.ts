@@ -466,6 +466,20 @@ export const workflowDialogPages: PageEntry[] = [
   },
   {
     section: 'workflows',
+    name: 'builder-edit-version-history-panel',
+    path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
+    perceptual: true,
+    waitFor: async (page) => {
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: /Workflow actions/i }).click()
+      await page.getByRole('menuitem', { name: /Version history/i }).click()
+      await expect(page.getByRole('heading', { name: 'Version history' })).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
     name: 'workflows-import-dialog',
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {

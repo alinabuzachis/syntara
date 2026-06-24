@@ -9,6 +9,11 @@ import { detachPromise } from '../../../utils/detachPromise'
 
 export type VersionStatus = 'draft' | 'published' | 'previously_published'
 
+const VERSION_STATUSES: VersionStatus[] = ['draft', 'published', 'previously_published']
+export function isVersionStatus(s: string): s is VersionStatus {
+  return (VERSION_STATUSES as string[]).includes(s)
+}
+
 type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionResponse']
 
 type UseVersionHistoryParams = {

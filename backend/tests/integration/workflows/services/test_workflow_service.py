@@ -1184,7 +1184,7 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
 
     @pytest.mark.asyncio
     async def test_publish_version_success(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test publishing a version sets status and workflow state."""
+        """Test publishing a version creates a published copy and sets workflow state."""
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
 
@@ -1206,15 +1206,24 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
                 change_description="Initial release",
             )
 
+        # The returned version is the new published copy (v2), not the source (v1)
         assert result_version.status == WorkflowVersionStatus.PUBLISHED
+        assert result_version.version == 2
         assert result_version.publish_name == "v1.0"
         assert result_version.change_description == "Initial release"
-        assert result_workflow.published_version == 1
+        assert result_workflow.published_version == 2
         assert result_workflow.is_enabled is True
 
     @pytest.mark.asyncio
     async def test_publish_demotes_previous(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test publishing a new version demotes the previous."""
+        """Test publishing a new version demotes the previous published copy.
+
+        With always-copy publish:
+        - Create → v1 (draft)
+        - Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
+        - Update → v3 (draft)
+        - Publish v3 → v3 stays draft, v2 demoted to previously_published, v4 created (published)
+        """
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
 
@@ -1229,27 +1238,38 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            _, published_copy_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
 
-        # Create v2
-        v2_def = self._create_workflow_definition()
-        v2_def["description"] = "v2"
+        # Create update draft (v3, since v2 is the published copy)
+        v3_def = self._create_workflow_definition()
+        v3_def["description"] = "v2"
         with patch("nexus.workflows.services.workflow_service.workflow_validator"):
-            v2 = await service.create_workflow_version(workflow, v2_def, "v2 changes")
+            v3 = await service.create_workflow_version(workflow, v3_def, "v2 changes")
 
-        assert v2 is not None
+        assert v3 is not None
 
         mock_wh_svc2 = MagicMock()
         mock_wh_svc2.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc2):
-            await service.publish_workflow_version(workflow_id=workflow.id, version=2)
+            await service.publish_workflow_version(workflow_id=workflow.id, version=v3.version)
 
+        await test_db_session.refresh(workflow)
+        # v1 (source draft) stays draft — never mutated
         await test_db_session.refresh(v1)
-        assert v1.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
+        assert v1.status == WorkflowVersionStatus.DRAFT
+
+        # v2 (first published copy) is now previously_published
+        await test_db_session.refresh(published_copy_v2)
+        assert published_copy_v2.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
 
     @pytest.mark.asyncio
     async def test_publish_idempotent(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test republishing the same version is a no-op."""
+        """Test publishing the same version twice creates two copies.
+
+        With always-copy publish:
+        - Publish v1 first time → v2 created (published copy). published_version=2
+        - Publish v1 second time → v2 demoted, v3 created (published copy). published_version=3
+        """
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
 
@@ -1268,7 +1288,8 @@ class TestPublishWorkflowVersion(TestWorkflowServiceBase):
             result_workflow, result_version = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
 
         assert result_version.status == WorkflowVersionStatus.PUBLISHED
-        assert result_workflow.published_version == 1
+        assert result_version.version == 3
+        assert result_workflow.published_version == 3
 
     @pytest.mark.asyncio
     async def test_publish_nonexistent_version_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
@@ -1330,7 +1351,12 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
 
     @pytest.mark.asyncio
     async def test_unpublish_success(self, test_db_session: AsyncSession, test_user: User) -> None:
-        """Test unpublishing sets workflow state correctly."""
+        """Test unpublishing sets workflow state correctly.
+
+        With always-copy publish:
+        - Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
+        - Unpublish → v2 (published copy) demoted to previously_published
+        """
         service = WorkflowService(test_db_session, test_user)
         workflow_def = self._create_workflow_definition()
 
@@ -1345,14 +1371,19 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         mock_wh_svc = MagicMock()
         mock_wh_svc.return_value.sync_webhook_triggers = AsyncMock()
         with patch("nexus.workflows.services.workflow_service.WebhookTriggerService", mock_wh_svc):
-            await service.publish_workflow_version(workflow_id=workflow.id, version=1)
+            _, published_copy_v2 = await service.publish_workflow_version(workflow_id=workflow.id, version=1)
             result = await service.unpublish_workflow(workflow_id=workflow.id)
 
         assert result.published_version is None
         assert result.is_enabled is False
 
+        # v1 (source draft) stays draft — never mutated
         await test_db_session.refresh(v1)
-        assert v1.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
+        assert v1.status == WorkflowVersionStatus.DRAFT
+
+        # v2 (published copy) is demoted to previously_published
+        await test_db_session.refresh(published_copy_v2)
+        assert published_copy_v2.status == WorkflowVersionStatus.PREVIOUSLY_PUBLISHED
 
     @pytest.mark.asyncio
     async def ***REMOVED***(self, test_db_session: AsyncSession, test_user: User) -> None:
@@ -1455,7 +1486,8 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
         assert result_workflow.updated_at is not None
         assert result_version.version == 3
         assert result_version.status == WorkflowVersionStatus.DRAFT
-        assert result_version.change_description == "Restored from version 1"
+        assert result_version.change_description is not None
+        assert "Restored from" in result_version.change_description
         assert result_version.workflow_definition == defn_v1
 
     @pytest.mark.asyncio

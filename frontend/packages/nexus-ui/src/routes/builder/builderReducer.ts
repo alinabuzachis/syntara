@@ -271,7 +271,13 @@ function handlePanelActions(state: BuilderState, action: BuilderAction): Builder
  */
 function handleNodeClick(state: BuilderState, action: Extract<BuilderAction, { type: 'NODE_CLICK' }>): BuilderState {
   if (state.viewingVersion !== null) {
-    return state
+    return {
+      ...state,
+      selectedNode: action.payload.node,
+      nodeEditorMode: 'edit',
+      nodeEditorNodeTypeId: null,
+      nodeEditorNodeSubtypeId: null,
+    }
   }
   if (action.payload.isGeneric) {
     return {

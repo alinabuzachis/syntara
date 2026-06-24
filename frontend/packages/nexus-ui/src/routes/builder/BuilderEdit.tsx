@@ -21,8 +21,15 @@ export default function BuilderEdit() {
   const searchParams = useSearch()
   const parsedParams = useMemo(() => {
     const p = new URLSearchParams(searchParams)
-    return { fromExecution: p.get('fromExecution'), linkExecution: p.get('linkExecution') }
+    return {
+      fromExecution: p.get('fromExecution'),
+      linkExecution: p.get('linkExecution'),
+      version: p.get('version'),
+    }
   }, [searchParams])
+  const parsedVersion = parsedParams.version ? Number.parseInt(parsedParams.version, 10) : null
+  const initialViewVersion =
+    parsedVersion !== null && Number.isFinite(parsedVersion) && parsedVersion > 0 ? parsedVersion : null
   const executionIdParam = parsedParams.fromExecution ?? parsedParams.linkExecution
 
   // Fetch existing workflow - always refetch on mount to ensure fresh data
@@ -101,6 +108,7 @@ export default function BuilderEdit() {
         isNew={false}
         workflowId={workflowId}
         executionCopy={executionCopy}
+        initialViewVersion={initialViewVersion}
       />
     </ReactFlowProvider>
   )

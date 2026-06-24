@@ -27,6 +27,30 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/auth/csrf_token': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Get CSRF form token
+     * @description Return the CSRF form token derived from the session's CSRF seed cookie.
+     *
+     *     The SPA calls this once after login or OIDC redirect to obtain the
+     *     form token, which it then sends in the `X-CSRF-Token` header on
+     *     subsequent state-changing requests (refresh, logout).
+     */
+    post: operations['get_csrf_token']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/auth/refresh': {
     parameters: {
       query?: never
@@ -93,30 +117,6 @@ export interface paths {
     get: operations['get_current_user']
     put?: never
     post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/auth/csrf_token': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Get CSRF form token
-     * @description Return the CSRF form token derived from the session's CSRF seed cookie.
-     *
-     *     The SPA calls this once after login or OIDC redirect to obtain the
-     *     form token, which it then sends in the `X-CSRF-Token` header on
-     *     subsequent state-changing requests (refresh, logout).
-     */
-    post: operations['get_csrf_token']
     delete?: never
     options?: never
     head?: never
@@ -236,6 +236,17 @@ export interface components {
       expires_in: number
     }
     /**
+     * CsrfTokenResponse
+     * @description CSRF form token response.
+     */
+    CsrfTokenResponse: {
+      /**
+       * Csrf Token
+       * @description CSRF form token for use in X-CSRF-Token header
+       */
+      csrf_token: string
+    }
+    /**
      * UserInfo
      * @description Current user information derived from access token claims.
      */
@@ -303,17 +314,6 @@ export interface components {
        * @description Enabled identity providers
        */
       resources?: components['schemas']['AuthProviderInfo'][]
-    }
-    /**
-     * CsrfTokenResponse
-     * @description CSRF form token response.
-     */
-    CsrfTokenResponse: {
-      /**
-       * Csrf Token
-       * @description CSRF form token for use in X-CSRF-Token header
-       */
-      csrf_token: string
     }
     /**
      * ErrorData
@@ -519,28 +519,6 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
-  get_csrf_token: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description CSRF form token */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['CsrfTokenResponse']
-        }
-      }
-      403: components['responses']['ForbiddenError']
-      500: components['responses']['InternalServerError']
-    }
-  }
   login: {
     parameters: {
       query?: never
@@ -572,6 +550,39 @@ export interface operations {
         content?: never
       }
       403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_csrf_token: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description CSRF form token */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CsrfTokenResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      /** @description CSRF cookie missing — not authenticated via cookie flow */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
       404: components['responses']['NotFoundError']
       409: components['responses']['ConflictError']
       422: components['responses']['ValidationError']

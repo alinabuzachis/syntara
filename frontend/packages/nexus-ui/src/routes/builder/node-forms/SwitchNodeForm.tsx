@@ -43,10 +43,12 @@ import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 import type { Expression } from '../../../utils/expressions/types'
 import { generateUUID } from '../../../utils/generateUUID'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { PathExpressionHelp } from './shared/PathExpressionHelp'
 import { switchFormSchema, type SwitchFormData, type SwitchCaseData } from './switchFormSchema'
@@ -111,6 +113,7 @@ type SwitchCaseHeaderProps = {
   hasError: boolean
   canRemove: boolean
   contentId: string
+  isDisabled?: boolean
   onToggleExpanded: () => void
   onRemove: () => void
   onLabelChange: (value: string) => void
@@ -123,6 +126,7 @@ function SwitchCaseHeader({
   hasError,
   canRemove,
   contentId,
+  isDisabled,
   onToggleExpanded,
   onRemove,
   onLabelChange,
@@ -150,9 +154,10 @@ function SwitchCaseHeader({
           onChange={(_event, val) => onLabelChange(val)}
           aria-label={`Path ${index + 1} name`}
           placeholder={`Path ${index + 1}`}
+          isDisabled={isDisabled}
         />
       </FlexItem>
-      {canRemove && (
+      {canRemove && !isDisabled && (
         <FlexItem>
           <Button variant="plain" isDanger onClick={onRemove} aria-label={`Remove path ${index + 1}`} size="sm">
             <RhUiTrashIcon />
@@ -170,6 +175,7 @@ type SwitchCaseItemProps = {
   canRemove: boolean
   expandedPaths: Record<string, boolean>
   hadErrorRef: React.MutableRefObject<Record<string, boolean>>
+  isDisabled?: boolean
   onToggleExpanded: () => void
   onRemove: () => void
 }
@@ -181,6 +187,7 @@ function SwitchCaseItem({
   canRemove,
   hadErrorRef,
   expandedPaths,
+  isDisabled,
   onToggleExpanded,
   onRemove,
 }: SwitchCaseItemProps) {
@@ -214,8 +221,9 @@ function SwitchCaseItem({
                   variant="plain"
                   className={styles.dragHandle}
                   aria-label={`Reorder path ${index + 1}`}
-                  {...listeners}
-                  {...attributes}
+                  isDisabled={isDisabled}
+                  {...(isDisabled ? {} : listeners)}
+                  {...(isDisabled ? {} : attributes)}
                 >
                   <RhUiGripVerticalFillIcon />
                 </Button>
@@ -230,6 +238,7 @@ function SwitchCaseItem({
                       hasError={hasError}
                       canRemove={canRemove}
                       contentId={contentId}
+                      isDisabled={isDisabled}
                       onToggleExpanded={onToggleExpanded}
                       onRemove={onRemove}
                       onLabelChange={(val) => field.onChange({ ...currentCase, label: val })}
@@ -244,12 +253,14 @@ function SwitchCaseItem({
                         isRequired
                         fieldId={`case-condition-${fieldId}`}
                       >
-                        <CaseExpressionField
-                          fieldId={fieldId}
-                          currentCase={currentCase}
-                          onFieldChange={field.onChange}
-                          hasError={hasError}
-                        />
+                        <fieldset disabled={isDisabled} className={nodeFormStyles.disabledFieldset}>
+                          <CaseExpressionField
+                            fieldId={fieldId}
+                            currentCase={currentCase}
+                            onFieldChange={field.onChange}
+                            hasError={hasError}
+                          />
+                        </fieldset>
                         {conditionError?.message && (
                           <FormHelperText>
                             <HelperText>
@@ -271,6 +282,7 @@ function SwitchCaseItem({
 }
 
 function SwitchFormFields({ onHeaderContentChange }: { onHeaderContentChange?: (content: ReactNode | null) => void }) {
+  const isVersionView = useIsVersionView()
   const { register, control } = useFormContext<SwitchFormData>()
 
   const { fields, append, remove, move } = useFieldArray({ control, name: 'cases' })
@@ -357,6 +369,7 @@ function SwitchFormFields({ onHeaderContentChange }: { onHeaderContentChange?: (
                     canRemove={fields.length > MIN_CASES}
                     expandedPaths={expandedPaths}
                     hadErrorRef={hadErrorRef}
+                    isDisabled={isVersionView}
                     onToggleExpanded={() => {
                       hadErrorRef.current[field.id] = false
                       setExpandedPaths((prev) => ({ ...prev, [field.id]: !(prev[field.id] ?? true) }))
@@ -382,23 +395,25 @@ function SwitchFormFields({ onHeaderContentChange }: { onHeaderContentChange?: (
         </DndContext>
       </StackItem>
 
-      <StackItem>
-        <Flex>
-          <FlexItem>
-            {fields.length >= MAX_CASES ? (
-              <Tooltip content="Maximum of 100 paths reached.">
-                <Button variant="link" icon={<RhUiAddCircleIcon />} isDisabled>
+      {!isVersionView && (
+        <StackItem>
+          <Flex>
+            <FlexItem>
+              {fields.length >= MAX_CASES ? (
+                <Tooltip content="Maximum of 100 paths reached.">
+                  <Button variant="link" icon={<RhUiAddCircleIcon />} isDisabled>
+                    Add path
+                  </Button>
+                </Tooltip>
+              ) : (
+                <Button variant="link" icon={<RhUiAddCircleIcon />} onClick={handleAddPath}>
                   Add path
                 </Button>
-              </Tooltip>
-            ) : (
-              <Button variant="link" icon={<RhUiAddCircleIcon />} onClick={handleAddPath}>
-                Add path
-              </Button>
-            )}
-          </FlexItem>
-        </Flex>
-      </StackItem>
+              )}
+            </FlexItem>
+          </Flex>
+        </StackItem>
+      )}
 
       <StackItem>
         <ExpandableSection

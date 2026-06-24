@@ -6,6 +6,7 @@ import { useDocLink } from '../../../utils/docs/useDocLink'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import { NodeDetailsPanel } from '../NodeDetailsPanel'
 import type { WorkflowMetadata } from '../types/workflowMetadata'
+import { useIsVersionView } from '../VersionViewContext'
 
 type NodeEditorOverlayProps = {
   isOpen: boolean
@@ -28,6 +29,7 @@ type NodeEditorOverlayProps = {
 
 export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEditorOverlayProps) {
   const builderDocLink = useDocLink('builder')
+  const isVersionView = useIsVersionView()
   const {
     isOpen,
     mode,
@@ -74,7 +76,8 @@ export const NodeEditorOverlay = memo(function NodeEditorOverlay(props: NodeEdit
           onAddStep={onAddStep}
           docLink={builderDocLink}
           workflowMetadata={workflowMetadata}
-          onRunStep={onRunStep}
+          onRunStep={isVersionView ? undefined : onRunStep}
+          readOnly={isVersionView}
         />
       </FlexItem>
     </Flex>

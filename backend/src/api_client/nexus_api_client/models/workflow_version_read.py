@@ -22,7 +22,6 @@ T = TypeVar("T", bound="WorkflowVersionRead")
 @_attrs_define
 class WorkflowVersionRead:
     """Schema for workflow version response (GET /workflows/{id}/versions/{version}).
-
     WorkflowVersion entities are read-only and managed automatically by the system.
 
     Note: deleted_at and deleted_by are None since soft-deleted versions are excluded from queries.
@@ -39,6 +38,7 @@ class WorkflowVersionRead:
             change_description (None | str | Unset):
             status (WorkflowVersionStatus | Unset): Publish status of a workflow version.
             publish_name (None | str | Unset):
+            created_by_username (None | str | Unset):
             deleted_at (datetime.datetime | None | Unset):
             deleted_by (None | Unset | UUID):
     """
@@ -54,6 +54,7 @@ class WorkflowVersionRead:
     change_description: None | str | Unset = UNSET
     status: WorkflowVersionStatus | Unset = UNSET
     publish_name: None | str | Unset = UNSET
+    created_by_username: None | str | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -91,6 +92,12 @@ class WorkflowVersionRead:
         else:
             publish_name = self.publish_name
 
+        created_by_username: None | str | Unset
+        if isinstance(self.created_by_username, Unset):
+            created_by_username = UNSET
+        else:
+            created_by_username = self.created_by_username
+
         deleted_at: None | str | Unset
         if isinstance(self.deleted_at, Unset):
             deleted_at = UNSET
@@ -127,6 +134,8 @@ class WorkflowVersionRead:
             field_dict["status"] = status
         if publish_name is not UNSET:
             field_dict["publish_name"] = publish_name
+        if created_by_username is not UNSET:
+            field_dict["created_by_username"] = created_by_username
         if deleted_at is not UNSET:
             field_dict["deleted_at"] = deleted_at
         if deleted_by is not UNSET:
@@ -180,6 +189,15 @@ class WorkflowVersionRead:
 
         publish_name = _parse_publish_name(d.pop("publish_name", UNSET))
 
+        def _parse_created_by_username(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        created_by_username = _parse_created_by_username(d.pop("created_by_username", UNSET))
+
         def _parse_deleted_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
@@ -226,6 +244,7 @@ class WorkflowVersionRead:
             change_description=change_description,
             status=status,
             publish_name=publish_name,
+            created_by_username=created_by_username,
             deleted_at=deleted_at,
             deleted_by=deleted_by,
         )

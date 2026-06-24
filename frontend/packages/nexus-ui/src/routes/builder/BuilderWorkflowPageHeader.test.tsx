@@ -80,6 +80,7 @@ describe('BuilderWorkflowPageHeader', () => {
     dispatch: vi.fn(),
     markDirty: vi.fn(),
     handleToggleHistory: vi.fn(),
+    handleToggleVersionHistory: vi.fn(),
     handleToggleDetails: vi.fn(),
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
     onPublish: vi.fn(),
@@ -414,6 +415,107 @@ describe('BuilderWorkflowPageHeader', () => {
     expect(screen.queryByRole('button', { name: 'Review approval' })).not.toBeInTheDocument()
   })
 
+  it('shows version view toolbar with Back to editor, Restore, and Version history buttons', () => {
+    const onExitVersionView = vi.fn()
+    const onRestoreVersion = vi.fn()
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={onExitVersionView}
+        onRestoreVersion={onRestoreVersion}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Restore version/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Version history/i })).toBeInTheDocument()
+  })
+
+  it('calls onExitVersionView when Back to editor is clicked in version view', async () => {
+    const user = userEvent.setup()
+    const onExitVersionView = vi.fn()
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={onExitVersionView}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Back to editor' }))
+    expect(onExitVersionView).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onRestoreVersion when Restore version is clicked', async () => {
+    const user = userEvent.setup()
+    const onRestoreVersion = vi.fn()
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={vi.fn()}
+        onRestoreVersion={onRestoreVersion}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /Restore version/i }))
+    expect(onRestoreVersion).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides Restore version button when onRestoreVersion is not provided', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Restore version/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Version history/i })).toBeInTheDocument()
+  })
+
+  it('hides editor toolbar actions when in version view', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Add Step' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Save/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Viewing date label in version view', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        viewedVersionDate="2026-05-19T14:30:00.000Z"
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText(/Viewing/)).toBeInTheDocument()
+    expect(screen.getByText(/May 19, 2026/)).toBeInTheDocument()
+  })
+
   it('renders editor toolbar when isLiveRunActive is false', () => {
     render(<BuilderWorkflowPageHeader {...baseProps} isNew={false} workflow={{ id: 'wf-1' }} isLiveRunActive={false} />)
 
@@ -453,6 +555,7 @@ describe('BuilderWorkflowPageHeader', () => {
       <BuilderWorkflowPageHeader
         {...baseProps}
         isNew={false}
+        isDirty={false}
         workflow={{ id: 'wf-1' }}
         publishedVersion={null}
         currentVersion={1}
@@ -516,6 +619,111 @@ describe('BuilderWorkflowPageHeader', () => {
 
       expect(screen.getByText('Project')).toBeInTheDocument()
     })
+  })
+
+  it('shows version status badge in version view', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        viewedVersionStatus="published"
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Published')).toBeInTheDocument()
+  })
+
+  it('does not show version status badge when viewedVersionStatus is null', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        viewedVersionStatus={null}
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByText('Published')).not.toBeInTheDocument()
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument()
+  })
+
+  it('does not show Viewing date label when viewedVersionDate is null', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        viewedVersionDate={null}
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByText(/Viewing/)).not.toBeInTheDocument()
+  })
+
+  it('hides project selector in version view', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByText('Project')).not.toBeInTheDocument()
+  })
+
+  it('hides publish status badge in version view', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        publishedVersion={2}
+        currentVersion={3}
+        isViewingVersion
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByText('Unpublished changes')).not.toBeInTheDocument()
+  })
+
+  it('hides edit details popover in version view', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /Apply details/i })).not.toBeInTheDocument()
+  })
+
+  it('shows workflow name as plain text in version view', () => {
+    render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        onExitVersionView={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('textbox', { name: /Workflow name/i })).not.toBeInTheDocument()
+    expect(screen.getByText(baseProps.workflowName)).toBeInTheDocument()
   })
 
   it('does not show cancel button when executionId is null', () => {

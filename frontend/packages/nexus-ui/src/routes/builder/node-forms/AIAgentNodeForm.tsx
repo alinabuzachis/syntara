@@ -21,12 +21,14 @@ import { CredentialSelector } from '../components/CredentialSelector'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
 import { DroppableField } from '../panels/fields/DroppableField'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { aiAgentFormSchema, type AIAgentFormData } from './aiAgentFormSchema'
 import { credentialHelpText } from './credentialSelectorHelpText'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
@@ -57,13 +59,13 @@ export type AIAgentNodeFormProps = {
   projectId?: string
 }
 
-function AIAgentFormFields({
-  onHeaderContentChange,
-  projectId,
-}: {
+type AIAgentFormFieldsProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
   projectId?: string
-}) {
+}>
+
+function AIAgentFormFields({ onHeaderContentChange, projectId }: AIAgentFormFieldsProps) {
+  const isVersionView = useIsVersionView()
   const { register, control, getValues, setValue } = useFormContext<AIAgentFormData>()
   const { errors } = useFormState({ control })
   const fileContext = useContext(FileContext)
@@ -165,6 +167,7 @@ function AIAgentFormFields({
               fieldId="agent-credential"
               placeholder="Select LLM credential"
               allowCreate
+              isDisabled={isVersionView}
               projectId={projectId}
               helpText={credentialHelpText(
                 'Select a stored credential for the LLM provider. Credentials securely store API keys and authentication tokens.'
@@ -187,6 +190,7 @@ function AIAgentFormFields({
               placeholder="Natural language instructions for the agent..."
               rows={3}
               validated={errors.prompt ? 'error' : 'default'}
+              isDisabled={isVersionView}
             />
           </DroppableField>
           {errors.prompt && (
@@ -233,6 +237,7 @@ function AIAgentFormFields({
                 height="150px"
                 modalTitle="Edit response schema"
                 ariaLabel="Response schema editor"
+                isReadOnly={isVersionView}
               />
             )}
           />
@@ -254,13 +259,15 @@ function AIAgentFormFields({
       </StackItem>
       <StackItem>
         <FormGroup label="Context file upload" fieldId="agent-context">
-          <FileUpload
-            files={uploadedFiles}
-            onFilesSelected={handleFilesSelected}
-            onFileRemove={handleFileRemove}
-            acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
-            aria-label="Context file upload"
-          />
+          <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+            <FileUpload
+              files={uploadedFiles}
+              onFilesSelected={handleFilesSelected}
+              onFileRemove={handleFileRemove}
+              acceptedMimeTypes={['.pdf', '.doc', '.docx', '.txt', '.md']}
+              aria-label="Context file upload"
+            />
+          </fieldset>
         </FormGroup>
       </StackItem>
     </Stack>

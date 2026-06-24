@@ -68,7 +68,7 @@ export interface components {
   schemas: {
     /**
      * RolePrincipalType
-     * @description Type of principal receiving a role assignment.
+     * @description Discriminator for role assignment targets.
      * @enum {string}
      */
     RolePrincipalType: 'user' | 'group' | 'service_account'

@@ -296,6 +296,7 @@ type NodeDetailsPanelProps = {
   docLink?: string
   workflowMetadata?: WorkflowMetadata
   onRunStep?: () => void
+  readOnly?: boolean
 }
 
 function createAddStepHandler(
@@ -322,6 +323,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     onNavigateToNode,
     onAddStep,
     onRunStep,
+    readOnly,
   } = props
   const { showError } = useAlerts()
   // Use typed selector for optimized subscription
@@ -450,7 +452,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const showInputPanel = mode === 'add' ? nodeTypeId !== RegistryNodeId.TRIGGER : node?.type !== FlowNodeType.TRIGGER
   const formId = mode === 'add' ? getAddModeFormId(nodeTypeId, nodeSubtypeId) : getEditModeFormId(node)
   const tabBarAction =
-    mode === 'edit' && node?.type !== FlowNodeType.TRIGGER ? (
+    mode === 'edit' && node?.type !== FlowNodeType.TRIGGER && !readOnly ? (
       <Button variant="secondary" onClick={onRunStep} type="button">
         Run step
       </Button>
@@ -476,6 +478,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       onAddStep={nodeAddStepHandler}
       workflowMetadata={props.workflowMetadata}
       tabBarAction={tabBarAction}
+      readOnly={readOnly}
       mode={mode}
     />
   )

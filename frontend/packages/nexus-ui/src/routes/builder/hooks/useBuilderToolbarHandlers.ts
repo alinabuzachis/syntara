@@ -187,7 +187,17 @@ export function useBuilderToolbarHandlers({
     }
   }, [historyCardOpen, executionsQuery, dispatch])
 
-  return { handleRunWorkflow, handleDeleteWorkflow, handleToggleDetails, handleToggleHistory }
+  const handleToggleVersionHistory = useCallback(() => {
+    dispatch({ type: 'TOGGLE_VERSION_HISTORY' })
+  }, [dispatch])
+
+  return {
+    handleRunWorkflow,
+    handleDeleteWorkflow,
+    handleToggleDetails,
+    handleToggleHistory,
+    handleToggleVersionHistory,
+  }
 }
 
 async function validateWaitNodeDurations(activities: WorkflowDefinition['workflow']['activities']): Promise<string[]> {

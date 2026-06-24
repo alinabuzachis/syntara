@@ -1,0 +1,9 @@
+.fixedWidthItem {
+  flex-shrink: 0;
+}
+
+.versionViewTitle {
+  display: flex;
+  align-items: center;
+  min-height: var(--pf-t--global--spacer--control--default);
+}

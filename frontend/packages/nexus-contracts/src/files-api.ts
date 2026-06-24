@@ -24,6 +24,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/files/{file_id}/download': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Download File
+     * @description Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
+     */
+    get: operations['download_file']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -38,6 +58,12 @@ export interface components {
        * @description Files to upload (1-10 files, max 10MB each)
        */
       files: string[]
+      /**
+       * Project Id
+       * Format: uuid
+       * @description Project to associate files with
+       */
+      project_id: string
     }
     /**
      * FileUploadResponse
@@ -331,6 +357,36 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['FileUploadResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  download_file: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description UUID of the file to download */
+        file_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description File content as binary stream */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/octet-stream': string
         }
       }
       400: components['responses']['BadRequestError']

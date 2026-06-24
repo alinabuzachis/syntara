@@ -27,6 +27,7 @@ import {
 } from '../components/ExpandableCodeEditor'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 import { DroppableField } from '../panels/fields/DroppableField'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { actionFormSchema, type ActionFormData, type ActionFormValues } from './actionFormSchema'
 import { credentialHelpText } from './credentialSelectorHelpText'
@@ -64,28 +65,23 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
 ]
 
 /** Script + API form fields (Stack content) for action node. */
-function ActionParametersContent(
-  props: Readonly<{
-    register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
-    control: ReturnType<typeof useFormContext<ActionFormValues>>['control']
-    getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
-    setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
-    errors: { code?: { message?: string }; url?: { message?: string } }
-    executor: ActionFormValues['executor']
-    scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
-    editorLanguage: CodeLanguage
-    projectId?: string
-  }>
-) {
+type ActionParametersContentProps = Readonly<{
+  register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
+  control: ReturnType<typeof useFormContext<ActionFormValues>>['control']
+  getValues: ReturnType<typeof useFormContext<ActionFormValues>>['getValues']
+  setValue: ReturnType<typeof useFormContext<ActionFormValues>>['setValue']
+  errors: { code?: { message?: string }; url?: { message?: string } }
+  executor: ActionFormValues['executor']
+  scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
+  editorLanguage: CodeLanguage
+  projectId?: string
+}>
+
+function ActionParametersContent(props: ActionParametersContentProps) {
   const { register, control, getValues, setValue, errors, executor, scriptEditorRef, editorLanguage, projectId } = props
+  const isVersionView = useIsVersionView()
   return (
-    <Stack
-      hasGutter
-      style={{
-        paddingLeft: 'var(--pf-t--global--spacer--xs)',
-        paddingRight: 'var(--pf-t--global--spacer--xs)',
-      }}
-    >
+    <Stack hasGutter style={{ paddingInline: 'var(--pf-t--global--spacer--xs)' }}>
       <input type="hidden" {...register('executor')} />
       {executor === ExecutorTypeEnum.SCRIPT && (
         <>
@@ -100,6 +96,7 @@ function ActionParametersContent(
                     aria-label="Language"
                     value={field.value}
                     onChange={(_event, value) => field.onChange(value)}
+                    isDisabled={isVersionView}
                   >
                     {SCRIPT_LANGUAGE_OPTIONS.map((option) => (
                       <FormSelectOption key={option.value} value={option.value} label={option.label} />
@@ -132,6 +129,7 @@ function ActionParametersContent(
                       height="200px"
                       ariaLabel="Script code editor"
                       isDarkTheme
+                      isReadOnly={isVersionView}
                       onDropText={(text) => {
                         scriptEditorRef?.current?.insertAtCursor(text)
                       }}
@@ -154,7 +152,13 @@ function ActionParametersContent(
           </StackItem>
           <StackItem>
             <FormGroup label="Input parameters" fieldId="action-parameters">
-              <TextArea {...register('parameters')} id="action-parameters" placeholder='{"key": "value"}' rows={3} />
+              <TextArea
+                {...register('parameters')}
+                id="action-parameters"
+                placeholder='{"key": "value"}'
+                rows={3}
+                isDisabled={isVersionView}
+              />
               <FormHelperText>
                 <HelperText>
                   <HelperTextItem>Define inputs for this task</HelperTextItem>
@@ -179,6 +183,7 @@ function ActionParametersContent(
                   fieldId="action-credential"
                   placeholder="Select credential"
                   allowCreate
+                  isDisabled={isVersionView}
                   projectId={projectId}
                   helpText={credentialHelpText(
                     'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
@@ -201,6 +206,7 @@ function ActionParametersContent(
                   type="url"
                   placeholder="https://api.example.com/endpoint"
                   validated={errors.url ? 'error' : 'default'}
+                  isDisabled={isVersionView}
                 />
               </DroppableField>
               {errors.url && (
@@ -225,6 +231,7 @@ function ActionParametersContent(
                     aria-label="HTTP Method"
                     value={field.value}
                     onChange={(_event, value) => field.onChange(value)}
+                    isDisabled={isVersionView}
                   >
                     {HTTP_METHOD_OPTIONS.map((option) => (
                       <FormSelectOption key={option.value} value={option.value} label={option.label} />
@@ -241,6 +248,7 @@ function ActionParametersContent(
                 id="action-headers"
                 placeholder='{"Content-Type": "application/json"}'
                 rows={2}
+                isDisabled={isVersionView}
               />
             </FormGroup>
           </StackItem>
@@ -252,7 +260,13 @@ function ActionParametersContent(
                   setValue('body', (current ?? '') + text)
                 }}
               >
-                <TextArea {...register('body')} id="action-body" placeholder='{"key": "value"}' rows={3} />
+                <TextArea
+                  {...register('body')}
+                  id="action-body"
+                  placeholder='{"key": "value"}'
+                  rows={3}
+                  isDisabled={isVersionView}
+                />
               </DroppableField>
             </FormGroup>
           </StackItem>

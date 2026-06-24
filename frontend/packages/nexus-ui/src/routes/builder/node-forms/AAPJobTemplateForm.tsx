@@ -7,6 +7,7 @@ import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { detachPromise } from '../../../utils/detachPromise'
 import { CredentialSelector } from '../components/CredentialSelector'
 import type { ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { applyDefaultValues, isExpression, sanitizeArrayField } from './aapFormHelpers'
 import { aapJobTemplateSchema, type AAPJobTemplateFormData } from './aapJobTemplateSchema'
@@ -17,6 +18,7 @@ import { ExpressionTextField } from './ExpressionTextField'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
@@ -43,6 +45,7 @@ function AAPFormFields({
   selectedCredentialId: string | undefined
   projectId?: string
 }>) {
+  const isVersionView = useIsVersionView()
   const { register, setValue, getValues, control } = useFormContext<AAPJobTemplateFormData>()
 
   // Auto-detect expression mode from initial data
@@ -101,6 +104,7 @@ function AAPFormFields({
             label="Use expressions"
             isChecked={expressionMode}
             onChange={(_e, checked) => setExpressionMode(checked)}
+            isDisabled={isVersionView}
           />
         </div>
       </StackItem>
@@ -118,6 +122,7 @@ function AAPFormFields({
               fieldId="aap-credential"
               placeholder="Select credential"
               allowCreate
+              isDisabled={isVersionView}
               projectId={projectId}
               helpText={credentialHelpText(
                 'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
@@ -127,90 +132,92 @@ function AAPFormFields({
         />
       </StackItem>
 
-      {expressionMode ? (
-        <>
-          <StackItem>
-            <ExpressionTextField
-              name="organization_name"
-              id="aap-organization-expr"
-              label="Organization"
-              placeholder="org name or drag expression"
-              isRequired
-            />
-          </StackItem>
-          <StackItem>
-            <ExpressionTextField
-              name="job_template_name"
-              id="aap-jobTemplate-expr"
-              label="Job template"
-              placeholder="template name or drag expression"
-              isRequired
-            />
-          </StackItem>
-          <StackItem>
-            <ExpressionTextField
-              name="inventory_name"
-              id="aap-inventory-expr"
-              label="Inventory"
-              placeholder="inventory name or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <ExpressionTextField
-              name="limit"
-              id="aap-limit-expr"
-              label="Limit"
-              placeholder="host pattern or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <ExpressionTextField name="tags" id="aap-tags-expr" label="Tags" placeholder="tags or drag expression" />
-          </StackItem>
-          <StackItem>
-            <ExpressionTextField
-              name="skip_tags"
-              id="aap-skipTags-expr"
-              label="Skip tags"
-              placeholder="skip tags or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <ExpressionTextField
-              name="extra_vars"
-              id="aap-extraVars-expr"
-              label="Extra variables"
-              placeholder='{"key": "value"} or drag expression'
-            />
-          </StackItem>
-        </>
-      ) : (
-        <>
-          <AAPResourcePickers browser={browser} />
+      <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+        {expressionMode ? (
+          <>
+            <StackItem>
+              <ExpressionTextField
+                name="organization_name"
+                id="aap-organization-expr"
+                label="Organization"
+                placeholder="org name or drag expression"
+                isRequired
+              />
+            </StackItem>
+            <StackItem>
+              <ExpressionTextField
+                name="job_template_name"
+                id="aap-jobTemplate-expr"
+                label="Job template"
+                placeholder="template name or drag expression"
+                isRequired
+              />
+            </StackItem>
+            <StackItem>
+              <ExpressionTextField
+                name="inventory_name"
+                id="aap-inventory-expr"
+                label="Inventory"
+                placeholder="inventory name or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <ExpressionTextField
+                name="limit"
+                id="aap-limit-expr"
+                label="Limit"
+                placeholder="host pattern or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <ExpressionTextField name="tags" id="aap-tags-expr" label="Tags" placeholder="tags or drag expression" />
+            </StackItem>
+            <StackItem>
+              <ExpressionTextField
+                name="skip_tags"
+                id="aap-skipTags-expr"
+                label="Skip tags"
+                placeholder="skip tags or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <ExpressionTextField
+                name="extra_vars"
+                id="aap-extraVars-expr"
+                label="Extra variables"
+                placeholder='{"key": "value"} or drag expression'
+              />
+            </StackItem>
+          </>
+        ) : (
+          <>
+            <AAPResourcePickers browser={browser} />
 
-          <StackItem>
-            <PromptOnLaunchFields
-              extraVarsEditorRef={extraVarsEditorRef}
-              templateDetail={browser.templateDetail}
-              isLoadingDetail={browser.loadingTemplateDetail}
-              inventories={browser.inventories}
-              loadingInventories={browser.loadingInventories}
-              executionEnvironments={browser.executionEnvironments}
-              loadingExecutionEnvironments={browser.loadingExecutionEnvironments}
-              credentials={browser.credentials}
-              loadingCredentials={browser.loadingCredentials}
-              instanceGroups={browser.instanceGroups}
-              loadingInstanceGroups={browser.loadingInstanceGroups}
-              labels={browser.labels}
-              loadingLabels={browser.loadingLabels}
-              onSearchInventories={browser.searchInventories}
-              onSearchExecutionEnvironments={browser.searchExecutionEnvironments}
-              onSearchCredentials={browser.searchCredentials}
-              onSearchInstanceGroups={browser.searchInstanceGroups}
-              onSearchLabels={browser.searchLabels}
-            />
-          </StackItem>
-        </>
-      )}
+            <StackItem>
+              <PromptOnLaunchFields
+                extraVarsEditorRef={extraVarsEditorRef}
+                templateDetail={browser.templateDetail}
+                isLoadingDetail={browser.loadingTemplateDetail}
+                inventories={browser.inventories}
+                loadingInventories={browser.loadingInventories}
+                executionEnvironments={browser.executionEnvironments}
+                loadingExecutionEnvironments={browser.loadingExecutionEnvironments}
+                credentials={browser.credentials}
+                loadingCredentials={browser.loadingCredentials}
+                instanceGroups={browser.instanceGroups}
+                loadingInstanceGroups={browser.loadingInstanceGroups}
+                labels={browser.labels}
+                loadingLabels={browser.loadingLabels}
+                onSearchInventories={browser.searchInventories}
+                onSearchExecutionEnvironments={browser.searchExecutionEnvironments}
+                onSearchCredentials={browser.searchCredentials}
+                onSearchInstanceGroups={browser.searchInstanceGroups}
+                onSearchLabels={browser.searchLabels}
+              />
+            </StackItem>
+          </>
+        )}
+      </fieldset>
     </Stack>
   )
 

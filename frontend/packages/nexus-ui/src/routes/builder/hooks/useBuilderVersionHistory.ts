@@ -89,6 +89,8 @@ export function useBuilderVersionHistory({
   const isViewingVersion = viewingVersion !== null
   const viewedVersionDate = viewedVersionQuery.data?.created_at ?? null
   const viewedVersionStatus = viewedVersionQuery.data?.status ?? null
+  const viewedVersionDescription = viewedVersionQuery.data?.change_description ?? null
+  const viewedVersionPublishName = viewedVersionQuery.data?.publish_name ?? null
 
   useEffect(() => {
     if (!isViewingVersion || !viewedVersionQuery.data?.workflow_definition) return
@@ -118,6 +120,7 @@ export function useBuilderVersionHistory({
         onSuccess: (data) => {
           restoreDialog.close()
           dispatch({ type: 'EXIT_VERSION_VIEW' })
+          dispatch({ type: 'SET_VERSION_HISTORY_OPEN', payload: false })
           if (data.version?.workflow_definition) {
             const def = data.version.workflow_definition as unknown as Record<string, unknown>
             loadDefinitionIntoStore(def, loadWorkflowWithEdges)
@@ -162,6 +165,8 @@ export function useBuilderVersionHistory({
     isViewingVersion,
     viewedVersionDate,
     viewedVersionStatus,
+    viewedVersionDescription,
+    viewedVersionPublishName,
     handleExitVersionView,
     handleConfirmRestore,
     restoreDialog,

@@ -32,11 +32,13 @@ describe('BuilderEditorToolbar', () => {
     lastSavedAt: '2026-01-15T14:30:00Z',
     isKebabOpen: false,
     publishedVersion: null as number | null,
+    currentVersion: 1 as number | undefined,
     isAddNodePanelOpen: false,
     hasNoWorkflowNodes: false,
     dispatch: vi.fn(),
     markDirty: vi.fn(),
     handleToggleHistory: vi.fn(),
+    handleToggleVersionHistory: vi.fn(),
     handleToggleDetails: vi.fn(),
     handleSaveWorkflow: vi.fn().mockResolvedValue(true),
     onPublishClick: vi.fn(),
@@ -153,6 +155,38 @@ describe('BuilderEditorToolbar', () => {
     render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} />)
 
     expect(screen.getByRole('menuitem', { name: /Run history/i })).toBeInTheDocument()
+  })
+
+  it('renders version history in kebab menu for existing workflows', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen={true} />)
+
+    expect(screen.getByRole('menuitem', { name: /Version history/i })).toBeInTheDocument()
+  })
+
+  it('does not render version history in kebab menu for new workflows', () => {
+    render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} isKebabOpen={true} />)
+
+    expect(screen.queryByRole('menuitem', { name: /Version history/i })).not.toBeInTheDocument()
+  })
+
+  it('toggles version history when kebab menu item is clicked', async () => {
+    const user = userEvent.setup()
+    const handleToggleVersionHistory = vi.fn()
+    const dispatch = vi.fn()
+
+    render(
+      <BuilderEditorToolbar
+        {...defaultProps}
+        isKebabOpen={true}
+        handleToggleVersionHistory={handleToggleVersionHistory}
+        dispatch={dispatch}
+      />
+    )
+
+    await user.click(screen.getByRole('menuitem', { name: /Version history/i }))
+
+    expect(handleToggleVersionHistory).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_KEBAB_OPEN', payload: false })
   })
 
   it('toggles run history when kebab menu item is clicked', async () => {

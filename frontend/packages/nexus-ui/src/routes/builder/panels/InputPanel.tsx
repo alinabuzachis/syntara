@@ -21,6 +21,7 @@ import { useMockDataStore } from '../../../stores/useMockDataStore'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
 import type { WorkflowMetadata } from '../types/workflowMetadata'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { useUpstreamNodes, type UpstreamNodeInfo } from './hooks/useUpstreamNodes'
 import { InputEmptyState } from './InputEmptyState'
@@ -297,6 +298,8 @@ export function InputPanel({
     [executionData, effectiveUpstream, nodeInputMocks, upstreamOutputMocks]
   )
 
+  const isVersionView = useIsVersionView()
+
   const hasData = hasUpstream && mergedExecutionData != null && Object.keys(mergedExecutionData).length > 0
 
   function handleSetMockData(predecessorId: string) {
@@ -364,21 +367,23 @@ export function InputPanel({
           </Flex>
         </StackItem>
 
-        {/* Row 2: Mock data controls (only when hasUpstream) */}
-        <InputPanelMockControls
-          hasUpstream={hasUpstream}
-          inputMockCount={inputMockCount}
-          isSetMockDropdownOpen={isSetMockDropdownOpen}
-          setIsSetMockDropdownOpen={setIsSetMockDropdownOpen}
-          isUnpinDropdownOpen={isUnpinDropdownOpen}
-          setIsUnpinDropdownOpen={setIsUnpinDropdownOpen}
-          effectiveUpstream={effectiveUpstream}
-          handleSetMockData={handleSetMockData}
-          handleUnpinSingle={handleUnpinSingle}
-          unpinAllInputMocks={unpinAllInputMocks}
-          hasInputMock={hasInputMock}
-          nodeId={nodeId}
-        />
+        {/* Row 2: Mock data controls (only when hasUpstream, hidden in version view) */}
+        {!isVersionView && (
+          <InputPanelMockControls
+            hasUpstream={hasUpstream}
+            inputMockCount={inputMockCount}
+            isSetMockDropdownOpen={isSetMockDropdownOpen}
+            setIsSetMockDropdownOpen={setIsSetMockDropdownOpen}
+            isUnpinDropdownOpen={isUnpinDropdownOpen}
+            setIsUnpinDropdownOpen={setIsUnpinDropdownOpen}
+            effectiveUpstream={effectiveUpstream}
+            handleSetMockData={handleSetMockData}
+            handleUnpinSingle={handleUnpinSingle}
+            unpinAllInputMocks={unpinAllInputMocks}
+            hasInputMock={hasInputMock}
+            nodeId={nodeId}
+          />
+        )}
         {!hasUpstream && (
           <StackItem>
             <InputEmptyState variant="not-connected" />

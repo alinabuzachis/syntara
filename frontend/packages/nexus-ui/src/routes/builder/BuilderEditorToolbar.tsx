@@ -14,6 +14,7 @@ import {
   RhUiCodeIcon,
   RhUiCheckCircleIcon,
   RhUiExportIcon,
+  RhUiClockIcon,
   RhUiHistoryIcon,
   RhUiImportIcon,
   RhUiTrashIcon,
@@ -25,6 +26,7 @@ import { useCallback, useState, type Dispatch, type Ref } from 'react'
 
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 
+import toolbarStyles from './BuilderEditorToolbar.module.css'
 import type { BuilderAction } from './builderReducer'
 import { PublishWorkflowButton } from './PublishWorkflowButton'
 import { SaveWorkflowButton } from './SaveWorkflowButton'
@@ -59,6 +61,7 @@ type WorkflowKebabMenuProps = Readonly<{
   publishedVersion: number | null
   dispatch: Dispatch<BuilderAction>
   handleToggleHistory: () => void
+  handleToggleVersionHistory: () => void
   handleToggleDetails: () => void
   onUnpublish: () => void
   builderPermissions: BuilderPermissions
@@ -76,6 +79,7 @@ function WorkflowKebabMenu({
   publishedVersion,
   dispatch,
   handleToggleHistory,
+  handleToggleVersionHistory,
   handleToggleDetails,
   onUnpublish,
   builderPermissions,
@@ -90,6 +94,10 @@ function WorkflowKebabMenu({
     ),
     [dispatch, isKebabOpen]
   )
+  const showExistingWorkflowItems = !isNew && !!workflow?.id
+  const canEdit = builderPermissions.canEdit
+  const canDelete = builderPermissions.canDelete
+  const closeKebab = () => dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
 
   return (
     <>
@@ -101,26 +109,39 @@ function WorkflowKebabMenu({
       >
         <DropdownGroup label="Views">
           <DropdownList>
-            {!isNew && workflow?.id && (
+            {showExistingWorkflowItems && (
               <DropdownItem
                 onClick={() => {
                   handleToggleHistory()
-                  dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                  closeKebab()
                 }}
               >
-                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <Icon isInline className={toolbarStyles.menuIcon}>
                   <RhUiHistoryIcon />
                 </Icon>
                 Run history
               </DropdownItem>
             )}
+            {showExistingWorkflowItems && (
+              <DropdownItem
+                onClick={() => {
+                  handleToggleVersionHistory()
+                  closeKebab()
+                }}
+              >
+                <Icon isInline className={toolbarStyles.menuIcon}>
+                  <RhUiClockIcon />
+                </Icon>
+                Version history
+              </DropdownItem>
+            )}
             <DropdownItem
               onClick={() => {
                 handleToggleDetails()
-                dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                closeKebab()
               }}
             >
-              <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+              <Icon isInline className={toolbarStyles.menuIcon}>
                 <RhUiCodeIcon />
               </Icon>
               Workflow details
@@ -132,72 +153,68 @@ function WorkflowKebabMenu({
           <DropdownGroup label="Actions">
             <DropdownList>
               <DropdownItem onClick={() => handleVerify()}>
-                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <Icon isInline className={toolbarStyles.menuIcon}>
                   <RhUiCheckCircleIcon />
                 </Icon>
                 Verify workflow
               </DropdownItem>
               <DropdownItem onClick={handleExport}>
-                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <Icon isInline className={toolbarStyles.menuIcon}>
                   <RhUiExportIcon />
                 </Icon>
                 Export workflow
               </DropdownItem>
               <DropdownItem
-                isAriaDisabled={!builderPermissions.canEdit}
-                tooltipProps={builderPermissions.canEdit ? undefined : { content: builderPermissions.tooltips.edit }}
+                isAriaDisabled={!canEdit}
+                tooltipProps={canEdit ? undefined : { content: builderPermissions.tooltips.edit }}
                 onClick={
-                  builderPermissions.canEdit
+                  canEdit
                     ? () => {
                         importFileRef.current?.click()
-                        dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                        closeKebab()
                       }
                     : undefined
                 }
               >
-                <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                <Icon isInline className={toolbarStyles.menuIcon}>
                   <RhUiImportIcon />
                 </Icon>
                 Import workflow
               </DropdownItem>
-              {!isNew && workflow?.id && publishedVersion != null && (
+              {showExistingWorkflowItems && publishedVersion != null && (
                 <DropdownItem
-                  isAriaDisabled={!builderPermissions.canEdit}
-                  tooltipProps={
-                    builderPermissions.canEdit ? undefined : { content: builderPermissions.tooltips.unpublish }
-                  }
+                  isAriaDisabled={!canEdit}
+                  tooltipProps={canEdit ? undefined : { content: builderPermissions.tooltips.unpublish }}
                   onClick={
-                    builderPermissions.canEdit
+                    canEdit
                       ? () => {
                           onUnpublish()
-                          dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                          closeKebab()
                         }
                       : undefined
                   }
                 >
-                  <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <Icon isInline className={toolbarStyles.menuIcon}>
                     <RhUiMinusCircleFillIcon />
                   </Icon>
                   Unpublish workflow
                 </DropdownItem>
               )}
-              {!isNew && workflow?.id && (
+              {showExistingWorkflowItems && (
                 <DropdownItem
-                  isAriaDisabled={!builderPermissions.canDelete}
-                  tooltipProps={
-                    builderPermissions.canDelete ? undefined : { content: builderPermissions.tooltips.delete }
-                  }
+                  isAriaDisabled={!canDelete}
+                  tooltipProps={canDelete ? undefined : { content: builderPermissions.tooltips.delete }}
                   onClick={
-                    builderPermissions.canDelete
+                    canDelete
                       ? () => {
                           dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
-                          dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                          closeKebab()
                         }
                       : undefined
                   }
-                  isDanger={builderPermissions.canDelete}
+                  isDanger={canDelete}
                 >
-                  <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                  <Icon isInline className={toolbarStyles.menuIcon}>
                     <RhUiTrashIcon />
                   </Icon>
                   Delete workflow
@@ -320,6 +337,7 @@ type BuilderEditorToolbarProps = Readonly<{
   dispatch: Dispatch<BuilderAction>
   markDirty: () => void
   handleToggleHistory: () => void
+  handleToggleVersionHistory: () => void
   handleToggleDetails: () => void
   handleSaveWorkflow: () => Promise<boolean>
   onPublishClick: () => void
@@ -343,6 +361,7 @@ export function BuilderEditorToolbar({
   dispatch,
   markDirty,
   handleToggleHistory,
+  handleToggleVersionHistory,
   handleToggleDetails,
   handleSaveWorkflow,
   onPublishClick,
@@ -359,6 +378,9 @@ export function BuilderEditorToolbar({
       onPendingImport,
     })
 
+  const showAddStep = !hasNoWorkflowNodes
+  const showWorkflowActions = !isNew && !!workflow?.id
+
   if (!builderPermissions.canEdit && hasNoWorkflowNodes && isNew) {
     return null
   }
@@ -373,6 +395,7 @@ export function BuilderEditorToolbar({
         publishedVersion={publishedVersion}
         dispatch={dispatch}
         handleToggleHistory={handleToggleHistory}
+        handleToggleVersionHistory={handleToggleVersionHistory}
         handleToggleDetails={handleToggleDetails}
         onUnpublish={onUnpublish}
         builderPermissions={builderPermissions}
@@ -386,7 +409,7 @@ export function BuilderEditorToolbar({
 
   return (
     <>
-      {!hasNoWorkflowNodes && (
+      {showAddStep && (
         <DisabledWithTooltip isDisabled={!builderPermissions.canEdit} content={builderPermissions.tooltips.edit}>
           <Button
             variant="plain"
@@ -415,14 +438,14 @@ export function BuilderEditorToolbar({
         </DisabledWithTooltip>
       )}
 
-      {!isNew && workflow?.id && (
+      {showWorkflowActions && (
         <>
-          {!hasNoWorkflowNodes && <Divider orientation={{ default: 'vertical' }} />}
+          {showAddStep && <Divider orientation={{ default: 'vertical' }} />}
           <RunWorkflowSection triggers={triggers} dispatch={dispatch} builderPermissions={builderPermissions} />
         </>
       )}
 
-      {(!hasNoWorkflowNodes || (!isNew && workflow?.id)) && <Divider orientation={{ default: 'vertical' }} />}
+      {(showAddStep || showWorkflowActions) && <Divider orientation={{ default: 'vertical' }} />}
 
       <SaveWorkflowButton
         isPending={isPending}
@@ -434,7 +457,7 @@ export function BuilderEditorToolbar({
         editTooltip={builderPermissions.tooltips.save}
       />
 
-      {!isNew && workflow?.id && (
+      {showWorkflowActions && (
         <>
           <Divider orientation={{ default: 'vertical' }} />
           <PublishWorkflowButton
@@ -466,6 +489,7 @@ export function BuilderEditorToolbar({
         publishedVersion={publishedVersion}
         dispatch={dispatch}
         handleToggleHistory={handleToggleHistory}
+        handleToggleVersionHistory={handleToggleVersionHistory}
         handleToggleDetails={handleToggleDetails}
         onUnpublish={onUnpublish}
         builderPermissions={builderPermissions}

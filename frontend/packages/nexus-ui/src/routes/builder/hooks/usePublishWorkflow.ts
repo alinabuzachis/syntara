@@ -4,8 +4,10 @@ import { useCallback } from 'react'
 
 import { workflowClient } from '../../../client'
 import { useAlerts } from '../../../providers/alerts'
+import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 
 function isWorkflowQuery(query: Query): boolean {
   return (
@@ -13,7 +15,12 @@ function isWorkflowQuery(query: Query): boolean {
   )
 }
 
-export function usePublishWorkflow(workflowId: string | null, currentVersion: number | undefined) {
+export function usePublishWorkflow(
+  workflowId: string | null,
+  currentVersion: number | undefined,
+  workflowName?: string,
+  workflowDescription?: string
+) {
   const queryClient = useQueryClient()
   const { showSuccess, showError } = useAlerts()
 
@@ -26,14 +33,32 @@ export function usePublishWorkflow(workflowId: string | null, currentVersion: nu
     (publishName?: string, description?: string, onSettled?: () => void) => {
       if (!workflowId || currentVersion == null) return
 
+      let workflowDefinition: Record<string, unknown> | undefined
+      const { currentWorkflow, isDirty, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
+      const wf = currentWorkflow?.workflow as { name?: string; description?: string } | undefined
+      if (isDirty && currentWorkflow) {
+        workflowDefinition = buildWorkflowDefinition(
+          workflowName || String(wf?.name ?? ''),
+          workflowDescription || String(wf?.description ?? ''),
+          currentWorkflow.workflow.activities ?? [],
+          currentWorkflow.triggers ?? [],
+          { edges, nodePositions: _positionsUserModified ? nodePositions : {} }
+        ) as unknown as Record<string, unknown>
+      }
+
       publishMutation(
         {
           params: { path: { workflow_id: workflowId, version: currentVersion } },
-          body: { publish_name: publishName ?? null, change_description: description ?? null },
+          body: {
+            publish_name: publishName ?? null,
+            change_description: description ?? null,
+            ...(workflowDefinition ? { workflow_definition: workflowDefinition } : {}),
+          } as { publish_name: string | null; change_description: string | null },
         },
         {
           onSuccess: () => {
             showSuccess({ title: 'Workflow published successfully' })
+            if (workflowDefinition) useWorkflowStore.getState().markClean()
             detachPromise(queryClient.invalidateQueries({ predicate: isWorkflowQuery }))
           },
           onError: (error: unknown) => {
@@ -43,7 +68,16 @@ export function usePublishWorkflow(workflowId: string | null, currentVersion: nu
         }
       )
     },
-    [workflowId, currentVersion, publishMutation, queryClient, showSuccess, showError]
+    [
+      workflowId,
+      currentVersion,
+      workflowName,
+      workflowDescription,
+      publishMutation,
+      queryClient,
+      showSuccess,
+      showError,
+    ]
   )
 
   return { publish, isPublishing }

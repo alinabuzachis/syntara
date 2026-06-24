@@ -370,22 +370,26 @@ async def list_workflow_versions(
             detail=WORKFLOW_NOT_FOUND,
         )
 
-    # Get versions
+    # Get versions with creator usernames
     result = await db.exec(
-        select(WorkflowVersion)
+        select(WorkflowVersion, User.username)
+        .outerjoin(User, WorkflowVersion.created_by == User.id)  # type: ignore[arg-type]
         .filter(
             WorkflowVersion.workflow_id == workflow_id,  # type: ignore[arg-type]
             WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
         )
         .order_by(WorkflowVersion.version.desc())  # type: ignore[attr-defined]
     )
-    versions = list(result.all())
+    rows = list(result.all())
 
-    # Deserialize workflow_definition from JSON strings to dicts
-    version_dicts = [deserialize_workflow_version(v) for v in versions]
+    version_reads = []
+    for version, username in rows:
+        version_dict = deserialize_workflow_version(version)
+        version_read = WorkflowVersionRead.model_validate(version_dict)
+        version_read.created_by_username = username
+        version_reads.append(version_read)
 
-    # Manually construct response with deserialized versions
-    return WorkflowVersionListResponse(resources=[WorkflowVersionRead.model_validate(v) for v in version_dicts])
+    return WorkflowVersionListResponse(resources=version_reads)
 
 
 @router.get(
@@ -450,6 +454,7 @@ async def publish_workflow_version(
         version=version,
         publish_name=request.publish_name,
         change_description=request.change_description,
+        workflow_definition=request.workflow_definition,
     )
     return _build_workflow_with_version_response(workflow, published_version)
 

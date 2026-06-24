@@ -3,6 +3,7 @@ import type { FieldValues, Path } from 'react-hook-form'
 import { useFormContext } from 'react-hook-form'
 
 import { DroppableField } from '../panels/fields/DroppableField'
+import { useIsVersionView } from '../VersionViewContext'
 
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
 import type { AAPWorkflowTemplateFormData } from './aapWorkflowTemplateSchema'
@@ -26,6 +27,7 @@ function GenericExpressionTextField<T extends FieldValues>({
   placeholder,
   isRequired,
 }: GenericExpressionTextFieldProps<T>) {
+  const isVersionView = useIsVersionView()
   const { register, getValues, setValue } = useFormContext<T>()
   return (
     <FormGroup label={label} isRequired={isRequired} fieldId={id}>
@@ -36,7 +38,7 @@ function GenericExpressionTextField<T extends FieldValues>({
           setValue(name, (((current as string) ?? '') + text) as T[Path<T>])
         }}
       >
-        <TextInput {...register(name)} id={id} type="text" placeholder={placeholder} />
+        <TextInput {...register(name)} id={id} type="text" placeholder={placeholder} isDisabled={isVersionView} />
       </DroppableField>
       <FormHelperText>
         <HelperText>

@@ -4,12 +4,14 @@ import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { conditionFormSchema, type ConditionFormData } from './conditionFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { ConditionalExpressionHelp } from './shared/ConditionalExpressionHelp'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 export type { ConditionFormData }
@@ -25,6 +27,7 @@ function ConditionFormFields({
 }: {
   onHeaderContentChange?: (content: ReactNode | null) => void
 }) {
+  const isVersionView = useIsVersionView()
   const { register, control } = useFormContext<ConditionFormData>()
 
   const nameField = useMemo(
@@ -50,28 +53,30 @@ function ConditionFormFields({
           isRequired
           fieldId="condition-expression"
         >
-          <Controller
-            control={control}
-            name="condition"
-            render={({ field, fieldState }) => (
-              <>
-                <ExpressionBuilder
-                  id="condition-expression"
-                  value={field.value || ''}
-                  onChange={field.onChange}
-                  error={!!fieldState.error}
-                  placeholder="Build your condition"
-                />
-                {fieldState.error && (
-                  <FormHelperText>
-                    <HelperText>
-                      <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
-                    </HelperText>
-                  </FormHelperText>
-                )}
-              </>
-            )}
-          />
+          <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+            <Controller
+              control={control}
+              name="condition"
+              render={({ field, fieldState }) => (
+                <>
+                  <ExpressionBuilder
+                    id="condition-expression"
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    error={!!fieldState.error}
+                    placeholder="Build your condition"
+                  />
+                  {fieldState.error && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
+              )}
+            />
+          </fieldset>
         </FormGroup>
       </StackItem>
     </Stack>

@@ -2876,6 +2876,246 @@ describe('BuilderContent', () => {
     })
   })
 
+  describe('Version History', () => {
+    const mockVersions = [
+      {
+        id: 'ver-2',
+        workflow_id: 'workflow-1',
+        version: 2,
+        schema_version: '2.0.0',
+        workflow_definition: { schema_version: '2.0.0', name: 'v2', triggers: [], nodes: [], edges: [] },
+        created_at: '2026-05-19T14:30:00.000Z',
+        change_description: 'Second version',
+        status: 'draft',
+        publish_name: null,
+        created_by: 'user-1',
+        created_by_username: 'sarah.chen',
+      },
+      {
+        id: 'ver-1',
+        workflow_id: 'workflow-1',
+        version: 1,
+        schema_version: '2.0.0',
+        workflow_definition: { schema_version: '2.0.0', name: 'v1', triggers: [], nodes: [], edges: [] },
+        created_at: '2026-05-18T10:00:00.000Z',
+        change_description: 'First version',
+        status: 'published',
+        publish_name: null,
+        created_by: 'user-1',
+        created_by_username: 'marcus.williams',
+      },
+    ]
+
+    function mockVersionQueries() {
+      vi.mocked(workflowClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path.includes('/versions/')) {
+          return {
+            data: mockVersions[0],
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          }
+        }
+        if (path.includes('/versions')) {
+          return {
+            data: { resources: mockVersions },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn().mockResolvedValue({ data: { resources: mockVersions } }),
+          }
+        }
+        if (path === '/workflows') {
+          return { data: { resources: [] }, isPending: false, isError: false, error: null, refetch: vi.fn() }
+        }
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() }
+      })
+    }
+
+    it('opens version history panel via kebab menu', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 2, name: 'Version history' })).toBeInTheDocument()
+      })
+    })
+
+    it('does not show version history kebab item for new workflows', async () => {
+      const user = userEvent.setup()
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+
+      await user.click(screen.getByLabelText('Workflow actions'))
+
+      await waitFor(() => {
+        expect(screen.queryByRole('menuitem', { name: /Version history/i })).not.toBeInTheDocument()
+      })
+    })
+
+    it('renders with initialViewVersion prop and shows version view toolbar', async () => {
+      mockVersionQueries()
+
+      await renderBuilder({
+        workflow: mockWorkflow,
+        isNew: false,
+        workflowId: 'workflow-1',
+        initialViewVersion: 2,
+      })
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+      })
+    })
+
+    it('opens version history panel with version data', async () => {
+      mockVersionQueries()
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+        expect(screen.getByText('marcus.williams')).toBeInTheDocument()
+      })
+    })
+
+    it('selects a version from the panel when not dirty', async () => {
+      mockVersionQueries()
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const versionButtons = screen
+        .getAllByRole('button')
+        .filter((el) => el.classList.contains('pf-v6-c-simple-list__item-link'))
+      await user.click(versionButtons[0])
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+      })
+    })
+
+    it('shows save prompt when selecting version with dirty state', async () => {
+      mockVersionQueries()
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const versionButtons = screen
+        .getAllByRole('button')
+        .filter((el) => el.classList.contains('pf-v6-c-simple-list__item-link'))
+      await user.click(versionButtons[0])
+
+      await waitFor(() => {
+        expect(screen.getByText('Save changes before viewing this version?')).toBeInTheDocument()
+      })
+    })
+
+    it('dismisses save prompt via Cancel button', async () => {
+      mockVersionQueries()
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const versionButtons = screen
+        .getAllByRole('button')
+        .filter((el) => el.classList.contains('pf-v6-c-simple-list__item-link'))
+      await user.click(versionButtons[0])
+      await screen.findByText('Save changes before viewing this version?')
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      await waitFor(() => {
+        expect(screen.queryByText('Save changes before viewing this version?')).not.toBeInTheDocument()
+      })
+    })
+
+    it('views version without saving via secondary button', async () => {
+      mockVersionQueries()
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      act(() => {
+        useWorkflowStore.setState({ isDirty: true })
+      })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const versionButtons = screen
+        .getAllByRole('button')
+        .filter((el) => el.classList.contains('pf-v6-c-simple-list__item-link'))
+      await user.click(versionButtons[0])
+      await screen.findByText('Save changes before viewing this version?')
+
+      await user.click(screen.getByRole('button', { name: 'View version without saving' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Back to editor' })).toBeInTheDocument()
+      })
+    })
+
+    it('closes version history panel via close button', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 2, name: 'Version history' })).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: 'Collapse version history' }))
+
+      await waitFor(() => {
+        expect(screen.queryByRole('heading', { level: 2, name: 'Version history' })).not.toBeInTheDocument()
+      })
+    })
+
+    it('toggles version history panel closed via kebab', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 2, name: 'Version history' })).toBeInTheDocument()
+      })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.queryByText('Version History')).not.toBeInTheDocument()
+      })
+    })
+  })
+
   describe('RBAC read-only mode', () => {
     afterEach(() => {
       mockBuilderPermissions.canEdit = true

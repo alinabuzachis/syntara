@@ -16,6 +16,7 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { loopFormSchema, type LoopFormData } from './loopFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -25,6 +26,7 @@ import { zodResolver } from './shared/formSchemaUtils'
 import { LoopTypeHelp } from './shared/LoopTypeHelp'
 import { MaxIterationsHelp } from './shared/MaxIterationsHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
@@ -52,6 +54,7 @@ function LoopFormFields({
     control,
     formState: { errors: contextErrors },
   } = useFormContext<LoopFormData>()
+  const isVersionView = useIsVersionView()
   const errors = validationErrors ?? contextErrors
   const type = useWatch({ control, name: 'type' })
   const { defaults } = useWorkflowEngineDefaults()
@@ -97,6 +100,7 @@ function LoopFormFields({
                 aria-label="Type"
                 value={field.value}
                 onChange={(_event, value) => field.onChange(value)}
+                isDisabled={isVersionView}
               >
                 <FormSelectOption value="while" label="While" />
                 <FormSelectOption value="forEach" label="For each" />
@@ -117,6 +121,7 @@ function LoopFormFields({
                 style={{ fontFamily: 'monospace' }}
                 type="text"
                 validated={errors.items ? 'error' : 'default'}
+                isDisabled={isVersionView}
               />
               <FormHelperText>
                 <HelperText>
@@ -140,6 +145,7 @@ function LoopFormFields({
                 placeholder="item"
                 style={{ fontFamily: 'monospace' }}
                 type="text"
+                isDisabled={isVersionView}
               />
             </FormGroup>
           </StackItem>
@@ -152,6 +158,7 @@ function LoopFormFields({
                 placeholder="index"
                 style={{ fontFamily: 'monospace' }}
                 type="text"
+                isDisabled={isVersionView}
               />
             </FormGroup>
           </StackItem>
@@ -176,6 +183,7 @@ function LoopFormFields({
             placeholder={maxIterDefault !== null ? `${String(maxIterDefault)} — system default` : 'System default'}
             style={{ width: '100%' }}
             validated={errors.maxIterations ? 'error' : 'default'}
+            isDisabled={isVersionView}
           />
           {errors.maxIterations && (
             <FormHelperText>
@@ -197,38 +205,40 @@ function LoopFormFields({
             isRequired
             fieldId="loop-condition-while"
           >
-            <Controller
-              control={control}
-              name="condition"
-              rules={conditionValidationRules}
-              render={({ field, fieldState }) => {
-                const conditionError = fieldState.error ?? errors.condition
-                return (
-                  <>
-                    <ExpressionBuilder
-                      id="loop-condition-while"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      error={!!conditionError}
-                      placeholder="Build your condition"
-                    />
-                    <FormHelperText>
-                      <HelperText>
-                        {conditionError ? (
-                          <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                            {conditionError.message}
-                          </HelperTextItem>
-                        ) : (
-                          <HelperTextItem>
-                            Build your condition using the visual builder or custom expression
-                          </HelperTextItem>
-                        )}
-                      </HelperText>
-                    </FormHelperText>
-                  </>
-                )
-              }}
-            />
+            <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+              <Controller
+                control={control}
+                name="condition"
+                rules={conditionValidationRules}
+                render={({ field, fieldState }) => {
+                  const conditionError = fieldState.error ?? errors.condition
+                  return (
+                    <>
+                      <ExpressionBuilder
+                        id="loop-condition-while"
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        error={!!conditionError}
+                        placeholder="Build your condition"
+                      />
+                      <FormHelperText>
+                        <HelperText>
+                          {conditionError ? (
+                            <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                              {conditionError.message}
+                            </HelperTextItem>
+                          ) : (
+                            <HelperTextItem>
+                              Build your condition using the visual builder or custom expression
+                            </HelperTextItem>
+                          )}
+                        </HelperText>
+                      </FormHelperText>
+                    </>
+                  )
+                }}
+              />
+            </fieldset>
           </FormGroup>
         </StackItem>
       )}

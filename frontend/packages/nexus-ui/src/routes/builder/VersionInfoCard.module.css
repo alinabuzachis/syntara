@@ -1,0 +1,32 @@
+.card {
+  position: absolute;
+  top: var(--pf-t--global--spacer--md);
+  left: var(--pf-t--global--spacer--md);
+  z-index: 5;
+  max-width: 20rem;
+  pointer-events: auto;
+}
+
+.title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.sourceInfo {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.description {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}

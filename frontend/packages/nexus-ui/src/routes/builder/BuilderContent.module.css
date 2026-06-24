@@ -1,4 +1,43 @@
+.canvasFlex {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  overflow: visible;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+}
+
+.canvasStack {
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+.canvasFlexItem {
+  position: relative;
+  min-width: 0;
+  flex-grow: 1;
+  height: 100%;
+}
+
+.canvasPanel {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .approvalPanelSlot {
   flex-shrink: 0;
   align-self: stretch;
+}
+
+.filledMinHeight {
+  min-height: 0;
+}
+
+.executionPanelSlot {
+  flex-shrink: 0;
+  overflow: hidden;
 }

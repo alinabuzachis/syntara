@@ -708,13 +708,13 @@ export interface components {
       /**
        * Created By
        * Format: uuid
-       * @description User who created the resource
+       * @description User (or automation) that created the resource
        * @example 770e8400-e29b-41d4-a716-446655440000
        */
       readonly created_by: string
       /**
        * Updated By
-       * @description User who last updated the resource
+       * @description User (or automation) that last updated the resource
        * @example 880e8400-e29b-41d4-a716-446655440000
        */
       readonly updated_by?: string | null

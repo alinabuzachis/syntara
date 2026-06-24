@@ -294,7 +294,7 @@ export interface components {
     }
     /**
      * ValidateNameResponse
-     * @description Response body for the validate-name endpoint.
+     * @description Response body for the validate_name endpoint.
      */
     ValidateNameResponse: {
       /** Valid */

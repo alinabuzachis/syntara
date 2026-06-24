@@ -1,4 +1,3 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
@@ -26,6 +25,7 @@ import { BuilderDialogs } from './components/BuilderDialogs'
 import { BuilderSidePanels } from './components/BuilderSidePanels'
 import { ExecutionDetailsPanelWrapper } from './components/ExecutionDetailsPanelWrapper'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
+import { VersionHistorySidePanel } from './components/VersionHistorySidePanel'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
 import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
 import { useBuilderDerivedUiFlags } from './hooks/useBuilderDerivedUiFlags'
@@ -34,29 +34,26 @@ import { useBuilderFlowInteractionHandlers } from './hooks/useBuilderFlowInterac
 import { useBuilderLiveRunPanel } from './hooks/useBuilderLiveRunPanel'
 import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hooks/useBuilderSaveWorkflow'
 import { useBuilderToolbarHandlers } from './hooks/useBuilderToolbarHandlers'
+import { useBuilderVersionPanel } from './hooks/useBuilderVersionPanel'
 import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
-import { useExecutionCopyToEditor, type ExecutionCopyData } from './hooks/useExecutionCopyToEditor'
+import { useExecutionCopyToEditor } from './hooks/useExecutionCopyToEditor'
 import { useNodePanelNavigation } from './hooks/useNodePanelNavigation'
 import { usePublishWorkflow, useUnpublishWorkflow } from './hooks/usePublishWorkflow'
 import { useRunStepDialog } from './hooks/useRunStepDialog'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
+import { useWorkflowMetadata } from './hooks/useWorkflowMetadata'
 import { NodeActionsContext } from './NodeActionsContext'
+import type { BuilderContentProps } from './types/builderContent'
 import { useBuilderPermissions } from './useBuilderPermissions'
 import { createAddStepHandler } from './utils/panelActions'
 import { ValidationBanner } from './ValidationBanner'
-
-type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
-type BuilderContentProps = {
-  workflow?: WorkflowWithVersion
-  isNew: boolean
-  workflowId: string | null
-  executionCopy?: ExecutionCopyData
-}
+import { VersionInfoCard } from './VersionInfoCard'
+import { VersionViewProvider } from './VersionViewContext'
 
 // eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderContent(props: BuilderContentProps) {
-  const { workflow, isNew, workflowId, executionCopy } = props
+  const { workflow, isNew, workflowId, executionCopy, initialViewVersion } = props
   const setLocation = useNavigate()
   const { showSuccess, showError } = useAlerts()
   const workflowProjectId = isNew ? undefined : (workflow as { project_id?: string })?.project_id
@@ -112,17 +109,18 @@ export function BuilderContent(props: BuilderContentProps) {
     mostRecentExecutionId,
     mostRecentRunPanelOpen,
     selectedTriggerIndex,
+    viewingVersion,
+    versionHistoryOpen,
   } = state
 
-  const expandAllEvent = useMemo(() => new EventTarget(), [])
-  const collapseAllEvent = useMemo(() => new EventTarget(), [])
+  const [expandAllEvent, collapseAllEvent] = useMemo(() => [new EventTarget(), new EventTarget()], [])
   const { hasNoWorkflowNodes, isAddNodePanelOpen, isNodeEditorOpen } = useBuilderDerivedUiFlags(
     currentWorkflow,
     addNodePanelOpen,
     nodeEditorMode
   )
 
-  useUndoRedoKeyboard({ disabled: isNodeEditorOpen })
+  useUndoRedoKeyboard({ disabled: isNodeEditorOpen || viewingVersion !== null })
   useEffect(() => () => useWorkflowStore.temporal.getState().clear(), [])
   const { executionsQuery, mostRecentExecutionQuery, workflowsListQuery } = useBuilderContentQueries({
     workflowId,
@@ -137,6 +135,7 @@ export function BuilderContent(props: BuilderContentProps) {
     isNew,
     workflow,
     workflowName,
+    initialViewVersion,
     workflowsListResources: workflowsListQuery.data?.resources,
     workflowsListDataUndefined: workflowsListQuery.data === undefined,
     workflowsListIsPending: workflowsListQuery.isPending,
@@ -156,25 +155,8 @@ export function BuilderContent(props: BuilderContentProps) {
   const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
   const typedCreateWorkflow = createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow']
-  const workflowMetadata = useMemo(() => {
-    if (!workflow?.name && !workflow?.id) return undefined
-    return {
-      name: workflow?.name ?? '',
-      id: workflow?.id ?? '',
-      version: workflow?.current_version ?? workflow?.version?.version ?? 0,
-      published: workflow?.published_version != null,
-      author: String(workflow?.created_by ?? 'Unknown'),
-    }
-  }, [
-    workflow?.name,
-    workflow?.id,
-    workflow?.current_version,
-    workflow?.version?.version,
-    workflow?.published_version,
-    workflow?.created_by,
-  ])
+  const workflowMetadata = useWorkflowMetadata(workflow)
   const currentVersion = workflow?.current_version ?? workflow?.version?.version
-  const { publish: onPublish, isPublishing } = usePublishWorkflow(workflowId, currentVersion)
   const { unpublish: onUnpublish } = useUnpublishWorkflow(workflowId)
   const handleSaveWorkflow = useBuilderSaveWorkflow({
     currentWorkflow,
@@ -194,6 +176,14 @@ export function BuilderContent(props: BuilderContentProps) {
     createWorkflow: typedCreateWorkflow,
     updateWorkflow,
   })
+
+  const { publish: onPublish, isPublishing } = usePublishWorkflow(
+    workflowId,
+    currentVersion,
+    workflowName,
+    workflowDescription
+  )
+
   const mostRecentExecution = mostRecentExecutionQuery.data
   const {
     showMostRecentRunPanelInEditor,
@@ -226,23 +216,43 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [handleSaveWorkflow, registerSaveHandler, unregisterSaveHandler])
 
   const [pendingImport, setPendingImport] = useState<import('./useWorkflowImportExport').PendingImportData | null>(null)
-  const { handleRunWorkflow, handleDeleteWorkflow, handleToggleDetails, handleToggleHistory } =
-    useBuilderToolbarHandlers({
-      workflow: workflow as { id: string } | undefined,
-      workflowName,
-      detailsOpen,
-      historyCardOpen,
-      reactFlowInstance,
-      executionsQuery,
-      dispatch,
-      executeWorkflow,
-      deleteWorkflow,
-      showSuccess,
-      showError,
-      setLocation,
-      handleSaveWorkflow,
-      currentWorkflow,
-    })
+
+  const {
+    handleRunWorkflow,
+    handleDeleteWorkflow,
+    handleToggleDetails,
+    handleToggleHistory,
+    handleToggleVersionHistory: baseHandleToggleVersionHistory,
+  } = useBuilderToolbarHandlers({
+    workflow: workflow as { id: string } | undefined,
+    workflowName,
+    detailsOpen,
+    historyCardOpen,
+    reactFlowInstance,
+    executionsQuery,
+    dispatch,
+    executeWorkflow,
+    deleteWorkflow,
+    showSuccess,
+    showError,
+    setLocation,
+    handleSaveWorkflow,
+    currentWorkflow,
+  })
+
+  const versionPanel = useBuilderVersionPanel({
+    workflowId,
+    isNew,
+    workflow,
+    viewingVersion,
+    versionHistoryOpen,
+    dispatch,
+    handleSaveWorkflow,
+    workflowName,
+    expandAllEvent,
+    baseHandleToggleVersionHistory,
+  })
+
   const {
     handleNodeClick,
     handleClearDesiredPosition,
@@ -309,196 +319,186 @@ export function BuilderContent(props: BuilderContentProps) {
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>
       <NodeExpandedAllContext.Provider value={nodeExpandedAllContextValue}>
-        <NxPage>
-          <Stack hasGutter>
-            <StackItem>
-              <BuilderWorkflowPageHeader
-                workflowName={workflowName}
-                workflowDescription={workflowDescription}
-                workflowTags={workflowTags}
-                isNew={isNew}
-                workflow={workflow?.id ? { id: workflow.id } : undefined}
-                isPending={isCreating || isUpdating}
-                isDirty={isDirty}
-                lastSavedAt={workflow?.updated_at}
-                isKebabOpen={isKebabOpen}
-                publishedVersion={workflow?.published_version ?? null}
-                currentVersion={currentVersion}
-                isPublishing={isPublishing}
-                ProjectSelector={ProjectSelector}
-                dispatch={dispatch}
-                markDirty={markDirty}
-                handleToggleHistory={handleToggleHistory}
-                handleToggleDetails={handleToggleDetails}
-                handleSaveWorkflow={handleSaveWorkflow}
-                onPublish={onPublish}
-                onUnpublish={onUnpublish}
-                onPendingImport={setPendingImport}
-                isLiveRunActive={isLiveRunActive}
-                executionId={mostRecentExecutionId}
-                executionStatus={mostRecentExecution?.status}
-                onBackToEditor={isLiveRunActive ? handleCloseMostRecentRunPanel : undefined}
-                hasApprovalPending={!!pendingApproval}
-                isApprovalLoading={isApprovalLoading}
-                isApprovalPanelOpen={approvalViewOpen}
-                onReviewApproval={openApprovalView}
-                triggers={triggers}
-                isAddNodePanelOpen={isAddNodePanelOpen}
-                hasNoWorkflowNodes={hasNoWorkflowNodes}
-                isBuiltin={currentWorkflow?.is_builtin === true}
-                builderPermissions={builderPermissions}
-              />
-            </StackItem>
-            <BuilderReadOnlyBanner
-              canEdit={builderPermissions.canEdit}
-              isLoading={builderPermissions.isLoading}
-              isBuiltin={currentWorkflow?.is_builtin === true}
-            />
-            <ValidationBanner
-              errors={state.validationErrors}
-              dispatch={dispatch}
-              onNavigateToNode={handleNavigateToNode}
-            />
-            <StackItem isFilled style={{ minHeight: 0 }}>
-              <Flex
-                alignItems={{ default: 'alignItemsStretch' }}
-                flexWrap={{ default: 'nowrap' }}
-                gap={{ default: 'gapSm' }}
-                style={{
-                  position: 'relative',
-                  minWidth: 0,
-                  height: '100%',
-                  overflow: 'visible',
-                  display: 'flex',
-                  flexDirection: 'row',
-                  width: '100%',
-                }}
-              >
-                <FlexItem
-                  style={{
-                    position: 'relative',
-                    minWidth: 0,
-                    flexGrow: 1,
-                    height: '100%',
-                    pointerEvents: isNodeEditorOpen ? 'none' : 'auto',
-                  }}
-                >
-                  <Stack
-                    style={{
-                      height: '100%',
-                      minHeight: 0,
-                      gap: 0,
-                    }}
-                  >
-                    <StackItem isFilled style={{ minHeight: 0 }}>
-                      <NxPanel
-                        hasNoPadding
-                        isFullHeight
-                        style={{
-                          position: 'relative',
-                          minWidth: 0,
-                          width: '100%',
-                          height: '100%',
-                        }}
-                      >
-                        <BuilderFlow
-                          workflowId={workflowId}
-                          canEdit={builderPermissions.canEdit}
-                          panelOpen={isAddNodePanelOpen || !!selectedNode}
-                          activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
-                          activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
-                          activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
-                          executionStatus={canvasExecutionStatus}
-                          disableDeleteKey={isNodeEditorOpen}
-                          disableSpacePanning={isNodeEditorOpen || confirmDialogOpen}
-                          onNodeClick={wrappedHandleNodeClick}
-                          onAddNodeFromEdge={handleAddNodeFromEdge}
-                          onNodesDeleted={handleNodesDeleted}
-                          newNodeDesiredPosition={state.newNodeDesiredPosition}
-                          onClearDesiredPosition={handleClearDesiredPosition}
-                          validationErrors={state.validationErrors}
-                        />
-                      </NxPanel>
-                    </StackItem>
-                    {showMostRecentRunPanelInEditor && mostRecentExecutionId && (
-                      <ExecutionDetailsPanelWrapper
-                        executionId={mostRecentExecutionId}
-                        workflowDefinition={
-                          workflow?.version?.workflow_definition as Parameters<
-                            typeof ExecutionDetailsPanelWrapper
-                          >[0]['workflowDefinition']
-                        }
-                        selectedNodeId={mostRecentSelectedNodeId}
-                        selectedNodeName={mostRecentSelectedNodeName}
-                        onNodeSelect={handleMostRecentNodeSelect}
-                        onDeselectNode={handleMostRecentDeselectNode}
-                        panelHeight={mostRecentPanelHeight}
-                        onResize={handleMostRecentResize}
-                        isTerminalStatus={isTerminalStatus}
-                        onClosePanel={handleCloseMostRecentRunPanel}
-                      />
-                    )}
-                  </Stack>
-                </FlexItem>
-                <BuilderSidePanels
-                  isAddNodePanelOpen={isAddNodePanelOpen}
-                  isNodeEditorOpen={isNodeEditorOpen}
-                  canEdit={builderPermissions.canEdit}
-                  sourceNodeId={sourceNodeId}
-                  replacementNodeId={replacementNodeId}
-                  hasNoWorkflowNodes={hasNoWorkflowNodes}
-                  dispatch={dispatch}
-                  historyCardOpen={historyCardOpen}
-                  isNew={isNew}
-                  executions={executionsQuery.data?.resources ?? []}
-                  onExecutionNavigate={handleExecutionNavigate}
-                  executionFilters={executionFilters}
-                  onFilterChange={setExecutionFilters}
-                  detailsOpen={detailsOpen}
-                  workflow={workflow}
+        <VersionViewProvider value={versionPanel.isViewingVersion}>
+          <NxPage>
+            <Stack hasGutter>
+              <StackItem>
+                <BuilderWorkflowPageHeader
                   workflowName={workflowName}
                   workflowDescription={workflowDescription}
+                  workflowTags={workflowTags}
+                  isNew={isNew}
+                  workflow={workflow?.id ? { id: workflow.id } : undefined}
+                  isPending={isCreating || isUpdating}
+                  isDirty={isDirty}
+                  lastSavedAt={workflow?.updated_at}
+                  isKebabOpen={isKebabOpen}
+                  publishedVersion={workflow?.published_version ?? null}
+                  currentVersion={currentVersion}
+                  isPublishing={isPublishing}
+                  ProjectSelector={ProjectSelector}
+                  dispatch={dispatch}
                   markDirty={markDirty}
-                />
-
-                {!isNodeEditorOpen && approvalViewOpen && pendingApproval && (
-                  <FlexItem className={styles.approvalPanelSlot}>
-                    <ApprovalSidePanel
-                      approval={pendingApproval}
-                      message={approvalMessage}
-                      onClose={handleApprovalClose}
-                      onDecisionSubmitted={handleApprovalDismiss}
-                    />
-                  </FlexItem>
-                )}
-
-                <NodeEditorOverlay
-                  isOpen={isNodeEditorOpen}
-                  mode={nodeEditorMode}
-                  selectedNode={selectedNode}
-                  nodeTypeId={nodeEditorNodeTypeId}
-                  nodeSubtypeId={nodeEditorNodeSubtypeId}
-                  sourceNodeId={sourceNodeId}
-                  replacementNodeId={replacementNodeId}
+                  handleToggleHistory={handleToggleHistory}
+                  handleToggleVersionHistory={versionPanel.handleToggleVersionHistory}
+                  handleToggleDetails={handleToggleDetails}
+                  handleSaveWorkflow={handleSaveWorkflow}
+                  onPublish={onPublish}
+                  onUnpublish={onUnpublish}
+                  onPendingImport={setPendingImport}
+                  isLiveRunActive={isLiveRunActive}
                   executionId={mostRecentExecutionId}
-                  workflowId={workflowId}
-                  onConnect={handleConnectFromPanel}
-                  onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
-                  onNavigateToNode={handleNavigateToNode}
-                  onAddStep={handleAddStepFromPanel}
-                  projectId={
-                    // TODO: Remove cast when project_id is added to the OpenAPI spec
-                    (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
-                  }
-                  workflowMetadata={workflowMetadata}
-                  onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
+                  executionStatus={mostRecentExecution?.status}
+                  onBackToEditor={isLiveRunActive ? handleCloseMostRecentRunPanel : undefined}
+                  hasApprovalPending={!!pendingApproval}
+                  isApprovalLoading={isApprovalLoading}
+                  isApprovalPanelOpen={approvalViewOpen}
+                  onReviewApproval={openApprovalView}
+                  triggers={triggers}
+                  isAddNodePanelOpen={isAddNodePanelOpen}
+                  hasNoWorkflowNodes={hasNoWorkflowNodes}
+                  isBuiltin={currentWorkflow?.is_builtin === true}
+                  builderPermissions={builderPermissions}
+                  isViewingVersion={versionPanel.isViewingVersion}
+                  versionHistoryOpen={versionHistoryOpen}
+                  viewedVersionDate={versionPanel.viewedVersionDate}
+                  viewedVersionStatus={versionPanel.viewedVersionStatus}
+                  onExitVersionView={versionPanel.handleExitVersionView}
+                  onRestoreVersion={versionPanel.openRestoreDialogForCurrentVersion}
                 />
-              </Flex>
-            </StackItem>
-          </Stack>
+              </StackItem>
+              <BuilderReadOnlyBanner
+                canEdit={builderPermissions.canEdit}
+                isLoading={builderPermissions.isLoading}
+                isBuiltin={currentWorkflow?.is_builtin === true}
+              />
+              <ValidationBanner
+                errors={state.validationErrors}
+                dispatch={dispatch}
+                onNavigateToNode={handleNavigateToNode}
+              />
+              <StackItem isFilled className={styles.filledMinHeight}>
+                <Flex
+                  alignItems={{ default: 'alignItemsStretch' }}
+                  flexWrap={{ default: 'nowrap' }}
+                  gap={{ default: 'gapSm' }}
+                  className={styles.canvasFlex}
+                >
+                  <FlexItem
+                    className={styles.canvasFlexItem}
+                    style={{ pointerEvents: isNodeEditorOpen && !versionPanel.isViewingVersion ? 'none' : 'auto' }}
+                  >
+                    <Stack className={styles.canvasStack}>
+                      <StackItem isFilled className={styles.filledMinHeight}>
+                        <NxPanel hasNoPadding isFullHeight className={styles.canvasPanel}>
+                          <VersionInfoCard
+                            title={versionPanel.viewedVersionPublishName}
+                            date={versionPanel.viewedVersionDate}
+                            description={versionPanel.viewedVersionDescription}
+                          />
+                          <BuilderFlow
+                            workflowId={workflowId}
+                            readOnly={versionPanel.isViewingVersion}
+                            canEdit={builderPermissions.canEdit}
+                            panelOpen={isAddNodePanelOpen || !!selectedNode}
+                            activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
+                            activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
+                            activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
+                            executionStatus={canvasExecutionStatus}
+                            disableDeleteKey={isNodeEditorOpen}
+                            disableSpacePanning={isNodeEditorOpen || confirmDialogOpen}
+                            onNodeClick={wrappedHandleNodeClick}
+                            onAddNodeFromEdge={handleAddNodeFromEdge}
+                            onNodesDeleted={handleNodesDeleted}
+                            newNodeDesiredPosition={state.newNodeDesiredPosition}
+                            onClearDesiredPosition={handleClearDesiredPosition}
+                            validationErrors={state.validationErrors}
+                          />
+                        </NxPanel>
+                      </StackItem>
+                      {showMostRecentRunPanelInEditor && mostRecentExecutionId && (
+                        <ExecutionDetailsPanelWrapper
+                          executionId={mostRecentExecutionId}
+                          workflowDefinition={
+                            workflow?.version?.workflow_definition as Parameters<
+                              typeof ExecutionDetailsPanelWrapper
+                            >[0]['workflowDefinition']
+                          }
+                          selectedNodeId={mostRecentSelectedNodeId}
+                          selectedNodeName={mostRecentSelectedNodeName}
+                          onNodeSelect={handleMostRecentNodeSelect}
+                          onDeselectNode={handleMostRecentDeselectNode}
+                          panelHeight={mostRecentPanelHeight}
+                          onResize={handleMostRecentResize}
+                          isTerminalStatus={isTerminalStatus}
+                          onClosePanel={handleCloseMostRecentRunPanel}
+                        />
+                      )}
+                    </Stack>
+                  </FlexItem>
+                  <BuilderSidePanels
+                    isAddNodePanelOpen={isAddNodePanelOpen}
+                    isNodeEditorOpen={isNodeEditorOpen}
+                    canEdit={builderPermissions.canEdit}
+                    sourceNodeId={sourceNodeId}
+                    replacementNodeId={replacementNodeId}
+                    hasNoWorkflowNodes={hasNoWorkflowNodes}
+                    dispatch={dispatch}
+                    historyCardOpen={historyCardOpen}
+                    isNew={isNew}
+                    executions={executionsQuery.data?.resources ?? []}
+                    onExecutionNavigate={handleExecutionNavigate}
+                    executionFilters={executionFilters}
+                    onFilterChange={setExecutionFilters}
+                    detailsOpen={detailsOpen}
+                    workflow={workflow}
+                    workflowName={workflowName}
+                    workflowDescription={workflowDescription}
+                    markDirty={markDirty}
+                  />
 
-          <BuilderDialogs {...dialogProps} />
-        </NxPage>
+                  {!isNodeEditorOpen && approvalViewOpen && pendingApproval && (
+                    <FlexItem className={styles.approvalPanelSlot}>
+                      <ApprovalSidePanel
+                        approval={pendingApproval}
+                        message={approvalMessage}
+                        onClose={handleApprovalClose}
+                        onDecisionSubmitted={handleApprovalDismiss}
+                      />
+                    </FlexItem>
+                  )}
+
+                  <VersionHistorySidePanel
+                    sidePanel={versionPanel.versionSidePanel}
+                    isNodeEditorOpen={isNodeEditorOpen}
+                    editPermission={{ canEdit: builderPermissions.canEdit, tooltip: builderPermissions.tooltips.edit }}
+                  />
+
+                  <NodeEditorOverlay
+                    isOpen={isNodeEditorOpen}
+                    mode={nodeEditorMode}
+                    selectedNode={selectedNode}
+                    nodeTypeId={nodeEditorNodeTypeId}
+                    nodeSubtypeId={nodeEditorNodeSubtypeId}
+                    sourceNodeId={sourceNodeId}
+                    replacementNodeId={replacementNodeId}
+                    executionId={mostRecentExecutionId}
+                    workflowId={workflowId}
+                    onConnect={handleConnectFromPanel}
+                    onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
+                    onNavigateToNode={handleNavigateToNode}
+                    onAddStep={handleAddStepFromPanel}
+                    projectId={(workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id}
+                    workflowMetadata={workflowMetadata}
+                    onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
+                  />
+                </Flex>
+              </StackItem>
+            </Stack>
+
+            <BuilderDialogs {...dialogProps} />
+          </NxPage>
+        </VersionViewProvider>
       </NodeExpandedAllContext.Provider>
     </NodeActionsContext.Provider>
   )

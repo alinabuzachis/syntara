@@ -17,6 +17,7 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form'
 
 import type { TimeoutNodeType } from '../../hooks/useWorkflowEngineDefaults'
 import { useWorkflowEngineDefaults } from '../../hooks/useWorkflowEngineDefaults'
+import { useIsVersionView } from '../../VersionViewContext'
 
 import { DurationInput } from './DurationInput'
 import type { NodeSettingsFormData } from './nodeSettingsSchema'
@@ -88,6 +89,7 @@ type CofSectionProps = {
   cofDefaultLabel: string
   continueOnFailureHelp?: string
   setValue: (name: 'settings.continue_on_failure', value: boolean | undefined) => void
+  isDisabled?: boolean
 }
 
 function ContinueOnFailureSection({
@@ -95,6 +97,7 @@ function ContinueOnFailureSection({
   cofDefaultLabel,
   continueOnFailureHelp,
   setValue,
+  isDisabled,
 }: CofSectionProps) {
   const [isOpen, setIsOpen] = useState(false)
   const selected = cofValueFromBool(continueOnFailure)
@@ -122,6 +125,7 @@ function ContinueOnFailureSection({
                 onClick={() => setIsOpen((o) => !o)}
                 isExpanded={isOpen}
                 isFullWidth
+                isDisabled={isDisabled}
                 aria-label="On failure behavior"
               >
                 {selectedLabel}
@@ -155,9 +159,17 @@ type TimeoutSectionProps = {
   timeoutPlaceholder: string
   control: ReturnType<typeof useFormContext<FormWithSettings>>['control']
   register: ReturnType<typeof useFormContext<FormWithSettings>>['register']
+  isDisabled?: boolean
 }
 
-function TimeoutSection({ timeoutFormat, timeoutDefault, timeoutPlaceholder, control, register }: TimeoutSectionProps) {
+function TimeoutSection({
+  timeoutFormat,
+  timeoutDefault,
+  timeoutPlaceholder,
+  control,
+  register,
+  isDisabled,
+}: TimeoutSectionProps) {
   const durationHelp =
     timeoutDefault !== null
       ? `How long to wait before timing out. System default: ${formatSeconds(timeoutDefault)}.`
@@ -172,7 +184,12 @@ function TimeoutSection({ timeoutFormat, timeoutDefault, timeoutPlaceholder, con
               control={control}
               name="settings.timeout"
               render={({ field }) => (
-                <DurationInput value={field.value} onChange={field.onChange} idPrefix="node-settings-timeout" />
+                <DurationInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  idPrefix="node-settings-timeout"
+                  isDisabled={isDisabled}
+                />
               )}
             />
           </StackItem>
@@ -195,6 +212,7 @@ function TimeoutSection({ timeoutFormat, timeoutDefault, timeoutPlaceholder, con
         type="number"
         min={1}
         placeholder={timeoutPlaceholder}
+        isDisabled={isDisabled}
       />
     </FormSection>
   )
@@ -208,13 +226,14 @@ type RetryFieldsProps = {
     maxInterval: number | null
     backoffCoefficient: number | null
   } | null
+  isDisabled?: boolean
 }
 
 function retryPlaceholder(val: number | null | undefined, fallback: string): string {
   return val !== null && val !== undefined ? `${String(val)} — system default` : fallback
 }
 
-function RetryPolicyFields({ register, retryDefaults }: RetryFieldsProps) {
+function RetryPolicyFields({ register, retryDefaults, isDisabled }: RetryFieldsProps) {
   return (
     <>
       <StackItem>
@@ -225,6 +244,7 @@ function RetryPolicyFields({ register, retryDefaults }: RetryFieldsProps) {
             type="number"
             min={0}
             placeholder={retryPlaceholder(retryDefaults?.maxRetries, '0 = no retry')}
+            isDisabled={isDisabled}
           />
         </FormGroup>
         <HelperText>
@@ -241,6 +261,7 @@ function RetryPolicyFields({ register, retryDefaults }: RetryFieldsProps) {
             type="number"
             min={1}
             placeholder={retryPlaceholder(retryDefaults?.initialInterval, 'System default')}
+            isDisabled={isDisabled}
           />
         </FormGroup>
       </StackItem>
@@ -254,6 +275,7 @@ function RetryPolicyFields({ register, retryDefaults }: RetryFieldsProps) {
             type="number"
             min={1}
             placeholder={retryPlaceholder(retryDefaults?.maxInterval, 'System default')}
+            isDisabled={isDisabled}
           />
         </FormGroup>
       </StackItem>
@@ -268,6 +290,7 @@ function RetryPolicyFields({ register, retryDefaults }: RetryFieldsProps) {
             min={1}
             step={0.1}
             placeholder={retryPlaceholder(retryDefaults?.backoffCoefficient, 'System default')}
+            isDisabled={isDisabled}
           />
         </FormGroup>
       </StackItem>
@@ -289,6 +312,7 @@ export function NodeSettingsForm({
   continueOnFailureHelp,
   timeoutNodeType,
 }: NodeSettingsFormProps) {
+  const isVersionView = useIsVersionView()
   const { control, register, setValue } = useFormContext<FormWithSettings>()
   const retryPolicy = useWatch({ control, name: 'settings.retry_policy' })
   const continueOnFailure = useWatch({ control, name: 'settings.continue_on_failure' })
@@ -324,6 +348,7 @@ export function NodeSettingsForm({
             cofDefaultLabel={cofDefaultLabel}
             continueOnFailureHelp={continueOnFailureHelp}
             setValue={setValue}
+            isDisabled={isVersionView}
           />
         </StackItem>
       )}
@@ -336,6 +361,7 @@ export function NodeSettingsForm({
             timeoutPlaceholder={timeoutPlaceholder}
             control={control}
             register={register}
+            isDisabled={isVersionView}
           />
         </StackItem>
       )}
@@ -350,12 +376,15 @@ export function NodeSettingsForm({
                   label="Override retry policy"
                   isChecked={overrideRetry}
                   onChange={handleRetryOverrideToggle}
+                  isDisabled={isVersionView}
                 />
                 <HelperText>
                   <HelperTextItem>{retryHelp}</HelperTextItem>
                 </HelperText>
               </StackItem>
-              {overrideRetry && <RetryPolicyFields register={register} retryDefaults={retryDefaults} />}
+              {overrideRetry && (
+                <RetryPolicyFields register={register} retryDefaults={retryDefaults} isDisabled={isVersionView} />
+              )}
             </Stack>
           </FormSection>
         </StackItem>

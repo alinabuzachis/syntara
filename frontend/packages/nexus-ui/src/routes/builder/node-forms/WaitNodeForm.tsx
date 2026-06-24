@@ -15,6 +15,8 @@ import { useEffect, useMemo } from 'react'
 import type { FieldErrors } from 'react-hook-form'
 import { FormProvider, useForm, useFormContext } from 'react-hook-form'
 
+import { useIsVersionView } from '../VersionViewContext'
+
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
@@ -40,6 +42,7 @@ type DurationFieldProps = {
 }
 
 function DurationField({ name, label, max, hasGroupError }: Readonly<DurationFieldProps>) {
+  const isVersionView = useIsVersionView()
   const {
     register,
     formState: { errors },
@@ -61,6 +64,7 @@ function DurationField({ name, label, max, hasGroupError }: Readonly<DurationFie
         placeholder="00"
         aria-label={label}
         validated={showError ? 'error' : 'default'}
+        isDisabled={isVersionView}
         className={styles.durationInput}
       />
       <Content component="small" className={styles.durationLabel}>

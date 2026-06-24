@@ -12,6 +12,7 @@ export interface OutputFieldDef {
 }
 
 export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
+  webhook_trigger: [{ name: 'payload', type: 'object', description: 'The webhook request body' }],
   script: [
     { name: 'status', type: 'string', description: 'Script execution completed' },
     { name: 'return_code', type: 'number', description: 'Script exit code (0 = success)' },
@@ -23,6 +24,9 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
       description:
         'Parsed JSON from stdout (Python scripts only). Present if stdout contains valid JSON (entire stdout or last line).',
     },
+  ],
+  eda_trigger: [
+    { name: 'payload', type: 'object', description: 'The webhook payload from EDA (arbitrary JSON object)' },
   ],
   aap_job_template: [
     { name: 'status', type: 'string', description: 'Execution succeeded' },
@@ -108,6 +112,10 @@ export const NODE_OUTPUT_SCHEMAS: Record<string, OutputFieldDef[]> = {
       description:
         'Node IDs of completed branches. Users can reference these nodes directly for outputs (e.g., ${task_a.result}).',
     },
+  ],
+  switch: [
+    { name: 'status', type: 'string', description: 'Switch evaluated successfully' },
+    { name: 'matched_port', type: 'string', description: 'Port that was selected for routing' },
   ],
   wait: [{ name: 'status', type: 'string', description: 'Wait duration elapsed successfully' }],
 }

@@ -433,8 +433,8 @@ export interface components {
       }
       /**
        * Execute Target
+       * @description When False, run predecessors up to (but not including) the target node. Useful for populating upstream data without executing the target. When True (default), target_node_id must not appear in pre_resolved_nodes.
        * @default true
-       * @description When false, run predecessors up to (but not including) the target node. Useful for populating upstream data without executing the target.
        */
       execute_target?: boolean
     }

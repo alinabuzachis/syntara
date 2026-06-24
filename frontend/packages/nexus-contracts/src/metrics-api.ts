@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/metrics': {
+  '/_internal/metrics/summary': {
     parameters: {
       query?: never
       header?: never
@@ -12,14 +12,54 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Query raw metrics
-     * @description Query raw metrics with optional filtering by category, time range,
-     *     and labels.  Returns individual metric records for analysis by
-     *     external performance tests.
+     * Metrics Store Summary
+     * @description Return a lightweight summary of the in-memory metrics store.
+     */
+    get: operations['get_internal_metrics_summary']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/_internal/metrics/records': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Metrics Store Records
+     * @description Return raw metric records with optional filtering and pagination.
+     */
+    get: operations['get_internal_metrics_records']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/_internal/metrics/kpis': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Metrics Store Kpis
+     * @description Return a computed KPI dashboard covering all Nexus components.
      *
-     *     Uses cursor-based pagination.
+     *     Maps metrics to the KPIs defined in the Nexus KPI documents:
+     *     - Nexus Key Performance Indicators (KPIs)
+     *     - Nexus LLM/Agent Performance KPIs
      */
-    get: operations['query_metrics']
+    get: operations['get_internal_metrics_kpis']
     put?: never
     post?: never
     delete?: never
@@ -28,7 +68,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/metrics/summary': {
+  '/_internal/metrics/kpis/{component}': {
     parameters: {
       query?: never
       header?: never
@@ -36,11 +76,10 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get metrics summary
-     * @description Return a quick summary of metric counts and rates.
-     *     Useful for health-check dashboards and monitoring.
+     * Metrics Store Component Kpis
+     * @description Return KPIs for a single component.
      */
-    get: operations['get_metrics_summary']
+    get: operations['get_internal_metrics_component_kpis']
     put?: never
     post?: never
     delete?: never
@@ -49,21 +88,24 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/metrics/openmetrics': {
+  '/_internal/metrics/reset': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    /**
-     * OpenMetrics scrape endpoint
-     * @description Returns metrics in the text-based OpenMetrics exposition format
-     *     for scraping by Prometheus, Grafana Agent, or compatible collectors.
-     */
-    get: operations['openmetrics_endpoint']
+    get?: never
     put?: never
-    post?: never
+    /**
+     * Metrics Store Reset
+     * @description Clear all in-memory metrics (useful between test runs).
+     *
+     *     Also clears the emission deduplication tracker and running counters to
+     *     prevent the completion poller from re-emitting metrics for old executions
+     *     that fall back into its lookback window.
+     */
+    post: operations['reset_internal_metrics_store']
     delete?: never
     options?: never
     head?: never
@@ -75,219 +117,497 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * Metric Record
-     * @description Individual metric data point recorded by Nexus
+     * ComponentKPISummary
+     * @description KPI summary for a single Nexus component.
      */
-    MetricRecord: {
+    ComponentKPISummary: {
       /**
-       * Format: uuid
-       * @description Unique identifier for the metric record
+       * Component
+       * @description Component identifier
        */
-      id: string
+      component: string
       /**
+       * Metrics
+       * @description Metric name → stats, scalar value, or distribution map
+       */
+      metrics?: {
+        [key: string]:
+          | components['schemas']['PercentileStats']
+          | {
+              [key: string]: number
+            }
+          | number
+      }
+    }
+    /**
+     * KPIDashboard
+     * @description Full KPI dashboard covering all Nexus components.
+     */
+    KPIDashboard: {
+      /**
+       * Generated At
        * Format: date-time
-       * @description UTC timestamp when the metric was recorded
+       * @description Timestamp of generation
        */
-      created_at: string
+      generated_at: string
+      /** Components */
+      components?: components['schemas']['ComponentKPISummary'][]
+    }
+    /** MetricRecord */
+    MetricRecord: {
+      metric_type: components['schemas']['MetricType']
+      /** Value */
+      value: number
       /**
-       * @description Key-value pairs for filtering and grouping
-       * @default {}
+       * Unit
+       * @default
        */
+      unit?: string
+      /** Labels */
       labels?: {
         [key: string]: string
       }
       /**
-       * @description Metric type/category
-       * @enum {string}
+       * Id
+       * Format: uuid
        */
-      metric_type:
-        | 'llm_duration_ms'
-        | 'llm_tokens_input'
-        | 'llm_tokens_output'
-        | 'llm_ttft_ms'
-        | 'llm_status'
-        | 'cache_hit'
-        | 'cache_miss'
-        | 'cache_lookup_ms'
-        | 'cache_utilization_ratio'
-        | 'workflow_duration_ms'
-        | 'workflow_status'
-        | 'activity_duration_ms'
-        | 'agent_routing_ms'
-        | 'agent_invocation_ms'
-        | 'agent_status'
-        | 'request_duration_ms'
-        | 'component_duration_ms'
-        | 'error'
-      /** @description Metric value (duration in ms, count, or ratio) */
-      value: number
+      id?: string
       /**
-       * @description Unit of measurement
-       * @default
-       */
-      unit?: string
-    }
-    /**
-     * Metrics Summary
-     * @description Quick summary of metric counts
-     */
-    MetricsSummary: {
-      /** @description Total requests recorded */
-      total_requests: number
-      /** @description Total errors recorded */
-      total_errors: number
-      /** @description Cache hit count */
-      cache_hits: number
-      /** @description Cache miss count */
-      cache_misses: number
-      /** @description Total LLM API calls */
-      llm_calls: number
-      /** @description Total workflow executions started */
-      total_workflows: number
-      /** @description Currently active workflows */
-      active_workflows: number
-      /**
+       * Created At
        * Format: date-time
-       * @description Start of metrics retention period
        */
-      period_start: string
-      /**
-       * Format: date-time
-       * @description End of metrics period (now)
-       */
-      period_end: string
+      created_at?: string
     }
     /**
-     * Paginated Response Base
-     * @description Pagination metadata structure for list responses
+     * MetricType
+     * @description Categories of metrics recorded by Nexus.
+     *
+     *     Each value corresponds to a specific measurable quantity exposed via the
+     *     metrics REST API and (where applicable) Prometheus endpoint.
+     * @enum {string}
      */
-    ResourcesResponseBase: {
+    MetricType:
+      | 'llm_duration_ms'
+      | 'llm_tokens_input'
+      | 'llm_tokens_output'
+      | 'llm_ttft_ms'
+      | 'llm_status'
+      | 'cache_hit'
+      | 'cache_miss'
+      | 'cache_lookup_ms'
+      | 'cache_utilization_ratio'
+      | 'workflow_duration_ms'
+      | 'workflow_status'
+      | 'activity_duration_ms'
+      | 'agent_routing_ms'
+      | 'agent_invocation_ms'
+      | 'agent_status'
+      | 'request_duration_ms'
+      | 'context_duration_ms'
+      | 'error'
+      | 'api_response_time_ms'
+      | 'api_error_rate'
+      | 'api_throughput_rps'
+      | 'workflow_creation_success_rate'
+      | 'workflow_serialization_duration_ms'
+      | 'workflow_validation_duration_ms'
+      | 'temporal_queue_depth'
+      | 'activity_execution_success_rate'
+      | 'workflow_start_latency_ms'
+      | 'workflow_completion_rate'
+      | 'temporal_execution_service_duration_ms'
+      | 'scheduled_trigger_fires_total'
+      | 'scheduled_trigger_latency_ms'
+      | 'tool_execution_duration_ms'
+      | 'tool_execution_status'
+      | 'database_query_response_time_ms'
+      | 'database_connection_pool_utilization_ratio'
+      | 'database_transaction_rate_tps'
+      | 'system_uptime_seconds'
+      | 'system_e2e_latency_ms'
+      | 'system_error_rate'
+    /**
+     * MetricsCategoryType
+     * @description Metric category names used to group :class:`MetricType` members.
+     * @enum {string}
+     */
+    MetricsCategoryType:
+      | 'llm'
+      | 'cache'
+      | 'workflow'
+      | 'agent'
+      | 'error'
+      | 'system_overhead'
+      | 'api'
+      | 'workflow_engine'
+      | 'temporal_worker'
+      | 'execution_service'
+      | 'database'
+      | 'tool'
+      | 'system_wide'
+    /**
+     * MetricsRecordPage
+     * @description Paginated list of raw metric records.
+     */
+    MetricsRecordPage: {
+      /** Records */
+      records?: components['schemas']['MetricRecord'][]
       /**
-       * Next Page Cursor
-       * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
+       * Total
+       * @description Total matching records (before pagination)
        */
-      next?: string | null
+      total: number
       /**
-       * Previous Page Cursor
-       * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
+       * Limit
+       * @description Page size used
        */
-      prev?: string | null
+      limit: number
       /**
-       * Total Count
-       * @description Total count of resources (only when include_total=true)
-       * @example 150
+       * Offset
+       * @description Offset used
        */
-      total?: number | null
+      offset: number
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * MetricsStoreSummary
+     * @description High-level summary of the in-memory metrics store.
+     */
+    MetricsStoreSummary: {
+      /**
+       * Total Records
+       * @description Total records currently stored
+       */
+      total_records: number
+      /**
+       * Retention Seconds
+       * @description Configured retention in seconds
+       */
+      retention_seconds: number
+      /**
+       * Max Records
+       * @description Configured capacity limit
+       */
+      max_records: number
+      /**
+       * Counters
+       * @description Internal named counters (requests, errors, cache_hits, …)
+       */
+      counters?: {
+        [key: string]: number
+      }
+      /**
+       * Metric Type Counts
+       * @description Record count per MetricType
+       */
+      metric_type_counts?: {
+        [key: string]: number
+      }
+      /**
+       * Oldest Record At
+       * @description Timestamp of the oldest stored record
+       */
+      oldest_record_at?: string | null
+      /**
+       * Newest Record At
+       * @description Timestamp of the newest stored record
+       */
+      newest_record_at?: string | null
+    }
+    /**
+     * PercentileStats
+     * @description Percentile breakdown for a collection of values.
+     */
+    PercentileStats: {
+      /**
+       * Count
+       * @description Number of observations
+       */
+      count: number
+      /**
+       * Min
+       * @description Minimum value
+       */
+      min: number
+      /**
+       * Max
+       * @description Maximum value
+       */
+      max: number
+      /**
+       * Mean
+       * @description Arithmetic mean
+       */
+      mean: number
+      /**
+       * Median
+       * @description 50th percentile (p50)
+       */
+      median: number
+      /**
+       * P90
+       * @description 90th percentile
+       */
+      p90: number
+      /**
+       * P95
+       * @description 95th percentile
+       */
+      p95: number
+      /**
+       * P99
+       * @description 99th percentile
+       */
+      p99: number
+      /**
+       * Sum
+       * @description Sum of all values
+       */
+      sum: number
+    }
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
-  parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
-    limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
-    includeTotalParam: boolean
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
   }
+  parameters: never
   requestBodies: never
   headers: never
   pathItems: never
 }
 export type $defs = Record<string, never>
 export interface operations {
-  query_metrics: {
+  get_internal_metrics_summary: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MetricsStoreSummary']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_internal_metrics_records: {
     parameters: {
       query?: {
-        /** @description Filter by metric category */
-        category?: 'llm' | 'cache' | 'workflow' | 'agent' | 'error' | 'all'
-        /** @description Start of time range (ISO 8601) */
-        start_time?: string
-        /** @description End of time range (ISO 8601) */
-        end_time?: string
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
-        limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
-        cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
-        sort?: components['parameters']['sortParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
-        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by metric type value */
+        metric_type?: string | null
+        /** @description Filter by category */
+        category?: components['schemas']['MetricsCategoryType'] | null
+        /** @description Label filter as JSON, e.g. {"component":"api_service"} */
+        labels?: string | null
+        /** @description Page size */
+        limit?: number
+        /** @description Offset */
+        offset?: number
       }
       header?: never
       path?: never
@@ -295,66 +615,107 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Paginated list of metric records */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['MetricRecord'][]
+          'application/json': components['schemas']['MetricsRecordPage']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_internal_metrics_kpis: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['KPIDashboard']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_internal_metrics_component_kpis: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        component: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ComponentKPISummary']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  reset_internal_metrics_store: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: unknown
           }
         }
       }
-      /** @description Invalid query parameters */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-    }
-  }
-  get_metrics_summary: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Metrics summary */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['MetricsSummary']
-        }
-      }
-    }
-  }
-  openmetrics_endpoint: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description OpenMetrics text format metrics */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'text/plain': string
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

@@ -1,0 +1,25 @@
+import { useMemo } from 'react'
+
+import type { WorkflowMetadata } from '../types/workflowMetadata'
+
+type WorkflowLike = {
+  name?: string
+  id?: string
+  current_version?: number
+  version?: { version?: number }
+  published_version?: number | null
+  created_by?: unknown
+}
+
+export function useWorkflowMetadata(workflow: WorkflowLike | undefined): WorkflowMetadata | undefined {
+  return useMemo(() => {
+    if (!workflow?.name && !workflow?.id) return undefined
+    return {
+      name: workflow.name ?? '',
+      id: workflow.id ?? '',
+      version: workflow.current_version ?? workflow.version?.version ?? 0,
+      published: workflow.published_version != null,
+      author: typeof workflow.created_by === 'string' ? workflow.created_by : 'Unknown',
+    }
+  }, [workflow])
+}

@@ -433,7 +433,7 @@ describe('builderReducer', () => {
       expect(result.replacementNodeId).toBeNull()
     })
 
-    it('is a no-op when viewingVersion is set', () => {
+    it('opens node editor in edit mode when viewingVersion is set', () => {
       const stateViewing: BuilderState = { ...initialState, viewingVersion: 2, versionHistoryOpen: true }
       const node = { id: 'task-1', type: 'script' } as Node<NodeType['data']>
       const action: BuilderAction = { type: 'NODE_CLICK', payload: { node, isGeneric: false } }
@@ -441,8 +441,8 @@ describe('builderReducer', () => {
 
       expect(result.versionHistoryOpen).toBe(true)
       expect(result.viewingVersion).toBe(2)
-      expect(result.nodeEditorMode).toBeNull()
-      expect(result.selectedNode).toBeNull()
+      expect(result.nodeEditorMode).toBe('edit')
+      expect(result.selectedNode).toBe(node)
     })
   })
 

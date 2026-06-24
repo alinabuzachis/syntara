@@ -16,6 +16,7 @@ import { NxPanel } from '../../../components/layout/NxPanel'
 import { useMockDataStore } from '../../../stores/useMockDataStore'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities } from '../../../stores/workflowStoreSelectors'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { InlineMockEditor } from './InlineMockEditor'
 import styles from './panels.module.css'
@@ -31,6 +32,7 @@ type OutputPanelProps = {
 }
 
 export function OutputPanel({ outputData, nodeId }: Readonly<OutputPanelProps>) {
+  const isVersionView = useIsVersionView()
   const [activeView, setActiveView] = useState<PanelView>('json')
   const [isEditing, setIsEditing] = useState(false)
   const [mockJsonText, setMockJsonText] = useState('{\n\n}')
@@ -131,8 +133,8 @@ export function OutputPanel({ outputData, nodeId }: Readonly<OutputPanelProps>) 
           </Flex>
         </StackItem>
 
-        {/* Row 2: Mock data controls — Set mock data first, Unpin data second */}
-        {!isEditing && (
+        {/* Row 2: Mock data controls — Set mock data first, Unpin data second (hidden in version view) */}
+        {!isVersionView && !isEditing && (
           <StackItem>
             <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
               {outputMock && (

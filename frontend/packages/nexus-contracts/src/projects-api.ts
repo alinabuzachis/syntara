@@ -840,10 +840,10 @@ export interface components {
         workflow_count?: number
       }
     /**
-     * CredentialPatch
+     * CredentialUpdate
      * @description Schema for partially updating a credential. $encrypted$ preserves existing values.
      */
-    CredentialPatch: {
+    CredentialUpdate: {
       /** Description */
       description?: string | null
       /** Enabled */
@@ -1193,6 +1193,46 @@ export interface components {
       previous_step?: components['schemas']['PreviousStepContext'] | null
     }
     /**
+     * ApproverUserSummary
+     * @description Summary of a user authorized to approve a request.
+     *
+     *     Similar to UserReference but represents an approver rather than a decider.
+     *     Used in API responses to show who can approve a request.
+     */
+    ApproverUserSummary: {
+      /**
+       * Id
+       * Format: uuid
+       * @description User's unique identifier
+       */
+      id: string
+      /**
+       * Username
+       * @description User's username
+       */
+      username: string
+    }
+    /**
+     * ApproverGroupSummary
+     * @description Summary of a group whose members are authorized to approve a request.
+     *
+     *     Represents a group of users who can collectively approve a request.
+     *     Used in API responses to show which groups have approval authority.
+     */
+    ApproverGroupSummary: {
+      /**
+       * Id
+       * Format: uuid
+       * @description Group's unique identifier
+       */
+      id: string
+      /**
+       * Name
+       * @description Group's name
+       */
+      name: string
+    }
+    /**
      * UserReference
      * @description Minimal user identification for embedding in other resources.
      *
@@ -1251,6 +1291,16 @@ export interface components {
       next_step_rejected?: components['schemas']['ActivitySummary'] | null
       /** @description Workflow inputs and previous step output */
       workflow_context: components['schemas']['WorkflowContext']
+      /**
+       * Approver Users
+       * @description Users who can approve this request (empty = any user with permission)
+       */
+      approver_users?: components['schemas']['ApproverUserSummary'][]
+      /**
+       * Approver Groups
+       * @description Groups whose members can approve this request
+       */
+      approver_groups?: components['schemas']['ApproverGroupSummary'][]
       /** @description User who made the decision */
       decided_by?: components['schemas']['UserReference'] | null
       /**
@@ -1266,7 +1316,7 @@ export interface components {
     }
     /**
      * RolePrincipalType
-     * @description Type of principal receiving a role assignment.
+     * @description Discriminator for role assignment targets.
      * @enum {string}
      */
     RolePrincipalType: 'user' | 'group' | 'service_account'
@@ -1274,13 +1324,13 @@ export interface components {
       /**
        * Created By
        * Format: uuid
-       * @description User who created the resource
+       * @description User (or automation) that created the resource
        * @example 770e8400-e29b-41d4-a716-446655440000
        */
       readonly created_by: string
       /**
        * Updated By
-       * @description User who last updated the resource
+       * @description User (or automation) that last updated the resource
        * @example 880e8400-e29b-41d4-a716-446655440000
        */
       readonly updated_by?: string | null
@@ -2421,7 +2471,7 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['CredentialPatch']
+        'application/json': components['schemas']['CredentialUpdate']
       }
     }
     responses: {

@@ -1,4 +1,4 @@
-import { Button, Flex, FlexItem, Stack, StackItem, Tooltip } from '@patternfly/react-core'
+import { Alert, Button, Flex, FlexItem, Stack, StackItem, Tooltip } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
@@ -55,6 +55,7 @@ type NodeEditorLayoutProps = {
   onAddStep?: (handle?: string) => void
   workflowMetadata?: WorkflowMetadata
   tabBarAction?: ReactNode
+  readOnly?: boolean
   mode?: 'add' | 'edit'
 }
 
@@ -78,10 +79,14 @@ export function NodeEditorLayout({
   onAddStep,
   workflowMetadata,
   tabBarAction,
+  readOnly,
   mode = 'edit',
 }: NodeEditorLayoutProps) {
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
   const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
+  let closeAriaLabel = 'Cancel without saving'
+  if (readOnly) closeAriaLabel = 'Close'
+  else if (mode === 'add') closeAriaLabel = 'Cancel step creation'
 
   return (
     <NxPanel
@@ -126,48 +131,60 @@ export function NodeEditorLayout({
                 <FlexItem>
                   <DocumentationButton href={docLink} />
                 </FlexItem>
-                {headerActions && <FlexItem>{headerActions}</FlexItem>}
+                {headerActions && !readOnly && <FlexItem>{headerActions}</FlexItem>}
                 {showClose && (
                   <>
                     <FlexItem>
                       <Button
-                        variant="link"
+                        variant={readOnly ? 'secondary' : 'link'}
+                        size={readOnly ? 'sm' : undefined}
                         onClick={() => {
                           onClose?.()
                         }}
-                        aria-label={mode === 'add' ? 'Cancel step creation' : 'Cancel without saving'}
+                        aria-label={closeAriaLabel}
                         type="button"
                       >
-                        Cancel
+                        {readOnly ? 'Close' : 'Cancel'}
                       </Button>
                     </FlexItem>
-                    <FlexItem>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          if (formId) {
-                            const element = document.getElementById(formId)
-                            if (element instanceof HTMLFormElement) {
-                              element.requestSubmit()
+                    {!readOnly && (
+                      <FlexItem>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            if (formId) {
+                              const element = document.getElementById(formId)
+                              if (element instanceof HTMLFormElement) {
+                                element.requestSubmit()
+                              } else {
+                                onClose?.()
+                              }
                             } else {
                               onClose?.()
                             }
-                          } else {
-                            onClose?.()
-                          }
-                        }}
-                        type="button"
-                      >
-                        {mode === 'add' ? 'Create' : 'Update'}
-                      </Button>
-                    </FlexItem>
+                          }}
+                          type="button"
+                        >
+                          {mode === 'add' ? 'Create' : 'Update'}
+                        </Button>
+                      </FlexItem>
+                    )}
                   </>
                 )}
               </Flex>
             </FlexItem>
           </Flex>
         </StackItem>
+        {readOnly && (
+          <StackItem style={{ padding: '0 var(--pf-t--global--spacer--sm)' }}>
+            <Alert
+              variant="info"
+              isInline
+              title="You are viewing a previous version. Return to the editor to make changes."
+            />
+          </StackItem>
+        )}
         <StackItem
           isFilled
           style={{

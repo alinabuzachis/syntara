@@ -40,7 +40,7 @@ async def test_restore_version_creates_new_draft(jwt_client: AsyncClient) -> Non
     assert data["current_version"] == 3
     assert data["version"]["version"] == 3
     assert data["version"]["status"] == "draft"
-    assert "Restored from version 1" in data["version"]["change_description"]
+    assert "Restored from" in data["version"]["change_description"]
     assert data["version"]["workflow_definition"] == defn_v1
 
 
@@ -111,24 +111,24 @@ async def test_restore_published_version_creates_draft(jwt_client: AsyncClient) 
     )
     workflow_id = create_resp.json()["id"]
 
-    # Publish v1
+    # Publish v1 → v1 stays draft, v2 created (published copy). published_version=2
     await jwt_client.post(f"/api/v1/workflows/{workflow_id}/versions/1/publish", json={})
 
-    # Create v2
+    # Update creates v3 (draft), since v2 is the published copy
     await jwt_client.patch(
         f"/api/v1/workflows/{workflow_id}",
         json={"workflow_definition": defn_v2},
     )
 
-    # Restore v1 (which is published)
+    # Restore v1 → v4 (draft copy of v1's definition). current_version=4, published_version=2
     response = await jwt_client.post(f"/api/v1/workflows/{workflow_id}/versions/1/restore")
 
     assert response.status_code == 200
     data = response.json()
-    assert data["current_version"] == 3
+    assert data["current_version"] == 4
     assert data["version"]["status"] == "draft"
-    # Published version should still be v1
-    assert data["published_version"] == 1
+    # Published copy (v2) stays published
+    assert data["published_version"] == 2
 
 
 @pytest.mark.asyncio

@@ -7,6 +7,7 @@ import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { detachPromise } from '../../../utils/detachPromise'
 import { CredentialSelector } from '../components/CredentialSelector'
 import type { ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { isExpression } from './aapFormHelpers'
 import { AAPWorkflowTemplatePromptFields } from './AAPWorkflowTemplatePromptFields'
@@ -17,6 +18,7 @@ import { WorkflowExpressionTextField } from './ExpressionTextField'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import nodeFormStyles from './shared/nodeFormStyles.module.css'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
@@ -43,6 +45,7 @@ function AAPFormFields({
   projectId?: string
   extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
 }>) {
+  const isVersionView = useIsVersionView()
   const { register, control } = useFormContext<AAPWorkflowTemplateFormData>()
 
   // Auto-detect expression mode from initial data
@@ -86,6 +89,7 @@ function AAPFormFields({
             label="Use expressions"
             isChecked={expressionMode}
             onChange={(_e, checked) => setExpressionMode(checked)}
+            isDisabled={isVersionView}
           />
         </div>
       </StackItem>
@@ -103,6 +107,7 @@ function AAPFormFields({
               fieldId="aap-wf-credential"
               placeholder="Select credential"
               allowCreate
+              isDisabled={isVersionView}
               projectId={projectId}
               helpText={credentialHelpText(
                 'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
@@ -112,92 +117,94 @@ function AAPFormFields({
         />
       </StackItem>
 
-      {expressionMode ? (
-        <>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="organization_name"
-              id="aap-wf-organization-expr"
-              label="Organization"
-              placeholder="org name or drag expression"
-              isRequired
-            />
-          </StackItem>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="workflow_job_template_name"
-              id="aap-wf-workflowTemplate-expr"
-              label="Workflow template"
-              placeholder="template name or drag expression"
-              isRequired
-            />
-          </StackItem>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="inventory_name"
-              id="aap-wf-inventory-expr"
-              label="Inventory"
-              placeholder="inventory name or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="limit"
-              id="aap-wf-limit-expr"
-              label="Limit"
-              placeholder="host pattern or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="scm_branch"
-              id="aap-wf-scmBranch-expr"
-              label="Source control branch"
-              placeholder="branch name or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="tags"
-              id="aap-wf-tags-expr"
-              label="Tags"
-              placeholder="tags or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="skip_tags"
-              id="aap-wf-skipTags-expr"
-              label="Skip tags"
-              placeholder="skip tags or drag expression"
-            />
-          </StackItem>
-          <StackItem>
-            <WorkflowExpressionTextField
-              name="extra_vars"
-              id="aap-wf-extraVars-expr"
-              label="Extra variables"
-              placeholder='{"key": "value"} or drag expression'
-            />
-          </StackItem>
-        </>
-      ) : (
-        <>
-          <AAPWorkflowTemplateResourcePickers browser={browser} />
+      <fieldset disabled={isVersionView} className={nodeFormStyles.disabledFieldset}>
+        {expressionMode ? (
+          <>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="organization_name"
+                id="aap-wf-organization-expr"
+                label="Organization"
+                placeholder="org name or drag expression"
+                isRequired
+              />
+            </StackItem>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="workflow_job_template_name"
+                id="aap-wf-workflowTemplate-expr"
+                label="Workflow template"
+                placeholder="template name or drag expression"
+                isRequired
+              />
+            </StackItem>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="inventory_name"
+                id="aap-wf-inventory-expr"
+                label="Inventory"
+                placeholder="inventory name or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="limit"
+                id="aap-wf-limit-expr"
+                label="Limit"
+                placeholder="host pattern or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="scm_branch"
+                id="aap-wf-scmBranch-expr"
+                label="Source control branch"
+                placeholder="branch name or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="tags"
+                id="aap-wf-tags-expr"
+                label="Tags"
+                placeholder="tags or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="skip_tags"
+                id="aap-wf-skipTags-expr"
+                label="Skip tags"
+                placeholder="skip tags or drag expression"
+              />
+            </StackItem>
+            <StackItem>
+              <WorkflowExpressionTextField
+                name="extra_vars"
+                id="aap-wf-extraVars-expr"
+                label="Extra variables"
+                placeholder='{"key": "value"} or drag expression'
+              />
+            </StackItem>
+          </>
+        ) : (
+          <>
+            <AAPWorkflowTemplateResourcePickers browser={browser} />
 
-          <AAPWorkflowTemplatePromptFields
-            templateDetail={browser.workflowTemplateDetail}
-            isLoadingDetail={browser.loadingTemplateDetail}
-            inventories={browser.inventories}
-            loadingInventories={browser.loadingInventories}
-            labels={browser.labels}
-            loadingLabels={browser.loadingLabels}
-            onSearchInventories={browser.searchInventories}
-            onSearchLabels={browser.searchLabels}
-            extraVarsEditorRef={extraVarsEditorRef}
-          />
-        </>
-      )}
+            <AAPWorkflowTemplatePromptFields
+              templateDetail={browser.workflowTemplateDetail}
+              isLoadingDetail={browser.loadingTemplateDetail}
+              inventories={browser.inventories}
+              loadingInventories={browser.loadingInventories}
+              labels={browser.labels}
+              loadingLabels={browser.loadingLabels}
+              onSearchInventories={browser.searchInventories}
+              onSearchLabels={browser.searchLabels}
+              extraVarsEditorRef={extraVarsEditorRef}
+            />
+          </>
+        )}
+      </fieldset>
     </Stack>
   )
 

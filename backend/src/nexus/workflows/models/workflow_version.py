@@ -175,6 +175,7 @@ class WorkflowVersionRead(SQLModel):
     status: WorkflowVersionStatus = WorkflowVersionStatus.DRAFT
     publish_name: str | None = None
     created_by: UUID
+    created_by_username: str | None = None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
@@ -190,6 +191,9 @@ class PublishVersionRequest(SQLModel):
 
     publish_name: str | None = Field(None, max_length=255, description="Optional name for this published version")
     change_description: str | None = Field(None, max_length=1024, description="Description of changes in this version")
+    workflow_definition: dict[str, Any] | None = Field(
+        None, description="Optional workflow definition to publish directly (skips separate save step)"
+    )
 
 
 # Rebuild models to resolve forward references

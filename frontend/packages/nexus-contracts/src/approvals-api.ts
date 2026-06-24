@@ -88,9 +88,9 @@ export interface paths {
      * Batch approve/reject multiple requests
      * @description Submit decisions for multiple approval requests at once.
      *
-     *     Authorization is validated at two levels:
-     *     1. Endpoint level: User must have approval:decide permission (system or project-scoped)
-     *     2. Per-approval: Each approval is checked for project-scoped permissions and approver list membership
+     *     Authorization is validated per-approval: Each approval is checked for project-scoped
+     *     approval:decide permission AND approver list membership. Users with project-scoped
+     *     permissions can batch approve requests within their authorized projects.
      *
      *     This endpoint processes each decision independently. If some decisions fail due to
      *     authorization or validation errors, the successful ones are still recorded. The

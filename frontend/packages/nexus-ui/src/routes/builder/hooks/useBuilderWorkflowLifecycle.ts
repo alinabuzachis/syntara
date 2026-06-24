@@ -18,6 +18,7 @@ export function useBuilderWorkflowLifecycle(options: {
   isNew: boolean
   workflow: WorkflowWithVersion | undefined
   workflowName: string
+  initialViewVersion?: number | null
   workflowsListResources: { name: string }[] | undefined
   workflowsListDataUndefined: boolean
   workflowsListIsPending: boolean
@@ -37,6 +38,7 @@ export function useBuilderWorkflowLifecycle(options: {
     isNew,
     workflow,
     workflowName,
+    initialViewVersion,
     workflowsListResources,
     workflowsListDataUndefined,
     workflowsListIsPending,
@@ -93,11 +95,11 @@ export function useBuilderWorkflowLifecycle(options: {
 
       queueMicrotask(() => {
         loadWorkflowWithEdges(flattenedWorkflow, generatedEdges, nodePositions, workflow.project_id ?? null)
-        dispatch({ type: 'INIT_WORKFLOW', payload: initPayload })
+        dispatch({ type: 'INIT_WORKFLOW', payload: { ...initPayload, initialViewVersion } })
         hasLoadedRef.current = true
       })
     }
-  }, [isNew, workflow, workflowId, loadWorkflowWithEdges, workflowsListResources, dispatch])
+  }, [isNew, workflow, workflowId, loadWorkflowWithEdges, workflowsListResources, dispatch, initialViewVersion])
 
   useEffect(() => {
     if (!workflow || isNew || hasLoadedRef.current || workflow.id !== workflowId) {

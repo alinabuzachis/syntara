@@ -16,6 +16,7 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
+import { useIsVersionView } from '../VersionViewContext'
 
 import { convergeFormSchema, type ConvergeFormData, type ConvergeStrategy } from './convergeFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -57,6 +58,7 @@ function ConvergeFormFields({
     setValue,
     formState: { errors: contextErrors },
   } = useFormContext<ConvergeFormData>()
+  const isVersionView = useIsVersionView()
   const errors = validationErrors ?? contextErrors
   const strategy = useWatch({ control, name: 'strategy' })
   const waitDuration = useWatch({ control, name: 'wait_duration' })
@@ -101,6 +103,7 @@ function ConvergeFormFields({
                 onChange={(_event, value) => field.onChange(value)}
                 isRequired
                 validated={errors.strategy ? 'error' : 'default'}
+                isDisabled={isVersionView}
               >
                 <FormSelectOption value="" label="Select continue when criteria" isPlaceholder />
                 {CONTINUE_WHEN_CRITERIA_OPTIONS.map((option) => (
@@ -134,6 +137,7 @@ function ConvergeFormFields({
               id="converge-requiredPathCount"
               type="number"
               min={1}
+              isDisabled={isVersionView}
             />
             {errors.requiredPathCount && (
               <FormHelperText>
@@ -156,6 +160,7 @@ function ConvergeFormFields({
                 value={waitDuration}
                 onChange={(val) => setValue('wait_duration', val, { shouldDirty: true })}
                 idPrefix="converge-wait-duration"
+                isDisabled={isVersionView}
               />
             </StackItem>
             <StackItem>
