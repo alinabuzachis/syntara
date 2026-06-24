@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { createDefaultCondition, createDefaultGroup } from '../../utils/expressions/defaults'
 
@@ -61,6 +62,11 @@ describe('prepareRootNode', () => {
 })
 
 describe('ExpressionBuilderCore', () => {
+  it('has no accessibility violations', async () => {
+    const { container } = render(<ExpressionBuilderCore value="" onChange={vi.fn()} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('renders with empty value in visual mode', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} />)

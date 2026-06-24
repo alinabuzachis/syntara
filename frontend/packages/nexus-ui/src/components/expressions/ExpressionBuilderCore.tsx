@@ -89,7 +89,6 @@ type BuilderState = {
 type BuilderAction =
   | { type: 'SET_EXPRESSION'; payload: Expression }
   | { type: 'SET_RAW_VALUE'; payload: string }
-  | { type: 'SET_MODE'; payload: EditorMode }
   | { type: 'TOGGLE_MODE' }
   | { type: 'UPDATE_ROOT'; payload: ExpressionNode | null }
 
@@ -106,12 +105,6 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       return {
         ...state,
         rawValue: action.payload,
-      }
-
-    case 'SET_MODE':
-      return {
-        ...state,
-        mode: action.payload,
       }
 
     case 'TOGGLE_MODE': {

@@ -35,12 +35,13 @@ import {
   RhUiTrashIcon,
 } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { Controller, FormProvider, useFieldArray, useForm, useFormContext } from 'react-hook-form'
 
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
+import type { Expression } from '../../../utils/expressions/types'
 import { generateUUID } from '../../../utils/generateUUID'
 
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -48,10 +49,43 @@ import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { PathExpressionHelp } from './shared/PathExpressionHelp'
-import { switchFormSchema, type SwitchFormData } from './switchFormSchema'
+import { switchFormSchema, type SwitchFormData, type SwitchCaseData } from './switchFormSchema'
 import styles from './SwitchNodeForm.module.css'
 
 export type { SwitchFormData }
+
+type CaseExpressionFieldProps = {
+  fieldId: string
+  currentCase: SwitchCaseData
+  onFieldChange: (value: SwitchCaseData) => void
+  hasError: boolean
+}
+
+function CaseExpressionField({ fieldId, currentCase, onFieldChange, hasError }: CaseExpressionFieldProps) {
+  const handleChange = useCallback(
+    (val: string, tree?: Expression | null, mode?: 'visual' | 'raw') => {
+      onFieldChange({
+        ...currentCase,
+        condition: val,
+        expressionTree: tree?.root ? tree : undefined,
+        editorMode: mode,
+      })
+    },
+    [onFieldChange, currentCase]
+  )
+
+  return (
+    <ExpressionBuilder
+      id={`case-condition-${fieldId}`}
+      value={currentCase?.condition ?? ''}
+      initialExpression={currentCase?.expressionTree}
+      initialMode={currentCase?.editorMode}
+      onChange={handleChange}
+      error={hasError}
+      placeholder="Build your condition"
+    />
+  )
+}
 
 const MIN_CASES = 1
 const MAX_CASES = 100
@@ -210,21 +244,11 @@ function SwitchCaseItem({
                         isRequired
                         fieldId={`case-condition-${fieldId}`}
                       >
-                        <ExpressionBuilder
-                          id={`case-condition-${fieldId}`}
-                          value={currentCase?.condition ?? ''}
-                          initialExpression={currentCase?.expressionTree}
-                          initialMode={currentCase?.editorMode}
-                          onChange={(val, tree, mode) =>
-                            field.onChange({
-                              ...currentCase,
-                              condition: val,
-                              expressionTree: tree?.root ? tree : undefined,
-                              editorMode: mode,
-                            })
-                          }
-                          error={hasError}
-                          placeholder="Build your condition"
+                        <CaseExpressionField
+                          fieldId={fieldId}
+                          currentCase={currentCase}
+                          onFieldChange={field.onChange}
+                          hasError={hasError}
                         />
                         {conditionError?.message && (
                           <FormHelperText>

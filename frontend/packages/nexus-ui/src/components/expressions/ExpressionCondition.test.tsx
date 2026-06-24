@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { createDefaultCondition, OPERATOR_LABELS } from '../../utils/expressions/defaults'
 import type { ExpressionCondition as ExpressionConditionType, ComparisonOperator } from '../../utils/expressions/types'
@@ -30,6 +31,11 @@ describe('ExpressionCondition', () => {
     condition: createDefaultCondition(),
     onChange: vi.fn(),
   }
+
+  it('has no accessibility violations', async () => {
+    const { container } = render(<ExpressionCondition {...defaultProps} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
 
   it('renders condition with all fields', () => {
     render(<ExpressionCondition {...defaultProps} />)

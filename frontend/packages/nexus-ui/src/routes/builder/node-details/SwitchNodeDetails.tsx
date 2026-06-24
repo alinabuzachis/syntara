@@ -1,11 +1,25 @@
 import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@ansible/nexus-contracts'
 import { type ReactNode, useMemo } from 'react'
+import { z } from 'zod'
 
 import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import type { Expression } from '../../../utils/expressions/types'
 import { SwitchNodeForm, type SwitchFormData } from '../node-forms/SwitchNodeForm'
 import { buildSwitchCasePort } from '../utils/switchCaseHelpers'
+
+const expressionTreesSchema = z.record(z.string(), z.custom<Expression>())
+const editorModesSchema = z.record(z.string(), z.enum(['visual', 'raw']))
+
+function getExpressionTrees(params: Record<string, unknown>): Record<string, Expression> | undefined {
+  const result = expressionTreesSchema.safeParse(params._expressionTrees)
+  return result.success ? result.data : undefined
+}
+
+function getEditorModes(params: Record<string, unknown>): Record<string, 'visual' | 'raw'> | undefined {
+  const result = editorModesSchema.safeParse(params._editorModes)
+  return result.success ? result.data : undefined
+}
 
 type SwitchNodeDetailsProps = {
   switchData: SwitchActivity
@@ -20,8 +34,8 @@ export function SwitchNodeDetails({ switchData, nodeId, onClose, onHeaderContent
 
   const switchConfig = (switchData.parameters ?? { cases: [] }) as SwitchConfig
   const uiState = (switchData.parameters as Record<string, unknown> | undefined) ?? {}
-  const expressionTrees = uiState._expressionTrees as Record<string, Expression> | undefined
-  const editorModes = uiState._editorModes as Record<string, 'visual' | 'raw'> | undefined
+  const expressionTrees = getExpressionTrees(uiState)
+  const editorModes = getEditorModes(uiState)
 
   const { initialCases, oldCaseIdToPort } = useMemo(() => {
     const portMap = new Map<string, string>()
