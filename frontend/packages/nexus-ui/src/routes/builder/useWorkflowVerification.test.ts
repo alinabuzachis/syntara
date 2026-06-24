@@ -14,6 +14,7 @@ const mockDispatch = vi.fn()
 const mockPost = vi.fn()
 const mockBuildDefinition = vi.fn<(...args: unknown[]) => Record<string, unknown>>()
 const mockGetState = vi.fn<() => Record<string, unknown>>()
+const mockSetValidationErrorCount = vi.fn()
 
 vi.mock('../../client', () => ({
   workflowFetchClient: { POST: (...args: unknown[]) => mockPost(...args) as Promise<unknown> },
@@ -23,11 +24,11 @@ vi.mock('../../providers/alerts', () => ({
   useAlerts: () => ({ showError: mockShowError, showSuccess: mockShowSuccess }),
 }))
 
-vi.mock('../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: {
-    getState: () => mockGetState(),
-  },
-}))
+vi.mock('../../stores/useWorkflowStore', () => {
+  const store = (selector: (state: Record<string, unknown>) => unknown) => selector({ validationErrorCount: 0 })
+  store.getState = () => ({ ...mockGetState(), setValidationErrorCount: mockSetValidationErrorCount })
+  return { useWorkflowStore: store }
+})
 
 vi.mock('../../utils/apiErrors', () => ({
   getErrorMessage: (err: unknown) => (err instanceof Error ? err.message : 'Unknown error'),
@@ -323,6 +324,165 @@ describe('useWorkflowVerification', () => {
           { message: 'Missing trigger', nodeId: null },
         ],
       })
+    })
+  })
+
+  describe('onValid callback', () => {
+    it('calls onValid callback when workflow is valid', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: { valid: true, errors: [], warnings: [] },
+        error: undefined,
+        response: { ok: true },
+      })
+
+      const onValid = vi.fn()
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify(onValid))
+
+      await waitFor(() => {
+        expect(onValid).toHaveBeenCalledTimes(1)
+        expect(mockShowSuccess).not.toHaveBeenCalled()
+      })
+    })
+
+    it('shows success toast when no onValid callback provided', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: { valid: true, errors: [], warnings: [] },
+        error: undefined,
+        response: { ok: true },
+      })
+
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify())
+
+      await waitFor(() => {
+        expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Workflow definition is valid' })
+      })
+    })
+
+    it('does not call onValid when workflow is invalid', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: {
+          valid: false,
+          errors: [{ message: 'Error', node_id: null }],
+          warnings: [],
+        },
+        error: undefined,
+        response: { ok: true },
+      })
+
+      const onValid = vi.fn()
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify(onValid))
+
+      await waitFor(() => {
+        expect(onValid).not.toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe('validationErrorCount store updates', () => {
+    it('sets validationErrorCount to 0 on valid response', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: { valid: true, errors: [], warnings: [] },
+        error: undefined,
+        response: { ok: true },
+      })
+
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify())
+
+      await waitFor(() => {
+        expect(mockSetValidationErrorCount).toHaveBeenCalledWith(0)
+      })
+    })
+
+    it('sets validationErrorCount on invalid response', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: {
+          valid: false,
+          errors: [{ message: 'Error', node_id: null }],
+          warnings: [],
+        },
+        error: undefined,
+        response: { ok: true },
+      })
+
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify())
+
+      await waitFor(() => {
+        expect(mockSetValidationErrorCount).toHaveBeenCalledWith(1)
+      })
+    })
+
+    it('sets validationErrorCount on error with validation_result', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: undefined,
+        error: {
+          validation_result: {
+            errors: [{ message: 'Error', node_id: null }],
+          },
+        },
+        response: { ok: false },
+      })
+
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify())
+
+      await waitFor(() => {
+        expect(mockSetValidationErrorCount).toHaveBeenCalledWith(1)
+      })
+    })
+
+    it('resets validationErrorCount on error without validation_result', async () => {
+      mockGetState.mockReturnValue(workflowState)
+      mockBuildDefinition.mockReturnValue({ nodes: [], edges: [], triggers: [] })
+      mockPost.mockResolvedValue({
+        data: undefined,
+        error: {
+          title: 'Server Error',
+          detail: 'Internal server error',
+        },
+        response: { ok: false },
+      })
+
+      const { result } = renderVerificationHook()
+
+      act(() => result.current.handleVerify())
+
+      await waitFor(() => {
+        expect(mockSetValidationErrorCount).toHaveBeenCalledWith(0)
+        expect(mockDispatch).toHaveBeenCalledWith({ type: 'CLEAR_VALIDATION_ERRORS' })
+        expect(mockShowError).toHaveBeenCalledWith({
+          title: 'Verification failed',
+          description: 'Unknown error',
+        })
+      })
+    })
+
+    it('returns validationErrorCount from the store', () => {
+      const { result } = renderVerificationHook()
+
+      expect(result.current.validationErrorCount).toBe(0)
     })
   })
 })

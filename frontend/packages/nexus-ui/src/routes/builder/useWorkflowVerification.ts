@@ -55,68 +55,86 @@ type UseWorkflowVerificationOptions = Readonly<{
 export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOptions) {
   const { showError, showSuccess } = useAlerts()
   const [isVerifying, setIsVerifying] = useState(false)
+  const validationErrorCount = useWorkflowStore((state) => state.validationErrorCount)
 
-  const handleVerify = useCallback(() => {
-    const { currentWorkflow, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
-    if (!currentWorkflow) {
+  const handleVerify = useCallback(
+    (onValid?: () => void) => {
+      const { currentWorkflow, edges, nodePositions, _positionsUserModified } = useWorkflowStore.getState()
+      if (!currentWorkflow) {
+        dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+        return
+      }
+
       dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-      return
-    }
 
-    dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+      const { activities } = currentWorkflow.workflow
+      const triggers = currentWorkflow.triggers ?? []
+      const name = currentWorkflow.name ?? 'workflow'
+      const description = currentWorkflow.description ?? ''
 
-    const { activities } = currentWorkflow.workflow
-    const triggers = currentWorkflow.triggers ?? []
-    const name = currentWorkflow.name ?? 'workflow'
-    const description = currentWorkflow.description ?? ''
-
-    let definition: ReturnType<typeof buildWorkflowDefinition>
-    try {
-      definition = buildWorkflowDefinition(name, description, activities, triggers, {
-        edges,
-        nodePositions: _positionsUserModified ? nodePositions : {},
-      })
-    } catch (err: unknown) {
-      showError({ title: 'Verification failed', description: getErrorMessage(err) })
-      return
-    }
-
-    dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
-    setIsVerifying(true)
-    workflowFetchClient
-      .POST('/workflows/validate', {
-        body: {
-          workflow_definition: definition as unknown as WorkflowAPI.components['schemas']['workflow_definition.schema'],
-        },
-      })
-      .then(({ data, error, response }) => {
-        if (response.ok && data?.valid) {
-          dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
-          showSuccess({ title: 'Workflow definition is valid' })
-        } else if (response.ok && data && !data.valid) {
-          const errors: ValidationError[] = data.errors.map((e) => {
-            const parsed = parseValidationMessage(e.message)
-            return { ...parsed, nodeId: resolveNodeId(e) }
-          })
-          dispatch({ type: 'SET_VALIDATION_ERRORS', payload: errors })
-        } else {
-          const err = error as Record<string, unknown> | undefined
-          const extracted = extractValidationErrors(err)
-          if (extracted) {
-            dispatch({ type: 'SET_VALIDATION_ERRORS', payload: extracted })
-          } else {
-            showError({
-              title: 'Verification failed',
-              description: getErrorMessage(err),
-            })
-          }
-        }
-      })
-      .catch((err: unknown) => {
+      let definition: ReturnType<typeof buildWorkflowDefinition>
+      try {
+        definition = buildWorkflowDefinition(name, description, activities, triggers, {
+          edges,
+          nodePositions: _positionsUserModified ? nodePositions : {},
+        })
+      } catch (err: unknown) {
+        dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
+        useWorkflowStore.getState().setValidationErrorCount(0)
         showError({ title: 'Verification failed', description: getErrorMessage(err) })
-      })
-      .finally(() => setIsVerifying(false))
-  }, [dispatch, showError, showSuccess])
+        return
+      }
 
-  return { handleVerify, isVerifying }
+      dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
+      setIsVerifying(true)
+      workflowFetchClient
+        .POST('/workflows/validate', {
+          body: {
+            workflow_definition:
+              definition as unknown as WorkflowAPI.components['schemas']['workflow_definition.schema'],
+          },
+        })
+        .then(({ data, error, response }) => {
+          if (response.ok && data?.valid) {
+            dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
+            useWorkflowStore.getState().setValidationErrorCount(0)
+            if (onValid) {
+              onValid()
+            } else {
+              showSuccess({ title: 'Workflow definition is valid' })
+            }
+          } else if (response.ok && data && !data.valid) {
+            const errors: ValidationError[] = data.errors.map((e) => {
+              const parsed = parseValidationMessage(e.message)
+              return { ...parsed, nodeId: resolveNodeId(e) }
+            })
+            dispatch({ type: 'SET_VALIDATION_ERRORS', payload: errors })
+            useWorkflowStore.getState().setValidationErrorCount(errors.length)
+          } else {
+            const err = error as Record<string, unknown> | undefined
+            const extracted = extractValidationErrors(err)
+            if (extracted) {
+              dispatch({ type: 'SET_VALIDATION_ERRORS', payload: extracted })
+              useWorkflowStore.getState().setValidationErrorCount(extracted.length)
+            } else {
+              dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
+              useWorkflowStore.getState().setValidationErrorCount(0)
+              showError({
+                title: 'Verification failed',
+                description: getErrorMessage(err),
+              })
+            }
+          }
+        })
+        .catch((err: unknown) => {
+          dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
+          useWorkflowStore.getState().setValidationErrorCount(0)
+          showError({ title: 'Verification failed', description: getErrorMessage(err) })
+        })
+        .finally(() => setIsVerifying(false))
+    },
+    [dispatch, showError, showSuccess]
+  )
+
+  return { handleVerify, isVerifying, validationErrorCount }
 }

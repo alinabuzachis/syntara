@@ -73,6 +73,9 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
       _preserveHistoryOnLayout: false,
       _positionsUserModified: false,
       isDirty: false,
+      validationErrorCount: 0,
+
+      setValidationErrorCount: (count) => set({ validationErrorCount: count }),
 
       setWorkflow: (workflow, projectId) => {
         set((state) => ({
@@ -82,6 +85,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
           nodePositions: {},
           _positionsUserModified: false,
           isDirty: false,
+          validationErrorCount: 0,
         }))
         useWorkflowStore.temporal.getState().clear()
       },
@@ -98,6 +102,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
           nodePositions: nodePositions ?? {},
           _positionsUserModified: hasPositions,
           isDirty: false,
+          validationErrorCount: 0,
         }))
         useWorkflowStore.temporal.getState().clear()
       },
@@ -112,6 +117,7 @@ export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
           _positionsUserModified: hasPositions,
           isDirty: true,
           _preserveHistoryOnLayout: true,
+          validationErrorCount: 0,
         }))
         // Pause immediately so post-layout edge syncs don't create extra undo entries.
         // Resumed by clearUndoHistory in BuilderFlow after layout settles.

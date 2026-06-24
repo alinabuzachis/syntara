@@ -16,7 +16,6 @@ import {
   RhUiExportIcon,
   RhUiHistoryIcon,
   RhUiImportIcon,
-  RhUiPublishIcon,
   RhUiTrashIcon,
   RhUiEllipsisVerticalFillIcon,
   RhUiAddSquareIcon,
@@ -27,6 +26,7 @@ import { useCallback, useState, type Dispatch, type Ref } from 'react'
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 
 import type { BuilderAction } from './builderReducer'
+import { PublishWorkflowButton } from './PublishWorkflowButton'
 import { SaveWorkflowButton } from './SaveWorkflowButton'
 import type { BuilderPermissions } from './useBuilderPermissions'
 import { useWorkflowImportExport, type PendingImportData } from './useWorkflowImportExport'
@@ -65,7 +65,7 @@ type WorkflowKebabMenuProps = Readonly<{
   importFileRef: React.RefObject<HTMLInputElement | null>
   handleImportFile: (event: React.ChangeEvent<HTMLInputElement>) => void
   handleExport: () => void
-  handleVerify: () => void
+  handleVerify: (onValid?: () => void) => void
 }>
 
 function WorkflowKebabMenu({
@@ -131,7 +131,7 @@ function WorkflowKebabMenu({
         {!isBuiltin && (
           <DropdownGroup label="Actions">
             <DropdownList>
-              <DropdownItem onClick={handleVerify}>
+              <DropdownItem onClick={() => handleVerify()}>
                 <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
                   <RhUiCheckCircleIcon />
                 </Icon>
@@ -351,12 +351,13 @@ export function BuilderEditorToolbar({
   triggers,
   builderPermissions,
 }: BuilderEditorToolbarProps) {
-  const { importFileRef, handleImportFile, handleExport, handleVerify, isVerifying } = useWorkflowImportExport({
-    dispatch,
-    markDirty,
-    isNew,
-    onPendingImport,
-  })
+  const { importFileRef, handleImportFile, handleExport, handleVerify, isVerifying, validationErrorCount } =
+    useWorkflowImportExport({
+      dispatch,
+      markDirty,
+      isNew,
+      onPendingImport,
+    })
 
   if (!builderPermissions.canEdit && hasNoWorkflowNodes && isNew) {
     return null
@@ -436,21 +437,14 @@ export function BuilderEditorToolbar({
       {!isNew && workflow?.id && (
         <>
           <Divider orientation={{ default: 'vertical' }} />
-          <DisabledWithTooltip isDisabled={!builderPermissions.canEdit} content={builderPermissions.tooltips.publish}>
-            <Button
-              variant="primary"
-              isAriaDisabled={!builderPermissions.canEdit}
-              onClick={builderPermissions.canEdit ? onPublishClick : undefined}
-              icon={
-                <Icon isInline>
-                  <RhUiPublishIcon />
-                </Icon>
-              }
-              iconPosition="start"
-            >
-              Publish workflow
-            </Button>
-          </DisabledWithTooltip>
+          <PublishWorkflowButton
+            canEdit={builderPermissions.canEdit}
+            validationErrorCount={validationErrorCount}
+            isVerifying={isVerifying}
+            editTooltip={builderPermissions.tooltips.publish}
+            handleVerify={handleVerify}
+            onPublishClick={onPublishClick}
+          />
         </>
       )}
 

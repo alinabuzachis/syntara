@@ -1174,4 +1174,47 @@ describe('useWorkflowStore', () => {
       expect(useWorkflowStore.getState().nodePositions).toEqual({ n: { x: 1, y: 2 } })
     })
   })
+
+  describe('validationErrorCount', () => {
+    it('initializes to 0', () => {
+      expect(useWorkflowStore.getState().validationErrorCount).toBe(0)
+    })
+
+    it('updates when setValidationErrorCount is called', () => {
+      useWorkflowStore.getState().setValidationErrorCount(5)
+
+      expect(useWorkflowStore.getState().validationErrorCount).toBe(5)
+    })
+
+    it('resets to zero when setValidationErrorCount is called with 0', () => {
+      useWorkflowStore.getState().setValidationErrorCount(3)
+      useWorkflowStore.getState().setValidationErrorCount(0)
+
+      expect(useWorkflowStore.getState().validationErrorCount).toBe(0)
+    })
+
+    it('resets when setWorkflow is called', () => {
+      useWorkflowStore.getState().setValidationErrorCount(5)
+
+      useWorkflowStore.getState().setWorkflow(makeWorkflow('new-wf'))
+
+      expect(useWorkflowStore.getState().validationErrorCount).toBe(0)
+    })
+
+    it('resets when loadWorkflowWithEdges is called', () => {
+      useWorkflowStore.getState().setValidationErrorCount(3)
+
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('loaded-wf'), [])
+
+      expect(useWorkflowStore.getState().validationErrorCount).toBe(0)
+    })
+
+    it('resets when replaceWorkflowContent is called', () => {
+      useWorkflowStore.getState().setValidationErrorCount(4)
+
+      useWorkflowStore.getState().replaceWorkflowContent(makeWorkflow('replaced-wf'), [])
+
+      expect(useWorkflowStore.getState().validationErrorCount).toBe(0)
+    })
+  })
 })

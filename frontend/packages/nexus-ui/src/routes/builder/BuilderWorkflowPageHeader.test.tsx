@@ -16,6 +16,17 @@ vi.mock('../../stores/useWorkflowStore', () => ({
   },
 }))
 
+vi.mock('./useWorkflowImportExport', () => ({
+  useWorkflowImportExport: () => ({
+    importFileRef: { current: null },
+    handleImportFile: vi.fn(),
+    handleExport: vi.fn(),
+    handleVerify: vi.fn((onValid?: () => void) => onValid?.()),
+    isVerifying: false,
+    validationErrorCount: 0,
+  }),
+}))
+
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
   executionsClient: {

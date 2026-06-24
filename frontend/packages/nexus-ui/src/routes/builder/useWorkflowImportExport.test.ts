@@ -39,7 +39,7 @@ vi.mock('../../utils/downloadWorkflowExport', () => ({
 }))
 
 vi.mock('./useWorkflowVerification', () => ({
-  useWorkflowVerification: () => ({ handleVerify: mockHandleVerify, isVerifying: false }),
+  useWorkflowVerification: () => ({ handleVerify: mockHandleVerify, isVerifying: false, validationErrorCount: 0 }),
 }))
 
 vi.mock('./utils/parseImportedDefinition', () => ({

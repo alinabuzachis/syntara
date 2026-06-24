@@ -166,6 +166,8 @@ export type WorkflowStore = {
    */
   _positionsUserModified: boolean
   isDirty: boolean // Tracks whether changes have been made since last save/load
+  validationErrorCount: number // Number of errors from last verification; persists until re-verify
+  setValidationErrorCount: (count: number) => void
   setWorkflow: (workflow: WorkflowDefinition | null, projectId?: string | null) => void
   // Atomic operation to load workflow and edges together - prevents race conditions
   loadWorkflowWithEdges: (

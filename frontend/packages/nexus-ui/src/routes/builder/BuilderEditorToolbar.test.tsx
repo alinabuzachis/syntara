@@ -5,6 +5,23 @@ import { axe } from 'vitest-axe'
 
 import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 
+const mockHandleVerify = vi.fn()
+const mockHandleExport = vi.fn()
+const mockHandleImportFile = vi.fn()
+let mockIsVerifying = false
+let mockValidationErrorCount = 0
+
+vi.mock('./useWorkflowImportExport', () => ({
+  useWorkflowImportExport: () => ({
+    importFileRef: { current: null },
+    handleImportFile: mockHandleImportFile,
+    handleExport: mockHandleExport,
+    handleVerify: mockHandleVerify,
+    isVerifying: mockIsVerifying,
+    validationErrorCount: mockValidationErrorCount,
+  }),
+}))
+
 describe('BuilderEditorToolbar', () => {
   const defaultProps = {
     isBuiltin: false,
@@ -33,6 +50,12 @@ describe('BuilderEditorToolbar', () => {
       tooltips: { edit: '', save: '', publish: '', unpublish: '', run: '', delete: '' },
     },
   }
+
+  beforeEach(() => {
+    mockHandleVerify.mockImplementation((onValid?: () => void) => onValid?.())
+    mockIsVerifying = false
+    mockValidationErrorCount = 0
+  })
 
   afterEach(() => {
     vi.clearAllMocks()
@@ -529,13 +552,12 @@ describe('BuilderEditorToolbar', () => {
 
   it('fires Export handler when clicked', async () => {
     const user = userEvent.setup()
-    const dispatch = vi.fn()
 
-    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen dispatch={dispatch} />)
+    render(<BuilderEditorToolbar {...defaultProps} isKebabOpen />)
 
     await user.click(screen.getByRole('menuitem', { name: /Export workflow/i }))
 
-    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_KEBAB_OPEN', payload: false })
+    expect(mockHandleExport).toHaveBeenCalledTimes(1)
   })
 
   it('fires Unpublish handler when canEdit is true', async () => {
@@ -859,6 +881,101 @@ describe('BuilderEditorToolbar', () => {
 
       const separators = screen.getAllByRole('separator')
       expect(separators.length).toBeLessThanOrEqual(2)
+    })
+  })
+
+  describe('verify-then-publish with error gating', () => {
+    it('triggers verification when Publish button is clicked', async () => {
+      const user = userEvent.setup()
+
+      render(<BuilderEditorToolbar {...defaultProps} />)
+
+      await user.click(screen.getByRole('button', { name: /Publish/i }))
+
+      expect(mockHandleVerify).toHaveBeenCalledTimes(1)
+      expect(mockHandleVerify).toHaveBeenCalledWith(expect.any(Function))
+    })
+
+    it('disables Publish button when validationErrorCount > 0', () => {
+      mockValidationErrorCount = 3
+
+      render(<BuilderEditorToolbar {...defaultProps} />)
+
+      expect(screen.getByRole('button', { name: /Publish/i })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('shows error tooltip when Publish is disabled by validation errors', async () => {
+      const user = userEvent.setup()
+      mockValidationErrorCount = 3
+
+      render(<BuilderEditorToolbar {...defaultProps} />)
+
+      await user.hover(screen.getByRole('button', { name: /Publish/i }))
+
+      expect(await screen.findByText('Verify your workflow before publishing — 3 errors found')).toBeInTheDocument()
+    })
+
+    it('shows permission tooltip when Publish is disabled by canEdit', async () => {
+      const user = userEvent.setup()
+
+      render(
+        <BuilderEditorToolbar
+          {...defaultProps}
+          builderPermissions={{
+            ...defaultProps.builderPermissions,
+            canEdit: false,
+            tooltips: { ...defaultProps.builderPermissions.tooltips, publish: 'No publish permission' },
+          }}
+        />
+      )
+
+      await user.hover(screen.getByRole('button', { name: /Publish/i }))
+
+      expect(await screen.findByText('No publish permission')).toBeInTheDocument()
+    })
+
+    it('disables Publish button while isVerifying is true', () => {
+      mockIsVerifying = true
+
+      render(<BuilderEditorToolbar {...defaultProps} />)
+
+      expect(screen.getByRole('button', { name: /Publish/i })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('does not fire onPublishClick when validationErrorCount > 0', async () => {
+      const user = userEvent.setup()
+      const onPublishClick = vi.fn()
+      mockValidationErrorCount = 3
+
+      render(<BuilderEditorToolbar {...defaultProps} onPublishClick={onPublishClick} />)
+
+      await user.click(screen.getByRole('button', { name: /Publish/i }))
+
+      expect(onPublishClick).not.toHaveBeenCalled()
+    })
+
+    it('does not fire onPublishClick directly without verification', async () => {
+      const user = userEvent.setup()
+      const onPublishClick = vi.fn()
+      mockHandleVerify.mockImplementation(() => {})
+
+      render(<BuilderEditorToolbar {...defaultProps} onPublishClick={onPublishClick} />)
+
+      await user.click(screen.getByRole('button', { name: /Publish/i }))
+
+      expect(mockHandleVerify).toHaveBeenCalledTimes(1)
+      expect(onPublishClick).not.toHaveBeenCalled()
+    })
+
+    it('kebab Verify workflow does not pass event as callback', async () => {
+      const user = userEvent.setup()
+
+      render(<BuilderEditorToolbar {...defaultProps} isKebabOpen />)
+
+      await user.click(screen.getByRole('menuitem', { name: /Verify workflow/i }))
+
+      expect(mockHandleVerify).toHaveBeenCalledTimes(1)
+      expect(mockHandleVerify).toHaveBeenCalledWith()
     })
   })
 })
