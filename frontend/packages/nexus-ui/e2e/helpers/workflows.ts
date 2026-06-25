@@ -362,7 +362,7 @@ export async function startWorkflowWithTrigger(page: Page) {
 
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await page.getByRole('button', { name: 'Save and close' }).click()
+  await page.getByRole('button', { name: 'Create' }).click()
 }
 
 /** Save the workflow with the given name. Waits for URL to confirm persistence. */

@@ -232,6 +232,58 @@ export async function addApprovalNodeWithBranch(page: Page, name: string) {
 // Control flow nodes
 // ---------------------------------------------------------------------------
 
+/**
+ * Add a conditional node (v2 type: "condition") using the visual expression builder.
+ * @param page - Playwright page object
+ * @param name - Node name
+ * @param config - Condition configuration
+ * @param config.field - Field name to compare (e.g., "status")
+ * @param config.operator - Comparison operator (default: "is equal to")
+ * @param config.value - Value to compare against
+ */
+export async function addConditionalNode(
+  page: Page,
+  name: string,
+  config: {
+    field: string
+    operator?: string
+    value: string
+  }
+) {
+  await openAddNodePanel(page)
+  await selectCategoryAndType(page, 'Logic', 'Conditional')
+
+  // Wait for the form to load
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(nameInput).toBeVisible({ timeout: 10_000 })
+  await nameInput.fill(name)
+
+  // Fill in Visual expression builder fields
+  const fieldInput = page.getByRole('textbox', { name: 'Field', exact: true })
+  await expect(fieldInput).toBeVisible({ timeout: 10_000 })
+  await fieldInput.fill(config.field)
+
+  // Change operator if specified (defaults to "is equal to")
+  if (config.operator && config.operator !== 'is equal to') {
+    // Click the operator dropdown toggle (PatternFly custom dropdown)
+    await page.getByLabel('Comparison operator').click()
+    // Click the desired option from the menu (exact match to avoid partial matches)
+    await page.getByRole('option', { name: config.operator, exact: true }).click()
+  }
+
+  // Fill in Value
+  const valueInput = page.getByRole('textbox', { name: 'Value', exact: true })
+  await expect(valueInput).toBeVisible({ timeout: 10_000 })
+  await valueInput.fill(config.value)
+
+  // Save and close
+  const saveButton = page.getByRole('button', { name: 'Create' })
+  await expect(saveButton).toBeEnabled({ timeout: 10_000 })
+  await saveButton.click()
+
+  await closeNodeEditorPanel(page)
+}
+
 /** Add a condition node (v2 type: "condition") without completing branches. */
 export async function addConditionNode(page: Page, name: string, expression = 'true') {
   await openAddNodePanel(page)
