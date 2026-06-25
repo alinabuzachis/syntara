@@ -76,7 +76,6 @@ function ExecutionDetailContent({
   selectedNodeId,
   selectedNodeName,
   onNodeSelect,
-  onDeselectNode,
 }: {
   historyCardOpen: boolean
   approvalPanel?: React.ReactNode
@@ -98,7 +97,6 @@ function ExecutionDetailContent({
   selectedNodeId: string | null
   selectedNodeName: string | null
   onNodeSelect: (nodeId: string, nodeName: string) => void
-  onDeselectNode: () => void
 }) {
   const isStale = useExecutionStore((state) => state.isStale)
   const isComplete = useExecutionStore((state) => state.isComplete)
@@ -209,7 +207,6 @@ function ExecutionDetailContent({
               selectedNodeId={selectedNodeId}
               selectedNodeName={selectedNodeName}
               onNodeSelect={onNodeSelect}
-              onDeselectNode={onDeselectNode}
             />
           </div>
         </div>
@@ -301,7 +298,7 @@ export default function ExecutionDetail() {
 
   const nodeClick = useExecutionNodeClick(executionId)
   const { pendingApproval, isApprovalLoading, handleNodeClick } = nodeClick
-  const { selectedNodeId, selectedNodeName, selectNode, deselectNode } = nodeClick
+  const { selectedNodeId, selectedNodeName, selectNode } = nodeClick
   const approval = useExecutionApprovalPanel(
     executionId,
     searchParams,
@@ -430,7 +427,6 @@ export default function ExecutionDetail() {
           selectedNodeId={selectedNodeId}
           selectedNodeName={selectedNodeName}
           onNodeSelect={selectNode}
-          onDeselectNode={deselectNode}
         />
       </NxPageBody>
 

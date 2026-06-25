@@ -1,5 +1,4 @@
 import {
-  Button,
   Content,
   ContentVariants,
   EmptyState,
@@ -13,7 +12,7 @@ import {
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { RhUiCloseIcon, RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
+import { RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
@@ -39,7 +38,6 @@ type NodeExecutionDetailsPanelProps = {
   executionId: string
   /** Activity state from the execution store, used for status and elapsed time. */
   nodeState?: ActivityState
-  onClose: () => void
 }
 
 function NoDataState({ label }: Readonly<{ label: string }>) {
@@ -103,7 +101,7 @@ function DataPane({ title, nodeId, data, view, onViewChange, isErrorState = fals
 
   return (
     <Stack style={{ height: '100%', overflow: 'hidden' }}>
-      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
+      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--xs)' }}>
         <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'wrap' }}>
           <FlexItem flex={{ default: 'flexNone' }} className={styles.dataPaneTitle}>
             {title}
@@ -198,7 +196,6 @@ export function NodeExecutionDetailsPanel({
   nodeName,
   executionId,
   nodeState,
-  onClose,
 }: Readonly<NodeExecutionDetailsPanelProps>) {
   const [inputView, setPanelView] = useState<PanelView>('json')
   const [outputView, setOutputView] = useState<PanelView>('json')
@@ -220,7 +217,7 @@ export function NodeExecutionDetailsPanel({
   return (
     <Stack style={{ height: '100%', overflow: 'hidden' }}>
       {/* Node-specific header */}
-      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--xxs)' }}>
+      <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--sm)' }}>
         <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
           <FlexItem>
             <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
@@ -251,11 +248,6 @@ export function NodeExecutionDetailsPanel({
                   <ActivityStatusLabel status={nodeState.status} />
                 </FlexItem>
               )}
-              <FlexItem>
-                <Button variant="plain" onClick={onClose} aria-label="Close step details">
-                  <RhUiCloseIcon />
-                </Button>
-              </FlexItem>
             </Flex>
           </FlexItem>
         </Flex>
@@ -278,7 +270,7 @@ export function NodeExecutionDetailsPanel({
           <Flex
             flexWrap={{ default: 'nowrap' }}
             alignItems={{ default: 'alignItemsStretch' }}
-            style={{ height: '100%', gap: 'var(--pf-t--global--spacer--md)' }}
+            style={{ height: '100%', gap: 'var(--pf-t--global--spacer--sm)' }}
           >
             <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0, overflow: 'hidden' }}>
               <DataPane

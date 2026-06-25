@@ -9,7 +9,6 @@ import type { ActivityOrderItem } from './ExecutionActivityTable'
 import { ActivityStatusLabel } from './ExecutionStatus'
 
 const COMPACT_TABLE_STYLE = {
-  tableLayout: 'fixed',
   width: '100%',
 } as React.CSSProperties
 
@@ -26,7 +25,7 @@ const COMPACT_NAME_CELL: React.CSSProperties = {
 const COMPACT_STATUS_CELL: React.CSSProperties = {
   verticalAlign: 'top',
   whiteSpace: 'nowrap',
-  width: '30%',
+  width: 'auto',
 }
 
 const CLICKABLE_ROW_STYLE: React.CSSProperties = {

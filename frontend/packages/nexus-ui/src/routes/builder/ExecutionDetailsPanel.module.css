@@ -1,0 +1,33 @@
+/**
+ * ExecutionDetailsPanel layout styles
+ */
+
+.header {
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  padding-bottom: var(--pf-t--global--spacer--xs);
+}
+
+.contentFlex {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.activityList {
+  flex-basis: 400px;
+  flex-shrink: 0;
+  flex-grow: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.activityListScrollWrapper {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.nodeDetailsPane {
+  min-width: 0;
+  padding: var(--pf-t--global--spacer--xs) var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--xs)
+    var(--pf-t--global--spacer--md);
+}

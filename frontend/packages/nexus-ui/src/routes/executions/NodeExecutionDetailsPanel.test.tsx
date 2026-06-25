@@ -46,7 +46,6 @@ const defaultProps = {
     startedAt: '2024-01-01T10:00:00Z',
     completedAt: '2024-01-01T10:01:30Z',
   },
-  onClose: vi.fn(),
 }
 
 describe('NodeExecutionDetailsPanel', () => {
@@ -106,15 +105,6 @@ describe('NodeExecutionDetailsPanel', () => {
     await user.click(tableButtons[0])
 
     expect(screen.getByLabelText('Input data')).toBeInTheDocument()
-  })
-
-  it('calls onClose when close button is clicked', async () => {
-    const user = userEvent.setup()
-    render(<NodeExecutionDetailsPanel {...defaultProps} />, { wrapper })
-
-    await user.click(screen.getByRole('button', { name: 'Close step details' }))
-
-    expect(defaultProps.onClose).toHaveBeenCalledOnce()
   })
 
   it('shows loading spinner when data is loading', () => {

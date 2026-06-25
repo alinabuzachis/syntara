@@ -195,7 +195,6 @@ export function BuilderContent(props: BuilderContentProps) {
     mostRecentPanelHeight,
     handleMostRecentResize,
     handleMostRecentNodeSelect,
-    handleMostRecentDeselectNode,
     handleCloseMostRecentRunPanel,
   } = useBuilderLiveRunPanel({
     mostRecentExecutionId,
@@ -427,7 +426,6 @@ export function BuilderContent(props: BuilderContentProps) {
                           selectedNodeId={mostRecentSelectedNodeId}
                           selectedNodeName={mostRecentSelectedNodeName}
                           onNodeSelect={handleMostRecentNodeSelect}
-                          onDeselectNode={handleMostRecentDeselectNode}
                           panelHeight={mostRecentPanelHeight}
                           onResize={handleMostRecentResize}
                           isTerminalStatus={isTerminalStatus}

@@ -9,7 +9,6 @@ type ExecutionDetailsPanelWrapperProps = {
   selectedNodeId: string | null
   selectedNodeName: string | null
   onNodeSelect: (nodeId: string, nodeName: string) => void
-  onDeselectNode: () => void
   panelHeight: number
   onResize: (newHeight: number) => void
   isTerminalStatus: boolean
@@ -23,7 +22,6 @@ export function ExecutionDetailsPanelWrapper(props: ExecutionDetailsPanelWrapper
     selectedNodeId,
     selectedNodeName,
     onNodeSelect,
-    onDeselectNode,
     panelHeight,
     onResize,
     isTerminalStatus,
@@ -46,7 +44,6 @@ export function ExecutionDetailsPanelWrapper(props: ExecutionDetailsPanelWrapper
           selectedNodeId={selectedNodeId}
           selectedNodeName={selectedNodeName}
           onNodeSelect={onNodeSelect}
-          onDeselectNode={onDeselectNode}
           headerLabel="Most recent run details"
           onClosePanel={isTerminalStatus ? onClosePanel : undefined}
         />

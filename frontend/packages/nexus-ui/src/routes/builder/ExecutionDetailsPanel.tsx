@@ -37,6 +37,7 @@ import {
 import { CompactActivityList } from './CompactActivityList'
 import { ExecutionActivityTable } from './ExecutionActivityTable'
 import type { ActivityOrderItem } from './ExecutionActivityTable'
+import styles from './ExecutionDetailsPanel.module.css'
 import { StatusLabel } from './ExecutionStatus'
 import { useActivityNameMap, resolveNodeName, type WorkflowDefShape } from './useActivityNameMap'
 
@@ -49,7 +50,6 @@ type ExecutionDetailsPanelProps = {
   workflowDefinition?: WorkflowDefShape | null
   selectedNodeId?: string | null
   selectedNodeName?: string | null
-  onDeselectNode?: () => void
   onNodeSelect?: (nodeId: string, nodeName: string) => void
   headerLabel?: string
   onClosePanel?: () => void
@@ -171,7 +171,6 @@ type ThreePanelLayoutProps = {
   displayNodeName: string | null
   executionId: string
   selectedNodeState?: ActivityState
-  onDeselectNode: () => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
   onRowClick?: (nodeId: string, nodeName: string) => void
@@ -189,7 +188,6 @@ function ThreePanelLayout({
   displayNodeName,
   executionId,
   selectedNodeState,
-  onDeselectNode,
   viewMode,
   onViewModeChange,
   onRowClick,
@@ -208,7 +206,7 @@ function ThreePanelLayout({
         overflow: 'hidden',
       }}
     >
-      <div style={{ flexShrink: 0, padding: 'var(--pf-t--global--spacer--md)', paddingBottom: 0 }}>
+      <div className={styles.header}>
         <HeaderMetadata
           execution={execution}
           elapsedLabel={elapsedLabel}
@@ -222,34 +220,29 @@ function ThreePanelLayout({
       <Flex
         flexWrap={{ default: 'nowrap' }}
         alignItems={{ default: 'alignItemsStretch' }}
-        style={{ flex: 1, minHeight: 0, overflow: 'hidden', gap: 0 }}
+        gap={{ default: 'gapNone' }}
+        className={styles.contentFlex}
       >
-        <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0, overflow: 'hidden' }}>
-          <Stack style={{ height: '100%', overflow: 'hidden', padding: 'var(--pf-t--global--spacer--md)' }}>
-            <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-              <CompactActivityList
-                activityStates={activityStates}
-                activityOrder={activityOrder}
-                onRowClick={onRowClick}
-                selectedNodeId={selectedNodeId}
-              />
-            </StackItem>
-          </Stack>
+        <FlexItem className={styles.activityList}>
+          <div className={styles.activityListScrollWrapper}>
+            <CompactActivityList
+              activityStates={activityStates}
+              activityOrder={activityOrder}
+              onRowClick={onRowClick}
+              selectedNodeId={selectedNodeId}
+            />
+          </div>
         </FlexItem>
 
         <Divider orientation={{ default: 'vertical' }} />
 
-        <FlexItem
-          flex={{ default: 'flex_2' }}
-          style={{ minWidth: 0, overflow: 'hidden', padding: 'var(--pf-t--global--spacer--md)' }}
-        >
+        <FlexItem flex={{ default: 'flex_1' }} className={styles.nodeDetailsPane}>
           {selectedNodeId && displayNodeName ? (
             <NodeExecutionDetailsPanel
               nodeId={selectedNodeId}
               nodeName={displayNodeName}
               executionId={executionId}
               nodeState={selectedNodeState}
-              onClose={onDeselectNode}
             />
           ) : (
             <NoSelectionState />
@@ -373,7 +366,6 @@ export function ExecutionDetailsPanel({
   workflowDefinition,
   selectedNodeId,
   selectedNodeName: selectedNodeNameProp,
-  onDeselectNode,
   onNodeSelect,
   headerLabel,
   onClosePanel,
@@ -422,7 +414,6 @@ export function ExecutionDetailsPanel({
   const resolvedNodeId = selectedNodeId ?? null
   const displayNodeName = selectedNodeNameProp ?? resolveNodeName(nameMap, selectedNodeId) ?? null
   const selectedNodeState = selectedNodeId ? activityStates.get(selectedNodeId) : undefined
-  const deselectHandler = onDeselectNode ?? (() => {})
 
   const handleRowClick = (nodeId: string, nodeName: string) => {
     onNodeSelect?.(nodeId, nodeName)
@@ -449,7 +440,6 @@ export function ExecutionDetailsPanel({
         displayNodeName={displayNodeName}
         executionId={executionId}
         selectedNodeState={selectedNodeState}
-        onDeselectNode={deselectHandler}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onRowClick={handleRowClick}
