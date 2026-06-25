@@ -7,4 +7,4 @@
  */
 
 export { validateWorkflow } from './validateWorkflow'
-export type { ValidationError, ValidationResult, ValidationRule, ValidationSeverity } from './types'
+export type { ValidationContext, ValidationError, ValidationResult, ValidationRule, ValidationSeverity } from './types'

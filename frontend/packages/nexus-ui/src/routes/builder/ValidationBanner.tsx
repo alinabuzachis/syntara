@@ -29,11 +29,12 @@ function groupErrors(errors: ValidationError[]): ErrorGroup[] {
   const groups = new Map<string, ErrorGroup>()
   for (const error of errors) {
     const parsed = parseValidationMessage(error.message)
-    const existing = groups.get(parsed.key)
+    const groupKey = error.nodeId ?? parsed.key
+    const existing = groups.get(groupKey)
     if (existing) {
       existing.messages.push(...parsed.messages)
     } else {
-      groups.set(parsed.key, {
+      groups.set(groupKey, {
         displayKey: error.nodeName ?? parsed.displayKey,
         nodeId: error.nodeId,
         messages: [...parsed.messages],

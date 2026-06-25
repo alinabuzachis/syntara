@@ -108,7 +108,7 @@ export function useBuilderToolbarHandlers({
       }
 
       // Check all other validation rules (dangling nodes, invalid connections, etc.)
-      const validationResult = validateWorkflow(activities, edges)
+      const validationResult = validateWorkflow(activities, edges, { triggers })
       if (!validationResult.valid) {
         const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
         showError({ title: 'Cannot run workflow', description: `Workflow validation failed:\n• ${errorMessages}` })

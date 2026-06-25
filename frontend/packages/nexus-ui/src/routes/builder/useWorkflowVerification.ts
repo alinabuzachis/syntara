@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
 import { useCallback, useState } from 'react'
 
 import { workflowFetchClient } from '../../client'
@@ -7,6 +7,7 @@ import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import type { BuilderAction, ValidationError } from './builderReducer'
+import { validateWorkflow } from './utils/validation'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
 type ValidationResultError = { message: string; node_id?: string | null }
@@ -17,6 +18,7 @@ type ValidationResultError = { message: string; node_id?: string | null }
 const NODE_ID_IN_MESSAGE = /'id':\s*'([a-zA-Z0-9_.-]+)'/
 const NODE_NAME_IN_MESSAGE = /'name':\s*'([^']+)'/
 const ERROR_SUFFIX_PATTERN = /}\s+(\S.*)$/
+const ARROW_PATH_PATTERN = /^(?:workflow_definition -> )?(?:nodes|triggers) -> (\d+) -> (.+)/
 
 export function resolveNodeId(error: ValidationResultError): string | null {
   if (error.node_id) return error.node_id
@@ -33,13 +35,34 @@ export function parseValidationMessage(raw: string): { message: string; nodeName
   return { message: raw }
 }
 
-export function extractValidationErrors(err: Record<string, unknown> | undefined): ValidationError[] | null {
+function resolveArrowPathError(error: ValidationResultError, activities: Activity[]): ValidationError | null {
+  const match = ARROW_PATH_PATTERN.exec(error.message)
+  if (!match) return null
+  const index = Number.parseInt(match[1], 10)
+  const rest = match[2]
+  const activity = activities[index]
+  if (!activity) return null
+  return {
+    message: rest,
+    nodeId: activity.id,
+    nodeName: activity.name ?? activity.id,
+  }
+}
+
+export function extractValidationErrors(
+  err: Record<string, unknown> | undefined,
+  activities?: Activity[]
+): ValidationError[] | null {
   if (!err) return null
 
   const validationResult = err.validation_result as { errors?: ValidationResultError[] } | undefined
 
   if (validationResult?.errors && Array.isArray(validationResult.errors)) {
     return validationResult.errors.map((e) => {
+      if (activities) {
+        const arrowResult = resolveArrowPathError(e, activities)
+        if (arrowResult) return arrowResult
+      }
       const parsed = parseValidationMessage(e.message)
       return { ...parsed, nodeId: resolveNodeId(e) }
     })
@@ -86,6 +109,22 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
       }
 
       dispatch({ type: 'CLEAR_VALIDATION_ERRORS' })
+
+      const frontendResult = validateWorkflow(activities, edges, { triggers })
+      if (!frontendResult.valid) {
+        const nameMap = new Map(activities.map((a) => [a.id, a.name ?? a.id]))
+        dispatch({
+          type: 'SET_VALIDATION_ERRORS',
+          payload: frontendResult.errors.map((e) => ({
+            message: e.message,
+            nodeId: e.nodeId ?? null,
+            nodeName: e.nodeId ? nameMap.get(e.nodeId) : undefined,
+          })),
+        })
+        useWorkflowStore.getState().setValidationErrorCount(frontendResult.errors.length)
+        return
+      }
+
       setIsVerifying(true)
       workflowFetchClient
         .POST('/workflows/validate', {
@@ -104,6 +143,8 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
             }
           } else if (response.ok && data && !data.valid) {
             const errors: ValidationError[] = (data.errors ?? []).map((e) => {
+              const arrowResult = resolveArrowPathError(e, activities)
+              if (arrowResult) return arrowResult
               const parsed = parseValidationMessage(e.message)
               return { ...parsed, nodeId: resolveNodeId(e) }
             })
@@ -111,7 +152,7 @@ export function useWorkflowVerification({ dispatch }: UseWorkflowVerificationOpt
             useWorkflowStore.getState().setValidationErrorCount(errors.length)
           } else {
             const err = error as Record<string, unknown> | undefined
-            const extracted = extractValidationErrors(err)
+            const extracted = extractValidationErrors(err, activities)
             if (extracted) {
               dispatch({ type: 'SET_VALIDATION_ERRORS', payload: extracted })
               useWorkflowStore.getState().setValidationErrorCount(extracted.length)

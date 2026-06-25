@@ -42,6 +42,18 @@ export type ValidationResult = {
 }
 
 /**
+ * Additional context passed to validation rules that need workflow-level data.
+ */
+export type ValidationContext = {
+  /** Trigger nodes — their parameters.input_schema defines valid ${input.*} references */
+  triggers?: Activity[]
+}
+
+/**
  * A validation rule function
  */
-export type ValidationRule = (activities: Activity[], edges: EdgeConnection[]) => ValidationError[]
+export type ValidationRule = (
+  activities: Activity[],
+  edges: EdgeConnection[],
+  context?: ValidationContext
+) => ValidationError[]
