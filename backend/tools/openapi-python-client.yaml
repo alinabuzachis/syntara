@@ -1,0 +1,13 @@
+---
+# OpenAPI Python Client Configuration
+# See: https://github.com/openapi-generators/openapi-python-client
+
+# Post-generation hooks to run after client generation
+# Note: These commands run from the generated client directory (temp dir)
+# BACKEND_DIR is set by the Makefile to the backend directory path
+post_hooks:
+  # Copy custom filter utilities module from template
+  - "cp ${BACKEND_DIR}/tools/api_custom_templates/filters.py.jinja nexus_api_client/filters.py"
+  # Run ruff to fix imports and formatting
+  - "ruff check . --fix-only"
+  - "ruff format ."

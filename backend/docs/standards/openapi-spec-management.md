@@ -150,4 +150,172 @@ uv run python tools/export_openapi.py | uv run python tools/ci/check_openapi_spe
 
 This is what `make api-spec-drift` does internally.
 
+## API Client Filter Utilities
+
+The Nexus Python API client (generated from the OpenAPI spec) provides type-safe filter utilities for endpoints that accept `additional_params` with bracket-notation query parameters.
+
+### Quick Start
+
+```python
+from nexus_api_client import build_filters
+
+# Instead of manual dictionary construction:
+workflows = nexus_api.workflows.list(
+    additional_params={
+        "name[contains]": "auth",
+        "created_at[gte]": "2025-01-01"
+    }
+)
+
+# Use the filter builder:
+workflows = nexus_api.workflows.list(
+    additional_params=build_filters(
+        name__contains="auth",
+        created_at__gte="2025-01-01"
+    )
+)
+```
+
+### Supported Operators
+
+| Operator | Usage | Description |
+|----------|-------|-------------|
+| `eq` | `field=value` or `field__eq=value` | Exact match (default) |
+| `contains` | `field__contains=value` | Case-sensitive substring |
+| `starts_with` | `field__starts_with=value` | Prefix match |
+| `gt` | `field__gt=value` | Greater than |
+| `gte` | `field__gte=value` | Greater than or equal |
+| `lt` | `field__lt=value` | Less than |
+| `lte` | `field__lte=value` | Less than or equal |
+
+### Automatic Type Conversion
+
+The filter builder automatically converts Python types to API-compatible strings:
+
+```python
+from datetime import UTC, datetime, date
+from uuid import UUID
+
+filters = build_filters(
+    is_enabled=True,                          # → "true"
+    created_at__gte=date(2025, 1, 1),        # → "2025-01-01"
+    updated_at__lt=datetime.now(UTC),        # → "2025-01-15T10:30:00+00:00"
+    workflow_id=UUID("..."),                 # → string representation
+    name__contains=None                       # → skipped
+)
+```
+
+**Note:** Naive datetimes (without timezone) are supported but discouraged. Always use timezone-aware datetimes: `datetime.now(UTC)` or `datetime.now(tz=UTC)`.
+
+### Label Filtering
+
+Use the `labels__` prefix for filtering by labels:
+
+```python
+filters = build_filters(
+    labels__environment="prod",
+    labels__team="backend"
+)
+# → {"labels[environment]": "prod", "labels[team]": "backend"}
+```
+
+### Combining Filters
+
+For dynamic/conditional filtering, use standard dict operations:
+
+```python
+# Build base filters
+filters = build_filters(is_enabled=True)
+
+# Add more conditionally using dict.update()
+if name_search:
+    filters.update(build_filters(name__contains=name_search))
+if environment:
+    filters.update(build_filters(labels__environment=environment))
+
+# Use the combined filters
+workflows = nexus_api.workflows.list(additional_params=filters)
+```
+
+### Error Handling
+
+```python
+from nexus_api_client import FilterError, OPERATORS
+
+try:
+    filters = build_filters(name__invalid_op="test")
+except FilterError as e:
+    print(f"Invalid operator: {e}")
+    print(f"Supported operators: {OPERATORS}")
+```
+
+### Which Endpoints Support Filtering?
+
+Any endpoint that accepts an `additional_params` parameter supports these filter utilities, including:
+
+- **List endpoints**: `workflows.list()`, `executions.list()`, `credentials.list()`, etc.
+- **Get endpoints with filters**: `executions.get()`, `tool_metrics.get()`, etc.
+
+Check the endpoint's method signature - if it has `additional_params`, you can use `build_filters()`.
+
+### Examples
+
+**Filtering workflows:**
+
+```python
+# Find workflows containing "deploy" in the name
+workflows = nexus_api.workflows.list(
+    additional_params=build_filters(name__contains="deploy")
+)
+
+# Find enabled workflows in production
+workflows = nexus_api.workflows.list(
+    additional_params=build_filters(
+        is_enabled=True,
+        labels__environment="production"
+    )
+)
+```
+
+**Filtering executions:**
+
+```python
+from datetime import UTC, datetime, timedelta
+
+# Find recent executions
+yesterday = datetime.now(UTC) - timedelta(days=1)
+executions = nexus_api.workflows.executions.list(
+    workflow_id=workflow_id,
+    additional_params=build_filters(
+        created_at__gte=yesterday,
+        status="completed"
+    )
+)
+```
+
+**Complex filters:**
+
+```python
+# Combine multiple conditions
+filters = build_filters(
+    name__starts_with="prod-",
+    is_enabled=True,
+    created_at__gte=date(2025, 1, 1),
+    labels__team="backend",
+    labels__priority="high"
+)
+
+workflows = nexus_api.workflows.list(additional_params=filters)
+```
+
+### Implementation Details
+
+The filter utilities are automatically generated as part of the standard API client generation workflow (`make generate-api-client`). No separate step is required.
+
+**How it works:**
+
+1. **Custom templates**: `tools/api_custom_templates/filters.py.jinja` defines the filter module, and `package_init.py.jinja` exports `build_filters`, `FilterError`, `OPERATORS` from the package root
+2. **Post-generation hooks**: The `post_hooks` configuration in `tools/openapi-python-client.yaml` copies the filter module into the generated client
+3. **Result**: Running `make generate-api-client` produces a client with filter utilities already included and exported
+
 Generated By: Claude Code (Claude Opus 4.6)

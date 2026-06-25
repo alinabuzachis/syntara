@@ -152,7 +152,7 @@ Does the component use browser-specific APIs?
 
 ### Shift-Left E2E Testing (Test Tagging for PR Checks)
 
-Use Playwright's `@pr-check` tag to mark critical E2E tests that should run on every PR, while the full suite runs on main and in downstream pipelines.
+Use Playwright's `@pr-check` tag to mark critical E2E tests that should run on every PR, while the full suite runs on devel and in downstream pipelines.
 
 **Tag syntax:**
 
