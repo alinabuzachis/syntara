@@ -10,7 +10,7 @@ import { expect, type Page } from '@playwright/test'
 import { AppRoute } from '../../src/app/AppRoute'
 
 import { MOCK_IDENTITY_PROVIDER_ID } from './mock-ids'
-import type { PageEntry } from './page-registry'
+import type { CanvasPageEntry, PageEntry } from './page-registry'
 
 /**
  * Opens the step editor side panel by clicking the canvas card title (PatternFly `Title` h2).
@@ -194,10 +194,11 @@ export const oidcProviderWizardPages: PageEntry[] = [
 // ---------------------------------------------------------------------------
 // Builder interaction states
 // ---------------------------------------------------------------------------
-export const builderInteractivePages: PageEntry[] = [
+export const builderInteractivePages: CanvasPageEntry[] = [
   {
     section: 'workflows',
     name: 'builder-edit-add-step-panel',
+    perceptual: true,
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
@@ -299,6 +300,7 @@ export const builderInteractivePages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'builder-new-scheduled-trigger-form',
+    perceptual: true,
     path: AppRoute.WorkflowBuilder.New,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
@@ -316,7 +318,23 @@ export const builderInteractivePages: PageEntry[] = [
   },
   {
     section: 'workflows',
+    name: 'builder-new-webhook-trigger-form',
+    perceptual: true,
+    path: AppRoute.WorkflowBuilder.New,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
+        timeout: 30_000,
+      })
+    },
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Webhook trigger' }).click()
+      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
+    },
+  },
+  {
+    section: 'workflows',
     name: 'builder-new-verify-errors',
+    perceptual: true,
     path: AppRoute.WorkflowBuilder.New,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
@@ -346,10 +364,11 @@ export const builderInteractivePages: PageEntry[] = [
 // ---------------------------------------------------------------------------
 // Workflow dialog entries (publish, unpublish, run, kebab menu)
 // ---------------------------------------------------------------------------
-export const workflowDialogPages: PageEntry[] = [
+export const workflowDialogPages: CanvasPageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-kebab-menu',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -364,6 +383,7 @@ export const workflowDialogPages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-publish-dialog',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -380,6 +400,7 @@ export const workflowDialogPages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-unpublish-dialog',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -414,6 +435,7 @@ export const workflowDialogPages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-run-dialog',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -445,6 +467,7 @@ export const workflowDialogPages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-import-dialog',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()

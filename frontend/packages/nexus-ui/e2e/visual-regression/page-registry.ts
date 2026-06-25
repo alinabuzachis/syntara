@@ -53,6 +53,15 @@ export type PageEntry = {
   role?: 'viewer' | 'auditor' | 'user'
 }
 
+/**
+ * Canvas entries require perceptual comparison (CIEDE2000) to avoid flaky
+ * layout-shift diffs from ReactFlow canvas rendering and non-deterministic settling.
+ * Use this type for any page that renders a ReactFlow canvas (builder, execution visualizer, etc.).
+ */
+export type CanvasPageEntry = PageEntry & {
+  perceptual: true
+}
+
 async function applyNameFilter(page: Page, value: string) {
   await page.getByPlaceholder('Filter by name').fill(value)
   await page.getByPlaceholder('Filter by name').press('Enter')
@@ -78,6 +87,7 @@ export const pages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-list',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -87,6 +97,7 @@ export const pages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-list-empty-filter',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -100,6 +111,7 @@ export const pages: PageEntry[] = [
   {
     section: 'workflows',
     name: 'workflows-delete-dialog',
+    perceptual: true,
     path: AppRoute.Workflows.Root,
     waitFor: async (page) => {
       await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
@@ -151,6 +163,7 @@ export const pages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_ID),
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },

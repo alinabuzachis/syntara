@@ -41,6 +41,14 @@ test.describe('Page screenshots', { tag: '@local-only' }, () => {
     'Page screenshot baselines require mock API seed data; skipped in real-backend E2E runs'
   )
 
+  // Canvas pages must use perceptual comparison to avoid flaky layout-shift diffs.
+  // The CanvasPageEntry type enforces this for dedicated arrays (builderInteractivePages,
+  // workflowDialogPages), but inline entries in the `pages` array need a runtime check.
+  const missingPerceptual = pages.filter((e) => e.section === 'workflows' && !e.perceptual).map((e) => e.name)
+  if (missingPerceptual.length > 0) {
+    throw new Error(`Workflow entries must have perceptual: true — missing on: ${missingPerceptual.join(', ')}`)
+  }
+
   for (const entry of pages) {
     test(`${entry.section}/${entry.name}`, async ({ page }) => {
       // For role-specific entries, intercept auth to return a role-scoped token
