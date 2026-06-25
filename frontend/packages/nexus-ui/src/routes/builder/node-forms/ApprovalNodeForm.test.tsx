@@ -76,10 +76,10 @@ describe('ApprovalNodeForm', () => {
     it('renders decision_window fields', () => {
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Second\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Minute\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Day\(s\)/i)).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toBeInTheDocument()
     })
   })
 
@@ -93,18 +93,18 @@ describe('ApprovalNodeForm', () => {
       )
 
       // 3723 seconds = 1 hour, 2 minutes, 3 seconds
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(1)
-      expect(screen.getByLabelText(/Minute\(s\)/i)).toHaveValue(2)
-      expect(screen.getByLabelText(/Second\(s\)/i)).toHaveValue(3)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(1)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(2)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(3)
     })
 
     it('decision_window fields are empty when not provided', () => {
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Day\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Minute\(s\)/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Second\(s\)/i)).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toBeInTheDocument()
     })
 
     it('renders permission-filtered user and group selects', () => {
@@ -282,15 +282,15 @@ describe('ApprovalNodeForm', () => {
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       // Clear default and set custom decision_window
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Hour\(s\)/i), '2')
-      await user.type(screen.getByLabelText(/Minute\(s\)/i), '30')
-      await user.type(screen.getByLabelText(/Second\(s\)/i), '15')
+      await user.clear(screen.getByRole('spinbutton', { name: /Days/i }))
+      await user.type(screen.getByRole('spinbutton', { name: /Hours/i }), '2')
+      await user.type(screen.getByRole('spinbutton', { name: /Minutes/i }), '30')
+      await user.type(screen.getByRole('spinbutton', { name: /Seconds/i }), '15')
 
       // Verify values
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(2)
-      expect(screen.getByLabelText(/Minute\(s\)/i)).toHaveValue(30)
-      expect(screen.getByLabelText(/Second\(s\)/i)).toHaveValue(15)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(2)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(30)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(15)
     })
 
     it('allows entering message text', async () => {
@@ -422,9 +422,9 @@ describe('ApprovalNodeForm', () => {
       )
 
       // 7323 seconds = 2 hours, 2 minutes, 3 seconds
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(2)
-      expect(screen.getByLabelText(/Minute\(s\)/i)).toHaveValue(2)
-      expect(screen.getByLabelText(/Second\(s\)/i)).toHaveValue(3)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(2)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(2)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(3)
     })
 
     it('handles zero decision_window values', () => {
@@ -439,8 +439,8 @@ describe('ApprovalNodeForm', () => {
         />
       )
 
-      expect(screen.getByLabelText(/Day\(s\)/i)).toHaveValue(0)
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(0)
     })
   })
 
@@ -457,12 +457,12 @@ describe('ApprovalNodeForm', () => {
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       // Clear default day value and set custom units
-      await user.clear(screen.getByLabelText(/Day\(s\)/i))
-      await user.type(screen.getByLabelText(/Day\(s\)/i), '1')
-      await user.type(screen.getByLabelText(/Hour\(s\)/i), '2')
+      await user.clear(screen.getByRole('spinbutton', { name: /Days/i }))
+      await user.type(screen.getByRole('spinbutton', { name: /Days/i }), '1')
+      await user.type(screen.getByRole('spinbutton', { name: /Hours/i }), '2')
 
-      expect(screen.getByLabelText(/Day\(s\)/i)).toHaveValue(1)
-      expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(2)
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(1)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(2)
     })
 
     it('renders with users loading state', () => {

@@ -13,7 +13,6 @@ import {
 import type { LogicFormData } from '../../node-forms/LogicNodeForm'
 import { getDefaultNodeBaseName, getNodeDisplayName } from '../../utils/nodeNaming'
 import { buildSwitchCasePort } from '../../utils/switchCaseHelpers'
-import { timeUnitsToSeconds } from '../../utils/timeUtils'
 
 export function generateSecureRandomId(): string {
   const cryptoApi = globalThis.crypto
@@ -183,8 +182,7 @@ export function submitSwitchLogic(
 }
 
 export function submitWaitLogic(activityId: string, name: string, data: LogicFormData): boolean {
-  const totalSeconds = timeUnitsToSeconds(data.seconds ?? 0, data.minutes ?? 0, data.hours ?? 0, data.days ?? 0)
-  const activity = createWaitActivity(activityId, name, { duration: totalSeconds }, data.settings)
+  const activity = createWaitActivity(activityId, name, { duration: data.duration ?? 0 }, data.settings)
   useWorkflowStore.getState().addActivity(activity)
   return true
 }

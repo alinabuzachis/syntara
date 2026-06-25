@@ -1,6 +1,8 @@
-import { FormGroup, Grid, GridItem, TextInput } from '@patternfly/react-core'
+import { Content, Flex, FlexItem, TextInput } from '@patternfly/react-core'
 
 import { secondsToTimeUnits, timeUnitsToSeconds } from '../../utils/timeUtils'
+
+import styles from './DurationInput.module.css'
 
 type DurationState = {
   days: number
@@ -42,59 +44,71 @@ export function DurationInput({ value, onChange, idPrefix, isDisabled }: Duratio
   }
 
   return (
-    <Grid hasGutter>
-      <GridItem span={3}>
-        <FormGroup label="Day(s)" fieldId={`${idPrefix}-days`}>
-          <TextInput
-            id={`${idPrefix}-days`}
-            type="number"
-            min={0}
-            value={fieldValue(duration.days)}
-            placeholder="0"
-            isDisabled={isDisabled}
-            onChange={(_event, val) => handleFieldChange('days', val)}
-          />
-        </FormGroup>
-      </GridItem>
-      <GridItem span={3}>
-        <FormGroup label="Hour(s)" fieldId={`${idPrefix}-hours`}>
-          <TextInput
-            id={`${idPrefix}-hours`}
-            type="number"
-            min={0}
-            value={fieldValue(duration.hours)}
-            placeholder="0"
-            isDisabled={isDisabled}
-            onChange={(_event, val) => handleFieldChange('hours', val)}
-          />
-        </FormGroup>
-      </GridItem>
-      <GridItem span={3}>
-        <FormGroup label="Minute(s)" fieldId={`${idPrefix}-minutes`}>
-          <TextInput
-            id={`${idPrefix}-minutes`}
-            type="number"
-            min={0}
-            value={fieldValue(duration.minutes)}
-            placeholder="0"
-            isDisabled={isDisabled}
-            onChange={(_event, val) => handleFieldChange('minutes', val)}
-          />
-        </FormGroup>
-      </GridItem>
-      <GridItem span={3}>
-        <FormGroup label="Second(s)" fieldId={`${idPrefix}-seconds`}>
-          <TextInput
-            id={`${idPrefix}-seconds`}
-            type="number"
-            min={0}
-            value={fieldValue(duration.seconds)}
-            placeholder="0"
-            isDisabled={isDisabled}
-            onChange={(_event, val) => handleFieldChange('seconds', val)}
-          />
-        </FormGroup>
-      </GridItem>
-    </Grid>
+    <Flex>
+      <FlexItem>
+        <TextInput
+          id={`${idPrefix}-days`}
+          type="number"
+          min={0}
+          value={fieldValue(duration.days)}
+          placeholder="0"
+          isDisabled={isDisabled}
+          aria-label="Days"
+          onChange={(_event, val) => handleFieldChange('days', val)}
+          className={styles.durationInput}
+        />
+        <Content component="small" className={styles.durationLabel} aria-hidden="true">
+          Days
+        </Content>
+      </FlexItem>
+      <FlexItem>
+        <TextInput
+          id={`${idPrefix}-hours`}
+          type="number"
+          min={0}
+          value={fieldValue(duration.hours)}
+          placeholder="0"
+          isDisabled={isDisabled}
+          aria-label="Hours"
+          onChange={(_event, val) => handleFieldChange('hours', val)}
+          className={styles.durationInput}
+        />
+        <Content component="small" className={styles.durationLabel} aria-hidden="true">
+          Hours
+        </Content>
+      </FlexItem>
+      <FlexItem>
+        <TextInput
+          id={`${idPrefix}-minutes`}
+          type="number"
+          min={0}
+          value={fieldValue(duration.minutes)}
+          placeholder="0"
+          isDisabled={isDisabled}
+          aria-label="Minutes"
+          onChange={(_event, val) => handleFieldChange('minutes', val)}
+          className={styles.durationInput}
+        />
+        <Content component="small" className={styles.durationLabel} aria-hidden="true">
+          Minutes
+        </Content>
+      </FlexItem>
+      <FlexItem>
+        <TextInput
+          id={`${idPrefix}-seconds`}
+          type="number"
+          min={0}
+          value={fieldValue(duration.seconds)}
+          placeholder="0"
+          isDisabled={isDisabled}
+          aria-label="Seconds"
+          onChange={(_event, val) => handleFieldChange('seconds', val)}
+          className={styles.durationInput}
+        />
+        <Content component="small" className={styles.durationLabel} aria-hidden="true">
+          Seconds
+        </Content>
+      </FlexItem>
+    </Flex>
   )
 }

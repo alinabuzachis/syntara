@@ -107,8 +107,8 @@ describe('NodeSettingsForm', () => {
 
     it('renders duration picker when timeoutFormat is duration', () => {
       setup({ timeoutFormat: 'duration' })
-      expect(screen.getByRole('spinbutton', { name: 'Day(s)' })).toBeInTheDocument()
-      expect(screen.getByRole('spinbutton', { name: 'Hour(s)' })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: 'Days' })).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: 'Hours' })).toBeInTheDocument()
     })
 
     it('does not render timeout when supportsTimeout is false', () => {

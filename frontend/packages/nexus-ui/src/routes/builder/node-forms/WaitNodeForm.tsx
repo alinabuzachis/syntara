@@ -1,30 +1,18 @@
-import {
-  Content,
-  Flex,
-  FlexItem,
-  FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
-  Stack,
-  StackItem,
-  TextInput,
-} from '@patternfly/react-core'
+import { FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
-import type { FieldErrors } from 'react-hook-form'
-import { FormProvider, useForm, useFormContext } from 'react-hook-form'
+import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { useIsVersionView } from '../VersionViewContext'
 
 import { ActivityNameField } from './shared/ActivityNameField'
+import { DurationInput } from './shared/DurationInput'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
 import { useMaxWaitDuration } from './useMaxWaitDuration'
 import { createWaitFormSchema, type WaitFormData } from './waitFormSchema'
-import styles from './WaitNodeForm.module.css'
 
 export type { WaitFormData }
 
@@ -34,60 +22,13 @@ type WaitNodeFormProps = {
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
-type DurationFieldProps = {
-  name: 'days' | 'hours' | 'minutes' | 'seconds'
-  label: string
-  max?: number
-  hasGroupError?: boolean
-}
-
-function DurationField({ name, label, max, hasGroupError }: Readonly<DurationFieldProps>) {
-  const isVersionView = useIsVersionView()
-  const {
-    register,
-    formState: { errors },
-  } = useFormContext<WaitFormData>()
-
-  const fieldError = errors[name]
-  const isRefinementError = fieldError?.type === 'custom'
-  const hasFieldError = fieldError && !isRefinementError
-  const showError = hasFieldError || hasGroupError
-
-  return (
-    <FlexItem>
-      <TextInput
-        {...register(name, { valueAsNumber: true })}
-        id={`wait-${name}`}
-        type="number"
-        min={0}
-        max={max}
-        placeholder="00"
-        aria-label={label}
-        validated={showError ? 'error' : 'default'}
-        isDisabled={isVersionView}
-        className={styles.durationInput}
-      />
-      <Content component="small" className={styles.durationLabel}>
-        {label}
-      </Content>
-      {hasFieldError && (
-        <FormHelperText>
-          <HelperText>
-            <HelperTextItem variant="error">{fieldError.message}</HelperTextItem>
-          </HelperText>
-        </FormHelperText>
-      )}
-    </FlexItem>
-  )
-}
-
 type WaitFormFieldsProps = Readonly<{
   onHeaderContentChange?: (content: ReactNode | null) => void
-  validationErrors?: FieldErrors<WaitFormData>
 }>
 
-function WaitFormFields({ onHeaderContentChange, validationErrors }: WaitFormFieldsProps) {
-  const { register, formState } = useFormContext<WaitFormData>()
+function WaitFormFields({ onHeaderContentChange }: WaitFormFieldsProps) {
+  const isVersionView = useIsVersionView()
+  const { register, control, formState } = useFormContext<WaitFormData>()
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="wait-name" ariaLabel="Name" />,
@@ -101,12 +42,7 @@ function WaitFormFields({ onHeaderContentChange, validationErrors }: WaitFormFie
     }
   }, [nameField, onHeaderContentChange])
 
-  const errors = validationErrors ?? formState.errors
-
-  const refinementError =
-    (errors.seconds?.type === 'custom' && errors.seconds) ||
-    (errors.days?.type === 'custom' && errors.days) ||
-    undefined
+  const durationError = formState.errors.duration
 
   const parametersContent = (
     <Stack hasGutter>
@@ -114,16 +50,17 @@ function WaitFormFields({ onHeaderContentChange, validationErrors }: WaitFormFie
 
       <StackItem>
         <FormGroup label="Wait duration" fieldId="wait-duration" isRequired>
-          <Flex gap={{ default: 'gapMd' }} flexWrap={{ default: 'nowrap' }}>
-            <DurationField name="days" label="Days" hasGroupError={!!refinementError} />
-            <DurationField name="hours" label="Hours" max={23} hasGroupError={!!refinementError} />
-            <DurationField name="minutes" label="Minutes" max={59} hasGroupError={!!refinementError} />
-            <DurationField name="seconds" label="Seconds" max={59} hasGroupError={!!refinementError} />
-          </Flex>
-          {refinementError && (
+          <Controller
+            control={control}
+            name="duration"
+            render={({ field }) => (
+              <DurationInput value={field.value} onChange={field.onChange} idPrefix="wait" isDisabled={isVersionView} />
+            )}
+          />
+          {durationError && (
             <FormHelperText>
               <HelperText>
-                <HelperTextItem variant="error">{refinementError.message}</HelperTextItem>
+                <HelperTextItem variant="error">{durationError.message}</HelperTextItem>
               </HelperText>
             </FormHelperText>
           )}
@@ -145,10 +82,7 @@ export function WaitNodeForm(props: Readonly<WaitNodeFormProps>) {
   const defaultValues: WaitFormData = {
     name: '',
     settings: {},
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
+    duration: undefined,
     ...props.initialData,
   }
 
@@ -157,16 +91,12 @@ export function WaitNodeForm(props: Readonly<WaitNodeFormProps>) {
     defaultValues,
   })
 
-  const {
-    formState: { errors },
-  } = methods
-
   if (isLoading) return null
 
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="wait-node-form" onSubmit={methods.handleSubmit(props.onSubmit)}>
-        <WaitFormFields onHeaderContentChange={props.onHeaderContentChange} validationErrors={errors} />
+        <WaitFormFields onHeaderContentChange={props.onHeaderContentChange} />
       </NodeFormContainer>
     </FormProvider>
   )

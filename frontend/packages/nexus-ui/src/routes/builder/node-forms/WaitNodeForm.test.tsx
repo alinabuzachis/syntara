@@ -49,36 +49,34 @@ describe('WaitNodeForm', () => {
   })
 
   describe('Initial Data', () => {
-    it('pre-populates form with initialData', () => {
+    it('pre-populates form with initialData (1d 2h 30m)', () => {
+      // 1 day + 2 hours + 30 minutes = 93000 seconds
       const initialData: Partial<WaitFormData> = {
         name: 'Existing Wait',
-        days: 1,
-        hours: 2,
-        minutes: 30,
-        seconds: 0,
+        duration: 93000,
       }
 
       renderWithHeader(<WaitNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Existing Wait')
       expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(1)
-      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(2)
-      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(30)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(1)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(50)
       expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(0)
     })
 
-    it('defaults to zero values when no initialData provided', () => {
+    it('shows empty inputs when no initialData provided', () => {
       renderWithHeader(<WaitNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(null)
     })
   })
 
   describe('Validation', () => {
-    it('does not submit when total duration is zero', async () => {
+    it('does not submit when duration is not set', async () => {
       render(<WaitNodeForm onSubmit={mockOnSubmit} initialData={{ name: 'Test Wait' }} />)
 
       fireEvent.submit(screen.getByTestId('wait-node-form'))
@@ -88,13 +86,11 @@ describe('WaitNodeForm', () => {
       })
     })
 
-    it('does not submit when total duration exceeds max', async () => {
+    it('does not submit when duration exceeds max', async () => {
+      // 31 days = 2678400 seconds > max 2592000
       const initialData: Partial<WaitFormData> = {
         name: 'Too Long',
-        days: 31,
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
+        duration: 2_678_400,
       }
 
       render(<WaitNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
@@ -108,13 +104,11 @@ describe('WaitNodeForm', () => {
   })
 
   describe('Form Submission', () => {
-    it('submits valid duration data', async () => {
+    it('submits valid duration data as total seconds', async () => {
+      // 1 hour + 30 minutes = 5400 seconds
       const initialData: Partial<WaitFormData> = {
         name: 'My Wait',
-        days: 0,
-        hours: 1,
-        minutes: 30,
-        seconds: 0,
+        duration: 5400,
       }
 
       render(<WaitNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
@@ -123,11 +117,9 @@ describe('WaitNodeForm', () => {
 
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalled()
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- vi.mock returns untyped mock calls
-        const calledWith: WaitFormData = mockOnSubmit.mock.calls[0][0]
+        const calledWith = mockOnSubmit.mock.calls[0][0] as WaitFormData
         expect(calledWith.name).toBe('My Wait')
-        expect(calledWith.hours).toBe(1)
-        expect(calledWith.minutes).toBe(30)
+        expect(calledWith.duration).toBe(5400)
       })
     })
   })

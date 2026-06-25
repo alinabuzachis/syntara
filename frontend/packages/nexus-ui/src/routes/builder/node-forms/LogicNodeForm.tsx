@@ -35,10 +35,7 @@ export type LogicFormData = {
   strategy?: 'all' | 'any'
   requiredPathCount?: number
   // Wait node fields
-  days?: number
-  hours?: number
-  minutes?: number
-  seconds?: number
+  duration?: number
   // Converge fields
   wait_duration?: number
   // Settings (all logic node types)
@@ -170,19 +167,13 @@ export function LogicNodeForm({ onSubmit, initialData, onHeaderContentChange }: 
   if (logicType === ActivityTypeEnum.WAIT) {
     const waitData: Partial<WaitFormData> = {
       name: initialData?.name,
-      days: initialData?.days ?? 0,
-      hours: initialData?.hours ?? 0,
-      minutes: initialData?.minutes ?? 0,
-      seconds: initialData?.seconds ?? 0,
+      duration: initialData?.duration,
     }
 
     const handleWaitSubmit = (data: WaitFormData) => {
       onSubmit({
         name: data.name,
-        days: data.days,
-        hours: data.hours,
-        minutes: data.minutes,
-        seconds: data.seconds,
+        duration: data.duration,
         logicType: ActivityTypeEnum.WAIT,
       })
     }

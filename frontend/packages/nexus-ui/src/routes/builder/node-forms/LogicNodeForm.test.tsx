@@ -122,10 +122,7 @@ describe('LogicNodeForm', () => {
           initialData={{
             logicType: ActivityTypeEnum.WAIT,
             name: 'Test Wait',
-            days: 1,
-            hours: 2,
-            minutes: 30,
-            seconds: 15,
+            duration: 95415,
           }}
         />
       )
@@ -258,10 +255,7 @@ describe('LogicNodeForm', () => {
           initialData={{
             logicType: ActivityTypeEnum.WAIT,
             name: 'Wait Step',
-            days: 0,
-            hours: 0,
-            minutes: 5,
-            seconds: 0,
+            duration: 300,
           }}
         />
       )
@@ -273,7 +267,7 @@ describe('LogicNodeForm', () => {
         const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
         expect(submittedData.logicType).toBe(ActivityTypeEnum.WAIT)
         expect(submittedData.name).toBe('Wait Step')
-        expect(submittedData.minutes).toBe(5)
+        expect(submittedData.duration).toBe(300)
       })
     })
 
@@ -288,10 +282,10 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(null)
     })
 
     it("defaults converge strategy to 'all' when initialData has undefined strategy", () => {
@@ -366,10 +360,7 @@ describe('LogicNodeForm', () => {
           initialData={{
             logicType: ActivityTypeEnum.WAIT,
             name: 'Wait Node',
-            days: 2,
-            hours: 3,
-            minutes: 15,
-            seconds: 45,
+            duration: 184545,
           }}
         />
       )

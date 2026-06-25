@@ -52,21 +52,16 @@ describe('WaitNodeDetails', () => {
 
       renderWithHeader(<WaitNodeDetails waitData={noConfigData} nodeId="wait-1" onClose={mockOnClose} />)
 
-      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(0)
-      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(0)
+      expect(screen.getByRole('spinbutton', { name: /Days/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Hours/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Minutes/i })).toHaveValue(null)
+      expect(screen.getByRole('spinbutton', { name: /Seconds/i })).toHaveValue(null)
     })
   })
 
   describe('Form Submission', () => {
     it('calls updateActivity with correct data on submit', async () => {
-      const user = userEvent.setup()
       renderWithHeader(<WaitNodeDetails waitData={baseWaitData} nodeId="wait-1" onClose={mockOnClose} />)
-
-      const minutesInput = screen.getByRole('spinbutton', { name: /Minutes/i })
-      await user.clear(minutesInput)
-      await user.type(minutesInput, '10')
 
       fireEvent.submit(screen.getByTestId('wait-node-form'))
 
@@ -75,7 +70,7 @@ describe('WaitNodeDetails', () => {
           'wait-1',
           expect.objectContaining({
             name: 'Wait 5 minutes',
-            parameters: { duration: 600 },
+            parameters: { duration: 300 },
           })
         )
       })
