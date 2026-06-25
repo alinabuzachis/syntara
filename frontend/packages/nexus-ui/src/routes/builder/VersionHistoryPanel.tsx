@@ -46,8 +46,7 @@ import { isVersionStatus } from './hooks/useVersionHistory'
 import styles from './VersionHistoryPanel.module.css'
 import { VersionStatusBadge, type VersionStatus } from './VersionStatusBadge'
 
-type WorkflowVersionBase = WorkflowAPI.components['schemas']['WorkflowVersionRead']
-type WorkflowVersion = WorkflowVersionBase & { created_by_username?: string }
+type WorkflowVersion = WorkflowAPI.components['schemas']['WorkflowVersionRead']
 
 type VersionGroup = {
   label: string

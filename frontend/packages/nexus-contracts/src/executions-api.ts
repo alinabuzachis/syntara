@@ -481,6 +481,1018 @@ export interface components {
       }
     }
     /**
+     * NodePosition
+     * @description UI position hint for a workflow node.
+     */
+    NodePosition: {
+      /** X */
+      x: number
+      /** Y */
+      y: number
+    }
+    /**
+     * AAPVerbosity
+     * @description AAP job verbosity levels (0-5).
+     * @enum {integer}
+     */
+    AAPVerbosity: 0 | 1 | 2 | 3 | 4 | 5
+    /**
+     * AAPJobType
+     * @description AAP job type values.
+     * @enum {string}
+     */
+    AAPJobType: 'run' | 'check'
+    /**
+     * AAPJobTemplateExecutorParameters
+     * @description Parameters for AAP Job Template executor.
+     *
+     *     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+     *     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
+     */
+    AAPJobTemplateExecutorParameters: {
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+       */
+      credential_id?: string | null
+      /**
+       * Organizationid
+       * @description AAP organization ID (takes precedence over organization_name)
+       */
+      organizationId?: number | null
+      /**
+       * Organization Name
+       * @description AAP organization name (used with template_name or inventory_name)
+       */
+      organization_name?: string | null
+      /**
+       * Inventory Id
+       * @description Override default inventory by ID (mutually exclusive with inventory_name)
+       */
+      inventory_id?: number | null
+      /**
+       * Inventory Name
+       * @description Override default inventory by name (requires organization_name)
+       */
+      inventory_name?: string | null
+      /**
+       * Extra Vars
+       * @description Extra variables to pass to job/workflow job
+       */
+      extra_vars?: {
+        [key: string]: unknown
+      }
+      /**
+       * Limit
+       * @description Limit job execution to specific hosts
+       */
+      limit?: string | null
+      /**
+       * Tags
+       * @description Ansible tags to run (comma-separated)
+       */
+      tags?: string | null
+      /**
+       * Skip Tags
+       * @description Ansible tags to skip (comma-separated)
+       */
+      skip_tags?: string | null
+      /**
+       * Labels
+       * @description AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+       */
+      labels?: string[] | null
+      /**
+       * Job Template Id
+       * @description AAP job template ID to launch
+       */
+      job_template_id?: number | null
+      /**
+       * Job Template Name
+       * @description AAP job template name (used with organization_name)
+       */
+      job_template_name?: string | null
+      /**
+       * Job Credentials
+       * @description List of AAP credential IDs to use (takes precedence over credential_names)
+       */
+      job_credentials?: number[] | null
+      /**
+       * Credentialnames
+       * @description List of AAP credential names to use (requires organization_name, resolved at launch time)
+       */
+      credentialNames?: string[] | null
+      /**
+       * @description Job verbosity level (0-5)
+       * @default 0
+       */
+      verbosity?: components['schemas']['AAPVerbosity']
+      /** @description Job type override: 'run' or 'check' (dry run) */
+      job_type?: components['schemas']['AAPJobType'] | null
+      /**
+       * Forks
+       * @description Number of parallel forks for job execution
+       */
+      forks?: number | null
+      /**
+       * Job Slicing
+       * @description Number of job slices
+       */
+      job_slicing?: number | null
+      /**
+       * Diff Mode
+       * @description Enable diff mode for playbook runs
+       */
+      diff_mode?: boolean | null
+      /**
+       * Execution Environment
+       * @description Execution environment override (deferred — requires ID resolution)
+       */
+      execution_environment?: string | null
+      /**
+       * Instance Group Id
+       * @description Override instance group by ID (takes precedence over instance_group_name)
+       */
+      instance_group_id?: number | null
+      /**
+       * Instance Group Name
+       * @description Override instance group by name (requires organization_name for lookup)
+       */
+      instance_group_name?: string | null
+    }
+    /**
+     * RetryPolicyParameters
+     * @description Retry policy parameters for a node.
+     *
+     *     Only applies to nodes whose settings class is NodeSettingsFull
+     *     (http_request, aap_job_template, aap_workflow_job_template).
+     *
+     *     All fields default to None — the engine merges with global catalog values
+     *     (workflow_engine.retry_*) for any unset field. Set max_retries=0 to
+     *     explicitly disable retry, overriding global defaults.
+     */
+    RetryPolicyParameters: {
+      /**
+       * Max Retries
+       * @description Retries after initial attempt. 0 = no retry.
+       */
+      max_retries?: number | null
+      /**
+       * Initial Interval
+       * @description Initial retry interval in seconds.
+       */
+      initial_interval?: number | null
+      /**
+       * Max Interval
+       * @description Maximum retry interval in seconds.
+       */
+      max_interval?: number | null
+      /**
+       * Backoff Coefficient
+       * @description Multiplier per retry. 1.0 = fixed, >1.0 = exponential.
+       */
+      backoff_coefficient?: number | null
+    }
+    /**
+     * NodeSettingsFull
+     * @description Full settings with retry_policy (http_request, aap_job_template, aap_workflow_job_template).
+     */
+    NodeSettingsFull: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+      /** Disabled */
+      disabled?: boolean | null
+      /** Timeout */
+      timeout?: number | null
+      retry_policy?: components['schemas']['RetryPolicyParameters'] | null
+    }
+    /**
+     * AAPJobTemplateNode
+     * @description AAP job template executor node.
+     */
+    AAPJobTemplateNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'aap_job_template'
+      parameters: components['schemas']['AAPJobTemplateExecutorParameters']
+      settings?: components['schemas']['NodeSettingsFull'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * AAPWorkflowJobTemplateExecutorParameters
+     * @description Parameters for AAP Workflow Job Template executor.
+     *
+     *     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+     *     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
+     */
+    AAPWorkflowJobTemplateExecutorParameters: {
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+       */
+      credential_id?: string | null
+      /**
+       * Organizationid
+       * @description AAP organization ID (takes precedence over organization_name)
+       */
+      organizationId?: number | null
+      /**
+       * Organization Name
+       * @description AAP organization name (used with template_name or inventory_name)
+       */
+      organization_name?: string | null
+      /**
+       * Inventory Id
+       * @description Override default inventory by ID (mutually exclusive with inventory_name)
+       */
+      inventory_id?: number | null
+      /**
+       * Inventory Name
+       * @description Override default inventory by name (requires organization_name)
+       */
+      inventory_name?: string | null
+      /**
+       * Extra Vars
+       * @description Extra variables to pass to job/workflow job
+       */
+      extra_vars?: {
+        [key: string]: unknown
+      }
+      /**
+       * Limit
+       * @description Limit job execution to specific hosts
+       */
+      limit?: string | null
+      /**
+       * Tags
+       * @description Ansible tags to run (comma-separated)
+       */
+      tags?: string | null
+      /**
+       * Skip Tags
+       * @description Ansible tags to skip (comma-separated)
+       */
+      skip_tags?: string | null
+      /**
+       * Labels
+       * @description AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+       */
+      labels?: string[] | null
+      /**
+       * Workflow Job Template Id
+       * @description AAP workflow job template ID to launch
+       */
+      workflow_job_template_id?: number | null
+      /**
+       * Workflow Job Template Name
+       * @description AAP workflow job template name (used with organization_name)
+       */
+      workflow_job_template_name?: string | null
+      /**
+       * Scm Branch
+       * @description SCM branch override for projects in workflow
+       */
+      scm_branch?: string | null
+    }
+    /**
+     * AAPWorkflowJobTemplateNode
+     * @description AAP workflow job template executor node.
+     */
+    AAPWorkflowJobTemplateNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'aap_workflow_job_template'
+      parameters: components['schemas']['AAPWorkflowJobTemplateExecutorParameters']
+      settings?: components['schemas']['NodeSettingsFull'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * AgenticExecutorParameters
+     * @description Parameters for agentic executor.
+     */
+    AgenticExecutorParameters: {
+      /**
+       * Prompt
+       * @description Prompt template for the agent
+       */
+      prompt: string
+      /** Agent */
+      agent?: string | null
+      /** Model */
+      model?: string | null
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for LLM provider authentication
+       */
+      credential_id?: string | null
+      /**
+       * File Ids
+       * @description File IDs for agent context
+       */
+      file_ids?: string[]
+      /**
+       * Responseschema
+       * @description JSON Schema for structured output. When defined, agent output conforms to this schema.
+       */
+      responseSchema?:
+        | {
+            [key: string]: unknown
+          }
+        | string
+        | null
+    }
+    /**
+     * NodeSettingsNoRetry
+     * @description Settings with disabled, continue_on_failure, and timeout (script, agentic, approval).
+     */
+    NodeSettingsNoRetry: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+      /** Disabled */
+      disabled?: boolean | null
+      /** Timeout */
+      timeout?: number | null
+    }
+    /**
+     * AgenticNode
+     * @description Agentic executor node.
+     */
+    AgenticNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'agentic'
+      parameters: components['schemas']['AgenticExecutorParameters']
+      settings?: components['schemas']['NodeSettingsNoRetry'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ApprovalNodeParameters
+     * @description Parameters for approval gate nodes.
+     */
+    ApprovalNodeParameters: {
+      /**
+       * Credential Id
+       * @description Nexus credential UUID
+       */
+      credential_id?: string | null
+      /**
+       * Approver Users
+       * @description Usernames who can approve
+       */
+      approver_users?: string[] | null
+      /**
+       * Approver Groups
+       * @description Group names whose members can approve
+       */
+      approver_groups?: string[] | null
+      /**
+       * Prompt
+       * @description Message to display to approvers
+       */
+      prompt?: string | null
+      /**
+       * Fallback Decision
+       * @description Decision when approval times out with continue_on_failure
+       */
+      fallback_decision?: ('approve' | 'reject') | null
+      /**
+       * Decision Window
+       * @description Response timeout in seconds
+       */
+      decision_window?: number | null
+    }
+    /**
+     * ApprovalNode
+     * @description Approval gate node.
+     */
+    ApprovalNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'approval'
+      parameters: components['schemas']['ApprovalNodeParameters']
+      settings?: components['schemas']['NodeSettingsNoRetry'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ConditionNodeParameters
+     * @description Parameters for condition (if/then/else) control nodes.
+     */
+    ConditionNodeParameters: {
+      /**
+       * Condition
+       * @description Expression that evaluates to boolean
+       */
+      condition: string
+    }
+    /**
+     * NodeSettingsBase
+     * @description Base node settings — no user-configurable fields.
+     */
+    NodeSettingsBase: Record<string, never>
+    /**
+     * ConditionNode
+     * @description Binary conditional branching node.
+     */
+    ConditionNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'condition'
+      parameters: components['schemas']['ConditionNodeParameters']
+      settings?: components['schemas']['NodeSettingsBase'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ConvergeStrategy
+     * @description Convergence strategies for converge nodes.
+     * @enum {string}
+     */
+    ConvergeStrategy: 'all' | 'any'
+    /**
+     * ConvergeNodeParameters
+     * @description Parameters for converge (synchronization) control nodes.
+     */
+    ConvergeNodeParameters: {
+      /** @description Convergence strategy */
+      strategy?: components['schemas']['ConvergeStrategy'] | null
+      /**
+       * N Required
+       * @description Branches required when strategy is 'any'
+       */
+      n_required?: number | null
+      /**
+       * Wait Duration
+       * @description Wait timeout in seconds
+       */
+      wait_duration?: number | null
+    }
+    /**
+     * NodeSettingsCof
+     * @description Settings with continue_on_failure only (converge, loop).
+     */
+    NodeSettingsCof: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+    }
+    /**
+     * ConvergeNode
+     * @description Convergence/synchronization control node.
+     */
+    ConvergeNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'converge'
+      parameters: components['schemas']['ConvergeNodeParameters']
+      settings?: components['schemas']['NodeSettingsCof'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * HTTPMethod
+     * @description Supported HTTP methods for API requests.
+     * @enum {string}
+     */
+    HTTPMethod: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'CONNECT' | 'TRACE'
+    /**
+     * AuthenticationType
+     * @description Supported authentication types for API requests.
+     * @enum {string}
+     */
+    AuthenticationType: 'basic' | 'bearer' | 'api_key' | 'oauth2'
+    /**
+     * Authentication
+     * @description Authentication configuration for API requests.
+     */
+    Authentication: {
+      /** @description Authentication type */
+      type: components['schemas']['AuthenticationType']
+      /**
+       * Credentials
+       * @description Reference to stored credentials
+       */
+      credentials: string
+    }
+    /**
+     * APIExecutorParameters
+     * @description Parameters for API executor (http_request activity).
+     */
+    APIExecutorParameters: {
+      /** @description HTTP method */
+      method: components['schemas']['HTTPMethod']
+      /**
+       * Url
+       * @description Request URL
+       */
+      url: string
+      /** Headers */
+      headers?: {
+        [key: string]: unknown
+      }
+      /** Body */
+      body?:
+        | {
+            [key: string]: unknown
+          }
+        | string
+        | null
+      /** Query Params */
+      query_params?: {
+        [key: string]: unknown
+      }
+      authentication?: components['schemas']['Authentication'] | null
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for authentication. Takes priority over authentication field.
+       */
+      credential_id?: string | null
+    }
+    /**
+     * HTTPRequestNode
+     * @description HTTP request executor node.
+     */
+    HTTPRequestNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'http_request'
+      parameters: components['schemas']['APIExecutorParameters']
+      settings?: components['schemas']['NodeSettingsFull'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * DoWhileLoopParameters
+     * @description Parameters for do_while loop nodes.
+     */
+    DoWhileLoopParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'do_while'
+      /**
+       * Condition
+       * @description Boolean expression evaluated after each iteration
+       */
+      condition: string
+      /**
+       * Max Iterations
+       * @description Maximum iterations
+       */
+      max_iterations?: number | null
+    }
+    /**
+     * ForEachLoopParameters
+     * @description Parameters for for_each loop nodes.
+     */
+    ForEachLoopParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'for_each'
+      /**
+       * Items
+       * @description Array expression to iterate over
+       */
+      items: string
+      /**
+       * Max Iterations
+       * @description Maximum items to process
+       */
+      max_iterations?: number | null
+    }
+    /**
+     * LoopNode
+     * @description Loop (for_each/do_while) control node.
+     */
+    LoopNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'loop'
+      /** Parameters */
+      parameters: components['schemas']['ForEachLoopParameters'] | components['schemas']['DoWhileLoopParameters']
+      settings?: components['schemas']['NodeSettingsCof'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * ScriptLanguage
+     * @description Supported script languages for script executor.
+     * @enum {string}
+     */
+    ScriptLanguage: 'bash' | 'python'
+    /**
+     * ScriptExecutorParameters
+     * @description Parameters for script executor.
+     */
+    ScriptExecutorParameters: {
+      language: components['schemas']['ScriptLanguage']
+      /**
+       * Code
+       * @description Script code to execute
+       */
+      code: string
+      /**
+       * Environment
+       * @description Environment variables
+       */
+      environment?: {
+        [key: string]: string
+      }
+      /**
+       * Credential Id
+       * @description Nexus credential UUID for credential scrubbing
+       */
+      credential_id?: string | null
+    }
+    /**
+     * ScriptNode
+     * @description Script executor node.
+     */
+    ScriptNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'script'
+      parameters: components['schemas']['ScriptExecutorParameters']
+      settings?: components['schemas']['NodeSettingsNoRetry'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * SwitchCase
+     * @description A single case in a switch node.
+     */
+    SwitchCase: {
+      /**
+       * Port
+       * @description Port identifier for this case
+       */
+      port: string
+      /**
+       * Label
+       * @description Display label for this case
+       */
+      label: string
+      /**
+       * Condition
+       * @description Boolean expression to evaluate
+       */
+      condition: string
+    }
+    /**
+     * SwitchNodeParameters
+     * @description Parameters for switch (multi-branch) control nodes.
+     */
+    SwitchNodeParameters: {
+      /**
+       * Cases
+       * @description Ordered list of cases
+       */
+      cases: components['schemas']['SwitchCase'][]
+      /**
+       * Default Port
+       * @description Port to route to when no case matches
+       */
+      default_port?: string | null
+    }
+    /**
+     * SwitchNode
+     * @description Multi-case branching control node.
+     */
+    SwitchNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'switch'
+      parameters: components['schemas']['SwitchNodeParameters']
+      settings?: components['schemas']['NodeSettingsBase'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * WaitNodeParameters
+     * @description Parameters for wait (delay) control nodes.
+     */
+    WaitNodeParameters: {
+      /**
+       * Duration
+       * @description Wait duration in seconds
+       */
+      duration: number
+    }
+    /**
+     * NodeSettingsCofDisabled
+     * @description Settings with disabled and continue_on_failure (wait).
+     */
+    NodeSettingsCofDisabled: {
+      /** Continue On Failure */
+      continue_on_failure?: boolean | null
+      /** Disabled */
+      disabled?: boolean | null
+    }
+    /**
+     * WaitNode
+     * @description Wait (delay) control node.
+     */
+    WaitNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'wait'
+      parameters: components['schemas']['WaitNodeParameters']
+      settings?: components['schemas']['NodeSettingsCofDisabled'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
      * WorkflowDefinition
      * @description JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2.
      *
@@ -520,9 +1532,19 @@ export interface components {
        * Nodes
        * @description Execution and control nodes in the workflow graph
        */
-      nodes: {
-        [key: string]: unknown
-      }[]
+      nodes: (
+        | components['schemas']['AAPJobTemplateNode']
+        | components['schemas']['AAPWorkflowJobTemplateNode']
+        | components['schemas']['HTTPRequestNode']
+        | components['schemas']['AgenticNode']
+        | components['schemas']['ScriptNode']
+        | components['schemas']['ApprovalNode']
+        | components['schemas']['ConditionNode']
+        | components['schemas']['SwitchNode']
+        | components['schemas']['LoopNode']
+        | components['schemas']['ConvergeNode']
+        | components['schemas']['WaitNode']
+      )[]
       /**
        * Edges
        * @description List of directed edges connecting triggers and nodes in the workflow graph

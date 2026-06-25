@@ -7,7 +7,7 @@ import type { ActivityOrderItem } from './ExecutionActivityTable'
 
 type ActivityLike = {
   id?: string
-  name?: string
+  name?: string | null
   type?: string
   branches?: (ActivityLike[] | ActivityLike | string)[]
   steps?: ActivityLike[]

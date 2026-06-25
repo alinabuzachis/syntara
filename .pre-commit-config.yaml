@@ -7,7 +7,8 @@ ci:
   autofix_prs: true
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: []
+  # gen-contracts requires npm deps; covered by check-contract-drift.yml in CI
+  skip: [gen-contracts]
   submodules: false
 
 exclude: ^\.tekton/
@@ -162,6 +163,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^frontend/.*\.(ts|tsx)$
+
+      - id: gen-contracts
+        name: Regenerate Frontend Contracts
+        files: ^backend/src/nexus/schemas/
+        entry: npm --prefix frontend/packages/nexus-contracts run gen:ts
+        language: system
+        pass_filenames: false
 
   # =========================================================================
   # YAML formatting (all YAML files except Tekton)

@@ -149,7 +149,7 @@ describe('useSyncActivityStore', () => {
       },
     }
 
-    renderHook(() => useSyncActivityStore(execution as Execution, []))
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
     expect(mockSetActivityExecutions).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -172,7 +172,7 @@ describe('useSyncActivityStore', () => {
       },
     }
 
-    renderHook(() => useSyncActivityStore(execution as Execution, []))
+    renderHook(() => useSyncActivityStore(execution as unknown as Execution, []))
 
     expect(mockSetActivityExecutions).toHaveBeenCalledWith(
       expect.arrayContaining([expect.objectContaining({ id: 'node-no-name', activity_name: 'node-no-name' })])

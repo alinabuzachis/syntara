@@ -79,7 +79,7 @@ jobs:
       - name: Run pre-commit
         run: uv run --project backend pre-commit run --all-files
         env:
-          SKIP: frontend-prettier,frontend-eslint,frontend-tsc
+          SKIP: frontend-prettier,frontend-eslint,frontend-tsc,gen-contracts
           OPENAPI_PR_BODY: ${{ github.event.pull_request.body }}
 
   mypy:
