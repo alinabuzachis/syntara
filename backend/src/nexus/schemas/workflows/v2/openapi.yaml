@@ -994,6 +994,8 @@ components:
       $ref: ./shared-schemas.yaml#/components/schemas/APIExecutorParameters
     AgenticExecutorParameters:
       $ref: ./shared-schemas.yaml#/components/schemas/AgenticExecutorParameters
+    IntegrationConnectionConfig:
+      $ref: ./shared-schemas.yaml#/components/schemas/IntegrationConnectionConfig
     ScriptExecutorParameters:
       $ref: ./shared-schemas.yaml#/components/schemas/ScriptExecutorParameters
     ApprovalNodeParameters:

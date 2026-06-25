@@ -1,11 +1,12 @@
-import { ProviderStatusEnum } from '@ansible/nexus-contracts'
+import { IntegrationStatusEnum } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
-import { toolManagerClient } from '../../../client'
+import { integrationsClient, toolManagerClient } from '../../../client'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { AlertProvider } from '../../../providers/alerts'
 import { assertUrlParam } from '../../../test/filter-test-helpers'
@@ -13,17 +14,16 @@ import { assertUrlParam } from '../../../test/filter-test-helpers'
 import Integrations from './Integrations'
 
 // Mock dependencies
-vi.mock('../../../client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../client')>()
-  return {
-    ...actual,
-    toolManagerClient: {
-      useQuery: vi.fn(),
-      useMutation: vi.fn(),
-    },
-    authMiddleware: { onRequest: vi.fn() },
-  }
-})
+vi.mock('../../../client', () => ({
+  integrationsClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  toolManagerClient: {
+    useQuery: vi.fn(),
+  },
+  authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
+}))
 
 // Mock useFilterState - will be configured per-test
 vi.mock('../../../hooks/useFilterState', async (importOriginal) => {
@@ -37,6 +37,10 @@ vi.mock('../../../hooks/useFilterState', async (importOriginal) => {
 const mockNavigate = vi.fn()
 const mockSearchParams = new URLSearchParams()
 const mockSetSearchParams = vi.fn()
+
+vi.mock('wouter', () => ({
+  useLocation: () => ['/configuration/integrations', mockNavigate],
+}))
 
 vi.mock('../../../hooks/routing/useLocation', () => ({
   useLocation: () => '/configuration/integrations',
@@ -76,12 +80,21 @@ describe('Integrations Component', () => {
       id: '1',
       name: 'Primary MCP Server',
       description: 'Main integration server for critical workflows',
-      status: ProviderStatusEnum.AVAILABLE,
+      integration_type: 'mcp_server',
+      validation_status: IntegrationStatusEnum.AVAILABLE,
+      enabled: true,
+      scope: 'global',
       configuration: {
-        provider_type: 'mcp',
+        integration_type: 'mcp_server',
         base_url: 'https://primary.example.com',
+        discovered_tools: [
+          { name: 'tool1' },
+          { name: 'tool2' },
+          { name: 'tool3' },
+          { name: 'tool4' },
+          { name: 'tool5' },
+        ],
       },
-      tool_count: 5,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-02T00:00:00Z',
     },
@@ -89,12 +102,15 @@ describe('Integrations Component', () => {
       id: '2',
       name: 'Secondary Test Server',
       description: 'Testing environment integration',
-      status: ProviderStatusEnum.ERROR,
+      integration_type: 'mcp_server',
+      validation_status: IntegrationStatusEnum.ERROR,
+      enabled: true,
+      scope: 'global',
       configuration: {
-        provider_type: 'mcp',
+        integration_type: 'mcp_server',
         base_url: 'https://secondary.example.com',
+        discovered_tools: [{ name: 'tool1' }, { name: 'tool2' }, { name: 'tool3' }],
       },
-      tool_count: 3,
       created_at: '2023-02-01T00:00:00Z',
       updated_at: '2023-02-02T00:00:00Z',
     },
@@ -102,12 +118,15 @@ describe('Integrations Component', () => {
       id: '3',
       name: 'Development Server',
       description: 'Development integration for testing new features',
-      status: ProviderStatusEnum.VALIDATING,
+      integration_type: 'mcp_server',
+      validation_status: IntegrationStatusEnum.VALIDATING,
+      enabled: true,
+      scope: 'global',
       configuration: {
-        provider_type: 'mcp',
+        integration_type: 'mcp_server',
         base_url: 'https://dev.example.com',
+        discovered_tools: Array.from({ length: 8 }, (_, i) => ({ name: `tool${String(i + 1)}` })),
       },
-      tool_count: 8,
       created_at: '2023-03-01T00:00:00Z',
       updated_at: '2023-03-02T00:00:00Z',
     },
@@ -124,7 +143,7 @@ describe('Integrations Component', () => {
       mockSearchParams.delete(key)
     })
 
-    vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+    vi.mocked(integrationsClient.useQuery).mockReturnValue({
       data: { resources: mockIntegrations },
       isPending: false,
       isError: false,
@@ -132,7 +151,39 @@ describe('Integrations Component', () => {
       refetch: vi.fn(),
     } as never)
 
-    vi.mocked(toolManagerClient.useMutation).mockReturnValue({
+    vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      data: {
+        resources: [
+          ...Array.from({ length: 5 }, (_, i) => ({
+            id: `t1-${i}`,
+            integration_id: '1',
+            enabled: true,
+            namespaced_name: `tool-${i}`,
+            parameters: [],
+          })),
+          ...Array.from({ length: 3 }, (_, i) => ({
+            id: `t2-${i}`,
+            integration_id: '2',
+            enabled: true,
+            namespaced_name: `tool-${i}`,
+            parameters: [],
+          })),
+          ...Array.from({ length: 8 }, (_, i) => ({
+            id: `t3-${i}`,
+            integration_id: '3',
+            enabled: true,
+            namespaced_name: `tool-${i}`,
+            parameters: [],
+          })),
+        ],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never)
+
+    vi.mocked(integrationsClient.useMutation).mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
       isError: false,
@@ -159,7 +210,7 @@ describe('Integrations Component', () => {
       // Check page header
       expect(screen.getByRole('heading', { name: 'Integrations' })).toBeInTheDocument()
 
-      // Check Configure Integration button
+      // Check Add Integration button
       expect(screen.getByText('Configure integration')).toBeInTheDocument()
 
       // Check FilterBar is present (filter input)
@@ -209,7 +260,7 @@ describe('Integrations Component', () => {
 
   describe('Error Handling', () => {
     it('displays loading state', () => {
-      vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
+      vi.mocked(integrationsClient.useQuery).mockReturnValueOnce({
         data: null,
         isPending: true,
         isError: false,
@@ -226,7 +277,7 @@ describe('Integrations Component', () => {
     it('displays error state', () => {
       const mockError = new Error('Failed to load integrations')
       // NOTE: component may re-render due to AlertProvider updates; keep error stable across renders
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: null,
         isPending: false,
         isError: true,
@@ -245,7 +296,7 @@ describe('Integrations Component', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no integrations exist and no filters active', () => {
-      vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
+      vi.mocked(integrationsClient.useQuery).mockReturnValueOnce({
         data: { resources: [] },
         isPending: false,
         isError: false,
@@ -256,7 +307,7 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Check for empty state message (no filters active, so shows empty state not filter empty)
-      expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
+      expect(screen.getByText('No integrations yet')).toBeInTheDocument()
       // Multiple "Configure integration" buttons exist (header + empty state), so use getAllByText
       expect(screen.getAllByText('Configure integration').length).toBeGreaterThan(0)
     })
@@ -306,14 +357,12 @@ describe('Integrations Component', () => {
     it('provides row action menu for each integration', () => {
       render(<Integrations />, { wrapper })
 
-      // Table should have row action menus (PF Table uses role="grid")
-      const table = screen.getByRole('grid', { name: 'Integrations' })
-      expect(table).toBeInTheDocument()
+      // Table should render
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
 
-      // Each row should have actions available
-      const rows = within(table).getAllByRole('row')
-      // Should have at least header row + 3 data rows
-      expect(rows.length).toBeGreaterThanOrEqual(4)
+      // Each row should have a kebab action menu
+      const kebabButtons = screen.getAllByRole('button', { name: /^Actions for /i })
+      expect(kebabButtons.length).toBe(3)
     })
 
     it('opens validate dialog when validate action is clicked', async () => {
@@ -321,11 +370,11 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Find and click the actions menu for the first row
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
 
       // Click validate connection option
-      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
       await user.click(validateOption)
 
       // Validate dialog should open
@@ -337,50 +386,36 @@ describe('Integrations Component', () => {
       )
     })
 
-    it('opens disconnect dialog when disconnect action is clicked', async () => {
+    it('opens delete dialog when uninstall action is clicked', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Find and click the actions menu for the first row
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
 
-      // Click disconnect option
-      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
-      await user.click(disconnectOption)
+      // Click uninstall option
+      const uninstallOption = await screen.findByRole('menuitem', { name: /delete/i })
+      await user.click(uninstallOption)
 
-      // Disconnect dialog should open with integration name in body
+      // Delete dialog should open with integration name in body
       await waitFor(() => {
-        expect(screen.getByText(/disconnect integration/i)).toBeInTheDocument()
+        expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
       })
       const dialog = screen.getByRole('dialog')
-      expect(within(dialog).getByText(/will be disconnected/)).toBeInTheDocument()
+      expect(within(dialog).getByText(/This cannot be undone/)).toBeInTheDocument()
+      expect(within(dialog).getByText(/Resources that will be deleted/)).toBeInTheDocument()
       expect(
         within(dialog).getByRole('checkbox', {
-          name: 'I understand this integration will be permanently disconnected.',
+          name: 'I understand this integration and the resources shown above will be permanently deleted.',
         })
       ).toBeInTheDocument()
-    })
-
-    it('applies danger styling to Disconnect integration menu item', async () => {
-      const user = userEvent.setup()
-      render(<Integrations />, { wrapper })
-
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      await user.click(actionButtons[0])
-
-      // PF6 wraps menuitems in <li role="none">, which is invisible to ARIA queries.
-      // innerHTML is the only way to assert danger styling without banned DOM traversal.
-      // TODO: revisit if PF6 exposes a semantic hook for menuitem danger state in future.
-      await waitFor(() => {
-        expect(screen.getByRole('menu').innerHTML).toContain('pf-m-danger')
-      })
     })
   })
 
   describe('Pagination', () => {
     it('displays pagination controls when next or prev cursors are available', () => {
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor-abc',
@@ -406,7 +441,7 @@ describe('Integrations Component', () => {
     })
 
     it('displays total count when available', () => {
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -427,7 +462,7 @@ describe('Integrations Component', () => {
     })
 
     it('renders pagination nav when prev cursor is available', () => {
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -449,7 +484,7 @@ describe('Integrations Component', () => {
     })
 
     it('hides pagination when no cursors are available', () => {
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: null,
@@ -470,7 +505,7 @@ describe('Integrations Component', () => {
 
     it('calls onNext when Next page button is clicked', async () => {
       const user = userEvent.setup()
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor-abc',
@@ -495,7 +530,7 @@ describe('Integrations Component', () => {
 
     it('calls onPrev when Previous page button is clicked', async () => {
       const user = userEvent.setup()
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -522,7 +557,7 @@ describe('Integrations Component', () => {
       const mockRefetch = vi.fn()
 
       // First render: page 1 with data
-      vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
+      vi.mocked(integrationsClient.useQuery).mockReturnValueOnce({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -550,7 +585,7 @@ describe('Integrations Component', () => {
 
       // Verify cursor was set after clicking Next
       await waitFor(() => {
-        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        const lastCall = vi.mocked(integrationsClient.useQuery).mock.calls.at(-1)
         expect(lastCall).toBeDefined()
         const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
           ?.query
@@ -558,7 +593,7 @@ describe('Integrations Component', () => {
       })
 
       // Second render: fetching state with empty data (cursor should NOT be reset due to isFetching=true)
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: [], // Empty during transition
           next: 'next-cursor',
@@ -578,7 +613,7 @@ describe('Integrations Component', () => {
 
       // Wait for component to process and verify cursor is still present (not reset)
       await waitFor(() => {
-        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        const lastCall = vi.mocked(integrationsClient.useQuery).mock.calls.at(-1)
         expect(lastCall).toBeDefined()
         // Cursor should still be present because isFetching=true prevents reset
         const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
@@ -587,7 +622,7 @@ describe('Integrations Component', () => {
       })
 
       // Third render: data arrives for page 2 - if cursor was preserved, we should have prev button
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations.slice(0, 2), // Page 2 data
           next: 'next-cursor',
@@ -616,7 +651,7 @@ describe('Integrations Component', () => {
       const mockRefetch = vi.fn()
 
       // Start with data and next cursor
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -641,7 +676,7 @@ describe('Integrations Component', () => {
 
       // Wait for cursor to be set and verify it's present
       await waitFor(() => {
-        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        const lastCall = vi.mocked(integrationsClient.useQuery).mock.calls.at(-1)
         expect(lastCall).toBeDefined()
         const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
           ?.query
@@ -649,7 +684,7 @@ describe('Integrations Component', () => {
       })
 
       // Simulate truly empty state - no data and not fetching
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: [],
           next: null,
@@ -668,7 +703,7 @@ describe('Integrations Component', () => {
 
       // Verify cursor was reset (no cursor in query params)
       await waitFor(() => {
-        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        const lastCall = vi.mocked(integrationsClient.useQuery).mock.calls.at(-1)
         expect(lastCall).toBeDefined()
         // Cursor should be absent or undefined because it was reset
         const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
@@ -715,7 +750,7 @@ describe('Integrations Component', () => {
       await user.click(await screen.findByRole('option', { name: 'Available' }))
 
       await waitFor(() => {
-        assertUrlParam(mockSetSearchParams, 'status', 'available')
+        assertUrlParam(mockSetSearchParams, 'validation_status', 'available')
       })
       expect(mockSetSearchParams).toHaveBeenCalled()
     })
@@ -736,7 +771,7 @@ describe('Integrations Component', () => {
       await user.click(await screen.findByRole('option', { name: 'MCP Server' }))
 
       await waitFor(() => {
-        assertUrlParam(mockSetSearchParams, 'provider_type', 'mcp')
+        assertUrlParam(mockSetSearchParams, 'integration_type', 'mcp_server')
       })
       expect(mockSetSearchParams).toHaveBeenCalled()
     })
@@ -745,7 +780,7 @@ describe('Integrations Component', () => {
       const user = userEvent.setup()
 
       // Mock query with pagination to have next/prev cursors available
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -783,13 +818,13 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Verify sortable columns have sort buttons
-      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      const nameHeader = screen.getByRole('columnheader', { name: /server name/i })
       expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
 
       const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
       expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
 
-      const toolsHeader = screen.getByRole('columnheader', { name: /Tools/i })
+      const toolsHeader = screen.getByRole('columnheader', { name: /Enabled resources/i })
       expect(within(toolsHeader).getByRole('button')).toBeInTheDocument()
     })
 
@@ -798,7 +833,7 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Click Name header to sort by name
-      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      const nameHeader = screen.getByRole('columnheader', { name: /server name/i })
       const sortButton = within(nameHeader).getByRole('button')
       await user.click(sortButton)
 
@@ -812,7 +847,7 @@ describe('Integrations Component', () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
+      const nameHeader = screen.getByRole('columnheader', { name: /server name/i })
       const sortButton = within(nameHeader).getByRole('button')
 
       // Click twice to toggle direction
@@ -830,7 +865,7 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Click Tools header
-      const toolsHeader = screen.getByRole('columnheader', { name: /Tools/i })
+      const toolsHeader = screen.getByRole('columnheader', { name: /Enabled resources/i })
       const sortButton = within(toolsHeader).getByRole('button')
       await user.click(sortButton)
 
@@ -893,7 +928,7 @@ describe('Integrations Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -901,7 +936,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path.includes('validate')) {
           return { mutate: mockValidateMutate, isPending: false } as never
         }
@@ -911,19 +946,19 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Open actions menu and click validate (first row is ID 3 - Development Server, alphabetically)
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
       await user.click(validateOption)
 
       // Click Validate button in dialog
       const validateButton = await screen.findByRole('button', { name: 'Validate' })
       await user.click(validateButton)
 
-      // Verify mutation was called with provider_id (first row is ID 3 due to alphabetical sort)
+      // Verify mutation was called with integration_id (first row is ID 3 due to alphabetical sort)
       expect(mockValidateMutate).toHaveBeenCalled()
       const callArgs = mockValidateMutate.mock.calls[0]
-      expect(callArgs[0]).toEqual({ params: { path: { provider_id: '3' } } })
+      expect(callArgs[0]).toEqual({ params: { path: { integration_id: '3' } } })
     })
 
     it('shows success alert and closes dialog on successful validation', { timeout: 15_000 }, async () => {
@@ -931,7 +966,7 @@ describe('Integrations Component', () => {
       const mockValidateMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -939,7 +974,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path.includes('validate')) {
           return { mutate: mockValidateMutate, isPending: false } as never
         }
@@ -949,20 +984,20 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Open validate dialog
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
       await user.click(validateOption)
 
       // Click Validate
       const validateButton = await screen.findByRole('button', { name: 'Validate' })
       await user.click(validateButton)
 
-      // Simulate successful mutation with valid: true
+      // Simulate successful mutation with success: true
       const mutationCall = mockValidateMutate.mock.calls[0] as [unknown, MockMutationCallbacks]
       const callbacks = mutationCall[1]
       act(() => {
-        callbacks.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
+        callbacks.onSuccess({ success: true, checked_at: new Date().toISOString() })
         callbacks.onSettled()
       })
 
@@ -973,12 +1008,12 @@ describe('Integrations Component', () => {
       expect(mockRefetch).toHaveBeenCalled()
     })
 
-    it('shows error alert when validation returns valid: false', async () => {
+    it('shows error alert when validation returns success: false', async () => {
       const user = userEvent.setup()
       const mockValidateMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -986,7 +1021,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path.includes('validate')) {
           return { mutate: mockValidateMutate, isPending: false } as never
         }
@@ -996,23 +1031,22 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Open validate dialog
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
       await user.click(validateOption)
 
       // Click Validate
       const validateButton = await screen.findByRole('button', { name: 'Validate' })
       await user.click(validateButton)
 
-      // Simulate HTTP 200 with valid: false
+      // Simulate HTTP 200 with success: false
       const mutationCall = mockValidateMutate.mock.calls[0] as [unknown, MockMutationCallbacks]
       const callbacks = mutationCall[1]
       act(() => {
         callbacks.onSuccess({
-          valid: false,
-          provider_type: 'mcp',
-          validated_at: new Date().toISOString(),
+          success: false,
+          checked_at: new Date().toISOString(),
           error: 'Connection refused: unable to reach MCP server',
         })
         callbacks.onSettled()
@@ -1034,7 +1068,7 @@ describe('Integrations Component', () => {
       const user = userEvent.setup()
       const mockValidateMutate = vi.fn()
 
-      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path.includes('validate')) {
           return { mutate: mockValidateMutate, isPending: false } as never
         }
@@ -1044,9 +1078,9 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Open validate dialog
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
       await user.click(validateOption)
 
       // Click Validate
@@ -1071,9 +1105,9 @@ describe('Integrations Component', () => {
       render(<Integrations />, { wrapper })
 
       // Open validate dialog
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      const validateOption = await screen.findByRole('menuitem', { name: /validate integration/i })
       await user.click(validateOption)
 
       // Verify dialog is open
@@ -1099,7 +1133,7 @@ describe('Integrations Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -1107,7 +1141,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolManagerClient.useMutation).mockImplementation((method: string) => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((method: string) => {
         if (method === 'delete') {
           return { mutate: mockDeleteMutate, isPending: false } as never
         }
@@ -1116,23 +1150,23 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open actions menu and click disconnect (first row is ID 3 - Development Server)
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      // Open actions menu and click uninstall (first row is ID 3 - Development Server)
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
-      await user.click(disconnectOption)
+      const uninstallOption = await screen.findByRole('menuitem', { name: /delete/i })
+      await user.click(uninstallOption)
 
-      // Check the acknowledgement checkbox before clicking Disconnect
+      // Check the acknowledgement checkbox before clicking Delete
       await user.click(screen.getByRole('checkbox'))
 
-      // Click Disconnect button in dialog
-      const disconnectButton = await screen.findByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButton)
+      // Click Delete button in dialog
+      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
+      await user.click(deleteButton)
 
       // Verify mutation was called (first row is ID 3 due to alphabetical sort)
       expect(mockDeleteMutate).toHaveBeenCalled()
       const callArgs = mockDeleteMutate.mock.calls[0]
-      expect(callArgs[0]).toEqual({ params: { path: { provider_id: '3' } } })
+      expect(callArgs[0]).toEqual({ params: { path: { integration_id: '3' } } })
     })
 
     it('shows success alert and closes dialog on successful delete', async () => {
@@ -1140,7 +1174,7 @@ describe('Integrations Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -1148,7 +1182,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolManagerClient.useMutation).mockImplementation((method: string) => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((method: string) => {
         if (method === 'delete') {
           return { mutate: mockDeleteMutate, isPending: false } as never
         }
@@ -1157,18 +1191,18 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open disconnect dialog
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      // Open delete dialog
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
-      await user.click(disconnectOption)
+      const uninstallOption = await screen.findByRole('menuitem', { name: /delete/i })
+      await user.click(uninstallOption)
 
-      // Check the acknowledgement checkbox before clicking Disconnect
+      // Check the acknowledgement checkbox before clicking Delete
       await user.click(screen.getByRole('checkbox'))
 
-      // Click Disconnect
-      const disconnectButton = await screen.findByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButton)
+      // Click Delete
+      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
+      await user.click(deleteButton)
 
       // Simulate successful mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1] as MockMutationCallbacks
@@ -1177,18 +1211,18 @@ describe('Integrations Component', () => {
         callbacks.onSettled()
       })
 
-      // Dialog should close
+      // Dialog should close and navigate to list
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
       })
-      expect(mockRefetch).toHaveBeenCalled()
+      expect(mockNavigate).toHaveBeenCalled()
     })
 
     it('shows error alert on delete failure', async () => {
       const user = userEvent.setup()
       const mockDeleteMutate = vi.fn()
 
-      vi.mocked(toolManagerClient.useMutation).mockImplementation((method: string) => {
+      vi.mocked(integrationsClient.useMutation).mockImplementation((method: string) => {
         if (method === 'delete') {
           return { mutate: mockDeleteMutate, isPending: false } as never
         }
@@ -1197,18 +1231,18 @@ describe('Integrations Component', () => {
 
       render(<Integrations />, { wrapper })
 
-      // Open disconnect dialog
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      // Open delete dialog
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
-      await user.click(disconnectOption)
+      const uninstallOption = await screen.findByRole('menuitem', { name: /delete/i })
+      await user.click(uninstallOption)
 
-      // Check the acknowledgement checkbox before clicking Disconnect
+      // Check the acknowledgement checkbox before clicking Delete
       await user.click(screen.getByRole('checkbox'))
 
-      // Click Disconnect
-      const disconnectButton = await screen.findByRole('button', { name: 'Disconnect' })
-      await user.click(disconnectButton)
+      // Click Delete
+      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
+      await user.click(deleteButton)
 
       // Simulate failed mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1] as MockMutationCallbacks
@@ -1219,23 +1253,23 @@ describe('Integrations Component', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
       })
     })
 
-    it('closes disconnect dialog when Cancel button is clicked', async () => {
+    it('closes delete dialog when Cancel button is clicked', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      // Open disconnect dialog
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      // Open delete dialog
+      const actionButtons = screen.getAllByRole('button', { name: /^Actions for /i })
       await user.click(actionButtons[0])
-      const disconnectOption = await screen.findByRole('menuitem', { name: /disconnect integration/i })
-      await user.click(disconnectOption)
+      const uninstallOption = await screen.findByRole('menuitem', { name: /delete/i })
+      await user.click(uninstallOption)
 
       // Verify dialog is open
       await waitFor(() => {
-        expect(screen.getByText(/disconnect integration/i)).toBeInTheDocument()
+        expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
       })
 
       // Click Cancel
@@ -1244,26 +1278,8 @@ describe('Integrations Component', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(screen.queryByText(/This action cannot be undone/)).not.toBeInTheDocument()
       })
-    })
-  })
-
-  describe('Row Actions - View Tools', () => {
-    it('navigates to tools page when View tools action is clicked', async () => {
-      const user = userEvent.setup()
-      render(<Integrations />, { wrapper })
-
-      // Open actions menu (first row is ID 3 - Development Server, alphabetically sorted)
-      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      await user.click(actionButtons[0])
-
-      // Click view tools option
-      const viewToolsOption = await screen.findByRole('menuitem', { name: /view and enable\/disable tools/i })
-      await user.click(viewToolsOption)
-
-      // Verify navigation - first row is ID 3 due to alphabetical sort
-      expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/3/tools')
     })
   })
 
@@ -1275,6 +1291,176 @@ describe('Integrations Component', () => {
       const textInput = screen.getByRole('textbox', { name: /name filter/i })
       expect(textInput).toBeInTheDocument()
       expect(textInput).toHaveAttribute('placeholder', 'Filter by name')
+    })
+  })
+
+  describe('State Toggle', () => {
+    it('renders enabled switches for all integrations', () => {
+      render(<Integrations />, { wrapper })
+
+      const switches = screen.getAllByRole('switch')
+      expect(switches).toHaveLength(3)
+      for (const toggle of switches) {
+        expect(toggle).toBeChecked()
+      }
+    })
+
+    it('opens disable confirmation dialog when toggling an enabled integration off', async () => {
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const switches = screen.getAllByRole('switch')
+      await user.click(switches[0])
+
+      await waitFor(() => {
+        expect(screen.getByText(/disable integration/i)).toBeInTheDocument()
+      })
+    })
+
+    it('calls patch mutation to enable a disabled integration without confirmation', async () => {
+      const mockPatchMutate = vi.fn()
+
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/validate')) return { mutate: vi.fn() } as never
+        if (path === '/integrations/{integration_id}' && _method === 'delete') return { mutate: vi.fn() } as never
+        if (path === '/integrations/{integration_id}' && _method === 'patch')
+          return { mutate: mockPatchMutate } as never
+        return { mutate: vi.fn() } as never
+      })
+
+      const disabledIntegrations = [
+        {
+          ...mockIntegrations[0],
+          enabled: false,
+        },
+      ]
+
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
+        data: { resources: disabledIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const toggle = screen.getByRole('switch')
+      await user.click(toggle)
+
+      expect(mockPatchMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: { enabled: true },
+        }),
+        expect.any(Object)
+      )
+    })
+
+    it('calls patch mutation with enabled: false after confirming disable dialog', async () => {
+      const mockPatchMutate = vi.fn()
+
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/validate')) return { mutate: vi.fn() } as never
+        if (path === '/integrations/{integration_id}' && _method === 'delete') return { mutate: vi.fn() } as never
+        if (path === '/integrations/{integration_id}' && _method === 'patch')
+          return { mutate: mockPatchMutate } as never
+        return { mutate: vi.fn() } as never
+      })
+
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      // Click toggle to open disable dialog
+      const switches = screen.getAllByRole('switch')
+      await user.click(switches[0])
+
+      // Confirm disable
+      await waitFor(() => {
+        expect(screen.getByText(/disable integration/i)).toBeInTheDocument()
+      })
+      const disableButton = screen.getByRole('button', { name: 'Disable' })
+      await user.click(disableButton)
+
+      expect(mockPatchMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: { enabled: false },
+        }),
+        expect.any(Object)
+      )
+    })
+
+    it('shows error alert when toggle patch fails', async () => {
+      const mockPatchMutate = vi.fn()
+
+      vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('/validate')) return { mutate: vi.fn() } as never
+        if (path === '/integrations/{integration_id}' && _method === 'delete') return { mutate: vi.fn() } as never
+        if (path === '/integrations/{integration_id}' && _method === 'patch')
+          return { mutate: mockPatchMutate } as never
+        return { mutate: vi.fn() } as never
+      })
+
+      const disabledIntegrations = [
+        {
+          ...mockIntegrations[0],
+          enabled: false,
+        },
+      ]
+
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
+        data: { resources: disabledIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      // Make patch call onError
+      mockPatchMutate.mockImplementation((_variables: unknown, options?: { onError?: (error: unknown) => void }) => {
+        if (options?.onError) {
+          options.onError(new Error('Network error'))
+        }
+      })
+
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      const toggle = screen.getByRole('switch')
+      await user.click(toggle)
+
+      await waitFor(() => {
+        expect(screen.getByText(/update failed/i)).toBeInTheDocument()
+      })
+    })
+
+    it('reflects disabled state from data', () => {
+      const mixedIntegrations = [
+        { ...mockIntegrations[0], enabled: true },
+        { ...mockIntegrations[1], enabled: false },
+      ]
+
+      vi.mocked(integrationsClient.useQuery).mockReturnValue({
+        data: { resources: mixedIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      render(<Integrations />, { wrapper })
+
+      const switches = screen.getAllByRole('switch')
+      expect(switches).toHaveLength(2)
+      expect(switches[0]).toBeChecked()
+      expect(switches[1]).not.toBeChecked()
+    })
+  })
+
+  describe('Accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(<Integrations />, { wrapper })
+      expect(await axe(container)).toHaveNoViolations()
     })
   })
 })

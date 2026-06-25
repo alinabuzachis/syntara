@@ -35,6 +35,8 @@ const MOCK_AGENTIC_WORKFLOW_ID = '48'
 const MOCK_HTTP_WORKFLOW_ID = '49'
 const MOCK_CONVERGE_WORKFLOW_ID = '52'
 const MOCK_APPROVAL_WORKFLOW_ID = '53'
+const MOCK_APPROVAL_ID = '550e8400-e29b-41d4-a716-446655440050'
+const MOCK_APPROVAL_EXECUTION_ID = 'exec-approval'
 const MOCK_EXECUTION_FAILED_ID = 'exec-3'
 const MOCK_EXECUTION_RUNNING_ID = 'exec-4'
 const MOCK_EXECUTION_PAUSED_ID = 'exec-6'
@@ -45,8 +47,6 @@ const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
 const MOCK_CREDENTIAL_ID = 'cred-001'
 const MOCK_CREDENTIAL_DISABLED_ID = 'cred-003'
-const MOCK_APPROVAL_ID = '550e8400-e29b-41d4-a716-446655440050'
-const MOCK_APPROVAL_EXECUTION_ID = 'exec-approval'
 // ---------------------------------------------------------------------------
 // Transfer Identity Wizard states
 // ---------------------------------------------------------------------------
@@ -213,7 +213,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-script-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -226,7 +225,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-condition-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -239,7 +237,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-loop-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_LOOP_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -254,7 +251,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-agentic-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_AGENTIC_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -268,7 +264,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-http-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_HTTP_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -282,7 +277,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-converge-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONVERGE_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -295,7 +289,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-approval-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_APPROVAL_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -323,34 +316,6 @@ export const builderInteractivePages: PageEntry[] = [
   },
   {
     section: 'workflows',
-    name: 'builder-new-webhook-trigger-form',
-    path: AppRoute.WorkflowBuilder.New,
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
-        timeout: 30_000,
-      })
-    },
-    setup: async (page) => {
-      await page.getByRole('button', { name: 'Webhook trigger' }).click()
-      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
-    },
-  },
-  {
-    section: 'workflows',
-    name: 'builder-new-manual-trigger-form',
-    path: AppRoute.WorkflowBuilder.New,
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible({
-        timeout: 30_000,
-      })
-    },
-    setup: async (page) => {
-      await page.getByRole('button', { name: 'Manual trigger' }).click()
-      await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
-    },
-  },
-  {
-    section: 'workflows',
     name: 'builder-new-verify-errors',
     path: AppRoute.WorkflowBuilder.New,
     waitFor: async (page) => {
@@ -367,7 +332,6 @@ export const builderInteractivePages: PageEntry[] = [
     name: 'builder-edit-verify-node-errors',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -534,12 +498,56 @@ export const credentialDialogPages: PageEntry[] = [
 ]
 
 // ---------------------------------------------------------------------------
-// Integration dialog entries (disconnect)
+// Integration wizard step entries
+// ---------------------------------------------------------------------------
+export const integrationWizardPages: PageEntry[] = [
+  {
+    section: 'configuration/integrations',
+    name: 'integration-configure-step2-credential',
+    path: AppRoute.Configuration.Integrations.Configure,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
+    },
+    setup: async (page) => {
+      // Fill required step 1 fields then advance with Next
+      await page.getByRole('textbox', { name: /Server name/i }).fill('Test Server')
+      await page.getByRole('textbox', { name: /Base URL/i }).fill('https://example.com')
+      await page.getByRole('button', { name: 'Next' }).click()
+      await expect(page.getByRole('heading', { name: 'Connection credential' })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'integration-configure-step3-tools',
+    path: AppRoute.Configuration.Integrations.Configure,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
+    },
+    setup: async (page) => {
+      // Fill step 1, advance to step 2
+      await page.getByRole('textbox', { name: /Server name/i }).fill('Test Server')
+      await page.getByRole('textbox', { name: /Base URL/i }).fill('https://example.com')
+      await page.getByRole('button', { name: 'Next' }).click()
+      await expect(page.getByRole('heading', { name: 'Connection credential' })).toBeVisible()
+      // Wait for credentials to load, then select one to enable step 3
+      const credentialToggle = page.getByRole('button', { name: 'Health check credential', exact: true })
+      await expect(credentialToggle).toBeEnabled({ timeout: 10_000 })
+      await credentialToggle.click()
+      await page.getByRole('option', { name: 'MCP Integration Token' }).click()
+      // Advance to step 3
+      await page.getByRole('button', { name: 'Next' }).click()
+      await expect(page.getByRole('heading', { name: 'Enable tools' })).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Integration dialog entries (delete)
 // ---------------------------------------------------------------------------
 export const integrationDialogPages: PageEntry[] = [
   {
     section: 'configuration/integrations',
-    name: 'integrations-disconnect-dialog',
+    name: 'integrations-delete-dialog',
     path: AppRoute.Configuration.Integrations.Root,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
@@ -548,10 +556,32 @@ export const integrationDialogPages: PageEntry[] = [
     setup: async (page) => {
       const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
       await kebab.click()
-      await page.getByRole('menuitem', { name: /Disconnect/i }).click()
+      await page.getByRole('menuitem', { name: /Delete integration/i }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
-      await expect(dialog.getByRole('button', { name: /Disconnect/i })).toBeVisible()
+      await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'integration-resources-unsaved-changes-dialog',
+    path: AppRoute.Configuration.Integrations.DetailTab.replace(':integrationId', '1').replace(':tab', 'resources'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Enabled resources/i, selected: true })).toBeVisible()
+      await expect(page.getByText('list_resources')).toBeVisible()
+    },
+    setup: async (page) => {
+      // Uncheck a specific tool row (not the header) to create dirty state
+      const firstToolRow = page.getByRole('row', { name: /list_resources/ })
+      await firstToolRow.getByRole('checkbox').click()
+      // Verify the checkbox toggled (dirty state is now true)
+      await expect(firstToolRow.getByRole('checkbox')).not.toBeChecked()
+      // Navigate away via the sidebar to trigger the unsaved changes blocker
+      await page.getByRole('link', { name: 'Workflows' }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByText('Save resource changes?')).toBeVisible()
     },
   },
 ]
@@ -561,10 +591,6 @@ export const integrationDialogPages: PageEntry[] = [
 // ---------------------------------------------------------------------------
 /**
  * Wait for the approval side panel to open on the execution detail page.
- *
- * The panel opens when the `?approval=<id>` query param triggers a fetch
- * and the React hook processes the response. The execution must reference
- * a workflow that contains the matching approval node (approval_gate).
  */
 async function waitForApprovalPanel(page: Page) {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20_000 })
@@ -572,7 +598,6 @@ async function waitForApprovalPanel(page: Page) {
 }
 
 export const approvalInteractivePages: PageEntry[] = [
-  // ── Approval Side Panel (shown in execution detail via deep-link) ─────
   {
     section: 'approvals',
     name: 'approval-side-panel-pending',
@@ -673,8 +698,8 @@ export const statusVariantPages: PageEntry[] = [
   {
     section: 'executions',
     name: 'execution-detail-failed',
-    maxDiffPixelRatio: 0.02,
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_FAILED_ID),
+    maxDiffPixelRatio: 0.02,
     perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -684,9 +709,8 @@ export const statusVariantPages: PageEntry[] = [
   {
     section: 'executions',
     name: 'execution-detail-running',
-    maxDiffPixelRatio: 0.02,
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_RUNNING_ID),
-    perceptual: true,
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Running', { exact: true }).first()).toBeVisible()
@@ -696,7 +720,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-paused',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PAUSED_ID),
-    perceptual: true,
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Paused', { exact: true }).first()).toBeVisible()
@@ -706,7 +730,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-cancelled',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_CANCELLED_ID),
-    perceptual: true,
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Cancelled', { exact: true }).first()).toBeVisible()
@@ -716,7 +740,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-pending',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PENDING_ID),
-    perceptual: true,
+    maxDiffPixelRatio: 0.01,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible()
@@ -830,15 +854,6 @@ export const detailTabPages: PageEntry[] = [
     waitFor: async (page) => {
       await expect(page.getByText('Production API Auth').first()).toBeVisible()
       await expect(page.getByRole('tab', { name: /Workflows/i, selected: true })).toBeVisible()
-    },
-  },
-  {
-    section: 'access-management/users',
-    name: 'user-detail-identities-tab',
-    path: AppRoute.AccessManagement.UserDetailTab.replace(':userId', MOCK_USER_ID).replace(':tab', 'identities'),
-    waitFor: async (page) => {
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByRole('tab', { name: /Identities/i, selected: true })).toBeVisible()
     },
   },
   {

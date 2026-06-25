@@ -172,7 +172,6 @@ class TestToolsUpdateContract:
             "id",
             "name",
             "description",
-            "provider_id",
             "namespaced_name",
             "enabled",
             "status",
@@ -265,7 +264,7 @@ class TestToolsUpdateContract:
         data = response.json()
         assert data["name"] == original_data["name"]
         assert data["description"] == original_data["description"]
-        assert data["provider_id"] == original_data["provider_id"]
+        assert data["integration_id"] == original_data["integration_id"]
         assert data["namespaced_name"] == original_data["namespaced_name"]
 
     @pytest.mark.asyncio

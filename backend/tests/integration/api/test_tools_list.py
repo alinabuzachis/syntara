@@ -115,19 +115,20 @@ class TestToolsListContract:
         # Should return 3 available tools (Alpha, Gamma, Foxtrot)
         assert len(data["resources"]) == 3
 
-        # Test filtering by provider_id
-        provider_response = await jwt_client.get(
-            "/api/v1/tool_manager/tools", params={"provider_id[eq]": str(multiple_test_tools[0].provider_id)}
+        # Test filtering by integration_id
+        integration_response = await jwt_client.get(
+            "/api/v1/tool_manager/tools",
+            params={"integration_id[eq]": str(multiple_test_tools[0].integration_id)},
         )
-        assert provider_response.status_code == 200
-        provider_data = provider_response.json()
+        assert integration_response.status_code == 200
+        integration_data = integration_response.json()
 
-        # All returned tools should have the same provider_id
-        for tool in provider_data["resources"]:
-            assert tool["provider_id"] == str(multiple_test_tools[0].provider_id)
+        # All returned tools should have the same integration_id
+        for tool in integration_data["resources"]:
+            assert tool["integration_id"] == str(multiple_test_tools[0].integration_id)
 
-        # Should return all 6 tools since they all have the same provider
-        assert len(provider_data["resources"]) == 6
+        # Should return all 6 tools since they all have the same integration
+        assert len(integration_data["resources"]) == 6
 
         # Test name contains filter
         alpha_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"name[contains]": "Alpha"})
@@ -177,7 +178,7 @@ class TestToolsListContract:
                 "id",
                 "name",
                 "description",
-                "provider_id",
+                "integration_id",
                 "namespaced_name",
                 "status",
                 "last_executed_at",
@@ -195,7 +196,8 @@ class TestToolsListContract:
             # Verify data types
             assert isinstance(tool["id"], str)
             assert isinstance(tool["name"], str)
-            assert isinstance(tool["provider_id"], str)
+            # integration_id may be null for orphaned tools
+            assert tool["integration_id"] is None or isinstance(tool["integration_id"], str)
             assert isinstance(tool["namespaced_name"], str)
             assert isinstance(tool["status"], str)
 

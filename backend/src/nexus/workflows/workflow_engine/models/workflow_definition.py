@@ -25,6 +25,21 @@ from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 TEMPLATE_PATTERN = re.compile(r"\$\{[^}]+\}")
 
 
+def _validate_uuid_or_template(value: str, field_label: str) -> str:
+    """Validate that a string is either a valid UUID or a template expression.
+
+    Raises SafeValueError if neither.
+    """
+    if TEMPLATE_PATTERN.search(value):
+        return value
+    try:
+        uuid.UUID(value)
+    except ValueError as err:
+        msg = f"Invalid UUID format for {field_label}: '{value}'. Must be a valid UUID."
+        raise SafeValueError(msg) from err
+    return value
+
+
 class TemplateAwareBaseModel(BaseModel):
     """Base model that allows template expressions in any field.
 
@@ -297,6 +312,26 @@ class APIExecutorParameters(TemplateAwareBaseModel):
         return v
 
 
+class IntegrationConnectionConfig(BaseModel):
+    """Execution credential override for one integration.
+
+    When included in AgenticExecutorParameters.integration_connections, this credential
+    is used for calls against that integration instead of the integration's
+    management credential.
+    """
+
+    integration_id: str = Field(description="UUID of the integration")
+    credential_id: str = Field(
+        description="Nexus credential UUID for execution calls (distinct from management credential)"
+    )
+
+    @field_validator("integration_id", "credential_id")
+    @classmethod
+    def validate_uuid_format(cls, v: str) -> str:
+        """Validate that each ID is a valid UUID or a template expression."""
+        return _validate_uuid_or_template(v, "integration_id/credential_id")
+
+
 class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
     """Parameters for agentic executor."""
 
@@ -317,6 +352,30 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
         alias="responseSchema",
         description="JSON Schema for structured output. When defined, agent output conforms to this schema.",
     )
+    integration_connections: list[IntegrationConnectionConfig] | None = Field(
+        default=None,
+        description=(
+            "Per-integration execution credentials. "
+            "Each entry overrides the management credential for that integration. "
+            "Integrations not listed fall back to their management credential."
+        ),
+    )
+    tool_selection_strategy: Literal["ALL", "NONE", "SELECTED"] | None = Field(
+        default=None,
+        description="ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)",
+    )
+    tool_selections: list[str] = Field(
+        default_factory=list,
+        description="Tool UUIDs to make available when tool_selection_strategy is SELECTED",
+    )
+
+    @field_validator("tool_selections")
+    @classmethod
+    def validate_tool_selections_format(cls, v: list[str]) -> list[str]:
+        """Validate each tool_selection is a valid UUID (unless it's a template expression)."""
+        for tool_id in v:
+            _validate_uuid_or_template(tool_id, "tool_selections")
+        return v
 
     @field_validator("prompt")
     @classmethod
@@ -789,6 +848,7 @@ class AgenticOutput(NodeOutput):
     output: str | dict[str, Any] | None = None
     tool_calls: list[Any] | None = None
     structured_output_metadata: dict[str, Any] | None = None
+    integration_ids: list[str] | None = None
 
 
 class ApprovalOutput(NodeOutput):

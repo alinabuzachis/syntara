@@ -16,15 +16,16 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
 from nexus.core.services.secret_service import create_secret_service
-from nexus.integrations.adapters.protocol import HealthCheckResult
+from nexus.integrations.adapters.protocol import DiscoverResult, ValidateResult
 from nexus.integrations.models import (
     IntegrationCreate,
     IntegrationListParams,
     IntegrationListResponse,
     IntegrationPatch,
     IntegrationRead,
+    IntegrationStatusPatch,
 )
-from nexus.integrations.models.integration import IntegrationTestConnection
+from nexus.integrations.models.integration import IntegrationTestConnection, RefreshResult
 from nexus.integrations.services.integration_service import IntegrationService
 
 router = NexusRouter(tags=["Integrations"])
@@ -37,7 +38,9 @@ router = NexusRouter(tags=["Integrations"])
 _perm_create = PermissionChecker("integration", "create")
 _perm_update = PermissionChecker("integration", "update")
 _perm_delete = PermissionChecker("integration", "delete")
+_perm_discover = PermissionChecker("integration", "discover")
 _perm_validate = PermissionChecker("integration", "validate")
+_perm_refresh = PermissionChecker("integration", "refresh")
 
 
 # ============================================================================
@@ -122,6 +125,20 @@ async def update_integration(
     return await service.patch_integration(integration_id, data)
 
 
+@router.patch(
+    "/integrations/{integration_id}/status",
+    dependencies=[Depends(_perm_update)],
+    operation_id="update_integration_status",
+)
+async def update_integration_status(
+    integration_id: UUID,
+    data: IntegrationStatusPatch,
+    service: Annotated[IntegrationService, Depends(get_integration_service)],
+) -> IntegrationRead:
+    """Update integration enabled/validation_status/validation_error (service-to-service only)."""
+    return await service.update_system_status(integration_id, data)
+
+
 @router.delete(
     "/integrations/{integration_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -138,22 +155,23 @@ async def delete_integration(
 
 
 @router.post(
-    "/integrations/validate",
-    dependencies=[Depends(_perm_validate)],
-    operation_id="test_integration_connection",
+    "/integrations/discover",
+    dependencies=[Depends(_perm_discover)],
+    operation_id="discover_integration_connection",
 )
-@audit(EventCategory.USER_ACTION, event_action="integration_test_connection")
-async def test_integration_connection(
+@audit(EventCategory.USER_ACTION, event_action="integration_discover")
+async def discover_integration_connection(
     data: IntegrationTestConnection,
     service: Annotated[IntegrationService, Depends(get_integration_service)],
-) -> HealthCheckResult:
-    """Test a connection without saving an integration.
+) -> DiscoverResult:
+    """Test a connection and discover resources without saving an integration.
 
     Accepts integration configuration and a credential ID, resolves the
-    credential, runs the health check adapter, and returns the result.
-    No integration is persisted.
+    credential, runs the adapter's discover() method, and returns the result
+    including discovered tools (with parameters) or models. No integration
+    is persisted.
     """
-    return await service.test_connection(data)
+    return await service.discover(data)
 
 
 @router.post(
@@ -165,11 +183,30 @@ async def test_integration_connection(
 async def validate_integration(
     integration_id: UUID,
     service: Annotated[IntegrationService, Depends(get_integration_service)],
-) -> HealthCheckResult:
-    """Validate a saved integration by running a health check.
+) -> ValidateResult:
+    """Validate a saved integration with a lightweight connectivity ping.
 
     Resolves the management credential, dispatches to the type-specific
-    health check adapter, updates the integration's status fields, and
-    returns the health check result.
+    adapter's validate() method, updates the integration's status fields,
+    and returns the result. No tool sync is performed.
     """
     return await service.validate_integration(integration_id)
+
+
+@router.post(
+    "/integrations/{integration_id}/refresh",
+    dependencies=[Depends(_perm_refresh)],
+    operation_id="refresh_resources",
+)
+@audit(EventCategory.USER_ACTION, event_action="integration_refresh", capture_args={"integration_id"})
+async def refresh_resources(
+    integration_id: UUID,
+    service: Annotated[IntegrationService, Depends(get_integration_service)],
+) -> RefreshResult:
+    """Sync resources (tools) for a saved integration from the external service.
+
+    Connects to the MCP server, fetches the current tool list, and upserts
+    Tool records in the database. Updates refresh_status and last_refreshed_at
+    on the integration. Only supported for mcp_server integration types.
+    """
+    return await service.refresh_resources(integration_id)

@@ -120,7 +120,7 @@ class TestToolFiltering:
                 name="tool_1",
                 namespaced_name="provider::tool_1",
                 description="Manually disabled tool",
-                provider_id=uuid4(),
+                integration_id=uuid4(),
                 enabled=False,  # User disabled
                 status=ToolStatus.AVAILABLE,  # Manual disable (status remains AVAILABLE)
                 parameters=[],
@@ -133,7 +133,7 @@ class TestToolFiltering:
                 name="tool_2",
                 namespaced_name="provider::tool_2",
                 description="Automatically disabled tool",
-                provider_id=uuid4(),
+                integration_id=uuid4(),
                 enabled=False,  # System disabled
                 status=ToolStatus.MISSING,  # Automatic disable (marked as MISSING)
                 parameters=[],
@@ -175,7 +175,7 @@ class TestToolFiltering:
         # Create corresponding enabled ToolWithParameters
         tool1_id = uuid4()
         tool2_id = uuid4()
-        provider_id = uuid4()
+        integration_id = uuid4()
         user_id = uuid4()
         enabled_tools = [
             ToolWithParameters(
@@ -183,7 +183,7 @@ class TestToolFiltering:
                 name="tool1",
                 namespaced_name="provider1::tool1",
                 description="Tool 1",
-                provider_id=provider_id,
+                integration_id=integration_id,
                 enabled=True,
                 status=ToolStatus.AVAILABLE,
                 parameters=[],
@@ -194,7 +194,7 @@ class TestToolFiltering:
                 name="tool2",
                 namespaced_name="provider1::tool2",
                 description="Tool 2",
-                provider_id=provider_id,
+                integration_id=integration_id,
                 enabled=True,
                 status=ToolStatus.AVAILABLE,
                 parameters=[],

@@ -6,12 +6,13 @@ with tool-specific fields as defined in the OpenAPI specification.
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict, field_validator
-from sqlalchemy import Index, String, Text, text
+from sqlalchemy import Column, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 from nexus.core.constants import FieldLimits
@@ -19,9 +20,6 @@ from nexus.core.exceptions import SafeValueError
 from nexus.core.models.base import BaseResource, Resource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
-
-if TYPE_CHECKING:
-    from nexus.tool_manager.models.tool_provider import ToolProvider
 
 
 class ToolStatus(str, Enum):
@@ -100,11 +98,11 @@ class ToolParameter(BaseResource, table=True):
 class ToolBase(Resource):
     """Tool base model.
 
-    Represents a tool provided by an external tool provider.
+    Represents a tool provided by an external MCP server integration.
     Extends the Resource base class with tool-specific fields.
 
     Attributes:
-        provider_id: UUID of the associated tool provider
+        integration_id: UUID of the owning Integration (nullable, SET NULL on delete)
         namespaced_name: Unique namespaced name for the tool (max 200 chars)
         enabled: Whether the tool is enabled (default: True)
         status: Current status of the tool (default: available)
@@ -126,11 +124,15 @@ class ToolBase(Resource):
 
     """
 
-    provider_id: UUID = Field(
-        foreign_key="tool_providers.id",
-        ondelete="CASCADE",
-        description="UUID of the associated tool provider",
-        index=True,
+    integration_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("integrations.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        description="UUID of the owning Integration (mcp_server)",
     )
 
     namespaced_name: str = Field(
@@ -188,7 +190,7 @@ class Tool(ToolBase, table=True):
         *Resource.__filterable_fields__,
         "enabled",
         "status",
-        "provider_id",
+        "integration_id",
         "namespaced_name",
     ]
 
@@ -201,8 +203,6 @@ class Tool(ToolBase, table=True):
     # Relationships
     parameters: list["ToolParameter"] = Relationship(back_populates="tool", cascade_delete=True)
 
-    provider: "ToolProvider" = Relationship(back_populates="tools")
-
     # Table arguments for partial unique constraint and composite indexes
     __table_args__ = (
         # Partial unique index for namespaced_name (only for non-deleted tools)
@@ -214,8 +214,8 @@ class Tool(ToolBase, table=True):
         ),
         # Composite index for pagination queries
         Index("ix_tools_created_at_id", "created_at", "id"),
-        # Composite index for provider queries with pagination
-        Index("ix_tools_provider_id_created_at_id", "provider_id", "created_at", "id"),
+        # Composite index for integration queries with pagination
+        Index("ix_tools_integration_id_created_at_id", "integration_id", "created_at", "id"),
     )
 
     @field_validator("namespaced_name")

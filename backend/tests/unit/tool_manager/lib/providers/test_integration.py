@@ -36,14 +36,14 @@ class TestProviderIntegration:
         # Create instance with custom configuration
         provider = factory.create_provider_instance(
             "mcp",
-            provider_name="integration_test",
+            integration_name="integration_test",
             base_url="http://localhost:8000/mcp",
             api_key="api-key",
         )
 
         # Verify correct type and configuration
         assert isinstance(provider, MockMCPProvider)
-        assert provider.provider_name == "integration_test"
+        assert provider.integration_name == "integration_test"
 
     @pytest.mark.asyncio
     async def test_factory_created_provider_functionality(self) -> None:
@@ -94,13 +94,13 @@ class TestProviderIntegration:
         # Create instances of each type
         provider_a = factory.create_provider_instance(
             "type_a",
-            provider_name="provider_a",
+            integration_name="provider_a",
             base_url="http://localhost:8000/mcp",
             api_key="api-key",
         )
         provider_b = factory.create_provider_instance(
             "type_b",
-            provider_name="provider_b",
+            integration_name="provider_b",
             base_url="http://localhost:8001/mcp",
             api_key="api-key",
         )
@@ -108,8 +108,8 @@ class TestProviderIntegration:
         # Verify correct types
         assert isinstance(provider_a, MockProviderTypeA)
         assert isinstance(provider_b, MockProviderTypeB)
-        assert provider_a.provider_name == "provider_a"
-        assert provider_b.provider_name == "provider_b"
+        assert provider_a.integration_name == "provider_a"
+        assert provider_b.integration_name == "provider_b"
 
     def test_factory_provider_lifecycle(self) -> None:
         """Test complete provider lifecycle through factory."""
@@ -125,21 +125,21 @@ class TestProviderIntegration:
         # Create multiple instances
         provider1 = factory.create_provider_instance(
             "lifecycle_test",
-            provider_name="instance1",
+            integration_name="instance1",
             base_url="http://localhost:8000/mcp",
             api_key="api-key",
         )
         provider2 = factory.create_provider_instance(
             "lifecycle_test",
-            provider_name="instance2",
+            integration_name="instance2",
             base_url="http://localhost:8000/mcp",
             api_key="api-key",
         )
 
         # Both should be valid but different instances
         assert provider1 is not provider2
-        assert cast("MockMCPProvider", provider1).provider_name == "instance1"
-        assert cast("MockMCPProvider", provider2).provider_name == "instance2"
+        assert cast("MockMCPProvider", provider1).integration_name == "instance1"
+        assert cast("MockMCPProvider", provider2).integration_name == "instance2"
 
         # Unregister type
         factory.unregister_provider_type("lifecycle_test")
@@ -150,8 +150,8 @@ class TestProviderIntegration:
             factory.create_provider_instance("lifecycle_test")
 
         # But existing instances still work (they're independent)
-        assert cast("MockMCPProvider", provider1).provider_name == "instance1"
-        assert cast("MockMCPProvider", provider2).provider_name == "instance2"
+        assert cast("MockMCPProvider", provider1).integration_name == "instance1"
+        assert cast("MockMCPProvider", provider2).integration_name == "instance2"
 
     @pytest.mark.asyncio
     async def test_concurrent_provider_operations(self) -> None:
@@ -163,7 +163,7 @@ class TestProviderIntegration:
         providers = [
             factory.create_provider_instance(
                 "concurrent",
-                provider_name=f"provider_{i}",
+                integration_name=f"provider_{i}",
                 base_url=f"http://localhost:800{i}/mcp",
                 api_key="api-key",
             )
@@ -234,7 +234,7 @@ class TestProviderIntegration:
             try:
                 instance = factory.create_provider_instance(
                     "thread_safe",
-                    provider_name=f"thread_{thread_id}",
+                    integration_name=f"thread_{thread_id}",
                     base_url="http://localhost:8000/mcp",
                     api_key="api-key",
                 )
@@ -254,7 +254,7 @@ class TestProviderIntegration:
         assert len(created_providers) == 20
 
         # All should have unique names
-        provider_names = {cast("MockMCPProvider", p).provider_name for p in created_providers}
+        provider_names = {cast("MockMCPProvider", p).integration_name for p in created_providers}
         assert len(provider_names) == 20  # All unique names
 
         # All should be correct type

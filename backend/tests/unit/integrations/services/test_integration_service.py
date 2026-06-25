@@ -51,7 +51,7 @@ class TestCreateIntegration:
 
         assert result.name == "Test MCP"
         assert result.integration_type == IntegrationType.MCP_SERVER
-        assert result.status == IntegrationStatus.VALIDATING
+        assert result.validation_status == IntegrationStatus.UNKNOWN
         assert result.scope == IntegrationScope.GLOBAL
         assert result.enabled is True
         assert result.management_credential_id is None
@@ -393,13 +393,13 @@ class TestUpdateValidationStatus:
         self, test_db_session: AsyncSession, integration_service: IntegrationService
     ) -> None:
         created = await integration_service.create_integration(_mcp_create())
-        assert created.status == IntegrationStatus.VALIDATING
+        assert created.validation_status == IntegrationStatus.UNKNOWN
 
         result = await integration_service.update_validation_status(
-            created.id, IntegrationSystemUpdate(status=IntegrationStatus.AVAILABLE)
+            created.id, IntegrationSystemUpdate(validation_status=IntegrationStatus.AVAILABLE)
         )
 
-        assert result.status == IntegrationStatus.AVAILABLE
+        assert result.validation_status == IntegrationStatus.AVAILABLE
 
     @pytest.mark.asyncio
     async def ***REMOVED***(
@@ -409,10 +409,10 @@ class TestUpdateValidationStatus:
 
         result = await integration_service.update_validation_status(
             created.id,
-            IntegrationSystemUpdate(status=IntegrationStatus.ERROR, validation_error="Connection refused"),
+            IntegrationSystemUpdate(validation_status=IntegrationStatus.ERROR, validation_error="Connection refused"),
         )
 
-        assert result.status == IntegrationStatus.ERROR
+        assert result.validation_status == IntegrationStatus.ERROR
         assert result.validation_error == "Connection refused"
 
     @pytest.mark.asyncio
@@ -422,15 +422,15 @@ class TestUpdateValidationStatus:
         created = await integration_service.create_integration(_mcp_create())
         await integration_service.update_validation_status(
             created.id,
-            IntegrationSystemUpdate(status=IntegrationStatus.ERROR, validation_error="Connection refused"),
+            IntegrationSystemUpdate(validation_status=IntegrationStatus.ERROR, validation_error="Connection refused"),
         )
 
         # Transition to AVAILABLE without explicitly clearing validation_error
         result = await integration_service.update_validation_status(
-            created.id, IntegrationSystemUpdate(status=IntegrationStatus.AVAILABLE)
+            created.id, IntegrationSystemUpdate(validation_status=IntegrationStatus.AVAILABLE)
         )
 
-        assert result.status == IntegrationStatus.AVAILABLE
+        assert result.validation_status == IntegrationStatus.AVAILABLE
         # validation_error is NOT automatically cleared — callers must explicitly set it to None
         assert result.validation_error == "Connection refused"
 
@@ -440,7 +440,7 @@ class TestUpdateValidationStatus:
     ) -> None:
         with pytest.raises(IntegrationNotFoundError):
             await integration_service.update_validation_status(
-                uuid4(), IntegrationSystemUpdate(status=IntegrationStatus.AVAILABLE)
+                uuid4(), IntegrationSystemUpdate(validation_status=IntegrationStatus.AVAILABLE)
             )
 
 

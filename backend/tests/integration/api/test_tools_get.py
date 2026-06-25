@@ -27,14 +27,14 @@ class TestToolsGetContract:
         data = response.json()
         assert "id" in data
         assert "name" in data
-        assert "provider_id" in data
+        assert "integration_id" in data
         assert "namespaced_name" in data
         assert "status" in data
 
         # Verify returned data matches the test tool
         assert data["id"] == str(test_tool.id)
         assert data["name"] == test_tool.name
-        assert data["provider_id"] == str(test_tool.provider_id)
+        assert data["integration_id"] == str(test_tool.integration_id)
         assert data["namespaced_name"] == test_tool.namespaced_name
 
     @pytest.mark.asyncio
@@ -51,7 +51,6 @@ class TestToolsGetContract:
             "id",
             "name",
             "description",
-            "provider_id",
             "namespaced_name",
             "status",
             "last_executed_at",
@@ -71,7 +70,7 @@ class TestToolsGetContract:
         # Verify data types match schema
         assert isinstance(data["id"], str)
         assert isinstance(data["name"], str)
-        assert isinstance(data["provider_id"], str)
+        assert isinstance(data["integration_id"], str)
         assert isinstance(data["namespaced_name"], str)
         assert isinstance(data["status"], str)
 
@@ -153,7 +152,7 @@ class TestToolsGetContract:
 
         # Contract: UUID fields must be valid UUID strings
         data = response.json()
-        uuid_fields = ["id", "provider_id", "created_by", "updated_by", "deleted_by"]
+        uuid_fields = ["id", "integration_id", "created_by", "updated_by", "deleted_by"]
 
         for field in uuid_fields:
             if data[field] is not None:
@@ -224,7 +223,7 @@ class TestToolsGetContract:
         data = response.json()
         assert data["id"] == str(test_tool.id)
         assert data["name"] == test_tool.name
-        assert data["provider_id"] == str(test_tool.provider_id)
+        assert data["integration_id"] == str(test_tool.integration_id)
         assert data["namespaced_name"] == test_tool.namespaced_name
         assert data["status"] == test_tool.status.value
 

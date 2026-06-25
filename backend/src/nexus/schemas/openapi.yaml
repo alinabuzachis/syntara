@@ -8664,15 +8664,15 @@ paths:
               - type: 'null'
             title: Integration Type
           description: Filter by integration type
-        - name: status
+        - name: validation_status
           in: query
           required: false
           schema:
             anyOf:
               - $ref: '#/components/schemas/IntegrationStatus'
               - type: 'null'
-            title: Status
-          description: Filter by integration status
+            title: Validation Status
+          description: Filter by validation status
         - name: enabled
           in: query
           required: false
@@ -9236,21 +9236,22 @@ paths:
                 retryable: true
       security:
         - bearerAuth: []
-  /integrations/validate:
+  /integrations/discover:
     post:
-      summary: Test Integration Connection
+      summary: Discover Integration Connection
       description: |-
-        Test a connection without saving an integration.
+        Test a connection and discover resources without saving an integration.
 
         Accepts integration configuration and a credential ID, resolves the
-        credential, runs the health check adapter, and returns the result.
-        No integration is persisted.
-      operationId: test_integration_connection
+        credential, runs the adapter's discover() method, and returns the result
+        including discovered tools (with parameters) or models. No integration
+        is persisted.
+      operationId: discover_integration_connection
       tags:
         - Integrations
       x-app-permission:
         resource: integration
-        action: validate
+        action: discover
       requestBody:
         required: true
         content:
@@ -9263,7 +9264,126 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthCheckResult'
+                $ref: '#/components/schemas/DiscoverResult'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /integrations/{integration_id}/status:
+    patch:
+      summary: Update Integration Status
+      description: Update integration enabled/validation_status/validation_error (service-to-service only).
+      operationId: update_integration_status
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationStatusPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationRead'
         '400':
           description: Bad Request
           content:
@@ -9356,11 +9476,11 @@ paths:
     post:
       summary: Validate Integration
       description: |-
-        Validate a saved integration by running a health check.
+        Validate a saved integration with a lightweight connectivity ping.
 
         Resolves the management credential, dispatches to the type-specific
-        health check adapter, updates the integration's status fields, and
-        returns the health check result.
+        adapter's validate() method, updates the integration's status fields,
+        and returns the result. No tool sync is performed.
       operationId: validate_integration
       tags:
         - Integrations
@@ -9381,7 +9501,125 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthCheckResult'
+                $ref: '#/components/schemas/ValidateResult'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/bad-request
+                title: Bad Request
+                detail: The request was malformed or contained invalid parameters
+                code: BAD_REQUEST
+                retryable: false
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/unauthorized
+                title: Unauthorized
+                detail: Authentication is required to access this resource
+                code: UNAUTHORIZED
+                retryable: false
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/forbidden
+                title: Forbidden
+                detail: You do not have permission to access this resource
+                code: FORBIDDEN
+                retryable: false
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/not-found
+                title: Resource Not Found
+                detail: No resource exists with the provided identifier
+                code: NOT_FOUND
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/conflict
+                title: Conflict
+                detail: The request conflicts with the current state of the resource
+                code: CONFLICT
+                retryable: false
+        '422':
+          description: Validation Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field 'name' must be between 1 and 255 characters
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '500':
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+      security:
+        - bearerAuth: []
+  /integrations/{integration_id}/refresh:
+    post:
+      summary: Refresh Resources
+      description: |-
+        Sync resources (tools) for a saved integration from the external service.
+
+        Connects to the MCP server, fetches the current tool list, and upserts
+        Tool records in the database. Updates refresh_status and last_refreshed_at
+        on the integration. Only supported for mcp_server integration types.
+      operationId: refresh_resources
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: refresh
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResult'
         '400':
           description: Bad Request
           content:
@@ -17321,7 +17559,26 @@ paths:
   /tool_manager/tools:
     get:
       summary: Get Tools
-      description: List tools with filtering, sorting, and pagination.
+      description: |-
+        List tools with filtering, sorting, and pagination.
+
+        Supports filtering using query parameters with standard operators:
+        - name: Filter by tool name (name=tool_name, name[contains]=text)
+        - enabled: Filter by enabled status (enabled=true|false)
+        - status: Filter by tool status (status=available|missing|error)
+        - integration_id: Filter by integration ID (integration_id=uuid)
+        - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+        - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+        Uses cursor-based pagination for scalability and consistency.
+
+        Args:
+            request: FastAPI request object containing query parameters
+            service: Tool service
+            params: Query parameters for pagination and filtering
+
+        Returns:
+            ToolListResponse with tools, pagination metadata, and optional total
       operationId: get_tools
       x-app-permission:
         resource: null
@@ -17718,1056 +17975,6 @@ paths:
                 type: object
                 additionalProperties: true
                 title: Response Bulk Update Tools
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-  /tool_manager/tool_providers:
-    get:
-      summary: Get Tool Providers
-      description: List tool providers with filtering, sorting, and pagination.
-      operationId: get_tool_providers
-      x-app-permission:
-        resource: null
-        action: null
-      parameters:
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            exclusiveMinimum: 0
-            maximum: 100
-            default: 20
-            description: Maximum number of results per page
-            title: Limit
-          description: Maximum number of results per page
-        - name: cursor
-          in: query
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            description: Pagination cursor from previous response
-            title: Cursor
-          description: Pagination cursor from previous response
-        - name: sort
-          in: query
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            description: Sort parameter (e.g., 'name', '-created_at')
-            title: Sort
-          description: Sort parameter (e.g., 'name', '-created_at')
-        - name: include_total
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-            description: Include total count in response (expensive)
-            title: Include Total
-          description: Include total count in response (expensive)
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderListResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-    post:
-      summary: Register Tool Provider
-      description: Register a new Tool Provider.
-      operationId: register_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ToolProviderCreate'
-      responses:
-        '201':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderWithConfiguration'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-  /tool_manager/tool_providers/{provider_id}:
-    get:
-      summary: Get Tool Provider
-      description: Get Tool Provider details by ID.
-      operationId: get_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      parameters:
-        - name: provider_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Provider Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderWithConfiguration'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-    put:
-      summary: Update Tool Provider
-      description: Update Tool Provider configuration (complete replacement).
-      operationId: update_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      parameters:
-        - name: provider_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Provider Id
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ToolProviderCreate'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderWithConfiguration'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-    patch:
-      summary: Patch Tool Provider
-      description: Patch Tool Provider.
-      operationId: patch_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      parameters:
-        - name: provider_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Provider Id
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ToolProviderPatch'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderWithConfiguration'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-    delete:
-      summary: Delete Tool Provider
-      description: Remove Tool Provider and all associated tools.
-      operationId: delete_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      parameters:
-        - name: provider_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Provider Id
-      responses:
-        '204':
-          description: Successful Response
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-  /tool_manager/tool_providers/{provider_id}/validate:
-    post:
-      summary: Validate Tool Provider
-      description: Validate Tool Provider connection and capabilities.
-      operationId: validate_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      parameters:
-        - name: provider_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Provider Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderValidationResult'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-  /tool_manager/tool_providers/{provider_id}/refresh_tools:
-    post:
-      summary: Refresh Tool Provider
-      description: Refresh tools from Tool Provider.
-      operationId: refresh_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      parameters:
-        - name: provider_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            title: Provider Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderRefreshResult'
-        '400':
-          description: Bad Request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/bad-request
-                title: Bad Request
-                detail: The request was malformed or contained invalid parameters
-                code: BAD_REQUEST
-                retryable: false
-        '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/unauthorized
-                title: Unauthorized
-                detail: Authentication is required to access this resource
-                code: UNAUTHORIZED
-                retryable: false
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/forbidden
-                title: Forbidden
-                detail: You do not have permission to access this resource
-                code: FORBIDDEN
-                retryable: false
-        '404':
-          description: Not Found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Resource Not Found
-                detail: No resource exists with the provided identifier
-                code: NOT_FOUND
-                retryable: false
-                instance: /api/v1/workflows
-        '409':
-          description: Conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/conflict
-                title: Conflict
-                detail: The request conflicts with the current state of the resource
-                code: CONFLICT
-                retryable: false
-        '422':
-          description: Validation Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field 'name' must be between 1 and 255 characters
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-        '500':
-          description: Internal Server Error
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/internal-error
-                title: Internal Server Error
-                detail: An unexpected error occurred
-                code: INTERNAL_ERROR
-                retryable: true
-      security:
-        - bearerAuth: []
-      tags:
-        - ToolManager
-  /tool_manager/tool_providers/test:
-    post:
-      summary: Test Tool Provider
-      description: Test Tool Provider definition without saving to database.
-      operationId: test_tool_provider
-      x-app-permission:
-        resource: null
-        action: null
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ToolProviderCreate'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolProviderValidationResult'
         '400':
           description: Bad Request
           content:
@@ -28373,11 +27580,12 @@ components:
     IntegrationStatus:
       type: string
       enum:
+        - unknown
         - validating
         - available
         - error
       title: IntegrationStatus
-      description: Current status of an integration.
+      description: Validation status of an integration.
     IntegrationScope:
       type: string
       enum:
@@ -28478,11 +27686,55 @@ components:
           type: object
           title: Labels
           description: Key-value labels
+        discovered_tools:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/InitialToolSelection'
+              maxItems: 200
+            - type: 'null'
+          title: Discovered Tools
+          description: Tools discovered during setup with enabled/disabled selections
       required:
         - name
         - integration_type
         - configuration
       title: IntegrationCreate
+      type: object
+    InitialToolSelection:
+      description: A tool from the discover step with the user's enabled/disabled choice.
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Tool name as returned by the discover endpoint
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Tool description
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Whether the user enabled this tool
+          default: true
+        parameters:
+          anyOf:
+            - type: array
+              items:
+                additionalProperties: true
+                type: object
+              maxItems: 50
+            - type: 'null'
+          title: Parameters
+          description: Tool parameters from discovery
+      required:
+        - name
+      title: InitialToolSelection
       type: object
     IntegrationPatch:
       description: Schema for partially updating an integration (user-facing).
@@ -28545,6 +27797,32 @@ components:
           title: Labels
           description: Key-value labels
       title: IntegrationPatch
+      type: object
+    IntegrationStatusPatch:
+      description: |-
+        Schema for service-to-service status updates (not user-facing).
+
+        Used by internal components (e.g. agent orchestrator) to update
+        enabled/validation_status/validation_error together in a single call.
+      properties:
+        enabled:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enabled
+          description: Whether the integration is active
+        validation_status:
+          anyOf:
+            - $ref: '#/components/schemas/IntegrationStatus'
+            - type: 'null'
+          description: Validation status of the integration
+        validation_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Validation Error
+          description: Error message from last validation attempt
+      title: IntegrationStatusPatch
       type: object
     IntegrationTestConnection:
       description: Schema for testing a connection without saving an integration.
@@ -28668,15 +27946,15 @@ components:
           type: boolean
           title: Enabled
           default: true
-        status:
+        validation_status:
           $ref: '#/components/schemas/IntegrationStatus'
-          default: validating
+          default: unknown
         scope:
           $ref: '#/components/schemas/IntegrationScope'
           default: global
         configuration:
           oneOf:
-            - $ref: '#/components/schemas/MCPServerConfiguration'
+            - $ref: '#/components/schemas/MCPServerConfigurationInput'
             - $ref: '#/components/schemas/LLMProviderConfiguration'
             - $ref: '#/components/schemas/AAPGatewayConfiguration'
           title: Configuration
@@ -28686,7 +27964,7 @@ components:
             mapping:
               aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
               llm_provider: '#/components/schemas/LLMProviderConfiguration'
-              mcp_server: '#/components/schemas/MCPServerConfiguration'
+              mcp_server: '#/components/schemas/MCPServerConfigurationInput'
         last_validated_at:
           anyOf:
             - type: string
@@ -28704,6 +27982,31 @@ components:
             - type: string
             - type: 'null'
           title: Validation Error
+        refresh_status:
+          anyOf:
+            - $ref: '#/components/schemas/IntegrationRefreshStatus'
+            - type: 'null'
+        last_refreshed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Refreshed At
+        refresh_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Refresh Error
+        total_tool_count:
+          type: integer
+          default: 0
+          title: Total Tool Count
+          description: Total number of tools linked to this integration
+        enabled_tool_count:
+          type: integer
+          default: 0
+          title: Enabled Tool Count
+          description: Number of enabled tools linked to this integration
       required:
         - created_by
         - name
@@ -28728,32 +28031,6 @@ components:
       required:
         - base_url
       title: MCPServerConfigurationInput
-      type: object
-    MCPServerConfiguration:
-      description: Full MCP configuration including system-managed discovery results.
-      additionalProperties: false
-      properties:
-        base_url:
-          type: string
-          format: uri
-          title: Base Url
-          description: Base URL for the MCP server
-        discovered_tools:
-          anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/DiscoveredTool'
-            - type: 'null'
-          title: Discovered Tools
-          description: Tools discovered during the last successful health check
-        integration_type:
-          type: string
-          const: mcp_server
-          default: mcp_server
-          title: Integration Type
-      required:
-        - base_url
-      title: MCPServerConfiguration
       type: object
     LLMProviderConfiguration:
       description: Configuration for LLM provider integrations (OpenAI-compatible endpoints).
@@ -28831,8 +28108,34 @@ components:
         - name
       title: DiscoveredLLMModel
       type: object
+    DiscoveredToolParameter:
+      description: A parameter belonging to a discovered tool.
+      properties:
+        name:
+          type: string
+          title: Name
+        type:
+          type: string
+          title: Type
+          default: string
+        description:
+          type: string
+          title: Description
+          default: ''
+        required:
+          type: boolean
+          title: Required
+          default: false
+      required:
+        - name
+      title: DiscoveredToolParameter
+      type: object
     DiscoveredTool:
-      description: A tool discovered from an MCP server during health check.
+      description: |-
+        A tool discovered from an MCP server.
+
+        Carries parameter information so that _sync_mcp_tools() can do a full
+        upsert without re-fetching from MCP.
       properties:
         name:
           type: string
@@ -28842,6 +28145,13 @@ components:
             - type: string
             - type: 'null'
           title: Description
+        parameters:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredToolParameter'
+            - type: 'null'
+          title: Parameters
       required:
         - name
       title: DiscoveredTool
@@ -28855,13 +28165,11 @@ components:
         - ssl_error
         - timeout
       title: HealthCheckErrorType
-    HealthCheckResult:
+    ValidateResult:
       description: |-
-        Structured result of a health check operation.
+        Result of a lightweight connectivity ping (validate endpoint).
 
-        Returned by every adapter's health_check() method. Common fields are
-        always populated; resource fields are populated only by the adapter
-        type that discovers them.
+        Contains only connection-health fields. No resource discovery fields.
       properties:
         success:
           type: boolean
@@ -28879,13 +28187,34 @@ components:
           anyOf:
             - $ref: '#/components/schemas/HealthCheckErrorType'
             - type: 'null'
-        discovered_models:
+      required:
+        - success
+        - checked_at
+      title: ValidateResult
+      type: object
+    DiscoverResult:
+      description: |-
+        Result of a resource-discovery operation (discover endpoint).
+
+        Returned by the unsaved-connection test (POST /integrations/discover)
+        and used internally by refresh_resources() to drive tool sync.
+      properties:
+        success:
+          type: boolean
+          title: Success
+        checked_at:
+          type: string
+          format: date-time
+          title: Checked At
+        error:
           anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/DiscoveredLLMModel'
+            - type: string
             - type: 'null'
-          title: Discovered Models
+          title: Error
+        error_type:
+          anyOf:
+            - $ref: '#/components/schemas/HealthCheckErrorType'
+            - type: 'null'
         discovered_tools:
           anyOf:
             - type: array
@@ -28893,10 +28222,53 @@ components:
                 $ref: '#/components/schemas/DiscoveredTool'
             - type: 'null'
           title: Discovered Tools
+        discovered_models:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredLLMModel'
+            - type: 'null'
+          title: Discovered Models
       required:
         - success
         - checked_at
-      title: HealthCheckResult
+      title: DiscoverResult
+      type: object
+    IntegrationRefreshStatus:
+      type: string
+      enum:
+        - refreshing
+        - available
+        - error
+      title: IntegrationRefreshStatus
+      description: Status of the last resource-refresh operation for an integration.
+    RefreshResult:
+      description: Result returned by POST /integrations/{id}/refresh.
+      properties:
+        tools_synced_count:
+          type: integer
+          title: Tools Synced Count
+          description: Number of new tool records created
+        tools_updated_count:
+          type: integer
+          title: Tools Updated Count
+          description: Number of existing tool records updated
+        tools_disabled_count:
+          type: integer
+          title: Tools Disabled Count
+          description: Number of tool records disabled (no longer on server)
+        refreshed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Refreshed At
+          description: Timestamp when the refresh completed
+      required:
+        - tools_synced_count
+        - tools_updated_count
+        - tools_disabled_count
+      title: RefreshResult
       type: object
     ComponentKPISummary:
       properties:
@@ -30582,11 +29954,13 @@ components:
           format: uuid
           title: Tool Id
           description: Foreign key to Tool
-        provider_id:
-          type: string
-          format: uuid
-          title: Provider Id
-          description: Foreign key to Tool Provider
+        integration_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Integration Id
+          description: Foreign key to Integration (denormalized from tool)
         user_id:
           type: string
           format: uuid
@@ -30642,7 +30016,6 @@ components:
       required:
         - created_by
         - tool_id
-        - provider_id
         - user_id
         - execution_start
         - status
@@ -30686,14 +30059,6 @@ components:
       required:
         - resources
       type: object
-    ProviderStatus:
-      type: string
-      title: ProviderStatus
-      description: Status of a tool provider.
-      enum:
-        - available
-        - error
-        - validating
     ToolStatus:
       type: string
       title: ToolStatus
@@ -30712,44 +30077,6 @@ components:
         - boolean
         - object
         - array
-    ToolProviderListResponse:
-      title: ToolProviderListResponse
-      description: Paginated list response for tool providers.
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Next
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Prev
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          title: Total
-          description: Total count of resources (only when include_total=true)
-        resources:
-          type: array
-          title: Resources
-          description: Array of resources in current page
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/ToolProviderWithConfiguration'
-      required:
-        - resources
-      type: object
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
     ToolWithParameters:
       properties:
         id:
@@ -30833,11 +30160,13 @@ components:
           title: Description
           description: Detailed description of the resource
           example: Handles user authentication and authorization workflows
-        provider_id:
-          type: string
-          format: uuid
-          title: Provider Id
-          description: UUID of the associated tool provider
+        integration_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Integration Id
+          description: UUID of the owning Integration (mcp_server)
         namespaced_name:
           type: string
           minLength: 1
@@ -30882,7 +30211,6 @@ components:
       required:
         - created_by
         - name
-        - provider_id
         - namespaced_name
         - parameters
       type: object
@@ -31027,314 +30355,6 @@ components:
       required:
         - tool_ids
         - enabled
-    ToolProviderWithConfiguration:
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-          title: Resource ID
-          description: Unique identifier for the resource
-          example: 550e8400-e29b-41d4-a716-446655440000
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          title: Created At
-          description: Timestamp when resource was created
-          example: '2025-10-09T12:00:00Z'
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          title: Updated At
-          description: Timestamp when resource was last updated
-          example: '2025-10-09T12:30:00Z'
-        labels:
-          type: object
-          default: {}
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
-          additionalProperties:
-            type: string
-          example:
-            environment: production
-            region: us-east-1
-            team: platform
-        created_by:
-          type: string
-          format: uuid
-          readOnly: true
-          title: Created By
-          description: User (or automation) that created the resource
-          example: 770e8400-e29b-41d4-a716-446655440000
-        updated_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          readOnly: true
-          title: Updated By
-          description: User (or automation) that last updated the resource
-          example: 880e8400-e29b-41d4-a716-446655440000
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          readOnly: true
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-          example: '2025-10-09T14:00:00Z'
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          readOnly: true
-          title: Deleted By
-          description: User who performed the soft delete
-          example: 660e8400-e29b-41d4-a716-446655440000
-        name:
-          type: string
-          minLength: 1
-          maxLength: 255
-          title: Name
-          description: Human-readable provider name
-          example: Authentication Service
-        description:
-          anyOf:
-            - type: string
-              maxLength: 2000
-            - type: 'null'
-          title: Description
-          description: Detailed description of the resource
-          example: Handles user authentication and authorization workflows
-        enabled:
-          type: boolean
-          default: true
-          title: Enabled
-          description: Enable/disable the provider
-        status:
-          $ref: '#/components/schemas/ProviderStatus'
-          default: validating
-          description: Current status of the provider
-        last_validated_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Last Validated At
-          description: Timestamp of last validation
-        validation_error:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Validation Error
-          description: Error message from last validation attempt
-        configuration:
-          $ref: '#/components/schemas/MCPConfiguration'
-          description: ToolProvider configuration
-      required:
-        - created_by
-        - name
-        - configuration
-      type: object
-      title: ToolProviderWithConfiguration
-      description: Schema for ToolProvider response with ProviderConfiguration details.
-      additionalProperties: false
-    ToolProviderCreate:
-      type: object
-      title: ToolProviderCreate
-      description: |-
-        ToolProviderCreate model for creating new tool providers.
-
-        Contains only the fields needed to create a new tool provider.
-        This model is used for API requests when creating new tool providers.
-
-        Attributes:
-            name: Human-readable name (required, 1-255 chars)
-            description: Optional detailed description (max 2000 chars)
-            configuration: Provider configuration (required)
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 255
-          title: Name
-          description: Human-readable name for the provider
-        description:
-          anyOf:
-            - type: string
-              maxLength: 2000
-            - type: 'null'
-          title: Description
-          description: Detailed description of the provider
-        configuration:
-          title: Configuration
-          description: Provider configuration
-          discriminator:
-            propertyName: provider_type
-            mapping:
-              mcp: '#/components/schemas/MCPConfiguration'
-          oneOf:
-            - $ref: '#/components/schemas/MCPConfiguration'
-      required:
-        - name
-        - configuration
-    ToolProviderPatch:
-      type: object
-      title: ToolProviderPatch
-      additionalProperties: false
-      description: |-
-        ToolProviderPatch model for partially updating tool providers.
-
-        All fields are optional to support.
-        This model is used for API PATCH requests when updating existing tool providers.
-
-        Attributes:
-            name: Optional human-readable name (1-255 chars)
-            description: Optional detailed description (max 2000 chars)
-            configuration: Optional provider-specific configuration
-            enabled: Optional enable/disable flag
-            status: Optional provider status
-            validation_error: Optional error message from validation attempts
-      properties:
-        name:
-          anyOf:
-            - type: string
-              minLength: 1
-              maxLength: 255
-            - type: 'null'
-          title: Name
-          description: Human-readable name for the provider
-        description:
-          anyOf:
-            - type: string
-              maxLength: 2000
-            - type: 'null'
-          title: Description
-          description: Detailed description of the provider
-        configuration:
-          anyOf:
-            - discriminator:
-                propertyName: provider_type
-                mapping:
-                  mcp: '#/components/schemas/MCPConfiguration'
-              oneOf:
-                - $ref: '#/components/schemas/MCPConfiguration'
-            - type: 'null'
-          title: Configuration
-          description: Provider-specific configuration
-        enabled:
-          anyOf:
-            - type: boolean
-            - type: 'null'
-          title: Enabled
-          description: Enable/disable the provider
-        status:
-          anyOf:
-            - $ref: '#/components/schemas/ProviderStatus'
-            - type: 'null'
-          description: Current status of the provider
-        validation_error:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Validation Error
-          description: Error message from last validation attempt
-    MCPConfiguration:
-      type: object
-      title: MCPConfiguration
-      description: Configuration for MCP (Model Context Protocol) providers.
-      additionalProperties: false
-      required:
-        - base_url
-      properties:
-        provider_type:
-          type: string
-          const: mcp
-          default: mcp
-          title: Provider Type
-        base_url:
-          type: string
-          title: Base Url
-          description: Base URL for the MCP provider
-          format: uri
-        api_key:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Api Key
-          description: API key for authentication (optional)
-    ToolProviderValidationResult:
-      type: object
-      title: ToolProviderValidationResult
-      additionalProperties: false
-      description: |-
-        Result of validating a connection to a tool provider.
-
-        Attributes:
-            valid: Whether the connection validation was successful
-            provider_type: The type of provider that was validated
-            validated_at: Timestamp when validation was performed
-            error: Optional error message if validation failed
-            timeout: Whether the validation failed due to a timeout
-      properties:
-        valid:
-          type: boolean
-          title: Valid
-        provider_type:
-          type: string
-          title: Provider Type
-        validated_at:
-          type: string
-          format: date-time
-          title: Validated At
-        error:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error
-        timeout:
-          type: boolean
-          title: Timeout
-          default: false
-      required:
-        - valid
-        - provider_type
-        - validated_at
-    ToolProviderRefreshResult:
-      type: object
-      title: ToolProviderRefreshResult
-      additionalProperties: false
-      description: |-
-        Result of refreshing tools from a tool provider.
-
-        Attributes:
-            refreshed_count: Number of new tools discovered and added
-            updated_count: Number of existing tools that were updated
-            disabled_count: Number of tools that were disabled (not found in provider)
-            refreshed_at: Timestamp when refresh operation was performed
-      properties:
-        refreshed_count:
-          type: integer
-          title: Refreshed Count
-        updated_count:
-          type: integer
-          title: Updated Count
-        disabled_count:
-          type: integer
-          title: Disabled Count
-        refreshed_at:
-          type: string
-          format: date-time
-          title: Refreshed At
-      required:
-        - refreshed_count
-        - updated_count
-        - disabled_count
-        - refreshed_at
     UserCreate:
       type: object
       title: UserCreate
@@ -34099,11 +33119,59 @@ components:
             - type: 'null'
           title: Responseschema
           description: JSON Schema for structured output. When defined, agent output conforms to this schema.
+        integration_connections:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/IntegrationConnectionConfig'
+              type: array
+            - type: 'null'
+          description: Per-integration execution credentials. Each entry overrides the management credential for that integration. Integrations not listed fall back to their management credential.
+          title: Integration Connections
+        tool_selection_strategy:
+          anyOf:
+            - enum:
+                - ALL
+                - NONE
+                - SELECTED
+              type: string
+            - type: 'null'
+          description: ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)
+          title: Tool Selection Strategy
+        tool_selections:
+          items:
+            type: string
+          type: array
+          description: Tool UUIDs to make available when tool_selection_strategy is SELECTED
+          title: Tool Selections
       type: object
       required:
         - prompt
       title: AgenticExecutorParameters
       description: Parameters for agentic executor.
+    IntegrationConnectionConfig:
+      properties:
+        integration_id:
+          type: string
+          title: Integration Id
+          description: UUID of the integration
+        credential_id:
+          type: string
+          title: Credential Id
+          description: Nexus credential UUID for execution calls (distinct from management credential)
+      type: object
+      required:
+        - integration_id
+        - credential_id
+      title: IntegrationConnectionConfig
+      description: |-
+        Execution credential override for one integration.
+
+
+        When included in AgenticExecutorParameters.integration_connections, this credential
+
+        is used for calls against that integration instead of the integration's
+
+        management credential.
     ScriptExecutorParameters:
       properties:
         language:

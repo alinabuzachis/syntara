@@ -72,12 +72,12 @@ def _make_refresh_session(
 
 
 @pytest.fixture
-def mock_db() -> AsyncMock:  # noqa: D103
+def mock_db() -> AsyncMock:
     return AsyncMock()
 
 
 @pytest.fixture
-def store(mock_db: AsyncMock) -> SessionStore:  # noqa: D103
+def store(mock_db: AsyncMock) -> SessionStore:
     with patch("nexus.auth.session.session_store.get_settings", return_value=_mock_settings()):
         return SessionStore(mock_db)
 

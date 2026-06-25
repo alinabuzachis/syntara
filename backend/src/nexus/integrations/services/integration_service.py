@@ -6,27 +6,40 @@ from typing import NoReturn
 from uuid import UUID
 
 import structlog
+from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.attributes import flag_modified
-from sqlmodel import col, delete, select
+from sqlmodel import col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.secret_service import SecretService
 from nexus.credentials.lib.injector_resolver import InjectorResolver
-from nexus.credentials.models.credential import Credential
-from nexus.credentials.models.credential_type import CredentialType
 from nexus.integrations.adapters.factory import create_health_check_adapter
-from nexus.integrations.adapters.protocol import HealthCheckResult
+from nexus.integrations.adapters.protocol import (
+    DiscoveredTool,
+    DiscoveredToolParameter,
+    DiscoverResult,
+    ValidateResult,
+)
+from nexus.integrations.audit import (
+    IntegrationCreateEvent,
+    IntegrationDeleteEvent,
+    IntegrationDiscoverEvent,
+    IntegrationRefreshEvent,
+    IntegrationUpdateEvent,
+    IntegrationValidateEvent,
+)
 from nexus.integrations.exceptions import (
-    IntegrationCredentialNotFoundError,
     IntegrationCredentialRequiredError,
     IntegrationCredentialTypeMismatchError,
     IntegrationNameConflictError,
     IntegrationNotFoundError,
+    IntegrationRefreshNotSupportedError,
 )
+from nexus.integrations.lib.credential_resolver import fetch_credential_with_type, resolve_mcp_bearer_token
 from nexus.integrations.models.integration import (
     Integration,
     IntegrationCreate,
@@ -34,17 +47,17 @@ from nexus.integrations.models.integration import (
     IntegrationPatch,
     IntegrationProjectAssignment,
     IntegrationRead,
+    IntegrationRefreshStatus,
     IntegrationScope,
     IntegrationStatus,
+    IntegrationStatusPatch,
     IntegrationSystemUpdate,
     IntegrationTestConnection,
     IntegrationType,
-)
-from nexus.integrations.models.integration_configuration import (
-    MCPServerConfiguration,
-    MCPServerConfigurationInput,
+    RefreshResult,
 )
 from nexus.settings.cache.settings_cache import get_runtime_settings
+from nexus.tool_manager.models.tool import Tool, ToolParameter, ToolParameterType, ToolStatus
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -76,29 +89,33 @@ class IntegrationService(BaseService):
             raise IntegrationNameConflictError(integration_name) from e
         raise e
 
+    async def _raise_if_name_exists(self, name: str) -> None:
+        """Raise IntegrationNameConflictError if an integration with this name already exists."""
+        result = await self.session.exec(
+            select(Integration).where(Integration.name == name, col(Integration.deleted_at).is_(None)).limit(1)
+        )
+        if result.first() is not None:
+            raise IntegrationNameConflictError(name)
+
     async def _validate_credential_type(
         self,
         integration_type: IntegrationType,
         credential_id: UUID,
     ) -> None:
         """Verify the credential's type is compatible with the integration type."""
-        credential = await self.session.get(Credential, credential_id)
-        if not credential:
-            raise IntegrationCredentialNotFoundError(credential_id)
-
-        cred_type = await self.session.get(CredentialType, credential.credential_type_id)
-        if not cred_type:
-            raise IntegrationCredentialNotFoundError(credential_id)
+        _, cred_type = await fetch_credential_with_type(self.session, credential_id, require_secret=False)
 
         allowed = ALLOWED_CREDENTIAL_TYPES.get(integration_type)
         if allowed and cred_type.name not in allowed:
             raise IntegrationCredentialTypeMismatchError(integration_type.value, cred_type.name, allowed)
 
-    async def _get_or_raise(self, integration_id: UUID) -> Integration:
+    async def _get_or_raise(self, integration_id: UUID, *, for_update: bool = False) -> Integration:
         query = select(Integration).filter(
             Integration.id == integration_id,  # type: ignore[arg-type]
             Integration.deleted_at.is_(None),  # type: ignore[union-attr]
         )
+        if for_update:
+            query = query.with_for_update()
         result = await self.session.exec(query)
         integration = result.one_or_none()
 
@@ -107,8 +124,42 @@ class IntegrationService(BaseService):
 
         return integration
 
+    async def _to_read_with_counts(self, integration: Integration) -> IntegrationRead:
+        """Convert an Integration ORM model to IntegrationRead with tool counts."""
+        result = IntegrationRead.model_validate(integration)
+        counts = await self._get_tool_counts([integration.id])
+        total, enabled = counts.get(integration.id, (0, 0))
+        result.total_tool_count = total
+        result.enabled_tool_count = enabled
+        return result
+
+    async def _get_tool_counts(self, integration_ids: list[UUID]) -> dict[UUID, tuple[int, int]]:
+        """Fetch (total, enabled) tool counts per integration in a single query."""
+        if not integration_ids:
+            return {}
+        query = (
+            select(
+                Tool.integration_id,
+                func.count().label("total"),
+                func.sum(case((col(Tool.enabled).is_(True), 1), else_=0)).label("enabled"),
+            )
+            .where(
+                col(Tool.integration_id).in_(integration_ids),
+                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+            .group_by(col(Tool.integration_id))
+        )
+        rows = await self.session.execute(query)
+        return {row.integration_id: (int(row.total), int(row.enabled or 0)) for row in rows.all()}
+
     async def create_integration(self, data: IntegrationCreate) -> IntegrationRead:
-        """Create a new integration."""
+        """Create a new integration.
+
+        If ``discovered_tools`` is provided, Tool records are created
+        immediately with the user's enabled/disabled selections.
+        Otherwise, tools are created on first refresh via
+        ``POST /integrations/{id}/refresh``.
+        """
         if data.management_credential_id is not None:
             await self._validate_credential_type(data.integration_type, data.management_credential_id)
 
@@ -129,9 +180,46 @@ class IntegrationService(BaseService):
 
         try:
             await self.session.flush()
-            return IntegrationRead.model_validate(integration)
         except IntegrityError as e:
+            AuditEventDispatcher.dispatch(
+                IntegrationCreateEvent(
+                    integration_id=integration.id,
+                    integration_name=data.name,
+                    integration_type=data.integration_type.value,
+                    description=data.description,
+                    error_type=type(e).__name__,
+                )
+            )
             await self._handle_integrity_error(e, data.name)
+
+        if data.discovered_tools:
+            discovered = [
+                DiscoveredTool(
+                    name=t.name,
+                    description=t.description,
+                    parameters=[DiscoveredToolParameter.model_validate(p) for p in (t.parameters or [])]
+                    if t.parameters
+                    else None,
+                )
+                for t in data.discovered_tools
+            ]
+            enabled_map = {t.name: t.enabled for t in data.discovered_tools}
+            await self._sync_mcp_tools(integration, discovered, enabled_map=enabled_map)
+            integration.refresh_status = IntegrationRefreshStatus.AVAILABLE
+            integration.last_refreshed_at = datetime.now(UTC)
+            await self.session.flush()
+
+        result = await self._to_read_with_counts(integration)
+        AuditEventDispatcher.dispatch(
+            IntegrationCreateEvent(
+                integration_id=integration.id,
+                integration_name=integration.name,
+                integration_type=integration.integration_type.value,
+                description=integration.description,
+                initial_status=integration.validation_status,
+            )
+        )
+        return result
 
     async def get_integration(
         self,
@@ -143,7 +231,7 @@ class IntegrationService(BaseService):
         integration = await self._get_or_raise(integration_id)
         if allowed_projects is not None:
             await self._enforce_visibility(integration, allowed_projects)
-        return IntegrationRead.model_validate(integration)
+        return await self._to_read_with_counts(integration)
 
     async def _enforce_visibility(self, integration: Integration, allowed_projects: AllowedProjectsResult) -> None:
         """Raise IntegrationNotFoundError if the integration is not visible to the caller."""
@@ -175,7 +263,7 @@ class IntegrationService(BaseService):
         if allowed_projects is not None:
             id_restriction = await self._resolve_visible_integration_ids(allowed_projects)
 
-        return await self.list_resources(
+        response = await self.list_resources(
             model=Integration,
             response_type=IntegrationListResponse,
             limit=limit,
@@ -185,6 +273,15 @@ class IntegrationService(BaseService):
             include_total=include_total,
             id_restriction=id_restriction,
         )
+
+        integration_ids = [r.id for r in response.resources if r.id]
+        counts = await self._get_tool_counts(integration_ids)
+        for resource in response.resources:
+            total, enabled = counts.get(resource.id, (0, 0))
+            resource.total_tool_count = total
+            resource.enabled_tool_count = enabled
+
+        return response
 
     async def _resolve_visible_integration_ids(self, allowed_projects: AllowedProjectsResult) -> list[UUID] | None:
         """Return the set of integration IDs visible to the caller, or None for unrestricted access."""
@@ -209,7 +306,17 @@ class IntegrationService(BaseService):
 
     async def patch_integration(self, integration_id: UUID, data: IntegrationPatch) -> IntegrationRead:
         """Apply partial updates to an integration."""
-        integration = await self._get_or_raise(integration_id)
+        try:
+            integration = await self._get_or_raise(integration_id)
+        except IntegrationNotFoundError:
+            AuditEventDispatcher.dispatch(
+                IntegrationUpdateEvent(
+                    integration_id=integration_id,
+                    integration_name=str(integration_id),
+                    error_type="IntegrationNotFoundError",
+                )
+            )
+            raise
 
         if data.configuration is not None and data.configuration.integration_type != integration.integration_type.value:
             msg = (
@@ -221,7 +328,11 @@ class IntegrationService(BaseService):
         if "management_credential_id" in data.model_fields_set and data.management_credential_id is not None:
             await self._validate_credential_type(integration.integration_type, data.management_credential_id)
 
+        if data.name is not None and data.name != integration.name:
+            await self._raise_if_name_exists(data.name)
+
         integration_name = data.name if data.name is not None else integration.name
+        updated_fields = list(data.model_fields_set)
 
         for field in data.model_fields_set:
             setattr(integration, field, getattr(data, field))
@@ -231,9 +342,28 @@ class IntegrationService(BaseService):
 
         try:
             await self.session.flush()
-            return IntegrationRead.model_validate(integration)
         except IntegrityError as e:
+            AuditEventDispatcher.dispatch(
+                IntegrationUpdateEvent(
+                    integration_id=integration.id,
+                    integration_name=integration_name,
+                    updated_fields=updated_fields,
+                    integration_type=integration.integration_type.value,
+                    error_type=type(e).__name__,
+                )
+            )
             await self._handle_integrity_error(e, integration_name)
+
+        result = await self._to_read_with_counts(integration)
+        AuditEventDispatcher.dispatch(
+            IntegrationUpdateEvent(
+                integration_id=integration.id,
+                integration_name=integration.name,
+                updated_fields=updated_fields,
+                integration_type=integration.integration_type.value,
+            )
+        )
+        return result
 
     async def update_validation_status(self, integration_id: UUID, data: IntegrationSystemUpdate) -> IntegrationRead:
         """Apply system-managed validation status updates."""
@@ -245,7 +375,22 @@ class IntegrationService(BaseService):
         integration.last_validated_at = datetime.now(UTC)
 
         await self.session.flush()
-        return IntegrationRead.model_validate(integration)
+        return await self._to_read_with_counts(integration)
+
+    async def update_system_status(self, integration_id: UUID, data: IntegrationStatusPatch) -> IntegrationRead:
+        """Apply service-to-service status updates (enabled, validation_status, validation_error).
+
+        Used by internal components such as the agent orchestrator to mark an
+        integration as ERROR when an MCP server becomes unreachable, or to
+        re-enable it when the server recovers.
+        """
+        integration = await self._get_or_raise(integration_id)
+
+        for field in data.model_fields_set:
+            setattr(integration, field, getattr(data, field))
+
+        await self.session.flush()
+        return await self._to_read_with_counts(integration)
 
     async def _resolve_credential(self, credential_id: UUID) -> dict[str, object]:
         """Resolve a credential to its extra_vars dict for adapter use.
@@ -262,108 +407,326 @@ class IntegrationService(BaseService):
             msg = "SecretService is required for credential resolution"
             raise RuntimeError(msg)
 
-        credential = await self.session.get(Credential, credential_id)
-        if not credential or not credential.secret_id:
-            raise IntegrationCredentialNotFoundError(credential_id)
-
-        cred_type = await self.session.get(CredentialType, credential.credential_type_id)
-        if not cred_type:
-            raise IntegrationCredentialNotFoundError(credential_id)
-
-        decrypted_inputs = await self._secret_service.retrieve_secret(credential.secret_id)
+        credential, cred_type = await fetch_credential_with_type(self.session, credential_id)
+        # fetch_credential_with_type raises if secret_id is None
+        decrypted_inputs = await self._secret_service.retrieve_secret(credential.secret_id)  # type: ignore[arg-type]
         resolved = InjectorResolver.resolve(cred_type.injectors or {}, decrypted_inputs)
         return resolved.extra_vars
 
-    async def validate_integration(self, integration_id: UUID) -> HealthCheckResult:
-        """Run a health check on a saved integration.
+    async def validate_integration(self, integration_id: UUID) -> ValidateResult:
+        """Run a lightweight connectivity ping on a saved integration.
 
         Resolves the management credential, dispatches to the type-specific
-        adapter, persists the result (including discovered resources), and
-        returns the health check result.
+        adapter's validate() method, persists the result, and returns it.
 
         Status transitions: current → VALIDATING → AVAILABLE or ERROR.
         ``last_validated_at`` is set only after the check completes.
+        No tool sync is performed — use refresh_resources() for that.
         """
-        integration = await self._get_or_raise(integration_id)
-
-        if not integration.management_credential_id:
-            raise IntegrationCredentialRequiredError(integration_id)
-
-        resolved_credential = await self._resolve_credential(integration.management_credential_id)
-
-        # Set VALIDATING now that credential resolution succeeded
-        integration.status = IntegrationStatus.VALIDATING
-        integration.validation_error = None
-        await self.session.flush()
-
-        timeout_seconds: int = (
-            await get_runtime_settings().get(
-                "integrations.connection_test_timeout_seconds",
+        try:
+            integration = await self._get_or_raise(integration_id)
+        except IntegrationNotFoundError:
+            AuditEventDispatcher.dispatch(
+                IntegrationValidateEvent(
+                    integration_id=integration_id,
+                    integration_name=str(integration_id),
+                    integration_type="unknown",
+                    error_type="IntegrationNotFoundError",
+                )
             )
-            or 10
-        )
+            raise
 
-        adapter = create_health_check_adapter(integration.integration_type, integration.configuration)
-        result = await adapter.health_check(resolved_credential, timeout_seconds)
+        resolved_credential: dict[str, object] = {}
+        if integration.management_credential_id:
+            resolved_credential = await self._resolve_credential(integration.management_credential_id)
 
-        # Persist discovered resources back to the configuration JSONB
-        self._persist_discovered_resources(integration, result)
-
-        integration.status = IntegrationStatus.AVAILABLE if result.success else IntegrationStatus.ERROR
-        integration.validation_error = result.error
-
-        integration.last_validated_at = datetime.now(UTC)
+        integration.validation_status = IntegrationStatus.VALIDATING
+        integration.validation_error = None
         await self.session.commit()
+
+        timeout_seconds: int = await get_runtime_settings().get("integrations.connection_test_timeout_seconds")
+        adapter = create_health_check_adapter(integration.integration_type, integration.configuration)
+
+        try:
+            result = await adapter.validate(resolved_credential, timeout_seconds)
+
+            integration = await self._get_or_raise(integration_id, for_update=True)
+            integration.validation_status = IntegrationStatus.AVAILABLE if result.success else IntegrationStatus.ERROR
+            integration.validation_error = result.error
+            integration.last_validated_at = datetime.now(UTC)
+            await self.session.commit()
+        except Exception as exc:
+            integration = await self._get_or_raise(integration_id, for_update=True)
+            integration.validation_status = IntegrationStatus.ERROR
+            integration.validation_error = f"Unexpected error during validation: {type(exc).__name__}"
+            integration.last_validated_at = datetime.now(UTC)
+            await self.session.commit()
+            raise
+
+        AuditEventDispatcher.dispatch(
+            IntegrationValidateEvent(
+                integration_id=integration.id,
+                integration_name=integration.name,
+                integration_type=integration.integration_type.value,
+                result_status=integration.validation_status,
+                error_type=None if result.success else "HealthCheckFailed",
+            )
+        )
 
         return result
 
-    async def test_connection(self, data: IntegrationTestConnection) -> HealthCheckResult:
-        """Test a connection without saving an integration.
+    async def discover(self, data: IntegrationTestConnection) -> DiscoverResult:
+        """Test a connection for an unsaved integration and discover its resources.
 
         Resolves the credential, creates an adapter from the provided
-        configuration, and runs the health check. No database writes.
+        configuration, and runs discover(). No database writes.
         """
         resolved_credential = await self._resolve_credential(data.credential_id)
 
-        timeout_seconds: int = (
-            await get_runtime_settings().get(
-                "integrations.connection_test_timeout_seconds",
+        timeout_seconds: int = await get_runtime_settings().get("integrations.connection_test_timeout_seconds")
+
+        adapter = create_health_check_adapter(data.integration_type, data.configuration)
+        result = await adapter.discover(resolved_credential, timeout_seconds)
+
+        AuditEventDispatcher.dispatch(
+            IntegrationDiscoverEvent(
+                integration_type=data.integration_type.value,
+                tools_found_count=len(result.discovered_tools or []),
+                models_found_count=len(result.discovered_models or []),
+                error_type=None
+                if result.success
+                else (result.error_type.value if result.error_type else "DiscoverFailed"),
             )
-            or 10
         )
 
-        configuration = data.configuration
-        if isinstance(configuration, MCPServerConfigurationInput):
-            configuration = MCPServerConfiguration(
-                integration_type=configuration.integration_type,
-                base_url=configuration.base_url,
-            )
+        return result
 
-        adapter = create_health_check_adapter(data.integration_type, configuration)
-        return await adapter.health_check(resolved_credential, timeout_seconds)
+    async def refresh_resources(self, integration_id: UUID) -> RefreshResult:
+        """Discover and sync resources (tools) for a saved integration.
 
-    @staticmethod
-    def _persist_discovered_resources(integration: Integration, result: HealthCheckResult) -> None:
-        """Write discovered resources from the health check back to the integration's configuration.
+        Calls adapter.discover() to get the current tool list from the MCP
+        server, then upserts Tool records in the database. Updates
+        refresh_status and last_refreshed_at on the integration.
 
-        Only updates system-managed discovery fields; admin-managed fields
-        (e.g. allowed_model_ids) are preserved.
+        Raises IntegrationRefreshNotSupportedError for non-MCP integration types.
         """
-        if not result.success:
-            return
-
-        config = integration.configuration
-
-        if isinstance(config, MCPServerConfiguration) and result.discovered_tools is not None:
-            config.discovered_tools = result.discovered_tools
-            integration.configuration = config
-            flag_modified(integration, "configuration")
-
-    async def delete_integration(self, integration_id: UUID) -> None:
-        """Soft-delete an integration and remove project assignments."""
         integration = await self._get_or_raise(integration_id)
 
+        if integration.integration_type != IntegrationType.MCP_SERVER:
+            raise IntegrationRefreshNotSupportedError(integration_id, integration.integration_type.value)
+
+        resolved_credential: dict[str, object] = {}
+        if integration.management_credential_id:
+            resolved_credential = await self._resolve_credential(integration.management_credential_id)
+
+        integration.refresh_status = IntegrationRefreshStatus.REFRESHING
+        integration.refresh_error = None
+        await self.session.commit()
+
+        timeout_seconds: int = await get_runtime_settings().get("integrations.connection_test_timeout_seconds")
+        adapter = create_health_check_adapter(integration.integration_type, integration.configuration)
+
+        synced = updated = disabled = 0
+        try:
+            discover_result = await adapter.discover(resolved_credential, timeout_seconds)
+
+            if not discover_result.success:
+                integration = await self._get_or_raise(integration_id, for_update=True)
+                integration.refresh_status = IntegrationRefreshStatus.ERROR
+                integration.refresh_error = discover_result.error
+                integration.last_refreshed_at = datetime.now(UTC)
+                await self.session.commit()
+                AuditEventDispatcher.dispatch(
+                    IntegrationRefreshEvent(
+                        integration_id=integration.id,
+                        integration_name=integration.name,
+                        integration_type=integration.integration_type.value,
+                        result_status=IntegrationRefreshStatus.ERROR,
+                        error_type=discover_result.error_type.value if discover_result.error_type else "DiscoverFailed",
+                    )
+                )
+                return RefreshResult(
+                    tools_synced_count=0,
+                    tools_updated_count=0,
+                    tools_disabled_count=0,
+                    refreshed_at=integration.last_refreshed_at or datetime.now(UTC),
+                )
+
+            synced, updated, disabled = await self._sync_mcp_tools(
+                integration,
+                discover_result.discovered_tools or [],
+            )
+
+            integration = await self._get_or_raise(integration_id, for_update=True)
+            integration.refresh_status = IntegrationRefreshStatus.AVAILABLE
+            integration.last_refreshed_at = datetime.now(UTC)
+            integration.refresh_error = None
+            await self.session.commit()
+        except Exception as exc:
+            integration = await self._get_or_raise(integration_id, for_update=True)
+            integration.refresh_status = IntegrationRefreshStatus.ERROR
+            integration.refresh_error = f"Unexpected error during refresh: {type(exc).__name__}"
+            integration.last_refreshed_at = datetime.now(UTC)
+            await self.session.commit()
+            raise
+
+        AuditEventDispatcher.dispatch(
+            IntegrationRefreshEvent(
+                integration_id=integration.id,
+                integration_name=integration.name,
+                integration_type=integration.integration_type.value,
+                result_status=IntegrationRefreshStatus.AVAILABLE,
+                tools_synced_count=synced,
+                tools_updated_count=updated,
+                tools_disabled_count=disabled,
+            )
+        )
+
+        return RefreshResult(
+            tools_synced_count=synced,
+            tools_updated_count=updated,
+            tools_disabled_count=disabled,
+            refreshed_at=integration.last_refreshed_at,
+        )
+
+    async def _resolve_integration_credential(self, integration: Integration) -> str | None:
+        """Decrypt and resolve the bearer token for an integration's management credential.
+
+        Call only immediately before an outbound external connection. The returned
+        value is used in the caller's local scope and never stored on self.
+
+        Returns None if no credential is configured (unauthenticated integration).
+        Raises if a credential is configured but cannot be resolved.
+        """
+        if not integration.management_credential_id:
+            return None
+
+        if self._secret_service is None:
+            raise IntegrationCredentialRequiredError(integration.id)
+
+        return await resolve_mcp_bearer_token(self.session, self._secret_service, integration.id)
+
+    async def _sync_mcp_tools(
+        self,
+        integration: Integration,
+        discovered_tools: list[DiscoveredTool],
+        *,
+        enabled_map: dict[str, bool] | None = None,
+    ) -> tuple[int, int, int]:
+        """Upsert Tool records from a pre-fetched list of DiscoveredTool objects.
+
+        Accepts the tool list produced by adapter.discover() so no additional
+        MCP connection is made here — this is pure DB upsert logic.
+
+        If ``enabled_map`` is provided, each tool's enabled state is set
+        according to the map (used during creation with user selections).
+        Otherwise all new tools default to enabled=True.
+
+        Returns a (synced_count, updated_count, disabled_count) tuple.
+        The caller is responsible for committing the session.
+        """
+        existing_query = await self.session.exec(
+            select(Tool).where(
+                Tool.integration_id == integration.id,
+                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+        existing_tools = {t.name: t for t in existing_query.all()}
+        found_names: set[str] = set()
+        synced_count = 0
+        updated_count = 0
+
+        # Batch-delete all existing parameters for this integration's tools in one query
+        existing_tool_ids = [t.id for t in existing_tools.values()]
+        if existing_tool_ids:
+            await self.session.exec(delete(ToolParameter).where(col(ToolParameter.tool_id).in_(existing_tool_ids)))
+
+        # Collect new parameters to batch-add after the loop
+        pending_params: list[tuple[Tool, list[ToolParameter]]] = []
+
+        for tool_meta in discovered_tools:
+            found_names.add(tool_meta.name)
+            namespaced = f"{integration.name}::{tool_meta.name}"
+            parameters = _discovered_params_to_tool_params(tool_meta.parameters or [])
+
+            if tool_meta.name in existing_tools:
+                existing = existing_tools[tool_meta.name]
+                existing.namespaced_name = namespaced
+                existing.description = tool_meta.description
+                existing.status = ToolStatus.AVAILABLE
+                existing.last_refreshed_at = datetime.now(UTC)
+                existing.refresh_error = None
+                existing.updated_by = self.user.id
+                existing.updated_at = datetime.now(UTC)
+                pending_params.append((existing, parameters))
+                updated_count += 1
+            else:
+                tool_enabled = enabled_map.get(tool_meta.name, True) if enabled_map else True
+                new_tool = Tool(
+                    integration_id=integration.id,
+                    name=tool_meta.name,
+                    namespaced_name=namespaced,
+                    description=tool_meta.description,
+                    enabled=tool_enabled,
+                    last_refreshed_at=datetime.now(UTC),
+                    created_by=self.user.id,
+                    updated_by=self.user.id,
+                )
+                self.session.add(new_tool)
+                pending_params.append((new_tool, parameters))
+                synced_count += 1
+
+        # Flush to assign IDs to new tools before adding parameters
+        await self.session.flush()
+
+        # Batch-insert all new parameters
+        now = datetime.now(UTC)
+        for tool, parameters in pending_params:
+            for param in parameters:
+                self.session.add(
+                    ToolParameter(
+                        tool_id=tool.id,
+                        name=param.name,
+                        type=param.type,
+                        description=param.description or "",
+                        required=bool(getattr(param, "required", False)),
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+
+        disabled_count = 0
+        for name, tool in existing_tools.items():
+            if name not in found_names:
+                tool.enabled = False
+                tool.status = ToolStatus.MISSING
+                tool.updated_by = self.user.id
+                tool.updated_at = datetime.now(UTC)
+                disabled_count += 1
+
+        return synced_count, updated_count, disabled_count
+
+    async def delete_integration(self, integration_id: UUID) -> None:
+        """Soft-delete an integration, its linked Tools, and remove project assignments."""
+        try:
+            integration = await self._get_or_raise(integration_id)
+        except IntegrationNotFoundError:
+            AuditEventDispatcher.dispatch(
+                IntegrationDeleteEvent(
+                    integration_id=integration_id,
+                    integration_name=str(integration_id),
+                    error_type="IntegrationNotFoundError",
+                )
+            )
+            raise
+
+        integration_name = integration.name
+        tools_count = await self._count_linked_tools(integration_id)
+
         integration.soft_delete(self.user.id)
+
+        # Soft-delete all Tool records linked to this integration directly.
+        await self._soft_delete_linked_tools(integration_id)
 
         stmt = delete(IntegrationProjectAssignment).where(
             IntegrationProjectAssignment.integration_id == integration_id,  # type: ignore[arg-type]
@@ -371,3 +734,70 @@ class IntegrationService(BaseService):
         await self.session.exec(stmt)
 
         await self.session.flush()
+
+        AuditEventDispatcher.dispatch(
+            IntegrationDeleteEvent(
+                integration_id=integration_id,
+                integration_name=integration_name,
+                tools_deleted=tools_count,
+            )
+        )
+
+    async def _count_linked_tools(self, integration_id: UUID) -> int:
+        """Count non-deleted Tool records owned by this integration."""
+        count = await self.session.scalar(
+            select(func.count())
+            .select_from(Tool)
+            .where(
+                Tool.integration_id == integration_id,
+                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+        return count or 0
+
+    async def _soft_delete_linked_tools(self, integration_id: UUID) -> None:
+        """Soft-delete all non-deleted Tool records owned by this integration."""
+        now = datetime.now(UTC)
+        await self.session.exec(
+            update(Tool)
+            .where(
+                Tool.integration_id == integration_id,  # type: ignore[arg-type]
+                Tool.deleted_at.is_(None),  # type: ignore[union-attr]
+            )
+            .values(deleted_at=now, deleted_by=self.user.id)
+        )
+
+
+def _discovered_params_to_tool_params(
+    discovered: list[DiscoveredToolParameter],
+) -> list[ToolParameter]:
+    """Convert DiscoveredToolParameter list to ToolParameter domain objects."""
+    result: list[ToolParameter] = []
+    for p in discovered:
+        param_type = _str_to_tool_param_type(p.type)
+        result.append(
+            ToolParameter(
+                name=p.name,
+                type=param_type,
+                description=p.description,
+                required=p.required,
+            )
+        )
+    return result
+
+
+def _str_to_tool_param_type(type_str: str) -> ToolParameterType:
+    """Map a JSON/string type name to ToolParameterType."""
+    mapping: dict[str, ToolParameterType] = {
+        "string": ToolParameterType.STRING,
+        "number": ToolParameterType.NUMBER,
+        "integer": ToolParameterType.NUMBER,
+        "boolean": ToolParameterType.BOOLEAN,
+        "object": ToolParameterType.OBJECT,
+        "array": ToolParameterType.ARRAY,
+    }
+    result = mapping.get(type_str)
+    if result is None:
+        logger.warning("Unknown tool parameter type, defaulting to string", type_str=type_str)
+        return ToolParameterType.STRING
+    return result

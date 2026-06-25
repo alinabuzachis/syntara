@@ -19,10 +19,6 @@ vi.mock('../../../../stores/useWorkflowStore', () => ({
   })),
 }))
 
-vi.mock('../../utils/agentHelpers', () => ({
-  parseToolsString: vi.fn((tools: string) => (tools ? tools.split(',').map((t: string) => t.trim()) : [])),
-}))
-
 describe('registerAIAgentNode', () => {
   beforeEach(() => {
     vi.clearAllMocks()

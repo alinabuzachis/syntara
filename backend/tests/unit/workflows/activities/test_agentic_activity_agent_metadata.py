@@ -418,3 +418,186 @@ class TestAgenticActivityWorkflowContextMetadata:
 
         # Response schema
         assert metadata["response_schema"] == schema
+
+
+class TestAgenticActivityIntegrationConnections:
+    """Tests for integration_connections metadata propagation."""
+
+    @pytest.mark.asyncio
+    async def test_integration_connections_in_metadata_when_configured(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """integration_connections are serialized into agent_metadata."""
+        integration_id = "550e8400-e29b-41d4-a716-446655440001"
+        credential_id = "550e8400-e29b-41d4-a716-446655440002"
+        input_config = {
+            "prompt": "Test prompt",
+            "integration_connections": [{"integration_id": integration_id, "credential_id": credential_id}],
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None)
+
+        call_kwargs = mock_agent_client.invoke_agent_async.call_args.kwargs
+        metadata = call_kwargs["metadata"]
+        assert "integration_connections" in metadata
+        assert metadata["integration_connections"] == [
+            {"integration_id": integration_id, "credential_id": credential_id}
+        ]
+
+    @pytest.mark.asyncio
+    async def test_integration_connections_multiple_integrations(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Multiple integration_connections entries are all serialized."""
+        connections = [
+            {
+                "integration_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "credential_id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            },
+            {
+                "integration_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "credential_id": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+            },
+        ]
+        input_config = {"prompt": "Test", "integration_connections": connections}
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None)
+
+        metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
+        assert metadata["integration_connections"] == connections
+
+    @pytest.mark.asyncio
+    async def test_integration_connections_absent_when_not_configured(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """integration_connections key is absent from metadata when not configured."""
+        input_config = {"prompt": "Test prompt"}
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None)
+
+        metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
+        assert "integration_connections" not in metadata
+
+
+class TestAgenticActivityToolSelection:
+    """Tests for tool_selection_strategy and tool_selections metadata propagation."""
+
+    @pytest.mark.asyncio
+    async def test_tool_selections_in_metadata_when_configured(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """tool_selection_strategy and tool_selections are injected into agent_metadata."""
+        tool_id = "550e8400-e29b-41d4-a716-446655440001"
+        input_config = {
+            "prompt": "Test prompt",
+            "tool_selection_strategy": "SELECTED",
+            "tool_selections": [tool_id],
+        }
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None)
+
+        metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
+        assert metadata["tool_selection_strategy"] == "SELECTED"
+        assert metadata["tool_selections"] == [tool_id]
+
+    @pytest.mark.asyncio
+    async def test_all_strategy_in_metadata(self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock) -> None:
+        """ALL strategy is propagated; tool_selections is absent (not needed for ALL)."""
+        input_config = {"prompt": "Test prompt", "tool_selection_strategy": "ALL"}
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None)
+
+        metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
+        assert metadata["tool_selection_strategy"] == "ALL"
+        assert "tool_selections" not in metadata
+
+    @pytest.mark.asyncio
+    async def test_tool_selection_absent_when_not_configured(
+        self, mock_agent_client: AsyncMock, mock_activity_info: MagicMock
+    ) -> None:
+        """Neither key appears in metadata when tool_selection_strategy is absent."""
+        input_config = {"prompt": "Test prompt"}
+
+        with (
+            patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls,
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.create_service_token",
+                return_value="mock_token",
+            ),
+            patch(
+                "nexus.workflows.workflow_engine.activities.agentic_activity.activity.info",
+                return_value=mock_activity_info,
+            ),
+            pytest.raises(CompleteAsyncError),
+        ):
+            mock_cls.return_value = mock_agent_client
+            await execute_agentic_activity(input_config, None)
+
+        metadata = mock_agent_client.invoke_agent_async.call_args.kwargs["metadata"]
+        assert "tool_selection_strategy" not in metadata
+        assert "tool_selections" not in metadata

@@ -26,21 +26,21 @@ class MockMCPProvider(ToolProviderAdapter):
     def __init__(
         self,
         base_url: str,
-        api_key: str,
-        provider_id: UUID | None = None,
-        provider_name: str | None = "mcp-provider",
+        api_key: str | None = None,
+        integration_id: UUID | None = None,
+        integration_name: str | None = "mcp-integration",
     ) -> None:
         """Initialize MCP provider with configuration.
 
         Args:
             base_url: URL of the MCP server
             api_key: Authentication key for the MCP server
-            provider_id: Unique identifier for this provider instance (optional for factory)
-            provider_name: Human-readable name for the provider (optional for factory)
+            integration_id: Unique identifier for this integration instance (optional for factory)
+            integration_name: Human-readable name for the integration (optional for factory)
 
         """
-        self.provider_id = provider_id or uuid4()
-        self.provider_name = provider_name
+        self.integration_id = integration_id or uuid4()
+        self.integration_name = integration_name
 
         # Mock tool schemas (separate from Tool models to match new design)
         self._tool_schemas = {
@@ -109,7 +109,7 @@ class MockMCPProvider(ToolProviderAdapter):
         self._mock_tools = [
             Tool(
                 name="echo_tool",
-                namespaced_name=f"{provider_name}::echo_tool",
+                namespaced_name=f"{integration_name}::echo_tool",
                 description="A simple tool that echoes input back",
                 parameters=[
                     ToolParameter(
@@ -122,7 +122,7 @@ class MockMCPProvider(ToolProviderAdapter):
             ),
             Tool(
                 name="calculator",
-                namespaced_name=f"{provider_name}::calculator",
+                namespaced_name=f"{integration_name}::calculator",
                 description="Basic calculator tool for mathematical operations",
                 parameters=[
                     ToolParameter(
@@ -147,7 +147,7 @@ class MockMCPProvider(ToolProviderAdapter):
             ),
             Tool(
                 name="file_reader",
-                namespaced_name=f"{provider_name}::file_reader",
+                namespaced_name=f"{integration_name}::file_reader",
                 description="Tool for reading file contents",
                 parameters=[
                     ToolParameter(
@@ -167,7 +167,7 @@ class MockMCPProvider(ToolProviderAdapter):
             ),
             Tool(
                 name="random_number",
-                namespaced_name=f"{provider_name}::random_number",
+                namespaced_name=f"{integration_name}::random_number",
                 description="Generate a random number within specified range",
                 parameters=[
                     ToolParameter(
@@ -203,7 +203,7 @@ class MockMCPProvider(ToolProviderAdapter):
         return [
             Tool(
                 name="echo_tool",
-                namespaced_name=f"{self.provider_name}::echo_tool",
+                namespaced_name=f"{self.integration_name}::echo_tool",
                 description="A simple tool that echoes input back",
                 parameters=[
                     ToolParameter(

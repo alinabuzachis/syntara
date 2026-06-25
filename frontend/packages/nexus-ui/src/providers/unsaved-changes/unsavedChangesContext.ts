@@ -1,8 +1,17 @@
 import { createContext } from 'react'
 
+export type DirtyCheckOptions = {
+  check: () => boolean
+  exitWithoutSaving?: () => void
+  saveAndExit?: () => Promise<boolean>
+  title?: string
+  body?: string
+  saveLabel?: string
+}
+
 export type UnsavedChangesContextType = {
   /**
-   * Request navigation to a path. If there are unsaved changes in the builder,
+   * Request navigation to a path. If there are unsaved changes,
    * shows a confirmation modal. Otherwise, navigates immediately.
    */
   requestNavigation: (targetPath: string) => void
@@ -14,6 +23,12 @@ export type UnsavedChangesContextType = {
    * Unregister the save handler when BuilderContent unmounts
    */
   unregisterSaveHandler: () => void
+  /**
+   * Register a dirty check for the current page. The provider calls this function
+   * before navigating to determine if a confirmation modal is needed.
+   * Returns an unregister function.
+   */
+  registerDirtyCheck: (options: DirtyCheckOptions) => () => void
 }
 
 export const UnsavedChangesContext = createContext<UnsavedChangesContextType | null>(null)

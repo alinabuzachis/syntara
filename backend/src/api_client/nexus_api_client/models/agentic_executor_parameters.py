@@ -6,10 +6,14 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.agentic_executor_parameters_tool_selection_strategy_type_0 import (
+    AgenticExecutorParametersToolSelectionStrategyType0,
+)
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.agentic_executor_parameters_response_schema_type_0 import AgenticExecutorParametersResponseSchemaType0
+    from ..models.integration_connection_config import IntegrationConnectionConfig
 
 
 T = TypeVar("T", bound="AgenticExecutorParameters")
@@ -27,6 +31,12 @@ class AgenticExecutorParameters:
         file_ids (list[str] | Unset): File IDs for agent context
         response_schema (AgenticExecutorParametersResponseSchemaType0 | None | str | Unset): JSON Schema for structured
             output. When defined, agent output conforms to this schema.
+        integration_connections (list[IntegrationConnectionConfig] | None | Unset): Per-integration execution
+            credentials. Each entry overrides the management credential for that integration. Integrations not listed fall
+            back to their management credential.
+        tool_selection_strategy (AgenticExecutorParametersToolSelectionStrategyType0 | None | Unset): ALL (all enabled
+            tools), NONE (no tools), or SELECTED (specific tools from tool_selections)
+        tool_selections (list[str] | Unset): Tool UUIDs to make available when tool_selection_strategy is SELECTED
     """
 
     prompt: str
@@ -35,6 +45,9 @@ class AgenticExecutorParameters:
     credential_id: None | str | Unset = UNSET
     file_ids: list[str] | Unset = UNSET
     response_schema: AgenticExecutorParametersResponseSchemaType0 | None | str | Unset = UNSET
+    integration_connections: list[IntegrationConnectionConfig] | None | Unset = UNSET
+    tool_selection_strategy: AgenticExecutorParametersToolSelectionStrategyType0 | None | Unset = UNSET
+    tool_selections: list[str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -74,6 +87,30 @@ class AgenticExecutorParameters:
         else:
             response_schema = self.response_schema
 
+        integration_connections: list[dict[str, Any]] | None | Unset
+        if isinstance(self.integration_connections, Unset):
+            integration_connections = UNSET
+        elif isinstance(self.integration_connections, list):
+            integration_connections = []
+            for integration_connections_type_0_item_data in self.integration_connections:
+                integration_connections_type_0_item = integration_connections_type_0_item_data.to_dict()
+                integration_connections.append(integration_connections_type_0_item)
+
+        else:
+            integration_connections = self.integration_connections
+
+        tool_selection_strategy: None | str | Unset
+        if isinstance(self.tool_selection_strategy, Unset):
+            tool_selection_strategy = UNSET
+        elif isinstance(self.tool_selection_strategy, AgenticExecutorParametersToolSelectionStrategyType0):
+            tool_selection_strategy = self.tool_selection_strategy.value
+        else:
+            tool_selection_strategy = self.tool_selection_strategy
+
+        tool_selections: list[str] | Unset = UNSET
+        if not isinstance(self.tool_selections, Unset):
+            tool_selections = self.tool_selections
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -91,6 +128,12 @@ class AgenticExecutorParameters:
             field_dict["file_ids"] = file_ids
         if response_schema is not UNSET:
             field_dict["responseSchema"] = response_schema
+        if integration_connections is not UNSET:
+            field_dict["integration_connections"] = integration_connections
+        if tool_selection_strategy is not UNSET:
+            field_dict["tool_selection_strategy"] = tool_selection_strategy
+        if tool_selections is not UNSET:
+            field_dict["tool_selections"] = tool_selections
 
         return field_dict
 
@@ -99,6 +142,7 @@ class AgenticExecutorParameters:
         from ..models.agentic_executor_parameters_response_schema_type_0 import (
             AgenticExecutorParametersResponseSchemaType0,
         )
+        from ..models.integration_connection_config import IntegrationConnectionConfig
 
         d = dict(src_dict)
         prompt = d.pop("prompt")
@@ -149,6 +193,51 @@ class AgenticExecutorParameters:
 
         response_schema = _parse_response_schema(d.pop("responseSchema", UNSET))
 
+        def _parse_integration_connections(data: object) -> list[IntegrationConnectionConfig] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                integration_connections_type_0 = []
+                _integration_connections_type_0 = data
+                for integration_connections_type_0_item_data in _integration_connections_type_0:
+                    integration_connections_type_0_item = IntegrationConnectionConfig.from_dict(
+                        integration_connections_type_0_item_data
+                    )
+
+                    integration_connections_type_0.append(integration_connections_type_0_item)
+
+                return integration_connections_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[IntegrationConnectionConfig] | None | Unset, data)
+
+        integration_connections = _parse_integration_connections(d.pop("integration_connections", UNSET))
+
+        def _parse_tool_selection_strategy(
+            data: object,
+        ) -> AgenticExecutorParametersToolSelectionStrategyType0 | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                tool_selection_strategy_type_0 = AgenticExecutorParametersToolSelectionStrategyType0(data)
+
+                return tool_selection_strategy_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(AgenticExecutorParametersToolSelectionStrategyType0 | None | Unset, data)
+
+        tool_selection_strategy = _parse_tool_selection_strategy(d.pop("tool_selection_strategy", UNSET))
+
+        tool_selections = cast(list[str], d.pop("tool_selections", UNSET))
+
         agentic_executor_parameters = cls(
             prompt=prompt,
             agent=agent,
@@ -156,6 +245,9 @@ class AgenticExecutorParameters:
             credential_id=credential_id,
             file_ids=file_ids,
             response_schema=response_schema,
+            integration_connections=integration_connections,
+            tool_selection_strategy=tool_selection_strategy,
+            tool_selections=tool_selections,
         )
 
         agentic_executor_parameters.additional_properties = d

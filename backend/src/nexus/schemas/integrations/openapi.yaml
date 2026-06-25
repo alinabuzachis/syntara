@@ -49,15 +49,15 @@ paths:
               - type: "null"
             title: Integration Type
           description: Filter by integration type
-        - name: status
+        - name: validation_status
           in: query
           required: false
           schema:
             anyOf:
               - $ref: '#/components/schemas/IntegrationStatus'
               - type: "null"
-            title: Status
-          description: Filter by integration status
+            title: Validation Status
+          description: Filter by validation status
         - name: enabled
           in: query
           required: false
@@ -270,21 +270,22 @@ paths:
       security:
         - bearerAuth: []
 
-  /integrations/validate:
+  /integrations/discover:
     post:
-      summary: Test Integration Connection
+      summary: Discover Integration Connection
       description: |-
-        Test a connection without saving an integration.
+        Test a connection and discover resources without saving an integration.
 
         Accepts integration configuration and a credential ID, resolves the
-        credential, runs the health check adapter, and returns the result.
-        No integration is persisted.
-      operationId: test_integration_connection
+        credential, runs the adapter's discover() method, and returns the result
+        including discovered tools (with parameters) or models. No integration
+        is persisted.
+      operationId: discover_integration_connection
       tags:
         - Integrations
       x-app-permission:
         resource: integration
-        action: validate
+        action: discover
       requestBody:
         required: true
         content:
@@ -297,7 +298,57 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthCheckResult"
+                $ref: "#/components/schemas/DiscoverResult"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+
+  /integrations/{integration_id}/status:
+    patch:
+      summary: Update Integration Status
+      description: |-
+        Update integration enabled/validation_status/validation_error (service-to-service only).
+      operationId: update_integration_status
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntegrationStatusPatch"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationRead"
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -320,11 +371,11 @@ paths:
     post:
       summary: Validate Integration
       description: |-
-        Validate a saved integration by running a health check.
+        Validate a saved integration with a lightweight connectivity ping.
 
         Resolves the management credential, dispatches to the type-specific
-        health check adapter, updates the integration's status fields, and
-        returns the health check result.
+        adapter's validate() method, updates the integration's status fields,
+        and returns the result. No tool sync is performed.
       operationId: validate_integration
       tags:
         - Integrations
@@ -345,7 +396,55 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthCheckResult"
+                $ref: "#/components/schemas/ValidateResult"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+
+      security:
+        - bearerAuth: []
+
+  /integrations/{integration_id}/refresh:
+    post:
+      summary: Refresh Resources
+      description: |-
+        Sync resources (tools) for a saved integration from the external service.
+
+        Connects to the MCP server, fetches the current tool list, and upserts
+        Tool records in the database. Updates refresh_status and last_refreshed_at
+        on the integration. Only supported for mcp_server integration types.
+      operationId: refresh_resources
+      tags:
+        - Integrations
+      x-app-permission:
+        resource: integration
+        action: refresh
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResult"
         "400":
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         "401":
@@ -378,11 +477,12 @@ components:
     IntegrationStatus:
       type: string
       enum:
+        - unknown
         - validating
         - available
         - error
       title: IntegrationStatus
-      description: Current status of an integration.
+      description: Validation status of an integration.
 
     IntegrationScope:
       type: string
@@ -463,11 +563,56 @@ components:
           type: object
           title: Labels
           description: Key-value labels
+        discovered_tools:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/InitialToolSelection'
+              maxItems: 200
+            - type: "null"
+          title: Discovered Tools
+          description: Tools discovered during setup with enabled/disabled selections
       required:
         - name
         - integration_type
         - configuration
       title: IntegrationCreate
+      type: object
+
+    InitialToolSelection:
+      description: A tool from the discover step with the user's enabled/disabled choice.
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Tool name as returned by the discover endpoint
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: "null"
+          title: Description
+          description: Tool description
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Whether the user enabled this tool
+          default: true
+        parameters:
+          anyOf:
+            - type: array
+              items:
+                additionalProperties: true
+                type: object
+              maxItems: 50
+            - type: "null"
+          title: Parameters
+          description: Tool parameters from discovery
+      required:
+        - name
+      title: InitialToolSelection
       type: object
 
     IntegrationPatch:
@@ -533,6 +678,33 @@ components:
       title: IntegrationPatch
       type: object
 
+    IntegrationStatusPatch:
+      description: |-
+        Schema for service-to-service status updates (not user-facing).
+
+        Used by internal components (e.g. agent orchestrator) to update
+        enabled/validation_status/validation_error together in a single call.
+      properties:
+        enabled:
+          anyOf:
+            - type: boolean
+            - type: "null"
+          title: Enabled
+          description: Whether the integration is active
+        validation_status:
+          anyOf:
+            - $ref: "#/components/schemas/IntegrationStatus"
+            - type: "null"
+          description: Validation status of the integration
+        validation_error:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Validation Error
+          description: Error message from last validation attempt
+      title: IntegrationStatusPatch
+      type: object
+
     IntegrationTestConnection:
       description: Schema for testing a connection without saving an integration.
       additionalProperties: false
@@ -582,15 +754,15 @@ components:
               type: boolean
               title: Enabled
               default: true
-            status:
+            validation_status:
               $ref: '#/components/schemas/IntegrationStatus'
-              default: validating
+              default: unknown
             scope:
               $ref: '#/components/schemas/IntegrationScope'
               default: global
             configuration:
               oneOf:
-                - $ref: '#/components/schemas/MCPServerConfiguration'
+                - $ref: '#/components/schemas/MCPServerConfigurationInput'
                 - $ref: '#/components/schemas/LLMProviderConfiguration'
                 - $ref: '#/components/schemas/AAPGatewayConfiguration'
               title: Configuration
@@ -600,7 +772,7 @@ components:
                 mapping:
                   aap_gateway: '#/components/schemas/AAPGatewayConfiguration'
                   llm_provider: '#/components/schemas/LLMProviderConfiguration'
-                  mcp_server: '#/components/schemas/MCPServerConfiguration'
+                  mcp_server: '#/components/schemas/MCPServerConfigurationInput'
             last_validated_at:
               anyOf:
                 - type: string
@@ -618,6 +790,31 @@ components:
                 - type: string
                 - type: "null"
               title: Validation Error
+            refresh_status:
+              anyOf:
+                - $ref: '#/components/schemas/IntegrationRefreshStatus'
+                - type: "null"
+            last_refreshed_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: "null"
+              title: Last Refreshed At
+            refresh_error:
+              anyOf:
+                - type: string
+                - type: "null"
+              title: Refresh Error
+            total_tool_count:
+              type: integer
+              default: 0
+              title: Total Tool Count
+              description: Total number of tools linked to this integration
+            enabled_tool_count:
+              type: integer
+              default: 0
+              title: Enabled Tool Count
+              description: Number of enabled tools linked to this integration
 
     MCPServerConfigurationInput:
       description: Admin-provided fields for MCP server integrations (used by create/patch).
@@ -636,33 +833,6 @@ components:
       required:
         - base_url
       title: MCPServerConfigurationInput
-      type: object
-
-    MCPServerConfiguration:
-      description: Full MCP configuration including system-managed discovery results.
-      additionalProperties: false
-      properties:
-        base_url:
-          type: string
-          format: uri
-          title: Base Url
-          description: Base URL for the MCP server
-        discovered_tools:
-          anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/DiscoveredTool'
-            - type: "null"
-          title: Discovered Tools
-          description: Tools discovered during the last successful health check
-        integration_type:
-          type: string
-          const: mcp_server
-          default: mcp_server
-          title: Integration Type
-      required:
-        - base_url
-      title: MCPServerConfiguration
       type: object
 
     LLMProviderConfiguration:
@@ -744,8 +914,35 @@ components:
       title: DiscoveredLLMModel
       type: object
 
+    DiscoveredToolParameter:
+      description: A parameter belonging to a discovered tool.
+      properties:
+        name:
+          type: string
+          title: Name
+        type:
+          type: string
+          title: Type
+          default: string
+        description:
+          type: string
+          title: Description
+          default: ""
+        required:
+          type: boolean
+          title: Required
+          default: false
+      required:
+        - name
+      title: DiscoveredToolParameter
+      type: object
+
     DiscoveredTool:
-      description: A tool discovered from an MCP server during health check.
+      description: |-
+        A tool discovered from an MCP server.
+
+        Carries parameter information so that _sync_mcp_tools() can do a full
+        upsert without re-fetching from MCP.
       properties:
         name:
           type: string
@@ -755,6 +952,13 @@ components:
             - type: string
             - type: "null"
           title: Description
+        parameters:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredToolParameter'
+            - type: "null"
+          title: Parameters
       required:
         - name
       title: DiscoveredTool
@@ -770,13 +974,11 @@ components:
         - timeout
       title: HealthCheckErrorType
 
-    HealthCheckResult:
+    ValidateResult:
       description: |-
-        Structured result of a health check operation.
+        Result of a lightweight connectivity ping (validate endpoint).
 
-        Returned by every adapter's health_check() method. Common fields are
-        always populated; resource fields are populated only by the adapter
-        type that discovers them.
+        Contains only connection-health fields. No resource discovery fields.
       properties:
         success:
           type: boolean
@@ -794,13 +996,35 @@ components:
           anyOf:
             - $ref: '#/components/schemas/HealthCheckErrorType'
             - type: "null"
-        discovered_models:
+      required:
+        - success
+        - checked_at
+      title: ValidateResult
+      type: object
+
+    DiscoverResult:
+      description: |-
+        Result of a resource-discovery operation (discover endpoint).
+
+        Returned by the unsaved-connection test (POST /integrations/discover)
+        and used internally by refresh_resources() to drive tool sync.
+      properties:
+        success:
+          type: boolean
+          title: Success
+        checked_at:
+          type: string
+          format: date-time
+          title: Checked At
+        error:
           anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/DiscoveredLLMModel'
+            - type: string
             - type: "null"
-          title: Discovered Models
+          title: Error
+        error_type:
+          anyOf:
+            - $ref: '#/components/schemas/HealthCheckErrorType'
+            - type: "null"
         discovered_tools:
           anyOf:
             - type: array
@@ -808,10 +1032,55 @@ components:
                 $ref: '#/components/schemas/DiscoveredTool'
             - type: "null"
           title: Discovered Tools
+        discovered_models:
+          anyOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredLLMModel'
+            - type: "null"
+          title: Discovered Models
       required:
         - success
         - checked_at
-      title: HealthCheckResult
+      title: DiscoverResult
+      type: object
+
+    IntegrationRefreshStatus:
+      type: string
+      enum:
+        - refreshing
+        - available
+        - error
+      title: IntegrationRefreshStatus
+      description: Status of the last resource-refresh operation for an integration.
+
+    RefreshResult:
+      description: Result returned by POST /integrations/{id}/refresh.
+      properties:
+        tools_synced_count:
+          type: integer
+          title: Tools Synced Count
+          description: Number of new tool records created
+        tools_updated_count:
+          type: integer
+          title: Tools Updated Count
+          description: Number of existing tool records updated
+        tools_disabled_count:
+          type: integer
+          title: Tools Disabled Count
+          description: Number of tool records disabled (no longer on server)
+        refreshed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Refreshed At
+          description: Timestamp when the refresh completed
+      required:
+        - tools_synced_count
+        - tools_updated_count
+        - tools_disabled_count
+      title: RefreshResult
       type: object
 
   securitySchemes:

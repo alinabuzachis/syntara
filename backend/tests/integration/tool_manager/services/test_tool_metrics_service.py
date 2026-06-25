@@ -16,10 +16,10 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
+from nexus.integrations.models.integration import Integration
 from nexus.tool_manager.models.tool import Tool
 from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.tool_manager.models.tool_metrics_response import ToolMetricsQuery
-from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter
 from nexus.tool_manager.services.tool_metrics_service import ToolMetricsService
 
@@ -40,7 +40,7 @@ async def test_record_success_execution(test_db_session: AsyncSession, test_tool
     )
 
     assert execution.tool_id == test_tool.id
-    assert execution.provider_id == test_tool.provider_id
+    assert execution.integration_id == test_tool.integration_id
     assert execution.user_id == test_user.id
     assert execution.duration_ms == 1500
     assert execution.status == ToolExecutionStatus.SUCCESS
@@ -93,7 +93,7 @@ async def test_record_resolves_namespaced_name(test_db_session: AsyncSession, te
     )
 
     assert execution.tool_id == test_tool.id
-    assert execution.provider_id == test_tool.provider_id
+    assert execution.integration_id == test_tool.integration_id
 
 
 @pytest.mark.asyncio
@@ -169,14 +169,14 @@ async def test_summary_time_filtered_uses_executions(
 async def test_summary_filter_by_namespaced_name(
     test_db_session: AsyncSession,
     test_tool: Tool,
-    test_tool_provider: ToolProvider,
+    test_mcp_integration: Integration,
     test_user: User,
 ) -> None:
     """Test filtering summary by namespaced_name returns only that tool."""
     # Create a second tool
     tool2 = Tool(
         name="other-tool",
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         namespaced_name="mock::other",
         created_by=test_user.id,
     )
@@ -247,7 +247,7 @@ async def test_list_executions_filter_by_status(
 async def test_list_executions_filter_by_namespaced_name(
     test_db_session: AsyncSession,
     test_tool: Tool,
-    test_tool_provider: ToolProvider,
+    test_mcp_integration: Integration,
     test_user: User,
 ) -> None:
     """Test filtering by namespaced_name."""
@@ -255,7 +255,7 @@ async def test_list_executions_filter_by_namespaced_name(
 
     tool2 = Tool(
         name="other-tool",
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         namespaced_name="mock::other2",
         created_by=test_user.id,
     )
@@ -321,6 +321,7 @@ async def test_usage_counter_created_on_first_execution(
     assert counter.success_count == 1
     assert counter.error_count == 0
     assert counter.total_duration_ms == 100
+    assert counter.integration_id == test_tool.integration_id
 
 
 @pytest.mark.asyncio

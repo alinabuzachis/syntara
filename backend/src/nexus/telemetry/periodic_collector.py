@@ -26,9 +26,9 @@ from nexus.telemetry.queries import (
     query_credential_health,
     query_execution_counts,
     query_identity_provider_health,
+    query_integration_health,
     query_model_usage,
     query_tool_counts,
-    query_tool_provider_health,
     query_workflow_counts,
 )
 
@@ -59,7 +59,7 @@ async def _collect_and_send(
         credential_counts = await query_credential_counts(session)
         model_usage_list = await query_model_usage(session)
         tool_counts = await query_tool_counts(session)
-        tool_provider_health = await query_tool_provider_health(session)
+        integration_health = await query_integration_health(session)
         identity_provider_health = await query_identity_provider_health(session)
         credential_health = await query_credential_health(session)
 
@@ -79,7 +79,7 @@ async def _collect_and_send(
 
     integration_event = IntegrationHealthEvent(
         entitlement_id=registry.entitlement_id,
-        tool_providers=tool_provider_health,
+        integrations=integration_health,
         identity_providers=identity_provider_health,
         credentials=credential_health,
     )

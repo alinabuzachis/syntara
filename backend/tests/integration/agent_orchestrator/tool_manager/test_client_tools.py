@@ -113,7 +113,6 @@ class TestToolManagerClientIntegration:
 
             # Verify core tool fields
             assert tool.id is not None
-            assert tool.provider_id is not None
             assert tool.name is not None
             assert tool.description is not None
             assert tool.namespaced_name is not None

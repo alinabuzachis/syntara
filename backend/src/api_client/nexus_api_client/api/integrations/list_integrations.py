@@ -20,7 +20,7 @@ def _get_kwargs(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     integration_type: IntegrationType | None | Unset = UNSET,
-    status: IntegrationStatus | None | Unset = UNSET,
+    validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
@@ -56,14 +56,14 @@ def _get_kwargs(
         json_integration_type = integration_type
     params["integration_type"] = json_integration_type
 
-    json_status: None | str | Unset
-    if isinstance(status, Unset):
-        json_status = UNSET
-    elif isinstance(status, IntegrationStatus):
-        json_status = status.value
+    json_validation_status: None | str | Unset
+    if isinstance(validation_status, Unset):
+        json_validation_status = UNSET
+    elif isinstance(validation_status, IntegrationStatus):
+        json_validation_status = validation_status.value
     else:
-        json_status = status
-    params["status"] = json_status
+        json_validation_status = validation_status
+    params["validation_status"] = json_validation_status
 
     json_enabled: bool | None | Unset
     if isinstance(enabled, Unset):
@@ -162,7 +162,7 @@ def sync_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     integration_type: IntegrationType | None | Unset = UNSET,
-    status: IntegrationStatus | None | Unset = UNSET,
+    validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
@@ -177,7 +177,7 @@ def sync_detailed(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         integration_type (IntegrationType | None | Unset):
-        status (IntegrationStatus | None | Unset):
+        validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
 
@@ -195,7 +195,7 @@ def sync_detailed(
         sort=sort,
         include_total=include_total,
         integration_type=integration_type,
-        status=status,
+        validation_status=validation_status,
         enabled=enabled,
         scope=scope,
         additional_params=additional_params,
@@ -216,7 +216,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     integration_type: IntegrationType | None | Unset = UNSET,
-    status: IntegrationStatus | None | Unset = UNSET,
+    validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
@@ -230,7 +230,7 @@ def sync(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         integration_type (IntegrationType | None | Unset):
-        status (IntegrationStatus | None | Unset):
+        validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
 
@@ -249,7 +249,7 @@ def sync(
         sort=sort,
         include_total=include_total,
         integration_type=integration_type,
-        status=status,
+        validation_status=validation_status,
         enabled=enabled,
         scope=scope,
     ).parsed
@@ -263,7 +263,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     integration_type: IntegrationType | None | Unset = UNSET,
-    status: IntegrationStatus | None | Unset = UNSET,
+    validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
 ) -> Response[ErrorData | IntegrationListResponse]:
@@ -277,7 +277,7 @@ async def asyncio_detailed(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         integration_type (IntegrationType | None | Unset):
-        status (IntegrationStatus | None | Unset):
+        validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
 
@@ -295,7 +295,7 @@ async def asyncio_detailed(
         sort=sort,
         include_total=include_total,
         integration_type=integration_type,
-        status=status,
+        validation_status=validation_status,
         enabled=enabled,
         scope=scope,
     )
@@ -313,7 +313,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
     integration_type: IntegrationType | None | Unset = UNSET,
-    status: IntegrationStatus | None | Unset = UNSET,
+    validation_status: IntegrationStatus | None | Unset = UNSET,
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
@@ -327,7 +327,7 @@ async def asyncio(
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
         include_total (bool | Unset): Include total count in response (expensive) Default: False.
         integration_type (IntegrationType | None | Unset):
-        status (IntegrationStatus | None | Unset):
+        validation_status (IntegrationStatus | None | Unset):
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
 
@@ -347,7 +347,7 @@ async def asyncio(
             sort=sort,
             include_total=include_total,
             integration_type=integration_type,
-            status=status,
+            validation_status=validation_status,
             enabled=enabled,
             scope=scope,
         )

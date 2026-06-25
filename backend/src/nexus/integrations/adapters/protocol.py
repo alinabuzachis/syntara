@@ -1,4 +1,4 @@
-"""Health check adapter protocol and result types."""
+"""Adapter protocol and result types for integration validation and discovery."""
 
 from __future__ import annotations
 
@@ -31,36 +31,61 @@ class DiscoveredLLMModel(SQLModel):
     output_token_price_cents_per_million: int | None = None
 
 
+class DiscoveredToolParameter(SQLModel):
+    """A parameter belonging to a discovered tool."""
+
+    name: str
+    type: str = "string"
+    description: str = ""
+    required: bool = False
+
+
 class DiscoveredTool(SQLModel):
-    """A tool discovered from an MCP server during health check."""
+    """A tool discovered from an MCP server.
+
+    Carries parameter information so that _sync_mcp_tools() can do a full
+    upsert without re-fetching from MCP.
+    """
 
     name: str
     description: str | None = None
+    parameters: list[DiscoveredToolParameter] | None = None
 
 
-class HealthCheckResult(SQLModel):
-    """Structured result of a health check operation.
+class ValidateResult(SQLModel):
+    """Result of a lightweight connectivity ping (validate endpoint).
 
-    Returned by every adapter's health_check() method. Common fields are
-    always populated; resource fields are populated only by the adapter
-    type that discovers them.
+    Contains only connection-health fields. No resource discovery fields.
     """
 
     success: bool
     checked_at: datetime
     error: str | None = None
     error_type: HealthCheckErrorType | None = None
-    discovered_models: list[DiscoveredLLMModel] | None = None
+
+
+class DiscoverResult(SQLModel):
+    """Result of a resource-discovery operation (discover endpoint).
+
+    Returned by the unsaved-connection test (POST /integrations/discover)
+    and used internally by refresh_resources() to drive tool sync.
+    """
+
+    success: bool
+    checked_at: datetime
+    error: str | None = None
+    error_type: HealthCheckErrorType | None = None
     discovered_tools: list[DiscoveredTool] | None = None
+    discovered_models: list[DiscoveredLLMModel] | None = None
 
 
 @runtime_checkable
 class IntegrationHealthCheckAdapter(Protocol):
-    """Protocol for integration health check adapters.
+    """Protocol for integration adapters.
 
     Each integration type (LLM, MCP, AAP Gateway) implements this protocol.
     The adapter receives its typed configuration via the constructor; the
-    health_check method only takes per-call parameters.
+    validate and discover methods only take per-call parameters.
 
     The resolved_credential parameter is the extra_vars dict produced by
     InjectorResolver.resolve() — not the raw secret dict from SecretService.
@@ -68,10 +93,18 @@ class IntegrationHealthCheckAdapter(Protocol):
     calling the adapter.
     """
 
-    async def health_check(
+    async def validate(
         self,
         resolved_credential: dict[str, Any],
         timeout_seconds: int,
-    ) -> HealthCheckResult:
-        """Run a health check against the external service."""
+    ) -> ValidateResult:
+        """Run a lightweight connectivity ping against the external service."""
+        ...
+
+    async def discover(
+        self,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> DiscoverResult:
+        """Discover resources (tools, models) from the external service."""
         ...

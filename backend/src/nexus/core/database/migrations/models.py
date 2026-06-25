@@ -32,7 +32,6 @@ from nexus.settings.models.setting_category import SettingCategoryModel
 from nexus.tool_manager.models.rate_limit_config import RateLimit
 from nexus.tool_manager.models.tool import Tool, ToolParameter
 from nexus.tool_manager.models.tool_execution import ToolExecution
-from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import UsageCounter
 from nexus.workflows.models import WebhookTrigger, Workflow, WorkflowVersion
 from nexus.workflows.models.activity_execution import ActivityExecution
@@ -50,7 +49,6 @@ ALL_MODELS = [
     WorkflowVersion,
     Execution,
     ActivityExecution,
-    ToolProvider,
     Tool,
     ToolParameter,
     RateLimit,

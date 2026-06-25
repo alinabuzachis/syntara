@@ -6,6 +6,7 @@ import type {
   CredentialsAPI,
   ExecutionsAPI,
   IdentityProvidersAPI,
+  IntegrationsAPI,
   SettingsAPI,
   ToolManagerAPI,
   UsersAPI,
@@ -99,7 +100,7 @@ const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: 
 executionsFetchClient.use(authMiddleware)
 export const executionsClient = createClient(executionsFetchClient)
 
-const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({ baseUrl: '/api/v1/' })
+export const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({ baseUrl: '/api/v1/' })
 toolManagerFetchClient.use(authMiddleware)
 export const toolManagerClient = createClient(toolManagerFetchClient)
 
@@ -111,6 +112,10 @@ const settingsFetchClient = createFetchClient<SettingsAPI.paths>({ baseUrl: '/ap
 settingsFetchClient.use(authMiddleware)
 export { settingsFetchClient }
 export const settingsClient = createClient(settingsFetchClient)
+
+const integrationsFetchClient = createFetchClient<IntegrationsAPI.paths>({ baseUrl: '/api/v1/' })
+integrationsFetchClient.use(authMiddleware)
+export const integrationsClient = createClient(integrationsFetchClient)
 
 const identityProvidersFetchClient = createFetchClient<IdentityProvidersAPI.paths>({
   baseUrl: '/api/v1',

@@ -4,6 +4,8 @@ This module provides functions for integrating with the Tool Manager component,
 including tool discovery, synchronization, and error reporting.
 """
 
+import re
+from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import UUID
 
@@ -24,22 +26,23 @@ from nexus.agent_orchestrator.tool_manager.types import (
     ToolDiscoveryResult,
 )
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.sanitization import CREDENTIAL_PATTERNS, REDACTED
 from nexus.core.config.base import get_settings
+from nexus.integrations.models.integration import IntegrationRead, IntegrationStatus, IntegrationType
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
-from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-async def _discover_tool_providers() -> list[ToolProviderWithConfiguration]:
-    """Discover tool providers from Tool Manager.
+async def _discover_mcp_integrations() -> list[IntegrationRead]:
+    """Discover MCP server integrations from the Integrations API.
 
-    Fetches all tool providers from the Tool Manager API.
+    Fetches all integrations of type mcp_server.
 
     Returns:
-        List of all tool providers.
-        Returns empty list if Tool Manager is unavailable or fails.
+        List of all MCP server IntegrationRead records.
+        Returns empty list if the API is unavailable or fails.
 
     """
     settings = get_settings()
@@ -51,11 +54,11 @@ async def _discover_tool_providers() -> list[ToolProviderWithConfiguration]:
             max_connections=settings.tool_manager_max_connections,
             max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
         ) as client:
-            all_providers = await client.get_all_tool_providers()
-            logger.info("Discovered Tool Providers", provider_count=len(all_providers))
-            return all_providers
+            all_integrations = await client.get_all_mcp_integrations()
+            logger.info("Discovered MCP integrations", integration_count=len(all_integrations))
+            return all_integrations
     except Exception as e:  # noqa: BLE001 (Failure of ToolManagerClient for whatever reason is not critical)
-        logger.warning("Tool Manager failed, continuing without tool providers", error=str(e))
+        logger.warning("Failed to discover MCP integrations, continuing without them", error=str(e))
         return []
 
 
@@ -117,88 +120,131 @@ async def report_tool_execution_failure(tool_id: UUID, error_message: str) -> No
             logger.exception("Failed to report tool execution failure")
 
 
-def _should_skip_provider(provider: ToolProviderWithConfiguration) -> bool:
-    """Check if provider should be skipped due to missing configuration."""
-    if not provider.configuration:
-        logger.warning("Skipping provider: no configuration", provider_name=provider.name)
+def _should_skip_integration(integration: IntegrationRead) -> bool:
+    """Check if integration should be skipped due to missing configuration."""
+    if not integration.configuration:
+        logger.warning("Skipping integration: no configuration", integration_name=integration.name)
         return True
     return False
 
 
-def _should_retry_disabled_provider(provider: ToolProviderWithConfiguration) -> bool:
-    """Check if a disabled provider should be retried for re-enablement.
+def _should_retry_disabled_integration(integration: IntegrationRead) -> bool:
+    """Check if a disabled integration should be retried for re-enablement.
 
-    Only retry providers that are:
+    Only retry integrations that are:
     - disabled (enabled=False)
     - AND in ERROR state (status=ERROR)
 
-    This avoids overriding user-intentionally disabled providers.
+    This avoids overriding user-intentionally disabled integrations.
     """
-    return not provider.enabled and provider.status == ProviderStatus.ERROR
+    return not integration.enabled and integration.validation_status == IntegrationStatus.ERROR
 
 
-def _is_provider_type_supported(provider: ToolProviderWithConfiguration, provider_factory: ProviderFactory) -> bool:
-    """Check if provider type is supported by the factory."""
-    provider_type = provider.configuration.provider_type
+def _is_integration_type_supported(integration: IntegrationRead, provider_factory: ProviderFactory) -> bool:
+    """Check if integration type is supported by the provider factory."""
+    # MCP server integrations always use the "mcp" provider type
+    if integration.integration_type != IntegrationType.MCP_SERVER:
+        logger.warning(
+            "Skipping integration with unsupported type",
+            integration_name=integration.name,
+            integration_type=integration.integration_type,
+        )
+        return False
+
+    provider_type = "mcp"
     if not provider_factory.is_registered(provider_type):
         supported_types = provider_factory.get_registered_provider_types()
         logger.warning(
-            "Skipping provider with unsupported type",
-            provider_name=provider.name,
-            provider_type=provider_type,
+            "Skipping integration: mcp provider type not registered",
+            integration_name=integration.name,
             supported_types=supported_types,
         )
         return False
     return True
 
 
-def _prepare_config_params(provider: ToolProviderWithConfiguration) -> dict[str, Any]:
-    """Prepare configuration parameters for provider adapter creation."""
-    config_params = {k: v for k, v in provider.configuration.model_dump().items() if k != "provider_type"}
-    config_params["provider_id"] = provider.id
-    config_params["provider_name"] = provider.name
+def _prepare_config_params(integration: IntegrationRead, api_key: str | None = None) -> dict[str, Any]:
+    """Prepare configuration parameters for provider adapter creation.
+
+    Filters configuration fields to only those understood by the provider adapter:
+    - base_url: The MCP server endpoint
+    - provider_id: Set from integration.id
+    - provider_name: Set from integration.name
+    - api_key: The bearer token (if provided by the credential resolver)
+
+    System-managed fields are excluded since they are not constructor
+    parameters on the adapter implementations.
+    """
+    config = integration.configuration
+    # Only include scalar fields that provider adapters accept as constructor kwargs.
+    # Exclude discriminator keys and system-managed fields.
+    excluded_fields = frozenset({"integration_type", "discovered_models"})
+    config_params = {k: v for k, v in config.model_dump().items() if k not in excluded_fields and v is not None}
+    config_params["integration_id"] = integration.id
+    config_params["integration_name"] = integration.name
+    if api_key is not None:
+        config_params["api_key"] = api_key
     return config_params
 
 
-def _create_namespaced_tools(
-    provider: ToolProviderWithConfiguration, provider_tools: list[BaseTool]
-) -> list[NamespacedBaseTool]:
-    """Create namespaced tools from provider tools."""
+def _create_namespaced_tools(integration: IntegrationRead, provider_tools: list[BaseTool]) -> list[NamespacedBaseTool]:
+    """Create namespaced tools from integration tools."""
     namespaced_tools = []
     for tool in provider_tools:
-        namespaced_name = f"{provider.name}::{tool.name}"
+        namespaced_name = f"{integration.name}::{tool.name}"
         namespaced_tools.append((namespaced_name, tool))
     return namespaced_tools
 
 
-async def _handle_provider_errors(provider: ToolProviderWithConfiguration, error: Exception) -> None:
-    """Handle different types of provider errors with appropriate logging and provider disabling."""
-    # Log the error appropriately based on type
+def _sanitize_error_message(error: Exception, max_length: int = 200) -> str:
+    """Produce a safe, truncated error summary for user-facing storage.
+
+    Raw exception messages from external services may contain internal
+    hostnames, credentials, stack traces, or other sensitive data.
+    Uses the same credential patterns as the audit EventSanitizer to
+    detect and redact sensitive tokens embedded in the message.
+    """
+    msg = str(error).split("\n", maxsplit=1)[0].strip()
+    if len(msg) > max_length:
+        msg = msg[:max_length] + "…"
+
+    msg_lower = msg.lower()
+    for pattern in CREDENTIAL_PATTERNS:
+        if re.search(rf"(?:^|[_\-. ])(?:{re.escape(pattern)})(?:[_\-. ]|$)", msg_lower):
+            return f"{type(error).__name__}: {REDACTED}"
+
+    return msg
+
+
+async def _handle_integration_errors(integration: IntegrationRead, error: Exception) -> None:
+    """Handle different types of integration errors with appropriate logging and disabling."""
+    safe_msg = _sanitize_error_message(error)
+
     if isinstance(error, ConnectionError | TimeoutError):
         logger.warning(
-            "Failed to get tools from provider, disabling provider", provider_name=provider.name, error=str(error)
+            "Failed to get tools from integration, disabling", integration_name=integration.name, error=str(error)
         )
-        validation_error = f"Connection/timeout error: {error}"
+        validation_error = f"Connection/timeout error: {safe_msg}"
     elif isinstance(error, OSError):
         logger.warning(
-            "Network/system error from provider, disabling provider", provider_name=provider.name, error=str(error)
+            "Network/system error from integration, disabling", integration_name=integration.name, error=str(error)
         )
-        validation_error = f"Network/system error: {error}"
+        validation_error = f"Network/system error: {safe_msg}"
     elif isinstance(error, RuntimeError):
         logger.warning(
-            "Unexpected error from provider, disabling provider", provider_name=provider.name, error=str(error)
+            "Unexpected error from integration, disabling", integration_name=integration.name, error=str(error)
         )
-        validation_error = f"Runtime error: {error}"
+        validation_error = f"Runtime error: {safe_msg}"
     elif isinstance(error, ValueError):
         logger.warning(
-            "Invalid configuration for provider, disabling provider", provider_name=provider.name, error=str(error)
+            "Invalid configuration for integration, disabling", integration_name=integration.name, error=str(error)
         )
-        validation_error = f"Invalid configuration: {error}"
+        validation_error = f"Invalid configuration: {safe_msg}"
     else:
-        logger.exception("Unexpected error processing provider, disabling provider", provider_name=provider.name)
-        validation_error = f"Unexpected error: {error}"
+        logger.exception("Unexpected error processing integration, disabling", integration_name=integration.name)
+        validation_error = f"Unexpected error: {safe_msg}"
 
-    # Disable the provider and set error status using ToolManagerClient
+    # Disable the integration and set error status using ToolManagerClient
     settings = get_settings()
     try:
         async with ToolManagerClient(
@@ -207,20 +253,20 @@ async def _handle_provider_errors(provider: ToolProviderWithConfiguration, error
             max_connections=settings.tool_manager_max_connections,
             max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
         ) as client:
-            await client.update_tool_provider_status(
-                provider_id=provider.id,
-                status=ProviderStatus.ERROR,
+            await client.update_integration_status(
+                integration_id=integration.id,
+                validation_status=IntegrationStatus.ERROR,
                 validation_error=validation_error,
             )
-            logger.info("Disabled provider due to error", provider_name=provider.name)
+            logger.info("Disabled integration due to error", integration_name=integration.name)
     except Exception:
-        logger.exception("Failed to disable provider via ToolManagerClient", provider_name=provider.name)
+        logger.exception("Failed to disable integration via ToolManagerClient", integration_name=integration.name)
 
 
-async def _handle_provider_re_enablement(provider: ToolProviderWithConfiguration) -> None:
-    """Re-enable a previously disabled provider that is now working.
+async def _handle_integration_re_enablement(integration: IntegrationRead) -> None:
+    """Re-enable a previously disabled integration that is now working.
 
-    Sets enabled=True, status=AVAILABLE, and clears validation_error.
+    Sets enabled=True, validation_status=AVAILABLE, and clears validation_error.
     """
     settings = get_settings()
     try:
@@ -230,96 +276,109 @@ async def _handle_provider_re_enablement(provider: ToolProviderWithConfiguration
             max_connections=settings.tool_manager_max_connections,
             max_keepalive_connections=settings.tool_manager_max_keepalive_connections,
         ) as client:
-            await client.update_tool_provider_status(
-                provider_id=provider.id,
-                status=ProviderStatus.AVAILABLE,
+            await client.update_integration_status(
+                integration_id=integration.id,
+                validation_status=IntegrationStatus.AVAILABLE,
                 validation_error=None,
             )
-            logger.info("Re-enabled previously disabled provider", provider_name=provider.name)
+            logger.info("Re-enabled previously disabled integration", integration_name=integration.name)
     except Exception:
-        logger.exception("Failed to re-enable provider via ToolManagerClient", provider_name=provider.name)
+        logger.exception("Failed to re-enable integration via ToolManagerClient", integration_name=integration.name)
 
 
-async def _process_single_provider(
-    provider: ToolProviderWithConfiguration,
+async def _process_single_integration(
+    integration: IntegrationRead,
     provider_factory: ProviderFactory,
+    credential_resolver: Callable[[UUID], Awaitable[str | None]] | None = None,
 ) -> list[NamespacedBaseTool]:
-    """Process a single provider and return its namespaced tools.
+    """Process a single integration and return its namespaced tools.
 
-    For enabled providers: Attempt connection, disable on failure.
-    For disabled ERROR providers: Retry connection, re-enable on success.
-    For disabled AVAILABLE providers: Skip (user-intentionally disabled).
+    For enabled integrations: Attempt connection, disable on failure.
+    For disabled ERROR integrations: Retry connection, re-enable on success.
+    For disabled AVAILABLE integrations: Skip (user-intentionally disabled).
     """
-    if _should_skip_provider(provider):
+    if _should_skip_integration(integration):
         return []
 
-    if not _is_provider_type_supported(provider, provider_factory):
+    if not _is_integration_type_supported(integration, provider_factory):
         return []
 
-    # Skip disabled providers unless they're in ERROR state (eligible for retry)
-    if not provider.enabled and not _should_retry_disabled_provider(provider):
-        logger.debug("Skipping disabled provider", provider_name=provider.name, provider_status=provider.status.value)
+    # Skip disabled integrations unless they're in ERROR state (eligible for retry)
+    if not integration.enabled and not _should_retry_disabled_integration(integration):
+        logger.debug(
+            "Skipping disabled integration",
+            integration_name=integration.name,
+            integration_status=integration.validation_status.value,
+        )
         return []
 
     try:
-        config_params = _prepare_config_params(provider)
-        provider_type = provider.configuration.provider_type
+        api_key: str | None = None
+        if credential_resolver:
+            api_key = await credential_resolver(integration.id)
+
+        config_params = _prepare_config_params(integration, api_key=api_key)
+        provider_type = "mcp"
 
         adapter = provider_factory.create_provider_instance(provider_type, **config_params)
         provider_tools = await adapter.get_base_tools()
 
-        namespaced_tools = _create_namespaced_tools(provider, provider_tools)
-        logger.info("Retrieved tools from provider", tool_count=len(provider_tools), provider_name=provider.name)
+        namespaced_tools = _create_namespaced_tools(integration, provider_tools)
+        logger.info(
+            "Retrieved tools from integration", tool_count=len(provider_tools), integration_name=integration.name
+        )
 
-        # If this was a disabled ERROR provider that succeeded, re-enable it
-        if _should_retry_disabled_provider(provider):
-            await _handle_provider_re_enablement(provider)
+        # If this was a disabled ERROR integration that succeeded, re-enable it
+        if _should_retry_disabled_integration(integration):
+            await _handle_integration_re_enablement(integration)
 
         return namespaced_tools
 
     except (OSError, RuntimeError, ValueError) as e:
-        # Only disable if provider was enabled (don't update status for failed retries)
-        if provider.enabled:
-            await _handle_provider_errors(provider, e)
+        # Only disable if integration was enabled (don't update status for failed retries)
+        if integration.enabled:
+            await _handle_integration_errors(integration, e)
         else:
-            logger.debug("Retry failed for disabled provider", provider_name=provider.name, error=str(e))
+            logger.debug("Retry failed for disabled integration", integration_name=integration.name, error=str(e))
         return []
-    except Exception as e:  # noqa: BLE001 (Handle any unexpected provider errors gracefully)
-        # Only disable if provider was enabled (don't update status for failed retries)
-        if provider.enabled:
-            await _handle_provider_errors(provider, e)
+    except Exception as e:  # noqa: BLE001 (Handle any unexpected integration errors gracefully)
+        # Only disable if integration was enabled (don't update status for failed retries)
+        if integration.enabled:
+            await _handle_integration_errors(integration, e)
         else:
-            logger.debug("Retry failed for disabled provider", provider_name=provider.name, error=str(e))
+            logger.debug("Retry failed for disabled integration", integration_name=integration.name, error=str(e))
         return []
 
 
-async def _retrieve_base_tools_from_providers(
-    all_providers: list[ToolProviderWithConfiguration],
+async def _retrieve_base_tools_from_integrations(
+    all_integrations: list[IntegrationRead],
+    credential_resolver: Callable[[UUID], Awaitable[str | None]] | None = None,
 ) -> list[NamespacedBaseTool]:
-    """Retrieve BaseTools from providers using ProviderFactory pattern.
+    """Retrieve BaseTools from MCP server integrations using ProviderFactory pattern.
 
-    Processes all providers (enabled and disabled). For disabled providers in ERROR state,
-    attempts to retry connection to potentially re-enable them.
+    Processes all integrations (enabled and disabled). For disabled integrations in ERROR
+    state, attempts to retry connection to potentially re-enable them.
 
     Args:
-        all_providers: List of all tool providers (enabled and disabled)
+        all_integrations: List of all mcp_server integrations (enabled and disabled)
+        credential_resolver: Optional async callable that resolves a bearer token given an integration_id
 
     Returns:
-        List of NamespacedTool containing (namespaced_name, BaseTool) retrieved from providers
+        List of NamespacedTool containing (namespaced_name, BaseTool) retrieved from integrations
 
     """
     namespaced_tools: list[NamespacedBaseTool] = []
 
     async for provider_factory in get_provider_factory():
-        for provider in all_providers:
-            provider_tools = await _process_single_provider(provider, provider_factory)
-            namespaced_tools.extend(provider_tools)
+        for integration in all_integrations:
+            integration_tools = await _process_single_integration(integration, provider_factory, credential_resolver)
+            namespaced_tools.extend(integration_tools)
         break  # Exit the async generator after first iteration
 
     logger.info(
-        "Retrieved total tools from providers",
+        "Retrieved total tools from integrations",
         total_tool_count=len(namespaced_tools),
-        provider_count=len(all_providers),
+        integration_count=len(all_integrations),
     )
     return namespaced_tools
 
@@ -331,7 +390,7 @@ def _filter_enabled_tools(
     """Filter NamespacedBaseTools by enabled status using namespaced_name.
 
     Args:
-        namespaced_tools: List of NamespacedTool from providers
+        namespaced_tools: List of NamespacedTool from integrations
         enabled_tools: List of enabled tools from Tool Manager
 
     Returns:
@@ -369,7 +428,7 @@ async def _update_missing_tools(
     """Update missing tools in Tool Manager (async, best-effort).
 
     Args:
-        namespaced_tools: List of NamespacedTool from providers
+        namespaced_tools: List of NamespacedTool from integrations
         enabled_tools: List of enabled tools from Tool Manager
 
     """
@@ -404,7 +463,7 @@ async def _update_re_enabled_tools(
     """Re-enable disabled tools that are now available on MCP servers (async, best-effort).
 
     Args:
-        namespaced_tools: List of NamespacedTool from providers
+        namespaced_tools: List of NamespacedTool from integrations
         disabled_tools: List of disabled tools from Tool Manager
 
     """
@@ -447,7 +506,7 @@ def _log_unregistered_tools(
     """Log unregistered tools for awareness.
 
     Args:
-        namespaced_tools: List of NamespacedTool from providers
+        namespaced_tools: List of NamespacedTool from integrations
         enabled_tools: List of enabled tools from Tool Manager
 
     """
@@ -471,6 +530,7 @@ class ToolSynchronizer:
         invocation_id: UUID,
         execution_id: UUID | None = None,
         request_id: UUID | None = None,
+        credential_resolver: Callable[[UUID], Awaitable[str | None]] | None = None,
         activity_id: str | None = None,
         activity_name: str | None = None,
     ) -> None:
@@ -481,6 +541,8 @@ class ToolSynchronizer:
             invocation_id: Unique identifier for this synchronization session
             execution_id: Optional Workflow Execution ID
             request_id: Optional X-Request-Id from the originating HTTP request.
+            credential_resolver: Optional async callable that resolves a bearer token given an integration_id.
+                Called per integration at sync time, before the provider adapter is instantiated.
             activity_id: Optional activity identifier from workflow context
             activity_name: Optional activity name from workflow context
 
@@ -489,9 +551,10 @@ class ToolSynchronizer:
         self.invocation_id = invocation_id
         self.execution_id = execution_id
         self.request_id = request_id
+        self.credential_resolver = credential_resolver
         self.activity_id = activity_id
         self.activity_name = activity_name
-        self.all_providers: list[ToolProviderWithConfiguration] = []
+        self.all_integrations: list[IntegrationRead] = []
         self.enabled_tools: list[ToolWithParameters] = []
         self.disabled_tools: list[ToolWithParameters] = []
         self.namespaced_tools: list[NamespacedBaseTool] = []
@@ -522,12 +585,14 @@ class ToolSynchronizer:
         )
 
         try:
-            # Step 1: Discover tools and providers from Tool Manager
-            self.all_providers = await _discover_tool_providers()
+            # Step 1: Discover MCP integrations and tools from Tool Manager
+            self.all_integrations = await _discover_mcp_integrations()
             self.enabled_tools, self.disabled_tools = await _discover_tools()
 
-            # Step 2: Process all providers and retrieve BaseTools
-            self.namespaced_tools = await _retrieve_base_tools_from_providers(self.all_providers)
+            # Step 2: Process all integrations and retrieve BaseTools
+            self.namespaced_tools = await _retrieve_base_tools_from_integrations(
+                self.all_integrations, self.credential_resolver
+            )
 
             # Step 3: Filter BaseTools by enabled status
             filtered_tools = _filter_enabled_tools(self.namespaced_tools, self.enabled_tools)
@@ -555,7 +620,7 @@ class ToolSynchronizer:
                     invocation_id=self.invocation_id,
                     execution_id=self.execution_id,
                     request_id=self.request_id,
-                    providers_discovered=len(self.all_providers),
+                    integrations_discovered=len(self.all_integrations),
                     tools_discovered=len(self.namespaced_tools),
                     tools_enabled=len(self.enabled_tools),
                     tools_disabled=len(self.disabled_tools),

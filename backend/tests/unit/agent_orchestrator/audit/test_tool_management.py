@@ -2,7 +2,10 @@
 
 # mypy: disable-error-code="attr-defined"
 
-from uuid import uuid4
+from dataclasses import dataclass
+from uuid import UUID, uuid4
+
+import pytest
 
 from nexus.agent_orchestrator.audit.tool_management import (
     ToolDiscoveryEvent,
@@ -18,6 +21,21 @@ from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventSt
 from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.models.principal import PrincipalType
 from nexus.core.models.user import User
+
+
+@dataclass
+class _FakeUser:
+    """Minimal user object for unit tests — avoids DB fixture isolation issues."""
+
+    id: UUID
+    username: str
+    email: str
+
+
+@pytest.fixture
+def test_user() -> _FakeUser:
+    """Return a lightweight fake user — no DB interaction required."""
+    return _FakeUser(id=uuid4(), username="test-user", email="test@example.com")
 
 
 class TestToolDiscoveryHandler:
@@ -80,7 +98,7 @@ class TestToolDiscoveryHandler:
             actor_context=AuditActorContext(
                 actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
-            providers_discovered=3,
+            integrations_discovered=3,
             tools_discovered=15,
             tools_enabled=12,
             tools_disabled=2,
@@ -96,7 +114,7 @@ class TestToolDiscoveryHandler:
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_message == "Tool discovery completed - 12 tools provided to LLM"
         assert result.structured_data.status == "completed"
-        assert result.structured_data.providers_discovered == 3
+        assert result.structured_data.integrations_discovered == 3
         assert result.structured_data.tools_discovered == 15
         assert result.structured_data.tools_enabled == 12
         assert result.structured_data.tools_disabled == 2
@@ -183,7 +201,7 @@ class TestToolDiscoveryHandler:
         handler = ToolDiscoveryHandler()
         result = handler.handle(event)
 
-        assert result.structured_data.providers_discovered is None
+        assert result.structured_data.integrations_discovered is None
         assert result.structured_data.tools_discovered is None
         assert result.structured_data.tools_enabled is None
         assert result.structured_data.tools_disabled is None

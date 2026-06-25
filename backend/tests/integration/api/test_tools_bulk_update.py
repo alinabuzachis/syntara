@@ -12,7 +12,8 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
+from nexus.integrations.models.integration import Integration
+from nexus.tool_manager.models import Tool, ToolStatus
 
 if TYPE_CHECKING:
     from tests.helpers.tool_manager import ToolFactory
@@ -323,12 +324,12 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_soft_deleted_tool_contract(
-        self, jwt_client: AsyncClient, test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+        self, jwt_client: AsyncClient, test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
     ) -> None:
         """Test bulk update with soft-deleted tool IDs."""
         # Create a tool that will be soft-deleted
         soft_deleted_tool = Tool(
-            provider_id=test_tool_provider.id,
+            integration_id=test_mcp_integration.id,
             name="Soft Deleted Tool",
             namespaced_name="test::soft_deleted",
             enabled=True,
@@ -346,7 +347,7 @@ class TestToolsBulkUpdateContract:
 
         # Create an active tool for comparison
         active_tool = Tool(
-            provider_id=test_tool_provider.id,
+            integration_id=test_mcp_integration.id,
             name="Active Tool",
             namespaced_name="test::active",
             enabled=True,
@@ -396,14 +397,14 @@ class TestToolsBulkUpdateContract:
         self,
         jwt_client: AsyncClient,
         test_db_session: AsyncSession,
-        test_tool_provider: ToolProvider,
+        test_mcp_integration: Integration,
         test_user: User,
         multiple_tools_for_bulk: list[Tool],
     ) -> None:
         """Test bulk update with mix of active, soft-deleted, and non-existent tools."""
         # Create a soft-deleted tool
         soft_deleted_tool = Tool(
-            provider_id=test_tool_provider.id,
+            integration_id=test_mcp_integration.id,
             name="Mixed Test Soft Deleted",
             namespaced_name="test::mixed_soft_deleted",
             enabled=True,

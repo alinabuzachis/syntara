@@ -1,6 +1,6 @@
 """Configuration and shared fixtures for tool_manager unit tests.
 
-Provides fast retry settings and common test fixtures for tool providers,
+Provides fast retry settings and common test fixtures for integrations,
 tools, and mock clients used across tool manager unit tests.
 """
 
@@ -17,9 +17,13 @@ from langchain_core.tools import BaseTool
 
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.agent_orchestrator.tool_manager.types import NamespacedBaseTool
+from nexus.integrations.models.integration import (
+    IntegrationRead,
+    IntegrationStatus,
+    IntegrationType,
+)
+from nexus.integrations.models.integration_configuration import MCPServerConfiguration
 from nexus.tool_manager.models.tool import ToolWithParameters
-from nexus.tool_manager.models.tool_provider import ToolProviderWithConfiguration
-from nexus.tool_manager.models.tool_provider_configuration import MCPConfiguration
 
 
 class PaginationMockFactory:
@@ -83,13 +87,13 @@ def mock_paginated_api(url_pattern: str, pages: list[dict[str, Any]]) -> Iterato
 
     Example:
         pages = [
-            {"resources": [provider1], "total_count": 2, "next": "cursor_123"},
-            {"resources": [provider2], "total_count": 2, "next": None}
+            {"resources": [integration1], "total_count": 2, "next": "cursor_123"},
+            {"resources": [integration2], "total_count": 2, "next": None}
         ]
 
-        with mock_paginated_api(r".*tool-providers.*", pages):
+        with mock_paginated_api(r".*integrations.*", pages):
             # Test code that makes paginated requests
-            result = await client.get_all_tool_providers()
+            result = await client.get_all_mcp_integrations()
 
     """
     mock_response = PaginationMockFactory.create_paginated_response(pages)
@@ -99,27 +103,54 @@ def mock_paginated_api(url_pattern: str, pages: list[dict[str, Any]]) -> Iterato
         yield
 
 
-@pytest.fixture
-def sample_tool_providers() -> list[ToolProviderWithConfiguration]:
-    """Sample tool providers with MCP configurations for testing."""
+def _make_integration(
+    name: str = "dev_tools",
+    *,
+    enabled: bool = True,
+    base_url: str = "http://localhost:3001/mcp",
+) -> IntegrationRead:
+    """Create a sample IntegrationRead for testing."""
     user_id = uuid4()
+    return IntegrationRead(
+        id=uuid4(),
+        name=name,
+        integration_type=IntegrationType.MCP_SERVER,
+        enabled=enabled,
+        validation_status=IntegrationStatus.AVAILABLE,
+        scope="global",
+        configuration=MCPServerConfiguration(
+            integration_type="mcp_server",
+            base_url=base_url,
+        ),
+        management_credential_id=None,
+        last_validated_at=None,
+        validation_error=None,
+        created_at="2024-01-01T00:00:00Z",
+        updated_at="2024-01-01T00:00:00Z",
+        created_by=user_id,
+        updated_by=None,
+        deleted_at=None,
+        deleted_by=None,
+        labels={},
+    )
+
+
+@pytest.fixture
+def sample_mcp_integrations() -> list[IntegrationRead]:
+    """Sample MCP server integrations for testing."""
     return [
-        ToolProviderWithConfiguration(
-            id=uuid4(),
-            name="dev_tools",
-            enabled=True,
-            status="available",
-            created_by=user_id,
-            configuration=MCPConfiguration(provider_type="mcp", base_url="http://localhost:3001/mcp", api_key=None),
-        ),
-        ToolProviderWithConfiguration(
-            id=uuid4(),
-            name="file_tools",
-            enabled=True,
-            status="available",
-            created_by=user_id,
-            configuration=MCPConfiguration(provider_type="mcp", base_url="http://localhost:3002/mcp", api_key=None),
-        ),
+        _make_integration("dev_tools", base_url="http://localhost:3001/mcp"),
+        _make_integration("file_tools", base_url="http://localhost:3002/mcp"),
+    ]
+
+
+# Keep for backward compat in existing tests that need it
+@pytest.fixture
+def sample_tool_providers() -> list[IntegrationRead]:
+    """Alias for sample_mcp_integrations for backward compat."""
+    return [
+        _make_integration("dev_tools", base_url="http://localhost:3001/mcp"),
+        _make_integration("file_tools", base_url="http://localhost:3002/mcp"),
     ]
 
 
@@ -161,15 +192,15 @@ def mock_namespaced_tools(mock_langchain_base_tools: list[Mock]) -> list[Namespa
 def sample_tools() -> list[ToolWithParameters]:
     """Sample tools from Tool Manager for testing."""
     user_id = uuid4()
-    provider_1_id = uuid4()
-    provider_2_id = uuid4()
+    integration_1_id = uuid4()
+    integration_2_id = uuid4()
     return [
         ToolWithParameters(
             id=uuid4(),
             name="code_search",
             namespaced_name="dev_tools::code_search",
             description="Search for code patterns",
-            provider_id=provider_1_id,
+            integration_id=integration_1_id,
             enabled=True,
             status="available",
             parameters=[],
@@ -180,7 +211,7 @@ def sample_tools() -> list[ToolWithParameters]:
             name="file_read",
             namespaced_name="file_tools::file_read",
             description="Read file contents",
-            provider_id=provider_2_id,
+            integration_id=integration_2_id,
             enabled=True,
             status="available",
             parameters=[],
@@ -191,7 +222,7 @@ def sample_tools() -> list[ToolWithParameters]:
             name="disabled_tool",
             namespaced_name="dev_tools::disabled_tool",
             description="A disabled tool",
-            provider_id=provider_1_id,
+            integration_id=integration_1_id,
             enabled=False,
             status="available",
             parameters=[],
@@ -202,7 +233,7 @@ def sample_tools() -> list[ToolWithParameters]:
             name="missing_tool",
             namespaced_name="dev_tools::missing_tool",
             description="Tool missing from MCP server",
-            provider_id=provider_1_id,
+            integration_id=integration_1_id,
             enabled=True,
             status="available",
             parameters=[],
@@ -215,8 +246,9 @@ def sample_tools() -> list[ToolWithParameters]:
 async def tool_manager_client() -> Mock:
     """Mock Tool Manager client for testing."""
     client = Mock(spec=ToolManagerClient)
-    client.get_all_tool_providers = AsyncMock()
+    client.get_all_mcp_integrations = AsyncMock()
     client.get_all_tools = AsyncMock()
     client.update_tool_status = AsyncMock()
+    client.update_integration_status = AsyncMock()
     client.close = AsyncMock()
     return client

@@ -162,6 +162,7 @@ ignore = [
     "ANN001",   # Don't require type annotations for test function arguments (fixtures)
     "ANN201",   # Don't require return type annotations for test functions
     "D102",     # Don't require docstrings for test methods
+    "D103",     # Don't require docstrings for test functions
     "PLR2004",  # Allow magic values in tests
     "TD002",    # TODO formatting
     "TD003",    # TODO formatting

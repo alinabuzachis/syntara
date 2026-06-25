@@ -142,42 +142,6 @@ authenticated:
     path: /api/v1/tool_manager/tools/{tool_id}
     justification: "AAP-56797: pending admin-role RBAC"
 
-  - method: GET
-    path: /api/v1/tool_manager/tool_providers
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: POST
-    path: /api/v1/tool_manager/tool_providers
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: GET
-    path: /api/v1/tool_manager/tool_providers/{provider_id}
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: PUT
-    path: /api/v1/tool_manager/tool_providers/{provider_id}
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: PATCH
-    path: /api/v1/tool_manager/tool_providers/{provider_id}
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: DELETE
-    path: /api/v1/tool_manager/tool_providers/{provider_id}
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: POST
-    path: /api/v1/tool_manager/tool_providers/{provider_id}/validate
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: POST
-    path: /api/v1/tool_manager/tool_providers/test
-    justification: "AAP-56797: pending admin-role RBAC"
-
-  - method: POST
-    path: /api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools
-    justification: "AAP-56797: pending admin-role RBAC"
-
   # -- tool_manager/metrics: internal observability --
   - method: GET
     path: /api/v1/tool_manager/metrics/tools

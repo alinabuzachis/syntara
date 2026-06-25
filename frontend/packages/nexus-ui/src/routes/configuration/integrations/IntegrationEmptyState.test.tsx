@@ -20,13 +20,13 @@ describe('IntegrationEmptyState', () => {
   it('renders empty state message', () => {
     render(<IntegrationEmptyState />)
 
-    expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
+    expect(screen.getByText('No integrations yet')).toBeInTheDocument()
   })
 
   it('renders description text', () => {
     render(<IntegrationEmptyState />)
 
-    expect(screen.getByText(/Configure integrations to use them in workflows/i)).toBeInTheDocument()
+    expect(screen.getByText(/Configure integrations to connect external tools/i)).toBeInTheDocument()
   })
 
   it('renders configure integration button', () => {
@@ -45,10 +45,9 @@ describe('IntegrationEmptyState', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/configure')
   })
 
-  it('renders empty state image', () => {
+  it('renders the PF empty state icon', () => {
     render(<IntegrationEmptyState />)
 
-    const image = screen.getByRole('img', { name: 'No integrations configured' })
-    expect(image).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 })

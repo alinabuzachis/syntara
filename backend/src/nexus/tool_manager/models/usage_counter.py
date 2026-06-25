@@ -8,7 +8,8 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import String
+from sqlalchemy import Column, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import DateTime, Field
 
 from nexus.core.constants import FieldLimits
@@ -55,11 +56,18 @@ class UsageCounter(UserOwnedResource, table=True):
         description="Counter scope: provider, tool, user, provider_user, tool_user", index=True
     )
 
-    provider_id: UUID | None = Field(
-        default=None, foreign_key="tool_providers.id", description="Foreign key to ToolProvider", index=True
-    )
-
     tool_id: UUID | None = Field(default=None, foreign_key="tools.id", description="Foreign key to Tool", index=True)
+
+    integration_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("integrations.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        description="Foreign key to Integration",
+    )
 
     user_id: UUID | None = Field(default=None, description="User identifier", index=True)
 

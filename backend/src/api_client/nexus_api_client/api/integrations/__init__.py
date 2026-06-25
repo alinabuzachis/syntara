@@ -64,12 +64,20 @@ class IntegrationsApi:
         endpoint_module = self._load_endpoint_module("update_integration")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def test_connection(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("test_integration_connection")
+    def discover_connection(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("discover_integration_connection")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_test_connection(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("test_integration_connection")
+    async def async_discover_connection(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("discover_integration_connection")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def update_status(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_integration_status")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_update_status(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_integration_status")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
     def validate(self, **kwargs: Any) -> Response[Any]:
@@ -78,4 +86,12 @@ class IntegrationsApi:
 
     async def async_validate(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("validate_integration")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def refresh_resources(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("refresh_resources")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_refresh_resources(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("refresh_resources")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

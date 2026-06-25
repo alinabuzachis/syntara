@@ -3,17 +3,25 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { credentialsClient } from '../../../client'
+import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { useAllProjects } from '../../access/useAllProjects'
 
 import { AIAgentNodeForm } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
-// Mock credentialsClient used by CredentialSelector
+// Mock clients used by CredentialSelector and integrations query
 vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  integrationsClient: {
+    useQuery: vi.fn(() => ({ data: { resources: [] }, isPending: false, isError: false, refetch: vi.fn() })),
+    useMutation: vi.fn(),
+  },
+  toolManagerClient: {
+    useQuery: vi.fn(() => ({ data: { resources: [] }, isPending: false, isError: false, refetch: vi.fn() })),
     useMutation: vi.fn(),
   },
   authMiddleware: { onRequest: vi.fn(({ request }: { request: unknown }) => request) },
@@ -104,6 +112,28 @@ describe('AIAgentNodeForm', () => {
       mutate: vi.fn(),
       isPending: false,
     } as never)
+    vi.mocked(integrationsClient.useQuery).mockReturnValue({
+      data: {
+        resources: [
+          {
+            id: 'int-1',
+            name: 'Primary MCP Server',
+            integration_type: 'mcp_server',
+            configuration: {
+              integration_type: 'mcp_server',
+              base_url: 'https://mcp.example.com',
+              discovered_tools: [
+                { name: 'list_resources', description: 'List resources' },
+                { name: 'get_resource', description: 'Get resource' },
+              ],
+            },
+          },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
     vi.mocked(useAllProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
     vi.mocked(useFileUploadWithProgress).mockReturnValue({
       uploadFiles: mockUploadFiles,
@@ -123,7 +153,7 @@ describe('AIAgentNodeForm', () => {
 
     expect(screen.getByLabelText('Name')).toBeInTheDocument()
     expect(screen.getByLabelText(/Prompt/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Tools/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Select tools')).toBeInTheDocument()
   })
 
   it('validates required prompt field', async () => {
@@ -147,14 +177,14 @@ describe('AIAgentNodeForm', () => {
           name: 'Existing Agent',
           model: 'anthropic/claude-haiku-4.5',
           prompt: 'Analyze the data',
-          tools: 'calculator, web_search',
+          tool_selections: [],
         }}
       />
     )
 
     expect(screen.getByDisplayValue('Existing Agent')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Analyze the data')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('All tools selected')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('No tools selected')).toBeInTheDocument()
   })
 
   it('passes projectId to CredentialSelector', () => {
@@ -170,11 +200,42 @@ describe('AIAgentNodeForm', () => {
     expect(hasProjectIdCall).toBe(true)
   })
 
-  it('has disabled tools dropdown', () => {
+  it('renders tools multi-select with no tools selected by default', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
-    const toolsDropdown = screen.getByLabelText(/Tools/i)
-    expect(toolsDropdown).toBeDisabled()
+    expect(screen.getByPlaceholderText('Select tools')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('No tools selected')).toBeInTheDocument()
+  })
+
+  it('excludes disabled tools from the tools dropdown', async () => {
+    const user = userEvent.setup()
+    vi.mocked(integrationsClient.useQuery).mockReturnValue({
+      data: {
+        resources: [{ id: 'int-1', name: 'My MCP Server', integration_type: 'mcp_server', configuration: {} }],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
+    vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+      data: {
+        resources: [
+          { id: 't1', namespaced_name: 'My MCP Server::enabled_tool', enabled: true, integration_id: 'int-1' },
+          { id: 't2', namespaced_name: 'My MCP Server::disabled_tool', enabled: false, integration_id: 'int-1' },
+          { id: 't3', namespaced_name: 'My MCP Server::also_enabled', integration_id: 'int-1' },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
+
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+    await user.click(screen.getByRole('button', { name: 'Tools' }))
+
+    expect(screen.getByText('enabled_tool')).toBeInTheDocument()
+    expect(screen.getByText('also_enabled')).toBeInTheDocument()
+    expect(screen.queryByText('disabled_tool')).not.toBeInTheDocument()
   })
 
   it('renders file upload component', () => {
@@ -302,7 +363,8 @@ describe('AIAgentNodeForm', () => {
         name: 'Existing Agent',
         prompt: 'Existing prompt',
         model: 'anthropic/claude-haiku-4.5',
-        tools: '',
+        tool_selections: [] as string[],
+        integration_connections: [] as { integration_id: string; credential_id: string }[],
         responseSchema: JSON.stringify(existingSchema, null, 2),
       }
 

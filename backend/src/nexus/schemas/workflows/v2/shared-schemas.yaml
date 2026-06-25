@@ -1814,11 +1814,51 @@ components:
             - type: 'null'
           title: Responseschema
           description: JSON Schema for structured output. When defined, agent output conforms to this schema.
+        integration_connections:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/IntegrationConnectionConfig'
+              type: array
+            - type: 'null'
+          description: Per-integration execution credentials. Each entry overrides the management credential for that integration. Integrations not listed fall back to their management credential.
+          title: Integration Connections
+        tool_selection_strategy:
+          anyOf:
+            - enum:
+                - ALL
+                - NONE
+                - SELECTED
+              type: string
+            - type: 'null'
+          description: ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)
+          title: Tool Selection Strategy
+        tool_selections:
+          items:
+            type: string
+          type: array
+          description: Tool UUIDs to make available when tool_selection_strategy is SELECTED
+          title: Tool Selections
       type: object
       required:
         - prompt
       title: AgenticExecutorParameters
       description: Parameters for agentic executor.
+    IntegrationConnectionConfig:
+      properties:
+        integration_id:
+          type: string
+          title: Integration Id
+          description: UUID of the integration
+        credential_id:
+          type: string
+          title: Credential Id
+          description: Nexus credential UUID for execution calls (distinct from management credential)
+      type: object
+      required:
+        - integration_id
+        - credential_id
+      title: IntegrationConnectionConfig
+      description: "Execution credential override for one integration.\n\n\nWhen included in AgenticExecutorParameters.integration_connections, this credential\n\nis used for calls against that integration instead of the integration's\n\nmanagement credential."
     ScriptExecutorParameters:
       properties:
         language:

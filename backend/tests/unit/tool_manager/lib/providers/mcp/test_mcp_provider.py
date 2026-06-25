@@ -44,11 +44,10 @@ class TestMCPProvider:
 
         provider = MCPProvider(base_url=base_url, api_key=api_key)
 
-        assert provider.configuration.provider_type == "mcp"
-        assert provider.configuration.base_url == base_url
-        assert provider.configuration.api_key == api_key
-        assert provider.provider_name == "mcp-provider"
-        assert isinstance(provider.provider_id, UUID)
+        assert provider._base_url == base_url
+        assert provider._api_key == api_key
+        assert provider.integration_name == "mcp-integration"
+        assert isinstance(provider.integration_id, UUID)
         assert provider._client is None
         assert provider._tools_cache == {}
 
@@ -62,18 +61,17 @@ class TestMCPProvider:
         provider = MCPProvider(
             base_url=base_url,
             api_key=api_key,
-            provider_id=provider_id,
-            provider_name=provider_name,
+            integration_id=provider_id,
+            integration_name=provider_name,
         )
 
-        assert provider.configuration.provider_type == "mcp"
-        assert provider.configuration.base_url == base_url
-        assert provider.configuration.api_key == api_key
-        assert provider.provider_name == provider_name
-        assert provider.provider_id == provider_id
+        assert provider._base_url == base_url
+        assert provider._api_key == api_key
+        assert provider.integration_name == provider_name
+        assert provider.integration_id == provider_id
 
     def test_mcp_provider_initialization_without_api_key(self) -> None:
-        """Test MCPProvider initialization without api_key (optional)."""
+        """Test MCPProvider initialization without api_key (credentials resolved at call time)."""
         base_url = "http://localhost:8765/mcp"
         provider_id = uuid4()
         provider_name = "test-mcp"
@@ -81,15 +79,14 @@ class TestMCPProvider:
         provider = MCPProvider(
             base_url=base_url,
             api_key=None,
-            provider_id=provider_id,
-            provider_name=provider_name,
+            integration_id=provider_id,
+            integration_name=provider_name,
         )
 
-        assert provider.configuration.provider_type == "mcp"
-        assert provider.configuration.base_url == base_url
-        assert provider.configuration.api_key is None
-        assert provider.provider_name == provider_name
-        assert provider.provider_id == provider_id
+        assert provider._base_url == base_url
+        assert provider._api_key is None
+        assert provider.integration_name == provider_name
+        assert provider.integration_id == provider_id
         assert provider._client is None
         assert provider._tools_cache == {}
 
@@ -114,7 +111,7 @@ class TestMCPProvider:
         mock_client_class.assert_called_once()
         call_args = mock_client_class.call_args[0][0]
         expected_config = {
-            "mcp-provider": {
+            "mcp-integration": {
                 "transport": "streamable_http",
                 "url": "http://localhost:8765/mcp",
                 "headers": {"Authorization": "Bearer test-key"},
@@ -140,7 +137,7 @@ class TestMCPProvider:
 
         # Verify client config doesn't include headers
         call_args = mock_client_class.call_args[0][0]
-        assert "headers" not in call_args["mcp-provider"]
+        assert "headers" not in call_args["mcp-integration"]
 
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
@@ -160,7 +157,7 @@ class TestMCPProvider:
 
         # Verify client config doesn't include headers
         call_args = mock_client_class.call_args[0][0]
-        assert "headers" not in call_args["mcp-provider"]
+        assert "headers" not in call_args["mcp-integration"]
 
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
@@ -374,8 +371,8 @@ class TestMCPProvider:
 
         for tool in tools:
             assert isinstance(tool, Tool)
-            assert tool.provider_id == provider.provider_id
-            assert tool.namespaced_name.startswith("mcp-provider::")
+            # integration_id is not set by MCPProvider; it is set by IntegrationService when persisting
+            assert tool.namespaced_name.startswith("mcp-integration::")
             assert tool.status == ToolStatus.AVAILABLE
             assert tool.last_refreshed_at is not None
 
@@ -522,7 +519,7 @@ class TestMCPProvider:
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
         # Execute and verify
-        with pytest.raises(ToolNotFoundError, match="Tool 'nonexistent' not found in provider mcp-provider"):
+        with pytest.raises(ToolNotFoundError, match="Tool 'nonexistent' not found in provider mcp-integration"):
             await provider.get_tool_schema("nonexistent")
 
     @pytest.mark.asyncio
@@ -571,7 +568,7 @@ class TestMCPProvider:
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
         # Execute and verify
-        with pytest.raises(ToolNotFoundError, match="Tool 'nonexistent' not found in provider mcp-provider"):
+        with pytest.raises(ToolNotFoundError, match="Tool 'nonexistent' not found in provider mcp-integration"):
             await provider.validate_tool("nonexistent")
 
     @pytest.mark.asyncio
@@ -778,9 +775,9 @@ class TestMCPProvider:
         # Verify
         assert isinstance(tool, Tool)
         assert tool.name == "test_tool"
-        assert tool.namespaced_name == "mcp-provider::test_tool"
+        assert tool.namespaced_name == "mcp-integration::test_tool"
         assert tool.description == "Test tool description"
-        assert tool.provider_id == provider.provider_id
+        # integration_id is not set by MCPProvider; it is set by IntegrationService when persisting
         assert tool.status == ToolStatus.AVAILABLE
         assert len(tool.parameters) == 2
 

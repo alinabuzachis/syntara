@@ -36,10 +36,6 @@ vi.mock('../../../../utils/webhookPath', () => ({
   normalizeWebhookPath: vi.fn((p: string) => p),
 }))
 
-vi.mock('../../utils/agentHelpers', () => ({
-  parseToolsString: vi.fn(() => []),
-}))
-
 describe('registerAllNodes (index)', () => {
   beforeEach(() => {
     NodeRegistry.clear()

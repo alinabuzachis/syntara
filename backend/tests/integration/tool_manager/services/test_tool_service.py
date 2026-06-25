@@ -17,6 +17,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
+from nexus.integrations.models.integration import Integration
 from nexus.tool_manager.exceptions import (
     ToolBulkUpdateValidationError,
     ToolNotFoundError,
@@ -26,7 +27,6 @@ from nexus.tool_manager.models.tool import (
     ToolStatus,
     ToolUpdate,
 )
-from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.services.tool_service import ToolService
 
 
@@ -174,7 +174,7 @@ async def test_update_tool_all_fields_success(test_db_session: AsyncSession, tes
 
 @pytest.mark.asyncio
 async def test_bulk_update_tools_success(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test successful bulk update of tools."""
     service = ToolService(test_db_session, test_user)
@@ -184,7 +184,7 @@ async def test_bulk_update_tools_success(
     for i in range(3):
         tool = Tool(
             id=uuid4(),
-            provider_id=test_tool_provider.id,
+            integration_id=test_mcp_integration.id,
             name=f"Test Tool {i}",
             namespaced_name=f"test::tool{i}",
             status=ToolStatus.AVAILABLE,
@@ -212,7 +212,7 @@ async def test_bulk_update_tools_success(
 
 @pytest.mark.asyncio
 async def test_bulk_update_tools_enable_disabled(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test bulk enabling of disabled tools."""
     service = ToolService(test_db_session, test_user)
@@ -222,7 +222,7 @@ async def test_bulk_update_tools_enable_disabled(
     for i in range(2):
         tool = Tool(
             id=uuid4(),
-            provider_id=test_tool_provider.id,
+            integration_id=test_mcp_integration.id,
             name=f"Disabled Tool {i}",
             namespaced_name=f"test::disabled{i}",
             enabled=False,
@@ -343,7 +343,7 @@ async def test_list_tools_with_total(test_db_session: AsyncSession, test_tool: T
 
 @pytest.mark.asyncio
 async def test_list_tools_filtering(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test tool listing with filtering."""
     service = ToolService(test_db_session, test_user)
@@ -351,7 +351,7 @@ async def test_list_tools_filtering(
     # Create test tools with different attributes
     tool1 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Alpha Tool",
         namespaced_name="test::alpha",
         enabled=True,
@@ -361,7 +361,7 @@ async def test_list_tools_filtering(
     )
     tool2 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Beta Tool",
         namespaced_name="test::beta",
         enabled=False,
@@ -371,7 +371,7 @@ async def test_list_tools_filtering(
     )
     tool3 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Gamma Tool",
         namespaced_name="test::gamma",
         enabled=True,
@@ -399,7 +399,7 @@ async def test_list_tools_filtering(
     assert result.resources[0].status == ToolStatus.ERROR
 
     # Test provider_id filtering
-    result = await service.list_tools(query_params_items=[("provider_id", str(test_tool_provider.id))])
+    result = await service.list_tools(query_params_items=[("integration_id", str(test_mcp_integration.id))])
     assert len(result.resources) >= 3  # At least our 3 test tools
 
     # Test namespaced_name filtering
@@ -410,7 +410,7 @@ async def test_list_tools_filtering(
 
 @pytest.mark.asyncio
 async def test_list_tools_sorting(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test tool listing with different sorting options."""
     service = ToolService(test_db_session, test_user)
@@ -418,7 +418,7 @@ async def test_list_tools_sorting(
     # Create test tools with different names
     tool1 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Charlie Tool",
         namespaced_name="test::charlie",
         created_by=test_user.id,
@@ -426,7 +426,7 @@ async def test_list_tools_sorting(
     )
     tool2 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Alpha Tool",
         namespaced_name="test::alpha",
         created_by=test_user.id,
@@ -434,7 +434,7 @@ async def test_list_tools_sorting(
     )
     tool3 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Beta Tool",
         namespaced_name="test::beta",
         created_by=test_user.id,
@@ -461,7 +461,7 @@ async def test_list_tools_sorting(
 
 @pytest.mark.asyncio
 async def test_list_tools_pagination(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test tool listing with pagination."""
     service = ToolService(test_db_session, test_user)
@@ -471,7 +471,7 @@ async def test_list_tools_pagination(
     for i in range(5):
         tool = Tool(
             id=uuid4(),
-            provider_id=test_tool_provider.id,
+            integration_id=test_mcp_integration.id,
             name=f"Tool {i:02d}",
             namespaced_name=f"test::tool{i:02d}",
             created_by=test_user.id,
@@ -493,7 +493,7 @@ async def test_list_tools_pagination(
 
 @pytest.mark.asyncio
 async def test_list_tools_excludes_soft_deleted(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test that soft-deleted tools are excluded from listing."""
     service = ToolService(test_db_session, test_user)
@@ -501,7 +501,7 @@ async def test_list_tools_excludes_soft_deleted(
     # Create active tool
     active_tool = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Active Tool",
         namespaced_name="test::active",
         created_by=test_user.id,
@@ -511,7 +511,7 @@ async def test_list_tools_excludes_soft_deleted(
     # Create soft-deleted tool
     deleted_tool = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Deleted Tool",
         namespaced_name="test::deleted",
         created_by=test_user.id,
@@ -533,7 +533,7 @@ async def test_list_tools_excludes_soft_deleted(
 
 @pytest.mark.asyncio
 async def test_list_tools_complex_filtering(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test tool listing with complex filter combinations."""
     service = ToolService(test_db_session, test_user)
@@ -541,7 +541,7 @@ async def test_list_tools_complex_filtering(
     # Create tools with different combinations of attributes
     tool1 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Test Available Tool",
         namespaced_name="test::available",
         enabled=True,
@@ -552,7 +552,7 @@ async def test_list_tools_complex_filtering(
 
     tool2 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Test Disabled Tool",
         namespaced_name="test::disabled",
         enabled=False,
@@ -563,7 +563,7 @@ async def test_list_tools_complex_filtering(
 
     tool3 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Production Tool",
         namespaced_name="test::production",
         enabled=True,
@@ -597,7 +597,7 @@ async def test_service_initialization(test_db_session: AsyncSession, test_user: 
 
 @pytest.mark.asyncio
 async def test_list_tools_with_cursor_and_sorting(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test tool listing with both cursor pagination and sorting."""
     service = ToolService(test_db_session, test_user)
@@ -607,7 +607,7 @@ async def test_list_tools_with_cursor_and_sorting(
     for i in range(3):
         tool = Tool(
             id=uuid4(),
-            provider_id=test_tool_provider.id,
+            integration_id=test_mcp_integration.id,
             name=f"Tool {chr(65 + i)}",  # Tool A, B, C
             namespaced_name=f"test::tool{chr(65 + i).lower()}",
             created_by=test_user.id,

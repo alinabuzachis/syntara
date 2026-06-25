@@ -23,7 +23,8 @@ vi.mock('../../../stores/useWorkflowStore', async (importOriginal) => ({
     (options: {
       id: string
       name: string
-      tools?: string[]
+      toolSelections?: string[]
+      integrationConnections?: { integration_id: string; credential_id: string }[]
       prompt?: string
       model?: string
       inputs?: string
@@ -33,7 +34,8 @@ vi.mock('../../../stores/useWorkflowStore', async (importOriginal) => ({
       id: options.id,
       name: options.name,
       parameters: {
-        ...(options.tools && options.tools.length > 0 && { tool_selections: options.tools }),
+        ...(options.toolSelections && options.toolSelections.length > 0 && { tool_selections: options.toolSelections }),
+        ...(options.toolSelections?.length === 0 && { tool_selection_strategy: 'NONE' }),
         ...(options.prompt && { prompt: options.prompt }),
         ...(options.model && { model: options.model }),
         ...(options.fileIds && options.fileIds.length > 0 && { file_ids: options.fileIds }),
@@ -61,21 +63,35 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
   }: {
     onSubmit: (data: Record<string, unknown>) => void
     onCancel: () => void
-    initialData?: { name?: string; model?: string; prompt?: string; tools?: string }
+    initialData?: {
+      name?: string
+      model?: string
+      prompt?: string
+      tool_selections?: string[]
+      integration_connections?: { integration_id: string; credential_id: string }[]
+      credential_id?: string
+      responseSchema?: string
+    }
     submitButtonText?: string
   }) => (
     <div data-testid="ai-agent-form">
       <div data-testid="initial-name">{initialData?.name ?? ''}</div>
       <div data-testid="initial-model">{initialData?.model ?? ''}</div>
       <div data-testid="initial-prompt">{initialData?.prompt ?? ''}</div>
-      <div data-testid="initial-tools">{initialData?.tools ?? ''}</div>
+      <div data-testid="initial-tool-selections">{(initialData?.tool_selections ?? []).join(', ')}</div>
+      <div data-testid="initial-credential-id">{initialData?.credential_id ?? ''}</div>
+      <div data-testid="initial-response-schema">{initialData?.responseSchema ?? ''}</div>
+      <div data-testid="initial-integration-connections">
+        {String((initialData?.integration_connections ?? []).length)}
+      </div>
       <button
         onClick={() =>
           onSubmit({
             name: 'Updated Agent',
             model: 'gpt-4',
             prompt: 'Updated prompt',
-            tools: 'calculator, web_search',
+            tool_selections: ['calculator', 'web_search'],
+            integration_connections: [],
             fileIds: [],
           })
         }
@@ -145,7 +161,7 @@ describe('AIAgentNodeDetails Component', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('handles empty tools array', () => {
+  it('handles empty tool_selections', () => {
     const taskData = {
       type: 'agentic' as const,
       id: 'agent-1',
@@ -157,7 +173,7 @@ describe('AIAgentNodeDetails Component', () => {
 
     render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
 
-    expect(screen.getByTestId('initial-tools')).toHaveTextContent('')
+    expect(screen.getByTestId('initial-tool-selections')).toHaveTextContent('')
   })
 
   it('shows error when updateActivity throws', async () => {
@@ -199,5 +215,175 @@ describe('AIAgentNodeDetails Component', () => {
       })
     )
     expect(mockUpdateActivity).toHaveBeenCalled()
+  })
+
+  it('reads tool_selections from config', () => {
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Tool Agent',
+      parameters: {},
+      config: {
+        tool_selections: ['list_resources', 'get_resource'],
+      },
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('initial-tool-selections')).toHaveTextContent('list_resources, get_resource')
+  })
+})
+
+describe('AIAgentNodeDetails config/parameters fallback logic', () => {
+  const mockOnClose = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('reads all fields from config when config is present', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Agent',
+      parameters: {},
+      config: {
+        tool_selections: ['tool-a', 'tool-b'],
+        integration_connections: [{ integration_id: 'int-1', credential_id: 'cred-x' }],
+        credential_id: 'llm-cred',
+        response_schema: { type: 'object' },
+        file_ids: ['file-1'],
+      },
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('initial-tool-selections')).toHaveTextContent('tool-a, tool-b')
+    expect(screen.getByTestId('initial-credential-id')).toHaveTextContent('llm-cred')
+    expect(screen.getByTestId('initial-response-schema')).toHaveTextContent('"type"')
+    expect(screen.getByTestId('initial-integration-connections')).toHaveTextContent('1')
+
+    await user.click(screen.getByTestId('submit-button'))
+    expect(createAgenticActivity).toHaveBeenCalledWith(expect.objectContaining({ fileIds: ['file-1'] }))
+  })
+
+  it('falls back to parameters when config is absent', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Agent',
+      parameters: {
+        tool_selections: ['tool-p'],
+        integration_connections: [{ integration_id: 'int-2', credential_id: 'cred-y' }],
+        credential_id: 'param-cred',
+        response_schema: { type: 'string' },
+        file_ids: ['file-p'],
+      },
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('initial-tool-selections')).toHaveTextContent('tool-p')
+    expect(screen.getByTestId('initial-credential-id')).toHaveTextContent('param-cred')
+    expect(screen.getByTestId('initial-response-schema')).toHaveTextContent('"type"')
+    expect(screen.getByTestId('initial-integration-connections')).toHaveTextContent('1')
+
+    await user.click(screen.getByTestId('submit-button'))
+    expect(createAgenticActivity).toHaveBeenCalledWith(expect.objectContaining({ fileIds: ['file-p'] }))
+  })
+
+  it('config values win when both config and parameters are present', () => {
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Agent',
+      parameters: {
+        tool_selections: ['param-tool'],
+        credential_id: 'param-cred',
+      },
+      config: {
+        tool_selections: ['config-tool'],
+        credential_id: 'config-cred',
+      },
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('initial-tool-selections')).toHaveTextContent('config-tool')
+    expect(screen.getByTestId('initial-credential-id')).toHaveTextContent('config-cred')
+  })
+
+  it('uses responseSchema (camelCase) alias when response_schema is absent', () => {
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Agent',
+      parameters: {},
+      config: {
+        responseSchema: { type: 'array' },
+      },
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('initial-response-schema')).toHaveTextContent('"type"')
+    expect(screen.getByTestId('initial-response-schema')).toHaveTextContent('"array"')
+  })
+
+  it('uses fileIds (camelCase) alias when file_ids is absent', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Agent',
+      parameters: {},
+      config: {
+        fileIds: ['camel-file-1'],
+      },
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('submit-button'))
+    expect(createAgenticActivity).toHaveBeenCalledWith(expect.objectContaining({ fileIds: ['camel-file-1'] }))
+  })
+
+  it('uses tools alias when tool_selections is absent', () => {
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Agent',
+      parameters: {},
+      config: {
+        tools: ['legacy-tool-1', 'legacy-tool-2'],
+      },
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('initial-tool-selections')).toHaveTextContent('legacy-tool-1, legacy-tool-2')
+  })
+
+  it('defaults all fields gracefully when neither config nor parameters is present', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Bare Agent',
+      parameters: {},
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('initial-tool-selections')).toHaveTextContent('')
+    expect(screen.getByTestId('initial-credential-id')).toHaveTextContent('')
+    expect(screen.getByTestId('initial-response-schema')).toHaveTextContent('')
+    expect(screen.getByTestId('initial-integration-connections')).toHaveTextContent('0')
+
+    await user.click(screen.getByTestId('submit-button'))
+    // No existing file IDs — only submitted files matter (mock submits none)
+    expect(createAgenticActivity).toHaveBeenCalledWith(expect.objectContaining({ fileIds: undefined }))
   })
 })

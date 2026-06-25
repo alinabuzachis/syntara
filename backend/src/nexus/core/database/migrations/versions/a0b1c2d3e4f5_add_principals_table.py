@@ -35,7 +35,6 @@ _OWNED_TABLES = [
     "rate_limits",
     "service_accounts",
     "tool_executions",
-    "tool_providers",
     "tools",
     "usage_counters",
     "workflow_versions",

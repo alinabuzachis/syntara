@@ -7,24 +7,34 @@ import { useLocation } from '../../hooks/routing/useLocation'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
-import { UnsavedChangesContext } from './unsavedChangesContext'
+import { UnsavedChangesContext, type DirtyCheckOptions } from './unsavedChangesContext'
 
 type UnsavedChangesProviderProps = {
   children: ReactNode
 }
 
-// Module-scope component (satisfies no-nested-components rule, CLAUDE.md §11).
-// Only rendered when the TanStack router is active (inside RouterProvider).
-// useBlocker intercepts navigation away from the builder while the workflow is
-// dirty; onBlock hands proceed/reset up to the modal so the user can confirm.
-function TanStackNavigationBlocker({ onBlock }: { onBlock: (proceed: () => void, reset: () => void) => void }) {
+function TanStackNavigationBlocker({
+  onBlock,
+  dirtyChecksRef,
+}: {
+  onBlock: (proceed: () => void, reset: () => void) => void
+  dirtyChecksRef: React.RefObject<Map<number, DirtyCheckOptions>>
+}) {
   const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      useWorkflowStore.getState().isDirty &&
-      current.pathname.startsWith('/workflow-builder') &&
-      !next.pathname.startsWith('/workflow-builder'),
-    enableBeforeUnload: () =>
-      useWorkflowStore.getState().isDirty && globalThis.location.pathname.startsWith('/workflow-builder'),
+    shouldBlockFn: ({ current, next }) => {
+      const builderDirty =
+        useWorkflowStore.getState().isDirty &&
+        current.pathname.startsWith('/workflow-builder') &&
+        !next.pathname.startsWith('/workflow-builder')
+      const genericDirty = Array.from(dirtyChecksRef.current.values()).some((e) => e.check())
+      return builderDirty || genericDirty
+    },
+    enableBeforeUnload: () => {
+      const builderDirty =
+        useWorkflowStore.getState().isDirty && globalThis.location.pathname.startsWith('/workflow-builder')
+      const genericDirty = Array.from(dirtyChecksRef.current.values()).some((e) => e.check())
+      return builderDirty || genericDirty
+    },
     withResolver: true,
   })
 
@@ -37,44 +47,47 @@ function TanStackNavigationBlocker({ onBlock }: { onBlock: (proceed: () => void,
   return null
 }
 
+let dirtyCheckIdCounter = 0
+
 export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProviderProps>) {
-  // Wouter path: hooks read current location / provide navigate fn directly.
-  // TanStack path: hooks delegate to useRouterState / useNavigate from @tanstack/react-router,
-  // which are available here because AppShell (our parent) is inside RouterProvider.
   const location = useLocation()
   const navigate = useNavigate()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [pendingTarget, setPendingTarget] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveHandler, setSaveHandler] = useState<(() => Promise<boolean>) | null>(null)
 
-  // TanStack path: proceed() resumes the intercepted navigation; reset() cancels it.
-  // Both are provided by TanStackNavigationBlocker via useBlocker({ withResolver: true }).
   const proceedNavRef = useRef<(() => void) | null>(null)
   const resetNavRef = useRef<(() => void) | null>(null)
+  const pendingTargetRef = useRef<string | null>(null)
+
+  const dirtyChecksRef = useRef(new Map<number, DirtyCheckOptions>())
 
   const { setWorkflow, setEdges } = useWorkflowStore()
 
-  // Called by TanStackNavigationBlocker when useBlocker intercepts a navigation
-  // attempt away from a dirty builder. Opens the modal and stores the callbacks.
   const handleTanStackBlock = useCallback((proceed: () => void, reset: () => void) => {
     proceedNavRef.current = proceed
     resetNavRef.current = reset
     setIsModalOpen(true)
   }, [])
 
-  // ── Wouter: check if we're on a builder route with unsaved changes ─────────
-  const hasUnsavedChanges = useCallback(() => {
+  const isBuilderDirty = useCallback(() => {
     const isOnBuilder = location.startsWith('/workflow-builder')
-    const currentIsDirty = useWorkflowStore.getState().isDirty
-    if (!isOnBuilder) return false
-    return currentIsDirty
+    return isOnBuilder && useWorkflowStore.getState().isDirty
   }, [location])
 
-  // ── requestNavigation ──────────────────────────────────────────────────────
-  // TanStack path: just navigate — TanStackNavigationBlocker (useBlocker) is the gatekeeper.
-  // Wouter path: check for unsaved changes and possibly show modal.
+  const getActiveDirtyCheck = useCallback((): DirtyCheckOptions | null => {
+    for (const entry of dirtyChecksRef.current.values()) {
+      if (entry.check()) return entry
+    }
+    return null
+  }, [])
+
+  const hasUnsavedChanges = useCallback(() => {
+    if (isBuilderDirty()) return true
+    return getActiveDirtyCheck() !== null
+  }, [isBuilderDirty, getActiveDirtyCheck])
+
   const requestNavigation = useCallback(
     (targetPath: string) => {
       if (isTanStackRouter()) {
@@ -87,7 +100,7 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
         return
       }
 
-      setPendingTarget(targetPath)
+      pendingTargetRef.current = targetPath
       setIsModalOpen(true)
     },
     [hasUnsavedChanges, navigate]
@@ -101,107 +114,120 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
     setSaveHandler(null)
   }, [])
 
-  const handleSave = useCallback(async () => {
-    if (!saveHandler) {
-      // eslint-disable-next-line no-console
-      console.error('[UnsavedChangesModal] No save handler registered')
-      return
+  const registerDirtyCheck = useCallback((options: DirtyCheckOptions) => {
+    const id = ++dirtyCheckIdCounter
+    dirtyChecksRef.current.set(id, options)
+    return () => {
+      dirtyChecksRef.current.delete(id)
     }
+  }, [])
 
-    setIsSaving(true)
-    const success = await saveHandler()
-    setIsSaving(false)
-
-    if (success) {
-      setWorkflow(null)
-      setEdges([])
-      setIsModalOpen(false)
-
-      if (isTanStackRouter()) {
-        // Resume the intercepted navigation via the proceed callback from useBlocker.
-        proceedNavRef.current?.()
-        proceedNavRef.current = null
-        resetNavRef.current = null
-      } else if (pendingTarget) {
-        navigate(pendingTarget)
-        setPendingTarget(null)
-      }
-    } else {
-      // Save failed — cancel the intercepted navigation, close modal, user stays in builder.
-      setIsModalOpen(false)
-      if (isTanStackRouter()) {
-        resetNavRef.current?.()
-        proceedNavRef.current = null
-        resetNavRef.current = null
-      } else {
-        setPendingTarget(null)
-      }
-    }
-  }, [saveHandler, pendingTarget, setWorkflow, setEdges, navigate])
-
-  const handleExitWithoutSaving = useCallback(() => {
-    setWorkflow(null)
-    setEdges([])
+  const proceedNavigation = useCallback(() => {
     setIsModalOpen(false)
-
     if (isTanStackRouter()) {
       proceedNavRef.current?.()
       proceedNavRef.current = null
       resetNavRef.current = null
-    } else if (pendingTarget) {
-      navigate(pendingTarget)
-      setPendingTarget(null)
+    } else if (pendingTargetRef.current) {
+      navigate(pendingTargetRef.current)
+      pendingTargetRef.current = null
     }
-  }, [pendingTarget, setWorkflow, setEdges, navigate])
+  }, [navigate])
 
-  const handleClose = useCallback(() => {
+  const cancelNavigation = useCallback(() => {
     setIsModalOpen(false)
     if (isTanStackRouter()) {
-      // Cancel the intercepted navigation so TanStack router isn't left in a blocked state.
       resetNavRef.current?.()
       proceedNavRef.current = null
       resetNavRef.current = null
     } else {
-      setPendingTarget(null)
+      pendingTargetRef.current = null
     }
   }, [])
 
+  const handleSave = useCallback(async () => {
+    const activeDirtyCheck = getActiveDirtyCheck()
+    const activeSaveHandler = activeDirtyCheck?.saveAndExit ?? saveHandler
+
+    if (!activeSaveHandler) return
+
+    setIsSaving(true)
+    const success = await activeSaveHandler()
+    setIsSaving(false)
+
+    if (success) {
+      if (isBuilderDirty()) {
+        setWorkflow(null)
+        setEdges([])
+      }
+      proceedNavigation()
+    } else {
+      cancelNavigation()
+    }
+  }, [getActiveDirtyCheck, saveHandler, isBuilderDirty, setWorkflow, setEdges, proceedNavigation, cancelNavigation])
+
+  const handleExitWithoutSaving = useCallback(() => {
+    if (isBuilderDirty()) {
+      setWorkflow(null)
+      setEdges([])
+    }
+    for (const entry of dirtyChecksRef.current.values()) {
+      entry.exitWithoutSaving?.()
+    }
+    proceedNavigation()
+  }, [isBuilderDirty, setWorkflow, setEdges, proceedNavigation])
+
+  const isOnBuilder = location.startsWith('/workflow-builder')
+  const activeDirtyCheck = getActiveDirtyCheck()
+
+  const modalTitle =
+    activeDirtyCheck?.title ??
+    (isOnBuilder ? 'Save changes before exiting the workflow builder?' : 'You have unsaved changes')
+  const modalBody =
+    activeDirtyCheck?.body ??
+    (isOnBuilder
+      ? 'Exiting now will permanently delete all recent unsaved progress on your workflow. Please save your work before leaving.'
+      : 'Leaving now will discard your unsaved changes.')
+  const saveLabel = activeDirtyCheck?.saveLabel ?? (isOnBuilder ? 'Save workflow' : 'Save changes')
+  const hasSaveAction = !!(activeDirtyCheck?.saveAndExit ?? saveHandler)
+
   const contextValue = useMemo(
-    () => ({ requestNavigation, registerSaveHandler, unregisterSaveHandler }),
-    [requestNavigation, registerSaveHandler, unregisterSaveHandler]
+    () => ({ requestNavigation, registerSaveHandler, unregisterSaveHandler, registerDirtyCheck }),
+    [requestNavigation, registerSaveHandler, unregisterSaveHandler, registerDirtyCheck]
   )
 
   return (
     <UnsavedChangesContext.Provider value={contextValue}>
-      {isTanStackRouter() && <TanStackNavigationBlocker onBlock={handleTanStackBlock} />}
+      {isTanStackRouter() && (
+        <TanStackNavigationBlocker onBlock={handleTanStackBlock} dirtyChecksRef={dirtyChecksRef} />
+      )}
       {children}
 
       <Modal
         isOpen={isModalOpen}
-        onClose={handleClose}
+        onClose={cancelNavigation}
         aria-labelledby="unsaved-changes-modal-title"
         aria-describedby="unsaved-changes-modal-body"
         variant="medium"
       >
-        <ModalHeader title="Save changes before exiting the workflow builder?" titleIconVariant="warning" />
-        <ModalBody id="unsaved-changes-modal-body">
-          Exiting now will permanently delete all recent unsaved progress on your workflow. Please save your work before
-          leaving.
-        </ModalBody>
+        <ModalHeader title={modalTitle} titleIconVariant="warning" />
+        <ModalBody id="unsaved-changes-modal-body">{modalBody}</ModalBody>
         <ModalFooter>
-          <Button
-            key="save"
-            variant="primary"
-            onClick={handleSave}
-            isLoading={isSaving}
-            isDisabled={isSaving || !saveHandler}
-          >
-            Save workflow
-          </Button>
+          {(hasSaveAction || isOnBuilder) && (
+            <Button
+              key="save"
+              variant="primary"
+              onClick={handleSave}
+              isLoading={isSaving}
+              isDisabled={isSaving || !hasSaveAction}
+            >
+              {saveLabel}
+            </Button>
+          )}
           <Button key="exit" variant="secondary" onClick={handleExitWithoutSaving} isDisabled={isSaving}>
             Exit without saving
           </Button>
-          <Button key="cancel" variant="link" onClick={handleClose} isDisabled={isSaving}>
+          <Button key="cancel" variant="link" onClick={cancelNavigation} isDisabled={isSaving}>
             Cancel
           </Button>
         </ModalFooter>

@@ -1,4 +1,4 @@
-"""Helper functions for Tools and Tool Providers."""
+"""Helper functions for Tools."""
 
 import asyncio
 from collections.abc import AsyncGenerator
@@ -9,7 +9,8 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.tool_manager.models import Tool, ToolProvider, ToolStatus
+from nexus.integrations.models.integration import Integration
+from nexus.tool_manager.models import Tool, ToolStatus
 from nexus.tool_manager.models.tool import ToolParameter, ToolParameterType
 
 
@@ -60,17 +61,17 @@ async def wait_for_tool_status(
 class ToolFactory:
     """Factory class for creating test tools with configurable properties."""
 
-    def __init__(self, session: AsyncSession, provider: ToolProvider, user: User) -> None:
+    def __init__(self, session: AsyncSession, integration: Integration, user: User) -> None:
         """Initialize the ToolFactory with database session and required entities.
 
         Args:
             session: AsyncSession for database operations
-            provider: ToolProvider instance to associate with created tools
+            integration: Integration instance to associate with created tools
             user: User instance to set as creator/updater of tools
 
         """
         self.session = session
-        self.provider = provider
+        self.integration = integration
         self.user = user
 
     async def create_tools(
@@ -110,7 +111,7 @@ class ToolFactory:
             description = descriptions[i % len(descriptions)]
 
             tool = Tool(
-                provider_id=self.provider.id,
+                integration_id=self.integration.id,
                 name=f"{name_prefix} {i + 1}",
                 description=description,
                 namespaced_name=f"{namespace_prefix}::{name_prefix.lower().replace(' ', '_')}_{i + 1}",
@@ -164,7 +165,7 @@ class ToolFactory:
         tools = []
         for name, namespaced_name, enabled, status, description in tool_configs:
             tool = Tool(
-                provider_id=self.provider.id,
+                integration_id=self.integration.id,
                 name=name,
                 description=description,
                 namespaced_name=namespaced_name,
@@ -308,7 +309,7 @@ class ToolFactory:
         for tool_config in tool_configs:
             # Create the tool
             tool = Tool(
-                provider_id=self.provider.id,
+                integration_id=self.integration.id,
                 name=tool_config["name"],
                 description=tool_config["description"],
                 namespaced_name=tool_config["namespaced_name"],

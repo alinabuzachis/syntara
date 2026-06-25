@@ -1,0 +1,12 @@
+.sectionClip {
+  border-radius: var(--pf-t--global--border--radius--300);
+  overflow: hidden;
+}
+
+.connectionRow {
+  padding: var(--pf-t--global--spacer--sm) 0;
+}
+
+.dimmed {
+  opacity: var(--nexus-disabled-opacity);
+}

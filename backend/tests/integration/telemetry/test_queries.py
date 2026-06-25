@@ -12,8 +12,6 @@ from nexus.telemetry.events.integration_health import (
     CredentialInfo,
     IdentityProviderHealth,
     IdentityProviderInfo,
-    ToolProviderHealth,
-    ToolProviderInfo,
 )
 from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
@@ -26,8 +24,8 @@ from nexus.telemetry.queries import (
     query_credential_health,
     query_execution_counts,
     query_identity_provider_health,
+    query_integration_health,
     query_model_usage,
-    query_tool_provider_health,
     query_workflow_counts,
 )
 from nexus.workflows.models.execution import ExecutionStatus
@@ -35,7 +33,6 @@ from tests.helpers.credential import CredentialFactory
 from tests.helpers.execution import ExecutionFactory
 from tests.helpers.identity_provider import IdentityProviderCreate
 from tests.helpers.token_usage import TokenUsageFactory
-from tests.helpers.tool_provider import ToolProviderFactory
 from tests.helpers.workflow import WorkflowFactory
 
 
@@ -189,28 +186,11 @@ class TestQueryCredentialCounts:
         assert result.type == {}
 
 
-class TestQueryToolProviderHealth:
-    """Tests for query_tool_provider_health."""
+class TestQueryIntegrationHealth:
+    """Tests for query_integration_health (now queries mcp_server Integrations)."""
 
-    async def test_returns_health(
-        self,
-        test_db_session: AsyncSession,
-        tool_provider_factory: ToolProviderFactory,
-    ):
-        await tool_provider_factory.create_many(4, prefix="enabled", enabled=True)
-        await tool_provider_factory.create("disabled-0", enabled=False)
-        await test_db_session.commit()
-
-        result = await query_tool_provider_health(test_db_session)
-
-        assert isinstance(result, ToolProviderHealth)
-        assert result.total == 5
-        assert result.items == {
-            "mcp": ToolProviderInfo(enabled=4, disabled=1),
-        }
-
-    async def test_handles_no_providers(self, test_db_session: AsyncSession):
-        result = await query_tool_provider_health(test_db_session)
+    async def test_handles_no_integrations(self, test_db_session: AsyncSession):
+        result = await query_integration_health(test_db_session)
 
         assert result.total == 0
         assert result.items == {}

@@ -27,7 +27,7 @@ function crumbIdentityProvidersList(): AppBreadcrumbItem {
 }
 
 function crumbConfiguration(): AppBreadcrumbItem {
-  return { label: LABEL_CONFIGURATION, href: AppRoute.Configuration.Integrations.Root }
+  return { label: LABEL_CONFIGURATION, href: AppRoute.Configuration.Overview }
 }
 
 function crumbIntegrations(): AppBreadcrumbItem {
@@ -172,9 +172,38 @@ export function breadcrumbsIntegrationConfigure(): AppBreadcrumbItem[] {
   return [crumbConfiguration(), crumbIntegrations(), { label: 'Configure integration' }]
 }
 
-export function breadcrumbsIntegrationTools(providerName: string): AppBreadcrumbItem[] {
-  const label = providerName.trim() === '' ? 'Tools' : `${providerName} tools`
-  return [crumbConfiguration(), crumbIntegrations(), { label }]
+export type IntegrationDetailBreadcrumbTab = 'details' | 'resources'
+
+export function breadcrumbsIntegrationDetail(
+  integrationId: string,
+  integrationName: string,
+  tab: IntegrationDetailBreadcrumbTab
+): AppBreadcrumbItem[] {
+  const prefix = [crumbConfiguration(), crumbIntegrations()]
+  if (tab === DEFAULT_ENTITY_TAB) {
+    return [...prefix, { label: integrationName }]
+  }
+  const detailHref = AppRoute.Configuration.Integrations.Detail.replace(':integrationId', integrationId)
+  return [...prefix, { label: integrationName, href: detailHref }, { label: integrationDetailTabLabel(tab) }]
+}
+
+export function breadcrumbsIntegrationDetailEarlyShell(): AppBreadcrumbItem[] {
+  return [crumbConfiguration(), crumbIntegrations(), { label: 'Integration details' }]
+}
+
+function integrationDetailTabLabel(tab: string): string {
+  if (tab === 'details') return 'Details'
+  if (tab === 'resources') return 'Enabled resources'
+  return tab
+}
+
+export function breadcrumbsIntegrationEdit(integrationName: string, detailBasePath: string): AppBreadcrumbItem[] {
+  return [
+    crumbConfiguration(),
+    crumbIntegrations(),
+    { label: integrationName, href: detailBasePath },
+    { label: 'Edit integration' },
+  ]
 }
 
 export type CredentialDetailBreadcrumbTab = 'details' | 'workflows'

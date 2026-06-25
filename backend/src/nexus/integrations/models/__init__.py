@@ -7,10 +7,13 @@ from nexus.integrations.models.integration import (
     IntegrationPatch,
     IntegrationProjectAssignment,
     IntegrationRead,
+    IntegrationRefreshStatus,
     IntegrationScope,
     IntegrationStatus,
+    IntegrationStatusPatch,
     IntegrationSystemUpdate,
     IntegrationType,
+    RefreshResult,
 )
 from nexus.integrations.models.integration_configuration import (
     AAPGatewayConfiguration,
@@ -35,11 +38,14 @@ __all__ = [
     "IntegrationPatch",
     "IntegrationProjectAssignment",
     "IntegrationRead",
+    "IntegrationRefreshStatus",
     "IntegrationScope",
     "IntegrationStatus",
+    "IntegrationStatusPatch",
     "IntegrationSystemUpdate",
     "IntegrationType",
     "LLMProviderConfiguration",
     "MCPServerConfiguration",
     "MCPServerConfigurationInput",
+    "RefreshResult",
 ]

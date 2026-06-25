@@ -1,7 +1,7 @@
-"""Periodic integration/provider health status event.
+"""Periodic integration health status event.
 
 Emitted alongside system analytics to provide insight into
-configured provider connectivity and health.
+configured integration connectivity and health.
 """
 
 from pydantic import Field
@@ -10,21 +10,21 @@ from sqlmodel import SQLModel
 from nexus.telemetry.events.base import BaseTelemetryEvent
 
 
-class ToolProviderInfo(SQLModel):
+class IntegrationInfo(SQLModel):
     """Per-integration-type count breakdown by status."""
 
-    enabled: int = Field(default=0, description="Enabled tool providers of this type")
-    disabled: int = Field(default=0, description="Disabled tool providers of this type")
+    enabled: int = Field(default=0, description="Enabled integrations of this type")
+    disabled: int = Field(default=0, description="Disabled integrations of this type")
 
 
-class ToolProviderHealth(SQLModel):
-    """Tool provider health: per-type counts and aggregate total."""
+class IntegrationHealth(SQLModel):
+    """Integration health: per-type counts and aggregate total."""
 
-    items: dict[str, ToolProviderInfo] = Field(
+    items: dict[str, IntegrationInfo] = Field(
         default_factory=dict,
         description="Integration type to enabled/disabled counts mapping",
     )
-    total: int = Field(default=0, description="Total configured tool providers")
+    total: int = Field(default=0, description="Total configured integrations")
 
 
 class IdentityProviderInfo(SQLModel):
@@ -70,9 +70,9 @@ class IntegrationHealthEvent(BaseTelemetryEvent):
     Emitted at the same interval as system analytics.
     """
 
-    tool_providers: ToolProviderHealth = Field(
-        default_factory=ToolProviderHealth,
-        description="Tool provider health status",
+    integrations: IntegrationHealth = Field(
+        default_factory=IntegrationHealth,
+        description="Integration health status",
     )
     identity_providers: IdentityProviderHealth = Field(
         default_factory=IdentityProviderHealth,

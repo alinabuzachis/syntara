@@ -165,7 +165,7 @@ class ToolService(BaseService):
                     tool_id=tool_id,
                     tool_name="<unknown>",
                     namespaced_name="<unknown>",
-                    provider_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    integration_id=None,
                     error_type="ToolNotFoundError",
                 )
             )
@@ -197,7 +197,7 @@ class ToolService(BaseService):
                 tool_id=tool.id,
                 tool_name=tool.name,
                 namespaced_name=tool.namespaced_name,
-                provider_id=tool.provider_id,
+                integration_id=tool.integration_id,
                 updated_fields=updated_fields,
             )
         )

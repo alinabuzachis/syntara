@@ -7,9 +7,9 @@ from nexus.telemetry.events.integration_health import (
     CredentialInfo,
     IdentityProviderHealth,
     IdentityProviderInfo,
+    IntegrationHealth,
     IntegrationHealthEvent,
-    ToolProviderHealth,
-    ToolProviderInfo,
+    IntegrationInfo,
 )
 
 
@@ -23,8 +23,8 @@ class TestIntegrationHealthEvent:
 
     def test_defaults_to_empty_health(self):
         event = IntegrationHealthEvent(entitlement_id="ent-123")
-        assert event.tool_providers.items == {}
-        assert event.tool_providers.total == 0
+        assert event.integrations.items == {}
+        assert event.integrations.total == 0
         assert event.identity_providers.items == {}
         assert event.identity_providers.total == 0
         assert event.credentials.items == {}
@@ -33,9 +33,9 @@ class TestIntegrationHealthEvent:
     def test_segment_properties_structure(self):
         event = IntegrationHealthEvent(
             entitlement_id="ent-123",
-            tool_providers=ToolProviderHealth(
+            integrations=IntegrationHealth(
                 items={
-                    "mcp": ToolProviderInfo(enabled=2, disabled=1),
+                    "mcp_server": IntegrationInfo(enabled=2, disabled=1),
                 },
                 total=3,
             ),
@@ -57,10 +57,10 @@ class TestIntegrationHealthEvent:
         )
         props = event.to_segment_event()["properties"]
 
-        tp = props["tool_providers"]
-        assert tp["items"]["mcp"]["enabled"] == 2
-        assert tp["items"]["mcp"]["disabled"] == 1
-        assert tp["total"] == 3
+        integrations = props["integrations"]
+        assert integrations["items"]["mcp_server"]["enabled"] == 2
+        assert integrations["items"]["mcp_server"]["disabled"] == 1
+        assert integrations["total"] == 3
 
         idp = props["identity_providers"]
         assert idp["items"]["oidc"]["enabled"] == 1
@@ -78,12 +78,12 @@ class TestIntegrationHealthEvent:
 
 
 class TestInfoModels:
-    """Tests for per-provider/credential info models."""
+    """Tests for per-integration/credential info models."""
 
     @pytest.mark.parametrize(
         ("model_cls", "kwargs"),
         [
-            (ToolProviderInfo, {"enabled": 3, "disabled": 1}),
+            (IntegrationInfo, {"enabled": 3, "disabled": 1}),
             (IdentityProviderInfo, {"enabled": 2, "disabled": 1}),
             (CredentialInfo, {"enabled": 3, "disabled": 1}),
         ],
@@ -97,8 +97,8 @@ class TestInfoModels:
 class TestHealthModels:
     """Tests for wrapper health models that bundle items and status."""
 
-    def test_tool_provider_health_defaults_to_empty(self):
-        health = ToolProviderHealth()
+    def test_integration_health_defaults_to_empty(self):
+        health = IntegrationHealth()
         assert health.items == {}
         assert health.total == 0
 

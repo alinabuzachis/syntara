@@ -75,3 +75,16 @@ class AdapterNotRegisteredError(IntegrationError):
         """Initialize exception with integration type."""
         self.integration_type = integration_type
         super().__init__(f"No health check adapter registered for integration type '{integration_type}'")
+
+
+@fastapi_exception(handler="nexus.integrations.error_handlers.integration_refresh_not_supported_handler")
+class IntegrationRefreshNotSupportedError(IntegrationError):
+    """Raised when refresh is not supported for this integration type."""
+
+    def __init__(self, integration_id: UUID, integration_type: str) -> None:
+        """Initialize exception with integration ID and type."""
+        self.integration_id = integration_id
+        self.integration_type = integration_type
+        super().__init__(
+            f"Resource refresh is not supported for integration {integration_id} (type: {integration_type})."
+        )

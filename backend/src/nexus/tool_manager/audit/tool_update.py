@@ -29,7 +29,7 @@ class ToolUpdateEvent:
     tool_id: UUID
     tool_name: str
     namespaced_name: str
-    provider_id: UUID
+    integration_id: UUID | None
     updated_fields: list[str] = field(default_factory=list)
     error_type: str | None = field(default=None)
 
@@ -67,7 +67,7 @@ class ToolUpdateHandler(AuditEventHandler[ToolUpdateEvent]):
             error_message=error_message,
             tool_name=event.tool_name,
             namespaced_name=event.namespaced_name,
-            provider_id=str(event.provider_id),
+            integration_id=str(event.integration_id) if event.integration_id else None,
             updated_fields=event.updated_fields,
         )
 

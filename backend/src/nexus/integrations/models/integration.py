@@ -37,8 +37,9 @@ class IntegrationType(StrEnum):
 
 
 class IntegrationStatus(StrEnum):
-    """Current status of an integration."""
+    """Validation status of an integration."""
 
+    UNKNOWN = "unknown"
     VALIDATING = "validating"
     AVAILABLE = "available"
     ERROR = "error"
@@ -49,6 +50,14 @@ class IntegrationScope(StrEnum):
 
     GLOBAL = "global"
     PROJECT = "project"
+
+
+class IntegrationRefreshStatus(StrEnum):
+    """Status of the last resource-refresh operation for an integration."""
+
+    REFRESHING = "refreshing"
+    AVAILABLE = "available"
+    ERROR = "error"
 
 
 class Integration(Resource, table=True):
@@ -73,13 +82,14 @@ class Integration(Resource, table=True):
 
     enabled: bool = Field(default=True, description=_ENABLED_DESCRIPTION, index=True)
 
-    status: IntegrationStatus = Field(
-        default=IntegrationStatus.VALIDATING,
+    validation_status: IntegrationStatus = Field(
+        default=IntegrationStatus.UNKNOWN,
         sa_column=postgres_enum_column(
             IntegrationStatus,
             "integration_status",
+            server_default=text("'unknown'"),
         ),
-        description="Current status of the integration",
+        description="Validation status of the integration",
     )
 
     scope: IntegrationScope = Field(
@@ -116,10 +126,32 @@ class Integration(Resource, table=True):
         description="Error message from last validation attempt",
     )
 
+    refresh_status: IntegrationRefreshStatus | None = Field(
+        default=None,
+        sa_column=postgres_enum_column(
+            IntegrationRefreshStatus,
+            "integration_refresh_status",
+            nullable=True,
+        ),
+        description="Status of the last resource refresh operation",
+    )
+
+    last_refreshed_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of last successful resource refresh",
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+    )
+
+    refresh_error: str | None = Field(
+        default=None,
+        sa_type=Text(),  # type: ignore[call-overload]
+        description="Error message from last refresh attempt",
+    )
+
     __filterable_fields__: ClassVar[list[str]] = [
         *Resource.__filterable_fields__,
         "integration_type",
-        "status",
+        "validation_status",
         "enabled",
         "scope",
         "management_credential_id",
@@ -127,7 +159,7 @@ class Integration(Resource, table=True):
 
     __sortable_fields__: ClassVar[list[str]] = [
         *Resource.__sortable_fields__,
-        "status",
+        "validation_status",
         "enabled",
     ]
 
@@ -179,6 +211,27 @@ class IntegrationProjectAssignment(SQLModel, table=True):
 # ============================================================================
 
 
+class InitialToolSelection(SQLModel):
+    """A tool from the discover step with the user's enabled/disabled choice."""
+
+    name: str = Field(
+        min_length=1,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        description="Tool name as returned by the discover endpoint",
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=FieldLimits.DESCRIPTION_MAX_LENGTH,
+        description="Tool description",
+    )
+    enabled: bool = Field(default=True, description="Whether the user enabled this tool")
+    parameters: list[dict[str, object]] | None = Field(
+        default=None,
+        max_length=50,
+        description="Tool parameters from discovery",
+    )
+
+
 class IntegrationCreate(SQLModel):
     """Schema for creating a new integration."""
 
@@ -217,6 +270,12 @@ class IntegrationCreate(SQLModel):
 
     labels: dict[str, str] = Field(default_factory=dict, description="Key-value labels")
 
+    discovered_tools: list[InitialToolSelection] | None = Field(
+        default=None,
+        max_length=200,
+        description="Tools discovered during setup with enabled/disabled selections",
+    )
+
     @model_validator(mode="after")
     def validate_type_matches_configuration(self) -> "IntegrationCreate":
         """Ensure integration_type and configuration.integration_type agree."""
@@ -226,6 +285,14 @@ class IntegrationCreate(SQLModel):
                 f"configuration.integration_type '{self.configuration.integration_type}'"
             )
             raise ValueError(msg)
+        if self.discovered_tools:
+            if self.integration_type != IntegrationType.MCP_SERVER:
+                msg = "discovered_tools is only supported for mcp_server integrations"
+                raise ValueError(msg)
+            names = [t.name for t in self.discovered_tools]
+            if len(names) != len(set(names)):
+                msg = "discovered_tools contains duplicate tool names"
+                raise ValueError(msg)
         return self
 
 
@@ -234,7 +301,7 @@ class IntegrationRead(Resource):
 
     integration_type: IntegrationType
     enabled: bool = True
-    status: IntegrationStatus = IntegrationStatus.VALIDATING
+    validation_status: IntegrationStatus = IntegrationStatus.UNKNOWN
     scope: IntegrationScope = IntegrationScope.GLOBAL
     configuration: IntegrationConfigurationTypes = Field(
         description=_CONFIGURATION_DESCRIPTION, discriminator="integration_type"
@@ -242,6 +309,11 @@ class IntegrationRead(Resource):
     management_credential_id: UUID | None = None
     last_validated_at: datetime | None = None
     validation_error: str | None = None
+    refresh_status: IntegrationRefreshStatus | None = None
+    last_refreshed_at: datetime | None = None
+    refresh_error: str | None = None
+    total_tool_count: int = Field(default=0, description="Total number of tools linked to this integration")
+    enabled_tool_count: int = Field(default=0, description="Number of enabled tools linked to this integration")
 
 
 class IntegrationPatch(SQLModel):
@@ -280,7 +352,32 @@ class IntegrationPatch(SQLModel):
 class IntegrationSystemUpdate(SQLModel):
     """Internal schema for validation worker updates to system-managed fields."""
 
-    status: IntegrationStatus | None = Field(default=None, description="Current status of the integration")
+    validation_status: IntegrationStatus | None = Field(
+        default=None, description="Validation status of the integration"
+    )
+
+    validation_error: str | None = Field(default=None, description="Error message from last validation attempt")
+
+    @model_validator(mode="after")
+    def infer_error_status(self) -> "IntegrationSystemUpdate":
+        """Auto-set validation_status=ERROR when validation_error is provided without an explicit status."""
+        if self.validation_error is not None and self.validation_status is None:
+            self.validation_status = IntegrationStatus.ERROR
+        return self
+
+
+class IntegrationStatusPatch(SQLModel):
+    """Schema for service-to-service status updates (not user-facing).
+
+    Used by internal components (e.g. agent orchestrator) to update
+    enabled/validation_status/validation_error together in a single call.
+    """
+
+    enabled: bool | None = Field(default=None, description=_ENABLED_DESCRIPTION)
+
+    validation_status: IntegrationStatus | None = Field(
+        default=None, description="Validation status of the integration"
+    )
 
     validation_error: str | None = Field(default=None, description="Error message from last validation attempt")
 
@@ -313,3 +410,12 @@ class IntegrationTestConnection(SQLModel):
 
 class IntegrationListResponse(ResourcesResponse[IntegrationRead]):
     """Paginated list response for integrations."""
+
+
+class RefreshResult(SQLModel):
+    """Result returned by POST /integrations/{id}/refresh."""
+
+    tools_synced_count: int = Field(description="Number of new tool records created")
+    tools_updated_count: int = Field(description="Number of existing tool records updated")
+    tools_disabled_count: int = Field(description="Number of tool records disabled (no longer on server)")
+    refreshed_at: datetime | None = Field(default=None, description="Timestamp when the refresh completed")

@@ -1,186 +1,251 @@
-import type { ToolProviderCreate } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
-  ActionGroup,
+  ActionList,
+  ActionListGroup,
+  ActionListItem,
   Button,
-  Content,
-  ContentVariants,
-  Flex,
-  Form,
-  FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
-  TextInput,
-  ToggleGroup,
-  ToggleGroupItem,
+  Wizard,
+  WizardFooterWrapper,
+  WizardStep,
+  useWizardContext,
 } from '@patternfly/react-core'
-import { RhUiErrorIcon, RhUiServerFillIcon } from '@patternfly/react-icons'
-import { Controller, type Control, useForm } from 'react-hook-form'
+import { useCallback, useState } from 'react'
+import { useForm, useWatch, type UseFormTrigger } from 'react-hook-form'
 
 import { AppRoute } from '../../../../app/AppRoute'
 import { breadcrumbsIntegrationConfigure } from '../../../../app/breadcrumbBuilders'
+import { integrationsClient } from '../../../../client'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
 import { navigate } from '../../../../hooks/routing/navigate'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
+import { useAlerts } from '../../../../providers/alerts'
+import { getErrorMessage } from '../../../../utils/apiErrors'
+import { detachPromise } from '../../../../utils/detachPromise'
 import { useDocLink } from '../../../../utils/docs/useDocLink'
 
-import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
+import { CredentialStep } from './CredentialStep'
+import { EnableToolsWrapper } from './EnableToolsStep'
+import { IntegrationDetailsStep } from './IntegrationDetailsStep'
+import { integrationFormSchema, STEP1_FIELDS, type IntegrationFormData } from './integrationFormSchema'
 import { useCreateIntegration } from './useCreateIntegration'
+import styles from './WizardSteps.module.css'
 
-type TextFieldName = 'name' | 'description' | 'configuration.base_url' | 'configuration.api_key'
+type DiscoverResult = IntegrationsAPI.components['schemas']['DiscoverResult']
 
-type ControlledTextFieldProps = {
-  control: Control<IntegrationFormData>
-  name: TextFieldName
-  label: string
-  fieldId: string
-  placeholder: string
-  isRequired?: boolean
-  type?: 'text' | 'password'
-}
+type WizardNavFooterProps = Readonly<{
+  trigger: UseFormTrigger<IntegrationFormData>
+  onSubmit: () => void
+  credentialId: string | null | undefined
+}>
 
-function ControlledTextField({
-  control,
-  name,
-  label,
-  fieldId,
-  placeholder,
-  isRequired,
-  type,
-}: ControlledTextFieldProps) {
+function WizardNavFooter({ trigger, onSubmit, credentialId }: WizardNavFooterProps) {
+  const { goToNextStep, goToPrevStep, activeStep, steps } = useWizardContext()
+  const isFirst = activeStep.index === 1
+  const isSecond = activeStep.id === 'credential'
+  const isLast = activeStep.index === steps.length
+
+  const handleNext = useCallback(async () => {
+    if (isFirst) {
+      const valid = await trigger(STEP1_FIELDS as unknown as (keyof IntegrationFormData)[])
+      if (valid) await goToNextStep()
+      return
+    }
+    await goToNextStep()
+  }, [trigger, isFirst, goToNextStep])
+
+  const isNextDisabled = isSecond && !credentialId
+
   return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field, fieldState }) => (
-        <FormGroup label={label} fieldId={fieldId} isRequired={isRequired}>
-          <TextInput
-            id={fieldId}
-            placeholder={placeholder}
-            aria-required={isRequired || undefined}
-            type={type}
-            validated={fieldState.error ? 'error' : 'default'}
-            value={field.value ?? ''}
-            onChange={field.onChange}
-            onBlur={field.onBlur}
-            name={field.name}
-          />
-          {fieldState.error && (
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {fieldState.error.message}
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
+    <WizardFooterWrapper>
+      <ActionList>
+        <ActionListGroup>
+          {!isFirst && (
+            <ActionListItem>
+              <Button variant="secondary" onClick={goToPrevStep}>
+                Back
+              </Button>
+            </ActionListItem>
           )}
-        </FormGroup>
-      )}
-    />
+          <ActionListItem>
+            {isLast ? (
+              <Button variant="primary" onClick={onSubmit}>
+                Save
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={isNextDisabled ? undefined : () => detachPromise(handleNext())}
+                isAriaDisabled={isNextDisabled}
+              >
+                Next
+              </Button>
+            )}
+          </ActionListItem>
+        </ActionListGroup>
+        <ActionListGroup>
+          <ActionListItem>
+            <Button variant="link" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
+              Cancel
+            </Button>
+          </ActionListItem>
+        </ActionListGroup>
+      </ActionList>
+    </WizardFooterWrapper>
   )
 }
 
 export function IntegrationForm() {
-  const integrationsDocLink = useDocLink('integrations')
-  const { control, handleSubmit, setError } = useForm<IntegrationFormData>({
+  const docLink = useDocLink('integrations')
+  const { control, handleSubmit, setError, trigger, setValue, getValues } = useForm<IntegrationFormData>({
     resolver: zodResolver(integrationFormSchema, undefined, { mode: 'sync' }),
     defaultValues: {
       name: '',
       description: '',
-      configuration: { provider_type: 'mcp', base_url: '', api_key: '' },
+      integration_type: IntegrationTypeEnum.MCP_SERVER,
+      configuration: { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
+      management_credential_id: null,
+      scope: 'global',
     },
   })
   const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
   const createIntegration = useCreateIntegration({ handleError })
+  const credentialId = useWatch({ control, name: 'management_credential_id' })
 
-  const onSubmit = (formData: IntegrationFormData) => {
-    createIntegration(formData as ToolProviderCreate & { name: string })
-  }
+  const [testResult, setTestResult] = useState<DiscoverResult | null>(null)
+  const [selectedToolNames, setSelectedToolNames] = useState<Set<string>>(new Set())
+
+  const { mutate: testConnection, isPending: isTesting } = integrationsClient.useMutation(
+    'post',
+    '/integrations/discover'
+  )
+  const { showAlert } = useAlerts()
+
+  /** Tests connection via POST /integrations/discover. Populates testResult with discovered tools for step 3. Clears on credential change. */
+  const handleTestConnection = useCallback(() => {
+    const values = getValues()
+    const credId = values.management_credential_id
+    if (!credId) return
+
+    setTestResult(null)
+
+    testConnection(
+      {
+        body: {
+          integration_type: values.integration_type,
+          configuration: values.configuration,
+          credential_id: credId,
+        },
+      },
+      {
+        onSuccess: (result) => {
+          setTestResult(result)
+          if (result.success) {
+            setSelectedToolNames(new Set(result.discovered_tools?.map((t) => t.name) ?? []))
+            const toolCount = result.discovered_tools?.length ?? 0
+            showAlert({
+              title: 'Connection tested',
+              description:
+                toolCount > 0
+                  ? `Successfully connected. Discovered ${String(toolCount)} tool(s).`
+                  : 'Successfully connected. The integration is reachable.',
+              variant: 'success',
+              autoDismiss: true,
+            })
+          } else {
+            showAlert({
+              title: 'Connection failed',
+              description: result.error ?? 'Unable to connect to the integration.',
+              variant: 'danger',
+              autoDismiss: true,
+            })
+          }
+        },
+        onError: (error: unknown) => {
+          showAlert({
+            title: 'Connection test failed',
+            description: getErrorMessage(error),
+            variant: 'danger',
+            autoDismiss: true,
+          })
+        },
+      }
+    )
+  }, [getValues, testConnection, showAlert])
+
+  const onSubmit = handleSubmit(
+    (formData) => {
+      const discoveredTools = testResult?.discovered_tools?.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        enabled: selectedToolNames.has(tool.name),
+        parameters: tool.parameters as
+          | { name: string; type?: string; description?: string; required?: boolean }[]
+          | undefined,
+      }))
+      createIntegration(formData, discoveredTools)
+    },
+    (errors) => {
+      const messages: string[] = []
+      if (errors.name) messages.push(errors.name.message ?? 'Name is invalid')
+      if (errors.configuration?.base_url) messages.push(errors.configuration.base_url.message ?? 'Base URL is invalid')
+      if (messages.length > 0) {
+        showAlert({
+          title: 'Unable to save integration',
+          description: messages.join('. '),
+          variant: 'danger',
+          autoDismiss: true,
+        })
+      }
+    }
+  )
 
   return (
     <NxPage>
-      <NxPageHeader
-        title="Configure integration"
-        docLink={integrationsDocLink}
-        breadcrumbs={breadcrumbsIntegrationConfigure()}
-      />
+      <NxPageHeader title="Configure integration" breadcrumbs={breadcrumbsIntegrationConfigure()} docLink={docLink} />
       <NxPageBody>
-        <NxPanel
-          isFullHeight
-          isScrollable
-          panelMainBodyProps={{ style: { padding: 'var(--pf-t--global--spacer--xl)' } }}
-          footer={
-            <ActionGroup>
-              <Button type="submit" form="integration-form">
-                Configure integration
-              </Button>
-              <Button variant="link" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
-                Cancel
-              </Button>
-            </ActionGroup>
-          }
-        >
-          <div style={{ maxWidth: '600px' }}>
-            <Form id="integration-form" aria-label="Configure integration" onSubmit={handleSubmit(onSubmit)}>
-              <FormGroup label="Integration type" fieldId="provider-type" isRequired>
-                <Controller
-                  name="configuration.provider_type"
-                  control={control}
-                  render={({ field }) => (
-                    <ToggleGroup aria-label="Integration type selection">
-                      <ToggleGroupItem
-                        text={
-                          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-                            <RhUiServerFillIcon />
-                            <Content component={ContentVariants.p} style={{ margin: 0 }}>
-                              MCP Server
-                            </Content>
-                          </Flex>
-                        }
-                        buttonId="mcp"
-                        isSelected={field.value === 'mcp'}
-                        onChange={() => field.onChange('mcp')}
-                      />
-                    </ToggleGroup>
-                  )}
-                />
-              </FormGroup>
-              <ControlledTextField
-                control={control}
-                name="name"
-                label="Server name / ID"
-                fieldId="name"
-                placeholder="Enter server name / ID"
-                isRequired
+        <NxPanel isFullHeight panelMainBodyProps={{ className: styles.wizardPanel }}>
+          <Wizard
+            isVisitRequired
+            footer={
+              <WizardNavFooter
+                trigger={trigger}
+                onSubmit={() => detachPromise(onSubmit())}
+                credentialId={credentialId}
               />
-              <ControlledTextField
+            }
+          >
+            <WizardStep name="Integration details" id="integration-details">
+              <IntegrationDetailsStep control={control} setValue={setValue} />
+            </WizardStep>
+
+            <WizardStep name="Connection credential" id="credential">
+              <CredentialStep
                 control={control}
-                name="description"
-                label="Description"
-                fieldId="description"
-                placeholder="Enter description"
+                setValue={setValue}
+                credentialId={credentialId}
+                isTesting={isTesting}
+                onTestConnection={handleTestConnection}
+                onCredentialChange={() => {
+                  setTestResult(null)
+                  setSelectedToolNames(new Set())
+                }}
               />
-              <ControlledTextField
-                control={control}
-                name="configuration.base_url"
-                label="API URL"
-                fieldId="base-url"
-                placeholder="Enter API URL"
-                isRequired
+            </WizardStep>
+
+            <WizardStep name="Enable tools" id="enable-tools" isDisabled={!credentialId}>
+              <EnableToolsWrapper
+                testResult={testResult}
+                selectedNames={selectedToolNames}
+                onSelectionChange={setSelectedToolNames}
+                onTestConnection={handleTestConnection}
+                isTestDisabled={!credentialId || isTesting}
               />
-              <ControlledTextField
-                control={control}
-                name="configuration.api_key"
-                label="API key"
-                fieldId="api-key"
-                placeholder="Enter API key"
-                type="password"
-              />
-            </Form>
-          </div>
+            </WizardStep>
+          </Wizard>
         </NxPanel>
       </NxPageBody>
     </NxPage>

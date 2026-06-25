@@ -73,7 +73,7 @@ class TestCreateIntegration:
         result = integration_factory(_mcp_create())
         assert result["integration_type"] == "mcp_server"
         assert result["configuration"]["base_url"] == "https://mcp.example.com"
-        assert result["status"] == "validating"
+        assert result["validation_status"] == "unknown"
         assert result["enabled"] is True
         assert result["scope"] == "global"
 
@@ -235,10 +235,11 @@ class TestValidateIntegration:
         resp = nexus_api.integrations.validate(integration_id=uuid4())
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
-    def test_validate_without_credential_returns_400(
+    def test_validate_without_credential_returns_200(
         self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
+        """Validate is a no-op ping — it succeeds even without a configured credential."""
         created = integration_factory(_mcp_create())
         integration_id = UUID(created["id"])
         resp = nexus_api.integrations.validate(integration_id=integration_id)
-        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        assert resp.status_code == HTTPStatus.OK

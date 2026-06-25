@@ -14,6 +14,7 @@
     "gen:local:auth": "npx openapi-typescript ../../../backend/src/nexus/schemas/auth/openapi.yaml --output ./src/auth-api.ts --default-non-nullable false",
     "gen:local:users": "npx openapi-typescript ../../../backend/src/nexus/schemas/users/openapi.yaml --output ./src/users-api.ts --default-non-nullable false",
     "gen:local:identity-providers": "npx openapi-typescript ../../../backend/src/nexus/schemas/identity_providers/openapi.yaml --output ./src/identity-providers-api.ts --default-non-nullable false",
+    "gen:local:integrations": "npx openapi-typescript ../../../backend/src/nexus/schemas/integrations/openapi.yaml --output ./src/integrations-api.ts --default-non-nullable false",
     "gen:local:tool-manager": "npx openapi-typescript ../../../backend/src/nexus/schemas/tool_manager/openapi.yaml --output ./src/tool-manager.ts --default-non-nullable false",
     "gen:local:workflow": "npx openapi-typescript ../../../backend/src/nexus/schemas/workflows/v2/openapi.yaml --output ./src/workflow-api.ts --default-non-nullable false",
     "gen:local:files": "npx openapi-typescript ../../../backend/src/nexus/schemas/files/openapi.yaml --output ./src/files-api.ts --default-non-nullable false",

@@ -6,8 +6,9 @@ from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import ConfigDict
-from sqlalchemy import String, Text
+from sqlalchemy import Column, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import DateTime, Field, SQLModel
 
 from nexus.core.constants import FieldLimits
@@ -45,7 +46,7 @@ class ToolExecution(UserOwnedResource, table=True):
     __filterable_fields__: ClassVar[list[str]] = [
         *UserOwnedResource.__filterable_fields__,
         "tool_id",
-        "provider_id",
+        "integration_id",
         "user_id",
         "status",
     ]
@@ -58,7 +59,16 @@ class ToolExecution(UserOwnedResource, table=True):
 
     tool_id: UUID = Field(foreign_key="tools.id", description="Foreign key to Tool", index=True)
 
-    provider_id: UUID = Field(foreign_key="tool_providers.id", description="Foreign key to Tool Provider", index=True)
+    integration_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("integrations.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        description="Foreign key to Integration (denormalized from tool)",
+    )
 
     user_id: UUID = Field(description="Identifier of executing user/agent", index=True)
 

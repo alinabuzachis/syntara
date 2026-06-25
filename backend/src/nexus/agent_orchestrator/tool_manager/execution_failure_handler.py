@@ -127,11 +127,11 @@ def _emit_tool_metrics(
     try:
         recorder = get_metrics_recorder()
         metadata = base_tool.metadata
-        provider_id = metadata.get("provider_id", "unknown")
+        integration_id = metadata.get("integration_id", "unknown")
         labels: dict[str, str] = {
             "namespaced_name": metadata["namespaced_name"],
             "status": status.value,
-            "provider_id": provider_id,
+            "integration_id": integration_id,
             "tool_id": metadata.get("tool_id", "unknown"),
             "error_code": type(error).__name__ if error is not None else "none",
         }

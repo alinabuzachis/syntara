@@ -14,6 +14,6 @@ class IntegrationListParams(BaseListParams):
     """Query parameters for integration list endpoint."""
 
     integration_type: IntegrationType | None = Field(default=None, description="Filter by integration type")
-    status: IntegrationStatus | None = Field(default=None, description="Filter by integration status")
+    validation_status: IntegrationStatus | None = Field(default=None, description="Filter by validation status")
     enabled: bool | None = Field(default=None, description="Filter by enabled status")
     scope: IntegrationScope | None = Field(default=None, description="Filter by visibility scope")

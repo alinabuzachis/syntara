@@ -1,4 +1,4 @@
-"""Tests for the integration health check adapter protocol, result types, and factory."""
+"""Tests for the integration adapter protocol, result types, and factory."""
 
 from __future__ import annotations
 
@@ -15,9 +15,10 @@ from nexus.integrations.adapters.factory import (
 from nexus.integrations.adapters.protocol import (
     DiscoveredLLMModel,
     DiscoveredTool,
+    DiscoverResult,
     HealthCheckErrorType,
-    HealthCheckResult,
     IntegrationHealthCheckAdapter,
+    ValidateResult,
 )
 from nexus.integrations.exceptions import AdapterNotRegisteredError
 from nexus.integrations.models.integration import IntegrationType
@@ -27,7 +28,7 @@ from nexus.integrations.models.integration_configuration import (
 )
 
 # ---------------------------------------------------------------------------
-# Stub adapter for testing — demonstrates the full pattern
+# Stub adapters for testing — demonstrate the full protocol pattern
 # ---------------------------------------------------------------------------
 
 
@@ -38,12 +39,19 @@ class StubLLMAdapter:
         """Initialize with LLM provider configuration."""
         self.config = config
 
-    async def health_check(
+    async def validate(
         self,
         resolved_credential: dict[str, Any],
         timeout_seconds: int,
-    ) -> HealthCheckResult:
-        return HealthCheckResult(
+    ) -> ValidateResult:
+        return ValidateResult(success=True, checked_at=datetime.now(UTC))
+
+    async def discover(
+        self,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> DiscoverResult:
+        return DiscoverResult(
             success=True,
             checked_at=datetime.now(UTC),
             discovered_models=[
@@ -59,12 +67,19 @@ class StubMCPAdapter:
         """Initialize with MCP server configuration."""
         self.config = config
 
-    async def health_check(
+    async def validate(
         self,
         resolved_credential: dict[str, Any],
         timeout_seconds: int,
-    ) -> HealthCheckResult:
-        return HealthCheckResult(
+    ) -> ValidateResult:
+        return ValidateResult(success=True, checked_at=datetime.now(UTC))
+
+    async def discover(
+        self,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> DiscoverResult:
+        return DiscoverResult(
             success=True,
             checked_at=datetime.now(UTC),
             discovered_tools=[DiscoveredTool(name="search", description="Search tool")],
@@ -78,12 +93,24 @@ class StubFailingAdapter:
         """Initialize with LLM provider configuration."""
         self.config = config
 
-    async def health_check(
+    async def validate(
         self,
         resolved_credential: dict[str, Any],
         timeout_seconds: int,
-    ) -> HealthCheckResult:
-        return HealthCheckResult(
+    ) -> ValidateResult:
+        return ValidateResult(
+            success=False,
+            checked_at=datetime.now(UTC),
+            error="Invalid API key",
+            error_type=HealthCheckErrorType.AUTH_FAILURE,
+        )
+
+    async def discover(
+        self,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> DiscoverResult:
+        return DiscoverResult(
             success=False,
             checked_at=datetime.now(UTC),
             error="Invalid API key",
@@ -124,21 +151,19 @@ class TestIntegrationHealthCheckAdapterProtocol:
 # ---------------------------------------------------------------------------
 
 
-class TestHealthCheckResult:
-    """Tests for HealthCheckResult construction."""
+class TestValidateResult:
+    """Tests for ValidateResult construction."""
 
     def test_success_result(self) -> None:
         now = datetime.now(UTC)
-        result = HealthCheckResult(success=True, checked_at=now)
+        result = ValidateResult(success=True, checked_at=now)
         assert result.success is True
         assert result.checked_at == now
         assert result.error is None
         assert result.error_type is None
-        assert result.discovered_models is None
-        assert result.discovered_tools is None
 
     def test_error_result_with_classification(self) -> None:
-        result = HealthCheckResult(
+        result = ValidateResult(
             success=False,
             checked_at=datetime.now(UTC),
             error="Connection refused",
@@ -147,6 +172,30 @@ class TestHealthCheckResult:
         assert result.success is False
         assert result.error == "Connection refused"
         assert result.error_type == HealthCheckErrorType.CONNECTION_ERROR
+
+    def test_timeout_error(self) -> None:
+        result = ValidateResult(
+            success=False,
+            checked_at=datetime.now(UTC),
+            error="Health check timed out after 10s",
+            error_type=HealthCheckErrorType.TIMEOUT,
+        )
+        assert result.error_type == HealthCheckErrorType.TIMEOUT
+
+
+class TestDiscoverResult:
+    """Tests for DiscoverResult construction."""
+
+    def test_success_result_with_tools(self) -> None:
+        result = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_tools=[DiscoveredTool(name="search")],
+        )
+        assert result.success is True
+        assert result.discovered_tools is not None
+        assert len(result.discovered_tools) == 1
+        assert result.discovered_tools[0].name == "search"
 
     def test_result_with_discovered_models(self) -> None:
         models = [
@@ -159,7 +208,7 @@ class TestHealthCheckResult:
                 output_token_price_cents_per_million=1000,
             ),
         ]
-        result = HealthCheckResult(
+        result = DiscoverResult(
             success=True,
             checked_at=datetime.now(UTC),
             discovered_models=models,
@@ -169,24 +218,16 @@ class TestHealthCheckResult:
         assert result.discovered_models[0].id == "gpt-4"
         assert result.discovered_models[1].input_token_price_cents_per_million == 250
 
-    def test_result_with_discovered_tools(self) -> None:
-        result = HealthCheckResult(
-            success=True,
-            checked_at=datetime.now(UTC),
-            discovered_tools=[DiscoveredTool(name="search")],
-        )
-        assert result.discovered_tools is not None
-        assert len(result.discovered_tools) == 1
-        assert result.discovered_tools[0].name == "search"
-
-    def test_timeout_error(self) -> None:
-        result = HealthCheckResult(
+    def test_error_result(self) -> None:
+        result = DiscoverResult(
             success=False,
             checked_at=datetime.now(UTC),
-            error="Health check timed out after 10s",
-            error_type=HealthCheckErrorType.TIMEOUT,
+            error="Connection failed",
+            error_type=HealthCheckErrorType.CONNECTION_ERROR,
         )
-        assert result.error_type == HealthCheckErrorType.TIMEOUT
+        assert result.success is False
+        assert result.error == "Connection failed"
+        assert result.discovered_tools is None
 
 
 class TestHealthCheckErrorType:
@@ -292,7 +333,7 @@ class TestAdapterFactory:
 # ---------------------------------------------------------------------------
 
 
-class TestFullHealthCheckPattern:
+class TestFullAdapterPattern:
     """Demonstrates the complete flow: factory → adapter → result."""
 
     @pytest.fixture(autouse=True)
@@ -300,7 +341,7 @@ class TestFullHealthCheckPattern:
         _clear_registry()
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_successful_discover_with_models(self) -> None:
         register_health_check_adapter(
             IntegrationType.LLM_PROVIDER,
             lambda c: StubLLMAdapter(c),
@@ -312,7 +353,7 @@ class TestFullHealthCheckPattern:
         )
         adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
 
-        result = await adapter.health_check(
+        result = await adapter.discover(
             resolved_credential={"llm_api_key": "sk-test-key"},
             timeout_seconds=10,
         )
@@ -324,7 +365,7 @@ class TestFullHealthCheckPattern:
         assert result.error is None
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_failed_discover_with_error_type(self) -> None:
         register_health_check_adapter(
             IntegrationType.LLM_PROVIDER,
             lambda c: StubFailingAdapter(c),
@@ -333,7 +374,7 @@ class TestFullHealthCheckPattern:
         config = LLMProviderConfiguration(base_url="https://api.openai.com")
         adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
 
-        result = await adapter.health_check(
+        result = await adapter.discover(
             resolved_credential={"llm_api_key": "bad-key"},
             timeout_seconds=10,
         )
@@ -342,3 +383,21 @@ class TestFullHealthCheckPattern:
         assert result.error == "Invalid API key"
         assert result.error_type == HealthCheckErrorType.AUTH_FAILURE
         assert result.discovered_models is None
+
+    @pytest.mark.asyncio
+    async def test_successful_validate(self) -> None:
+        register_health_check_adapter(
+            IntegrationType.LLM_PROVIDER,
+            lambda c: StubLLMAdapter(c),
+        )
+
+        config = LLMProviderConfiguration(base_url="https://api.openai.com")
+        adapter = create_health_check_adapter(IntegrationType.LLM_PROVIDER, config)
+
+        result = await adapter.validate(
+            resolved_credential={"llm_api_key": "sk-test-key"},
+            timeout_seconds=10,
+        )
+
+        assert result.success is True
+        assert result.error is None

@@ -21,12 +21,12 @@ class TestToolRetrieval:
     def sample_tool_response(self) -> dict[str, Any]:
         """Sample tool response from Tool Manager API."""
         tool_id = str(uuid4())
-        provider_id = str(uuid4())
+        integration_id = str(uuid4())
         return {
             "id": tool_id,
             "name": "test_tool",
             "description": "Test tool for unit tests",
-            "provider_id": provider_id,
+            "integration_id": integration_id,
             "namespaced_name": "test_provider::test_tool",
             "enabled": True,
             "status": "available",
@@ -113,7 +113,7 @@ class TestToolRetrieval:
             "id": tool_id,
             "name": "complex_tool",
             "description": "Tool with multiple parameters",
-            "provider_id": str(uuid4()),
+            "integration_id": str(uuid4()),
             "namespaced_name": "provider::complex_tool",
             "enabled": True,
             "status": "available",
@@ -219,7 +219,7 @@ class TestToolRetrieval:
                 "id": str(uuid4()),
                 "name": "tool_1",
                 "description": "First tool",
-                "provider_id": str(uuid4()),
+                "integration_id": str(uuid4()),
                 "namespaced_name": "provider::tool_1",
                 "enabled": True,
                 "status": "available",
@@ -236,7 +236,7 @@ class TestToolRetrieval:
                 "id": str(uuid4()),
                 "name": "tool_2",
                 "description": "Second tool",
-                "provider_id": str(uuid4()),
+                "integration_id": str(uuid4()),
                 "namespaced_name": "provider::tool_2",
                 "enabled": True,
                 "status": "available",
@@ -270,7 +270,7 @@ class TestToolRetrieval:
                 "id": str(uuid4()),
                 "name": "available_tool",
                 "description": "Available tool",
-                "provider_id": str(uuid4()),
+                "integration_id": str(uuid4()),
                 "namespaced_name": "provider::available_tool",
                 "enabled": True,
                 "status": "available",
@@ -284,7 +284,7 @@ class TestToolRetrieval:
                 "id": str(uuid4()),
                 "name": "error_tool",
                 "description": "Tool in error state",
-                "provider_id": str(uuid4()),
+                "integration_id": str(uuid4()),
                 "namespaced_name": "provider::error_tool",
                 "enabled": True,  # enabled but has error status
                 "status": "error",

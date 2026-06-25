@@ -275,7 +275,6 @@ components:
         - type: object
           required:
             - tool_id
-            - provider_id
             - user_id
             - execution_start
             - status
@@ -286,11 +285,13 @@ components:
               format: uuid
               title: Tool Id
               description: Foreign key to Tool
-            provider_id:
-              type: string
-              format: uuid
-              title: Provider Id
-              description: Foreign key to Tool Provider
+            integration_id:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: 'null'
+              title: Integration Id
+              description: Foreign key to Integration (denormalized from tool)
             user_id:
               type: string
               format: uuid

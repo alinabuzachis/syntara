@@ -12,10 +12,12 @@ Usage::
     ctx.metadata.audit_safe_dump()  # excludes sensitive fields
 """
 
-from typing import Any, get_args
+from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, GetCoreSchemaHandler, HttpUrl, SecretStr, field_validator
 from pydantic_core import CoreSchema, core_schema
+
+from nexus.workflows.workflow_engine.models.workflow_definition import IntegrationConnectionConfig
 
 
 class OpaqueResponseSchema:
@@ -105,6 +107,12 @@ class InvocationMetadata(BaseModel):
     Fields typed as ``SecretStr`` or ``OpaqueResponseSchema`` are
     automatically excluded from :meth:`audit_safe_dump` so they never
     appear in audit logs or telemetry.
+
+    IMPORTANT: This model uses Pydantic's default ``extra="ignore"``.
+    Any key present in ``contextData.metadata`` that is not declared here
+    is silently discarded during ``model_validate``. Fields that need to
+    survive the agentic_activity → agent_orchestrator_client → executor
+    round-trip MUST be declared explicitly in this class.
     """
 
     # Sensitive — excluded from audit logs and masked in repr
@@ -115,6 +123,9 @@ class InvocationMetadata(BaseModel):
     request_id: str | None = None
     llm_base_url: HttpUrl | None = None
     llm_provider: str | None = None
+    tool_selection_strategy: Literal["ALL", "NONE", "SELECTED"] | None = None
+    tool_selections: list[str] = Field(default_factory=list)
+    integration_connections: list[IntegrationConnectionConfig] | None = None
 
     def audit_safe_dump(self) -> dict[str, Any]:
         """Return metadata dict with sensitive/opaque fields excluded."""

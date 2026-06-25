@@ -31,7 +31,7 @@ def _aws_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def s3_retriever() -> Generator[S3FileRetriever, None, None]:  # noqa: D103
+def s3_retriever() -> Generator[S3FileRetriever, None, None]:
     with mock_aws():
         conn = boto3.client("s3", region_name=REGION)
         conn.create_bucket(Bucket=BUCKET_NAME)

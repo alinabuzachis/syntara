@@ -1,17 +1,26 @@
-import { AppRoute } from '../../../app/AppRoute.tsx'
-import noDataImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
-import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
+import { Button, EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter } from '@patternfly/react-core'
+import { PlusCircleIcon, RhUiAddIcon } from '@patternfly/react-icons'
+
+import { AppRoute } from '../../../app/AppRoute'
 import { navigate } from '../../../hooks/routing/navigate'
 
 export function IntegrationEmptyState() {
   return (
-    <NxEmptyStateNoData
-      imageSrc={noDataImage}
-      imageAlt="No integrations configured"
-      title="No integrations have been configured yet."
-      description="Configure integrations to use them in workflows. Integrations will allow for monitoring of server health and performance metrics, view server logs, and manage server settings and configurations."
-      buttonText="Configure integration"
-      addData={() => navigate(AppRoute.Configuration.Integrations.Configure)}
-    />
+    <EmptyState headingLevel="h2" icon={PlusCircleIcon} titleText="No integrations yet">
+      <EmptyStateBody>
+        Configure integrations to connect external tools and services for use in workflows.
+      </EmptyStateBody>
+      <EmptyStateFooter>
+        <EmptyStateActions>
+          <Button
+            variant="primary"
+            icon={<RhUiAddIcon />}
+            onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}
+          >
+            Configure integration
+          </Button>
+        </EmptyStateActions>
+      </EmptyStateFooter>
+    </EmptyState>
   )
 }

@@ -1,0 +1,28 @@
+.panelBody {
+  padding: var(--pf-t--global--spacer--lg);
+}
+
+.form {
+  max-width: 600px;
+  padding-bottom: var(--pf-t--global--spacer--xl);
+}
+
+.credentialHeading {
+  margin-bottom: var(--pf-t--global--spacer--xs);
+}
+
+.credentialDescription {
+  color: var(--pf-t--global--text--color--subtle);
+}
+
+.footer {
+  display: flex;
+  gap: var(--pf-t--global--spacer--md);
+  padding: var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg);
+  border-top: var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background-color: var(--pf-t--global--background--color--primary--default);
+  backdrop-filter: blur(20px);
+}

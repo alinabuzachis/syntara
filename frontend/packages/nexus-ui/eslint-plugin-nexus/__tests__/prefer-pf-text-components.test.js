@@ -119,6 +119,18 @@ ruleTester.run('prefer-pf-text-components', rule, {
     {
       code: `const App = () => <span>{user?.name}</span>;`,
     },
+    // screen-reader-only span (a11y utility — exempt regardless of text content)
+    {
+      code: `const App = ({ name }) => <span className="pf-v6-u-screen-reader"> credential for {name}</span>;`,
+    },
+    // screen-reader-only span with only literal text
+    {
+      code: `const App = () => <span className="pf-v6-u-screen-reader">visually hidden label</span>;`,
+    },
+    // screen-reader-only class alongside other classes
+    {
+      code: `const App = ({ name }) => <span className="some-class pf-v6-u-screen-reader"> for {name}</span>;`,
+    },
   ],
   invalid: [
     // <p> with text content should always be flagged

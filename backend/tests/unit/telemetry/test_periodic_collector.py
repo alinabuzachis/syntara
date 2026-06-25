@@ -18,8 +18,8 @@ from nexus.telemetry.events.integration_health import (
     CredentialInfo,
     IdentityProviderHealth,
     IdentityProviderInfo,
-    ToolProviderHealth,
-    ToolProviderInfo,
+    IntegrationHealth,
+    IntegrationInfo,
 )
 from nexus.telemetry.periodic_collector import PeriodicCollector, _collect_and_send
 
@@ -138,7 +138,7 @@ class TestCollectAndSendFunction:
                 new_callable=AsyncMock,
             ) as mock_tool_counts,
             patch(
-                "nexus.telemetry.periodic_collector.query_tool_provider_health",
+                "nexus.telemetry.periodic_collector.query_integration_health",
                 new_callable=AsyncMock,
             ) as mock_tp_health,
             patch(
@@ -157,8 +157,8 @@ class TestCollectAndSendFunction:
             mock_flags.return_value = ["feature_a"]
             mock_model_usage.return_value = []
             mock_tool_counts.return_value = MagicMock(success_count=0, error_count=0, timeout_count=0, distinct_tools=0)
-            mock_tp_health.return_value = ToolProviderHealth(
-                items={"mcp": ToolProviderInfo(enabled=1, disabled=1)},
+            mock_tp_health.return_value = IntegrationHealth(
+                items={"mcp": IntegrationInfo(enabled=1, disabled=1)},
                 total=2,
             )
             mock_idp_health.return_value = IdentityProviderHealth(

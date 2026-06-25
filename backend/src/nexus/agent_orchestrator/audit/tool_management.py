@@ -50,7 +50,7 @@ class ToolDiscoveryEvent:
     actor_context: AuditActorContext | None = None
 
     # Discovery metrics
-    providers_discovered: int | None = None
+    integrations_discovered: int | None = None
     tools_discovered: int | None = None
     tools_enabled: int | None = None
     tools_disabled: int | None = None
@@ -144,7 +144,7 @@ class ToolDiscoveryHandler(AuditEventHandler[ToolDiscoveryEvent]):
             invocation_id=event.invocation_id,
             request_id=event.request_id,
             status=status_value,
-            providers_discovered=event.providers_discovered,
+            integrations_discovered=event.integrations_discovered,
             tools_discovered=event.tools_discovered,
             tools_enabled=event.tools_enabled,
             tools_disabled=event.tools_disabled,

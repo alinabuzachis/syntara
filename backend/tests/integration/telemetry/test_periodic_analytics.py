@@ -18,6 +18,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.core.models import User
+from nexus.integrations.models.integration import Integration
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.periodic_collector import _collect_and_send
 from nexus.telemetry.queries import (
@@ -28,7 +29,6 @@ from nexus.telemetry.queries import (
     query_workflow_counts,
 )
 from nexus.tool_manager.models.tool import Tool
-from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter, WindowDuration
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
@@ -445,16 +445,22 @@ class TestQueryToolCountsRealDB:
         assert result.total_executions == 0
 
     async def test_counts_from_usage_counters(
-        self, test_db_session: AsyncSession, test_user: User, test_tool_provider: ToolProvider
+        self, test_db_session: AsyncSession, test_user: User, test_mcp_integration: Integration
     ):
         """Insert usage_counter rows and verify aggregation."""
         now = datetime.now(UTC)
 
         tool_1 = Tool(
-            name="tool-1", provider_id=test_tool_provider.id, namespaced_name="test::tool1", created_by=test_user.id
+            name="tool-1",
+            integration_id=test_mcp_integration.id,
+            namespaced_name="test::tool1",
+            created_by=test_user.id,
         )
         tool_2 = Tool(
-            name="tool-2", provider_id=test_tool_provider.id, namespaced_name="test::tool2", created_by=test_user.id
+            name="tool-2",
+            integration_id=test_mcp_integration.id,
+            namespaced_name="test::tool2",
+            created_by=test_user.id,
         )
         test_db_session.add_all([tool_1, tool_2])
         await test_db_session.flush()
@@ -501,7 +507,7 @@ class TestQueryToolCountsRealDB:
         assert result.total_executions == 15
 
     async def test_excludes_non_tool_counter_types(
-        self, test_db_session: AsyncSession, test_user: User, test_tool_provider: ToolProvider
+        self, test_db_session: AsyncSession, test_user: User, test_mcp_integration: Integration
     ):
         """Only counter_type='tool' rows should be included."""
         now = datetime.now(UTC)
@@ -510,7 +516,7 @@ class TestQueryToolCountsRealDB:
         test_db_session.add(
             UsageCounter(
                 counter_type=CounterType.PROVIDER,
-                provider_id=test_tool_provider.id,
+                integration_id=test_mcp_integration.id,
                 time_window="2026-04-09-14",
                 window_duration=WindowDuration.HOUR,
                 request_count=100,

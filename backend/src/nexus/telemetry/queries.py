@@ -13,13 +13,14 @@ from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.identity_providers.models.identity_provider import IdentityProvider
+from nexus.integrations.models.integration import Integration
 from nexus.telemetry.events.integration_health import (
     CredentialHealth,
     CredentialInfo,
     IdentityProviderHealth,
     IdentityProviderInfo,
-    ToolProviderHealth,
-    ToolProviderInfo,
+    IntegrationHealth,
+    IntegrationInfo,
 )
 from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
@@ -28,7 +29,6 @@ from nexus.telemetry.events.system_analytics import (
     ToolCounts,
     WorkflowCounts,
 )
-from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
@@ -198,32 +198,32 @@ def get_enabled_feature_flags() -> list[str]:
     return []
 
 
-async def query_tool_provider_health(session: AsyncSession) -> ToolProviderHealth:
-    """Query health status of configured tool providers grouped by type and status (excludes soft-deleted)."""
-    not_deleted = ToolProvider.deleted_at.is_(None)  # type: ignore[union-attr]
-    provider_type_col = ToolProvider.configuration["provider_type"].astext.label("provider_type")  # type: ignore[index]
+async def query_integration_health(session: AsyncSession) -> IntegrationHealth:
+    """Query health status of configured integrations grouped by type and status."""
+    not_deleted = Integration.deleted_at.is_(None)  # type: ignore[union-attr]
 
-    provider_result = await session.exec(
+    integration_result = await session.exec(
         select(  # type: ignore[call-overload]
-            provider_type_col,
-            ToolProvider.enabled,
-            func.count(ToolProvider.id),  # type: ignore[arg-type]
+            Integration.integration_type,
+            Integration.enabled,
+            func.count(Integration.id),  # type: ignore[arg-type]
         )
         .where(not_deleted)
-        .group_by(provider_type_col, ToolProvider.enabled)
+        .group_by(Integration.integration_type, Integration.enabled)
     )
 
-    items: dict[str, ToolProviderInfo] = {}
+    items: dict[str, IntegrationInfo] = {}
     total = 0
-    for provider_type, is_enabled, count in provider_result:
-        info = items.setdefault(provider_type, ToolProviderInfo())
+    for integration_type, is_enabled, count in integration_result:
+        type_key = str(integration_type)
+        info = items.setdefault(type_key, IntegrationInfo())
         if is_enabled:
             info.enabled = count
         else:
             info.disabled = count
         total += count
 
-    return ToolProviderHealth(
+    return IntegrationHealth(
         items=items,
         total=total,
     )

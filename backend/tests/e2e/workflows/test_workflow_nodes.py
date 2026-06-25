@@ -421,7 +421,9 @@ def test_multi_node_workflow(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str):
+def test_script_then_agentic(
+    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str
+):
     """A script node feeds into an agentic node."""
     result = create_and_run_workflow(
         nexus_api,
@@ -471,7 +473,9 @@ def test_script_then_agentic(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
 
 
 @pytest.mark.e2e
-def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str):
+def test_agentic_then_script(
+    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str
+):
     """An agentic node feeds into a script node."""
     result = create_and_run_workflow(
         nexus_api,
@@ -522,7 +526,7 @@ def test_agentic_then_script(nexus_api: NexusApiRegistry, mcp_provider_id: str, 
 
 @pytest.mark.e2e
 def test_loop_with_agentic_body(
-    nexus_api: NexusApiRegistry, mcp_provider_id: str, llm_credential_id: str, llm_model: str
+    nexus_api: NexusApiRegistry, mcp_integration_id: str, llm_credential_id: str, llm_model: str
 ):
     """A loop iterates with an agentic node as the loop body."""
     result = create_and_run_workflow(

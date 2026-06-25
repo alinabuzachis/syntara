@@ -201,19 +201,18 @@ class TestIntegrationSystemUpdate:
 
     def test_all_fields_optional(self) -> None:
         update = IntegrationSystemUpdate()
-        assert update.status is None
+        assert update.validation_status is None
         assert update.validation_error is None
 
     def test_set_status(self) -> None:
-        update = IntegrationSystemUpdate(status=IntegrationStatus.AVAILABLE)
-        assert update.status == IntegrationStatus.AVAILABLE
+        update = IntegrationSystemUpdate(validation_status=IntegrationStatus.AVAILABLE)
+        assert update.validation_status == IntegrationStatus.AVAILABLE
 
     def test_set_validation_error(self) -> None:
         update = IntegrationSystemUpdate(
-            status=IntegrationStatus.ERROR,
             validation_error="Connection refused",
         )
-        assert update.status == IntegrationStatus.ERROR
+        assert update.validation_status == IntegrationStatus.ERROR
         assert update.validation_error == "Connection refused"
 
 
@@ -226,6 +225,7 @@ class TestIntegrationEnums:
         assert IntegrationType.AAP_GATEWAY.value == "aap_gateway"
 
     def test_integration_status_values(self) -> None:
+        assert IntegrationStatus.UNKNOWN.value == "unknown"
         assert IntegrationStatus.VALIDATING.value == "validating"
         assert IntegrationStatus.AVAILABLE.value == "available"
         assert IntegrationStatus.ERROR.value == "error"

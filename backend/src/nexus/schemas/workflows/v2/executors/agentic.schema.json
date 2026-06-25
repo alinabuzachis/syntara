@@ -84,6 +84,25 @@
         "items": {
           "type": "string"
         }
+      },
+      "integration_connections": {
+        "type": ["array", "null"],
+        "description": "Per-integration execution credentials. Each entry specifies the execution credential for that integration. Integrations not listed are treated as unauthenticated; the management credential is never used during workflow execution.",
+        "items": {
+          "type": "object",
+          "required": ["integration_id", "credential_id"],
+          "properties": {
+            "integration_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID of the integration"
+            },
+            "credential_id": {
+              "$ref": "../common-definitions.schema.json#/$defs/credential_id"
+            }
+          },
+          "additionalProperties": false
+        }
       }
     },
     "allOf": [
@@ -191,6 +210,14 @@
               }
             },
             "additionalProperties": false
+          },
+          "integration_ids": {
+            "type": ["array", "null"],
+            "description": "UUIDs of integrations used during execution (captured at runtime from integration_connections)",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "additionalProperties": false
@@ -232,6 +259,12 @@
           "structured_output_metadata": {
             "type": [
               "object",
+              "null"
+            ]
+          },
+          "integration_ids": {
+            "type": [
+              "array",
               "null"
             ]
           }

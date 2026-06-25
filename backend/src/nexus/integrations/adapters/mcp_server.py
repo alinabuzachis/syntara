@@ -1,8 +1,12 @@
-"""MCP server health check adapter.
+"""MCP server adapter implementing validate() and discover().
 
-Performs health checks against MCP servers by calling the tool listing
-operation via the MCP protocol. A successful tool listing confirms both
-endpoint reachability and credential validity.
+validate(): Lightweight ping — currently returns success=True with a TODO
+  because the MCP spec ping utility is not yet exposed by langchain-mcp-adapters.
+
+discover(): Connects to the MCP server via MCPProvider.refresh_tools() and
+  converts the full Tool objects (including parameters) into DiscoverResult.
+  This reuses the same code path as _sync_mcp_tools() to avoid two separate
+  connections.
 """
 
 from __future__ import annotations
@@ -15,22 +19,24 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from nexus.tool_manager.models.tool import ToolParameter
+
 import httpx
 import structlog
 from httpx import HTTPStatusError, codes
-from langchain_mcp_adapters.client import MultiServerMCPClient  # type: ignore[import-untyped]
 
 from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.integrations.adapters.factory import register_health_check_adapter
 from nexus.integrations.adapters.protocol import (
     DiscoveredTool,
+    DiscoveredToolParameter,
+    DiscoverResult,
     HealthCheckErrorType,
-    HealthCheckResult,
+    ValidateResult,
 )
 from nexus.integrations.models.integration import IntegrationType
-from nexus.integrations.models.integration_configuration import (  # noqa: TC001
-    MCPServerConfiguration,
-)
+from nexus.integrations.models.integration_configuration import MCPServerConfigurationInput  # noqa: TC001
+from nexus.tool_manager.lib.providers.mcp.mcp_provider import MCPProvider
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -41,58 +47,68 @@ _MCP_CREDENTIAL_KEY = "bearer_token"
 
 
 class MCPServerHealthCheck:
-    """Health check adapter for MCP server integrations."""
+    """Adapter for MCP server integrations implementing validate() and discover()."""
 
-    def __init__(self, config: MCPServerConfiguration) -> None:
+    def __init__(self, config: MCPServerConfigurationInput) -> None:
         """Initialize with MCP server configuration."""
         self._config = config
 
-    async def health_check(
+    async def validate(
+        self,
+        resolved_credential: dict[str, Any],  # noqa: ARG002
+        timeout_seconds: int,  # noqa: ARG002
+    ) -> ValidateResult:
+        """Run a lightweight connectivity ping against the MCP server.
+
+        # TODO: implement MCP ping when available in langchain-mcp-adapters.
+        # The MCP specification defines a ping utility at
+        # https://modelcontextprotocol.io/specification/2025-03-26/basic/utilities/ping
+        # but it is not yet exposed by the langchain-mcp-adapters library.
+        # For now we return success=True without making a real network call.
+        # When the library exposes a ping method, replace this no-op with an
+        # actual ping call and propagate connection errors properly.
+        """
+        logger.info(
+            "MCP validate (ping no-op — ping not yet available in library)",
+            base_url=self._config.base_url,
+        )
+        return ValidateResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+        )
+
+    async def discover(
         self,
         resolved_credential: dict[str, Any],
         timeout_seconds: int,
-    ) -> HealthCheckResult:
-        """Run a health check against the MCP server.
+    ) -> DiscoverResult:
+        """Discover tools from the MCP server using MCPProvider.refresh_tools().
 
-        Calls the MCP tool listing operation to verify reachability and
-        credential validity. Returns discovered tools on success.
+        Uses MCPProvider (the same code path as _sync_mcp_tools) so we make
+        a single connection to the MCP server rather than two.  The returned
+        DiscoveredTool list includes parameter information, enabling
+        _sync_mcp_tools to perform a full upsert from this result alone.
         """
-        api_key = resolved_credential.get(_MCP_CREDENTIAL_KEY)
-
-        server_config: dict[str, dict[str, Any]] = {
-            "health-check": {
-                "transport": "streamable_http",
-                "url": self._config.base_url,
-            },
-        }
-        if api_key:
-            server_config["health-check"]["headers"] = {
-                "Authorization": f"Bearer {api_key}",
-            }
+        api_key = cast("str | None", resolved_credential.get(_MCP_CREDENTIAL_KEY))
 
         success = True
         error_msg: str | None = None
         error_type: HealthCheckErrorType | None = None
         discovered: list[DiscoveredTool] | None = None
 
+        adapter = MCPProvider(
+            base_url=self._config.base_url,
+            api_key=api_key,
+        )
         try:
-            client = MultiServerMCPClient(server_config)
-            tools = await asyncio.wait_for(
-                client.get_tools(),
-                timeout=timeout_seconds,
-            )
+            tools_metadata = await asyncio.wait_for(adapter.refresh_tools(), timeout=timeout_seconds)
 
-            discovered = [DiscoveredTool(name=t.name, description=getattr(t, "description", None)) for t in tools]
+            discovered = [_tool_to_discovered(t) for t in tools_metadata]
 
-            logger.debug(
-                "MCP health check discovered tools",
-                base_url=self._config.base_url,
-                tools=[{"name": t.name, "description": t.description} for t in discovered],
-            )
             logger.info(
-                "MCP health check succeeded",
+                "MCP discover succeeded",
                 base_url=self._config.base_url,
-                tool_count=len(tools),
+                tool_count=len(discovered),
             )
 
         except* TimeoutError:
@@ -100,18 +116,17 @@ class MCPServerHealthCheck:
             error_msg = f"Connection timed out after {timeout_seconds}s"
             error_type = HealthCheckErrorType.TIMEOUT
             logger.warning(
-                "MCP health check timed out",
+                "MCP discover timed out",
                 base_url=self._config.base_url,
                 timeout_seconds=timeout_seconds,
             )
 
-        # httpx exceptions surface through MultiServerMCPClient's transport layer
         except* HTTPStatusError as eg:
             success = False
             errors = extract_all_exceptions(eg)
             error_type, error_msg = _classify_http_error(errors)
             logger.warning(
-                "MCP health check HTTP error",
+                "MCP discover HTTP error",
                 base_url=self._config.base_url,
                 error_type=error_type.value,
                 status_codes=[e.response.status_code for e in errors if isinstance(e, HTTPStatusError)],
@@ -123,7 +138,7 @@ class MCPServerHealthCheck:
             error_msg = "SSL/TLS verification failed"
             error_type = HealthCheckErrorType.SSL_ERROR
             logger.warning(
-                "MCP health check SSL error",
+                "MCP discover SSL error",
                 base_url=self._config.base_url,
                 error=str(errors[0]),
             )
@@ -134,7 +149,7 @@ class MCPServerHealthCheck:
             error_msg = "Unable to connect to service"
             error_type = HealthCheckErrorType.CONNECTION_ERROR
             logger.warning(
-                "MCP health check connection error",
+                "MCP discover connection error",
                 base_url=self._config.base_url,
                 error=str(errors[0]),
             )
@@ -142,20 +157,47 @@ class MCPServerHealthCheck:
         except* Exception as eg:
             success = False
             errors = extract_all_exceptions(eg)
-            error_msg = "Health check failed unexpectedly"
+            error_msg = "Discovery failed unexpectedly"
             error_type = HealthCheckErrorType.CONNECTION_ERROR
             logger.exception(
-                "Unexpected error during MCP health check",
+                "Unexpected error during MCP discover",
                 base_url=self._config.base_url,
             )
+        finally:
+            await adapter.close()
 
-        return HealthCheckResult(
+        return DiscoverResult(
             success=success,
             checked_at=datetime.now(UTC),
             error=error_msg,
             error_type=error_type,
             discovered_tools=discovered,
         )
+
+
+def _tool_param_to_discovered(param: ToolParameter) -> DiscoveredToolParameter:
+    """Convert a ToolParameter domain object to DiscoveredToolParameter."""
+    return DiscoveredToolParameter(
+        name=param.name,
+        type=str(param.type.value) if hasattr(param.type, "value") else str(param.type),
+        description=param.description or "",
+        required=bool(param.required),
+    )
+
+
+def _tool_to_discovered(tool: object) -> DiscoveredTool:
+    """Convert a Tool domain object returned by MCPProvider.refresh_tools() to DiscoveredTool."""
+    # MCPProvider.refresh_tools() returns nexus.tool_manager.models.tool.Tool objects.
+    # We access fields via getattr to avoid a circular import.
+    name: str = getattr(tool, "name", "")
+    description: str | None = getattr(tool, "description", None)
+    raw_params: list[ToolParameter] | None = getattr(tool, "parameters", None)
+
+    params: list[DiscoveredToolParameter] | None = None
+    if raw_params:
+        params = [_tool_param_to_discovered(p) for p in raw_params]
+
+    return DiscoveredTool(name=name, description=description, parameters=params)
 
 
 def _classify_http_error(
@@ -181,5 +223,5 @@ def _classify_http_error(
 
 register_health_check_adapter(
     IntegrationType.MCP_SERVER,
-    lambda c: MCPServerHealthCheck(cast("MCPServerConfiguration", c)),
+    lambda c: MCPServerHealthCheck(cast("MCPServerConfigurationInput", c)),
 )

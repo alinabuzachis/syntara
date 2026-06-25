@@ -6,7 +6,6 @@ through the complete StateGraph workflow including ToolNode integration.
 
 import asyncio
 from collections.abc import Generator
-from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -15,8 +14,9 @@ import pytest
 from httpx import AsyncClient, HTTPStatusError
 from langchain_core.tools import tool
 
+from nexus.integrations.adapters.mcp_server import MCPServerHealthCheck
+from nexus.integrations.adapters.protocol import ValidateResult
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
-from nexus.tool_manager.models import ToolProviderValidationResult
 from tests.helpers.invocations import wait_for_invocation_execution
 from tests.helpers.tool_manager import wait_for_tool_status
 
@@ -46,14 +46,24 @@ def mock_tool_manager_client(jwt_client: AsyncClient) -> Generator[None, None, N
 
 @pytest.fixture
 def patch_mcp_provider() -> Generator[None, None, None]:
-    """Base fixture that patches MCP provider methods to work without real MCP server."""
+    """Base fixture that patches MCP adapter validate to avoid real MCP server connections.
 
-    async def patched_validate_connection(self) -> ToolProviderValidationResult:
-        """Patched validate_connection that always succeeds for testing."""
-        return ToolProviderValidationResult(valid=True, provider_type="mcp", validated_at=datetime.now(UTC))
+    Only patches validate() (the lightweight ping). The discover() method is NOT patched
+    here so that it exercises the real MCPProvider code path. MCPProvider.get_base_tools()
+    is patched separately in mock_mcp_provider_for_testing.
+    """
 
-    # Patch validate_connection method that's common to all MCP provider tests
-    with patch.object(MCPProvider, "validate_connection", patched_validate_connection):
+    async def patched_validate(
+        self: MCPServerHealthCheck,
+        resolved_credential: dict[str, Any],
+        timeout_seconds: int,
+    ) -> ValidateResult:
+        """Patched validate that always succeeds for testing."""
+        from datetime import UTC, datetime
+
+        return ValidateResult(success=True, checked_at=datetime.now(UTC))
+
+    with patch.object(MCPServerHealthCheck, "validate", patched_validate):
         yield
 
 
@@ -130,34 +140,33 @@ def mock_mcp_provider_with_retry_tools(
         yield
 
 
-async def _create_tool_provider(jwt_client: AsyncClient) -> str:
-    """Create a ToolProvider for testing."""
-    provider_data = {
+async def _create_mcp_integration_and_refresh(jwt_client: AsyncClient) -> str:
+    """Create an MCP server Integration and refresh its tools for testing.
+
+    Replaces the old _create_tool_provider helper.
+    """
+    integration_data = {
         "name": "test-tool-execution",
-        "description": "Test MCP provider for tool execution",
+        "description": "Test MCP integration for tool execution",
+        "integration_type": "mcp_server",
         "configuration": {
-            "provider_type": "mcp",
+            "integration_type": "mcp_server",
             "base_url": "https://somewhere.com",
         },
     }
 
-    # Create provider
-    create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+    # Create integration
+    create_response = await jwt_client.post("/api/v1/integrations", json=integration_data)
     assert create_response.status_code == 201
 
-    provider_id = create_response.json()["id"]
+    integration_id = create_response.json()["id"]
 
-    # Validate provider
-    validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
-    assert validate_response.status_code == 200
-    assert validate_response.json()["valid"] is True
-
-    # Refresh tools
-    refresh_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
+    # Refresh integration — tool sync (populate Tool records from MCPProvider.get_base_tools)
+    refresh_response = await jwt_client.post(f"/api/v1/integrations/{integration_id}/refresh")
     assert refresh_response.status_code == 200
-    assert refresh_response.json()["refreshed_count"] > 0
+    assert refresh_response.json()["tools_synced_count"] > 0
 
-    return str(provider_id)
+    return str(integration_id)
 
 
 class TestToolExecutionWorkflow:
@@ -175,8 +184,8 @@ class TestToolExecutionWorkflow:
         4. LLM intelligently selects and calls appropriate tools
         5. Tool execution results are included in invocation response
         """
-        # Set up ToolProvider
-        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up MCP Integration and refresh tools
+        await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available before creating invocation
         tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
@@ -193,6 +202,7 @@ class TestToolExecutionWorkflow:
         invocation_data = {
             "prompt": "Calculate the sum of 5 and 3 using available tools.",
             "session_id": "test-tool-execution-session",
+            "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
@@ -238,8 +248,8 @@ class TestToolExecutionWorkflow:
         self, auth_client_with_tool_aware_mocked_llm: AsyncClient
     ) -> None:
         """Test that the LLM can intelligently select and execute different tools based on prompts."""
-        # Set up ToolProvider
-        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up MCP Integration and refresh tools
+        await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available
         tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
@@ -254,6 +264,7 @@ class TestToolExecutionWorkflow:
         invocation_data = {
             "prompt": "Please greet me with a hello message using the available tools.",
             "session_id": "test-greeter-execution-session",
+            "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
@@ -321,12 +332,12 @@ class TestToolExecutionWorkflow:
     @pytest.mark.usefixtures("mock_mcp_provider_for_testing")
     async def test_invocation_with_disabled_tools(self, auth_client_with_tool_aware_mocked_llm: AsyncClient) -> None:
         """Test invocation behavior when tools are discovered but disabled."""
-        # Set up ToolProvider
-        provider_id = await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up MCP Integration and refresh tools
+        integration_id = await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Get tools and disable them
         tools_response = await auth_client_with_tool_aware_mocked_llm.get(
-            "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
+            "/api/v1/tool_manager/tools", params={"integration_id[eq]": integration_id}
         )
         assert tools_response.status_code == 200
 
@@ -344,6 +355,7 @@ class TestToolExecutionWorkflow:
         invocation_data = {
             "prompt": f"Use the {tools[0]['name']} tool to calculate something",
             "session_id": "test-disabled-tools-session",
+            "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
@@ -372,8 +384,8 @@ class TestToolExecutionFailureRetryWorkflow:
         self, auth_client_with_tool_aware_mocked_llm: AsyncClient
     ) -> None:
         """Test that the retry mechanism works when a tool fails initially but succeeds on retry."""
-        # Set up ToolProvider
-        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up MCP Integration and refresh tools
+        await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify retry tools are available
         tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
@@ -388,6 +400,7 @@ class TestToolExecutionFailureRetryWorkflow:
         invocation_data = {
             "prompt": "Use the mock_retry_tool to process the message 'test data'.",
             "session_id": "test-retry-mechanism-session",
+            "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
@@ -420,8 +433,8 @@ class TestToolExecutionFailureRetryWorkflow:
         self, auth_client_with_tool_aware_mocked_llm: AsyncClient
     ) -> None:
         """Test that the retry mechanism handles network errors and recovers on retry."""
-        # Set up ToolProvider
-        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up MCP Integration and refresh tools
+        await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify network tool is available
         tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
@@ -436,6 +449,7 @@ class TestToolExecutionFailureRetryWorkflow:
         invocation_data = {
             "prompt": "Use the mock_network_tool to connect to endpoint 'api.example.com'.",
             "session_id": "test-network-retry-session",
+            "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
@@ -468,12 +482,12 @@ class TestToolExecutionFailureRetryWorkflow:
         self, auth_client_with_tool_aware_mocked_llm: AsyncClient
     ) -> None:
         """Test that consistently failing tools are automatically disabled."""
-        # Set up ToolProvider
-        provider_id = await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up MCP Integration and refresh tools
+        integration_id = await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify failing tool is available and enabled initially
         tools_response = await auth_client_with_tool_aware_mocked_llm.get(
-            "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
+            "/api/v1/tool_manager/tools", params={"integration_id[eq]": integration_id}
         )
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
@@ -491,6 +505,7 @@ class TestToolExecutionFailureRetryWorkflow:
         invocation_data = {
             "prompt": "Use the mock_failing_tool to process data 'test input'.",
             "session_id": "test-auto-disable-session",
+            "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)
@@ -549,8 +564,8 @@ class TestToolEventWebSocketStreaming:
         """
         from nexus.core.cache.stream import StreamClient
 
-        # Set up ToolProvider with calculator tool
-        await _create_tool_provider(auth_client_with_tool_aware_mocked_llm)
+        # Set up MCP Integration and refresh tools with calculator tool
+        await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available
         tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
@@ -562,6 +577,7 @@ class TestToolEventWebSocketStreaming:
         invocation_data = {
             "prompt": "Use the calculator to add 5 and 3.",
             "session_id": "test-tool-events-stream-session",
+            "context_data": {"metadata": {"tool_selection_strategy": "ALL"}},
         }
 
         create_response = await auth_client_with_tool_aware_mocked_llm.post("/api/v1/invocations", json=invocation_data)

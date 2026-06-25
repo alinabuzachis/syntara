@@ -126,6 +126,24 @@ def sync_detailed(
 
      List tools with filtering, sorting, and pagination.
 
+    Supports filtering using query parameters with standard operators:
+    - name: Filter by tool name (name=tool_name, name[contains]=text)
+    - enabled: Filter by enabled status (enabled=true|false)
+    - status: Filter by tool status (status=available|missing|error)
+    - integration_id: Filter by integration ID (integration_id=uuid)
+    - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+    Uses cursor-based pagination for scalability and consistency.
+
+    Args:
+        request: FastAPI request object containing query parameters
+        service: Tool service
+        params: Query parameters for pagination and filtering
+
+    Returns:
+        ToolListResponse with tools, pagination metadata, and optional total
+
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
@@ -163,6 +181,24 @@ def sync(
 
      List tools with filtering, sorting, and pagination.
 
+    Supports filtering using query parameters with standard operators:
+    - name: Filter by tool name (name=tool_name, name[contains]=text)
+    - enabled: Filter by enabled status (enabled=true|false)
+    - status: Filter by tool status (status=available|missing|error)
+    - integration_id: Filter by integration ID (integration_id=uuid)
+    - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+    Uses cursor-based pagination for scalability and consistency.
+
+    Args:
+        request: FastAPI request object containing query parameters
+        service: Tool service
+        params: Query parameters for pagination and filtering
+
+    Returns:
+        ToolListResponse with tools, pagination metadata, and optional total
+
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
@@ -197,6 +233,24 @@ async def asyncio_detailed(
     """Get Tools
 
      List tools with filtering, sorting, and pagination.
+
+    Supports filtering using query parameters with standard operators:
+    - name: Filter by tool name (name=tool_name, name[contains]=text)
+    - enabled: Filter by enabled status (enabled=true|false)
+    - status: Filter by tool status (status=available|missing|error)
+    - integration_id: Filter by integration ID (integration_id=uuid)
+    - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+    Uses cursor-based pagination for scalability and consistency.
+
+    Args:
+        request: FastAPI request object containing query parameters
+        service: Tool service
+        params: Query parameters for pagination and filtering
+
+    Returns:
+        ToolListResponse with tools, pagination metadata, and optional total
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.
@@ -235,6 +289,24 @@ async def asyncio(
     """Get Tools
 
      List tools with filtering, sorting, and pagination.
+
+    Supports filtering using query parameters with standard operators:
+    - name: Filter by tool name (name=tool_name, name[contains]=text)
+    - enabled: Filter by enabled status (enabled=true|false)
+    - status: Filter by tool status (status=available|missing|error)
+    - integration_id: Filter by integration ID (integration_id=uuid)
+    - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+    - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+    Uses cursor-based pagination for scalability and consistency.
+
+    Args:
+        request: FastAPI request object containing query parameters
+        service: Tool service
+        params: Query parameters for pagination and filtering
+
+    Returns:
+        ToolListResponse with tools, pagination metadata, and optional total
 
     Args:
         limit (int | Unset): Maximum number of results per page Default: 20.

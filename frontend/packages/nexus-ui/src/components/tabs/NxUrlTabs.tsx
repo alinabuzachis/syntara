@@ -1,6 +1,7 @@
 import { Tabs, type TabsProps } from '@patternfly/react-core'
 import React, { useEffect, useId } from 'react'
 
+import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useUrlTab } from '../../hooks/useUrlTab'
 
@@ -20,6 +21,11 @@ type UrlTabsProps = Omit<TabsProps, 'activeKey' | 'onSelect' | 'ref' | 'children
    * Use for pages whose tabs are loaded dynamically (e.g. from an API).
    */
   validTabs?: string[]
+  /**
+   * When true, tab switches go through the `requestNavigation` unsaved-changes guard
+   * instead of navigating directly. Use on pages where a tab may have unsaved state.
+   */
+  guardUnsavedChanges?: boolean
   /**
    * Optional callback to render the active tab's content inside a proper `role="tabpanel"` wrapper.
    *
@@ -44,11 +50,11 @@ export function NxUrlTabs({
   defaultTab = 'details',
   validTabs,
   children,
+  guardUnsavedChanges,
   renderPanel,
   ...tabsProps
 }: UrlTabsProps) {
   const uid = useId()
-  // eslint-disable-next-line reactYouMightNotNeedAnEffect/no-event-handler -- basePath/defaultTab are URL segments, not handler props; goToTab is the intended navigation wrapper for this hook
   const [activeTab, goToTab] = useUrlTab(basePath, defaultTab)
   const setLocation = useNavigate()
 
@@ -74,8 +80,14 @@ export function NxUrlTabs({
     return () => globalThis.removeEventListener('popstate', blurStaleTab)
   }, [])
 
+  const { requestNavigation } = useUnsavedChanges()
+
   const handleSelect = (_event: React.MouseEvent<HTMLElement, MouseEvent>, key: string | number) => {
-    goToTab(String(key))
+    if (guardUnsavedChanges) {
+      requestNavigation(`${basePath}/${String(key)}`)
+    } else {
+      goToTab(String(key))
+    }
   }
 
   // Classify each Tab child. Tabs that already have their own panel content (children prop set) let

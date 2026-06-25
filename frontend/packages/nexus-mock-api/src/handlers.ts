@@ -6,18 +6,15 @@ import type * as ApprovalsAPI from '@ansible/nexus-contracts/src/approvals-api.j
 import type * as ExecutionsAPI from '@ansible/nexus-contracts/src/executions-api.js'
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
 import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
-import type {
-  Approval,
-  Tool,
-  ToolProvider,
-  ToolProviderCreate,
-  ToolProvidersResponse,
-  WorkflowWithVersion,
-  WorkflowsResponse,
+import type { Approval, Tool, WorkflowWithVersion, WorkflowsResponse } from '@ansible/nexus-contracts'
+import {
+  ExecutionStatusEnum,
+  IntegrationStatusEnum,
+  IntegrationTypeEnum,
+  WorkflowVersionStatusEnum,
 } from '@ansible/nexus-contracts'
-import { ExecutionStatusEnum, WorkflowVersionStatusEnum } from '@ansible/nexus-contracts'
 import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
-import { providers } from './resources/providers'
+import { integrations } from './resources/integrations'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
 import { executions } from './resources/executions'
@@ -58,9 +55,6 @@ import {
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
-/** Mock adds limit/has_more beyond OpenAPI ResourcesResponseBase */
-type ToolProvidersListBody = ToolProvidersResponse & { limit: number; has_more: boolean }
-type ExecutionsResponse = ExecutionsAPI.paths['/executions']['get']['responses']['200']['content']['application/json']
 type ApprovalsResponse = ApprovalsAPI.paths['/approvals']['get']['responses']['200']['content']['application/json']
 type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
 type UpdateWorkflowBody =
@@ -143,11 +137,6 @@ function getUsernameFromRequest(request: Request): string {
   }
 
   return 'admin'
-}
-
-function matchesProviderType(provider: ToolProvider, providerType: string): boolean {
-  const cfg = provider.configuration as unknown as { provider_type?: string }
-  return cfg.provider_type === providerType
 }
 
 const randomCharacters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -291,150 +280,26 @@ function createExecutionNotFoundResponse(executionId: string, subPath?: string) 
 }
 
 export const handlers = [
-  http.get('/api/v1/tool_manager/tool_providers', ({ request }) => {
-    const url = new URL(request.url)
-    const nameContains = url.searchParams.get('name[contains]')
-    const status = url.searchParams.get('status')
-    const providerType = url.searchParams.get('provider_type')
-    const cursor = url.searchParams.get('cursor')
-    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
-    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
-    const includeTotal = url.searchParams.get('include_total') === 'true'
-
-    let resources = providers
-
-    // Apply name filter
-    if (nameContains) {
-      const searchTerm = nameContains.toLowerCase()
-      resources = resources.filter((p) => (p.name ?? '').toLowerCase().includes(searchTerm))
-    }
-
-    // Apply status filter
-    if (status) {
-      resources = resources.filter((p) => p.status === status)
-    }
-
-    // Apply provider_type filter
-    if (providerType) {
-      resources = resources.filter((p) => matchesProviderType(p, providerType))
-    }
-
-    // Paginate results
-    const startIndex = parseCursor(cursor)
-    const paginated = resources.slice(startIndex, startIndex + limit)
-    const { next, prev } = generateCursors(startIndex, limit, resources.length)
-
-    const body: ToolProvidersListBody = {
-      resources: paginated,
-      limit,
-      has_more: !!next,
-      next,
-      prev,
-      ...(includeTotal && { total: resources.length }),
-    }
-    return HttpResponse.json(body)
-  }),
-  http.post('/api/v1/tool_manager/tool_providers', async (req) => {
-    const payload = (await req.request.json()) as ToolProviderCreate
-    const now = new Date().toISOString()
-    const id = (providers.length + 1).toString()
-    const toolNumber = randomIntRange(1, 31)
-    for (let i = 0; i < toolNumber; i++) {
-      const toolName = 'Tool' + randomString(6)
-      const newTool: Tool = {
-        id: (tools.length + 1).toString(),
-        name: toolName,
-        namespaced_name: toolName,
-        description: 'This is a description for ' + toolName,
-        enabled: true,
-        status: 'available',
-        last_refreshed_at: new Date().toISOString(),
-        provider_id: id,
-        parameters: [],
-        created_at: now,
-        updated_at: now,
-        created_by: 'user-1',
-        deleted_at: null,
-        deleted_by: null,
-        updated_by: null,
-        labels: {},
-      }
-      tools.push(newTool)
-    }
-    const newToolProvider = {
-      id,
-      name: payload.name,
-      description: payload.description ?? null,
-      configuration: payload.configuration as unknown as ToolProvider['configuration'],
-      status: 'available' as const,
-      enabled: true,
-      created_at: now,
-      updated_at: now,
-      created_by: 'user-1',
-      deleted_at: null,
-      deleted_by: null,
-      updated_by: null,
-      labels: {},
-      tool_count: toolNumber,
-    } as ToolProvider
-    providers.push(newToolProvider)
-    return HttpResponse.json(newToolProvider, { status: 201 })
-  }),
-
-  http.get('/api/v1/tool_manager/tool_providers/:provider_id', (request) => {
-    const providerId = request?.params?.provider_id
-    const providerList = providers
-
-    const body = providerList.find((p) => p.id === providerId)
-    if (!body) {
-      return HttpResponse.json(
-        {
-          type: 'https://api.nexus.com/errors/provider-not-found',
-          title: 'Provider Not Found',
-          detail: `Integration with id '${providerId}' not found`,
-          code: 'PROVIDER_NOT_FOUND',
-          retryable: false,
-          instance: `/api/v1/tool_manager/tool_providers/${providerId}`,
-        },
-        { status: 404 }
-      )
-    }
-    return HttpResponse.json(body)
-  }),
-
   http.get('/api/v1/tool_manager/tools', ({ request }) => {
     const url = new URL(request.url)
-    const provider_id = url.searchParams.get('provider_id')
+    const integration_id = url.searchParams.get('integration_id')
+    const statusFilter = url.searchParams.get('status')
+    const enabledParam = url.searchParams.get('enabled')
     const cursor = url.searchParams.get('cursor')
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
-    const filtered = provider_id ? tools.filter((t) => t.provider_id === provider_id) : tools
+    let filtered = tools
+    if (integration_id) {
+      filtered = filtered.filter((t) => t.integration_id === integration_id)
+    }
+    if (statusFilter) filtered = filtered.filter((t) => t.status === statusFilter)
+    if (enabledParam !== null) {
+      const enabled = enabledParam === 'true'
+      filtered = filtered.filter((t) => t.enabled === enabled)
+    }
     const body: ToolsResponse = paginate(filtered, cursor, limit, includeTotal)
     return HttpResponse.json(body)
-  }),
-
-  http.delete('/api/v1/tool_manager/tool_providers/:provider_id', (request) => {
-    const providerId = request.params.provider_id as string
-    const index = providers.findIndex((p) => p.id === providerId)
-    if (index === -1) {
-      return HttpResponse.json(
-        {
-          type: 'https://api.nexus.com/errors/provider-not-found',
-          title: 'Provider Not Found',
-          detail: `Integration with id '${providerId}' not found`,
-          code: 'PROVIDER_NOT_FOUND',
-          retryable: false,
-          instance: `/api/v1/tool_manager/tool_providers/${providerId}`,
-        },
-        { status: 404 }
-      )
-    }
-    providers.splice(index, 1)
-    for (let i = tools.length - 1; i >= 0; i--) {
-      if (tools[i].provider_id === providerId) tools.splice(i, 1)
-    }
-    return new HttpResponse(null, { status: 204 })
   }),
 
   http.patch('/api/v1/tool_manager/tools/bulk_update', async (req) => {
@@ -446,6 +311,180 @@ export const handlers = [
       })
     }
     return HttpResponse.json({}, { status: 201 })
+  }),
+
+  // ── Integrations ──────────────────────────────────────────────────────────
+
+  http.get('/api/v1/integrations', ({ request }) => {
+    const url = new URL(request.url)
+    const nameContains = url.searchParams.get('name[contains]')
+    const integrationType = url.searchParams.get('integration_type')
+    const validationStatus = url.searchParams.get('validation_status')
+    const enabledParam = url.searchParams.get('enabled')
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '20', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let filtered = integrations
+    if (nameContains) {
+      const lower = nameContains.toLowerCase()
+      filtered = filtered.filter((i) => (i.name ?? '').toLowerCase().includes(lower))
+    }
+    if (integrationType) {
+      filtered = filtered.filter((i) => i.integration_type === integrationType)
+    }
+    if (validationStatus) {
+      filtered = filtered.filter((i) => i.validation_status === validationStatus)
+    }
+    if (enabledParam !== null) {
+      const enabled = enabledParam === 'true'
+      filtered = filtered.filter((i) => i.enabled === enabled)
+    }
+
+    return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
+  }),
+
+  http.get('/api/v1/integrations/:integration_id', ({ params }) => {
+    const integration = integrations.find((i) => i.id === params.integration_id)
+    if (!integration) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/not-found',
+          title: 'Not Found',
+          detail: `Integration ${params.integration_id as string} not found`,
+          code: 'NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(integration)
+  }),
+
+  http.post('/api/v1/integrations', async (req) => {
+    const body = (await req.request.json()) as Record<string, unknown>
+    const now = new Date().toISOString()
+    const integrationId = uuidv4()
+
+    const discoveredTools = body.discovered_tools as
+      | Array<{ name: string; description?: string; enabled?: boolean }>
+      | undefined
+    let enabledCount = 0
+    if (discoveredTools && discoveredTools.length > 0) {
+      for (const dt of discoveredTools) {
+        const enabled = dt.enabled !== false
+        if (enabled) enabledCount++
+        tools.push({
+          id: uuidv4(),
+          name: dt.name,
+          namespaced_name: dt.name,
+          integration_id: integrationId,
+          enabled,
+          parameters: [],
+          created_at: now,
+          updated_at: now,
+        } as Tool)
+      }
+    }
+
+    const newIntegration = {
+      id: integrationId,
+      name: body.name ?? '',
+      description: body.description ?? null,
+      integration_type: body.integration_type ?? 'mcp_server',
+      enabled: true,
+      validation_status: 'unknown',
+      scope: body.scope ?? 'global',
+      configuration: body.configuration ?? { integration_type: 'mcp_server', base_url: '' },
+      management_credential_id: (body.management_credential_id as string) ?? null,
+      last_validated_at: null,
+      validation_error: null,
+      refresh_status: null,
+      last_refreshed_at: null,
+      refresh_error: null,
+      total_tool_count: discoveredTools?.length ?? 0,
+      enabled_tool_count: enabledCount,
+      created_at: now,
+      updated_at: now,
+      created_by: 'user-1',
+      updated_by: null,
+      deleted_at: null,
+      deleted_by: null,
+      labels: {},
+    }
+    integrations.push(newIntegration as (typeof integrations)[number])
+    return HttpResponse.json(newIntegration, { status: 201 })
+  }),
+
+  http.patch('/api/v1/integrations/:integration_id', async (req) => {
+    const integration = integrations.find((i) => i.id === req.params.integration_id)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    const body = (await req.request.json()) as Record<string, unknown>
+    Object.assign(integration, body, { updated_at: new Date().toISOString() })
+    return HttpResponse.json(integration)
+  }),
+
+  http.delete('/api/v1/integrations/:integration_id', ({ params }) => {
+    const index = integrations.findIndex((i) => i.id === params.integration_id)
+    if (index === -1) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    integrations.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post('/api/v1/integrations/discover', () => {
+    return HttpResponse.json({
+      success: true,
+      checked_at: new Date().toISOString(),
+      error: null,
+      discovered_tools: [
+        { name: 'get_repo', description: 'Get repository details', parameters: [] },
+        { name: 'create_pr', description: 'Create a pull request', parameters: [] },
+        { name: 'list_issues', description: 'List repository issues', parameters: [] },
+      ],
+    })
+  }),
+
+  http.post('/api/v1/integrations/:integration_id/validate', ({ params }) => {
+    const integration = integrations.find((i) => i.id === params.integration_id)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    integration.validation_status = 'available'
+    integration.last_validated_at = new Date().toISOString()
+    integration.validation_error = null
+    return HttpResponse.json({ success: true, checked_at: new Date().toISOString(), error: null })
+  }),
+
+  http.post('/api/v1/integrations/:integration_id/refresh', ({ params }) => {
+    const integration = integrations.find((i) => i.id === params.integration_id)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.nexus.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    integration.refresh_status = 'available'
+    integration.last_refreshed_at = new Date().toISOString()
+    integration.refresh_error = null
+    return HttpResponse.json({
+      tools_synced_count: 0,
+      tools_updated_count: 0,
+      tools_disabled_count: 0,
+      refreshed_at: new Date().toISOString(),
+    })
   }),
 
   http.get('/api/v1/workflows', ({ request }) => {
@@ -553,6 +592,59 @@ export const handlers = [
 
     workflows.push(createdWorkflow)
     return HttpResponse.json(createdWorkflow, { status: 201 })
+  }),
+
+  http.post('/api/v1/workflows/validate', async (req) => {
+    const body = (await req.request.json()) as {
+      workflow_definition?: {
+        nodes?: Array<{ id?: string }>
+        edges?: unknown[]
+        triggers?: unknown[]
+      }
+    }
+    const definition = body.workflow_definition
+    if (!definition) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: 'workflow_definition is required',
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+        },
+        { status: 400 }
+      )
+    }
+
+    const errors: Array<{ message: string; node_id: string | null }> = []
+    if (!Array.isArray(definition.triggers) || definition.triggers.length === 0) {
+      errors.push({ message: 'Workflow must have at least one trigger', node_id: null })
+    }
+    if (!Array.isArray(definition.nodes) || definition.nodes.length === 0) {
+      errors.push({ message: 'Workflow must have at least one node', node_id: null })
+    }
+    if (!Array.isArray(definition.edges) || definition.edges.length === 0) {
+      errors.push({
+        message: 'Workflow must have at least one edge connecting a trigger to a node',
+        node_id: null,
+      })
+    }
+
+    // Flag the first node as having an invalid configuration to exercise per-node error badges
+    const nodes = definition.nodes ?? []
+    if (nodes.length > 0 && nodes[0].id) {
+      errors.push({ message: 'Node configuration is incomplete', node_id: nodes[0].id })
+    }
+
+    if (errors.length > 0) {
+      return HttpResponse.json({
+        valid: false,
+        errors,
+        warnings: [],
+      })
+    }
+
+    return HttpResponse.json({ valid: true, errors: [], warnings: [] })
   }),
 
   http.get('/api/v1/workflows/:workflowId', (request) => {
@@ -968,7 +1060,7 @@ export const handlers = [
     )
 
     if (include.size === 0) {
-      const { activities: _a, workflow_definition: _w, ...summary } = detail
+      const summary = { ...detail, activities: undefined, workflow_definition: undefined }
       return HttpResponse.json(summary)
     }
 
@@ -1044,7 +1136,7 @@ export const handlers = [
     const limit = Math.min(Math.max(1, limitParam ? parseInt(limitParam, 10) : 50), 100)
 
     // Filter approvals
-    let filtered = approvals.filter((a) => {
+    const filtered = approvals.filter((a) => {
       if (status && a.status !== status) return false
       if (project_id) {
         const approvalData = a as unknown as { project_id?: string | null }
@@ -1358,7 +1450,7 @@ export const handlers = [
     const includeTotal = url.searchParams.get('include_total') === 'true'
     const sort = url.searchParams.get('sort')
 
-    let resources = [...identityProviders]
+    const resources = [...identityProviders]
 
     if (sort) {
       const isDesc = sort.startsWith('-')
@@ -1434,7 +1526,9 @@ export const handlers = [
     }
 
     const now = new Date().toISOString()
-    const { client_secret: _stripped, ...safeConfig } = (body.configuration ?? {}) as Record<string, unknown>
+    const safeConfig = Object.fromEntries(
+      Object.entries((body.configuration ?? {}) as Record<string, unknown>).filter(([key]) => key !== 'client_secret')
+    )
     const provider: IdentityProvider = {
       id: uuidv4(),
       name: body.name,
@@ -1528,8 +1622,9 @@ export const handlers = [
     const index = identityProviders.indexOf(provider)
     let patchedConfig = body.configuration !== undefined ? mergedConfiguration : undefined
     if (patchedConfig) {
-      const { client_secret: _stripped, ...safeConfig } = patchedConfig as Record<string, unknown>
-      patchedConfig = safeConfig as typeof body.configuration
+      patchedConfig = Object.fromEntries(
+        Object.entries(patchedConfig as Record<string, unknown>).filter(([key]) => key !== 'client_secret')
+      ) as typeof body.configuration
     }
     const updated: IdentityProvider = {
       ...provider,
@@ -3774,7 +3869,6 @@ export const handlers = [
 
   http.get('*/aap/job_templates', ({ request }) => {
     const url = new URL(request.url)
-    const credentialId = url.searchParams.get('credential_id')
     const org = url.searchParams.get('organization')
     const search = url.searchParams.get('search')?.toLowerCase()
 
@@ -3819,7 +3913,6 @@ export const handlers = [
 
   http.get('*/aap/workflow_job_templates', ({ request }) => {
     const url = new URL(request.url)
-    const credentialId = url.searchParams.get('credential_id')
     const org = url.searchParams.get('organization')
     const search = url.searchParams.get('search')?.toLowerCase()
 
@@ -3835,7 +3928,6 @@ export const handlers = [
 
   http.get('*/aap/inventories', ({ request }) => {
     const url = new URL(request.url)
-    const credentialId = url.searchParams.get('credential_id')
     const org = url.searchParams.get('organization')
     const search = url.searchParams.get('search')?.toLowerCase()
 
@@ -3851,7 +3943,6 @@ export const handlers = [
 
   http.get('*/aap/execution_environments', ({ request }) => {
     const url = new URL(request.url)
-    const credentialId = url.searchParams.get('credential_id')
     const search = url.searchParams.get('search')?.toLowerCase()
 
     const validationError = validateCredentialId(url)
@@ -3865,7 +3956,6 @@ export const handlers = [
 
   http.get('*/aap/credentials', ({ request }) => {
     const url = new URL(request.url)
-    const credentialId = url.searchParams.get('credential_id')
     const search = url.searchParams.get('search')?.toLowerCase()
 
     const validationError = validateCredentialId(url)
@@ -3899,7 +3989,6 @@ export const handlers = [
 
   http.get('*/aap/instance_groups', ({ request }) => {
     const url = new URL(request.url)
-    const credentialId = url.searchParams.get('credential_id')
     const search = url.searchParams.get('search')?.toLowerCase()
 
     const validationError = validateCredentialId(url)
@@ -3934,6 +4023,7 @@ export const handlers = [
       'write',
       'assign',
       'revoke',
+      'execute',
       'manage-members',
       'attach',
       'detach',
@@ -3972,20 +4062,6 @@ export const handlers = [
       if (WRITE_ACTIONS.has(action)) {
         allowed = false
       } else if (resourceType === 'user_identity') {
-        allowed = false
-      }
-    } else if (username === 'user') {
-      const deniedResources = new Set([
-        'project',
-        'role-assignment',
-        'setting',
-        'identity-provider',
-        'audit',
-        'user_identity',
-      ])
-      if (WRITE_ACTIONS.has(action)) {
-        allowed = false
-      } else if (deniedResources.has(resourceType)) {
         allowed = false
       }
     }

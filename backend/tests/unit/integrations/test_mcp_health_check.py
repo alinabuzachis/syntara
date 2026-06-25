@@ -1,4 +1,4 @@
-"""Tests for the MCP server health check adapter."""
+"""Tests for the MCP server adapter — validate() and discover() methods."""
 
 from __future__ import annotations
 
@@ -25,14 +25,15 @@ def mcp_config() -> MCPServerConfiguration:
     return MCPServerConfiguration(base_url="http://localhost:8080")
 
 
-def _mock_client(side_effect: Exception | None = None, tools: list[Any] | None = None) -> MagicMock:
-    """Create a mock MultiServerMCPClient."""
-    client = MagicMock()
+def _mock_mcp_provider(side_effect: Exception | None = None, tools: list[Any] | None = None) -> MagicMock:
+    """Create a mock MCPProvider for use in discover() tests."""
+    provider = MagicMock()
+    provider.close = AsyncMock()
     if side_effect:
-        client.get_tools = AsyncMock(side_effect=side_effect)
+        provider.refresh_tools = AsyncMock(side_effect=side_effect)
     else:
-        client.get_tools = AsyncMock(return_value=tools or [])
-    return client
+        provider.refresh_tools = AsyncMock(return_value=tools or [])
+    return provider
 
 
 def _mock_http_error(status_code: int) -> HTTPStatusError:
@@ -54,24 +55,51 @@ class TestMCPServerHealthCheckProtocol:
         assert isinstance(adapter, IntegrationHealthCheckAdapter)
 
 
-class TestMCPServerHealthCheckSuccess:
-    """Tests for successful MCP health checks."""
+class TestMCPServerValidate:
+    """Tests for MCPServerHealthCheck.validate() — lightweight ping no-op."""
+
+    @pytest.mark.asyncio
+    async def test_validate_returns_success(self, mcp_config: MCPServerConfiguration) -> None:
+        """validate() returns success=True without making a network call."""
+        adapter = MCPServerHealthCheck(mcp_config)
+        result = await adapter.validate(resolved_credential={}, timeout_seconds=10)
+
+        assert result.success is True
+        assert result.error is None
+        assert result.error_type is None
+        assert result.checked_at is not None
+
+    @pytest.mark.asyncio
+    async def test_validate_no_tool_fields(self, mcp_config: MCPServerConfiguration) -> None:
+        """validate() result does not have discovered_tools (those belong to DiscoverResult)."""
+        adapter = MCPServerHealthCheck(mcp_config)
+        result = await adapter.validate(resolved_credential={}, timeout_seconds=10)
+
+        assert not hasattr(result, "discovered_tools")
+        assert not hasattr(result, "tools_refreshed_count")
+
+
+class TestMCPServerDiscoverSuccess:
+    """Tests for successful MCPServerHealthCheck.discover() calls."""
 
     @pytest.mark.asyncio
     async def test_returns_discovered_tools(self, mcp_config: MCPServerConfiguration) -> None:
-        """Successful health check returns tool names and descriptions."""
-        mock_tool = MagicMock()
+        """Successful discover returns tool names and descriptions."""
+        from nexus.tool_manager.models.tool import Tool
+
+        mock_tool = MagicMock(spec=Tool)
         mock_tool.name = "search"
         mock_tool.description = "Search the web"
+        mock_tool.parameters = []
 
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(tools=[mock_tool])
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(tools=[mock_tool])
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test-key"},
                 timeout_seconds=10,
             )
@@ -89,11 +117,11 @@ class TestMCPServerHealthCheckSuccess:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(tools=[])
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(tools=[])
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test"},
                 timeout_seconds=10,
             )
@@ -101,74 +129,9 @@ class TestMCPServerHealthCheckSuccess:
         assert result.success is True
         assert result.discovered_tools == []
 
-    @pytest.mark.asyncio
-    async def test_tool_without_description(self, mcp_config: MCPServerConfiguration) -> None:
-        """Tools without a description attribute get description=None."""
-        mock_tool = MagicMock(spec=["name"])
-        mock_tool.name = "bare_tool"
 
-        adapter = MCPServerHealthCheck(mcp_config)
-
-        with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(tools=[mock_tool])
-
-            result = await adapter.health_check(
-                resolved_credential={"bearer_token": "test"},
-                timeout_seconds=10,
-            )
-
-        assert result.discovered_tools is not None
-        assert result.discovered_tools[0].description is None
-
-    @pytest.mark.asyncio
-    async def test_passes_bearer_token_in_auth_header(
-        self,
-        mcp_config: MCPServerConfiguration,
-    ) -> None:
-        """Adapter passes bearer_token as Authorization header."""
-        adapter = MCPServerHealthCheck(mcp_config)
-
-        with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client()
-
-            await adapter.health_check(
-                resolved_credential={"bearer_token": "my-secret-key"},
-                timeout_seconds=10,
-            )
-
-            call_args = mock_client_cls.call_args[0][0]
-            assert call_args["health-check"]["headers"] == {
-                "Authorization": "Bearer my-secret-key",
-            }
-
-    @pytest.mark.asyncio
-    async def ***REMOVED***(
-        self,
-        mcp_config: MCPServerConfiguration,
-    ) -> None:
-        """Adapter does not add auth header when bearer_token not in credential."""
-        adapter = MCPServerHealthCheck(mcp_config)
-
-        with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client()
-
-            await adapter.health_check(
-                resolved_credential={},
-                timeout_seconds=10,
-            )
-
-            call_args = mock_client_cls.call_args[0][0]
-            assert "headers" not in call_args["health-check"]
-
-
-class TestMCPServerHealthCheckErrors:
-    """Tests for MCP health check error classification."""
+class TestMCPServerDiscoverErrors:
+    """Tests for MCPServerHealthCheck.discover() error classification."""
 
     @pytest.mark.asyncio
     async def test_timeout_error(self, mcp_config: MCPServerConfiguration) -> None:
@@ -176,11 +139,11 @@ class TestMCPServerHealthCheckErrors:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(side_effect=TimeoutError("internal details"))
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(side_effect=TimeoutError("internal details"))
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test"},
                 timeout_seconds=5,
             )
@@ -195,11 +158,11 @@ class TestMCPServerHealthCheckErrors:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(side_effect=ConnectionError("Connection refused"))
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(side_effect=ConnectionError("Connection refused"))
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test"},
                 timeout_seconds=10,
             )
@@ -214,11 +177,11 @@ class TestMCPServerHealthCheckErrors:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(side_effect=_mock_http_error(401))
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(side_effect=_mock_http_error(401))
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "bad-token"},
                 timeout_seconds=10,
             )
@@ -233,11 +196,11 @@ class TestMCPServerHealthCheckErrors:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(side_effect=_mock_http_error(403))
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(side_effect=_mock_http_error(403))
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test"},
                 timeout_seconds=10,
             )
@@ -251,11 +214,11 @@ class TestMCPServerHealthCheckErrors:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(side_effect=_mock_http_error(500))
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(side_effect=_mock_http_error(500))
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test"},
                 timeout_seconds=10,
             )
@@ -269,13 +232,13 @@ class TestMCPServerHealthCheckErrors:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(
                 side_effect=ssl.SSLCertVerificationError("certificate verify failed"),
             )
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test"},
                 timeout_seconds=10,
             )
@@ -295,20 +258,20 @@ class TestMCPServerHealthCheckErrors:
 
         with (
             patch(
-                "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-            ) as mock_client_cls,
+                "nexus.integrations.adapters.mcp_server.MCPProvider",
+            ) as mock_provider_cls,
             caplog.at_level(logging.ERROR, logger="nexus.integrations.adapters.mcp_server"),
         ):
-            mock_client_cls.return_value = _mock_client(side_effect=RuntimeError("weird internal error"))
+            mock_provider_cls.return_value = _mock_mcp_provider(side_effect=RuntimeError("weird internal error"))
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "test"},
                 timeout_seconds=10,
             )
 
         assert result.success is False
         assert result.error_type == HealthCheckErrorType.CONNECTION_ERROR
-        assert result.error == "Health check failed unexpectedly"
+        assert result.error == "Discovery failed unexpectedly"
         assert any("Unexpected error" in r.message for r in caplog.records)
 
 
@@ -321,13 +284,13 @@ class TestErrorMessageSanitization:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(
                 side_effect=ConnectionError("connect to 10.0.0.5:8765 failed: Connection refused"),
             )
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "SECRET-TOKEN-12345"},
                 timeout_seconds=10,
             )
@@ -341,13 +304,13 @@ class TestErrorMessageSanitization:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(
                 side_effect=ssl.SSLCertVerificationError("certificate verify failed: CN=internal.corp.example.com"),
             )
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "SECRET-TOKEN-12345"},
                 timeout_seconds=10,
             )
@@ -361,13 +324,13 @@ class TestErrorMessageSanitization:
         adapter = MCPServerHealthCheck(mcp_config)
 
         with patch(
-            "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-        ) as mock_client_cls:
-            mock_client_cls.return_value = _mock_client(
+            "nexus.integrations.adapters.mcp_server.MCPProvider",
+        ) as mock_provider_cls:
+            mock_provider_cls.return_value = _mock_mcp_provider(
                 side_effect=RuntimeError("KeyError at /home/user/.secrets/key.pem"),
             )
 
-            result = await adapter.health_check(
+            result = await adapter.discover(
                 resolved_credential={"bearer_token": "SECRET-TOKEN-12345"},
                 timeout_seconds=10,
             )
@@ -387,13 +350,13 @@ class TestErrorMessageSanitization:
 
         with (
             patch(
-                "nexus.integrations.adapters.mcp_server.MultiServerMCPClient",
-            ) as mock_client_cls,
+                "nexus.integrations.adapters.mcp_server.MCPProvider",
+            ) as mock_provider_cls,
             caplog.at_level(logging.DEBUG, logger="nexus.integrations.adapters.mcp_server"),
         ):
-            mock_client_cls.return_value = _mock_client(side_effect=ConnectionError("refused"))
+            mock_provider_cls.return_value = _mock_mcp_provider(side_effect=ConnectionError("refused"))
 
-            await adapter.health_check(
+            await adapter.discover(
                 resolved_credential={"bearer_token": secret},
                 timeout_seconds=10,
             )

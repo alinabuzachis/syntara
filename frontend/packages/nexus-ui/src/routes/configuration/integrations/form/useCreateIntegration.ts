@@ -1,103 +1,66 @@
-import type { ToolProviderCreate } from '@ansible/nexus-contracts'
 import { useCallback } from 'react'
 
 import { AppRoute } from '../../../../app/AppRoute'
-import { toolManagerClient } from '../../../../client'
+import { integrationsClient } from '../../../../client'
 import { navigate } from '../../../../hooks/routing/navigate'
 import type { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 
+import type { IntegrationFormData } from './integrationFormSchema'
+
 type UseCreateIntegrationOptions = {
-  /** Error handler from useFormMutationErrorHandler */
   handleError: ReturnType<typeof useFormMutationErrorHandler>
 }
 
 /**
- * Encapsulates the create → validate → refresh → navigate workflow for integration creation.
+ * Encapsulates the create → navigate workflow for integration creation.
  *
- * Handles the complex mutation chain:
- * 1. Create integration
- * 2. Validate the created integration
- * 3. Refresh tools if validation succeeds
- * 4. Navigate back to list
- *
- * This pattern extracts nested mutation callbacks to reduce cognitive complexity
- * and improve testability.
- *
- * @example
- * ```tsx
- * const handleError = useFormMutationErrorHandler(setError)
- * const createIntegration = useCreateIntegration({ handleError })
- *
- * const onSubmit = (formData: IntegrationFormData) => {
- *   createIntegration(formData)
- * }
- * ```
+ * Creates the integration via POST /integrations and navigates back to the
+ * list. No post-save validation — the admin already tested the connection
+ * in the wizard's step 2.
  */
+type InitialToolSelection = {
+  name: string
+  description?: string | null
+  enabled: boolean
+  parameters?: Record<string, unknown>[] | null
+}
+
 export function useCreateIntegration({ handleError }: UseCreateIntegrationOptions) {
-  const { mutate: createIntegration } = toolManagerClient.useMutation('post', '/tool_manager/tool_providers')
-  const { mutate: validateIntegration } = toolManagerClient.useMutation(
-    'post',
-    '/tool_manager/tool_providers/{provider_id}/validate'
-  )
-  const { mutate: refreshTools } = toolManagerClient.useMutation(
-    'post',
-    '/tool_manager/tool_providers/{provider_id}/refresh_tools'
-  )
+  const { mutate: createIntegration } = integrationsClient.useMutation('post', '/integrations')
   const { showAlert } = useAlerts()
 
   return useCallback(
-    (formData: ToolProviderCreate & { name: string }) => {
+    (formData: IntegrationFormData, discoveredTools?: InitialToolSelection[]) => {
       const context = formData.name ? `Integration "${formData.name}"` : undefined
       const navigateToList = () => navigate(AppRoute.Configuration.Integrations.Root)
 
       createIntegration(
-        { body: formData },
         {
-          onSuccess: (data) => {
-            const providerId = data.id
-            if (!providerId) {
-              handleError({ title: 'Integration created, but missing ID', context })(
-                new Error('Provider ID not returned from API')
-              )
-              navigateToList()
-              return
-            }
-
-            validateIntegration(
-              { params: { path: { provider_id: providerId } } },
-              {
-                onError: (error) => {
-                  handleError({ title: 'Integration created, but validation failed', context })(error)
-                  navigateToList()
-                },
-                onSuccess: (validationResult) => {
-                  if (validationResult.valid) {
-                    refreshTools(
-                      { params: { path: { provider_id: providerId } } },
-                      {
-                        onError: handleError({ title: 'Integration created, but refreshing tools failed', context }),
-                        onSettled: navigateToList,
-                      }
-                    )
-                    return
-                  }
-
-                  showAlert({
-                    title: 'Integration created, but validation failed',
-                    description: validationResult.error ?? `Provider "${formData.name}" could not be validated.`,
-                    variant: 'error',
-                    autoDismiss: true,
-                  })
-                  navigateToList()
-                },
-              }
-            )
+          body: {
+            name: formData.name,
+            description: formData.description ?? undefined,
+            integration_type: formData.integration_type,
+            configuration: formData.configuration,
+            management_credential_id: formData.management_credential_id ?? undefined,
+            scope: formData.scope,
+            discovered_tools: discoveredTools ?? null,
+          },
+        },
+        {
+          onSuccess: () => {
+            showAlert({
+              title: 'Integration created',
+              description: `"${formData.name}" has been saved.`,
+              variant: 'success',
+              autoDismiss: true,
+            })
+            navigateToList()
           },
           onError: handleError({ title: 'Failed to add integration', context }),
         }
       )
     },
-    [createIntegration, validateIntegration, refreshTools, handleError, showAlert]
+    [createIntegration, handleError, showAlert]
   )
 }

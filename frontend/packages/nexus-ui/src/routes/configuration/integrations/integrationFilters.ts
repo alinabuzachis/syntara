@@ -1,18 +1,21 @@
-import { ProviderStatusEnum } from '@ansible/nexus-contracts'
+import { IntegrationStatusEnum, IntegrationTypeEnum } from '@ansible/nexus-contracts'
 
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 
-/**
- * Provider type labels for integration type filter
- */
-export const PROVIDER_TYPE_LABELS: Record<string, string> = {
-  mcp: 'MCP Server',
+/** Credential type names allowed per integration type. Maps to the backend's ALLOWED_CREDENTIAL_TYPES. */
+export const CREDENTIAL_TYPES_BY_INTEGRATION: Record<string, string[]> = {
+  [IntegrationTypeEnum.MCP_SERVER]: ['HTTP Bearer Token'],
+  [IntegrationTypeEnum.LLM_PROVIDER]: ['LLM Provider'],
+  [IntegrationTypeEnum.AAP_GATEWAY]: ['Ansible Automation Platform'],
 }
 
-/**
- * Shared filter field definitions for integration name filtering
- */
+export const INTEGRATION_TYPE_LABELS: Record<string, string> = {
+  [IntegrationTypeEnum.MCP_SERVER]: 'MCP Server',
+  [IntegrationTypeEnum.LLM_PROVIDER]: 'LLM Provider',
+  [IntegrationTypeEnum.AAP_GATEWAY]: 'AAP Gateway',
+}
+
 export const getIntegrationNameFilterDefinition = (): FilterFieldDefinition => ({
   key: 'name',
   label: 'Name',
@@ -22,28 +25,22 @@ export const getIntegrationNameFilterDefinition = (): FilterFieldDefinition => (
   placeholder: 'Filter by name',
 })
 
-/**
- * Shared filter field definitions for integration status filtering
- */
 export const getIntegrationStatusFilterDefinition = (): FilterFieldDefinition => ({
-  key: 'status',
+  key: 'validation_status',
   label: 'Status',
   type: FilterTypeEnum.SELECT,
   options: [
-    { value: ProviderStatusEnum.AVAILABLE, label: 'Available' },
-    { value: ProviderStatusEnum.ERROR, label: 'Error' },
-    { value: ProviderStatusEnum.VALIDATING, label: 'Validating' },
+    { value: IntegrationStatusEnum.AVAILABLE, label: 'Available' },
+    { value: IntegrationStatusEnum.ERROR, label: 'Error' },
+    { value: IntegrationStatusEnum.VALIDATING, label: 'Validating' },
   ],
   placeholder: 'Filter by status',
 })
 
-/**
- * Shared filter field definitions for integration type (provider_type) filtering
- */
 export const getIntegrationTypeFilterDefinition = (): FilterFieldDefinition => ({
-  key: 'provider_type',
+  key: 'integration_type',
   label: 'Integration type',
   type: FilterTypeEnum.SELECT,
-  options: Object.entries(PROVIDER_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+  options: Object.entries(INTEGRATION_TYPE_LABELS).map(([value, label]) => ({ value, label })),
   placeholder: 'Filter by integration type',
 })

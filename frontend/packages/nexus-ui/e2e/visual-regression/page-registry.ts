@@ -25,6 +25,7 @@ import {
   credentialEditPages,
   detailTabPages,
   integrationDialogPages,
+  integrationWizardPages,
   oidcProviderWizardPages,
   settingsTabPages,
   statusVariantPages,
@@ -44,10 +45,10 @@ export type PageEntry = {
   waitFor: (page: Page) => Promise<void>
   /** Optional interaction before screenshot (e.g., open modal, apply filter) */
   setup?: (page: Page) => Promise<void>
-  /** Override the default maxDiffPixelRatio for pages with non-deterministic rendering (e.g. canvas) */
-  maxDiffPixelRatio?: number
   /** Use looks-same perceptual comparison (CIEDE2000) instead of pixelmatch for canvas pages with subpixel jitter */
   perceptual?: boolean
+  /** Override the default maxDiffPixelRatio for pages with non-deterministic rendering (e.g. canvas) */
+  maxDiffPixelRatio?: number
   /** Mock API role to log in as (default: admin). Used for permission gating screenshots. */
   role?: 'viewer' | 'auditor' | 'user'
 }
@@ -66,7 +67,6 @@ const MOCK_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
 const MOCK_PROJECT_ID = 'p-001'
 const MOCK_CREDENTIAL_ID = 'cred-001'
-const MOCK_PROVIDER_ID = '1'
 
 // ---------------------------------------------------------------------------
 // Page entries — organized by section matching route directories
@@ -126,7 +126,6 @@ export const pages: PageEntry[] = [
     name: 'builder-edit',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     perceptual: true,
-    maxDiffPixelRatio: 0.05,
     waitFor: async (page) => {
       // ReactFlow + Zustand + lazy-load initialization is slow in CI — extend timeout
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
@@ -635,13 +634,42 @@ export const pages: PageEntry[] = [
   },
   {
     section: 'configuration/integrations',
-    name: 'integration-tools',
-    path: AppRoute.Configuration.Integrations.IntegrationTools.replace(':provider_id', MOCK_PROVIDER_ID),
+    name: 'integration-detail',
+    path: AppRoute.Configuration.Integrations.Detail.replace(':integrationId', '1'),
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Server name / ID')).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'integration-tools',
+    path: AppRoute.Configuration.Integrations.DetailTab.replace(':integrationId', '1').replace(':tab', 'resources'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('get_resource')).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Details' })).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'integration-tools-empty',
+    path: AppRoute.Configuration.Integrations.DetailTab.replace(':integrationId', '4').replace(':tab', 'resources'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('No resources discovered yet')).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'integration-edit',
+    path: AppRoute.Configuration.Integrations.Edit.replace(':integrationId', '1'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
     },
   },
   ...integrationDialogPages,
+  ...integrationWizardPages,
 
   // ══════════════════════════════════════════════════════════════════════════
   // CONFIGURATION — Credentials
@@ -770,7 +798,6 @@ export const pages: PageEntry[] = [
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     role: 'viewer',
     perceptual: true,
-    maxDiffPixelRatio: 0.15,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },

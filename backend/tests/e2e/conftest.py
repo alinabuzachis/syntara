@@ -36,12 +36,12 @@ from nexus_api_client.models.credential_create_inputs import CredentialCreateInp
 from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
 from nexus_api_client.models.error_data import ErrorData
 from nexus_api_client.models.integration_create import IntegrationCreate
+from nexus_api_client.models.integration_refresh_status import IntegrationRefreshStatus
+from nexus_api_client.models.integration_status import IntegrationStatus
+from nexus_api_client.models.integration_type import IntegrationType
 from nexus_api_client.models.login_request import LoginRequest
-from nexus_api_client.models.mcp_configuration import MCPConfiguration
-from nexus_api_client.models.provider_status import ProviderStatus
+from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
 from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
-from nexus_api_client.models.tool_provider_create import ToolProviderCreate
-from nexus_api_client.models.tool_provider_patch import ToolProviderPatch
 from nexus_api_client.models.user_create import UserCreate
 from nexus_api_client.models.user_info import UserInfo
 from nexus_api_client.models.user_read import UserRead
@@ -694,70 +694,73 @@ def nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
 
 
 @pytest.fixture(scope="session")
-def mcp_provider_id(nexus_api: NexusApiRegistry) -> str:
-    """Register the shared MCP tool provider once, validate and refresh its tools.
+def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
+    """Return the ID of the shared MCP server Integration used by E2E tests.
 
-    Reuses an existing provider named "mcp" if one is already present.
-    Skips the entire test if the MCP server is not reachable.
-
-    Returns the provider ID as a string.
+    Checks that the MCP server is reachable, then either finds an existing
+    Integration named MCP_PROVIDER_NAME or creates one.  The Integration is
+    validated and polled until AVAILABLE before the ID is returned.
     """
     try:
-        r = httpx.get(MCP_HEALTH_URL, timeout=5)
-        r.raise_for_status()
+        resp = httpx.get(MCP_HEALTH_URL, timeout=5, verify=False)  # noqa: S501
+        resp.raise_for_status()
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         pytest.skip(f"MCP server not reachable at {MCP_HEALTH_URL}: {exc}")
 
-    providers = nexus_api.tool_manager.get_tool_providers(
-        additional_params={"name": MCP_PROVIDER_NAME}, limit=100
-    ).assert_and_get()
-    existing = [p for p in providers.resources if p.name == MCP_PROVIDER_NAME]
+    # Look for an existing integration named MCP_PROVIDER_NAME
+    integrations_resp = nexus_api.integrations.list(integration_type=IntegrationType.MCP_SERVER)
+    integrations_list = integrations_resp.assert_and_get()
 
-    if existing:
-        provider_id = str(existing[0].id)
-        if not existing[0].enabled:
-            nexus_api.tool_manager.patch_tool_provider(
-                provider_id=UUID(provider_id),
-                body=ToolProviderPatch(enabled=True),
-            ).assert_and_get()
+    existing = next(
+        (i for i in integrations_list.resources if i.name == MCP_PROVIDER_NAME),
+        None,
+    )
+
+    if existing is not None:
+        integration_id = str(existing.id)
     else:
-        resp = nexus_api.tool_manager.register_tool_provider(
-            body=ToolProviderCreate(
+        create_resp = nexus_api.integrations.create(
+            body=IntegrationCreate(
                 name=MCP_PROVIDER_NAME,
                 description="MCP server for E2E tests",
-                configuration=MCPConfiguration(base_url=MCP_PROVIDER_URL),
-            ),
+                integration_type=IntegrationType.MCP_SERVER,
+                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL),
+            )
         )
-        if not resp.is_success and resp.status_code == 409:
-            providers = nexus_api.tool_manager.get_tool_providers(
-                additional_params={"name": MCP_PROVIDER_NAME}, limit=100
-            ).assert_and_get()
-            existing = [p for p in providers.resources if p.name == MCP_PROVIDER_NAME]
-            assert existing, f"MCP provider conflict but not found in list: {resp.content!r}"
-            provider_id = str(existing[0].id)
-        else:
-            provider = resp.assert_and_get()
-            provider_id = str(provider.id)
+        integration = create_resp.assert_and_get()
+        integration_id = str(integration.id)
 
-    pid = UUID(provider_id)
-    validate_result = nexus_api.tool_manager.validate_tool_provider(provider_id=pid).assert_and_get()
-    assert validate_result.valid is True, f"MCP provider validation failed: {validate_result.error}"
+    nexus_api.integrations.validate(integration_id=UUID(integration_id))
 
-    # Wait for the provider to reach AVAILABLE before refreshing.
-    # With xdist, another worker may have already started validation;
-    # refreshing a VALIDATING provider returns TOOL_REFRESH_ERROR.
-    deadline = time.monotonic() + 30.0
+    # Wait for validation to complete before refreshing tools
+    _timeout = 30.0
+    _interval = 0.5
+    deadline = time.monotonic() + _timeout
     while True:
-        provider = nexus_api.tool_manager.get_tool_provider(provider_id=pid).assert_and_get()
-        if provider.status == ProviderStatus.AVAILABLE:
+        integration = nexus_api.integrations.get(integration_id=UUID(integration_id)).assert_and_get()
+        if integration.validation_status == IntegrationStatus.AVAILABLE:
             break
         if time.monotonic() >= deadline:
-            pytest.fail(f"MCP provider {pid} stuck in {provider.status} after 30s")
-        time.sleep(0.5)
+            pytest.fail(
+                f"MCP integration {integration_id} did not reach AVAILABLE status within {_timeout}s "
+                f"(last status: {integration.validation_status})"
+            )
+        time.sleep(_interval)
 
-    nexus_api.tool_manager.refresh_tool_provider(provider_id=pid).assert_and_get()
+    nexus_api.integrations.refresh_resources(integration_id=UUID(integration_id))
 
-    return provider_id
+    # Wait for refresh to complete
+    deadline = time.monotonic() + _timeout
+    while True:
+        integration = nexus_api.integrations.get(integration_id=UUID(integration_id)).assert_and_get()
+        if integration.refresh_status == IntegrationRefreshStatus.AVAILABLE:
+            return integration_id
+        if time.monotonic() >= deadline:
+            pytest.fail(
+                f"MCP integration {integration_id} refresh did not complete within {_timeout}s "
+                f"(last status: {integration.refresh_status})"
+            )
+        time.sleep(_interval)
 
 
 @pytest.fixture(scope="session")

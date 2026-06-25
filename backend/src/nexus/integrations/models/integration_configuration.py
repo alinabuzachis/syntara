@@ -4,10 +4,6 @@ Configuration classes for different integration types.
 Each configuration class defines the non-sensitive parameters for
 connecting to a specific integration type. Sensitive fields (API keys,
 tokens, passwords) are stored in the linked Credential, not here.
-
-Each configuration also stores system-managed discovery results
-(e.g. discovered_tools, discovered_models) populated by health
-check operations.
 """
 
 from typing import Annotated, ClassVar, Literal
@@ -16,7 +12,6 @@ from pydantic import ConfigDict, Field, field_validator
 from sqlmodel import SQLModel
 
 from nexus.core.lib.url_validation import validate_endpoint_url, validate_host_url
-from nexus.integrations.adapters.protocol import DiscoveredTool
 
 
 def _validate_http_url(v: str) -> str:
@@ -41,15 +36,6 @@ class MCPServerConfigurationInput(SQLModel):
     def validate_base_url(cls, v: str) -> str:
         """Validate MCP endpoint URL (paths allowed, e.g. /mcp)."""
         return _validate_http_endpoint_url(v)
-
-
-class MCPServerConfiguration(MCPServerConfigurationInput):
-    """Full MCP configuration including system-managed discovery results."""
-
-    discovered_tools: list[DiscoveredTool] | None = Field(
-        default=None,
-        description="Tools discovered during the last successful health check",
-    )
 
 
 class LLMProviderConfiguration(SQLModel):
@@ -94,16 +80,15 @@ class AAPGatewayConfiguration(SQLModel):
         return validate_host_url(v)
 
 
-# Full configuration types (used by DB model and read schema)
-IntegrationConfigurationTypes = MCPServerConfiguration | LLMProviderConfiguration | AAPGatewayConfiguration
+# Configuration types (used by DB model, read schema, and create/patch)
+IntegrationConfigurationTypes = MCPServerConfigurationInput | LLMProviderConfiguration | AAPGatewayConfiguration
 IntegrationConfiguration = Annotated[
     IntegrationConfigurationTypes,
     Field(discriminator="integration_type"),
 ]
 
-# Input-only configuration types (used by create/patch — no system-managed fields)
-IntegrationConfigurationInputTypes = MCPServerConfigurationInput | LLMProviderConfiguration | AAPGatewayConfiguration
-IntegrationConfigurationInput = Annotated[
-    IntegrationConfigurationInputTypes,
-    Field(discriminator="integration_type"),
-]
+# Aliases: collapse Input vs Full distinction now that system-managed
+# fields (discovered_tools) are stored as separate Tool records.
+IntegrationConfigurationInputTypes = IntegrationConfigurationTypes
+IntegrationConfigurationInput = IntegrationConfiguration
+MCPServerConfiguration = MCPServerConfigurationInput

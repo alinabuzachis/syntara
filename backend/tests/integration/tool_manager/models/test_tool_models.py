@@ -13,12 +13,13 @@ from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.tool_manager.models import ToolProvider
+from nexus.integrations.models.integration import Integration
 from nexus.tool_manager.models.tool import (
     Tool,
     ToolParameter,
@@ -30,14 +31,14 @@ from nexus.tool_manager.models.tool import (
 
 @pytest.mark.asyncio
 async def test_create_tool_with_required_fields(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test creating a tool with all required fields."""
     tool_id = uuid4()
 
     tool = Tool(
         id=tool_id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Test Tool",
         namespaced_name="test_provider::test_tool",
         created_by=test_user.id,
@@ -46,7 +47,7 @@ async def test_create_tool_with_required_fields(
     await test_db_session.commit()
 
     assert tool.id == tool_id
-    assert tool.provider_id == test_tool_provider.id
+    assert tool.integration_id == test_mcp_integration.id
     assert tool.name == "Test Tool"
     assert tool.namespaced_name == "test_provider::test_tool"
     assert tool.enabled is True  # Default value
@@ -61,7 +62,7 @@ async def test_create_tool_with_required_fields(
 
 @pytest.mark.asyncio
 async def test_create_tool_with_all_fields(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test creating a tool with all fields including optional ones."""
     tool_id = uuid4()
@@ -69,7 +70,7 @@ async def test_create_tool_with_all_fields(
 
     tool = Tool(
         id=tool_id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Full Test Tool",
         description="A test tool with all fields",
         namespaced_name="test_provider::full_test_tool",
@@ -97,7 +98,6 @@ def test_tool_namespaced_name_validation(test_user: User) -> None:
     # Valid namespaced name should work
     tool = Tool(
         id=uuid4(),
-        provider_id=uuid4(),
         name="Test Tool",
         namespaced_name="valid_name",
         created_by=test_user.id,
@@ -108,7 +108,6 @@ def test_tool_namespaced_name_validation(test_user: User) -> None:
     with pytest.raises(ValidationError, match="String should have at least 1 character"):
         Tool(
             id=uuid4(),
-            provider_id=uuid4(),
             name="Test Tool",
             namespaced_name="",
             created_by=test_user.id,
@@ -118,7 +117,6 @@ def test_tool_namespaced_name_validation(test_user: User) -> None:
     with pytest.raises(ValueError, match="namespaced_name cannot be empty"):
         Tool(
             id=uuid4(),
-            provider_id=uuid4(),
             name="Test Tool",
             namespaced_name="   ",
             created_by=test_user.id,
@@ -127,7 +125,6 @@ def test_tool_namespaced_name_validation(test_user: User) -> None:
     # String with surrounding whitespace should be stripped
     tool = Tool(
         id=uuid4(),
-        provider_id=uuid4(),
         name="Test Tool",
         namespaced_name="  trimmed_name  ",
         created_by=test_user.id,
@@ -137,7 +134,7 @@ def test_tool_namespaced_name_validation(test_user: User) -> None:
 
 @pytest.mark.asyncio
 async def test_create_tool_parameter(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test creating a tool parameter."""
     tool_id = uuid4()
@@ -146,7 +143,7 @@ async def test_create_tool_parameter(
     # First create a tool
     tool = Tool(
         id=tool_id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Test Tool",
         namespaced_name="test::tool",
         created_by=test_user.id,
@@ -205,7 +202,7 @@ def test_tool_update_model() -> None:
 
 @pytest.mark.asyncio
 async def test_tool_parameter_relationship(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test the relationship between Tool and ToolParameter."""
     tool_id = uuid4()
@@ -213,7 +210,7 @@ async def test_tool_parameter_relationship(
     # Create a tool
     tool = Tool(
         id=tool_id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Test Tool",
         namespaced_name="test::tool",
         created_by=test_user.id,
@@ -309,26 +306,9 @@ async def test_tool_cascade_delete_parameters(test_db_session: AsyncSession, tes
 @pytest.mark.asyncio
 async def test_tool_namespaced_name_unique_constraint(test_db_session: AsyncSession, test_user: User) -> None:
     """Test that Tool.namespaced_name unique constraint works correctly."""
-    # Create two providers first
-    provider1 = ToolProvider(
-        id=uuid4(),
-        name="Provider 1",
-        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
-        created_by=test_user.id,
-    )
-    provider2 = ToolProvider(
-        id=uuid4(),
-        name="Provider 2",
-        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
-        created_by=test_user.id,
-    )
-    test_db_session.add_all([provider1, provider2])
-    await test_db_session.commit()
-
     # Create first tool with a specific namespaced_name
     tool1 = Tool(
         id=uuid4(),
-        provider_id=provider1.id,
         name="Test Tool",
         namespaced_name="test_provider::unique_tool",
         created_by=test_user.id,
@@ -339,7 +319,6 @@ async def test_tool_namespaced_name_unique_constraint(test_db_session: AsyncSess
     # Try to create another tool with the same namespaced_name (should fail)
     tool2 = Tool(
         id=uuid4(),
-        provider_id=provider2.id,  # Different provider
         name="Another Tool",
         namespaced_name="test_provider::unique_tool",  # Same namespaced_name (should fail)
         created_by=test_user.id,
@@ -347,26 +326,26 @@ async def test_tool_namespaced_name_unique_constraint(test_db_session: AsyncSess
     test_db_session.add(tool2)
 
     # Should raise IntegrityError due to unique constraint violation
-    with pytest.raises(Exception, match=r".*unique.*|.*constraint.*"):
+    with pytest.raises((IntegrityError, Exception), match=r".*unique.*|.*constraint.*"):
         await test_db_session.commit()
 
 
 @pytest.mark.asyncio
 async def test_tool_namespaced_name_different_names_allowed(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
-    """Test that different namespaced_names are allowed for the same provider."""
+    """Test that different namespaced_names are allowed for the same integration."""
     # Create multiple tools with different namespaced_names (should work)
     tool1 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Tool One",
         namespaced_name="test_provider::tool_one",
         created_by=test_user.id,
     )
     tool2 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Tool Two",
         namespaced_name="test_provider::tool_two",
         created_by=test_user.id,
@@ -382,13 +361,13 @@ async def test_tool_namespaced_name_different_names_allowed(
 
 @pytest.mark.asyncio
 async def test_tool_namespaced_name_case_sensitivity(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
 ) -> None:
     """Test that tool namespaced_names are case-sensitive for uniqueness."""
     # Create first tool with lowercase namespaced_name
     tool1 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Tool One",
         namespaced_name="test::tool",
         created_by=test_user.id,
@@ -399,7 +378,7 @@ async def test_tool_namespaced_name_case_sensitivity(
     # Create second tool with different case (should work - case sensitive)
     tool2 = Tool(
         id=uuid4(),
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         name="Tool Two",
         namespaced_name="Test::Tool",  # Different case
         created_by=test_user.id,

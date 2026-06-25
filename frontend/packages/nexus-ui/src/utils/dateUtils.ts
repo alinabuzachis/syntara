@@ -158,3 +158,26 @@ export function formatDateForApi(date: Date): string {
 export function formatDateChipValue(isoValue: string): string {
   return isoValue.split('T')[0] ?? ''
 }
+
+/**
+ * Format an ISO date string as a compact relative time (e.g. "5m ago", "2h ago").
+ * Returns "Never" for null/undefined input, "Just now" for future dates.
+ *
+ * Intentionally manual rather than date-fns formatDistanceToNow, which
+ * produces verbose strings ("about 5 minutes ago") unsuitable for compact UI.
+ */
+const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+
+export function formatTimeAgo(isoString: string | null | undefined): string {
+  if (!isoString) return 'Never'
+  const diff = Date.now() - new Date(isoString).getTime()
+  if (diff < 0) return 'Just now'
+  const seconds = Math.floor(diff / 1000)
+  if (seconds < 60) return rtf.format(-seconds, 'second')
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return rtf.format(-minutes, 'minute')
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return rtf.format(-hours, 'hour')
+  const days = Math.floor(hours / 24)
+  return rtf.format(-days, 'day')
+}

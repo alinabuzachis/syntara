@@ -12,8 +12,8 @@ from nexus.auth import create_service_token
 from nexus.core.exceptions import SafeValueError
 from nexus.core.tls.http_client import build_internal_http_client
 from nexus.core.utils.retry import retry_with_backoff
+from nexus.integrations.models.integration import IntegrationRead, IntegrationStatus, IntegrationType
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
-from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -65,7 +65,7 @@ def _validate_max_keepalive_connections(max_keepalive: int, max_conn: int) -> No
 class ToolManagerClient:
     """HTTP client for Tool Manager REST API integration.
 
-    This client provides methods to discover all tool providers,
+    This client provides methods to discover all MCP server integrations,
     retrieve all tools, and report tool execution status back to
     the Tool Manager service.
 
@@ -142,8 +142,8 @@ class ToolManagerClient:
         await self.close()
 
     @retry_with_backoff
-    async def _get_tool_providers_page(self, params: dict[str, str]) -> dict[str, Any]:
-        """Get a single page of tool providers with retry logic.
+    async def _get_mcp_integrations_page(self, params: dict[str, str]) -> dict[str, Any]:
+        """Get a single page of mcp_server integrations with retry logic.
 
         Args:
             params: Query parameters for the API request
@@ -157,19 +157,19 @@ class ToolManagerClient:
             httpx.ConnectError: On network connectivity issues
 
         """
-        logger.debug("Fetching tool providers from Tool Manager API", params=params)
-        response = await self.session.get("/tool_manager/tool_providers", params=params)
+        logger.debug("Fetching MCP integrations from Integrations API", params=params)
+        response = await self.session.get("/integrations", params=params)
         response.raise_for_status()
         return dict(response.json())
 
-    async def get_all_tool_providers(self) -> list[ToolProviderWithConfiguration]:
-        """Retrieve all tool providers from Tool Manager.
+    async def get_all_mcp_integrations(self) -> list[IntegrationRead]:
+        """Retrieve all mcp_server integrations.
 
-        Fetches all tool providers regardless of enabled status.
+        Fetches all integrations of type mcp_server regardless of enabled status.
         Handles pagination automatically to return all results.
 
         Returns:
-            List of all ToolProviderWithConfiguration objects
+            List of all IntegrationRead objects for mcp_server integrations
 
         Raises:
             httpx.HTTPStatusError: On API error responses
@@ -177,32 +177,90 @@ class ToolManagerClient:
             httpx.ConnectError: On network connectivity issues
 
         """
-        providers: list[ToolProviderWithConfiguration] = []
+        integrations: list[IntegrationRead] = []
         cursor: str | None = None
 
         while True:
-            # Build query parameters
-            params: dict[str, str] = {}
+            # Build query parameters — filter to mcp_server type only
+            params: dict[str, str] = {"integration_type": IntegrationType.MCP_SERVER.value}
             if cursor:
                 params["cursor"] = cursor
             if self.limit is not None:
                 params["limit"] = str(self.limit)
 
             # Make API request with retry logic
-            data = await self._get_tool_providers_page(params)
+            data = await self._get_mcp_integrations_page(params)
 
-            # Parse providers from response
-            for provider_data in data.get("resources", []):
-                provider = ToolProviderWithConfiguration.model_validate(provider_data)
-                providers.append(provider)
+            # Parse integrations from response
+            for integration_data in data.get("resources", []):
+                integration = IntegrationRead.model_validate(integration_data)
+                integrations.append(integration)
 
             # Check for next page
             cursor = data.get("next")
             if not cursor:
                 break
 
-        logger.info("Retrieved total tool providers", provider_count=len(providers))
-        return providers
+        logger.info("Retrieved total MCP integrations", integration_count=len(integrations))
+        return integrations
+
+    @retry_with_backoff
+    async def update_integration_status(
+        self,
+        integration_id: UUID,
+        validation_status: IntegrationStatus,
+        validation_error: str | None = None,
+    ) -> None:
+        """Update integration validation status in the Integrations API.
+
+        Used to persist connection error state when an MCP server cannot be reached,
+        or to clear error state when a previously-failing server recovers.
+
+        Args:
+            integration_id: UUID of the integration to update
+            validation_status: New validation status for the integration
+            validation_error: Error message to set in validation_error field (optional)
+
+        Raises:
+            ValueError: If integration_id is None
+            httpx.HTTPStatusError: On API error responses (404, 409, etc.)
+            httpx.TimeoutException: On request timeout
+            httpx.ConnectError: On network connectivity issues
+
+        """
+        if not integration_id:
+            msg = "Integration ID cannot be None"
+            raise SafeValueError(msg)
+
+        # Build request payload
+        update_data: dict[str, str | None | bool] = {
+            "validation_status": validation_status.value,
+            "validation_error": validation_error,
+        }
+
+        # Disable integration if status is error
+        if validation_status == IntegrationStatus.ERROR:
+            update_data["enabled"] = False
+        # Enable integration if status is available
+        elif validation_status == IntegrationStatus.AVAILABLE:
+            update_data["enabled"] = True
+
+        logger.debug(
+            "Updating integration status",
+            integration_id=integration_id,
+            validation_status=validation_status.value,
+            validation_error=validation_error,
+        )
+
+        # Make API request to the internal status sub-resource (not the user-facing PATCH)
+        response = await self.session.patch(f"/integrations/{integration_id}/status", json=update_data)
+        response.raise_for_status()
+
+        logger.info(
+            "Updated integration status",
+            integration_id=integration_id,
+            validation_status=validation_status.value,
+        )
 
     @retry_with_backoff
     async def _get_tools_page(self, params: dict[str, str]) -> dict[str, Any]:
@@ -316,53 +374,3 @@ class ToolManagerClient:
         response.raise_for_status()
 
         logger.info("Updated tool status", tool_id=tool_id, status=status.value)
-
-    @retry_with_backoff
-    async def update_tool_provider_status(
-        self, provider_id: UUID, status: ProviderStatus, validation_error: str | None = None
-    ) -> None:
-        """Update tool provider status in Tool Manager.
-
-        Reports tool provider validation status back to Tool Manager for operational visibility.
-        Used to update provider status to ERROR when validation fails, or back to
-        AVAILABLE when providers recover. Providers are automatically disabled when their
-        status is set to ERROR.
-
-        Args:
-            provider_id: UUID of the provider to update
-            status: New status for the provider
-            validation_error: Error message to set in validation_error field (optional)
-
-        Raises:
-            ValueError: If provider_id is None
-            httpx.HTTPStatusError: On API error responses (404, 409, etc.)
-            httpx.TimeoutException: On request timeout
-            httpx.ConnectError: On network connectivity issues
-
-        """
-        if not provider_id:
-            msg = "Provider ID cannot be None"
-            raise SafeValueError(msg)
-
-        # Build request payload
-        update_data: dict[str, str | None | bool] = {"status": status.value, "validation_error": validation_error}
-
-        # Disable provider if status is error
-        if status == ProviderStatus.ERROR:
-            update_data["enabled"] = False
-        # Enable provider if status is available
-        elif status == ProviderStatus.AVAILABLE:
-            update_data["enabled"] = True
-
-        logger.debug(
-            "Updating provider status",
-            provider_id=provider_id,
-            status=status.value,
-            validation_error=validation_error,
-        )
-
-        # Make API request
-        response = await self.session.patch(f"/tool_manager/tool_providers/{provider_id}", json=update_data)
-        response.raise_for_status()
-
-        logger.info("Updated provider status", provider_id=provider_id, status=status.value)

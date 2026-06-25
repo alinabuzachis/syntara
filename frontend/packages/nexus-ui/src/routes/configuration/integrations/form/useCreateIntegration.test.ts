@@ -1,19 +1,19 @@
-import type { ToolProviderCreate } from '@ansible/nexus-contracts'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { IntegrationFormData } from './integrationFormSchema'
 import { useCreateIntegration } from './useCreateIntegration'
 
-const mockNavigate = vi.fn()
+const { mockNavigate } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+}))
+
 const mockShowAlert = vi.fn()
 const mockCreateMutation = vi.fn()
-const mockValidateMutation = vi.fn()
-const mockRefreshMutation = vi.fn()
 const mockHandleError = vi.fn(() => vi.fn())
 
 vi.mock('../../../../hooks/routing/navigate', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  navigate: vi.fn((...args: unknown[]) => mockNavigate(...args)),
+  navigate: mockNavigate,
 }))
 
 vi.mock('../../../../providers/alerts', () => ({
@@ -21,33 +21,22 @@ vi.mock('../../../../providers/alerts', () => ({
 }))
 
 vi.mock('../../../../client', () => ({
-  toolManagerClient: {
-    useMutation: vi.fn((_method: string, path: string) => {
-      if (path === '/tool_manager/tool_providers') {
-        return { mutate: mockCreateMutation }
-      }
-      if (path.includes('/validate')) {
-        return { mutate: mockValidateMutation }
-      }
-      if (path.includes('/refresh_tools')) {
-        return { mutate: mockRefreshMutation }
-      }
-      return { mutate: vi.fn() }
-    }),
+  integrationsClient: {
+    useMutation: vi.fn(() => ({ mutate: mockCreateMutation })),
   },
 }))
 
-type FormData = ToolProviderCreate & { name: string }
-
-function createTestFormData(overrides?: Partial<FormData>): FormData {
+function createTestFormData(overrides?: Partial<IntegrationFormData>): IntegrationFormData {
   return {
     name: 'Test Integration',
     description: 'Test description',
+    integration_type: 'mcp_server',
     configuration: {
-      provider_type: 'mcp',
-      base_url: 'http://localhost:3000',
-      api_key: 'test-key',
+      integration_type: 'mcp_server',
+      base_url: 'http://localhost:8765/mcp',
     },
+    management_credential_id: null,
+    scope: 'global',
     ...overrides,
   }
 }
@@ -57,25 +46,28 @@ describe('useCreateIntegration', () => {
     mockNavigate.mockClear()
     mockShowAlert.mockClear()
     mockCreateMutation.mockClear()
-    mockValidateMutation.mockClear()
-    mockRefreshMutation.mockClear()
     mockHandleError.mockClear()
     mockHandleError.mockReturnValue(vi.fn())
   })
 
   it('creates integration with correct body', () => {
-    // Arrange
     const formData = createTestFormData()
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
-    // Act
     act(() => {
       result.current(formData)
     })
 
-    // Assert
     expect(mockCreateMutation).toHaveBeenCalledWith(
-      { body: formData },
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        body: expect.objectContaining({
+          name: 'Test Integration',
+          integration_type: 'mcp_server',
+          configuration: { integration_type: 'mcp_server', base_url: 'http://localhost:8765/mcp' },
+          scope: 'global',
+        }),
+      }),
       expect.objectContaining({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         onSuccess: expect.any(Function),
@@ -85,242 +77,29 @@ describe('useCreateIntegration', () => {
     )
   })
 
-  it('navigates to list on successful creation, validation, and refresh', () => {
-    // Arrange
+  it('shows success alert and navigates on create', () => {
     const formData = createTestFormData()
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: 'provider-123' })
-    })
-    mockValidateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ valid: true, error: null })
-    })
-    mockRefreshMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSettled: () => void }
-      callbacks.onSettled()
+      const callbacks = args[1] as { onSuccess: () => void }
+      callbacks.onSuccess()
     })
 
-    // Act
     act(() => {
       result.current(formData)
     })
 
-    // Assert
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations')
-  })
-
-  it('shows error and navigates when provider ID is missing', () => {
-    // Arrange
-    const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-    const mockErrorCallback = vi.fn()
-    mockHandleError.mockReturnValue(mockErrorCallback)
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: null })
-    })
-
-    // Act
-    act(() => {
-      result.current(formData)
-    })
-
-    // Assert
-    expect(mockHandleError).toHaveBeenCalledWith({
-      title: 'Integration created, but missing ID',
-      context: 'Integration "Test Integration"',
-    })
-    expect(mockErrorCallback).toHaveBeenCalledWith(new Error('Provider ID not returned from API'))
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations')
-  })
-
-  it('validates integration after creation', () => {
-    // Arrange
-    const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: 'provider-123' })
-    })
-
-    // Act
-    act(() => {
-      result.current(formData)
-    })
-
-    // Assert
-    expect(mockValidateMutation).toHaveBeenCalledWith(
-      { params: { path: { provider_id: 'provider-123' } } },
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        onSuccess: expect.any(Function),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        onError: expect.any(Function),
-      })
-    )
-  })
-
-  it('shows error and navigates when validation fails with error', () => {
-    // Arrange
-    const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-    const mockErrorCallback = vi.fn()
-    mockHandleError.mockReturnValue(mockErrorCallback)
-    const validationError = new Error('Connection failed')
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: 'provider-123' })
-    })
-    mockValidateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onError: (...args: unknown[]) => void }
-      callbacks.onError(validationError)
-    })
-
-    // Act
-    act(() => {
-      result.current(formData)
-    })
-
-    // Assert
-    expect(mockHandleError).toHaveBeenCalledWith({
-      title: 'Integration created, but validation failed',
-      context: 'Integration "Test Integration"',
-    })
-    expect(mockErrorCallback).toHaveBeenCalledWith(validationError)
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations')
-  })
-
-  it('shows alert and navigates when validation returns invalid result', () => {
-    // Arrange
-    const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: 'provider-123' })
-    })
-    mockValidateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ valid: false, error: 'Invalid API key' })
-    })
-
-    // Act
-    act(() => {
-      result.current(formData)
-    })
-
-    // Assert
     expect(mockShowAlert).toHaveBeenCalledWith({
-      title: 'Integration created, but validation failed',
-      description: 'Invalid API key',
-      variant: 'error',
+      title: 'Integration created',
+      description: '"Test Integration" has been saved.',
+      variant: 'success',
       autoDismiss: true,
     })
     expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations')
   })
 
-  it('uses fallback message when validation returns invalid without error message', () => {
-    // Arrange
-    const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: 'provider-123' })
-    })
-    mockValidateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ valid: false, error: null })
-    })
-
-    // Act
-    act(() => {
-      result.current(formData)
-    })
-
-    // Assert
-    expect(mockShowAlert).toHaveBeenCalledWith({
-      title: 'Integration created, but validation failed',
-      description: 'Provider "Test Integration" could not be validated.',
-      variant: 'error',
-      autoDismiss: true,
-    })
-  })
-
-  it('refreshes tools after successful validation', () => {
-    // Arrange
-    const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: 'provider-123' })
-    })
-    mockValidateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ valid: true, error: null })
-    })
-
-    // Act
-    act(() => {
-      result.current(formData)
-    })
-
-    // Assert
-    expect(mockRefreshMutation).toHaveBeenCalledWith(
-      { params: { path: { provider_id: 'provider-123' } } },
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        onError: expect.any(Function),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        onSettled: expect.any(Function),
-      })
-    )
-  })
-
-  it('shows error but still navigates when refresh fails', () => {
-    // Arrange
-    const formData = createTestFormData()
-    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
-    const mockErrorCallback = vi.fn()
-    mockHandleError.mockReturnValue(mockErrorCallback)
-    const refreshError = new Error('Refresh timeout')
-
-    mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: 'provider-123' })
-    })
-    mockValidateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ valid: true, error: null })
-    })
-    mockRefreshMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onError: (...args: unknown[]) => void; onSettled: () => void }
-      callbacks.onError(refreshError)
-      callbacks.onSettled()
-    })
-
-    // Act
-    act(() => {
-      result.current(formData)
-    })
-
-    // Assert
-    expect(mockHandleError).toHaveBeenCalledWith({
-      title: 'Integration created, but refreshing tools failed',
-      context: 'Integration "Test Integration"',
-    })
-    expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations')
-  })
-
-  it('handles creation error', () => {
-    // Arrange
+  it('handles creation error without navigating', () => {
     const formData = createTestFormData()
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
     const mockErrorCallback = vi.fn()
@@ -332,12 +111,10 @@ describe('useCreateIntegration', () => {
       callbacks.onError(creationError)
     })
 
-    // Act
     act(() => {
       result.current(formData)
     })
 
-    // Assert
     expect(mockHandleError).toHaveBeenCalledWith({
       title: 'Failed to add integration',
       context: 'Integration "Test Integration"',
@@ -347,36 +124,110 @@ describe('useCreateIntegration', () => {
   })
 
   it('uses undefined context when name is empty', () => {
-    // Arrange
     const formData = createTestFormData({ name: '' })
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
 
     mockCreateMutation.mockImplementation((...args: unknown[]) => {
-      const callbacks = args[1] as { onSuccess: (...args: unknown[]) => void }
-      callbacks.onSuccess({ id: null })
+      const callbacks = args[1] as { onError: (...args: unknown[]) => void }
+      callbacks.onError(new Error('fail'))
     })
 
-    // Act
     act(() => {
       result.current(formData)
     })
 
-    // Assert
     expect(mockHandleError).toHaveBeenCalledWith({
-      title: 'Integration created, but missing ID',
+      title: 'Failed to add integration',
       context: undefined,
     })
   })
 
+  it('passes discovered_tools to the API when provided', () => {
+    const formData = createTestFormData()
+    const discoveredTools = [
+      { name: 'get_repo', description: 'Get repo details', enabled: true },
+      { name: 'create_pr', description: 'Create a PR', enabled: false },
+    ]
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData, discoveredTools)
+    })
+
+    expect(mockCreateMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        body: expect.objectContaining({
+          discovered_tools: discoveredTools,
+        }),
+      }),
+      expect.any(Object)
+    )
+  })
+
+  it('passes null discovered_tools when none provided', () => {
+    const formData = createTestFormData()
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData)
+    })
+
+    expect(mockCreateMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        body: expect.objectContaining({
+          discovered_tools: null,
+        }),
+      }),
+      expect.any(Object)
+    )
+  })
+
+  it('passes empty description through to the API', () => {
+    const formData = createTestFormData({ description: '' })
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData)
+    })
+
+    expect(mockCreateMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        body: expect.objectContaining({
+          description: '',
+        }),
+      }),
+      expect.any(Object)
+    )
+  })
+
+  it('passes management_credential_id when provided', () => {
+    const formData = createTestFormData({ management_credential_id: 'cred-123' })
+    const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
+
+    act(() => {
+      result.current(formData)
+    })
+
+    expect(mockCreateMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        body: expect.objectContaining({
+          management_credential_id: 'cred-123',
+        }),
+      }),
+      expect.any(Object)
+    )
+  })
+
   it('returns a stable function reference across re-renders', () => {
-    // Arrange
     const { result, rerender } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))
     const firstRef = result.current
 
-    // Act
     rerender()
 
-    // Assert
     expect(result.current).toBe(firstRef)
   })
 })

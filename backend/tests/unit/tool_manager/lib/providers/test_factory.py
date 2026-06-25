@@ -152,11 +152,11 @@ class TestProviderFactory:
                 self,
                 base_url: str,
                 api_key: str,
-                provider_id: UUID | None = None,
-                provider_name: str | None = "mcp-provider",
+                integration_id: UUID | None = None,
+                integration_name: str | None = "mcp-integration",
             ) -> None:
                 super().__init__(
-                    provider_id=provider_id, provider_name=provider_name, base_url=base_url, api_key=api_key
+                    integration_id=integration_id, integration_name=integration_name, base_url=base_url, api_key=api_key
                 )
                 msg = "Intentional construction failure"
                 raise RuntimeError(msg)

@@ -42,9 +42,9 @@ def mock_tool_sync_internals() -> Callable[..., Any]:
                 - A direct value to use as return_value
 
         Supported patch names:
-            - discover_providers: _discover_tool_providers
+            - discover_integrations: _discover_mcp_integrations
             - discover_tools: _discover_tools
-            - retrieve_base_tools: _retrieve_base_tools_from_providers
+            - retrieve_base_tools: _retrieve_base_tools_from_integrations
             - filter_enabled: _filter_enabled_tools
             - enhance_metadata: _enhance_tools_with_metadata
             - update_missing: _update_missing_tools
@@ -75,7 +75,7 @@ def mock_tool_sync_internals() -> Callable[..., Any]:
 
         patches = [
             patch(
-                "nexus.agent_orchestrator.tool_manager.tool_services._discover_tool_providers",
+                "nexus.agent_orchestrator.tool_manager.tool_services._discover_mcp_integrations",
                 **_get_patch_config("discover_providers", [], is_async=True),
             ),
             patch(
@@ -83,7 +83,7 @@ def mock_tool_sync_internals() -> Callable[..., Any]:
                 **_get_patch_config("discover_tools", ([], []), is_async=True),
             ),
             patch(
-                "nexus.agent_orchestrator.tool_manager.tool_services._retrieve_base_tools_from_providers",
+                "nexus.agent_orchestrator.tool_manager.tool_services._retrieve_base_tools_from_integrations",
                 **_get_patch_config("retrieve_base_tools", [], is_async=True),
             ),
             patch(
@@ -200,7 +200,7 @@ class TestToolDiscoveryEventDispatch:
         assert completed_event.event_status == EventStatus.SUCCESS
         assert completed_event.event_message == "Tool discovery completed - 3 tools provided to LLM"
         assert completed_event.structured_data.status == "completed"  # type: ignore[attr-defined]
-        assert completed_event.structured_data.providers_discovered == 2  # type: ignore[attr-defined]
+        assert completed_event.structured_data.integrations_discovered == 2  # type: ignore[attr-defined]
         assert completed_event.structured_data.tools_discovered == 3  # type: ignore[attr-defined]
         assert completed_event.structured_data.tools_enabled == 3  # type: ignore[attr-defined]
         assert completed_event.structured_data.tools_disabled == 1  # type: ignore[attr-defined]
@@ -221,7 +221,7 @@ class TestToolDiscoveryEventDispatch:
             execution_id=execution_id,
         )
 
-        # Mock _discover_tool_providers to raise exception
+        # Mock _discover_mcp_integrations to raise exception
         with (
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             mock_tool_sync_internals(

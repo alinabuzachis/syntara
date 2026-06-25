@@ -5,7 +5,7 @@ multiple specialized agents with context integration and checkpointing.
 """
 
 import asyncio
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
@@ -63,16 +63,31 @@ class OrchestrationService:
     4. Provides execution interface for the InvocationService
     """
 
-    def __init__(self, llm: ChatOpenAI, context_manager_planner: ContextManagerPlanner) -> None:
+    def __init__(
+        self,
+        llm: ChatOpenAI,
+        context_manager_planner: ContextManagerPlanner,
+        credential_resolver: Callable[[UUID], Awaitable[str | None]] | None = None,
+        tool_selection_strategy: str | None = None,
+        tool_selections: list[str] | None = None,
+    ) -> None:
         """Initialize the orchestration service.
 
         Args:
             llm: Language model for agent execution
             context_manager_planner: Context manager for prompt enhancement
+            credential_resolver: Optional async callable that resolves a bearer token given an
+                integration_id. Passed to ToolSynchronizer so MCP providers with a linked
+                integration are authenticated at tool-call time.
+            tool_selection_strategy: "ALL", "NONE", or "SELECTED". None/absent treated as "NONE" (no tools).
+            tool_selections: Tool UUIDs to make available when strategy is "SELECTED".
 
         """
         self.llm = llm
         self.context_manager = context_manager_planner
+        self._credential_resolver = credential_resolver
+        self._tool_selection_strategy = tool_selection_strategy
+        self._tool_selections = set(tool_selections or [])
 
     async def _setup_graph(self, state: AgentState) -> CompiledStateGraph[AgentState, None, Any, Any]:
         """Set up the LangGraph state machine with ToolNode integration.
@@ -169,10 +184,27 @@ class OrchestrationService:
             invocation_id,
             execution_id=execution_id,
             request_id=request_id,
+            credential_resolver=self._credential_resolver,
             activity_id=activity_id,
             activity_name=activity_name,
         )
-        return await synchronizer.synchronize_tools()
+        tools = await synchronizer.synchronize_tools()
+        return self._apply_tool_selection(tools)
+
+    def _apply_tool_selection(self, tools: list[BaseTool]) -> list[BaseTool]:
+        """Filter tools according to the configured selection strategy.
+
+        ALL: return all enabled tools unchanged.
+        SELECTED: return only tools whose tool_id is in self._tool_selections.
+        None or NONE: return an empty list (NONE is the explicit default).
+        """
+        strategy = self._tool_selection_strategy
+        if strategy == "ALL":
+            return tools
+        if strategy == "SELECTED":
+            return [t for t in tools if (t.metadata or {}).get("tool_id", "") in self._tool_selections]
+        # None or "NONE" → no tools
+        return []
 
     @audit(
         EventCategory.AGENT_INTERACTION,

@@ -16,7 +16,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.tool_manager.models import Tool, ToolProvider
+from nexus.integrations.models.integration import Integration
+from nexus.tool_manager.models import Tool
 from nexus.tool_manager.models.tool_execution import (
     ToolExecution,
     ToolExecutionStatus,
@@ -26,7 +27,7 @@ from nexus.tool_manager.models.tool_execution import (
 
 @pytest.mark.asyncio
 async def test_create_tool_execution_with_required_fields(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test creating a tool execution with all required fields."""
     execution_id = uuid4()
@@ -35,7 +36,7 @@ async def test_create_tool_execution_with_required_fields(
     execution = ToolExecution(
         id=execution_id,
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=now,
         status=ToolExecutionStatus.RUNNING,
@@ -47,7 +48,7 @@ async def test_create_tool_execution_with_required_fields(
 
     assert execution.id == execution_id
     assert execution.tool_id == test_tool.id
-    assert execution.provider_id == test_tool_provider.id
+    assert execution.integration_id == test_mcp_integration.id
     assert execution.user_id == test_user.id
     assert execution.execution_start == now
     assert execution.execution_end is None  # Default value
@@ -64,7 +65,7 @@ async def test_create_tool_execution_with_required_fields(
 
 @pytest.mark.asyncio
 async def test_create_tool_execution_with_all_fields(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test creating a tool execution with all fields including optional ones."""
     execution_id = uuid4()
@@ -74,7 +75,7 @@ async def test_create_tool_execution_with_all_fields(
     execution = ToolExecution(
         id=execution_id,
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=start_time,
         execution_end=end_time,
@@ -100,7 +101,7 @@ async def test_create_tool_execution_with_all_fields(
 
 @pytest.mark.asyncio
 async def test_create_tool_execution_with_error(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test creating a tool execution with error details."""
     execution_id = uuid4()
@@ -109,7 +110,7 @@ async def test_create_tool_execution_with_error(
     execution = ToolExecution(
         id=execution_id,
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=now,
         execution_end=now,
@@ -139,7 +140,6 @@ def test_execution_status_enum() -> None:
 def test_tool_execution_constraints() -> None:
     """Test ToolExecution field constraints."""
     tool_id = uuid4()
-    provider_id = uuid4()
     user_id = uuid4()
     created_by = uuid4()
     now = datetime.now(UTC)
@@ -148,7 +148,6 @@ def test_tool_execution_constraints() -> None:
     execution = ToolExecution(
         id=uuid4(),
         tool_id=tool_id,
-        provider_id=provider_id,
         user_id=user_id,
         execution_start=now,
         duration_ms=0,  # Should be valid
@@ -163,7 +162,6 @@ def test_tool_execution_constraints() -> None:
         ToolExecution(
             id=uuid4(),
             tool_id=tool_id,
-            provider_id=provider_id,
             user_id=user_id,
             execution_start=now,
             duration_ms=-1,  # Should be invalid
@@ -198,14 +196,14 @@ def test_tool_metrics_summary_creation() -> None:
 
 @pytest.mark.asyncio
 async def test_tool_execution_foreign_key_constraints(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test that ToolExecution foreign key constraints work correctly."""
     # Create multiple executions with the same foreign keys
     execution1 = ToolExecution(
         id=uuid4(),
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
         status=ToolExecutionStatus.RUNNING,
@@ -215,7 +213,7 @@ async def test_tool_execution_foreign_key_constraints(
     execution2 = ToolExecution(
         id=uuid4(),
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
         status=ToolExecutionStatus.TIMEOUT,
@@ -230,7 +228,7 @@ async def test_tool_execution_foreign_key_constraints(
     executions_result = await test_db_session.exec(
         select(ToolExecution).where(
             ToolExecution.tool_id == test_tool.id,
-            ToolExecution.provider_id == test_tool_provider.id,
+            ToolExecution.integration_id == test_mcp_integration.id,
         )
     )
     executions = executions_result.all()
@@ -239,13 +237,13 @@ async def test_tool_execution_foreign_key_constraints(
     # Verify foreign key relationships
     for execution in executions:
         assert execution.tool_id == test_tool.id
-        assert execution.provider_id == test_tool_provider.id
+        assert execution.integration_id == test_mcp_integration.id
         assert execution.user_id == test_user.id
 
 
 @pytest.mark.asyncio
 async def test_tool_execution_input_parameters_field(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test the input_parameters field with various JSON data types."""
     execution_id = uuid4()
@@ -267,7 +265,7 @@ async def test_tool_execution_input_parameters_field(
     execution = ToolExecution(
         id=execution_id,
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
         status=ToolExecutionStatus.SUCCESS,
@@ -287,7 +285,7 @@ async def test_tool_execution_input_parameters_field(
 
 @pytest.mark.asyncio
 async def test_tool_execution_output_data_field(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test the output_data field with various JSON data types."""
     execution_id = uuid4()
@@ -308,7 +306,7 @@ async def test_tool_execution_output_data_field(
     execution = ToolExecution(
         id=execution_id,
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
         execution_end=datetime.now(UTC),
@@ -332,13 +330,13 @@ async def test_tool_execution_output_data_field(
 
 @pytest.mark.asyncio
 async def test_tool_execution_null_output_data(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test that output_data can be null (default behavior)."""
     execution = ToolExecution(
         id=uuid4(),
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
         status=ToolExecutionStatus.RUNNING,
@@ -355,13 +353,13 @@ async def test_tool_execution_null_output_data(
 
 @pytest.mark.asyncio
 async def test_tool_execution_empty_json_fields(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_tool: Tool, test_user: User
 ) -> None:
     """Test ToolExecution with empty JSON objects."""
     execution = ToolExecution(
         id=uuid4(),
         tool_id=test_tool.id,
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
         status=ToolExecutionStatus.SUCCESS,
@@ -380,7 +378,6 @@ async def test_tool_execution_empty_json_fields(
 def test_tool_execution_json_field_types() -> None:
     """Test that input_parameters and output_data accept various JSON-compatible types."""
     tool_id = uuid4()
-    provider_id = uuid4()
     user_id = uuid4()
     created_by = uuid4()
     now = datetime.now(UTC)
@@ -401,7 +398,6 @@ def test_tool_execution_json_field_types() -> None:
         execution = ToolExecution(
             id=uuid4(),
             tool_id=tool_id,
-            provider_id=provider_id,
             user_id=user_id,
             execution_start=now,
             status=ToolExecutionStatus.SUCCESS,

@@ -1,11 +1,26 @@
-import { useContext } from 'react'
+import { useContext, useMemo } from 'react'
 
-import { UnsavedChangesContext } from '../providers/unsaved-changes/unsavedChangesContext'
+import { useNavigate } from '../hooks/routing/useNavigate'
+import {
+  UnsavedChangesContext,
+  type UnsavedChangesContextType,
+} from '../providers/unsaved-changes/unsavedChangesContext'
 
-export function useUnsavedChanges() {
+const noop = () => () => {}
+
+export function useUnsavedChanges(): UnsavedChangesContextType {
   const context = useContext(UnsavedChangesContext)
-  if (!context) {
-    throw new Error('useUnsavedChanges must be used within UnsavedChangesProvider')
-  }
-  return context
+  const navigate = useNavigate()
+
+  const fallback = useMemo<UnsavedChangesContextType>(
+    () => ({
+      requestNavigation: (path: string) => navigate(path),
+      registerSaveHandler: noop,
+      unregisterSaveHandler: () => {},
+      registerDirtyCheck: noop,
+    }),
+    [navigate]
+  )
+
+  return context ?? fallback
 }

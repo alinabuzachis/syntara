@@ -8,12 +8,12 @@ from nexus.auth.session.cleanup import cleanup_expired_sessions
 
 
 @pytest.fixture
-def mock_session():  # noqa: D103
+def mock_session():
     return AsyncMock()
 
 
 @pytest.fixture
-def mock_session_factory(mock_session):  # noqa: D103
+def mock_session_factory(mock_session):
     factory = MagicMock()
     factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
     factory.return_value.__aexit__ = AsyncMock(return_value=False)

@@ -14,7 +14,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.tool_manager.models import Tool, ToolProvider
+from nexus.integrations.models.integration import Integration
+from nexus.tool_manager.models import Tool
 from nexus.tool_manager.models.usage_counter import (
     CounterType,
     UsageCounter,
@@ -31,7 +32,7 @@ async def test_create_usage_counter_with_required_fields(test_db_session: AsyncS
 
     counter = UsageCounter(
         id=counter_id,
-        counter_type=CounterType.PROVIDER,
+        counter_type=CounterType.TOOL,
         time_window="2025-01-01-14",
         window_duration=WindowDuration.HOUR,
         window_start=now,
@@ -42,8 +43,7 @@ async def test_create_usage_counter_with_required_fields(test_db_session: AsyncS
     await test_db_session.commit()
 
     assert counter.id == counter_id
-    assert counter.counter_type == CounterType.PROVIDER
-    assert counter.provider_id is None  # Default value
+    assert counter.counter_type == CounterType.TOOL
     assert counter.tool_id is None  # Default value
     assert counter.user_id is None  # Default value
     assert counter.time_window == "2025-01-01-14"
@@ -61,7 +61,7 @@ async def test_create_usage_counter_with_required_fields(test_db_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_create_usage_counter_with_all_fields(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_tool: Tool, test_user: User
+    test_db_session: AsyncSession, test_tool: Tool, test_user: User
 ) -> None:
     """Test creating a usage counter with all fields including optional ones."""
     counter_id = uuid4()
@@ -71,7 +71,6 @@ async def test_create_usage_counter_with_all_fields(
     counter = UsageCounter(
         id=counter_id,
         counter_type=CounterType.TOOL_USER,
-        provider_id=test_tool_provider.id,
         tool_id=test_tool.id,
         user_id=test_user.id,
         time_window="2025-01-01",
@@ -89,7 +88,6 @@ async def test_create_usage_counter_with_all_fields(
     await test_db_session.commit()
 
     assert counter.counter_type == CounterType.TOOL_USER
-    assert counter.provider_id == test_tool_provider.id
     assert counter.tool_id == test_tool.id
     assert counter.user_id == test_user.id
     assert counter.time_window == "2025-01-01"
@@ -195,37 +193,6 @@ def test_usage_counter_constraints(test_user: User) -> None:
 
 
 @pytest.mark.asyncio
-async def test_usage_counter_provider_scoped(
-    test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
-) -> None:
-    """Test creating a provider-scoped usage counter."""
-    counter_id = uuid4()
-    now = datetime.now(UTC)
-    window_end = now + timedelta(hours=1)
-
-    counter = UsageCounter(
-        id=counter_id,
-        counter_type=CounterType.PROVIDER,
-        provider_id=test_tool_provider.id,
-        time_window="2025-01-01-14",
-        window_duration=WindowDuration.HOUR,
-        request_count=50,
-        success_count=45,
-        error_count=5,
-        window_start=now,
-        window_end=window_end,
-        created_by=test_user.id,
-    )
-    test_db_session.add(counter)
-    await test_db_session.commit()
-
-    assert counter.counter_type == CounterType.PROVIDER
-    assert counter.provider_id == test_tool_provider.id
-    assert counter.tool_id is None
-    assert counter.user_id is None
-
-
-@pytest.mark.asyncio
 async def test_usage_counter_tool_scoped(test_db_session: AsyncSession, test_tool: Tool, test_user: User) -> None:
     """Test creating a tool-scoped usage counter."""
     counter_id = uuid4()
@@ -249,7 +216,6 @@ async def test_usage_counter_tool_scoped(test_db_session: AsyncSession, test_too
     await test_db_session.commit()
 
     assert counter.counter_type == CounterType.TOOL
-    assert counter.provider_id is None
     assert counter.tool_id == test_tool.id
     assert counter.user_id is None
 
@@ -279,7 +245,37 @@ async def test_usage_counter_user_scoped(test_db_session: AsyncSession, test_use
     await test_db_session.commit()
 
     assert counter.counter_type == CounterType.USER
-    assert counter.provider_id is None
     assert counter.tool_id is None
     assert counter.user_id == test_user.id
     assert counter.window_duration == WindowDuration.MONTH
+
+
+@pytest.mark.asyncio
+async def test_usage_counter_integration_scoped(
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
+) -> None:
+    """Test creating an integration-scoped usage counter."""
+    counter_id = uuid4()
+    now = datetime.now(UTC)
+    window_end = now + timedelta(hours=1)
+
+    counter = UsageCounter(
+        id=counter_id,
+        counter_type=CounterType.PROVIDER,
+        integration_id=test_mcp_integration.id,
+        time_window="2025-01-01-14",
+        window_duration=WindowDuration.HOUR,
+        request_count=50,
+        success_count=45,
+        error_count=5,
+        window_start=now,
+        window_end=window_end,
+        created_by=test_user.id,
+    )
+    test_db_session.add(counter)
+    await test_db_session.commit()
+
+    assert counter.counter_type == CounterType.PROVIDER
+    assert counter.integration_id == test_mcp_integration.id
+    assert counter.tool_id is None
+    assert counter.user_id is None

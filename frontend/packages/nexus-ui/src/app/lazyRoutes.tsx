@@ -9,7 +9,12 @@ export const IntegrationForm = lazy(() =>
   import('../routes/configuration/integrations/form/IntegrationForm').then((m) => ({ default: m.IntegrationForm }))
 )
 export const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
-export const IntegrationTools = lazy(() => import('../routes/configuration/integrations/IntegrationTools'))
+export const IntegrationDetail = lazy(() =>
+  import('../routes/configuration/integrations/IntegrationDetail').then((m) => ({ default: m.IntegrationDetail }))
+)
+export const EditIntegration = lazy(() =>
+  import('../routes/configuration/integrations/EditIntegrationForm').then((m) => ({ default: m.EditIntegrationForm }))
+)
 export const Settings = lazy(() => import('../routes/configuration/settings/Settings'))
 export const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
 export const Approvals = lazy(() => import('../routes/approvals/Approvals'))

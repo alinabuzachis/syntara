@@ -242,7 +242,9 @@ export function createApiActivity(options: CreateApiActivityOptions): Activity {
 export type CreateAgenticActivityOptions = {
   id: string
   name: string
-  tools?: string[]
+  toolSelectionStrategy?: 'ALL' | 'NONE' | 'SELECTED'
+  toolSelections?: string[]
+  integrationConnections?: { integration_id: string; credential_id: string }[]
   prompt?: string
   model?: string
   inputs?: string
@@ -256,12 +258,33 @@ export type CreateAgenticActivityOptions = {
  * Create an agentic node (v2).
  */
 export function createAgenticActivity(options: CreateAgenticActivityOptions): Activity {
-  const { id, name, tools, prompt, model, fileIds, credentialId, responseSchema, settings } = options
+  const {
+    id,
+    name,
+    toolSelectionStrategy,
+    toolSelections,
+    integrationConnections,
+    prompt,
+    model,
+    fileIds,
+    credentialId,
+    responseSchema,
+    settings,
+  } = options
   const config: Record<string, unknown> = {}
 
   if (prompt) config.prompt = prompt
   if (model) config.model = model
-  if (tools && tools.length > 0) config.tool_selections = tools
+
+  if (toolSelectionStrategy !== undefined) {
+    config.tool_selection_strategy = toolSelectionStrategy
+    if (toolSelectionStrategy === 'SELECTED' && toolSelections?.length) {
+      config.tool_selections = toolSelections
+    }
+  }
+
+  if (integrationConnections && integrationConnections.length > 0)
+    config.integration_connections = integrationConnections
   if (fileIds && fileIds.length > 0) config.file_ids = fileIds
   if (credentialId) config.credential_id = credentialId
   if (responseSchema) config.response_schema = responseSchema

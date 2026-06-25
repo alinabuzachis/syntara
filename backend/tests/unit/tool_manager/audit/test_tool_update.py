@@ -14,7 +14,7 @@ class TestToolUpdateHandler:
             "tool_id": uuid4(),
             "tool_name": "create_issue",
             "namespaced_name": "github.create_issue",
-            "provider_id": uuid4(),
+            "integration_id": uuid4(),
             "updated_fields": ["enabled", "status"],
         }
         defaults.update(overrides)
@@ -66,7 +66,7 @@ class TestToolUpdateHandler:
         event = self._make_event(
             tool_name="send_message",
             namespaced_name="slack.send_message",
-            provider_id=provider_id,
+            integration_id=provider_id,
             updated_fields=["enabled"],
         )
 
@@ -76,7 +76,7 @@ class TestToolUpdateHandler:
         assert data.data_type == "tool-update-context"
         assert data.tool_name == "send_message"  # type: ignore[attr-defined]
         assert data.namespaced_name == "slack.send_message"  # type: ignore[attr-defined]
-        assert data.provider_id == str(provider_id)  # type: ignore[attr-defined]
+        assert data.integration_id == str(provider_id)  # type: ignore[attr-defined]
         assert data.updated_fields == ["enabled"]  # type: ignore[attr-defined]
         assert data.error_type is None
 

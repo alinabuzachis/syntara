@@ -71,7 +71,7 @@ async def _inject_runtime_settings(input_config: dict[str, Any]) -> None:
 
 
 @activity.defn(name=ActivityName.AGENTIC)
-async def execute_agentic_activity(  # noqa: C901, PLR0915
+async def execute_agentic_activity(  # noqa: C901, PLR0912, PLR0915
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,  # noqa: ARG001  # must match Temporal dispatch signature; agentic completes async via callback, not via return value
     execution_id: str = "",
@@ -155,6 +155,16 @@ async def execute_agentic_activity(  # noqa: C901, PLR0915
 
             # Inject LLM credential if resolved from Nexus credential system
             _inject_llm_credential_metadata(agent_metadata, input_config)
+
+            # Pass per-integration execution credentials (credential UUIDs, not secrets)
+            if config.integration_connections:
+                agent_metadata["integration_connections"] = [c.model_dump() for c in config.integration_connections]
+
+            # Pass tool selection through to the executor
+            if config.tool_selection_strategy:
+                agent_metadata["tool_selection_strategy"] = config.tool_selection_strategy
+            if config.tool_selections:
+                agent_metadata["tool_selections"] = config.tool_selections
 
             # Pass response_schema if defined
             if config.response_schema:

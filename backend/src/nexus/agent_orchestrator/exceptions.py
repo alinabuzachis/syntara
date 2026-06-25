@@ -48,6 +48,15 @@ class LLMConfigurationError(AgentOrchestratorError):
     """
 
 
+class CredentialResolutionError(AgentOrchestratorError):
+    """Raised when an execution credential cannot be resolved for an integration.
+
+    Covers: credential not found, disabled, missing secret data, decryption
+    failure, or injector template resolution failure.  Distinct from
+    LLMConfigurationError which is specific to LLM provider credentials.
+    """
+
+
 class EmptyLLMResponseError(AgentOrchestratorError, RetryableError):
     """Raised when the LLM returns an empty response with no tool calls.
 

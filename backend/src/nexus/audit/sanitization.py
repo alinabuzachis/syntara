@@ -267,7 +267,7 @@ class EventSanitizer:
 
 # Fixed sanitizer with comprehensive PII detectors
 # Patterns list shared between delimiter-based and camelCase detectors
-_CREDENTIAL_PATTERNS = [
+CREDENTIAL_PATTERNS = [
     "password",
     "secret",
     "token",
@@ -290,9 +290,9 @@ _CREDENTIAL_PATTERNS = [
 sanitizer = EventSanitizer(
     detectors=[
         # Delimiter-based matching: snake_case, kebab-case, dot.notation
-        redact_by_partial_key(_CREDENTIAL_PATTERNS),
+        redact_by_partial_key(CREDENTIAL_PATTERNS),
         # CamelCase matching: userPassword, apiSecret, clientSecret
-        redact_by_camel_case_key(_CREDENTIAL_PATTERNS),
+        redact_by_camel_case_key(CREDENTIAL_PATTERNS),
         # Email detection
         redact_email,
     ]

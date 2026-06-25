@@ -138,6 +138,22 @@ export default {
     }
 
     /**
+     * Check whether a span is a screen-reader-only element (className includes
+     * "pf-v6-u-screen-reader"). This is an intentional a11y pattern — not a
+     * text presentation choice — and should not be flagged.
+     */
+    function isScreenReaderSpan(openingElement) {
+      return openingElement.attributes.some((attr) => {
+        if (attr.type !== 'JSXAttribute' || attr.name.name !== 'className') return false
+        const { value } = attr
+        if (value && value.type === 'Literal' && typeof value.value === 'string') {
+          return value.value.split(' ').includes('pf-v6-u-screen-reader')
+        }
+        return false
+      })
+    }
+
+    /**
      * Check whether a JSXOpeningElement has a `style` attribute.
      */
     function hasStyleProp(openingElement) {
@@ -214,8 +230,10 @@ export default {
         // For <div>: only flag when it has a style prop
         if (tag === 'div' && !styled) return
 
-        // For <span>: skip if ALL children are only JSX elements (icon wrapper)
+        // For <span>: skip if ALL children are only JSX elements (icon wrapper),
+        // or if it is a screen-reader-only span (a11y utility pattern)
         if (tag === 'span') {
+          if (isScreenReaderSpan(node)) return
           const nonWhitespaceChildren = children.filter((child) => {
             if (child.type === 'JSXText') return child.value.trim().length > 0
             return true

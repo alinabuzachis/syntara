@@ -8,6 +8,7 @@ from uuid import UUID
 from attrs import define as _attrs_define
 from dateutil.parser import isoparse
 
+from ..models.integration_refresh_status import IntegrationRefreshStatus
 from ..models.integration_scope import IntegrationScope
 from ..models.integration_status import IntegrationStatus
 from ..models.integration_type import IntegrationType
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from ..models.aap_gateway_configuration import AAPGatewayConfiguration
     from ..models.integration_read_labels import IntegrationReadLabels
     from ..models.llm_provider_configuration import LLMProviderConfiguration
-    from ..models.mcp_server_configuration import MCPServerConfiguration
+    from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
 
 T = TypeVar("T", bound="IntegrationRead")
@@ -31,7 +32,7 @@ class IntegrationRead:
         created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
         name (str): Human-readable name for the resource Example: Authentication Service.
         integration_type (IntegrationType): Type of external integration.
-        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration): Integration-
+        configuration (AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput): Integration-
             specific configuration
         id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
         created_at (datetime.datetime | Unset): Timestamp when resource was created Example: 2025-10-09T12:00:00Z.
@@ -47,17 +48,22 @@ class IntegrationRead:
         description (None | str | Unset): Detailed description of the resource Example: Handles user authentication and
             authorization workflows.
         enabled (bool | Unset):  Default: True.
-        status (IntegrationStatus | Unset): Current status of an integration.
+        validation_status (IntegrationStatus | Unset): Validation status of an integration.
         scope (IntegrationScope | Unset): Visibility scope of an integration.
         last_validated_at (datetime.datetime | None | Unset):
         management_credential_id (None | Unset | UUID):
         validation_error (None | str | Unset):
+        refresh_status (IntegrationRefreshStatus | None | Unset):
+        last_refreshed_at (datetime.datetime | None | Unset):
+        refresh_error (None | str | Unset):
+        total_tool_count (int | Unset): Total number of tools linked to this integration Default: 0.
+        enabled_tool_count (int | Unset): Number of enabled tools linked to this integration Default: 0.
     """
 
     created_by: UUID
     name: str
     integration_type: IntegrationType
-    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration
+    configuration: AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput
     id: UUID | Unset = UNSET
     created_at: datetime.datetime | Unset = UNSET
     updated_at: datetime.datetime | Unset = UNSET
@@ -67,15 +73,20 @@ class IntegrationRead:
     deleted_by: None | Unset | UUID = UNSET
     description: None | str | Unset = UNSET
     enabled: bool | Unset = True
-    status: IntegrationStatus | Unset = UNSET
+    validation_status: IntegrationStatus | Unset = UNSET
     scope: IntegrationScope | Unset = UNSET
     last_validated_at: datetime.datetime | None | Unset = UNSET
     management_credential_id: None | Unset | UUID = UNSET
     validation_error: None | str | Unset = UNSET
+    refresh_status: IntegrationRefreshStatus | None | Unset = UNSET
+    last_refreshed_at: datetime.datetime | None | Unset = UNSET
+    refresh_error: None | str | Unset = UNSET
+    total_tool_count: int | Unset = 0
+    enabled_tool_count: int | Unset = 0
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.llm_provider_configuration import LLMProviderConfiguration
-        from ..models.mcp_server_configuration import MCPServerConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
         created_by = str(self.created_by)
 
@@ -84,7 +95,7 @@ class IntegrationRead:
         integration_type = self.integration_type.value
 
         configuration: dict[str, Any]
-        if isinstance(self.configuration, MCPServerConfiguration):
+        if isinstance(self.configuration, MCPServerConfigurationInput):
             configuration = self.configuration.to_dict()
         elif isinstance(self.configuration, LLMProviderConfiguration):
             configuration = self.configuration.to_dict()
@@ -139,9 +150,9 @@ class IntegrationRead:
 
         enabled = self.enabled
 
-        status: str | Unset = UNSET
-        if not isinstance(self.status, Unset):
-            status = self.status.value
+        validation_status: str | Unset = UNSET
+        if not isinstance(self.validation_status, Unset):
+            validation_status = self.validation_status.value
 
         scope: str | Unset = UNSET
         if not isinstance(self.scope, Unset):
@@ -168,6 +179,32 @@ class IntegrationRead:
             validation_error = UNSET
         else:
             validation_error = self.validation_error
+
+        refresh_status: None | str | Unset
+        if isinstance(self.refresh_status, Unset):
+            refresh_status = UNSET
+        elif isinstance(self.refresh_status, IntegrationRefreshStatus):
+            refresh_status = self.refresh_status.value
+        else:
+            refresh_status = self.refresh_status
+
+        last_refreshed_at: None | str | Unset
+        if isinstance(self.last_refreshed_at, Unset):
+            last_refreshed_at = UNSET
+        elif isinstance(self.last_refreshed_at, datetime.datetime):
+            last_refreshed_at = self.last_refreshed_at.isoformat()
+        else:
+            last_refreshed_at = self.last_refreshed_at
+
+        refresh_error: None | str | Unset
+        if isinstance(self.refresh_error, Unset):
+            refresh_error = UNSET
+        else:
+            refresh_error = self.refresh_error
+
+        total_tool_count = self.total_tool_count
+
+        enabled_tool_count = self.enabled_tool_count
 
         field_dict: dict[str, Any] = {}
 
@@ -197,8 +234,8 @@ class IntegrationRead:
             field_dict["description"] = description
         if enabled is not UNSET:
             field_dict["enabled"] = enabled
-        if status is not UNSET:
-            field_dict["status"] = status
+        if validation_status is not UNSET:
+            field_dict["validation_status"] = validation_status
         if scope is not UNSET:
             field_dict["scope"] = scope
         if last_validated_at is not UNSET:
@@ -207,6 +244,16 @@ class IntegrationRead:
             field_dict["management_credential_id"] = management_credential_id
         if validation_error is not UNSET:
             field_dict["validation_error"] = validation_error
+        if refresh_status is not UNSET:
+            field_dict["refresh_status"] = refresh_status
+        if last_refreshed_at is not UNSET:
+            field_dict["last_refreshed_at"] = last_refreshed_at
+        if refresh_error is not UNSET:
+            field_dict["refresh_error"] = refresh_error
+        if total_tool_count is not UNSET:
+            field_dict["total_tool_count"] = total_tool_count
+        if enabled_tool_count is not UNSET:
+            field_dict["enabled_tool_count"] = enabled_tool_count
 
         return field_dict
 
@@ -215,7 +262,7 @@ class IntegrationRead:
         from ..models.aap_gateway_configuration import AAPGatewayConfiguration
         from ..models.integration_read_labels import IntegrationReadLabels
         from ..models.llm_provider_configuration import LLMProviderConfiguration
-        from ..models.mcp_server_configuration import MCPServerConfiguration
+        from ..models.mcp_server_configuration_input import MCPServerConfigurationInput
 
         d = dict(src_dict)
         created_by = UUID(d.pop("created_by"))
@@ -226,11 +273,11 @@ class IntegrationRead:
 
         def _parse_configuration(
             data: object,
-        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfiguration:
+        ) -> AAPGatewayConfiguration | LLMProviderConfiguration | MCPServerConfigurationInput:
             try:
                 if not isinstance(data, dict):
                     raise TypeError()
-                configuration_type_0 = MCPServerConfiguration.from_dict(data)
+                configuration_type_0 = MCPServerConfigurationInput.from_dict(data)
 
                 return configuration_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -341,12 +388,12 @@ class IntegrationRead:
 
         enabled = d.pop("enabled", UNSET)
 
-        _status = d.pop("status", UNSET)
-        status: IntegrationStatus | Unset
-        if isinstance(_status, Unset):
-            status = UNSET
+        _validation_status = d.pop("validation_status", UNSET)
+        validation_status: IntegrationStatus | Unset
+        if isinstance(_validation_status, Unset):
+            validation_status = UNSET
         else:
-            status = IntegrationStatus(_status)
+            validation_status = IntegrationStatus(_validation_status)
 
         _scope = d.pop("scope", UNSET)
         scope: IntegrationScope | Unset
@@ -398,6 +445,53 @@ class IntegrationRead:
 
         validation_error = _parse_validation_error(d.pop("validation_error", UNSET))
 
+        def _parse_refresh_status(data: object) -> IntegrationRefreshStatus | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                refresh_status_type_0 = IntegrationRefreshStatus(data)
+
+                return refresh_status_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(IntegrationRefreshStatus | None | Unset, data)
+
+        refresh_status = _parse_refresh_status(d.pop("refresh_status", UNSET))
+
+        def _parse_last_refreshed_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                last_refreshed_at_type_0 = isoparse(data)
+
+                return last_refreshed_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        last_refreshed_at = _parse_last_refreshed_at(d.pop("last_refreshed_at", UNSET))
+
+        def _parse_refresh_error(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        refresh_error = _parse_refresh_error(d.pop("refresh_error", UNSET))
+
+        total_tool_count = d.pop("total_tool_count", UNSET)
+
+        enabled_tool_count = d.pop("enabled_tool_count", UNSET)
+
         integration_read = cls(
             created_by=created_by,
             name=name,
@@ -412,11 +506,16 @@ class IntegrationRead:
             deleted_by=deleted_by,
             description=description,
             enabled=enabled,
-            status=status,
+            validation_status=validation_status,
             scope=scope,
             last_validated_at=last_validated_at,
             management_credential_id=management_credential_id,
             validation_error=validation_error,
+            refresh_status=refresh_status,
+            last_refreshed_at=last_refreshed_at,
+            refresh_error=refresh_error,
+            total_tool_count=total_tool_count,
+            enabled_tool_count=enabled_tool_count,
         )
 
         return integration_read

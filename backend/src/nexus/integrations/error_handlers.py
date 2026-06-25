@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         IntegrationError,
         IntegrationNameConflictError,
         IntegrationNotFoundError,
+        IntegrationRefreshNotSupportedError,
     )
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -99,6 +100,27 @@ def integration_credential_type_mismatch_handler(
         title="Invalid Credential Type",
         detail=exc.message,
         code="INTEGRATION_CREDENTIAL_TYPE_MISMATCH",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def integration_refresh_not_supported_handler(
+    request: Request,
+    exc: "IntegrationRefreshNotSupportedError",
+) -> JSONResponse:
+    """Handle IntegrationRefreshNotSupportedError with RFC 9457 format."""
+    logger.warning(
+        "Integration refresh not supported",
+        integration_id=str(exc.integration_id),
+        integration_type=exc.integration_type,
+    )
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Refresh Not Supported",
+        detail=exc.message,
+        code="INTEGRATION_REFRESH_NOT_SUPPORTED",
         retryable=False,
         instance=str(request.url),
     )

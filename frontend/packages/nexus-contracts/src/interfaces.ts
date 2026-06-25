@@ -126,6 +126,27 @@ export const WorkflowVersionStatusEnum = {
 } as const
 
 export type WorkflowVersionStatus = WorkflowAPI.components['schemas']['WorkflowVersionStatus']
+
+/**
+ * Constants for integration type values
+ * Use these constants instead of string literals when comparing integration.integration_type values
+ */
+export const IntegrationTypeEnum = {
+  MCP_SERVER: 'mcp_server',
+  LLM_PROVIDER: 'llm_provider',
+  AAP_GATEWAY: 'aap_gateway',
+} as const
+
+/**
+ * Constants for integration status values
+ * Use these constants instead of string literals when comparing integration.status values
+ */
+export const IntegrationStatusEnum = {
+  UNKNOWN: 'unknown',
+  VALIDATING: 'validating',
+  AVAILABLE: 'available',
+  ERROR: 'error',
+} as const
 export type WorkflowsResponse =
   WorkflowAPI.paths['/workflows']['get']['responses']['200']['content']['application/json']
 export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
@@ -133,11 +154,6 @@ export type WorkflowWithVersionResponse =
   WorkflowAPI.paths['/workflows/{workflow_id}']['get']['responses']['200']['content']['application/json']
 
 export type Tool = WithId<ToolManagerAPI.components['schemas']['ToolWithParameters']>
-
-export type ToolProvider = WithId<ToolManagerAPI.components['schemas']['ToolProviderWithConfiguration']>
-export type ToolProviderCreate = ToolManagerAPI.components['schemas']['ToolProviderCreate']
-export type ToolProvidersResponse =
-  ToolManagerAPI.paths['/tool_manager/tool_providers']['get']['responses']['200']['content']['application/json']
 
 // V2 types — from Pydantic models via OpenAPI spec
 export type V2WorkflowDefinition = WorkflowAPI.components['schemas']['WorkflowDefinition']

@@ -1,0 +1,557 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
+
+import { integrationsClient } from '../../../client'
+import { AlertProvider } from '../../../providers/alerts'
+
+import { EditIntegrationForm } from './EditIntegrationForm'
+
+vi.mock('../../../client', () => ({
+  integrationsClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false, isError: false })),
+  },
+  credentialsClient: {
+    useQuery: vi.fn(() => ({ data: undefined, isPending: false, isError: false, error: null })),
+  },
+}))
+
+const mockNavigate = vi.fn()
+
+vi.mock('../../../hooks/routing/useNavigate', () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+vi.mock('../../../hooks/routing/useParams', () => ({
+  useParams: () => ({ integrationId: 'int-1' }),
+}))
+
+vi.mock('../../builder/components/CredentialSelector', () => ({
+  CredentialSelector: ({
+    label,
+    fieldId,
+    onChange,
+    value,
+  }: {
+    label?: string
+    fieldId?: string
+    onChange?: (id: string | undefined) => void
+    value?: string
+  }) => (
+    <div data-testid="credential-selector" aria-label={label}>
+      <input id={fieldId} aria-label={label} readOnly value={value ?? ''} />
+      <button data-testid="select-credential" onClick={() => onChange?.('cred-123')}>
+        Select credential
+      </button>
+      <button data-testid="clear-credential" onClick={() => onChange?.(undefined)}>
+        Clear credential
+      </button>
+    </div>
+  ),
+}))
+
+const mockIntegration = {
+  id: 'int-1',
+  name: 'My MCP Server',
+  description: 'A production integration',
+  integration_type: 'mcp_server',
+  enabled: true,
+  validation_status: 'available',
+  scope: 'global',
+  configuration: {
+    integration_type: 'mcp_server',
+    base_url: 'https://mcp.example.com',
+  },
+  management_credential_id: null,
+  last_validated_at: '2026-01-01T00:00:00Z',
+  validation_error: null,
+  refresh_status: 'available',
+  last_refreshed_at: '2026-01-01T00:00:00Z',
+  refresh_error: null,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  created_by: 'user-1',
+  labels: {},
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+})
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryClient}>
+    <AlertProvider>{children}</AlertProvider>
+  </QueryClientProvider>
+)
+
+type MutationCallbacks = {
+  onSuccess?: (result: unknown) => void
+  onError?: (error: unknown) => void
+}
+
+function setupMocks(overrides?: { integration?: Record<string, unknown>; isPending?: boolean; isError?: boolean }) {
+  const integration = overrides?.integration ? { ...mockIntegration, ...overrides.integration } : mockIntegration
+
+  vi.mocked(integrationsClient.useQuery).mockReturnValue({
+    data: overrides?.isError ? undefined : integration,
+    isPending: overrides?.isPending ?? false,
+    isError: overrides?.isError ?? false,
+    error: overrides?.isError ? new Error('Load failed') : null,
+    refetch: vi.fn(),
+  } as never)
+}
+
+function setupMutationMocks(patchMutate?: ReturnType<typeof vi.fn>, discoverMutate?: ReturnType<typeof vi.fn>) {
+  const patch = patchMutate ?? vi.fn()
+  const discover = discoverMutate ?? vi.fn()
+  vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
+    if (path === '/integrations/discover') {
+      return { mutate: discover, isPending: false, isError: false } as never
+    }
+    return { mutate: patch, isPending: false, isError: false } as never
+  })
+  return { patchMutate: patch, discoverMutate: discover }
+}
+
+describe('EditIntegrationForm', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setupMocks()
+    setupMutationMocks()
+  })
+
+  describe('Rendering', () => {
+    it('renders the page header with title and breadcrumbs', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'Edit integration' })).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: /breadcrumb/i })).toBeInTheDocument()
+    })
+
+    it('shows integration type as read-only text', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText('MCP Server')).toBeInTheDocument()
+    })
+
+    it('shows loading state while data loads', () => {
+      setupMocks({ isPending: true })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('heading', { name: 'Edit integration' })).toBeInTheDocument()
+    })
+
+    it('shows error state when loading fails', () => {
+      setupMocks({ isError: true })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getAllByText('Error loading integration').length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Field population', () => {
+    it('populates name field from integration data', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByDisplayValue('My MCP Server')).toBeInTheDocument()
+    })
+
+    it('populates description field from integration data', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByDisplayValue('A production integration')).toBeInTheDocument()
+    })
+
+    it('populates API URL field from integration data', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByDisplayValue('https://mcp.example.com')).toBeInTheDocument()
+    })
+  })
+
+  describe('Form editing', () => {
+    it('allows editing the name field', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const nameInput = screen.getByDisplayValue('My MCP Server')
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Updated Server')
+
+      expect(nameInput).toHaveValue('Updated Server')
+    })
+
+    it('allows editing the description field', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const descInput = screen.getByDisplayValue('A production integration')
+      await user.clear(descInput)
+      await user.type(descInput, 'New description')
+
+      expect(descInput).toHaveValue('New description')
+    })
+
+    it('allows editing the API URL field', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const urlInput = screen.getByDisplayValue('https://mcp.example.com')
+      await user.clear(urlInput)
+      await user.type(urlInput, 'https://new.example.com')
+
+      expect(urlInput).toHaveValue('https://new.example.com')
+    })
+
+    it('shows scope switch toggled on for global integrations', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('switch', { name: /integration scope/i })).toBeChecked()
+      expect(screen.getByText('Global')).toBeInTheDocument()
+    })
+
+    it('shows scope switch toggled off for project integrations', () => {
+      setupMocks({ integration: { scope: 'project' } })
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('switch', { name: /integration scope/i })).not.toBeChecked()
+    })
+
+    it('shows global scope helper text', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText(/Global integrations are available to all projects/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('Validation', () => {
+    it('shows error when name is empty on save', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const nameInput = screen.getByDisplayValue('My MCP Server')
+      await user.clear(nameInput)
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Server name / ID is required')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when URL is empty on save', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const urlInput = screen.getByDisplayValue('https://mcp.example.com')
+      await user.clear(urlInput)
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when URL is not a valid URL', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      const urlInput = screen.getByDisplayValue('https://mcp.example.com')
+      await user.clear(urlInput)
+      await user.type(urlInput, 'not-a-url')
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Form submission', () => {
+    it('calls PATCH with correct body on save', async () => {
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            params: { path: { integration_id: 'int-1' } },
+            body: expect.objectContaining({
+              name: 'My MCP Server',
+              description: 'A production integration',
+              scope: 'global',
+              configuration: { integration_type: 'mcp_server', base_url: 'https://mcp.example.com' },
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+
+    it('navigates to detail page on successful save', async () => {
+      const patchMutate = vi.fn()
+      patchMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({})
+      })
+      setupMutationMocks(patchMutate)
+
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/int-1')
+      })
+    })
+
+    it('shows success alert on successful save', async () => {
+      const patchMutate = vi.fn()
+      patchMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({})
+      })
+      setupMutationMocks(patchMutate)
+
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Integration updated')).toBeInTheDocument()
+      })
+    })
+
+    it('includes credential ID in save body when credential is selected', async () => {
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              management_credential_id: 'cred-123',
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+  })
+
+  describe('Credential save scenarios', () => {
+    it('saves with null credential when credential is cleared', async () => {
+      setupMocks({ integration: { management_credential_id: 'cred-existing' } })
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('clear-credential'))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              management_credential_id: null,
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+
+    it('saves with new credential when changed from existing', async () => {
+      setupMocks({ integration: { management_credential_id: 'cred-old' } })
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              management_credential_id: 'cred-123',
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+
+    it('enables test connection when integration has existing credential', async () => {
+      setupMocks({ integration: { management_credential_id: 'cred-existing' } })
+      render(<EditIntegrationForm />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Test connection' })).not.toHaveAttribute('aria-disabled', 'true')
+      })
+    })
+
+    it('saves existing credential when no changes made', async () => {
+      setupMocks({ integration: { management_credential_id: 'cred-existing' } })
+      const { patchMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(patchMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            body: expect.objectContaining({
+              management_credential_id: 'cred-existing',
+            }) as Record<string, unknown>,
+          }),
+          expect.any(Object)
+        )
+      })
+    })
+  })
+
+  describe('Cancel', () => {
+    it('navigates to detail page when Cancel is clicked', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/int-1')
+    })
+  })
+
+  describe('Credential section', () => {
+    it('renders credential selector', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByTestId('credential-selector')).toBeInTheDocument()
+    })
+
+    it('renders credential section heading and description', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByText('Connection credential')).toBeInTheDocument()
+      expect(screen.getByText(/verify the connection/i)).toBeInTheDocument()
+    })
+
+    it('disables test connection button when no credential is selected', () => {
+      render(<EditIntegrationForm />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('enables test connection button after selecting a credential', async () => {
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Test connection' })).not.toHaveAttribute('aria-disabled', 'true')
+      })
+    })
+  })
+
+  describe('Test connection', () => {
+    it('calls discover endpoint when test connection is clicked', async () => {
+      const { discoverMutate } = setupMutationMocks()
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      expect(discoverMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            credential_id: 'cred-123',
+            integration_type: 'mcp_server',
+          }) as Record<string, unknown>,
+        }),
+        expect.any(Object)
+      )
+    })
+
+    it('shows success alert when connection test succeeds with tools', async () => {
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({
+          success: true,
+          discovered_tools: [{ name: 'tool1' }, { name: 'tool2' }],
+        })
+      })
+      setupMutationMocks(undefined, discoverMutate)
+
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Connection tested')).toBeInTheDocument()
+        expect(screen.getByText('Successfully connected. Discovered 2 tool(s).')).toBeInTheDocument()
+      })
+    })
+
+    it('shows failure alert when connection test returns success: false', async () => {
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({
+          success: false,
+          error: 'Connection refused',
+        })
+      })
+      setupMutationMocks(undefined, discoverMutate)
+
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Connection failed')).toBeInTheDocument()
+        expect(screen.getByText('Connection refused')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert when connection test request fails', async () => {
+      const discoverMutate = vi.fn()
+      discoverMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onError?.(new Error('Network error'))
+      })
+      setupMutationMocks(undefined, discoverMutate)
+
+      const user = userEvent.setup()
+      render(<EditIntegrationForm />, { wrapper })
+
+      await user.click(screen.getByTestId('select-credential'))
+      await user.click(screen.getByRole('button', { name: 'Test connection' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Connection test failed')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(<EditIntegrationForm />, { wrapper })
+      expect(await axe(container)).toHaveNoViolations()
+    })
+  })
+})

@@ -13,9 +13,9 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
+from nexus.integrations.models.integration import Integration
 from nexus.tool_manager.models.tool import Tool
 from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
-from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.services.tool_metrics_service import ToolMetricsService
 
 # ============================================================================
@@ -70,13 +70,13 @@ async def test_summary_filter_by_namespaced_name(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
     test_tool: Tool,
-    test_tool_provider: ToolProvider,
+    test_mcp_integration: Integration,
     test_user: User,
 ) -> None:
     """Test filtering summary by namespaced_name."""
     tool2 = Tool(
         name="other-tool",
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         namespaced_name="mock::filter_test",
         created_by=test_user.id,
     )
@@ -229,13 +229,13 @@ async def test_executions_filter_by_namespaced_name(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
     test_tool: Tool,
-    test_tool_provider: ToolProvider,
+    test_mcp_integration: Integration,
     test_user: User,
 ) -> None:
     """T023: Test filtering executions by namespaced_name."""
     tool2 = Tool(
         name="other-tool",
-        provider_id=test_tool_provider.id,
+        integration_id=test_mcp_integration.id,
         namespaced_name="mock::exec_filter",
         created_by=test_user.id,
     )
@@ -281,7 +281,7 @@ async def test_record_execution_creates_db_record(
     await test_db_session.commit()
 
     assert execution.tool_id == test_tool.id
-    assert execution.provider_id == test_tool.provider_id
+    assert execution.integration_id == test_tool.integration_id
     assert execution.duration_ms == 1500
     assert execution.status == ToolExecutionStatus.SUCCESS
     assert execution.input_parameters == {}

@@ -14,7 +14,6 @@ import {
   breadcrumbsIdentityProviderFormLoading,
   breadcrumbsIdentityProvidersPage,
   breadcrumbsIntegrationConfigure,
-  breadcrumbsIntegrationTools,
   breadcrumbsIdentityProviderDetail,
   breadcrumbsProjectDetailEarlyShell,
   breadcrumbsCredentialDetail,
@@ -104,8 +103,6 @@ describe('breadcrumbBuilders', () => {
     expect(breadcrumbsApprovalsPage('Loading')).toHaveLength(2)
 
     expect(breadcrumbsIntegrationConfigure()).toHaveLength(3)
-    expect(breadcrumbsIntegrationTools('AWS')).toHaveLength(3)
-    expect(breadcrumbsIntegrationTools('   ').at(-1)).toEqual({ label: 'Tools' })
 
     expect(breadcrumbsCredentialEarlyShell('…')).toHaveLength(3)
 

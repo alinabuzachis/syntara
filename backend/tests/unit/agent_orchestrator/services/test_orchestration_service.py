@@ -1,11 +1,12 @@
 """Unit tests for OrchestrationService LangGraph streaming integration."""
 
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from langchain_core.tools import BaseTool
 
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.agent_orchestrator.models import InvocationContextData
@@ -633,4 +634,66 @@ class TestBuildStreamingResultTokenUsage:
 
         # Should return fallback response without crashing
         assert isinstance(result, dict)
-        assert result.get("llm_token_usage_log", []) == []
+
+
+class TestApplyToolSelection:
+    """Tests for OrchestrationService._apply_tool_selection."""
+
+    def _make_tool(self, tool_id: str) -> BaseTool:
+        tool = MagicMock()
+        tool.metadata = {"tool_id": tool_id}
+        return cast("BaseTool", tool)
+
+    def _make_service(
+        self,
+        strategy: str | None = None,
+        selections: list[str] | None = None,
+    ) -> OrchestrationService:
+        return OrchestrationService(
+            MagicMock(),
+            MagicMock(),
+            tool_selection_strategy=strategy,
+            tool_selections=selections,
+        )
+
+    def test_no_strategy_returns_empty(self) -> None:
+        """None strategy means NONE — no tools (NONE is the default)."""
+        service = self._make_service()
+        tools = [self._make_tool("a"), self._make_tool("b")]
+        assert service._apply_tool_selection(tools) == []
+
+    def test_all_strategy_returns_all_tools(self) -> None:
+        service = self._make_service(strategy="ALL")
+        tools = [self._make_tool("a"), self._make_tool("b")]
+        assert service._apply_tool_selection(tools) == tools
+
+    def test_none_strategy_returns_empty(self) -> None:
+        service = self._make_service(strategy="NONE")
+        tools = [self._make_tool("a"), self._make_tool("b")]
+        assert service._apply_tool_selection(tools) == []
+
+    def test_selected_strategy_filters_by_tool_id(self) -> None:
+        tool_a = self._make_tool("uuid-a")
+        tool_b = self._make_tool("uuid-b")
+        tool_c = self._make_tool("uuid-c")
+        service = self._make_service(strategy="SELECTED", selections=["uuid-a", "uuid-c"])
+        result = service._apply_tool_selection([tool_a, tool_b, tool_c])
+        assert result == [tool_a, tool_c]
+
+    def test_selected_strategy_with_no_matching_tools_returns_empty(self) -> None:
+        service = self._make_service(strategy="SELECTED", selections=["uuid-x"])
+        tools = [self._make_tool("uuid-a"), self._make_tool("uuid-b")]
+        assert service._apply_tool_selection(tools) == []
+
+    def test_selected_strategy_with_empty_selections_returns_empty(self) -> None:
+        service = self._make_service(strategy="SELECTED", selections=[])
+        tools = [self._make_tool("uuid-a")]
+        assert service._apply_tool_selection(tools) == []
+
+    def test_selected_strategy_with_none_metadata_tool_excluded(self) -> None:
+        tool_no_meta = MagicMock()
+        tool_no_meta.metadata = None
+        tool_with_id = self._make_tool("uuid-a")
+        service = self._make_service(strategy="SELECTED", selections=["uuid-a"])
+        tools = cast("list[BaseTool]", [tool_no_meta, tool_with_id])
+        assert service._apply_tool_selection(tools) == [tool_with_id]

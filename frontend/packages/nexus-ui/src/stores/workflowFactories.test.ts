@@ -418,14 +418,38 @@ describe('workflowFactories', () => {
         expect(activity.parameters).toEqual({})
       })
 
-      it('creates an agentic activity with tools', () => {
+      it('creates an agentic activity with ALL strategy', () => {
         const activity = createAgenticActivity({
           id: 'agent-1',
           name: 'AI Agent',
-          tools: ['tool1', 'tool2'],
+          toolSelectionStrategy: 'ALL',
+        })
+
+        expect(activity.parameters.tool_selection_strategy).toBe('ALL')
+        expect(activity.parameters.tool_selections).toBeUndefined()
+      })
+
+      it('creates an agentic activity with SELECTED strategy and tool IDs', () => {
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          toolSelectionStrategy: 'SELECTED',
+          toolSelections: ['tool1', 'tool2'],
         })
 
         expect(activity.parameters.tool_selections).toEqual(['tool1', 'tool2'])
+        expect(activity.parameters.tool_selection_strategy).toBe('SELECTED')
+      })
+
+      it('creates an agentic activity with NONE strategy', () => {
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          toolSelectionStrategy: 'NONE',
+        })
+
+        expect(activity.parameters.tool_selection_strategy).toBe('NONE')
+        expect(activity.parameters.tool_selections).toBeUndefined()
       })
 
       it('creates an agentic activity with prompt', () => {
@@ -458,10 +482,41 @@ describe('workflowFactories', () => {
         expect(activity.parameters.file_ids).toEqual(['file-1', 'file-2'])
       })
 
-      it('does not include empty tools array', () => {
-        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent', tools: [] })
+      it('does not include tool strategy when toolSelectionStrategy is undefined', () => {
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' })
 
         expect(activity.parameters.tool_selections).toBeUndefined()
+        expect(activity.parameters.tool_selection_strategy).toBeUndefined()
+      })
+
+      it('includes integration_connections when provided', () => {
+        const connections = [
+          { integration_id: 'int-1', credential_id: 'cred-1' },
+          { integration_id: 'int-2', credential_id: 'cred-2' },
+        ]
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          integrationConnections: connections,
+        })
+
+        expect(activity.parameters.integration_connections).toEqual(connections)
+      })
+
+      it('does not include integration_connections when empty', () => {
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          integrationConnections: [],
+        })
+
+        expect(activity.parameters).not.toHaveProperty('integration_connections')
+      })
+
+      it('does not include integration_connections when undefined', () => {
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' })
+
+        expect(activity.parameters).not.toHaveProperty('integration_connections')
       })
 
       it('does not include inputs in v2', () => {

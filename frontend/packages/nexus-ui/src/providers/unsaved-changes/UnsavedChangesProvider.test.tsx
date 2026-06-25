@@ -270,12 +270,171 @@ describe('UnsavedChangesProvider', () => {
   })
 
   describe('useUnsavedChanges hook', () => {
-    it('throws when used outside provider', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    it('returns no-op fallback when used outside provider', () => {
+      const { container } = render(<TestConsumer />)
+      expect(container).toBeTruthy()
+    })
+  })
 
-      expect(() => render(<TestConsumer />)).toThrow('useUnsavedChanges must be used within UnsavedChangesProvider')
+  describe('registerDirtyCheck (generic unsaved changes)', () => {
+    function DirtyCheckConsumer({
+      dirtyCheck,
+      saveAndExit,
+    }: {
+      dirtyCheck: () => boolean
+      saveAndExit?: () => Promise<boolean>
+    }) {
+      const { requestNavigation, registerDirtyCheck } = useUnsavedChanges()
 
-      consoleSpy.mockRestore()
+      return (
+        <div>
+          <button
+            onClick={() =>
+              registerDirtyCheck({
+                check: dirtyCheck,
+                saveAndExit,
+                title: 'Save resource changes?',
+                body: 'You have unsaved changes to enabled resources.',
+                saveLabel: 'Save changes',
+              })
+            }
+          >
+            Register Dirty
+          </button>
+          <button onClick={() => requestNavigation('/workflows')}>Navigate Away</button>
+        </div>
+      )
+    }
+
+    it('shows custom modal when dirty check returns true', async () => {
+      const user = userEvent.setup()
+      mockLocation = '/configuration/integrations/1/resources'
+      vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
+
+      render(
+        <UnsavedChangesProvider>
+          <DirtyCheckConsumer dirtyCheck={() => true} />
+        </UnsavedChangesProvider>
+      )
+
+      await user.click(screen.getByText('Register Dirty'))
+      await user.click(screen.getByText('Navigate Away'))
+
+      expect(screen.getByText('Save resource changes?')).toBeInTheDocument()
+      expect(screen.getByText('You have unsaved changes to enabled resources.')).toBeInTheDocument()
+    })
+
+    it('navigates without modal when dirty check returns false', async () => {
+      const user = userEvent.setup()
+      mockLocation = '/configuration/integrations/1/resources'
+      vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
+
+      render(
+        <UnsavedChangesProvider>
+          <DirtyCheckConsumer dirtyCheck={() => false} />
+        </UnsavedChangesProvider>
+      )
+
+      await user.click(screen.getByText('Register Dirty'))
+      await user.click(screen.getByText('Navigate Away'))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+    })
+
+    it('shows save button with custom label when saveAndExit is provided', async () => {
+      const user = userEvent.setup()
+      mockLocation = '/configuration/integrations/1/resources'
+      vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
+      const saveAndExit = vi.fn().mockResolvedValue(true)
+
+      render(
+        <UnsavedChangesProvider>
+          <DirtyCheckConsumer dirtyCheck={() => true} saveAndExit={saveAndExit} />
+        </UnsavedChangesProvider>
+      )
+
+      await user.click(screen.getByText('Register Dirty'))
+      await user.click(screen.getByText('Navigate Away'))
+
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled()
+    })
+
+    it('saves and navigates when save button is clicked', async () => {
+      const user = userEvent.setup()
+      mockLocation = '/configuration/integrations/1/resources'
+      vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
+      const saveAndExit = vi.fn().mockResolvedValue(true)
+
+      render(
+        <UnsavedChangesProvider>
+          <DirtyCheckConsumer dirtyCheck={() => true} saveAndExit={saveAndExit} />
+        </UnsavedChangesProvider>
+      )
+
+      await user.click(screen.getByText('Register Dirty'))
+      await user.click(screen.getByText('Navigate Away'))
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      await waitFor(() => {
+        expect(saveAndExit).toHaveBeenCalled()
+        expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+      })
+    })
+
+    it('exits without saving and navigates when discard is clicked', async () => {
+      const user = userEvent.setup()
+      mockLocation = '/configuration/integrations/1/resources'
+      vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
+
+      render(
+        <UnsavedChangesProvider>
+          <DirtyCheckConsumer dirtyCheck={() => true} />
+        </UnsavedChangesProvider>
+      )
+
+      await user.click(screen.getByText('Register Dirty'))
+      await user.click(screen.getByText('Navigate Away'))
+      await user.click(screen.getByRole('button', { name: 'Exit without saving' }))
+
+      expect(mockNavigate).toHaveBeenCalledWith('/workflows')
+    })
+
+    it('hides save button when no saveAndExit is provided and not on builder', async () => {
+      const user = userEvent.setup()
+      mockLocation = '/configuration/integrations/1/resources'
+      vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
+
+      render(
+        <UnsavedChangesProvider>
+          <DirtyCheckConsumer dirtyCheck={() => true} />
+        </UnsavedChangesProvider>
+      )
+
+      await user.click(screen.getByText('Register Dirty'))
+      await user.click(screen.getByText('Navigate Away'))
+
+      expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Exit without saving' })).toBeInTheDocument()
+    })
+
+    it('stays on page when cancel is clicked', async () => {
+      const user = userEvent.setup()
+      mockLocation = '/configuration/integrations/1/resources'
+      vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({ isDirty: false })
+
+      render(
+        <UnsavedChangesProvider>
+          <DirtyCheckConsumer dirtyCheck={() => true} />
+        </UnsavedChangesProvider>
+      )
+
+      await user.click(screen.getByText('Register Dirty'))
+      await user.click(screen.getByText('Navigate Away'))
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(mockNavigate).not.toHaveBeenCalled()
     })
   })
 })

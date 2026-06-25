@@ -4,7 +4,6 @@ import { RegistryNodeId } from '../../../../constants'
 import { createAgenticActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { AIAgentNodeForm } from '../../node-forms/AIAgentNodeForm'
 import type { AIAgentFormSubmitData } from '../../node-forms/AIAgentNodeForm'
-import { parseToolsString } from '../../utils/agentHelpers'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
 import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
@@ -26,14 +25,17 @@ export default function registerAIAgentNode() {
     formComponent: AIAgentNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        // Parse comma-separated tools into array
-        const toolsArray = parseToolsString(data.tools)
         const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.AGENT, label: 'AI Agent' })
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
           createAgenticActivity({
             id,
             name,
-            tools: toolsArray,
+            toolSelectionStrategy: data.tool_selection_strategy,
+            toolSelections: data.tool_selections,
+            integrationConnections:
+              data.integration_connections && data.integration_connections.length > 0
+                ? data.integration_connections
+                : undefined,
             prompt: data.prompt || undefined,
             model: data.model || undefined,
             fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,

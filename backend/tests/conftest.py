@@ -59,9 +59,10 @@ from nexus.core.logging.logging import configure_app_logging
 from nexus.core.models import User
 from nexus.core.models.group import Group
 from nexus.files.models import FileMetadata
+from nexus.integrations.models.integration import Integration, IntegrationType
+from nexus.integrations.models.integration_configuration import MCPServerConfiguration
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
-from nexus.tool_manager.models import Tool, ToolProvider
-from nexus.tool_manager.services.tool_provider_service import ToolProviderService
+from nexus.tool_manager.models import Tool
 from nexus.tool_manager.services.tool_service import ToolService
 from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion, WorkflowVersionStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
@@ -78,9 +79,9 @@ from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.credential import CredentialFactory
 from tests.helpers.execution import ExecutionFactory
 from tests.helpers.identity_provider import IdentityProviderCreate
+from tests.helpers.integration import IntegrationFactory
 from tests.helpers.token_usage import TokenUsageFactory
 from tests.helpers.tool_manager import ToolFactory
-from tests.helpers.tool_provider import ToolProviderFactory
 from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory, WorkflowFactory
 
 if TYPE_CHECKING:
@@ -1398,93 +1399,41 @@ def disabled_retry_settings(
 
 
 @pytest_asyncio.fixture
-async def test_tool_provider(test_db_session: AsyncSession, test_user: User) -> "ToolProvider":
-    """Create a test Tool Provider.
+async def test_mcp_integration(test_db_session: AsyncSession, test_user: User) -> "Integration":
+    """Create a test MCP server Integration.
+
+    Replaces the old test_tool_provider fixture. Tools now reference Integration directly.
 
     Args:
         test_db_session: Test database session
         test_user: Test User
 
     Returns:
-        ToolProvider: Test Tool Provider instance
+        Integration: Test MCP server Integration instance
 
     """
-    tool_provider = ToolProvider(
+    integration = Integration(
         name="mock-provider",
-        configuration={"provider_type": "mcp", "base_url": "http://localhost:8080", "api_key": "test-key"},
+        integration_type=IntegrationType.MCP_SERVER,
+        configuration=MCPServerConfiguration(
+            integration_type="mcp_server",
+            base_url="http://localhost:8080",
+        ),
         created_by=test_user.id,
+        updated_by=test_user.id,
     )
-    test_db_session.add(tool_provider)
+    test_db_session.add(integration)
     await test_db_session.commit()
-    return tool_provider
+    return integration
 
 
 @pytest_asyncio.fixture
-async def multiple_test_providers(test_db_session: AsyncSession, test_user: User) -> list[ToolProvider]:
-    """Create multiple test providers for pagination, filtering, and sorting tests."""
-    providers = [
-        ToolProvider(
-            name="Alpha Provider",
-            description="First provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Beta Provider",
-            description="Second provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://beta.example.com", "api_key": "beta-key"},
-            enabled=False,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Gamma Provider",
-            description="Third provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://gamma.example.com", "api_key": "gamma-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Delta Provider",
-            description="Fourth provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://delta.example.com", "api_key": "delta-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Echo Provider",
-            description="Fifth provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://echo.example.com", "api_key": "echo-key"},
-            enabled=False,
-            created_by=test_user.id,
-        ),
-        ToolProvider(
-            name="Foxtrot Provider",
-            description="Sixth provider for testing",
-            configuration={"provider_type": "mcp", "base_url": "https://foxtrot.example.com", "api_key": "foxtrot-key"},
-            enabled=True,
-            created_by=test_user.id,
-        ),
-    ]
-
-    for provider in providers:
-        test_db_session.add(provider)
-
-    await test_db_session.commit()
-
-    for provider in providers:
-        await test_db_session.refresh(provider)
-
-    return providers
-
-
-@pytest_asyncio.fixture
-async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User) -> "Tool":
-    """Create a test Tool.
+async def test_tool(test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User) -> "Tool":
+    """Create a test Tool linked to an Integration.
 
     Args:
         test_db_session: Test database session
-        test_tool_provider: Test Tool Provider
+        test_mcp_integration: Test MCP server Integration
         test_user: Test User
 
     Returns:
@@ -1492,7 +1441,10 @@ async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvi
 
     """
     tool = Tool(
-        name="mock-tool", provider_id=test_tool_provider.id, namespaced_name="mock::tool", created_by=test_user.id
+        name="mock-tool",
+        integration_id=test_mcp_integration.id,
+        namespaced_name="mock::tool",
+        created_by=test_user.id,
     )
     test_db_session.add(tool)
     await test_db_session.commit()
@@ -1500,7 +1452,9 @@ async def test_tool(test_db_session: AsyncSession, test_tool_provider: ToolProvi
 
 
 @pytest_asyncio.fixture
-async def tool_factory(test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User) -> ToolFactory:
+async def tool_factory(
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
+) -> ToolFactory:
     """Create a factory fixture for multiple test tools with configurable properties.
 
     Returns a ToolFactory instance that can create tools with various configurations for different test scenarios.
@@ -1522,7 +1476,7 @@ async def tool_factory(test_db_session: AsyncSession, test_tool_provider: ToolPr
             statuses=[ToolStatus.AVAILABLE, ToolStatus.ERROR]
         )
     """
-    return ToolFactory(test_db_session, test_tool_provider, test_user)
+    return ToolFactory(test_db_session, test_mcp_integration, test_user)
 
 
 @pytest_asyncio.fixture
@@ -1536,24 +1490,6 @@ async def test_provider_factory() -> "ProviderFactory":
     provider_factory = ProviderFactory()
     provider_factory.register_provider_type("mcp", MockMCPProvider)
     return provider_factory
-
-
-@pytest_asyncio.fixture
-async def test_tool_provider_service(
-    test_db_session: AsyncSession, test_user: User, test_provider_factory: ProviderFactory
-) -> "ToolProviderService":
-    """Create a ToolProviderService with MCP provider registered for testing.
-
-    Args:
-        test_db_session: Test database session
-        test_user: Test User
-        test_provider_factory: Test Provider Factory
-
-    Returns:
-        ToolProviderService: Service instance with MCP provider registered
-
-    """
-    return ToolProviderService(test_db_session, test_user, test_provider_factory)
 
 
 @pytest_asyncio.fixture
@@ -1634,15 +1570,15 @@ async def token_usage_factory(test_db_session: AsyncSession, test_user: User) ->
 
 
 @pytest_asyncio.fixture
-async def tool_provider_factory(test_db_session: AsyncSession, test_user: User) -> ToolProviderFactory:
-    """Factory for creating tool providers for tests."""
-    return ToolProviderFactory(test_db_session, test_user)
-
-
-@pytest_asyncio.fixture
 async def identity_provider_create(test_db_session: AsyncSession, test_user: User) -> IdentityProviderCreate:
     """Factory for creating identity providers for tests."""
     return IdentityProviderCreate(test_db_session, test_user)
+
+
+@pytest_asyncio.fixture
+async def integration_factory(test_db_session: AsyncSession, test_user: User) -> IntegrationFactory:
+    """Factory for creating integrations for tests."""
+    return IntegrationFactory(test_db_session, test_user)
 
 
 @pytest_asyncio.fixture

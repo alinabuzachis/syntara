@@ -19,7 +19,9 @@ export const AppRoute = {
     Integrations: {
       Root: '/configuration/integrations',
       Configure: '/configuration/integrations/configure',
-      IntegrationTools: '/configuration/integrations/:provider_id/tools',
+      Detail: '/configuration/integrations/:integrationId',
+      DetailTab: '/configuration/integrations/:integrationId/:tab',
+      Edit: '/configuration/integrations/:integrationId/edit',
     },
     Credentials: {
       Root: '/configuration/credentials',

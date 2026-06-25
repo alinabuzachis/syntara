@@ -18,7 +18,6 @@ from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.tool_manager.exceptions import ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.models import (
-    MCPConfiguration,
     Tool,
     ToolParameter,
     ToolParameterType,
@@ -47,31 +46,28 @@ class MCPProvider(ToolProviderAdapter):
         self,
         base_url: str,
         api_key: str | None = None,
-        provider_id: UUID | None = None,
-        provider_name: str | None = "mcp-provider",
+        integration_id: UUID | None = None,
+        integration_name: str | None = "mcp-integration",
     ) -> None:
         """Initialize MCP provider with configuration.
 
         Args:
             base_url: URL of the MCP server
             api_key: Authentication key for the MCP server (optional)
-            provider_id: Unique identifier for this provider instance (optional for factory)
-            provider_name: Human-readable name for the provider (optional for factory)
+            integration_id: Unique identifier for this integration instance (optional for factory)
+            integration_name: Human-readable name for the integration (optional for factory)
 
         Raises:
             ValueError: If configuration is invalid
             ConnectionError: If unable to initialize MCP client
 
         """
-        self.provider_id = provider_id or uuid4()
-        self.provider_name = provider_name
+        self.integration_id = integration_id or uuid4()
+        self.integration_name = integration_name
 
-        # Create MCPConfiguration from parameters
-        self.configuration = MCPConfiguration(
-            provider_type="mcp",
-            base_url=base_url,
-            api_key=api_key,
-        )
+        # Store connection parameters directly — api_key is never serialized
+        self._base_url = base_url
+        self._api_key = api_key
 
         # Initialize langchain MCP client
         self._client: MultiServerMCPClient | None = None
@@ -92,25 +88,25 @@ class MCPProvider(ToolProviderAdapter):
                 # Configure server connection for langchain MCP client
                 # Using streamable_http as the primary transport (as per AAP-55733)
                 # Use provider_name or fallback to a default key
-                server_key = self.provider_name or "mcp-server"
+                server_key = self.integration_name or "mcp-server"
                 server_config: dict[str, dict[str, Any]] = {
                     server_key: {
                         "transport": "streamable_http",  # Note: underscore not hyphen
-                        "url": self.configuration.base_url,
+                        "url": self._base_url,
                     }
                 }
 
                 # Add API key as Authorization header if provided
-                if self.configuration.api_key:
-                    server_config[server_key]["headers"] = {"Authorization": f"Bearer {self.configuration.api_key}"}
+                if self._api_key:
+                    server_config[server_key]["headers"] = {"Authorization": f"Bearer {self._api_key}"}
 
                 # Initialize the MultiServerMCPClient
                 self._client = MultiServerMCPClient(server_config)
 
-                auth_info = " with API key authentication" if self.configuration.api_key else ""
+                auth_info = " with API key authentication" if self._api_key else ""
                 logger.info(
                     "Initialized MCP client for provider using streamable-http transport",
-                    provider_name=self.provider_name,
+                    integration_name=self.integration_name,
                     auth_info=auth_info,
                 )
 
@@ -150,7 +146,7 @@ class MCPProvider(ToolProviderAdapter):
 
             logger.info(
                 "Successfully validated MCP provider, found tools",
-                provider_name=self.provider_name,
+                integration_name=self.integration_name,
                 tool_count=len(tools),
             )
         except* TimeoutError as eg:
@@ -191,7 +187,7 @@ class MCPProvider(ToolProviderAdapter):
         validation_errors: list[str] = []
         timed_out = False
 
-        logger.info("Validating connection to MCP provider", provider_name=self.provider_name)
+        logger.info("Validating connection to MCP provider", integration_name=self.integration_name)
 
         for attempt in range(1, max_attempts + 1):
             validation_errors, retriable = await self._attempt_validate_connection(per_attempt_timeout)
@@ -204,7 +200,7 @@ class MCPProvider(ToolProviderAdapter):
                 if attempt < max_attempts:
                     logger.warning(
                         "MCP validation attempt timed out, retrying",
-                        provider_name=self.provider_name,
+                        integration_name=self.integration_name,
                         attempt=attempt,
                         max_attempts=max_attempts,
                     )
@@ -238,7 +234,7 @@ class MCPProvider(ToolProviderAdapter):
         timeout = 30  # Default timeout for tool retrieval
 
         try:
-            logger.info("Retrieving base tools from MCP provider", provider_name=self.provider_name)
+            logger.info("Retrieving base tools from MCP provider", integration_name=self.integration_name)
 
             client = await self._get_client()
 
@@ -248,7 +244,7 @@ class MCPProvider(ToolProviderAdapter):
             logger.info(
                 "Successfully retrieved base tools from MCP provider",
                 tool_count=len(langchain_tools),
-                provider_name=self.provider_name,
+                integration_name=self.integration_name,
             )
             return langchain_tools
 
@@ -256,14 +252,14 @@ class MCPProvider(ToolProviderAdapter):
             msg = f"Tool retrieval timed out after {timeout}s"
             logger.warning(
                 "MCP provider tool retrieval timed out",
-                provider_name=self.provider_name,
+                integration_name=self.integration_name,
                 message=msg,
                 timeout_seconds=timeout,
             )
             raise TimeoutError(msg) from e
         except Exception as e:
             msg = f"Tool retrieval failed: {e}"
-            logger.exception("MCP provider tool retrieval failed", provider_name=self.provider_name, message=msg)
+            logger.exception("MCP provider tool retrieval failed", integration_name=self.integration_name, message=msg)
             raise ConnectionError(msg) from e
 
     async def refresh_tools(self) -> list[Tool]:
@@ -279,7 +275,7 @@ class MCPProvider(ToolProviderAdapter):
 
         """
         try:
-            logger.info("Refreshing tools from MCP provider", provider_name=self.provider_name)
+            logger.info("Refreshing tools from MCP provider", integration_name=self.integration_name)
 
             # Use get_base_tools to retrieve raw tools
             langchain_tools = await self.get_base_tools()
@@ -298,7 +294,7 @@ class MCPProvider(ToolProviderAdapter):
             logger.info(
                 "Successfully refreshed tools from MCP provider",
                 tool_count=len(tools),
-                provider_name=self.provider_name,
+                integration_name=self.integration_name,
             )
             return tools
 
@@ -307,7 +303,7 @@ class MCPProvider(ToolProviderAdapter):
             raise
         except Exception as e:
             msg = f"Tool refresh failed: {e}"
-            logger.exception("MCP provider tool refresh failed", provider_name=self.provider_name, message=msg)
+            logger.exception("MCP provider tool refresh failed", integration_name=self.integration_name, message=msg)
             raise ConnectionError(msg) from e
 
     async def get_tool_schema(self, tool_name: str) -> ToolSchema:
@@ -326,7 +322,7 @@ class MCPProvider(ToolProviderAdapter):
 
         """
         if tool_name not in self._tools_cache:
-            msg = f"Tool '{tool_name}' not found in provider {self.provider_name}."
+            msg = f"Tool '{tool_name}' not found in provider {self.integration_name}."
             logger.warning(msg)
             raise ToolNotFoundError(msg)
 
@@ -346,7 +342,9 @@ class MCPProvider(ToolProviderAdapter):
             )
 
             logger.debug(
-                "Retrieved schema for tool from MCP provider", tool_name=tool_name, provider_name=self.provider_name
+                "Retrieved schema for tool from MCP provider",
+                tool_name=tool_name,
+                integration_name=self.integration_name,
             )
             return tool_schema
 
@@ -354,7 +352,7 @@ class MCPProvider(ToolProviderAdapter):
             msg = f"Failed to get schema for tool '{tool_name}': {e}"
             logger.exception(
                 "MCP provider get tool schema failed",
-                provider_name=self.provider_name,
+                integration_name=self.integration_name,
                 tool_name=tool_name,
                 message=msg,
             )
@@ -380,12 +378,14 @@ class MCPProvider(ToolProviderAdapter):
 
         """
         if tool_name not in self._tools_cache:
-            msg = f"Tool '{tool_name}' not found in provider {self.provider_name}"
+            msg = f"Tool '{tool_name}' not found in provider {self.integration_name}"
             logger.warning(msg)
             raise ToolNotFoundError(msg)
 
         try:
-            logger.info("Validating tool from MCP provider", tool_name=tool_name, provider_name=self.provider_name)
+            logger.info(
+                "Validating tool from MCP provider", tool_name=tool_name, integration_name=self.integration_name
+            )
 
             cached_tool = self._tools_cache[tool_name]
             langchain_tool = cached_tool["langchain_tool"]
@@ -419,7 +419,7 @@ class MCPProvider(ToolProviderAdapter):
             msg = "Tool validation timed out after 10s"
             logger.warning(
                 "MCP provider tool validation timed out",
-                provider_name=self.provider_name,
+                integration_name=self.integration_name,
                 tool_name=tool_name,
                 message=msg,
             )
@@ -428,7 +428,7 @@ class MCPProvider(ToolProviderAdapter):
             msg = f"Tool validation failed: {e}"
             logger.exception(
                 "MCP provider tool validation failed",
-                provider_name=self.provider_name,
+                integration_name=self.integration_name,
                 tool_name=tool_name,
                 message=msg,
             )
@@ -519,7 +519,7 @@ class MCPProvider(ToolProviderAdapter):
             log_level,
             "Tool validation from MCP provider",
             tool_name=tool_name,
-            provider_name=self.provider_name,
+            integration_name=self.integration_name,
             status=status_msg,
         )
 
@@ -534,7 +534,7 @@ class MCPProvider(ToolProviderAdapter):
 
         """
         tool_name = langchain_tool.name
-        namespaced_name = f"{self.provider_name}::{tool_name}"
+        namespaced_name = f"{self.integration_name}::{tool_name}"
 
         # Extract and cache schema
         schema = self._extract_tool_schema(langchain_tool)
@@ -546,10 +546,9 @@ class MCPProvider(ToolProviderAdapter):
         # Convert schema to parameters
         parameters = self._create_tool_parameters(schema)
 
-        # Create tool object
+        # Create tool object (integration_id is set by IntegrationService when persisting)
         tool = Tool(
             id=uuid4(),
-            provider_id=self.provider_id,
             name=tool_name,
             namespaced_name=namespaced_name,
             description=langchain_tool.description,
@@ -558,8 +557,8 @@ class MCPProvider(ToolProviderAdapter):
             last_refreshed_at=datetime.now(UTC),
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
-            created_by=self.provider_id,
-            updated_by=self.provider_id,
+            created_by=self.integration_id,
+            updated_by=self.integration_id,
         )
 
         # Update parameter tool_id references
@@ -647,8 +646,8 @@ class MCPProvider(ToolProviderAdapter):
             example_value=example_val,
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
-            created_by=self.provider_id,
-            updated_by=self.provider_id,
+            created_by=self.integration_id,
+            updated_by=self.integration_id,
         )
 
     def _convert_json_type_to_tool_parameter_type(self, json_type: str) -> ToolParameterType:
@@ -684,6 +683,8 @@ class MCPProvider(ToolProviderAdapter):
                 # but we can clear our reference and cache
                 self._client = None
                 self._tools_cache.clear()
-                logger.info("Closed MCP client for provider", provider_name=self.provider_name)
+                logger.info("Closed MCP client for provider", integration_name=self.integration_name)
             except (AttributeError, RuntimeError) as e:
-                logger.warning("Error closing MCP client for provider", provider_name=self.provider_name, error=str(e))
+                logger.warning(
+                    "Error closing MCP client for provider", integration_name=self.integration_name, error=str(e)
+                )

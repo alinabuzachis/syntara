@@ -2,7 +2,7 @@
 
 import contextlib
 import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -13,6 +13,7 @@ from nexus.audit.utils import escalate_actor_type
 
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.context_manager.compressor import CompressorService
+    from nexus.workflows.workflow_engine.models.workflow_definition import IntegrationConnectionConfig
 
 from sqlmodel import update
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,7 +21,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.audit.invocation_lifecycle import InvocationLifecycleEvent
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
-from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
+from nexus.agent_orchestrator.exceptions import (
+    CredentialResolutionError,
+    InvocationCancelledError,
+    LLMConfigurationError,
+)
 from nexus.agent_orchestrator.models import Invocation, InvocationContextData, InvocationStatus, LLMCredentialConfig
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
@@ -604,10 +609,16 @@ class InvocationExecutor:
                 compressor_service_factory=compressor_factory,
                 llm_credential_config=llm_credential_config,
             )
-            service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
+            service = OrchestrationService(
+                llm=llm,
+                context_manager_planner=context_manager_planner,
+                credential_resolver=self._make_mcp_credential_resolver(meta.integration_connections if meta else None),
+                tool_selection_strategy=meta.tool_selection_strategy if meta else "NONE",
+                tool_selections=list(meta.tool_selections) if meta else [],
+            )
             logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)
             return service
-        except LLMConfigurationError as e:
+        except (LLMConfigurationError, CredentialResolutionError) as e:
             logger.exception("LLM configuration failed for invocation", invocation_id=invocation.id)
             now = datetime.now(UTC)
             await self._update_invocation_status(
@@ -682,6 +693,99 @@ class InvocationExecutor:
                     invocation_id=invocation.id,
                     failed_files=[f.filename for f in failed_files],
                 )
+
+    def _make_mcp_credential_resolver(
+        self,
+        integration_connections: "list[IntegrationConnectionConfig] | None" = None,
+    ) -> Callable[[UUID], Awaitable[str | None]]:
+        """Return an async callable that resolves the bearer token for an MCP integration.
+
+        When integration_connections is provided, integrations listed there use the
+        supplied execution credential. Unlisted integrations return None
+        (unauthenticated). The management credential is never used during
+        workflow execution — it is reserved for tool discovery and health checks.
+
+        The callable opens a short-lived DB session per call — matching the same
+        pattern as _resolve_llm_api_key — so the token is never stored on self.
+        """
+        # Build lookup: integration_id str → execution credential_id str
+        execution_cred_map: dict[str, str] = {
+            conn.integration_id: conn.credential_id for conn in (integration_connections or [])
+        }
+
+        async def resolver(integration_id: UUID) -> str | None:
+            exec_cred_id = execution_cred_map.get(str(integration_id))
+            if exec_cred_id:
+                logger.debug(
+                    "Resolving execution credential for integration",
+                    integration_id=str(integration_id),
+                    credential_id=exec_cred_id,
+                )
+                return await self._resolve_mcp_execution_credential(exec_cred_id)
+            # No execution credential configured — treat as unauthenticated.
+            # The management credential is reserved for tool discovery and health
+            # checks only; it must never be used during workflow execution.
+            logger.debug("No execution credential configured for integration", integration_id=str(integration_id))
+            return None
+
+        return resolver
+
+    async def _resolve_mcp_execution_credential(self, credential_id: str) -> str | None:
+        """Resolve the bearer token from a Nexus execution credential for MCP tool calls.
+
+        Mirrors _resolve_llm_api_key but extracts ``bearer_token`` from extra_vars
+        rather than ``llm_api_key``. Returns None when the credential resolves
+        without a bearer_token (unauthenticated path).
+
+        Raises:
+            CredentialResolutionError: If the credential cannot be found, decrypted, or resolved.
+
+        """
+        try:
+            cred_uuid = UUID(credential_id)
+        except ValueError as e:
+            msg = f"Invalid execution credential ID '{credential_id}'."
+            logger.debug("Credential resolution failed: invalid UUID", credential_id=credential_id)
+            raise CredentialResolutionError(msg) from e
+
+        async with self.get_async_session_context() as session:
+            credential = await session.get(Credential, cred_uuid)
+            if not credential:
+                msg = f"Execution credential '{credential_id}' not found."
+                logger.debug("Credential resolution failed: not found", credential_id=credential_id)
+                raise CredentialResolutionError(msg)
+            if not credential.enabled:
+                msg = f"Execution credential '{credential_id}' is disabled."
+                logger.debug("Credential resolution failed: disabled", credential_id=credential_id)
+                raise CredentialResolutionError(msg)
+            if not credential.secret_id:
+                msg = f"Execution credential '{credential_id}' has no stored secret data."
+                logger.debug("Credential resolution failed: no secret data", credential_id=credential_id)
+                raise CredentialResolutionError(msg)
+
+            try:
+                secret_service = create_secret_service(session)
+                decrypted = await secret_service.retrieve_secret(credential.secret_id)
+            except Exception as e:
+                msg = f"Failed to decrypt execution credential '{credential_id}'."
+                logger.debug("Credential resolution failed: decryption error", credential_id=credential_id)
+                raise CredentialResolutionError(msg) from e
+
+            cred_type = await session.get(CredentialType, credential.credential_type_id)
+            if not cred_type:
+                msg = f"Credential type for execution credential '{credential_id}' not found."
+                logger.debug("Credential resolution failed: credential type not found", credential_id=credential_id)
+                raise CredentialResolutionError(msg)
+
+            try:
+                resolved = InjectorResolver.resolve(cred_type.injectors, decrypted)
+            except Exception as e:
+                msg = f"Failed to resolve execution credential '{credential_id}' injector templates."
+                logger.debug("Credential resolution failed: injector error", credential_id=credential_id)
+                raise CredentialResolutionError(msg) from e
+
+            logger.debug("Execution credential resolved", credential_id=credential_id)
+            return resolved.extra_vars.get("bearer_token")
 
     async def _resolve_llm_api_key(self, credential_id: str) -> str:
         """Decrypt LLM API key from credential at execution time.

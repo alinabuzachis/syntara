@@ -112,7 +112,7 @@ class ToolMetricsService(BaseService):
 
             tool_execution = ToolExecution(
                 tool_id=tool.id,
-                provider_id=tool.provider_id,
+                integration_id=tool.integration_id,
                 user_id=self.user.id,
                 execution_start=execution_start,
                 execution_end=now,
@@ -144,7 +144,7 @@ class ToolMetricsService(BaseService):
         counter = UsageCounter(
             counter_type=CounterType.TOOL,
             tool_id=tool.id,
-            provider_id=tool.provider_id,
+            integration_id=tool.integration_id,
             time_window=now.strftime("%Y-%m-%d-%H"),
             window_duration=WindowDuration.HOUR,
             window_start=window_start,

@@ -60,6 +60,46 @@ class TestInvocationMetadata:
         assert "custom_key" not in meta.model_dump()
 
 
+class TestInvocationMetadataToolSelection:
+    """Tests for InvocationMetadata.tool_selection_strategy and tool_selections fields."""
+
+    def test_tool_selection_defaults(self) -> None:
+        meta = InvocationMetadata()
+        assert meta.tool_selection_strategy is None
+        assert meta.tool_selections == []
+
+    def test_tool_selection_round_trip(self) -> None:
+        meta = InvocationMetadata.model_validate(
+            {"tool_selection_strategy": "SELECTED", "tool_selections": ["uuid-a", "uuid-b"]}
+        )
+        assert meta.tool_selection_strategy == "SELECTED"
+        assert meta.tool_selections == ["uuid-a", "uuid-b"]
+
+    def test_strategy_present_selections_absent_defaults_to_empty(self) -> None:
+        meta = InvocationMetadata.model_validate({"tool_selection_strategy": "NONE"})
+        assert meta.tool_selection_strategy == "NONE"
+        assert meta.tool_selections == []
+
+    def test_all_strategy_round_trip(self) -> None:
+        meta = InvocationMetadata.model_validate({"tool_selection_strategy": "ALL"})
+        assert meta.tool_selection_strategy == "ALL"
+
+    def test_tool_selections_included_in_to_state_dict(self) -> None:
+        ctx = InvocationContextData.model_validate(
+            {"metadata": {"tool_selection_strategy": "SELECTED", "tool_selections": ["uuid-a"]}}
+        )
+        assert ctx.metadata is not None
+        state = ctx.to_state_dict()
+        assert state["metadata"]["tool_selection_strategy"] == "SELECTED"
+        assert state["metadata"]["tool_selections"] == ["uuid-a"]
+
+    def test_tool_selection_included_in_audit_safe_dump(self) -> None:
+        meta = InvocationMetadata.model_validate({"tool_selection_strategy": "SELECTED", "tool_selections": ["uuid-a"]})
+        safe = meta.audit_safe_dump()
+        assert safe["tool_selection_strategy"] == "SELECTED"
+        assert safe["tool_selections"] == ["uuid-a"]
+
+
 class TestInvocationContextData:
     """Tests for InvocationContextData model."""
 
@@ -316,3 +356,68 @@ class TestOpaqueResponseSchema:
     def test_rejects_missing_type_field(self) -> None:
         with pytest.raises(ValidationError, match="must include a 'type' field"):
             InvocationMetadata.model_validate({"response_schema": {"properties": {}}})
+
+
+class TestInvocationMetadataIntegrationConnections:
+    """Tests for InvocationMetadata.integration_connections field.
+
+    integration_connections is declared on InvocationMetadata (not on
+    InvocationContextData top-level) because agentic_activity places it
+    inside agent_metadata, which the agent client routes to contextData.metadata.
+    InvocationMetadata uses extra="ignore" so fields must be declared here
+    to survive the round-trip.
+    """
+
+    def test_integration_connections_defaults_to_none(self) -> None:
+        meta = InvocationMetadata.model_validate({})
+        assert meta.integration_connections is None
+
+    def test_integration_connections_round_trip(self) -> None:
+        from nexus.workflows.workflow_engine.models.workflow_definition import IntegrationConnectionConfig
+
+        connections = [
+            {
+                "integration_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "credential_id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            },
+            {
+                "integration_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "credential_id": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+            },
+        ]
+        meta = InvocationMetadata.model_validate({"integration_connections": connections})
+        assert meta.integration_connections == [
+            IntegrationConnectionConfig(
+                integration_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                credential_id="cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+            IntegrationConnectionConfig(
+                integration_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                credential_id="dddddddd-dddd-dddd-dddd-dddddddddddd",
+            ),
+        ]
+
+    def test_integration_connections_surfaced_via_ctx_metadata(self) -> None:
+        """integration_connections in contextData.metadata is accessible via ctx.metadata."""
+        from nexus.workflows.workflow_engine.models.workflow_definition import IntegrationConnectionConfig
+
+        connections = [
+            {
+                "integration_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "credential_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            }
+        ]
+        ctx = InvocationContextData.model_validate({"metadata": {"integration_connections": connections}})
+        assert ctx.metadata is not None
+        assert ctx.metadata.integration_connections == [
+            IntegrationConnectionConfig(
+                integration_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                credential_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            )
+        ]
+
+    def test_integration_connections_absent_from_audit_safe_dump(self) -> None:
+        """integration_connections=None is excluded when exclude_none=True."""
+        meta = InvocationMetadata.model_validate({})
+        dumped = meta.audit_safe_dump()
+        assert "integration_connections" not in dumped
