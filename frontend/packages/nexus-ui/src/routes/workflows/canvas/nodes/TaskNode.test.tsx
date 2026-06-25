@@ -14,6 +14,10 @@ vi.mock('./renderNodeIcon', () => ({
   renderNodeIcon: () => null,
 }))
 
+vi.mock('./hooks/useCredentialName', () => ({
+  useCredentialName: () => undefined,
+}))
+
 import { TaskActivityDetails } from './TaskNode'
 
 describe('TaskActivityDetails', () => {

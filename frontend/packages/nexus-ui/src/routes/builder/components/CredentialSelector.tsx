@@ -3,6 +3,9 @@ import {
   Button,
   Divider,
   FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
   Select,
@@ -11,7 +14,7 @@ import {
   SelectOption,
   Spinner,
 } from '@patternfly/react-core'
-import { PlusIcon } from '@patternfly/react-icons'
+import { PlusIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import { credentialsClient } from '../../../client'
@@ -43,10 +46,27 @@ export type CredentialSelectorProps = {
   helpText?: React.ReactNode
   /** Filter credentials to this project */
   projectId?: string
+  /** Whether the credential field is required */
+  isRequired?: boolean
+  /** Validation error message — when set, shows danger styling and error text */
+  errorMessage?: string
 }
 
 const NO_CREDENTIAL_VALUE = '__none__'
 const CREATE_NEW_VALUE = '__create_new__'
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <FormHelperText>
+      <HelperText>
+        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+          {message}
+        </HelperTextItem>
+      </HelperText>
+    </FormHelperText>
+  )
+}
 
 function credentialDescription(credential: { enabled: boolean; description?: string | null }) {
   if (credential.enabled) return credential.description ?? undefined
@@ -97,6 +117,8 @@ export function CredentialSelector({
   placeholder = 'Select a credential...',
   helpText,
   projectId,
+  isRequired = false,
+  errorMessage,
 }: Readonly<CredentialSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -173,6 +195,7 @@ export function CredentialSelector({
   const formGroupLabel = helpText ? <FormLabelWithHelp label={label} helpText={helpText} /> : label
 
   const hasGroups = credentialTypes.length > 0
+  const hasDanger = [isError, errorMessage].some(Boolean)
 
   const renderCredentialOption = (credential: (typeof credentials)[number]) => (
     <SelectOption
@@ -194,7 +217,7 @@ export function CredentialSelector({
         isExpanded={isOpen}
         isDisabled={isDisabled || isPending}
         isFullWidth
-        status={isError ? 'danger' : undefined}
+        status={hasDanger ? 'danger' : undefined}
         aria-label={label}
       >
         {isPending ? (
@@ -206,11 +229,11 @@ export function CredentialSelector({
         )}
       </MenuToggle>
     ),
-    [isOpen, isDisabled, isPending, isError, label, toggleLabel]
+    [isOpen, isDisabled, isPending, hasDanger, label, toggleLabel]
   )
 
   return (
-    <FormGroup label={formGroupLabel} fieldId={fieldId}>
+    <FormGroup label={formGroupLabel} fieldId={fieldId} isRequired={isRequired}>
       <Select
         id={fieldId}
         isOpen={isOpen}
@@ -242,6 +265,7 @@ export function CredentialSelector({
           )}
         </SelectList>
       </Select>
+      <FieldError message={errorMessage} />
       {isError && (
         <Button variant="link" size="sm" onClick={() => detachPromise(refetch())}>
           Retry loading credentials

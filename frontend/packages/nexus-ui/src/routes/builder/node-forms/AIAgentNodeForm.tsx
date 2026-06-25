@@ -289,6 +289,8 @@ function AIAgentFormFields({
               placeholder="Select LLM credential"
               allowCreate
               isDisabled={isVersionView}
+              isRequired
+              errorMessage={errors.credential_id?.message}
               projectId={projectId}
               helpText={credentialHelpText(
                 'Select a stored credential for the LLM provider. Credentials securely store API keys and authentication tokens.'
@@ -430,6 +432,8 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
     tool_selection_strategy: 'NONE',
     tool_selections: [],
     integration_connections: [],
+    credential_id: '',
+    settings: {},
     ...props.initialData,
   }
 

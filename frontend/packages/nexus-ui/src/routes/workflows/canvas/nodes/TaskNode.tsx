@@ -11,6 +11,7 @@ import { detectTaskNodeType, type TaskActivityWithMetadata } from './common/dete
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { useCredentialName } from './hooks/useCredentialName'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { getTaskIconDescriptor } from './nodeIconResolver'
 import { nodeMetadata, executorMetadata } from './nodeMetadata'
@@ -32,6 +33,19 @@ type AAPWorkflowTemplateConfig = {
 type AgenticConfig = {
   tool_selections?: string[]
   tool_selection_strategy?: string
+  credential_id?: string
+  model?: string
+}
+
+function AgenticNodeDetails({ config, toolsText }: { config: AgenticConfig; toolsText?: string }) {
+  const credentialName = useCredentialName(config.credential_id)
+  return (
+    <>
+      {renderText('Model', config.model)}
+      {renderText('Credential', credentialName)}
+      {renderText('Tools', toolsText)}
+    </>
+  )
 }
 
 export type TaskNode = { type: typeof FlowNodeType.TASK } & Node<TaskActivity>
@@ -147,12 +161,8 @@ export function TaskActivityDetails(
               : 'Workflow job template',
             aapWorkflowConfig?.workflow_job_template_name
           )}
-          {/* Render agentic task details */}
           {taskExecutor === ExecutorTypeEnum.AGENTIC && (
-            <>
-              {renderText('Model', (config as { model?: string }).model)}
-              {renderText('Tools', toolsText)}
-            </>
+            <AgenticNodeDetails config={config as AgenticConfig} toolsText={toolsText} />
           )}
           {taskExecutor !== ExecutorTypeEnum.SCRIPT && renderJson(props.data, props.showJson)}
         </NxDetailList>

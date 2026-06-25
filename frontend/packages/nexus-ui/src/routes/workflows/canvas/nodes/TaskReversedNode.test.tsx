@@ -6,6 +6,10 @@ import { FlowNodeType } from '../../../../constants'
 
 import { TaskReversedNodeComponent } from './TaskReversedNode'
 
+vi.mock('./hooks/useCredentialName', () => ({
+  useCredentialName: () => undefined,
+}))
+
 // Mock @xyflow/react
 vi.mock('@xyflow/react', () => ({
   useReactFlow: () => ({

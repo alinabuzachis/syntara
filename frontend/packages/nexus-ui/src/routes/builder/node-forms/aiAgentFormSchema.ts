@@ -14,7 +14,7 @@ export const aiAgentFormSchema = z
     tool_selection_strategy: z.enum(['ALL', 'NONE', 'SELECTED']),
     tool_selections: z.array(z.string()),
     integration_connections: z.array(z.object({ integration_id: z.string(), credential_id: z.string() })),
-    credential_id: z.string().optional(),
+    credential_id: z.string().min(1, 'LLM provider credential is required'),
     responseSchema: z.string().optional(),
     settings: nodeSettingsSchema.optional(),
   })

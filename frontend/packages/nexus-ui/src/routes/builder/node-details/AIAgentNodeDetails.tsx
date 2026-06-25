@@ -62,7 +62,7 @@ export function AIAgentNodeDetails({
     tool_selection_strategy: toolSelectionStrategy,
     tool_selections: toolSelections,
     integration_connections: integrationConnections,
-    credential_id: agentConfig.credential_id ?? undefined,
+    credential_id: agentConfig.credential_id ?? '',
     responseSchema: responseSchema ? JSON.stringify(responseSchema, null, 2) : undefined,
     settings: taskData.settings,
   }
