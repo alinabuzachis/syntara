@@ -37,12 +37,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          FILES=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files --paginate --jq '.[].filename')
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          if [ -z "$PR_NUMBER" ]; then
+            echo "::warning::No PR number (merge_group context), running all CI as fallback"
+            { echo "code=true"; echo "backend=true"; echo "contracts=true"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          FILES=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER/files --paginate --jq '.[].filename')
           if [ -z "$FILES" ]; then
             echo "::warning::No files from API, running all CI as fallback"
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "backend=true" >> "$GITHUB_OUTPUT"
-            echo "contracts=true" >> "$GITHUB_OUTPUT"
+            { echo "code=true"; echo "backend=true"; echo "contracts=true"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if echo "$FILES" | grep -qvE '(\.md$|^LICENSE$)'; then
@@ -617,7 +621,16 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
-            const sha = context.payload.pull_request.head.sha;
+            let sha;
+            if (context.eventName === 'merge_group') {
+              // merge_group has no pull_request payload; extract the PR head SHA
+              // from the ref (gh-readonly-queue/<base>/pr-<N>-<sha>) so we can
+              // look up the E2E status already posted for that commit.
+              const match = context.ref.match(/pr-\d+-([0-9a-f]+)$/);
+              sha = match ? match[1] : context.sha;
+            } else {
+              sha = context.payload.pull_request.head.sha;
+            }
             const timeout = 30 * 60 * 1000; // 30 minutes
             const interval = 30 * 1000; // poll every 30s
             const start = Date.now();
