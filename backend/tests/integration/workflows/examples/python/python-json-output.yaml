@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: json_producer
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import json

@@ -16,7 +16,7 @@ triggers:
 nodes:
   - id: authenticated_fetch
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/auth
       headers:

@@ -11,6 +11,6 @@ nodes:
   - id: api_task
     name: Task With Unsupported Executor
     type: http_request
-    config:
+    parameters:
       url: https://example.com
 edges: []

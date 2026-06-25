@@ -29,7 +29,7 @@ nodes:
   - id: unreliable_service
     name: Simulate Unreliable Service
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         ATTEMPT_NUMBER=${INPUT_ATTEMPT:-1}
@@ -73,7 +73,7 @@ nodes:
   - id: process_result
     name: Process Successful Result
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo ""
@@ -93,7 +93,7 @@ nodes:
   - id: fixed_backoff_example
     name: Fixed Backoff Example
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "This task uses fixed backoff (2 seconds between retries)"
@@ -112,7 +112,7 @@ nodes:
   - id: summary
     name: Retry Summary
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo ""

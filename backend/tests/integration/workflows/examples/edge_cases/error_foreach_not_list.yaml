@@ -22,7 +22,7 @@ nodes:
 
   - id: loop_task
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Should not execute"
 edges:

@@ -14,7 +14,7 @@ nodes:
   - id: quick_task
     name: Quick Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Starting quick task"
@@ -26,7 +26,7 @@ nodes:
   - id: slow_task
     name: Slow Task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Starting slow task"

@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: slow_endpoint
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/slow
     timeout: 2

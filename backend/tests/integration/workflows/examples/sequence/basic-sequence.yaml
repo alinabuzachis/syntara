@@ -11,7 +11,7 @@ nodes:
   - id: step1
     name: First Step
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Step 1: Starting"
@@ -23,7 +23,7 @@ nodes:
   - id: step2
     name: Second Step
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Step 2: Starting"
@@ -35,7 +35,7 @@ nodes:
   - id: step3
     name: Third Step
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Step 3: Starting"

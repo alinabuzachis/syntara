@@ -13,21 +13,21 @@ nodes:
 
   - id: bash_branch
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Bash branch executed"
 
   - id: python_branch
     type: script
-    config:
+    parameters:
       language: python
       code: |
         print("Python branch executed")
 
   - id: api_branch
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/data
 

@@ -11,7 +11,7 @@ nodes:
   - id: fetch_data
     name: Fetch Data
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo '{"user_id": "123", "name": "John Doe", "age": 30}'
@@ -21,7 +21,7 @@ nodes:
   - id: process_data
     name: Process Data
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Processing user: $INPUT_NAME (ID: $INPUT_USER_ID)"
@@ -35,7 +35,7 @@ nodes:
   - id: finalize
     name: Finalize
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Finalization complete for processed=$INPUT_PROCESSED"

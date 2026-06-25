@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: failing_script
     type: script
-    config:
+    parameters:
       language: python
       code: |
         raise Exception("Intentional error for testing")

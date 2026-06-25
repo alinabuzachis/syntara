@@ -17,7 +17,7 @@ nodes:
   - id: check_temperature
     name: Check Temperature
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Current temperature: ${INPUT_TEMP}°C"
@@ -36,7 +36,7 @@ nodes:
   - id: hot_weather
     name: Hot Weather Action
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "🌡️  Hot weather detected!"
@@ -53,7 +53,7 @@ nodes:
   - id: cold_weather
     name: Cold Weather Action
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "❄️  Cold weather detected!"
@@ -65,7 +65,7 @@ nodes:
   - id: mild_weather
     name: Mild Weather Action
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "☀️  Pleasant weather conditions!"
@@ -76,9 +76,9 @@ nodes:
       temp: ${inputs.temperature}
 
   - id: summary
-    name: Weather Summary
+    name: "Generate Weather Summary Report (${inputs.temperature})"
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo ""

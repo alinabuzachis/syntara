@@ -11,7 +11,7 @@ nodes:
   - id: task_1
     name: Task 1
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         sleep 1
@@ -20,7 +20,7 @@ nodes:
   - id: task_2
     name: Task 2
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         sleep 1
@@ -29,7 +29,7 @@ nodes:
   - id: task_3
     name: Task 3
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         sleep 1

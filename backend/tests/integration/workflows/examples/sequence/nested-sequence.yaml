@@ -11,7 +11,7 @@ nodes:
   - id: setup
     name: Setup
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Setting up pipeline"
@@ -24,7 +24,7 @@ nodes:
 
   - id: process_a
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Processing A"
@@ -33,7 +33,7 @@ nodes:
 
   - id: process_b
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Processing B"
@@ -46,7 +46,7 @@ nodes:
   - id: cleanup
     name: Cleanup
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Cleaning up pipeline"

@@ -21,7 +21,7 @@ nodes:
   - id: classify_request
     name: Classify User Request
     type: agentic
-    config:
+    parameters:
       agent: production://classifier-agent
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -47,7 +47,7 @@ nodes:
   - id: technical_specialist
     name: Technical Specialist
     type: agentic
-    config:
+    parameters:
       agent: production://technical-specialist
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -65,7 +65,7 @@ nodes:
   - id: business_specialist
     name: Business Specialist
     type: agentic
-    config:
+    parameters:
       agent: production://business-specialist
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -78,7 +78,7 @@ nodes:
   - id: creative_specialist
     name: Creative Specialist
     type: agentic
-    config:
+    parameters:
       agent: production://creative-specialist
       model: claude-3-5-sonnet-20241022
       prompt: |

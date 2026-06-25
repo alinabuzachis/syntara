@@ -11,7 +11,7 @@ nodes:
   - id: task_with_retry
     name: Task With Retry Policy
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Task executed successfully"

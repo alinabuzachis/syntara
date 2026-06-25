@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: bash_step
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo '{"data": "from bash"}'
@@ -19,7 +19,7 @@ nodes:
 
   - id: python_step
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import json
@@ -35,7 +35,7 @@ nodes:
 
   - id: api_step
     type: http_request
-    config:
+    parameters:
       method: POST
       url: http://test-api.example.com/api/create
       body:

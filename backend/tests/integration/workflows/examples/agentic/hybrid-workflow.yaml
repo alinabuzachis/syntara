@@ -14,7 +14,7 @@ triggers:
 nodes:
   - id: prepare_data
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Preparing data for analysis..."
@@ -24,7 +24,7 @@ nodes:
 
   - id: analyze_with_ai
     type: agentic
-    config:
+    parameters:
       agent: production://analysis-agent
       model: claude-3-5-sonnet-20241022
       prompt: |
@@ -43,7 +43,7 @@ nodes:
 
   - id: generate_report
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "=== Analysis Report ==="

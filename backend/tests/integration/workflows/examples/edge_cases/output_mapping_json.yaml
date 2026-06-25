@@ -11,7 +11,7 @@ nodes:
   - id: generate_json
     name: Generate JSON Output
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo '{"user": "Alice", "age": 30, "active": true}'
@@ -21,7 +21,7 @@ nodes:
   - id: use_parsed_data
     name: Use Parsed JSON Data
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "User: $INPUT_USER_NAME, Age: $INPUT_USER_AGE"

@@ -20,7 +20,7 @@ triggers:
 nodes:
   - id: query_test
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/data
       query_params:

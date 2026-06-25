@@ -11,7 +11,7 @@ nodes:
 
   - id: task1
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Task 1 starting..."
@@ -20,7 +20,7 @@ nodes:
 
   - id: task2
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Task 2 starting..."
@@ -29,7 +29,7 @@ nodes:
 
   - id: task3
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Task 3 starting..."
@@ -41,7 +41,7 @@ nodes:
 
   - id: summary
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "All parallel tasks completed!"

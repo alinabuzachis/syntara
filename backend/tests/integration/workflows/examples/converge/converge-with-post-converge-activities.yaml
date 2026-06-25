@@ -13,7 +13,7 @@ nodes:
 
   - id: fetch_data_a
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Fetching data A"
@@ -24,7 +24,7 @@ nodes:
 
   - id: fetch_data_b
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Fetching data B"
@@ -35,7 +35,7 @@ nodes:
 
   - id: fetch_data_c
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Fetching data C"
@@ -60,7 +60,7 @@ nodes:
   - id: process_aggregated_data
     name: Process Aggregated Data
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Processing aggregated data from all sources"
@@ -72,7 +72,7 @@ nodes:
   - id: send_notification
     name: Send Completion Notification
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Notification: All data fetching and aggregation complete"

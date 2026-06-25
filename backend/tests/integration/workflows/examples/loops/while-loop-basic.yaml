@@ -11,7 +11,7 @@ nodes:
   - id: initialize_counter
     name: Initialize Counter
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo '{"counter": 0}'
@@ -28,7 +28,7 @@ nodes:
 
   - id: loop_task
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Loop iteration executed"

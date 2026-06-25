@@ -15,7 +15,7 @@ nodes:
 
   - id: then_task
     type: script
-    config:
+    parameters:
       language: bash
       code: echo "Then branch"
 edges:

@@ -10,7 +10,7 @@ triggers:
 nodes:
   - id: fetch_data
     type: http_request
-    config:
+    parameters:
       method: GET
       url: http://test-api.example.com/api/data
     outputs:
@@ -18,7 +18,7 @@ nodes:
 
   - id: process_data
     type: script
-    config:
+    parameters:
       language: python
       code: |
         import json
@@ -34,7 +34,7 @@ nodes:
 
   - id: validate_data
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         # Validation check
@@ -50,7 +50,7 @@ nodes:
 
   - id: send_results
     type: http_request
-    config:
+    parameters:
       method: POST
       url: http://test-api.example.com/api/create
       body:

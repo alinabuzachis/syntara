@@ -158,7 +158,7 @@ All agentic tasks use the following configuration structure:
 ```yaml
 task:
   executor: agentic
-  config:
+  parameters:
     agent: production://agent-name        # Agent routing identifier
     model: claude-3-5-sonnet-20241022     # AI model to use
     prompt: |                              # Natural language prompt
@@ -201,8 +201,8 @@ Example with retry policy:
 ```yaml
 task:
   executor: agentic
-  config:
-    # ... config
+  parameters:
+    # ... parameters
   timeout: PT5M                  # 5 minute timeout
   retryPolicy:
     maxAttempts: 3

@@ -25,7 +25,7 @@ nodes:
   - id: process_item
     name: Process Item
     type: script
-    config:
+    parameters:
       language: bash
       code: |
         echo "Processing item: $INPUT_ITEM"
