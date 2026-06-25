@@ -526,18 +526,33 @@ jobs:
       - name: Fail job if visual regression detected issues
         if: always()
         run: |
-          if [[ "${{ steps.screenshots.outcome }}" == "failure" ]] || \
-             [[ "${{ steps.baselines.outcome }}" == "failure" ]]; then
-            echo "::error::Visual regression failed — screenshots differ from baselines."
+          failed=false
+
+          if [[ "${{ steps.screenshots.outcome }}" == "failure" ]]; then
+            echo "::error::Screenshots differ from baselines."
             echo ""
             echo "This check catches unintentional UI drift. If your PR changes the UI intentionally,"
             echo "comment /update-screenshots on the PR to regenerate baselines."
             echo "If the diff is unexpected, fix the code and push again."
+            echo "See the PR comment for diff images."
             echo ""
+            failed=true
+          fi
+
+          if [[ "${{ steps.baselines.outcome }}" == "failure" ]]; then
+            echo "::error::Baseline coverage check failed — missing or orphan baselines detected."
+            echo ""
+            echo "The page registry and baseline PNGs are out of sync."
+            echo "See the 'Check visual baselines' step log above for details."
+            echo ""
+            failed=true
+          fi
+
+          if [[ "$failed" == "true" ]]; then
             echo "  screenshots: ${{ steps.screenshots.outcome }}"
             echo "  baselines:   ${{ steps.baselines.outcome }}"
             echo ""
-            echo "See the PR comment for diff images. Docs: packages/nexus-ui/VISUAL_REGRESSION.md"
+            echo "Docs: packages/nexus-ui/VISUAL_REGRESSION.md"
             exit 1
           fi
 
