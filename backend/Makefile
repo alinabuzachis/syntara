@@ -197,14 +197,17 @@ endef
 
 # Default to empty so it runs all tests if not provided
 E2E_TARGET ?=
+E2E_ARGS :=
 
 .PHONY: test-e2e
-test-e2e: check-deps ## Run all E2E tests except global revocation (starts full stack)
+test-e2e: check-deps ## Run E2E tests (Usage: make test-e2e [E2E_TARGET=path] [PHASE=pr-check | EXCLUDE=pr-check])
+	$(eval E2E_ARGS := $(if $(PHASE),--test-phase=$(PHASE),$(if $(EXCLUDE),--exclude-test-phase=$(EXCLUDE),)))
 ifndef APP_BASE_URL
-	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v -m "not global_revocation")
+	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS))
 else
-	@echo "🧪 Running end to end tests (excluding global revocation)..."
-	uv run pytest tests/e2e/$(E2E_TARGET) -v -m "not global_revocation"
+	@echo "🧪 Running E2E tests $(if $(PHASE),for phase $(PHASE),$(if $(EXCLUDE),excluding phase $(EXCLUDE),))..."
+	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
+	uv run pytest tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS)
 endif
 
 .PHONY: test-e2e-global-revocation
@@ -215,6 +218,15 @@ else
 	@echo "🧪 Running global revocation E2E tests..."
 	uv run pytest tests/e2e/ -v -m global_revocation
 endif
+
+# Compatibility aliases for common workflows
+.PHONY: test-e2e-pr-check
+test-e2e-pr-check: ## Run critical E2E tests for PR checks (alias for: make test-e2e PHASE=pr-check)
+	@$(MAKE) test-e2e PHASE=pr-check
+
+.PHONY: test-e2e-exclude-pr-check
+test-e2e-exclude-pr-check: ## Run E2E tests excluding PR checks (alias for: make test-e2e EXCLUDE=pr-check)
+	@$(MAKE) test-e2e EXCLUDE=pr-check
 
 .PHONY: test-e2e-telemetry
 test-e2e-telemetry: check-deps ## Run telemetry E2E tests only

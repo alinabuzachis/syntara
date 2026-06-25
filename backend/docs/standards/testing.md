@@ -315,12 +315,14 @@ Configure markers in `pyproject.toml` under `[tool.pytest.ini_options]`.
 - `mcp` — Tests requiring MCP server infrastructure (deselect with `-m "not mcp"`)
 - `performance` — Performance tests (excluded by default, run with `--run-performance`)
 - `e2e` — End-to-end tests (required for tests in `tests/e2e/`)
+- `pipeline(test_phase=str)` — E2E test phase classification for PR filtering (e.g., `test_phase="pr-check"`)
 
 **When to Apply Markers:**
 
 - `@pytest.mark.e2e` — REQUIRED for all tests in `tests/e2e/`
 - `@pytest.mark.performance` — REQUIRED for all tests in `tests/performance/`
 - `@pytest.mark.mcp` — REQUIRED for tests that start MCP test servers
+- `@pytest.mark.pipeline(test_phase="pr-check")` — Optional, for E2E tests that should run on PRs (see Shift-Left E2E Testing section)
 - `@pytest.mark.slow` — Optional, for any test taking >5 seconds
 - `@pytest.mark.integration`, `@pytest.mark.unit` — Optional, inferred by location
 
@@ -329,6 +331,138 @@ Configure markers in `pyproject.toml` under `[tool.pytest.ini_options]`.
 - Strict markers enabled: `--strict-markers`
 - Undefined markers cause test failures
 - Add new markers to `pyproject.toml` before use
+
+## Shift-Left E2E Testing (Pipeline Marker)
+
+The `@pytest.mark.pipeline(test_phase="pr-check")` marker enables shift-left testing by running a critical subset of E2E tests on every PR, catching deployment issues early while keeping CI fast.
+
+### Overview
+
+The `pipeline` marker classifies E2E tests by execution phase:
+- **`pr-check`**: Critical tests that run on every PR (fast, high-value)
+- **No marker**: Tests that run in full E2E suite only (comprehensive coverage)
+
+**Note:** The pipeline marker only applies to E2E tests (`tests/e2e/`). Unit and integration tests are unaffected.
+
+### Marker Syntax
+
+```python
+import pytest
+
+# Mark a single test for PR checks
+@pytest.mark.pipeline(test_phase="pr-check")
+async def test_workflow_create_minimal(nexus_api):
+    """Test minimal workflow creation - runs on PRs."""
+    pass
+
+# Mark an entire test class for PR checks
+@pytest.mark.pipeline(test_phase="pr-check")
+class TestWorkflowCRUD:
+    """All tests in this class run on PRs."""
+
+    async def test_create(self, nexus_api):
+        pass
+
+    async def test_delete(self, nexus_api):
+        pass
+
+# No marker - runs in full suite only
+async def test_workflow_complex_validation(nexus_api):
+    """Complex test - full suite only."""
+    pass
+```
+
+### Running Tests
+
+```bash
+# Run only PR check tests (critical subset)
+make test-e2e-pr-check
+
+# Run tests excluding PR checks (for validation)
+make test-e2e-exclude-pr-check
+
+# Direct pytest commands
+uv run pytest tests/e2e/ --test-phase=pr-check
+uv run pytest tests/e2e/ --exclude-test-phase=pr-check
+uv run pytest tests/e2e/ --test-phase=pr-check --collect-only  # List what would run
+```
+
+### Selection Guidelines
+
+Mark tests with `test_phase="pr-check"` if they cover:
+
+✅ **Critical user workflows**
+- Login/logout
+- Core CRUD operations
+- Main navigation paths
+
+✅ **Security-critical paths**
+- Authentication flows
+- Authorization checks
+- Session management
+- Token revocation
+
+✅ **Infrastructure validation**
+- Database connectivity
+- API availability
+- Basic deployment health
+
+✅ **Sufficient code coverage**
+- Executes meaningful code paths that serve as "canary" tests
+- Detects early when something is broken (deployment config, database migrations, API changes)
+- Covers core user journeys end-to-end
+
+**Note on execution time:** While faster tests are preferred for better CI feedback, the primary criterion is coverage of critical paths that catch deployment issues early. Choose tests based on what they validate, not solely on speed.
+
+❌ **Exclude from PR checks**
+- High-volume data permutations
+- Edge case scenarios
+- Complex multi-stage setups
+- Flaky or slow tests
+
+### Example: Documenting Selection Rationale
+
+```python
+@pytest.mark.pipeline(test_phase="pr-check")
+async def test_create_workflow_minimal(nexus_api: NexusApiRegistry) -> None:
+    """Test minimal workflow creation.
+
+    Marked for PR checks because:
+    - Core CRUD operation all users perform
+    - Validates API connectivity and database interaction
+    - Fast execution (~2s)
+    - Catches deployment configuration issues early
+    """
+    workflow = await nexus_api.workflows.create(
+        name="Test Workflow",
+        description="E2E test workflow"
+    ).assert_and_get()
+
+    assert workflow.name == "Test Workflow"
+    assert workflow.id is not None
+```
+
+### Troubleshooting
+
+**Marker not recognized:**
+```bash
+# Verify marker is registered
+uv run pytest --markers | grep pipeline
+```
+
+**No tests collected:**
+```bash
+# List what tests would run
+uv run pytest tests/e2e/ --test-phase=pr-check --collect-only
+
+# If empty, no tests are marked yet - this is expected before domain expert selection
+```
+
+**Tests not filtering correctly:**
+```bash
+# Check if test has the marker
+uv run pytest tests/e2e/path/to/test.py --markers -v
+```
 
 ## Test Infrastructure
 
