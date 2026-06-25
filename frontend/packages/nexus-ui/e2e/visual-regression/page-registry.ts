@@ -474,36 +474,14 @@ export const pages: PageEntry[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ACCESS MANAGEMENT — Can I?
+  // ACCESS MANAGEMENT — Check access
   // ══════════════════════════════════════════════════════════════════════════
   {
-    section: 'access-management/can-i',
-    name: 'can-i',
-    path: AppRoute.AccessManagement.CanI,
+    section: 'access-management/check-access',
+    name: 'check-access',
+    path: AppRoute.AccessManagement.CheckAccess,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
-    },
-  },
-  {
-    section: 'access-management/can-i',
-    name: 'can-i-who-can',
-    path: `${AppRoute.AccessManagement.CanI}/who-can`,
-    waitFor: async (page) => {
-      await expect(page.getByRole('tab', { name: 'Find users who can perform an action' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      )
-    },
-  },
-  {
-    section: 'access-management/can-i',
-    name: 'can-i-my-permissions',
-    path: `${AppRoute.AccessManagement.CanI}/my-permissions`,
-    waitFor: async (page) => {
-      await expect(page.getByRole('tab', { name: 'View all permissions for a user' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      )
     },
   },
 

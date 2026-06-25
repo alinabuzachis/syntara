@@ -37,6 +37,7 @@ describe('useAccessManagementPermissions', () => {
     canReadGroups: true,
     canReadProjects: true,
     canReadAssignments: true,
+    canQueryAuthz: true,
     canReadTokenRevocation: true,
     canAccessPage: true,
     isLoading: false,
@@ -71,6 +72,7 @@ describe('useAccessManagementPermissions', () => {
         canReadGroups: false,
         canReadProjects: false,
         canReadAssignments: false,
+        canQueryAuthz: false,
         canReadTokenRevocation: false,
         canAccessPage: false,
         isLoading: false,
@@ -84,6 +86,7 @@ describe('useAccessManagementPermissions', () => {
       .mockResolvedValueOnce({ data: { allowed: false } } as never) // group
       .mockResolvedValueOnce({ data: { allowed: true } } as never) // project
       .mockResolvedValueOnce({ data: { allowed: false } } as never) // role-assignment
+      .mockResolvedValueOnce({ data: { allowed: false } } as never) // authz
       .mockResolvedValueOnce({ data: { allowed: false } } as never) // token-revocation
 
     const { result } = renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
@@ -94,6 +97,7 @@ describe('useAccessManagementPermissions', () => {
         canReadGroups: false,
         canReadProjects: true,
         canReadAssignments: false,
+        canQueryAuthz: false,
         canReadTokenRevocation: false,
         canAccessPage: true,
         isLoading: false,
@@ -107,7 +111,7 @@ describe('useAccessManagementPermissions', () => {
     renderHook(() => useAccessManagementPermissions(), { wrapper: createWrapper() })
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(5)
+      expect(accessFetchClient.POST).toHaveBeenCalledTimes(6)
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'read', resource_type: 'user' },
@@ -122,6 +126,9 @@ describe('useAccessManagementPermissions', () => {
       body: { action: 'read', resource_type: 'role-assignment' },
     })
     expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
+      body: { action: 'query', resource_type: 'authz' },
+    })
+    expect(accessFetchClient.POST).toHaveBeenCalledWith('/authz/can_i', {
       body: { action: 'read', resource_type: 'admin:revocation' },
     })
   })
@@ -134,7 +141,7 @@ describe('useAccessManagementPermissions', () => {
     renderHook(() => useAccessManagementPermissions(), { wrapper })
 
     await waitFor(() => {
-      expect(accessFetchClient.POST).toHaveBeenCalledTimes(5)
+      expect(accessFetchClient.POST).toHaveBeenCalledTimes(6)
     })
   })
 
@@ -151,6 +158,7 @@ describe('useAccessManagementPermissions', () => {
       canReadGroups: false,
       canReadProjects: false,
       canReadAssignments: false,
+      canQueryAuthz: false,
       canReadTokenRevocation: false,
       canAccessPage: false,
       isLoading: false,

@@ -128,7 +128,7 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('tab', { name: 'Policies' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Can I?' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Check access' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Token Revocation' })).toBeInTheDocument()
   })
 
@@ -255,7 +255,7 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
   })
 
-  it('always shows Roles, Policies, and Can I? tabs even when most permissions are denied', async () => {
+  it('always shows Roles, Policies, and Check access tabs even when most permissions are denied', async () => {
     vi.mocked(accessFetchClient.POST).mockImplementation((_path: string, options: never) => {
       const { body } = options as { body: { resource_type: string } }
       if (['user', 'group', 'project'].includes(body.resource_type)) {
@@ -271,7 +271,7 @@ describe('AccessManagement', () => {
     })
     expect(screen.getByRole('tab', { name: 'Policies' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Can I?' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Check access' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Groups' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Projects' })).not.toBeInTheDocument()

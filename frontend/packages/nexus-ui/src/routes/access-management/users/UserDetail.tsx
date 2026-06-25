@@ -9,7 +9,6 @@ import {
   FlexItem,
   Label,
   LabelGroup,
-  StackItem,
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
@@ -22,9 +21,8 @@ import { authClient } from '../../../client'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
-import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { navigate } from '../../../hooks/routing/navigate'
 import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -33,6 +31,9 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
+import { CheckAccessView } from '../../access/CheckAccessView'
+import { MyPermissionsView } from '../../access/MyPermissionsView'
+import { useResourceActions } from '../../access/useResourceActions'
 import { AUTH_TYPE_LOCAL } from '../adminConstants'
 import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
@@ -203,22 +204,126 @@ function EditUserButton({
   )
 }
 
-type UserTab = 'details' | 'groups' | 'identities' | 'roles'
-const ALL_USER_TABS: UserTab[] = ['details', 'groups', 'identities', 'roles']
+type UserTab = 'details' | 'groups' | 'identities' | 'roles' | 'permissions' | 'check-access'
 
 function computeVisibleTabs(
   canReadGroups: boolean,
   canReadIdentities: boolean,
   canReadAssignments: boolean,
+  isOwnProfile: boolean,
   isLoading: boolean
 ): UserTab[] {
-  if (isLoading) return ALL_USER_TABS
-  const hidden = new Set<UserTab>()
-  if (!canReadGroups) hidden.add('groups')
-  if (!canReadIdentities) hidden.add('identities')
-  if (!canReadAssignments) hidden.add('roles')
-  if (hidden.size === 0) return ALL_USER_TABS
-  return ALL_USER_TABS.filter((tab) => !hidden.has(tab))
+  const tabs: UserTab[] = ['details']
+  if (isLoading || canReadGroups) tabs.push('groups')
+  if (isLoading || canReadIdentities) tabs.push('identities')
+  if (isLoading || canReadAssignments) tabs.push('roles')
+  if (isOwnProfile) tabs.push('permissions', 'check-access')
+  return tabs
+}
+
+function UserCheckAccessTab() {
+  const { resourceTypes, actionsByResource, isLoading, error, refetch } = useResourceActions()
+  const queryState = useQueryState(
+    { isPending: isLoading, error },
+    { title: 'Error loading resource actions', onRetry: () => detachPromise(refetch()) }
+  )
+  if (queryState) return queryState
+  return <CheckAccessView resourceTypes={resourceTypes} actionsByResource={actionsByResource} />
+}
+
+function UserDetailTabBar({
+  basePath,
+  validTabs,
+  groupCount,
+  identitiesCount,
+  roleAssignmentCount,
+}: Readonly<{
+  basePath: string
+  validTabs: UserTab[]
+  groupCount: number
+  identitiesCount: number
+  roleAssignmentCount: number
+}>) {
+  return (
+    <NxListPanelTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="User details">
+      <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
+      {validTabs.includes('groups') && (
+        <Tab
+          eventKey="groups"
+          title={
+            <TabTitleText>
+              Groups <Badge isRead>{groupCount}</Badge>
+            </TabTitleText>
+          }
+        />
+      )}
+      {validTabs.includes('identities') && (
+        <Tab
+          eventKey="identities"
+          title={
+            <TabTitleText>
+              Identities <Badge isRead>{identitiesCount}</Badge>
+            </TabTitleText>
+          }
+        />
+      )}
+      {validTabs.includes('roles') && (
+        <Tab
+          eventKey="roles"
+          title={
+            <TabTitleText>
+              Assignments <Badge isRead>{roleAssignmentCount}</Badge>
+            </TabTitleText>
+          }
+        />
+      )}
+      {validTabs.includes('permissions') && (
+        <Tab eventKey="permissions" title={<TabTitleText>Permissions</TabTitleText>} />
+      )}
+      {validTabs.includes('check-access') && (
+        <Tab eventKey="check-access" title={<TabTitleText>Check my access</TabTitleText>} />
+      )}
+    </NxListPanelTabs>
+  )
+}
+
+function UserDetailTabContent({
+  activeTab,
+  validTabs,
+  userData,
+  userId,
+  currentUserId,
+  identitiesData,
+  isOwnProfile,
+}: Readonly<{
+  activeTab: string
+  validTabs: UserTab[]
+  userData: User
+  userId: string
+  currentUserId: string | undefined
+  identitiesData: Pick<UserIdentity, 'provider_name' | 'identity_provider_id'>[]
+  isOwnProfile: boolean
+}>) {
+  return (
+    <>
+      {activeTab === 'details' && <UserDetailsTab user={userData} identities={identitiesData} />}
+      {activeTab === 'groups' && validTabs.includes('groups') && <UserGroupsPanel userId={userId} />}
+      {activeTab === 'identities' && validTabs.includes('identities') && (
+        <UserIdentitiesPanel
+          userId={userId}
+          currentUserId={currentUserId}
+          isBuiltinUser={!!userData.is_builtin}
+          isLocalUser={userData.auth_type === AUTH_TYPE_LOCAL}
+          hasPassword={userData.auth_type === AUTH_TYPE_LOCAL}
+        />
+      )}
+      {activeTab === 'roles' && validTabs.includes('roles') && (
+        <RoleAssignmentsPanel principalType="user" principalId={userId} />
+      )}
+      {activeTab === 'permissions' && isOwnProfile && <MyPermissionsView />}
+      {activeTab === 'check-access' && isOwnProfile && <UserCheckAccessTab />}
+    </>
+  )
 }
 
 export function UserDetail() {
@@ -237,9 +342,11 @@ export function UserDetail() {
     isLoading: permissionsLoading,
   } = useUserDetailPermissions(userId)
 
+  const isOwnProfile = !!userId && !!currentUserId && userId === currentUserId
+
   const validTabs = useMemo(
-    () => computeVisibleTabs(canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading),
-    [canReadGroups, canReadIdentities, canReadAssignments, permissionsLoading]
+    () => computeVisibleTabs(canReadGroups, canReadIdentities, canReadAssignments, isOwnProfile, permissionsLoading),
+    [canReadGroups, canReadIdentities, canReadAssignments, isOwnProfile, permissionsLoading]
   )
 
   const navigateBack = () => navigate(AppRoute.AccessManagement.Users)
@@ -304,58 +411,25 @@ export function UserDetail() {
           />
         }
       />
-      <StackItem style={{ flexShrink: 0 }}>
-        <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="User details">
-          <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-          {validTabs.includes('groups') && (
-            <Tab
-              eventKey="groups"
-              title={
-                <TabTitleText>
-                  Groups <Badge isRead>{groupCount}</Badge>
-                </TabTitleText>
-              }
-            />
-          )}
-          {validTabs.includes('identities') && (
-            <Tab
-              eventKey="identities"
-              title={
-                <TabTitleText>
-                  Identities <Badge isRead>{identitiesData.length}</Badge>
-                </TabTitleText>
-              }
-            />
-          )}
-          {validTabs.includes('roles') && (
-            <Tab
-              eventKey="roles"
-              title={
-                <TabTitleText>
-                  Assignments <Badge isRead>{roleAssignmentCount}</Badge>
-                </TabTitleText>
-              }
-            />
-          )}
-        </NxUrlTabs>
-      </StackItem>
       <NxPageBody>
-        <NxPanel isFullHeight>
-          {activeTab === 'details' && <UserDetailsTab user={userData} identities={identitiesData} />}
-          {activeTab === 'groups' && validTabs.includes('groups') && <UserGroupsPanel userId={userId ?? ''} />}
-          {activeTab === 'identities' && validTabs.includes('identities') && (
-            <UserIdentitiesPanel
-              userId={userId ?? ''}
-              currentUserId={currentUserId}
-              isBuiltinUser={!!userData.is_builtin}
-              isLocalUser={userData.auth_type === AUTH_TYPE_LOCAL}
-              hasPassword={userData.auth_type === AUTH_TYPE_LOCAL}
-            />
-          )}
-          {activeTab === 'roles' && validTabs.includes('roles') && (
-            <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />
-          )}
-        </NxPanel>
+        <NxListPanel>
+          <UserDetailTabBar
+            basePath={basePath}
+            validTabs={validTabs}
+            groupCount={groupCount}
+            identitiesCount={identitiesData.length}
+            roleAssignmentCount={roleAssignmentCount}
+          />
+          <UserDetailTabContent
+            activeTab={activeTab}
+            validTabs={validTabs}
+            userData={userData}
+            userId={userId ?? ''}
+            currentUserId={currentUserId}
+            identitiesData={identitiesData}
+            isOwnProfile={isOwnProfile}
+          />
+        </NxListPanel>
       </NxPageBody>
     </NxPage>
   )

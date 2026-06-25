@@ -9,7 +9,6 @@ import {
   Flex,
   FlexItem,
   Label,
-  StackItem,
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
@@ -21,9 +20,8 @@ import { breadcrumbsGroupDetail, breadcrumbsGroupDetailEarlyShell } from '../../
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
-import { NxPanel } from '../../../components/layout/NxPanel'
+import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { navigate } from '../../../hooks/routing/navigate'
 import { useParams } from '../../../hooks/routing/useParams'
 import { useUrlTab } from '../../../hooks/useUrlTab'
@@ -89,7 +87,7 @@ function GroupTabBar({
     return tabs
   }, [showMembers, showAssignments])
   return (
-    <NxUrlTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Group details">
+    <NxListPanelTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Group details">
       <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
       {showMembers && (
         <Tab
@@ -111,7 +109,7 @@ function GroupTabBar({
           }
         />
       )}
-    </NxUrlTabs>
+    </NxListPanelTabs>
   )
 }
 
@@ -244,17 +242,15 @@ export function GroupDetail() {
           ) : undefined
         }
       />
-      <StackItem style={{ flexShrink: 0 }}>
-        <GroupTabBar
-          basePath={basePath}
-          showMembers={showMembers}
-          showAssignments={showAssignments}
-          memberCount={memberCount}
-          roleAssignmentCount={roleAssignmentCount}
-        />
-      </StackItem>
       <NxPageBody>
-        <NxPanel isFullHeight>
+        <NxListPanel>
+          <GroupTabBar
+            basePath={basePath}
+            showMembers={showMembers}
+            showAssignments={showAssignments}
+            memberCount={memberCount}
+            roleAssignmentCount={roleAssignmentCount}
+          />
           <GroupTabContent
             group={groupData as Group}
             groupId={groupId ?? ''}
@@ -265,7 +261,7 @@ export function GroupDetail() {
               detachPromise(membersQuery.refetch())
             }}
           />
-        </NxPanel>
+        </NxListPanel>
       </NxPageBody>
 
       <GroupFormModal

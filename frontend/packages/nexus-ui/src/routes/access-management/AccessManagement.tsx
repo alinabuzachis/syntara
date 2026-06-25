@@ -13,7 +13,7 @@ import { useNavigate } from '../../hooks/routing/useNavigate'
 import { useUrlTab } from '../../hooks/useUrlTab'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { AssignmentsTab } from '../access/AssignmentsTab'
-import { CanITab } from '../access/CanITab'
+import { CheckAccessTab } from '../access/CheckAccessTab'
 import { PoliciesTab } from '../access/PoliciesTab'
 import { RolesTab } from '../access/RolesTab'
 
@@ -23,7 +23,15 @@ import { TokenRevocationTab } from './token-revocation/TokenRevocation'
 import { useAccessManagementPermissions } from './useAccessManagementPermissions'
 import { UsersTab } from './UsersTab'
 
-type AccessTab = 'users' | 'groups' | 'projects' | 'policies' | 'roles' | 'assignments' | 'can-i' | 'token-revocation'
+type AccessTab =
+  | 'users'
+  | 'groups'
+  | 'projects'
+  | 'policies'
+  | 'roles'
+  | 'assignments'
+  | 'check-access'
+  | 'token-revocation'
 
 type TabDef = { key: AccessTab; label: string }
 
@@ -34,7 +42,7 @@ const allTabDefs: TabDef[] = [
   { key: 'policies', label: 'Policies' },
   { key: 'roles', label: 'Roles' },
   { key: 'assignments', label: 'Assignments' },
-  { key: 'can-i', label: 'Can I?' },
+  { key: 'check-access', label: 'Check access' },
   { key: 'token-revocation', label: 'Token Revocation' },
 ]
 
@@ -51,6 +59,7 @@ export function AccessManagement() {
     canReadGroups,
     canReadProjects,
     canReadAssignments,
+    canQueryAuthz,
     canReadTokenRevocation,
     canAccessPage,
     isLoading,
@@ -65,10 +74,19 @@ export function AccessManagement() {
     if (!canReadGroups) hiddenKeys.add('groups')
     if (!canReadProjects) hiddenKeys.add('projects')
     if (!canReadAssignments) hiddenKeys.add('assignments')
+    if (!canQueryAuthz) hiddenKeys.add('check-access')
     if (!canReadTokenRevocation) hiddenKeys.add('token-revocation')
     if (hiddenKeys.size === 0) return allTabDefs
     return allTabDefs.filter((tab) => !hiddenKeys.has(tab.key))
-  }, [canReadUsers, canReadGroups, canReadProjects, canReadAssignments, canReadTokenRevocation, isLoading])
+  }, [
+    canReadUsers,
+    canReadGroups,
+    canReadProjects,
+    canReadAssignments,
+    canQueryAuthz,
+    canReadTokenRevocation,
+    isLoading,
+  ])
 
   const validTabKeys = useMemo(() => validTabDefs.map((t) => t.key), [validTabDefs])
   const defaultTab = validTabDefs[0]?.key ?? 'users'
@@ -115,17 +133,17 @@ export function AccessManagement() {
           {activeTab === 'policies' && <PoliciesTab />}
           {activeTab === 'roles' && <RolesTab />}
           {activeTab === 'assignments' && <AssignmentsTab />}
-          {activeTab === 'can-i' && (
+          {activeTab === 'check-access' && (
             <NxListPanelView
-              tabKey="can-i"
-              tabLabel="Can I?"
+              tabKey="check-access"
+              tabLabel="Check access"
               isPending={false}
               error={null}
               isEmpty={false}
               hasActiveFilters={false}
               onRetry={noop}
               onClearAllFilters={noop}
-              body={<CanITab />}
+              body={<CheckAccessTab />}
             />
           )}
           {activeTab === 'token-revocation' && (

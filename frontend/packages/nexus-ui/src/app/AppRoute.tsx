@@ -57,8 +57,7 @@ export const AppRoute = {
     ProjectDetail: '/system-administration/access-management/projects/:projectId',
     ProjectDetailTab: '/system-administration/access-management/projects/:projectId/:tab',
     Assignments: '/system-administration/access-management/assignments',
-    CanI: '/system-administration/access-management/can-i',
-    CanIMode: '/system-administration/access-management/can-i/:mode',
+    CheckAccess: '/system-administration/access-management/check-access',
     TokenRevocation: '/system-administration/access-management/token-revocation',
   },
   Auth: {

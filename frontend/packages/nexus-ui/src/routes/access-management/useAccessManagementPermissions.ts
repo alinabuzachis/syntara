@@ -7,6 +7,7 @@ type AccessManagementPermissions = {
   canReadGroups: boolean
   canReadProjects: boolean
   canReadAssignments: boolean
+  canQueryAuthz: boolean
   canReadTokenRevocation: boolean
   /** `true` when the user has at least one of the AM permissions. */
   canAccessPage: boolean
@@ -18,6 +19,7 @@ const AM_CHECKS = [
   { action: 'read', resource_type: 'group' },
   { action: 'read', resource_type: 'project' },
   { action: 'read', resource_type: 'role-assignment' },
+  { action: 'query', resource_type: 'authz' },
   { action: 'read', resource_type: 'admin:revocation' },
 ] as const
 
@@ -31,12 +33,13 @@ export function useAccessManagementPermissions(): AccessManagementPermissions {
     })),
   })
 
-  const [usersResult, groupsResult, projectsResult, assignmentsResult, tokenRevocationResult] = results
+  const [usersResult, groupsResult, projectsResult, assignmentsResult, authzResult, tokenRevocationResult] = results
 
   const canReadUsers = usersResult.data?.data?.allowed === true
   const canReadGroups = groupsResult.data?.data?.allowed === true
   const canReadProjects = projectsResult.data?.data?.allowed === true
   const canReadAssignments = assignmentsResult.data?.data?.allowed === true
+  const canQueryAuthz = authzResult.data?.data?.allowed === true
   const canReadTokenRevocation = tokenRevocationResult.data?.data?.allowed === true
 
   return {
@@ -44,6 +47,7 @@ export function useAccessManagementPermissions(): AccessManagementPermissions {
     canReadGroups,
     canReadProjects,
     canReadAssignments,
+    canQueryAuthz,
     canReadTokenRevocation,
     canAccessPage: canReadUsers || canReadGroups || canReadProjects || canReadAssignments || canReadTokenRevocation,
     isLoading: results.some((r) => r.isLoading),

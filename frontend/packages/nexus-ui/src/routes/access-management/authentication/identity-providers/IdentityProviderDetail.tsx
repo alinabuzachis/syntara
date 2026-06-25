@@ -34,9 +34,9 @@ import { IconLabel } from '../../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { NxListPanel, NxListPanelTabs } from '../../../../components/panels/list/NxListPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
-import { NxUrlTabs } from '../../../../components/tabs/NxUrlTabs'
 import { navigate } from '../../../../hooks/routing/navigate'
 import { useParams } from '../../../../hooks/routing/useParams'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
@@ -192,20 +192,18 @@ function IdentityProviderDetailTabStrip({
   mappingCount: number
 }>) {
   return (
-    <StackItem style={{ flexShrink: 0 }}>
-      <NxUrlTabs
-        basePath={basePath}
-        defaultTab="details"
-        validTabs={['details', GROUP_MAPPING_TAB]}
-        aria-label="Identity provider details"
-      >
-        <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-        <Tab
-          eventKey={GROUP_MAPPING_TAB}
-          title={<TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>}
-        />
-      </NxUrlTabs>
-    </StackItem>
+    <NxListPanelTabs
+      basePath={basePath}
+      defaultTab="details"
+      validTabs={['details', GROUP_MAPPING_TAB]}
+      aria-label="Identity provider details"
+    >
+      <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
+      <Tab
+        eventKey={GROUP_MAPPING_TAB}
+        title={<TabTitleText>Group mapping {mappingCount > 0 && <Badge isRead>{mappingCount}</Badge>}</TabTitleText>}
+      />
+    </NxListPanelTabs>
   )
 }
 
@@ -381,9 +379,9 @@ export function IdentityProviderDetail() {
           </>
         }
       />
-      <IdentityProviderDetailTabStrip basePath={idpDetailBasePath} mappingCount={mappingCount} />
       <NxPageBody>
-        <NxPanel isFullHeight>
+        <NxListPanel>
+          <IdentityProviderDetailTabStrip basePath={idpDetailBasePath} mappingCount={mappingCount} />
           <TabContent
             activeTab={activeTab}
             provider={providerData}
@@ -392,7 +390,7 @@ export function IdentityProviderDetail() {
             groupMappingConfig={groupMappingConfig}
             readOnly={!canUpdate}
           />
-        </NxPanel>
+        </NxListPanel>
       </NxPageBody>
       <IdentityProviderDeleteDialog
         isOpen={deleteDialogOpen}

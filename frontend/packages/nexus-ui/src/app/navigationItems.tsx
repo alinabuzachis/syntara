@@ -190,15 +190,9 @@ export const NAV_ITEMS: TNavigationItem[] = [
             element: <AccessManagement />,
           },
           {
-            label: 'Can I?',
-            path: AppRoute.AccessManagement.CanI,
+            label: 'Check access',
+            path: AppRoute.AccessManagement.CheckAccess,
             element: <AccessManagement />,
-          },
-          {
-            label: 'Can I Mode',
-            path: AppRoute.AccessManagement.CanIMode,
-            element: <AccessManagement />,
-            hidden: true,
           },
           {
             label: 'Token Revocation',

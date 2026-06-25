@@ -146,7 +146,7 @@ test.describe('Permission gating — Access Management tabs', () => {
     'Policies',
     'Roles',
     'Assignments',
-    'Can I?',
+    'Check access',
     'Token Revocation',
   ] as const
 
@@ -168,13 +168,13 @@ test.describe('Permission gating — Access Management tabs', () => {
     }
   })
 
-  test('user sees Users, Groups, Policies, Roles, Can I? — not Projects, Assignments, or Token Revocation', async ({
+  test('user sees Users, Groups, Policies, Roles, Check access — not Projects, Assignments, or Token Revocation', async ({
     userApp,
   }) => {
     await userApp.goto(toAppUrl(`${AM_URL}/users`))
     await expect(userApp.getByRole('heading', { name: 'Access Management' })).toBeVisible()
 
-    const visibleTabs = ['Users', 'Groups', 'Policies', 'Roles', 'Can I?'] as const
+    const visibleTabs = ['Users', 'Groups', 'Policies', 'Roles', 'Check access'] as const
     for (const tab of visibleTabs) {
       await expect(userApp.getByRole('tab', { name: tab })).toBeVisible()
     }
