@@ -9,8 +9,10 @@ metadata:
     build.appstudio.redhat.com/target_branch: "{{target_branch}}"
     pipelinesascode.tekton.dev/cancel-in-progress: "true"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "early-access"
-    pipelinesascode.tekton.dev/on-path-change: "[backend/**]"
+    pipelinesascode.tekton.dev/on-cel-expression: >-
+      event == "pull_request" && target_branch == "early-access" &&
+      (files.all.exists(x, x.startsWith("backend/")) ||
+      ".tekton/ansible-automation-orchestrator-backend-early-access-pull-request.yaml".pathChanged())
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: ansible-automation-orchestrator-early-access
