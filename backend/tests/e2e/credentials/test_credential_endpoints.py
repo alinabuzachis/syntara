@@ -37,6 +37,7 @@ from nexus_api_client.models.credential_create_inputs import CredentialCreateInp
 from nexus_api_client.models.credential_update import CredentialUpdate
 from nexus_api_client.models.credential_update_inputs_type_0 import CredentialUpdateInputsType0
 
+from tests.e2e.conftest import unique_name
 from tests.fixtures.factories import get_bearer_token_type_id
 
 pytestmark = [pytest.mark.e2e]
@@ -55,34 +56,42 @@ class TestSecretFieldMasking:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, create_credential: CredentialFactory
     ) -> None:
         """POST /credentials response must contain $encrypted$, not plaintext."""
-        _, cred_name, cred = create_credential(api=nexus_api, project_id=first_project_id, prefix="secret-mask-create")
+        _, _, cred, secret = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-secret-mask-create")
+        )
         assert cred["inputs"]["token"] == ENCRYPTED_SENTINEL
-        assert f"test-{cred_name}" not in str(cred)
+        assert secret not in str(cred)
 
     def test_get_response_masks_secrets(
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, create_credential: CredentialFactory
     ) -> None:
         """GET /credentials/{id} must contain $encrypted$, not plaintext."""
-        cred_id, cred_name, _ = create_credential(api=nexus_api, project_id=first_project_id, prefix="secret-mask-get")
+        cred_id, _, _, secret = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-secret-mask-get")
+        )
         credential = nexus_api.credentials.get(credential_id=cred_id).assert_and_get()
         data = credential.to_dict()
         assert data["inputs"]["token"] == ENCRYPTED_SENTINEL
-        assert f"test-{cred_name}" not in str(data)
+        assert secret not in str(data)
 
     def test_list_response_masks_secrets(
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, create_credential: CredentialFactory
     ) -> None:
         """GET /credentials list must not leak plaintext secrets."""
-        _, cred_name, _ = create_credential(api=nexus_api, project_id=first_project_id, prefix="secret-mask-list")
+        _, _, _, secret = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-secret-mask-list")
+        )
         credentials_list = nexus_api.credentials.list().assert_and_get()
         raw = str(credentials_list)
-        assert f"test-{cred_name}" not in raw
+        assert secret not in raw
 
     def test_update_with_sentinel_returns_encrypted(
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, create_credential: CredentialFactory
     ) -> None:
         """PATCH with $encrypted$ inputs still returns $encrypted$ on GET."""
-        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, prefix="secret-mask-update")
+        cred_id, *_ = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-secret-mask-update")
+        )
         nexus_api.credentials.update(
             credential_id=cred_id,
             body=CredentialUpdate(
@@ -177,7 +186,7 @@ class TestCredentialScrubbing:
         """Script node prints credential value to stdout — must be [REDACTED] in execution history."""
         from tests.e2e.helpers import create_and_run_workflow
 
-        cred_id, _, _ = create_credential(api=nexus_api, project_id=first_project_id, name="e2e-scrub-stdout")
+        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, name="e2e-scrub-stdout")
 
         definition = {
             "schema_version": "2.0.0",
@@ -228,7 +237,7 @@ class TestRbacAdminFullCrud:
         self, nexus_api: NexusApiRegistry, first_project_id: UUID, create_credential: CredentialFactory
     ) -> None:
         """Admin creates, reads, updates, and deletes a credential."""
-        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, prefix="rbac-admin")
+        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, name=unique_name("e2e-rbac-admin"))
 
         # Read
         nexus_api.credentials.get(credential_id=cred_id).assert_and_get()
@@ -268,7 +277,9 @@ class TestRbacUserCannotDelete:
         create_credential: CredentialFactory,
     ) -> None:
         """User role attempting DELETE gets 403 Forbidden."""
-        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, prefix="rbac-user-del")
+        cred_id, *_ = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-rbac-user-del")
+        )
         resp = viewer_api.credentials.delete(credential_id=cred_id)
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
@@ -294,7 +305,9 @@ class TestRbacAuditorReadOnly:
         create_credential: CredentialFactory,
     ) -> None:
         """Auditor can GET /credentials/{id}."""
-        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, prefix="rbac-auditor-read")
+        cred_id, *_ = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-rbac-auditor-read")
+        )
         resp = auditor_api.credentials.get(credential_id=cred_id)
         assert resp.status_code == HTTPStatus.OK
 
@@ -324,7 +337,9 @@ class TestRbacAuditorReadOnly:
         create_credential: CredentialFactory,
     ) -> None:
         """Auditor PATCH /credentials/{id} gets 403."""
-        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, prefix="rbac-auditor-patch")
+        cred_id, *_ = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-rbac-auditor-patch")
+        )
         resp = auditor_api.credentials.update(
             credential_id=cred_id,
             body=CredentialUpdate(description="nope"),
@@ -339,7 +354,9 @@ class TestRbacAuditorReadOnly:
         create_credential: CredentialFactory,
     ) -> None:
         """Auditor DELETE /credentials/{id} gets 403."""
-        cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, prefix="rbac-auditor-del")
+        cred_id, *_ = create_credential(
+            api=nexus_api, project_id=first_project_id, name=unique_name("e2e-rbac-auditor-del")
+        )
         resp = auditor_api.credentials.delete(credential_id=cred_id)
         assert resp.status_code == HTTPStatus.FORBIDDEN
 

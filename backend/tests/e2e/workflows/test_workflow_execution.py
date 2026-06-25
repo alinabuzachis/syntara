@@ -2,10 +2,18 @@
 
 Tests workflow execution including triggering, status tracking,
 and integration with Temporal workflows.
+
+API-14: Execute Workflow
+API-15: Get Execution Status with Per-Node Details
+API-16: List Executions with Filtering
+API-17: Cancel Running Execution
+API-36: Workflow Execution — Parallel Branches
+API-37: Workflow Execution — Node Failure Propagation
 """
 
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any
 from uuid import UUID
@@ -19,8 +27,10 @@ from nexus_api_client.models import (
     WorkflowRead,
     WorkflowUpdate,
 )
+from nexus_api_client.models.execution_status import ExecutionStatus
 
 from tests.e2e.conftest import unique_name
+from tests.e2e.helpers import create_and_run_workflow
 
 pytestmark = [pytest.mark.e2e]
 
@@ -565,4 +575,373 @@ class TestWorkflowExecution:
         assert cancelled_execution.completed_at is not None, "Cancelled execution should have completed_at timestamp"
         assert cancelled_execution.created_at < cancelled_execution.completed_at, (
             "Completed time should be after created time"
+        )
+
+
+# ---------------------------------------------------------------------------
+# API-36: Parallel Branches
+# ---------------------------------------------------------------------------
+
+PARALLEL_POLL_TIMEOUT = 45  # seconds — parallel wait branches take ~5s wall-clock
+
+
+class TestParallelBranches:
+    """API-36: Workflow Execution — Parallel Branches.
+
+    Objective: Verify that a workflow with parallel branches executes branches
+    concurrently, not sequentially. The wall-clock time for two branches each
+    waiting N seconds must be closer to N than to 2N.
+
+    Test Procedure:
+    1. Create a DAG: trigger → [wait_a (4s), wait_b (4s)] → converge → final
+    2. Execute the workflow and record start/end wall-clock time
+    3. Assert total wall-clock < 4s * 1.8 (8s) — well below the 8s sequential floor
+
+    Expected Results:
+    - Both branches execute concurrently (total ~4s, not ~8s)
+    - The converge node executes only after both branches complete
+    - Output from both branches is available downstream via expressions
+    """
+
+    def test_two_parallel_wait_branches_run_concurrently(self, nexus_api: NexusApiRegistry) -> None:
+        """Two parallel wait nodes complete in ~branch_duration, not ~2x."""
+        branch_duration = 4  # seconds per branch
+        # Sequential worst-case would be 2 * branch_duration = 8s.
+        # Allow generous slack for CI scheduling overhead; still proves concurrency.
+        wall_clock_ceiling = branch_duration * 1.8  # 7.2s
+
+        start = datetime.now(UTC)
+        result = create_and_run_workflow(
+            nexus_api,
+            "e2e-parallel-wait-branches",
+            {
+                "name": "parallel-wait",
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+                "nodes": [
+                    {
+                        "id": "wait_a",
+                        "name": "Branch A Wait",
+                        "type": "wait",
+                        "parameters": {"duration": branch_duration},
+                    },
+                    {
+                        "id": "wait_b",
+                        "name": "Branch B Wait",
+                        "type": "wait",
+                        "parameters": {"duration": branch_duration},
+                    },
+                    {
+                        "id": "join",
+                        "name": "Converge",
+                        "type": "converge",
+                        "parameters": {},
+                    },
+                    {
+                        "id": "final",
+                        "name": "Final Step",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo 'both branches done'"},
+                    },
+                ],
+                "edges": [
+                    {"from": "trigger", "to": "wait_a"},
+                    {"from": "trigger", "to": "wait_b"},
+                    {"from": "wait_a", "to": "join"},
+                    {"from": "wait_b", "to": "join"},
+                    {"from": "join", "to": "final"},
+                ],
+            },
+            timeout=PARALLEL_POLL_TIMEOUT,
+        )
+        elapsed = (datetime.now(UTC) - start).total_seconds()
+
+        assert result.status == ExecutionStatus.COMPLETED, f"Execution failed: {result.error_details}"
+
+        activities = {a.activity_id: a for a in (result.activities or [])}
+
+        # All nodes must have completed.
+        for node_id in ("trigger", "wait_a", "wait_b", "join", "final"):
+            assert node_id in activities, f"Missing activity record for '{node_id}'"
+            assert activities[node_id].status == "completed", (
+                f"Expected '{node_id}' to be completed, got {activities[node_id].status}"
+            )
+
+        # Converge must start after both branches complete.
+        join_started = activities["join"].started_at
+        wait_a_done = activities["wait_a"].completed_at
+        wait_b_done = activities["wait_b"].completed_at
+        assert join_started is not None
+        assert wait_a_done is not None
+        assert wait_b_done is not None
+
+        assert join_started >= wait_a_done, "Converge must start after branch A completes"
+        assert join_started >= wait_b_done, "Converge must start after branch B completes"
+
+        # Concurrency assertion: total wall-clock must be less than sequential would take.
+        assert elapsed < wall_clock_ceiling, (
+            f"Wall-clock time {elapsed:.1f}s >= {wall_clock_ceiling}s — "
+            f"branches may have run sequentially instead of concurrently. "
+            f"Each branch waits {branch_duration}s; sequential total would be ~{2 * branch_duration}s."
+        )
+
+    def test_three_parallel_branches_all_complete(self, nexus_api: NexusApiRegistry) -> None:
+        """Three parallel script branches all complete before the converge node runs."""
+        result = create_and_run_workflow(
+            nexus_api,
+            "e2e-three-parallel-branches",
+            {
+                "name": "three-parallel",
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+                "nodes": [
+                    {
+                        "id": "branch_a",
+                        "name": "Branch A",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo A"},
+                    },
+                    {
+                        "id": "branch_b",
+                        "name": "Branch B",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo B"},
+                    },
+                    {
+                        "id": "branch_c",
+                        "name": "Branch C",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo C"},
+                    },
+                    {"id": "join", "name": "Converge", "type": "converge", "parameters": {}},
+                    {
+                        "id": "final",
+                        "name": "Final",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo done"},
+                    },
+                ],
+                "edges": [
+                    {"from": "trigger", "to": "branch_a"},
+                    {"from": "trigger", "to": "branch_b"},
+                    {"from": "trigger", "to": "branch_c"},
+                    {"from": "branch_a", "to": "join"},
+                    {"from": "branch_b", "to": "join"},
+                    {"from": "branch_c", "to": "join"},
+                    {"from": "join", "to": "final"},
+                ],
+            },
+        )
+
+        assert result.status == ExecutionStatus.COMPLETED, f"Execution failed: {result.error_details}"
+
+        activities = {a.activity_id: a.status for a in (result.activities or [])}
+        for node_id in ("trigger", "branch_a", "branch_b", "branch_c", "join", "final"):
+            assert activities.get(node_id) == "completed", (
+                f"Expected '{node_id}' completed, got {activities.get(node_id)}"
+            )
+
+        # Final step must start after converge, which starts after all three branches.
+        detailed = {a.activity_id: a for a in (result.activities or [])}
+        join_started = detailed["join"].started_at
+        final_started = detailed["final"].started_at
+        assert join_started is not None
+        assert final_started is not None
+        assert final_started >= join_started, "Final step must start after converge"
+
+
+# ---------------------------------------------------------------------------
+# API-37: Node Failure Propagation
+# ---------------------------------------------------------------------------
+
+
+class TestNodeFailurePropagation:
+    """API-37: Workflow Execution — Node Failure Propagation.
+
+    Objective: Verify that when a node fails, downstream nodes are NOT executed
+    and the overall workflow execution is marked as failed.
+
+    Test Procedure:
+    1. Create a chain: Node A (succeeds) → Node B (configured to fail via exit 1) → Node C
+    2. Execute the workflow
+    3. Assert Node B has status "failed", Node C is not "completed", overall is "failed"
+
+    Expected Results:
+    - Node A completes successfully
+    - Node B fails (non-zero exit)
+    - Node C is not executed (status "skipped" or absent)
+    - Overall execution status is "failed"
+    """
+
+    def test_failed_node_stops_downstream_execution(self, nexus_api: NexusApiRegistry) -> None:
+        """A failing middle node prevents downstream nodes from executing."""
+        result = create_and_run_workflow(
+            nexus_api,
+            "e2e-failure-propagation-linear",
+            {
+                "name": "failure-propagation",
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+                "nodes": [
+                    {
+                        "id": "node_a",
+                        "name": "Node A — Succeeds",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo 'node A ok'"},
+                    },
+                    {
+                        "id": "node_b",
+                        "name": "Node B — Fails",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo 'node B failing'; exit 1"},
+                    },
+                    {
+                        "id": "node_c",
+                        "name": "Node C — Should Not Run",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo 'node C ran (unexpected)'"},
+                    },
+                ],
+                "edges": [
+                    {"from": "trigger", "to": "node_a"},
+                    {"from": "node_a", "to": "node_b"},
+                    {"from": "node_b", "to": "node_c"},
+                ],
+            },
+        )
+
+        # Overall execution must fail.
+        assert result.status == ExecutionStatus.FAILED, (
+            f"Expected overall execution status 'failed', got '{result.status}'. Error details: {result.error_details}"
+        )
+
+        activities = {a.activity_id: a for a in (result.activities or [])}
+
+        # Node A must complete — it runs before the failure.
+        assert "node_a" in activities, "node_a should have an activity record"
+        assert activities["node_a"].status == "completed", (
+            f"node_a should be completed, got {activities['node_a'].status}"
+        )
+
+        # Node B must fail.
+        assert "node_b" in activities, "node_b should have an activity record"
+        assert activities["node_b"].status == "failed", f"node_b should be failed, got {activities['node_b'].status}"
+
+        # Node C must NOT have completed — it is downstream of the failure.
+        if "node_c" in activities:
+            assert activities["node_c"].status != "completed", (
+                f"node_c should NOT have completed after node_b failed, got {activities['node_c'].status}"
+            )
+
+    def test_failure_at_first_node_skips_all_downstream(self, nexus_api: NexusApiRegistry) -> None:
+        """A failure in the very first node prevents every downstream node from running."""
+        result = create_and_run_workflow(
+            nexus_api,
+            "e2e-failure-propagation-first-node",
+            {
+                "name": "failure-at-first",
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+                "nodes": [
+                    {
+                        "id": "fail_first",
+                        "name": "Fail First",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "exit 1"},
+                    },
+                    {
+                        "id": "node_b",
+                        "name": "Node B",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo B"},
+                    },
+                    {
+                        "id": "node_c",
+                        "name": "Node C",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo C"},
+                    },
+                ],
+                "edges": [
+                    {"from": "trigger", "to": "fail_first"},
+                    {"from": "fail_first", "to": "node_b"},
+                    {"from": "node_b", "to": "node_c"},
+                ],
+            },
+        )
+
+        assert result.status == ExecutionStatus.FAILED, f"Expected 'failed', got '{result.status}'"
+
+        activities = {a.activity_id: a for a in (result.activities or [])}
+
+        assert activities["fail_first"].status == "failed", (
+            f"fail_first should be failed, got {activities['fail_first'].status}"
+        )
+
+        for downstream in ("node_b", "node_c"):
+            if downstream in activities:
+                assert activities[downstream].status != "completed", (
+                    f"{downstream} should NOT be completed after upstream failure, got {activities[downstream].status}"
+                )
+
+    def test_failure_does_not_affect_independent_branch(self, nexus_api: NexusApiRegistry) -> None:
+        """A failure in one fork branch does not prevent the sibling branch from executing.
+
+        Topology: trigger → [branch_ok, branch_fail] → converge
+        branch_fail exits 1; branch_ok completes normally.
+        The converge + downstream should reflect the partial failure.
+        """
+        result = create_and_run_workflow(
+            nexus_api,
+            "e2e-failure-propagation-fork",
+            {
+                "name": "failure-in-fork",
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+                "nodes": [
+                    {
+                        "id": "branch_ok",
+                        "name": "Branch OK",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "echo 'ok branch'"},
+                    },
+                    {
+                        "id": "branch_fail",
+                        "name": "Branch Fail",
+                        "type": "script",
+                        "parameters": {"language": "bash", "code": "exit 1"},
+                    },
+                    {
+                        "id": "join",
+                        "name": "Converge",
+                        "type": "converge",
+                        "parameters": {},
+                    },
+                ],
+                "edges": [
+                    {"from": "trigger", "to": "branch_ok"},
+                    {"from": "trigger", "to": "branch_fail"},
+                    {"from": "branch_ok", "to": "join"},
+                    {"from": "branch_fail", "to": "join"},
+                ],
+            },
+        )
+
+        # The workflow as a whole fails because one branch failed.
+        assert result.status in (ExecutionStatus.FAILED, ExecutionStatus.COMPLETED_WITH_ERRORS), (
+            f"Expected failed or completed_with_errors when a fork branch fails, got '{result.status}'"
+        )
+
+        activities = {a.activity_id: a for a in (result.activities or [])}
+
+        # The healthy branch must have completed.
+        assert activities.get("branch_ok") is not None
+        assert activities["branch_ok"].status == "completed", (
+            f"branch_ok should complete independently of branch_fail, got {activities['branch_ok'].status}"
+        )
+
+        # The failing branch must be marked failed.
+        assert activities.get("branch_fail") is not None
+        assert activities["branch_fail"].status == "failed", (
+            f"branch_fail should be failed, got {activities['branch_fail'].status}"
         )

@@ -31,7 +31,7 @@ from tests.e2e.conftest import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from nexus_api_client.api import NexusApiRegistry
     from nexus_api_client.models.user_read import UserRead
@@ -45,6 +45,19 @@ REVOCATION_RETRY_COUNT = 5
 def _wait_for_cache_expiry() -> None:
     """Sleep long enough for all nodes' TTL caches to expire."""
     time.sleep(_CACHE_TTL + 1)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _drain_revocation_window_after_module() -> Generator[None, None, None]:
+    """Wait for the global revocation TTL to clear after all tests in this module.
+
+    test_revocation_timestamp_readable_after_set calls _revoke_all() as its
+    last action without a subsequent _wait_for_cache_expiry().  Without this
+    fixture, the 10-second rejection window bleeds into the next test module,
+    causing TOKEN_GLOBALLY_REVOKED failures on fresh tokens.
+    """
+    yield
+    _wait_for_cache_expiry()
 
 
 def _revoke_all(nexus_api: NexusApiRegistry) -> None:

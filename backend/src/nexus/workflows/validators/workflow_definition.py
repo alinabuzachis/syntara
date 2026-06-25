@@ -7,7 +7,7 @@ registry retrieve callback and cached for the lifetime of the process.
 """
 
 import json
-from collections import defaultdict
+from collections import defaultdict, deque
 from functools import lru_cache
 from typing import Any
 
@@ -111,17 +111,6 @@ def _check_edge_references(workflow_definition: dict[str, Any], node_ids: set[st
     ]
 
 
-def _build_graph_and_find_connected(
-    workflow_definition: dict[str, Any],
-) -> set[str]:
-    connected: set[str] = set()
-    for edge in workflow_definition.get("edges", []):
-        if edge.get("to_port") not in _FEEDBACK_PORTS:
-            connected.add(edge["from"])
-            connected.add(edge["to"])
-    return connected
-
-
 def _check_cycles_findings(workflow_definition: dict[str, Any], node_ids: set[str]) -> list[ValidationFinding]:
     backend = InMemoryGraphBackend()
     for nid in node_ids:
@@ -149,20 +138,36 @@ def _check_cycles(workflow_definition: dict[str, Any], node_ids: set[str]) -> li
     ]
 
 
-def _check_orphaned_nodes_findings(
-    workflow_definition: dict[str, Any], node_ids: set[str], connected_nodes: set[str]
-) -> list[ValidationFinding]:
+def _check_orphaned_nodes_findings(workflow_definition: dict[str, Any], node_ids: set[str]) -> list[ValidationFinding]:
     trigger_ids = {t.get("id") for t in workflow_definition.get("triggers", []) if t.get("id")}
+    reachable = _reachable_from_triggers(workflow_definition, trigger_ids)
+    unreachable = (node_ids - trigger_ids) - reachable
     return [
         ValidationFinding(
-            severity=ValidationSeverity.warning,
+            severity=ValidationSeverity.error,
             category=ValidationCategory.orphaned_node,
-            message=f"Node '{nid}' has no incoming or outgoing edges",
+            message=f"Node '{nid}' is unreachable from any trigger",
             node_id=nid,
         )
-        for nid in node_ids - trigger_ids
-        if nid not in connected_nodes
+        for nid in sorted(unreachable)
     ]
+
+
+def _reachable_from_triggers(workflow_definition: dict[str, Any], trigger_ids: set[str]) -> set[str]:
+    """BFS over forward edges to find all nodes reachable from any trigger."""
+    adjacency: dict[str, list[str]] = {}
+    for edge in workflow_definition.get("edges", []):
+        if edge.get("to_port") not in _FEEDBACK_PORTS:
+            adjacency.setdefault(edge["from"], []).append(edge["to"])
+    visited: set[str] = set()
+    queue: deque[str] = deque(trigger_ids)
+    while queue:
+        node = queue.popleft()
+        if node in visited:
+            continue
+        visited.add(node)
+        queue.extend(adjacency.get(node, []))
+    return visited - trigger_ids
 
 
 def _check_converge_node_findings(
@@ -519,9 +524,8 @@ class WorkflowValidator:
         if any(f.category == ValidationCategory.invalid_reference for f in findings):
             return findings
 
-        connected_nodes = _build_graph_and_find_connected(workflow_definition)
         findings.extend(_check_cycles_findings(workflow_definition, node_ids))
-        findings.extend(_check_orphaned_nodes_findings(workflow_definition, node_ids, connected_nodes))
+        findings.extend(_check_orphaned_nodes_findings(workflow_definition, node_ids))
         findings.extend(_check_converge_node_findings(workflow_definition))
         return findings
 
@@ -627,6 +631,10 @@ class WorkflowValidator:
         cycle_issues = _check_cycles(workflow_definition, node_ids)
         if cycle_issues:
             raise SafeValueError(cycle_issues[0].message)
+
+        orphan_findings = _check_orphaned_nodes_findings(workflow_definition, node_ids)
+        if orphan_findings:
+            raise SafeValueError(orphan_findings[0].message)
 
     def _validate_template_expressions(self, workflow_definition: dict[str, Any], node_ids: set[str]) -> None:
         errors = check_template_expressions(workflow_definition, node_ids)

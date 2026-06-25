@@ -199,8 +199,8 @@ async def test_validate_response_schema(jwt_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_validate_orphaned_node_warning(jwt_client: AsyncClient) -> None:
-    """Node with no edges produces a warning with node_id."""
+async def test_validate_orphaned_node_error(jwt_client: AsyncClient) -> None:
+    """Node unreachable from any trigger is an error that makes the definition invalid."""
     payload = {
         "workflow_definition": {
             "schema_version": "2.0.0",
@@ -227,10 +227,13 @@ async def test_validate_orphaned_node_warning(jwt_client: AsyncClient) -> None:
 
     response = await jwt_client.post("/api/v1/workflows/validate", json=payload)
 
+    assert response.status_code == 422
     data = response.json()
-    orphan_warnings = [w for w in data["warnings"] if "orphaned_node" in w["message"]]
-    assert len(orphan_warnings) == 1
-    assert orphan_warnings[0]["node_id"] == "orphaned_node"
+    assert data["type"] == "https://api.nexus.com/errors/validation-error"
+    vr = data["validation_result"]
+    assert vr["valid"] is False
+    orphan_errors = [e for e in vr["errors"] if e.get("node_id") == "orphaned_node"]
+    assert len(orphan_errors) == 1
 
 
 @pytest.mark.asyncio

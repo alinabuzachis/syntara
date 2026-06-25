@@ -220,7 +220,10 @@ class TestWorkflowDefinitionUpdates:
             if edge["from"] != "script_node_b" and edge["to"] != "script_node_b"
         ]
 
-        # Update workflow with removed node and cleaned edges
+        # Reconnect A → C now that B (the middle node) is removed
+        current_definition["edges"].append({"from": "script_node_a", "to": "script_node_c"})
+
+        # Update workflow with removed node and reconnected edges
         update_data = WorkflowUpdate(
             workflow_definition=current_definition,
             change_description="Removed Node B and its connected edges",
@@ -241,12 +244,12 @@ class TestWorkflowDefinitionUpdates:
         assert "script_node_c" in node_ids, "Node C should remain"
         assert "script_node_b" not in node_ids, "Node B should be removed"
 
-        # Verify edges connected to the deleted node (A→B, B→C) are removed
-        assert len(updated_def["edges"]) == 1, "Should have 1 edge remaining (trigger→A)"
+        # Verify edges connected to the deleted node (A→B, B→C) are removed; A→C reconnect added
+        assert len(updated_def["edges"]) == 2, "Should have 2 edges remaining (trigger→A and A→C)"
 
-        remaining_edge = updated_def["edges"][0]
-        assert remaining_edge["from"] == "trigger_manual"
-        assert remaining_edge["to"] == "script_node_a"
+        edge_pairs = {(e["from"], e["to"]) for e in updated_def["edges"]}
+        assert ("trigger_manual", "script_node_a") in edge_pairs, "trigger→A edge should remain"
+        assert ("script_node_a", "script_node_c") in edge_pairs, "A→C reconnect edge should exist"
 
         # Verify no edges reference the deleted node
         for edge in updated_def["edges"]:
@@ -263,7 +266,7 @@ class TestWorkflowDefinitionUpdates:
         """
         workflow_name = unique_name("e2e-edge-management")
 
-        # Create workflow with two disconnected nodes (no edge between them)
+        # Create workflow with two nodes, each reachable from the trigger
         workflow_data = WorkflowCreate(
             name=workflow_name,
             description="Workflow for testing edge management",
@@ -286,7 +289,10 @@ class TestWorkflowDefinitionUpdates:
                             "parameters": {"language": "bash", "code": "echo 'B'"},
                         },
                     ],
-                    "edges": [{"from": "trigger_manual", "to": "node_a"}],  # Only trigger→A, no A→B edge
+                    "edges": [
+                        {"from": "trigger_manual", "to": "node_a"},
+                        {"from": "trigger_manual", "to": "node_b"},
+                    ],  # Both nodes reachable from trigger
                 }
             ),
         )
@@ -306,8 +312,9 @@ class TestWorkflowDefinitionUpdates:
         assert updated_workflow.current_version == 2
         updated_def = updated_workflow.version.workflow_definition
 
-        assert len(updated_def["edges"]) == 2, "Should have 2 edges after addition"
+        assert len(updated_def["edges"]) == 3, "Should have 3 edges after addition"
         assert {"from": "trigger_manual", "to": "node_a"} in updated_def["edges"]
+        assert {"from": "trigger_manual", "to": "node_b"} in updated_def["edges"]
         assert {"from": "node_a", "to": "node_b"} in updated_def["edges"]
 
         # Verify edge references correct source and target nodes
@@ -334,8 +341,9 @@ class TestWorkflowDefinitionUpdates:
         assert updated_workflow.current_version == 3
         updated_def = updated_workflow.version.workflow_definition
 
-        assert len(updated_def["edges"]) == 1, "Should have 1 edge after deletion"
+        assert len(updated_def["edges"]) == 2, "Should have 2 edges after deletion (trigger→A, trigger→B)"
         assert {"from": "trigger_manual", "to": "node_a"} in updated_def["edges"]
+        assert {"from": "trigger_manual", "to": "node_b"} in updated_def["edges"]
         assert {"from": "node_a", "to": "node_b"} not in updated_def["edges"]
 
         # Verify nodes remain intact after edge deletion (only edge removed, not nodes)

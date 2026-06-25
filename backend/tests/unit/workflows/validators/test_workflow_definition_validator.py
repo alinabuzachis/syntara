@@ -398,7 +398,7 @@ class TestCollectValidationIssues:
         cycle_errors = [i for i in result.errors if "cycle" in i.message.lower()]
         assert len(cycle_errors) == 1
 
-    def test_orphaned_node_reported_as_warning(self, validator: WorkflowValidator) -> None:
+    def test_orphaned_node_reported_as_error(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
             "schema_version": "2.0.0",
             "name": "orphan",
@@ -410,9 +410,9 @@ class TestCollectValidationIssues:
             "edges": [{"from": "t1", "to": "n1"}],
         }
         result = validator.collect_validation_issues(definition)
-        assert result.valid is True
-        assert len(result.warnings) == 1
-        assert result.warnings[0].node_id == "orphan"
+        assert result.valid is False
+        assert len(result.errors) == 1
+        assert result.errors[0].node_id == "orphan"
 
     def test_schema_validation_errors_collected(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
@@ -553,10 +553,10 @@ class TestCollectFindings:
             "edges": [{"from": "t1", "to": "n1"}],
         }
         result = validator.collect_findings(definition)
-        assert result.is_valid is True
-        assert result.warning_count == 1
+        assert result.is_valid is False
+        assert result.error_count == 1
         finding = result.findings[0]
-        assert finding.severity == ValidationSeverity.warning
+        assert finding.severity == ValidationSeverity.error
         assert finding.category == ValidationCategory.orphaned_node
         assert finding.node_id == "orphan"
 

@@ -374,13 +374,25 @@ def logout_response_body(response: httpx.Response) -> dict[str, Any]:
 
 
 _TOKEN_REFRESH_INTERVAL = 300  # Re-authenticate after 5 minutes (token lifetime is 15 min)
+_REVOCATION_TTL_BUFFER = 15.0  # Slightly longer than server's _CACHE_TTL (10 s)
+
+
+def _is_globally_revoked(response: httpx.Response) -> bool:
+    """Return True when the response is a TOKEN_GLOBALLY_REVOKED 401."""
+    try:
+        return bool(response.json().get("code") == "TOKEN_GLOBALLY_REVOKED")
+    except Exception:
+        return False
 
 
 class _AutoRefreshAuth(httpx.Auth):
     """httpx Auth that proactively and reactively refreshes expired JWT tokens.
 
     Proactive: re-authenticates when the token age exceeds _TOKEN_REFRESH_INTERVAL.
-    Reactive: retries once with a fresh token on any 401 response.
+    Reactive: retries with a fresh token on any 401 response.
+      - TOKEN_GLOBALLY_REVOKED: loops until the revocation TTL window (~10 s) expires,
+        because freshly-issued tokens are also rejected until the cache clears.
+      - Any other 401: retries exactly once (unchanged legacy behaviour).
     """
 
     def __init__(
@@ -418,9 +430,14 @@ class _AutoRefreshAuth(httpx.Auth):
         request.headers["Authorization"] = f"Bearer {self.token}"
         response = yield request
         if response.status_code == 401:
-            self._refresh()
-            request.headers["Authorization"] = f"Bearer {self.token}"
-            yield request
+            deadline = time.monotonic() + _REVOCATION_TTL_BUFFER
+            while True:
+                self._refresh()
+                request.headers["Authorization"] = f"Bearer {self.token}"
+                response = yield request
+                if response.status_code != 401 or not _is_globally_revoked(response) or time.monotonic() >= deadline:
+                    break
+                time.sleep(0.5)
 
 
 MCP_PROVIDER_NAME = "mcp"

@@ -38,7 +38,7 @@ class CredentialFactory(Protocol):
         prefix: str | None = None,
         name: str | None = None,
         type_id: UUID | None = None,
-    ) -> tuple[UUID, str, dict[str, Any]]: ...
+    ) -> tuple[UUID, str, dict[str, Any], str]: ...
 
 
 @pytest.fixture(scope="module")
@@ -52,23 +52,24 @@ def create_credential() -> Generator[CredentialFactory, None, None]:
         prefix: str | None = None,
         name: str | None = None,
         type_id: UUID | None = None,
-    ) -> tuple[UUID, str, dict[str, Any]]:
-        """Create an HTTP Bearer Token credential. Returns ``(credential_id, name, dict)``."""
+    ) -> tuple[UUID, str, dict[str, Any], str]:
+        """Create an HTTP Bearer Token credential. Returns ``(credential_id, name, dict, plaintext_secret)``."""
         prefx = prefix or "test"
         credential_name = name or unique_name(f"e2e-rbac-cred-{prefx}")
+        plaintext_secret = f"test-{credential_name}"
         cred_type_id = type_id or get_bearer_token_type_id(api)
         resp = api.credentials.create(
             body=CredentialCreate(
                 name=credential_name,
                 credential_type_id=cred_type_id,
                 project_id=project_id,
-                inputs=CredentialCreateInputs.from_dict({"token": f"test-{credential_name}"}),
+                inputs=CredentialCreateInputs.from_dict({"token": plaintext_secret}),
             ),
         )
         cred = resp.assert_and_get()
         cred_id = UUID(str(cred.id))
         created.append((api, cred_id))
-        return cred_id, str(cred.name), cred.to_dict()
+        return cred_id, str(cred.name), cred.to_dict(), plaintext_secret
 
     yield _create_credential
 
