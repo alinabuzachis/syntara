@@ -32,35 +32,34 @@ esac
 ASSET="oasdiff_${OASDIFF_VERSION}_${OS}_${ARCH}.tar.gz"
 BASE_URL="https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}"
 
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "$WORK_DIR"' EXIT
+
 # Download
 echo "Downloading ${ASSET}..."
-curl -fsSL "${BASE_URL}/${ASSET}" -o "${ASSET}"
+curl -fsSL "${BASE_URL}/${ASSET}" -o "${WORK_DIR}/${ASSET}"
 
 # Verify checksum
 echo "Verifying checksum..."
-ACTUAL=$(sha256sum "${ASSET}" | awk '{print $1}')
+ACTUAL=$(sha256sum "${WORK_DIR}/${ASSET}" | awk '{print $1}')
 if [ "${EXPECTED_CHECKSUM}" != "${ACTUAL}" ]; then
     echo "ERROR: Checksum verification failed for ${ASSET}"
     echo "Expected: ${EXPECTED_CHECKSUM}"
     echo "Actual:   ${ACTUAL}"
-    rm -f "${ASSET}"
     exit 1
 fi
 
 # Extract and install
 echo "Extracting..."
-tar -xzf "${ASSET}"
+tar -xzf "${WORK_DIR}/${ASSET}" -C "${WORK_DIR}"
 
 # Install to target directory
 if [ -w "$INSTALL_DIR" ]; then
-    mv oasdiff "${INSTALL_DIR}/"
+    mv "${WORK_DIR}/oasdiff" "${INSTALL_DIR}/"
 else
     echo "Insufficient permissions for ${INSTALL_DIR}, using sudo..."
-    sudo mv oasdiff "${INSTALL_DIR}/"
+    sudo mv "${WORK_DIR}/oasdiff" "${INSTALL_DIR}/"
 fi
-
-# Cleanup
-rm -f "${ASSET}"
 
 # Verify installation
 echo "Verifying installation..."
