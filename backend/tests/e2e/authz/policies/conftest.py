@@ -447,6 +447,9 @@ E2E_COVERAGE_EXEMPT: set[str] = {
     "identity-provider:update:any",
     "identity-provider:delete:any",
     "identity-provider:test:any",
+    # Tool management — covered by integration authz tests (test_tools_authz.py)
+    "tool:read:any",
+    "tool:update:any",
     # Integration management — CRUD follows same authz path as credentials
     "integration:create:any",
     "integration:read:any",

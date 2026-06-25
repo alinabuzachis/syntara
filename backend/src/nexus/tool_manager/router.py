@@ -7,10 +7,13 @@ import structlog
 from fastapi import Depends, Query, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import audit
+from nexus.audit.models.audit_event import EventCategory
 from nexus.auth import get_current_user
+from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
+from nexus.core.nexus_router import NexusRouter
 from nexus.tool_manager.models import ToolListParams
 from nexus.tool_manager.models.tool import (
     ToolListResponse,
@@ -21,6 +24,9 @@ from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate
 from nexus.tool_manager.services.tool_service import ToolService
 
 router = NexusRouter(prefix="/tool_manager", tags=["ToolManager"])
+
+_perm_read = PermissionChecker("tool", "read")
+_perm_update = PermissionChecker("tool", "update")
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -38,7 +44,7 @@ def get_tool_service(
     return ToolService(db, current_user)
 
 
-@router.get("/tools", dependencies=[NO_PERMISSION], operation_id="get_tools")
+@router.get("/tools", dependencies=[Depends(_perm_read)], operation_id="get_tools")
 async def get_tools(
     request: Request,
     service: Annotated[ToolService, Depends(get_tool_service)],
@@ -65,9 +71,6 @@ async def get_tools(
         ToolListResponse with tools, pagination metadata, and optional total
 
     """
-    # TODO(manstis): Implement proper admin role checking: AAP-56797
-    # For now, allowing all authenticated users
-
     return await service.list_tools(
         limit=params.limit,
         cursor=params.cursor,
@@ -77,40 +80,33 @@ async def get_tools(
     )
 
 
-@router.get("/tools/{tool_id}", dependencies=[NO_PERMISSION], operation_id="get_tool")
+@router.get("/tools/{tool_id}", dependencies=[Depends(_perm_read)], operation_id="get_tool")
 async def get_tool(
     tool_id: UUID,
     service: Annotated[ToolService, Depends(get_tool_service)],
 ) -> ToolWithParameters:
     """Get tool details by ID."""
-    # TODO(manstis): Implement proper admin role checking: AAP-56797
-    # For now, allowing all authenticated users
-
     return await service.get_tool_detail(tool_id)
 
 
-@router.patch("/tools/bulk_update", dependencies=[NO_PERMISSION], operation_id="bulk_update_tools")
+@router.patch("/tools/bulk_update", dependencies=[Depends(_perm_update)], operation_id="bulk_update_tools")
+@audit(EventCategory.USER_ACTION, event_action="tool_bulk_update")
 async def bulk_update_tools(
     bulk_update: ToolBulkUpdate,
     service: Annotated[ToolService, Depends(get_tool_service)],
 ) -> dict[str, Any]:
     """Bulk update tool status (enable/disable multiple tools)."""
-    # TODO(manstis): Implement proper admin role checking: AAP-56797
-    # For now, allowing all authenticated users
-
     return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
 
 
-@router.patch("/tools/{tool_id}", dependencies=[NO_PERMISSION], operation_id="patch_tool")
+@router.patch("/tools/{tool_id}", dependencies=[Depends(_perm_update)], operation_id="patch_tool")
+@audit(EventCategory.USER_ACTION, event_action="tool_update", capture_args={"tool_id"})
 async def patch_tool(
     tool_id: UUID,
     tool_update: ToolUpdate,
     service: Annotated[ToolService, Depends(get_tool_service)],
 ) -> ToolWithParameters:
     """Update tool status (enable/disable)."""
-    # TODO(manstis): Implement proper admin role checking: AAP-56797
-    # For now, allowing all authenticated users
-
     return await service.update_tool(
         tool_id,
         tool_update,

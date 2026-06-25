@@ -93,8 +93,11 @@ BUILTIN_POLICIES: list[PolicyInfo] = [
     PolicyInfo("credential", "create", roles=("admin",)),
     PolicyInfo("credential", "update", roles=("admin",)),
     PolicyInfo("credential", "delete", roles=("admin",)),
+    # tools
+    PolicyInfo("tool", "read", roles=("admin", "auditor", "user")),
+    PolicyInfo("tool", "update", roles=("admin",)),
     # integrations
-    PolicyInfo("integration", "read", roles=("admin", "auditor")),
+    PolicyInfo("integration", "read", roles=("admin", "auditor", "user")),
     PolicyInfo("integration", "create", roles=("admin",)),
     PolicyInfo("integration", "update", roles=("admin",)),
     PolicyInfo("integration", "delete", roles=("admin",)),

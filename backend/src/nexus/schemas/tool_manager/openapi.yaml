@@ -40,8 +40,8 @@ paths:
             ToolListResponse with tools, pagination metadata, and optional total
       operationId: get_tools
       x-app-permission:
-        resource: null
-        action: null
+        resource: tool
+        action: read
       parameters:
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
@@ -79,8 +79,8 @@ paths:
       description: Get tool details by ID.
       operationId: get_tool
       x-app-permission:
-        resource: null
-        action: null
+        resource: tool
+        action: read
       parameters:
         - name: tool_id
           in: path
@@ -120,8 +120,8 @@ paths:
       description: Update tool status (enable/disable).
       operationId: patch_tool
       x-app-permission:
-        resource: null
-        action: null
+        resource: tool
+        action: update
       parameters:
         - name: tool_id
           in: path
@@ -168,8 +168,8 @@ paths:
       description: Bulk update tool status (enable/disable multiple tools).
       operationId: bulk_update_tools
       x-app-permission:
-        resource: null
-        action: null
+        resource: tool
+        action: update
       requestBody:
         required: true
         content:
