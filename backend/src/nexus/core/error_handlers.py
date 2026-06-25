@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 logger = structlog.stdlib.get_logger(__name__)
 
 _INSTANCE_MAX_LEN = 2048
+_DETAIL_MAX_LEN = 2000  # must match ErrorData.detail max_length
 
 INTERNAL_SERVER_ERROR: str = "Internal Server Error"
 REQUEST_VALIDATION_ERROR: str = "Request Validation Error"
@@ -186,6 +187,10 @@ def create_problem_details_response(
     # Truncate instance URI to fit ErrorData max_length (OIDC callbacks can have very long query strings)
     if instance and len(instance) > _INSTANCE_MAX_LEN:
         instance = instance[:_INSTANCE_MAX_LEN]
+
+    # Truncate detail to fit ErrorData max_length (concatenated validation errors can exceed it)
+    if len(detail) > _DETAIL_MAX_LEN:
+        detail = detail[: _DETAIL_MAX_LEN - 3] + "..."
 
     error_data = ErrorData(
         type=problem_type,

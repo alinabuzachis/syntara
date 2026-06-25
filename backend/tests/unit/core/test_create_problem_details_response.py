@@ -135,3 +135,50 @@ class TestCreateProblemDetailsResponse:
             code="VALIDATION_ERROR",
         )
         assert response.media_type == "application/problem+json"
+
+    def test_detail_truncated_when_exceeding_max_length(self) -> None:
+        """Test that detail is truncated with ellipsis when it exceeds max length."""
+        long_detail = "x" * 3000
+
+        response = create_problem_details_response(
+            status_code=422,
+            problem_type=PROBLEM_TYPES["validation_error"],
+            title="Validation Error",
+            detail=long_detail,
+            code="VALIDATION_ERROR",
+        )
+
+        data = json.loads(bytes(response.body).decode())
+        assert len(data["detail"]) == 2000
+        assert data["detail"].endswith("...")
+
+    def test_detail_preserved_when_within_max_length(self) -> None:
+        """Test that detail is not truncated when within limits."""
+        detail = "Short error message"
+
+        response = create_problem_details_response(
+            status_code=422,
+            problem_type=PROBLEM_TYPES["validation_error"],
+            title="Validation Error",
+            detail=detail,
+            code="VALIDATION_ERROR",
+        )
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["detail"] == detail
+
+    def test_detail_at_exact_max_length_is_not_truncated(self) -> None:
+        """Test that detail at exactly max length is preserved."""
+        detail = "x" * 2000
+
+        response = create_problem_details_response(
+            status_code=422,
+            problem_type=PROBLEM_TYPES["validation_error"],
+            title="Validation Error",
+            detail=detail,
+            code="VALIDATION_ERROR",
+        )
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["detail"] == detail
+        assert len(data["detail"]) == 2000

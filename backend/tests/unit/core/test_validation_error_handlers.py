@@ -106,6 +106,32 @@ class TestValidationErrorHandler:
         # "body" is stripped from the path as noise
         assert "user -> profile -> settings -> theme: Invalid theme" in data["detail"]
 
+    def test_many_errors_truncated_not_meta_error(self) -> None:
+        """Test that many validation errors produce a truncated detail, not a meta-validation error.
+
+        Regression test for AAP-79930: when concatenated error messages exceeded 2000 chars,
+        ErrorData construction failed and users saw "detail: String should have at most 2000
+        characters" instead of the actual validation errors.
+        """
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/workflows"
+
+        exc = Mock(spec=PydanticValidationError)
+        exc.errors.return_value = [
+            {"loc": (f"nodes_{i}", "parameters", "code"), "msg": f"Invalid parameter value for node {i}"}
+            for i in range(100)
+        ]
+
+        with patch("nexus.core.error_handlers.logger.error"):
+            response = validation_error_handler(request, exc)
+
+        assert response.status_code == 422
+        data = json.loads(bytes(response.body).decode())
+        assert len(data["detail"]) <= 2000
+        assert data["detail"].startswith("Validation failed: ")
+        assert data["detail"].endswith("...")
+        assert "String should have at most 2000 characters" not in data["detail"]
+
     @pytest.mark.parametrize(
         ("error_data", "expected_field"),
         [
