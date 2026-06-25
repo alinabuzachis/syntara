@@ -14,6 +14,7 @@ import {
   MenuList,
   MenuToggle,
   Nav,
+  NavContext,
   NavItem,
   NavList,
   Toolbar,
@@ -31,7 +32,7 @@ import {
   RhUiProfileFillIcon,
   RhUiQuestionMarkCircleIcon,
 } from '@patternfly/react-icons'
-import { useMemo, useRef, useState } from 'react'
+import { useContext, useMemo, useRef, useState } from 'react'
 
 import { authClient } from '../client'
 import { useLocation } from '../hooks/routing/useLocation'
@@ -93,10 +94,13 @@ function NavDropdownItem({
   requestNavigation: (path: string) => void
 }>) {
   const enabledChildren = item.children?.filter((child) => !!child.element) ?? []
+  const { setFlyoutRef } = useContext(NavContext)
 
   const onMenuSelect = (_event: React.MouseEvent | undefined, itemId: string | number | undefined) => {
     const child = enabledChildren.find((c) => c.path === itemId)
     if (child) {
+      // dismiss the flyout panel before navigating
+      setFlyoutRef?.(null)
       requestNavigation(child.element ? child.path : findFirstEnabledPath(child))
     }
   }
